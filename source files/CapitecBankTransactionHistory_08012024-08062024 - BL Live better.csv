@@ -1,6 +1,5 @@
 sep=,
 Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
-1791077844,01/01/2024,69632813402,FINANCIAL,"","Interest Sweep",,7.35,"LB Interest sweep | DEC 2023",71.43
 1791077844,08/01/2024,69948862517,FINANCIAL,"","Round-up Transfer",,0.47,"Round-up Transfer",71.90
 1791077844,09/01/2024,69988061681,FINANCIAL,"","Round-up Transfer",,0.01,"Round-up Transfer",71.91
 1791077844,10/01/2024,70020231082,FINANCIAL,"","Dis-Chem Rewards",,0.60,"Dis-Chem",72.51
@@ -33,3 +32,5 @@ Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,Debi
 1791077844,07/05/2024,75920690496,FINANCIAL,"","Round-up Transfer",,0.90,"Round-up Transfer",134.92
 1791077844,31/05/2024,77104110192,FINANCIAL,"","Interest Received",,0.48,"",135.40
 1791077844,01/06/2024,77169058046,FINANCIAL,"","Interest Sweep",,7.46,"LB Interest sweep | MAY 2024",142.86
+1791077844,04/06/2024,77356130760,FINANCIAL,"","Round-up Transfer",,8.46,"Round-up Transfer",151.32
+1791077844,06/06/2024,77459463869,FINANCIAL,"","Round-up Transfer",,6.00,"Round-up Transfer",157.32

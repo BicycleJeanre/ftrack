@@ -1,9 +1,5 @@
 sep=,
 Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
-1928213578,01/01/2024,69637137919,FINANCIAL,"","Interest Sweep",,16.35,"LB Interest sweep | DEC 2023",3889.17
-1928213578,01/01/2024,69640525135,FINANCIAL,"","Round-up Transfer",,1.50,"Round-up Transfer",3890.67
-1928213578,02/01/2024,69690119318,FINANCIAL,"","Round-up Transfer",,3.77,"Round-up Transfer",3894.44
-1928213578,05/01/2024,69822425295,FINANCIAL,"","Round-up Transfer",,2.29,"Round-up Transfer",3896.73
 1928213578,09/01/2024,69987633860,FINANCIAL,"","Round-up Transfer",,4.63,"Round-up Transfer",3901.36
 1928213578,10/01/2024,70019166579,FINANCIAL,"","Bank Better Cash Back (Dec 2023)",,84.72,"Bank Better Cash Back | DEC 2023",3986.08
 1928213578,10/01/2024,70020054838,FINANCIAL,"","Credit Card Cash Back (Dec 2023)",,108.50,"Credit Card Cash Back | DEC 2023",4094.58
@@ -40,7 +36,7 @@ Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,Debi
 1928213578,12/03/2024,73030504489,FINANCIAL,"","Round-up Transfer",,4.80,"Round-up Transfer",4461.01
 1928213578,13/03/2024,73063849583,FINANCIAL,"","Round-up Transfer",,6.40,"Round-up Transfer",4467.41
 1928213578,14/03/2024,73103530295,FINANCIAL,"","Round-up Transfer",,1.00,"Round-up Transfer",4468.41
-1928213578,17/03/2024,73252326693,FINANCIAL,"","Banking App Transfer from Live Better Savings Account to Savings Account (1421945264)",500.00,,"",3968.41
+1928213578,17/03/2024,73252326693,FINANCIAL,"","Banking App Transfer to Savings Account (1421945264)",500.00,,"",3968.41
 1928213578,29/03/2024,73810173517,FINANCIAL,"","Round-up Transfer",,9.83,"Round-up Transfer",3978.24
 1928213578,31/03/2024,73991248956,FINANCIAL,"","Interest Received",,15.98,"",3994.22
 1928213578,01/04/2024,74048854950,FINANCIAL,"","Interest Sweep",,12.15,"LB Interest sweep | MAR 2024",4006.37
@@ -49,7 +45,7 @@ Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,Debi
 1928213578,09/04/2024,74479768584,FINANCIAL,"","Round-up Transfer",,8.14,"Round-up Transfer",4055.27
 1928213578,10/04/2024,74517211141,FINANCIAL,"","Credit Card Cash Back (Mar 2024)",,58.83,"Credit Card Cash Back | MAR 2024",4114.10
 1928213578,13/04/2024,74634067797,FINANCIAL,"","Round-up Transfer",,1.00,"Round-up Transfer",4115.10
-1928213578,18/04/2024,74843091002,FINANCIAL,"","Banking App Transfer from Live Better Savings Account to Savings Account (1421945264)",200.00,,"",3915.10
+1928213578,18/04/2024,74843091002,FINANCIAL,"","Banking App Transfer to Savings Account (1421945264)",200.00,,"",3915.10
 1928213578,30/04/2024,75420712755,FINANCIAL,"","Round-up Transfer",,7.87,"Round-up Transfer",3922.97
 1928213578,30/04/2024,75490665999,FINANCIAL,"","Interest Received",,13.79,"",3936.76
 1928213578,01/05/2024,75555891895,FINANCIAL,"","Interest Sweep",,12.19,"LB Interest sweep | APR 2024",3948.95
@@ -67,3 +63,5 @@ Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,Debi
 1928213578,31/05/2024,77025151417,FINANCIAL,"","Round-up Transfer",,7.04,"Round-up Transfer",4014.63
 1928213578,31/05/2024,77087566887,FINANCIAL,"","Interest Received",,14.19,"",4028.82
 1928213578,01/06/2024,77164018847,FINANCIAL,"","Interest Sweep",,15.20,"LB Interest sweep | MAY 2024",4044.02
+1928213578,04/06/2024,77354019430,FINANCIAL,"","Round-up Transfer",,18.41,"Round-up Transfer",4062.43
+1928213578,06/06/2024,77456690993,FINANCIAL,"","Round-up Transfer",,1.01,"Round-up Transfer",4063.44

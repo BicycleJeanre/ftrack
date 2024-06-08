@@ -514,7 +514,7 @@
       <method>none</method>
       <schema_name/>
     </partitioning>
-    <join_type>INNER</join_type>
+    <join_type>FULL OUTER</join_type>
     <step1>Retained amount balances</step1>
     <step2>Retained budget amount balances</step2>
     <keys_1>
@@ -555,39 +555,52 @@
       <schema_name/>
     </partitioning>
     <connection>BIDEV - Jeanre Personal</connection>
-    <sql>with ret_balance as 
+    <sql>with account_totals as(
+	select 
+		budget_month_id
+	,	account
+	,	movement
+	,	sum(amount) as amount
+	,	dense_rank() over (order by budget_month_id) as month_rank
+	from
+		trn_budget_transaction_combined
+	where
+		movement not like 'Subtotal'
+--	and
+--		account = 'Jeanre Transactional'
+	group by
+		budget_month_id
+	,	account
+	,	movement	
+)
+, ret_balance as 
 (
 select	
 		budget_month_id
 	,	account
 	,	credit_amount - debit_amount as amount
-	,	dense_rank() over (order by budget_month_id) as month_rank
+	,	coalesce(sum(credit_amount_previous_month - debit_amount_previous_month) over (partition by account order by budget_month_id rows between unbounded PRECEDING and current row), 0.0) as prev_month_amount
+	,	month_rank
 	from
 	(
 		select	distinct
-			budget_month_id
-		,	account
-		,	sum(case movement when 'Credit' then amount end) as credit_amount
-		,	sum(case movement when 'Debit' then amount end) as debit_amount
+			a.budget_month_id
+		,	a.account
+		,	a.month_rank
+		,	sum(case b.movement when 'Credit' then b.amount end) as credit_amount_previous_month
+		,	sum(case b.movement when 'Debit' then b.amount end) as debit_amount_previous_month
+		,	sum(case a.movement when 'Credit' then a.amount end) as credit_amount
+		,	sum(case a.movement when 'Debit' then a.amount end) as debit_amount
+		,	sum(case when a.movement = 'Credit' and b.movement = 'Credit' then a.amount + b.amount end) as credit_amount_1
+		,	sum(case when a.movement = 'Debit' and b.movement = 'Credit' then a.amount + b.amount end) as debit_amount_1
 		from
-		(
-			select 
-				budget_month_id
-			,	account
-			,	movement
-			,	sum(amount) as amount
-			from
-				trn_budget_transaction_combined
-			where
-				movement not like 'Subtotal'
-			group by
-				budget_month_id
-			,	account
-			,	movement	
-		) a
+			account_totals a
+		left join
+			account_totals b on a.month_rank = b.month_rank+1 and a.account = b.account and a.movement = b.movement
 		group by
-			budget_month_id 
-		,	account
+			a.budget_month_id 
+		,	a.account
+		,	a.month_rank
 	) b
 	order by
 		1,2
@@ -596,8 +609,11 @@ select
 	b.budget_month_id
 ,	a.account
 ,	'Retained Balance' as account_secondary
-,	case when a.amount &lt; 0 then 'Debit' else 'Credit' end as movement
-, 	case when a.amount &lt; 0 then a.amount * -1 else a.amount end as amount
+,	case when a.amount + a.prev_month_amount &lt; 0 then 'Debit' else 'Credit' end as movement
+, 	case when (a.amount + a.prev_month_amount) &lt; 0 then ((a.amount + a.prev_month_amount) * -1) else (a.amount + a.prev_month_amount) end as amount
+--,	a.amount
+--,	b.amount
+--,	a.amount + b.amount
 ,	null as budget_amount
 ,	null as branch
 ,	'Retained Balance Calculations' as source_file_name
@@ -611,7 +627,9 @@ select
 from
 	ret_balance a
 join
-	(select distinct budget_month_id, month_rank from ret_balance) b on a.month_rank = b.month_rank - 1
+	(select distinct budget_month_id, month_rank, amount, account from ret_balance) b on a.month_rank = b.month_rank - 1 and a.account = b.account
+--where
+--	a.account = 'Jeanre Transactional'
 order by
 	1,2,3,4</sql>
     <limit>0</limit>
@@ -741,7 +759,7 @@ order by
         <storagetype>normal</storagetype>
         <name>budget_amount</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained amount balances</origin>
         <comments>budget_amount</comments>
         <conversion_Mask/>
@@ -764,7 +782,7 @@ order by
         <storagetype>normal</storagetype>
         <name>branch</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained amount balances</origin>
         <comments>branch</comments>
         <conversion_Mask/>
@@ -787,7 +805,7 @@ order by
         <storagetype>normal</storagetype>
         <name>source_file_name</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained amount balances</origin>
         <comments>source_file_name</comments>
         <conversion_Mask/>
@@ -810,7 +828,7 @@ order by
         <storagetype>normal</storagetype>
         <name>journal_number</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained amount balances</origin>
         <comments>journal_number</comments>
         <conversion_Mask/>
@@ -833,7 +851,7 @@ order by
         <storagetype>normal</storagetype>
         <name>narrative</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained amount balances</origin>
         <comments>narrative</comments>
         <conversion_Mask/>
@@ -925,7 +943,7 @@ order by
         <storagetype>normal</storagetype>
         <name>transaction_description</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained amount balances</origin>
         <comments>transaction_description</comments>
         <conversion_Mask/>
@@ -948,7 +966,7 @@ order by
         <storagetype>normal</storagetype>
         <name>transaction_type</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained amount balances</origin>
         <comments>transaction_type</comments>
         <conversion_Mask/>
@@ -993,39 +1011,52 @@ order by
       <schema_name/>
     </partitioning>
     <connection>BIDEV - Jeanre Personal</connection>
-    <sql>with ret_balance as 
+    <sql>with account_totals as(
+	select 
+		budget_month_id
+	,	account
+	,	movement
+	,	sum(budget_amount) as budget_amount
+	,	dense_rank() over (order by budget_month_id) as month_rank
+	from
+		trn_budget_transaction_combined
+	where
+		movement not like 'Subtotal'
+--	and
+--		account = 'Jeanre Transactional'
+	group by
+		budget_month_id
+	,	account
+	,	movement	
+)
+, ret_balance as 
 (
 select	
 		budget_month_id
 	,	account
-	,	credit_amount - debit_amount as budget_amount
-	,	dense_rank() over (order by budget_month_id) as month_rank
+	,	credit_budget_amount - debit_budget_amount as budget_amount
+	,	coalesce(sum(credit_budget_amount_previous_month - debit_budget_amount_previous_month) over (partition by account order by budget_month_id rows between unbounded PRECEDING and current row), 0.0) as prev_month_budget_amount
+	,	month_rank
 	from
 	(
 		select	distinct
-			budget_month_id
-		,	account
-		,	sum(case movement when 'Credit' then budget_amount end) as credit_amount
-		,	sum(case movement when 'Debit' then budget_amount end) as debit_amount
+			a.budget_month_id
+		,	a.account
+		,	a.month_rank
+		,	sum(case b.movement when 'Credit' then b.budget_amount end) as credit_budget_amount_previous_month
+		,	sum(case b.movement when 'Debit' then b.budget_amount end) as debit_budget_amount_previous_month
+		,	sum(case a.movement when 'Credit' then a.budget_amount end) as credit_budget_amount
+		,	sum(case a.movement when 'Debit' then a.budget_amount end) as debit_budget_amount
+		,	sum(case when a.movement = 'Credit' and b.movement = 'Credit' then a.budget_amount + b.budget_amount end) as credit_budget_amount_1
+		,	sum(case when a.movement = 'Debit' and b.movement = 'Credit' then a.budget_amount + b.budget_amount end) as debit_budget_amount_1
 		from
-		(
-			select 
-				budget_month_id
-			,	account
-			,	movement
-			,	sum(budget_amount) as budget_amount
-			from
-				trn_budget_transaction_combined
-			where
-				movement not like 'Subtotal'
-			group by
-				budget_month_id
-			,	account
-			,	movement	
-		) a
+			account_totals a
+		left join
+			account_totals b on a.month_rank = b.month_rank+1 and a.account = b.account and a.movement = b.movement
 		group by
-			budget_month_id 
-		,	account
+			a.budget_month_id 
+		,	a.account
+		,	a.month_rank
 	) b
 	order by
 		1,2
@@ -1034,8 +1065,8 @@ select
 	b.budget_month_id
 ,	a.account
 ,	'Retained Balance' as account_secondary
-,	case when a.budget_amount &lt; 0 then 'Debit' else 'Credit' end as movement
-, 	case when a.budget_amount &lt; 0 then a.budget_amount * -1 else a.budget_amount end as budget_amount
+,	case when a.budget_amount + a.prev_month_budget_amount &lt; 0 then 'Debit' else 'Credit' end as movement
+, 	case when (a.budget_amount + a.prev_month_budget_amount) &lt; 0 then ((a.budget_amount + a.prev_month_budget_amount) * -1) else (a.budget_amount + a.prev_month_budget_amount) end as budget_amount
 ,	null as amount
 ,	null as branch
 ,	'Retained Balance Calculations' as source_file_name
@@ -1049,7 +1080,9 @@ select
 from
 	ret_balance a
 join
-	(select distinct budget_month_id, month_rank from ret_balance) b on a.month_rank = b.month_rank - 1
+	(select distinct budget_month_id, month_rank, budget_amount, account from ret_balance) b on a.month_rank = b.month_rank - 1 and a.account = b.account
+--where
+--	a.account = 'Jeanre Transactional'
 order by
 	1,2,3,4</sql>
     <limit>0</limit>
@@ -1179,7 +1212,7 @@ order by
         <storagetype>normal</storagetype>
         <name>amount</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained budget amount balances</origin>
         <comments>amount</comments>
         <conversion_Mask/>
@@ -1202,7 +1235,7 @@ order by
         <storagetype>normal</storagetype>
         <name>branch</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained budget amount balances</origin>
         <comments>branch</comments>
         <conversion_Mask/>
@@ -1225,7 +1258,7 @@ order by
         <storagetype>normal</storagetype>
         <name>source_file_name</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained budget amount balances</origin>
         <comments>source_file_name</comments>
         <conversion_Mask/>
@@ -1248,7 +1281,7 @@ order by
         <storagetype>normal</storagetype>
         <name>journal_number</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained budget amount balances</origin>
         <comments>journal_number</comments>
         <conversion_Mask/>
@@ -1271,7 +1304,7 @@ order by
         <storagetype>normal</storagetype>
         <name>narrative</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained budget amount balances</origin>
         <comments>narrative</comments>
         <conversion_Mask/>
@@ -1363,7 +1396,7 @@ order by
         <storagetype>normal</storagetype>
         <name>transaction_description</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained budget amount balances</origin>
         <comments>transaction_description</comments>
         <conversion_Mask/>
@@ -1386,7 +1419,7 @@ order by
         <storagetype>normal</storagetype>
         <name>transaction_type</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>Retained budget amount balances</origin>
         <comments>transaction_type</comments>
         <conversion_Mask/>
@@ -1414,7 +1447,7 @@ order by
       </output>
     </remotesteps>
     <GUI>
-      <xloc>208</xloc>
+      <xloc>176</xloc>
       <yloc>464</yloc>
       <draw>Y</draw>
     </GUI>

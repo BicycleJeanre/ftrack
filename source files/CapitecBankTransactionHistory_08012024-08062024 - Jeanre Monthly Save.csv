@@ -1,7 +1,5 @@
 sep=,
 Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
-1421952910,04/01/2024,69785912651,FINANCIAL,"","Banking App External Payment: Dr Verster And Partn",891.00,,"DR VERSTER AND PARTN",3153.21
-1421952910,04/01/2024,69785912654,FINANCIAL,"","External Payment Fee",2.00,,"",3151.21
 1421952910,13/01/2024,70142003578,FINANCIAL,"","Banking App Transfer to Credit Card (6002709354) Transfer",1000.00,,"Transfer",2151.21
 1421952910,15/01/2024,70217902952,FINANCIAL,"","Banking App External Payment: De La Port Physio",767.50,,"DE LA PORT PHYSIO",1383.71
 1421952910,15/01/2024,70217902953,FINANCIAL,"","External Payment Fee",2.00,,"",1381.71

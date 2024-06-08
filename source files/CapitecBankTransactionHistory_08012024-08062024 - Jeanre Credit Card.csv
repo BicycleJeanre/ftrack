@@ -1,6 +1,5 @@
 sep=,
 Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
-6002709354,01/01/2024,69655630197,FINANCIAL,"","Tops Stilfontein (Card 4089)",426.23,,"Tops Scott Crescent    Stilfontein    ZA",-8787.54
 6002709354,08/01/2024,69953260411,FINANCIAL,"","Spar Stilfontein (Card 4089)",435.37,,"Spar Scott Cresent     Stilfontein    ZA",-9222.91
 6002709354,09/01/2024,69989380155,FINANCIAL,"","Recurring Card Purchase: Ggservers Ltd. Downtown Toro (Card 4089)",113.83,,"GGSERVERS LTD.         DOWNTOWN TOROONCA",-9336.74
 6002709354,09/01/2024,69989380168,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Ggservers Ltd.",3.00,,"GGSERVERS LTD.         +16476099405   CA|REC_RECURRING_TXN",-9339.74

@@ -344,7 +344,7 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>0</nr>
-      <xloc>375</xloc>
+      <xloc>385</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -356,7 +356,7 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>0</nr>
-      <xloc>2223</xloc>
+      <xloc>2554</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -395,7 +395,7 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>1</nr>
-      <xloc>606</xloc>
+      <xloc>626</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -434,7 +434,7 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>3</nr>
-      <xloc>1068</xloc>
+      <xloc>1349</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -473,7 +473,7 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>1</nr>
-      <xloc>1299</xloc>
+      <xloc>1590</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -512,7 +512,7 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>2</nr>
-      <xloc>1520</xloc>
+      <xloc>1831</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -551,7 +551,7 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>1</nr>
-      <xloc>1761</xloc>
+      <xloc>2072</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -590,7 +590,7 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>2</nr>
-      <xloc>1992</xloc>
+      <xloc>2313</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -629,7 +629,46 @@
       <parallel>N</parallel>
       <draw>Y</draw>
       <nr>2</nr>
-      <xloc>832</xloc>
+      <xloc>1108</xloc>
+      <yloc>128</yloc>
+      <attributes_kjc/>
+    </entry>
+    <entry>
+      <name>trn-transactions-account-secondary</name>
+      <description/>
+      <type>TRANS</type>
+      <attributes/>
+      <specification_method>filename</specification_method>
+      <trans_object_id/>
+      <filename>${Internal.Entry.Current.Directory}/trn-transactions-account-secondary.ktr</filename>
+      <transname/>
+      <arg_from_previous>N</arg_from_previous>
+      <params_from_previous>N</params_from_previous>
+      <exec_per_row>N</exec_per_row>
+      <clear_rows>N</clear_rows>
+      <clear_files>N</clear_files>
+      <set_logfile>N</set_logfile>
+      <logfile/>
+      <logext/>
+      <add_date>N</add_date>
+      <add_time>N</add_time>
+      <loglevel>Basic</loglevel>
+      <cluster>N</cluster>
+      <slave_server_name/>
+      <set_append_logfile>N</set_append_logfile>
+      <wait_until_finished>Y</wait_until_finished>
+      <follow_abort_remote>N</follow_abort_remote>
+      <create_parent_folder>N</create_parent_folder>
+      <logging_remote_work>N</logging_remote_work>
+      <run_configuration>Pentaho local</run_configuration>
+      <suppress_result_data>N</suppress_result_data>
+      <parameters>
+        <pass_all_parameters>Y</pass_all_parameters>
+      </parameters>
+      <parallel>N</parallel>
+      <draw>Y</draw>
+      <nr>1</nr>
+      <xloc>864</xloc>
       <yloc>128</yloc>
       <attributes_kjc/>
     </entry>
@@ -699,19 +738,28 @@
       <unconditional>N</unconditional>
     </hop>
     <hop>
-      <from>trn-transaction-start-balances</from>
-      <to>trn-transactions-double-entry</to>
-      <from_nr>1</from_nr>
-      <to_nr>2</to_nr>
+      <from>trn-transactions-double-entry</from>
+      <to>trn-transactions-split-debit-credit</to>
+      <from_nr>2</from_nr>
+      <to_nr>3</to_nr>
       <enabled>Y</enabled>
       <evaluation>Y</evaluation>
       <unconditional>N</unconditional>
     </hop>
     <hop>
-      <from>trn-transactions-double-entry</from>
-      <to>trn-transactions-split-debit-credit</to>
-      <from_nr>2</from_nr>
-      <to_nr>3</to_nr>
+      <from>trn-transaction-start-balances</from>
+      <to>trn-transactions-account-secondary</to>
+      <from_nr>1</from_nr>
+      <to_nr>1</to_nr>
+      <enabled>Y</enabled>
+      <evaluation>Y</evaluation>
+      <unconditional>N</unconditional>
+    </hop>
+    <hop>
+      <from>trn-transactions-account-secondary</from>
+      <to>trn-transactions-double-entry</to>
+      <from_nr>1</from_nr>
+      <to_nr>2</to_nr>
       <enabled>Y</enabled>
       <evaluation>Y</evaluation>
       <unconditional>N</unconditional>
