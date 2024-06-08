@@ -1,0 +1,16 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+1817797296,19/01/2024,70384490107,FINANCIAL,"","Banking App Transfer to Credit Card (6010640066) Transfer",600.00,,"Transfer",16760.78
+1817797296,26/01/2024,70676531590,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,2000.00,"Transfer",18760.78
+1817797296,27/01/2024,70715452528,FINANCIAL,"","Banking App Immediate Payment Jeanre Van Wyk",500.00,,"JEANRE VAN WYK",18260.78
+1817797296,27/01/2024,70715452556,FINANCIAL,"","Immediate Payment Fee",1.00,,"",18259.78
+1817797296,31/01/2024,71022925458,FINANCIAL,"","Interest Received",,51.63,"",18311.41
+1817797296,10/02/2024,71518414895,FINANCIAL,"","Banking App Immediate Payment Jeanre Van Wyk",200.00,,"JEANRE VAN WYK",18111.41
+1817797296,10/02/2024,71518414899,FINANCIAL,"","Immediate Payment Fee",1.00,,"",18110.41
+1817797296,25/02/2024,72126476778,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,800.00,"Transfer",18910.41
+1817797296,29/02/2024,72428498874,FINANCIAL,"","Interest Received",,50.78,"",18961.19
+1817797296,18/03/2024,73281315623,FINANCIAL,"","Banking App Transfer to Savings Account (1678993059) Transfer",2700.00,,"Transfer",16261.19
+1817797296,26/03/2024,73644162285,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,800.00,"Transfer",17061.19
+1817797296,31/03/2024,74014449167,FINANCIAL,"","Interest Received",,53.05,"",17114.24
+1817797296,30/04/2024,75509338010,FINANCIAL,"","Interest Received",,44.89,"",17159.13
+1817797296,31/05/2024,77104110281,FINANCIAL,"","Interest Received",,46.51,"",17205.64
