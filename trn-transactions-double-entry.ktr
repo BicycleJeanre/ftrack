@@ -508,6 +508,7 @@
     <sql>select 
 	coalesce(debits.account_debit, credits.account_debit) as account_debit
 ,	coalesce(debits.account_credit, credits.account_credit) as account_credit
+,	coalesce(debits.account_debit_number, credits.account_credit_number) as account_number
 ,	coalesce(debits.amount, credits.amount) as amount
 ,	coalesce(debits.transaction_date, credits.transaction_date) as transaction_date
 ,	coalesce(debits.journal_number, credits.journal_number) as journal_number
@@ -523,6 +524,7 @@ from
 (
 	select 
 		account as account_debit
+	,	account_number as account_debit_number
 	,	account_secondary as account_credit
 	,	debit_amount as amount
 	,	transaction_date
@@ -538,6 +540,8 @@ from
 		trn_transactions_account_secondary
 	where
 		credit_amount = 0.0
+	or
+		credit_amount is null
 	--and
 		--transaction_date = '2024-01-26'
 ) debits
@@ -545,6 +549,7 @@ full outer join
 (
 	select 
 		account as account_credit
+	,	account_number as account_credit_number
 	,	account_secondary as account_debit
 	,	credit_amount as amount
 	,	transaction_date
@@ -560,6 +565,8 @@ full outer join
 		trn_transactions_account_secondary
 	where
 		credit_amount &lt;&gt; 0.0
+	and
+		credit_amount is not null
 	and
 		transaction_description not like '%Payment Received B Labuschagne%'
 	--and
@@ -604,6 +611,29 @@ full outer join
         <precision>-1</precision>
         <origin>trn_transactions_account_secondary</origin>
         <comments>account_credit</comments>
+        <conversion_Mask/>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol>,</grouping_symbol>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
+      <value-meta>
+        <type>String</type>
+        <storagetype>normal</storagetype>
+        <name>account_number</name>
+        <length>2147483647</length>
+        <precision>-1</precision>
+        <origin>trn_transactions_account_secondary</origin>
+        <comments>account_number</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
         <grouping_symbol>,</grouping_symbol>
@@ -900,6 +930,10 @@ full outer join
       <field>
         <column_name>account_credit</column_name>
         <stream_name>account_credit</stream_name>
+      </field>
+      <field>
+        <column_name>account_number</column_name>
+        <stream_name>account_number</stream_name>
       </field>
       <field>
         <column_name>amount</column_name>

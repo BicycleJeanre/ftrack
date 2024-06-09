@@ -790,8 +790,8 @@
       <method>none</method>
       <schema_name/>
     </partitioning>
-    <field_to_use>account</field_to_use>
-    <target_field/>
+    <field_to_use>account_number</field_to_use>
+    <target_field>account</target_field>
     <non_match_default/>
     <fields>
       <field>
@@ -844,7 +844,7 @@
       </field>
       <field>
         <source_value>1421952910</source_value>
-        <target_value>Jeanre Monthly Save</target_value>
+        <target_value>Personal Wealth</target_value>
       </field>
     </fields>
     <attributes/>
@@ -877,7 +877,7 @@
     <compare>
       <condition>
         <negated>N</negated>
-        <leftvalue>account</leftvalue>
+        <leftvalue>account_number</leftvalue>
         <function>&lt;></function>
         <rightvalue/>
         <value>
@@ -960,7 +960,7 @@
     <enclosure/>
     <fields>
       <field>
-        <name>account</name>
+        <name>account_number</name>
         <id/>
         <idrem>N</idrem>
         <type>String</type>
@@ -1156,6 +1156,10 @@
       <field>
         <column_name>account</column_name>
         <stream_name>account</stream_name>
+      </field>
+      <field>
+        <column_name>account_number</column_name>
+        <stream_name>account_number</stream_name>
       </field>
       <field>
         <column_name>transaction_date</column_name>

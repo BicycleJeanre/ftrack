@@ -538,6 +538,7 @@
     <sql>select * from (
 select
 	coalesce(trn.account, bud.account) as account
+,	trn.account_number as account_number
 ,	coalesce(trn.account_secondary, bud.account_secondary) as account_secondary
 ,	coalesce(trn.budget_month_id, bud.budget_month_id) as budget_month_id
 ,	coalesce(trn.movement, bud.movement) as movement
@@ -588,6 +589,29 @@ order by
         <precision>-1</precision>
         <origin>Budget Transaction Combined</origin>
         <comments>account</comments>
+        <conversion_Mask/>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol>,</grouping_symbol>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
+      <value-meta>
+        <type>String</type>
+        <storagetype>normal</storagetype>
+        <name>account_number</name>
+        <length>2147483647</length>
+        <precision>-1</precision>
+        <origin>Budget Transaction Combined</origin>
+        <comments>account_number</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
         <grouping_symbol>,</grouping_symbol>
@@ -1193,6 +1217,10 @@ order by
       <field>
         <column_name>account_secondary</column_name>
         <stream_name>account_secondary</stream_name>
+      </field>
+      <field>
+        <column_name>account_number</column_name>
+        <stream_name>account_number</stream_name>
       </field>
       <field>
         <column_name>amount</column_name>

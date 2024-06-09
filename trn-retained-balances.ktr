@@ -559,18 +559,20 @@
 	select 
 		budget_month_id
 	,	account
+	--,	account_number
 	,	movement
-	,	sum(amount) as amount
+	,	coalesce(sum(amount),0.0) as amount
 	,	dense_rank() over (order by budget_month_id) as month_rank
 	from
 		trn_budget_transaction_combined
 	where
 		movement not like 'Subtotal'
 --	and
---		account = 'Jeanre Transactional'
+--		account = 'Bernice Personal Savings'
 	group by
 		budget_month_id
 	,	account
+	--,	account_number
 	,	movement	
 )
 , ret_balance as 
@@ -578,29 +580,47 @@
 select	
 		budget_month_id
 	,	account
-	,	credit_amount - debit_amount as amount
+	--,	account_number
+	,	coalesce((credit_amount - debit_amount), 0.0) as amount
 	,	coalesce(sum(credit_amount_previous_month - debit_amount_previous_month) over (partition by account order by budget_month_id rows between unbounded PRECEDING and current row), 0.0) as prev_month_amount
 	,	month_rank
 	from
 	(
-		select	distinct
-			a.budget_month_id
-		,	a.account
-		,	a.month_rank
-		,	sum(case b.movement when 'Credit' then b.amount end) as credit_amount_previous_month
-		,	sum(case b.movement when 'Debit' then b.amount end) as debit_amount_previous_month
-		,	sum(case a.movement when 'Credit' then a.amount end) as credit_amount
-		,	sum(case a.movement when 'Debit' then a.amount end) as debit_amount
-		,	sum(case when a.movement = 'Credit' and b.movement = 'Credit' then a.amount + b.amount end) as credit_amount_1
-		,	sum(case when a.movement = 'Debit' and b.movement = 'Credit' then a.amount + b.amount end) as debit_amount_1
-		from
-			account_totals a
-		left join
-			account_totals b on a.month_rank = b.month_rank+1 and a.account = b.account and a.movement = b.movement
+		select distinct
+			budget_month_id
+		,	account
+		,	month_rank
+		,	sum(credit_amount_previous_month) as credit_amount_previous_month
+		,	sum(debit_amount_previous_month) as debit_amount_previous_month
+		,	sum(credit_amount) as credit_amount
+		,	sum(debit_amount) as debit_amount
+		from(
+			select distinct
+						coalesce(a.budget_month_id, b.budget_month_id) as budget_month_id
+					,	coalesce(a.account, b.account) as account
+					--,	a.account_number
+					,	coalesce(a.month_rank, b.month_rank) as month_rank
+					,	coalesce(sum(case b.movement when 'Credit' then b.amount end), 0.0) as credit_amount_previous_month
+					,	coalesce(sum(case b.movement when 'Debit' then b.amount end),0.0) as debit_amount_previous_month
+					,	coalesce(sum(case a.movement when 'Credit' then a.amount end),0.0) as credit_amount
+					,	coalesce(sum(case a.movement when 'Debit' then a.amount end),0.0) as debit_amount
+					from
+						account_totals a
+					full outer join
+						account_totals b on a.month_rank = b.month_rank+1 and a.account = b.account and a.movement = b.movement
+					group by
+						a.budget_month_id 
+					,	b.budget_month_id
+					,	a.account
+					,	b.account
+					--,	a.account_number
+					,	a.month_rank
+					,	b.month_rank
+			) a
 		group by
-			a.budget_month_id 
-		,	a.account
-		,	a.month_rank
+			budget_month_id
+		,	account
+		,	month_rank	
 	) b
 	order by
 		1,2
@@ -608,6 +628,7 @@ select
 select
 	b.budget_month_id
 ,	a.account
+--,	a.account_number
 ,	'Retained Balance' as account_secondary
 ,	case when a.amount + a.prev_month_amount &lt; 0 then 'Debit' else 'Credit' end as movement
 , 	case when (a.amount + a.prev_month_amount) &lt; 0 then ((a.amount + a.prev_month_amount) * -1) else (a.amount + a.prev_month_amount) end as amount
@@ -759,7 +780,7 @@ order by
         <storagetype>normal</storagetype>
         <name>budget_amount</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained amount balances</origin>
         <comments>budget_amount</comments>
         <conversion_Mask/>
@@ -782,7 +803,7 @@ order by
         <storagetype>normal</storagetype>
         <name>branch</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained amount balances</origin>
         <comments>branch</comments>
         <conversion_Mask/>
@@ -805,7 +826,7 @@ order by
         <storagetype>normal</storagetype>
         <name>source_file_name</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained amount balances</origin>
         <comments>source_file_name</comments>
         <conversion_Mask/>
@@ -828,7 +849,7 @@ order by
         <storagetype>normal</storagetype>
         <name>journal_number</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained amount balances</origin>
         <comments>journal_number</comments>
         <conversion_Mask/>
@@ -851,7 +872,7 @@ order by
         <storagetype>normal</storagetype>
         <name>narrative</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained amount balances</origin>
         <comments>narrative</comments>
         <conversion_Mask/>
@@ -943,7 +964,7 @@ order by
         <storagetype>normal</storagetype>
         <name>transaction_description</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained amount balances</origin>
         <comments>transaction_description</comments>
         <conversion_Mask/>
@@ -966,7 +987,7 @@ order by
         <storagetype>normal</storagetype>
         <name>transaction_type</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained amount balances</origin>
         <comments>transaction_type</comments>
         <conversion_Mask/>
@@ -1015,6 +1036,7 @@ order by
 	select 
 		budget_month_id
 	,	account
+	--,	account_number
 	,	movement
 	,	sum(budget_amount) as budget_amount
 	,	dense_rank() over (order by budget_month_id) as month_rank
@@ -1027,6 +1049,7 @@ order by
 	group by
 		budget_month_id
 	,	account
+	--,	account_number
 	,	movement	
 )
 , ret_balance as 
@@ -1034,7 +1057,8 @@ order by
 select	
 		budget_month_id
 	,	account
-	,	credit_budget_amount - debit_budget_amount as budget_amount
+	--,	account_number
+	,	coalesce((credit_budget_amount - debit_budget_amount), 0.0) as budget_amount
 	,	coalesce(sum(credit_budget_amount_previous_month - debit_budget_amount_previous_month) over (partition by account order by budget_month_id rows between unbounded PRECEDING and current row), 0.0) as prev_month_budget_amount
 	,	month_rank
 	from
@@ -1042,6 +1066,7 @@ select
 		select	distinct
 			a.budget_month_id
 		,	a.account
+		--,	a.account_number
 		,	a.month_rank
 		,	sum(case b.movement when 'Credit' then b.budget_amount end) as credit_budget_amount_previous_month
 		,	sum(case b.movement when 'Debit' then b.budget_amount end) as debit_budget_amount_previous_month
@@ -1056,6 +1081,7 @@ select
 		group by
 			a.budget_month_id 
 		,	a.account
+		--,	a.account_number
 		,	a.month_rank
 	) b
 	order by
@@ -1064,6 +1090,7 @@ select
 select
 	b.budget_month_id
 ,	a.account
+--,	a.account_number
 ,	'Retained Balance' as account_secondary
 ,	case when a.budget_amount + a.prev_month_budget_amount &lt; 0 then 'Debit' else 'Credit' end as movement
 , 	case when (a.budget_amount + a.prev_month_budget_amount) &lt; 0 then ((a.budget_amount + a.prev_month_budget_amount) * -1) else (a.budget_amount + a.prev_month_budget_amount) end as budget_amount

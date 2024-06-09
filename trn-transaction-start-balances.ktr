@@ -595,6 +595,7 @@
     <connection>BIDEV - Jeanre Personal</connection>
     <sql>select 
 	account
+,	account_number
 ,	transaction_date
 ,	journal_number
 ,	transaction_type
@@ -620,10 +621,33 @@ from
         <type>String</type>
         <storagetype>normal</storagetype>
         <name>account</name>
-        <length>2147483647</length>
+        <length>24</length>
         <precision>-1</precision>
         <origin>src_capitec_transactions</origin>
         <comments>account</comments>
+        <conversion_Mask/>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol>,</grouping_symbol>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
+      <value-meta>
+        <type>String</type>
+        <storagetype>normal</storagetype>
+        <name>account_number</name>
+        <length>2147483647</length>
+        <precision>-1</precision>
+        <origin>src_capitec_transactions</origin>
+        <comments>account_number</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
         <grouping_symbol>,</grouping_symbol>
@@ -921,6 +945,7 @@ from
     <connection>BIDEV - Jeanre Personal</connection>
     <sql>select 
 	account
+,	account_number
 ,	transaction_date
 ,	null as journal_number
 ,	'FINANCIAL' as transaction_type
@@ -929,8 +954,11 @@ from
 ,	sequence
 ,	'Start Balance' as transaction_description
 ,	0.0 as balance_amount
-,	case when balance_amount > 0 then balance_amount + debit_amount else null end as credit_amount
-,	case when balance_amount &lt; 0 then balance_amount - credit_amount else null end as debit_amount
+,	case when balance_amount > 0 then balance_amount + debit_amount - credit_amount else null end as credit_amount
+,	case when balance_amount &lt; 0 then (balance_amount - credit_amount + debit_amount) * -1 else null end as debit_amount
+--,	balance_amount as balance_amount_source
+--,	debit_amount as debit_amount_source
+--,	credit_amount as credit_amount_source
 ,	'Start Balance Calculation' as source_file_name
 from
 	public.src_capitec_transactions
@@ -947,10 +975,33 @@ where
         <type>String</type>
         <storagetype>normal</storagetype>
         <name>account</name>
-        <length>2147483647</length>
+        <length>24</length>
         <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>account</comments>
+        <conversion_Mask/>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol>,</grouping_symbol>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
+      <value-meta>
+        <type>String</type>
+        <storagetype>normal</storagetype>
+        <name>account_number</name>
+        <length>2147483647</length>
+        <precision>-1</precision>
+        <origin>src_capitec_transactions - Start Balance</origin>
+        <comments>account_number</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
         <grouping_symbol>,</grouping_symbol>
@@ -1266,6 +1317,10 @@ where
       <field>
         <column_name>account</column_name>
         <stream_name>account</stream_name>
+      </field>
+      <field>
+        <column_name>account_number</column_name>
+        <stream_name>account_number</stream_name>
       </field>
       <field>
         <column_name>transaction_date</column_name>
