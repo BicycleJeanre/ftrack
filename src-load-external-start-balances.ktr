@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <transformation>
   <info>
-    <name>trn-transactions-double-entry</name>
+    <name>src-load-external-start-balances</name>
     <description/>
     <extended_description/>
     <trans_version/>
     <trans_type>Normal</trans_type>
+    <trans_status>0</trans_status>
     <directory>/</directory>
     <parameters>
     </parameters>
@@ -427,9 +428,9 @@
     <clusterschemas>
     </clusterschemas>
     <created_user>-</created_user>
-    <created_date>2024/05/31 15:12:15.440</created_date>
+    <created_date>2024/05/27 09:14:31.654</created_date>
     <modified_user>-</modified_user>
-    <modified_date>2024/05/31 15:12:15.440</modified_date>
+    <modified_date>2024/05/27 09:14:31.654</modified_date>
     <key_for_session_key>H4sIAAAAAAAAAAMAAAAAAAAAAAA=</key_for_session_key>
     <is_key_private>N</is_key_private>
   </info>
@@ -488,424 +489,228 @@
   </connection>
   <order>
     <hop>
-      <from>trn_transactions_account_secondary</from>
-      <to>trn_transactions_double_entry</to>
+      <from>Get External Account Balances</from>
+      <to>src_external_account_balance</to>
       <enabled>Y</enabled>
     </hop>
   </order>
   <step>
-    <name>trn_transactions_account_secondary</name>
-    <type>TableInput</type>
+    <name>Get External Account Balances</name>
+    <type>ExcelInput</type>
     <description/>
-    <distribute>N</distribute>
+    <distribute>Y</distribute>
     <custom_distribution/>
     <copies>1</copies>
     <partitioning>
       <method>none</method>
       <schema_name/>
     </partitioning>
-    <connection>BIDEV - Jeanre Personal</connection>
-    <sql>select 
-	coalesce(debits.account_debit, credits.account_debit) as account_debit
-,	coalesce(debits.account_credit, credits.account_credit) as account_credit
-,	coalesce(debits.account_debit_number, credits.account_credit_number) as account_number
-,	coalesce(debits.amount, credits.amount) as amount
-,	coalesce(debits.transaction_date, credits.transaction_date) as transaction_date
-,	coalesce(debits.journal_number, credits.journal_number) as journal_number
-,	coalesce(debits.transaction_type, credits.transaction_type) as transaction_type
-,	coalesce(debits.branch, credits.branch) as branch
-,	coalesce(debits.narrative, credits.narrative) as narrative
-,	coalesce(debits.sequence, credits.sequence) as sequence
-,	coalesce(debits.transaction_description, credits.transaction_description) as transaction_description
-,	coalesce(debits.balance_amount, credits.balance_amount) as balance_amount
-,	coalesce(debits.source_file_name, credits.source_file_name) as source_file_name
-,	coalesce(debits.interest_nacm, credits.interest_nacm) as interest_nacm
---,	*
-from
-(
-	select 
-		account as account_debit
-	,	account_number as account_debit_number
-	,	account_secondary as account_credit
-	,	debit_amount as amount
-	,	transaction_date
-	,	journal_number
-	,	transaction_type
-	,	branch
-	,	narrative
-	,	sequence
-	,	transaction_description
-	,	balance_amount
-	,	source_file_name
-	,	interest_nacm	
-	from
-		trn_transactions_account_secondary
-	where
-		credit_amount = 0.0
-	or
-		credit_amount is null
-	--and
-		--transaction_date = '2024-01-26'
-) debits
-full outer join
-(
-	select 
-		account as account_credit
-	,	account_number as account_credit_number
-	,	account_secondary as account_debit
-	,	credit_amount as amount
-	,	transaction_date
-	,	journal_number
-	,	transaction_type
-	,	branch
-	,	narrative
-	,	sequence
-	,	transaction_description
-	,	balance_amount
-	,	source_file_name	
-	,	interest_nacm
-	from
-		trn_transactions_account_secondary
-	where
-		credit_amount &lt;&gt; 0.0
-	and
-		credit_amount is not null
-	and
-		transaction_description not like '%Payment Received B Labuschagne%'
-	--and
-	--	transaction_date = '2024-01-26'
-) credits on debits.account_debit = credits.account_debit and debits.account_credit = credits.account_credit and debits.amount = credits.amount and debits.transaction_date = credits.transaction_date
-</sql>
+    <header>Y</header>
+    <noempty>Y</noempty>
+    <stoponempty>N</stoponempty>
+    <filefield/>
+    <sheetfield/>
+    <sheetrownumfield/>
+    <rownumfield/>
+    <sheetfield/>
+    <filefield/>
     <limit>0</limit>
-    <lookup/>
-    <execute_each_row>N</execute_each_row>
-    <variables_active>N</variables_active>
-    <lazy_conversion_active>N</lazy_conversion_active>
-    <cached_row_meta_active>N</cached_row_meta_active>
-    <row-meta>
-      <value-meta>
+    <encoding/>
+    <add_to_result_filenames>Y</add_to_result_filenames>
+    <accept_filenames>N</accept_filenames>
+    <accept_field/>
+    <accept_stepname/>
+    <file>
+      <name>${Internal.Entry.Current.Directory}/source files</name>
+      <filemask>start_balances.*\.xlsx</filemask>
+      <exclude_filemask/>
+      <file_required>N</file_required>
+      <include_subfolders>N</include_subfolders>
+    </file>
+    <fields>
+      <field>
+        <name>account</name>
         <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>account_debit</name>
-        <length>2147483647</length>
+        <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>account_debit</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
         <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>account_credit</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>account_credit</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
         <name>account_number</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>account_number</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
         <type>Number</type>
-        <storagetype>normal</storagetype>
-        <name>amount</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>amount</comments>
-        <conversion_Mask>####0.0#########;-####0.0#########</conversion_Mask>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
         <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>Timestamp</type>
-        <storagetype>normal</storagetype>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
         <name>transaction_date</name>
-        <length>6</length>
-        <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>transaction_date</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>journal_number</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>journal_number</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>transaction_type</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>transaction_type</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>branch</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>branch</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>narrative</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>narrative</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>Integer</type>
-        <storagetype>normal</storagetype>
-        <name>sequence</name>
-        <length>15</length>
-        <precision>0</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>sequence</comments>
-        <conversion_Mask>####0;-####0</conversion_Mask>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>transaction_description</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>transaction_description</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>Number</type>
-        <storagetype>normal</storagetype>
-        <name>balance_amount</name>
+        <type>Date</type>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>balance_amount</comments>
-        <conversion_Mask>####0.0#########;-####0.0#########</conversion_Mask>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
         <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>source_file_name</name>
-        <length>100</length>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>journal_number</name>
+        <type>Number</type>
+        <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>source_file_name</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
         <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>transaction_type</name>
         <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>interest_nacm</name>
-        <length>2147483647</length>
+        <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_transactions_account_secondary</origin>
-        <comments>interest_nacm</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
         <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-    </row-meta>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>branch</name>
+        <type>String</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>narrative</name>
+        <type>String</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>sequence</name>
+        <type>Number</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>transaction_description</name>
+        <type>String</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>balance_amount</name>
+        <type>Number</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>credit_amount</name>
+        <type>Number</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>debit_amount</name>
+        <type>Number</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>Interest (NACM)</name>
+        <type>Number</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+    </fields>
+    <sheets>
+      <sheet>
+        <name>Sheet1</name>
+        <startrow>0</startrow>
+        <startcol>0</startcol>
+      </sheet>
+    </sheets>
+    <strict_types>N</strict_types>
+    <error_ignored>N</error_ignored>
+    <error_line_skipped>N</error_line_skipped>
+    <bad_line_files_destination_directory/>
+    <bad_line_files_extension>warning</bad_line_files_extension>
+    <error_line_files_destination_directory/>
+    <error_line_files_extension>error</error_line_files_extension>
+    <line_number_files_destination_directory/>
+    <line_number_files_extension>line</line_number_files_extension>
+    <shortFileFieldName/>
+    <pathFieldName/>
+    <hiddenFieldName/>
+    <lastModificationTimeFieldName/>
+    <uriNameFieldName/>
+    <rootUriNameFieldName/>
+    <extensionFieldName/>
+    <sizeFieldName/>
+    <spreadsheet_type>POI</spreadsheet_type>
+    <password>Encrypted </password>
     <attributes/>
     <cluster_schema/>
     <remotesteps>
@@ -915,13 +720,13 @@ full outer join
       </output>
     </remotesteps>
     <GUI>
-      <xloc>160</xloc>
-      <yloc>352</yloc>
+      <xloc>176</xloc>
+      <yloc>224</yloc>
       <draw>Y</draw>
     </GUI>
   </step>
   <step>
-    <name>trn_transactions_double_entry</name>
+    <name>src_external_account_balance</name>
     <type>TableOutput</type>
     <description/>
     <distribute>Y</distribute>
@@ -933,7 +738,7 @@ full outer join
     </partitioning>
     <connection>BIDEV - Jeanre Personal</connection>
     <schema>public</schema>
-    <table>trn_transactions_double_entry</table>
+    <table>src_external_account_balance</table>
     <commit>1000</commit>
     <truncate>Y</truncate>
     <ignore_errors>N</ignore_errors>
@@ -950,20 +755,12 @@ full outer join
     <return_field/>
     <fields>
       <field>
-        <column_name>account_debit</column_name>
-        <stream_name>account_debit</stream_name>
-      </field>
-      <field>
-        <column_name>account_credit</column_name>
-        <stream_name>account_credit</stream_name>
+        <column_name>account</column_name>
+        <stream_name>account</stream_name>
       </field>
       <field>
         <column_name>account_number</column_name>
         <stream_name>account_number</stream_name>
-      </field>
-      <field>
-        <column_name>amount</column_name>
-        <stream_name>amount</stream_name>
       </field>
       <field>
         <column_name>transaction_date</column_name>
@@ -998,12 +795,16 @@ full outer join
         <stream_name>balance_amount</stream_name>
       </field>
       <field>
-        <column_name>source_file_name</column_name>
-        <stream_name>source_file_name</stream_name>
+        <column_name>credit_amount</column_name>
+        <stream_name>credit_amount</stream_name>
       </field>
       <field>
-        <column_name>interest_nacm</column_name>
-        <stream_name>interest_nacm</stream_name>
+        <column_name>debit_amount</column_name>
+        <stream_name>debit_amount</stream_name>
+      </field>
+      <field>
+        <column_name>Interest (NACM)</column_name>
+        <stream_name>Interest (NACM)</stream_name>
       </field>
     </fields>
     <attributes/>
@@ -1015,8 +816,8 @@ full outer join
       </output>
     </remotesteps>
     <GUI>
-      <xloc>864</xloc>
-      <yloc>352</yloc>
+      <xloc>496</xloc>
+      <yloc>224</yloc>
       <draw>Y</draw>
     </GUI>
   </step>

@@ -579,6 +579,10 @@
         <column_name>source_file_name</column_name>
         <stream_name>source_file_name</stream_name>
       </field>
+      <field>
+        <column_name>interest_nacm</column_name>
+        <stream_name>interest_nacm</stream_name>
+      </field>
     </fields>
     <attributes/>
     <cluster_schema/>
@@ -622,7 +626,8 @@
 ,	case 
 		when transaction_description like '%Fee%' then 'Administration'
 		when transaction_description like '%Vodacom%' then 'Cell Phones'
-		when transaction_description like '%Live Better%' then 'Live Better'
+		when transaction_description like '%Live Better%' and account like 'Jeanre Transactional' then 'Jeanre Live Better'
+		when transaction_description like '%Live Better%' and account like 'Bernice Transactional' then 'Bernice Live Better'
 		when transaction_description like '%Bestmed%' then 'Medical Aid'
 		when transaction_description like '%Shackleton%' then 'Life Insurance'
 		when transaction_description like '%Shortf_ins%' then 'Shortfall Insurance'
@@ -695,8 +700,11 @@
 		when transaction_description like '%to Running Costs (1759358744)%' then 'Emergency'
 		when transaction_description like '%to Savings Account (1421945264)%' then 'Jeanre Transactional'
 		when transaction_description like '%to Credit Card (6010640066)%' then 'Bernice Credit Card'
+		when transaction_description like '%Apple.com/bill%' then 'Apple One'
+		when transaction_description like '%Netflix Amsterdam%' then 'Netflix'
 		else 'Other' end as account_secondary
 ,	source_file_name
+,	interest_nacm
 from
 	public.trn_transaction_start_balances</sql>
     <limit>0</limit>
@@ -710,7 +718,7 @@ from
         <type>String</type>
         <storagetype>normal</storagetype>
         <name>account</name>
-        <length>2147483647</length>
+        <length>24</length>
         <precision>-1</precision>
         <origin>trn_transactions_start_balances</origin>
         <comments>account</comments>
@@ -1013,6 +1021,29 @@ from
         <precision>-1</precision>
         <origin>trn_transactions_start_balances</origin>
         <comments>source_file_name</comments>
+        <conversion_Mask/>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol>,</grouping_symbol>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
+      <value-meta>
+        <type>String</type>
+        <storagetype>normal</storagetype>
+        <name>interest_nacm</name>
+        <length>2147483647</length>
+        <precision>-1</precision>
+        <origin>trn_transactions_start_balances</origin>
+        <comments>interest_nacm</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
         <grouping_symbol>,</grouping_symbol>

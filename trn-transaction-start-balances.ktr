@@ -566,6 +566,40 @@
         <currency_symbol/>
         <storage_type/>
       </meta>
+      <meta>
+        <name>sequence</name>
+        <rename>sequence</rename>
+        <type>Integer</type>
+        <length>-2</length>
+        <precision>-2</precision>
+        <conversion_mask/>
+        <date_format_lenient>false</date_format_lenient>
+        <date_format_locale/>
+        <date_format_timezone/>
+        <lenient_string_to_number>false</lenient_string_to_number>
+        <encoding/>
+        <decimal_symbol/>
+        <grouping_symbol/>
+        <currency_symbol/>
+        <storage_type/>
+      </meta>
+      <meta>
+        <name>interest_nacm</name>
+        <rename>interest_nacm</rename>
+        <type>BigNumber</type>
+        <length>-2</length>
+        <precision>-2</precision>
+        <conversion_mask/>
+        <date_format_lenient>false</date_format_lenient>
+        <date_format_locale/>
+        <date_format_timezone/>
+        <lenient_string_to_number>false</lenient_string_to_number>
+        <encoding/>
+        <decimal_symbol/>
+        <grouping_symbol/>
+        <currency_symbol/>
+        <storage_type/>
+      </meta>
     </fields>
     <attributes/>
     <cluster_schema/>
@@ -607,6 +641,7 @@
 ,	credit_amount
 ,	debit_amount
 ,	source_file_name
+,	0.0 as interest_nacm
 from
 	public.src_capitec_transactions
 </sql>
@@ -916,6 +951,29 @@ from
         <date_format_timezone>Africa/Johannesburg</date_format_timezone>
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
+      <value-meta>
+        <type>BigNumber</type>
+        <storagetype>normal</storagetype>
+        <name>interest_nacm</name>
+        <length>-1</length>
+        <precision>-1</precision>
+        <origin>src_capitec_transactions</origin>
+        <comments>interest_nacm</comments>
+        <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol/>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
     </row-meta>
     <attributes/>
     <cluster_schema/>
@@ -944,26 +1002,33 @@ from
     </partitioning>
     <connection>BIDEV - Jeanre Personal</connection>
     <sql>select 
-	account
-,	account_number
-,	transaction_date
+	coalesce(sct.account, seab.account) as account
+,	coalesce(sct.account_number, seab.account_number::varchar(333)) as account_number
+,	coalesce(sct.transaction_date, seab.transaction_date) as transaction_date
 ,	null as journal_number
 ,	'FINANCIAL' as transaction_type
 ,	null as branch
 ,	null as narrative
-,	sequence
+,	coalesce(sct.sequence, seab.sequence) as sequence
 ,	'Start Balance' as transaction_description
 ,	0.0 as balance_amount
-,	case when balance_amount > 0 then balance_amount + debit_amount - credit_amount else null end as credit_amount
-,	case when balance_amount &lt; 0 then (balance_amount - credit_amount + debit_amount) * -1 else null end as debit_amount
---,	balance_amount as balance_amount_source
---,	debit_amount as debit_amount_source
---,	credit_amount as credit_amount_source
+,	coalesce((case when sct.balance_amount > 0 then sct.balance_amount + sct.debit_amount - sct.credit_amount else null end), seab.credit_amount) as credit_amount
+,	coalesce((case when sct.balance_amount &lt; 0 then (sct.balance_amount - sct.credit_amount + sct.debit_amount) * -1 else null end), seab.debit_amount) as debit_amount
 ,	'Start Balance Calculation' as source_file_name
+,	seab."Interest (NACM)" as interest_nacm
+--,	seab.account
 from
-	public.src_capitec_transactions
-where
-	sequence = 2</sql>
+	(
+	select 
+		*
+	from	
+		public.src_capitec_transactions
+	where
+		sequence = 2
+	) sct
+full outer join
+	public.src_external_account_balance seab on sct.account = seab.account and sct.transaction_date = seab.transaction_date
+	</sql>
     <limit>0</limit>
     <lookup/>
     <execute_each_row>N</execute_each_row>
@@ -975,7 +1040,7 @@ where
         <type>String</type>
         <storagetype>normal</storagetype>
         <name>account</name>
-        <length>24</length>
+        <length>2147483647</length>
         <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>account</comments>
@@ -1133,14 +1198,14 @@ where
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
       <value-meta>
-        <type>Integer</type>
+        <type>Number</type>
         <storagetype>normal</storagetype>
         <name>sequence</name>
-        <length>15</length>
-        <precision>0</precision>
+        <length>-1</length>
+        <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>sequence</comments>
-        <conversion_Mask>####0;-####0</conversion_Mask>
+        <conversion_Mask>####0.0#########;-####0.0#########</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
         <grouping_symbol>,</grouping_symbol>
         <currency_symbol/>
@@ -1270,6 +1335,29 @@ where
         <date_format_timezone>Africa/Johannesburg</date_format_timezone>
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
+      <value-meta>
+        <type>Number</type>
+        <storagetype>normal</storagetype>
+        <name>interest_nacm</name>
+        <length>-1</length>
+        <precision>-1</precision>
+        <origin>src_capitec_transactions - Start Balance</origin>
+        <comments>interest_nacm</comments>
+        <conversion_Mask>####0.0#########;-####0.0#########</conversion_Mask>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol>,</grouping_symbol>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
     </row-meta>
     <attributes/>
     <cluster_schema/>
@@ -1366,6 +1454,10 @@ where
         <column_name>source_file_name</column_name>
         <stream_name>source_file_name</stream_name>
       </field>
+      <field>
+        <column_name>interest_nacm</column_name>
+        <stream_name>interest_nacm</stream_name>
+      </field>
     </fields>
     <attributes/>
     <cluster_schema/>
@@ -1376,7 +1468,7 @@ where
       </output>
     </remotesteps>
     <GUI>
-      <xloc>1008</xloc>
+      <xloc>992</xloc>
       <yloc>352</yloc>
       <draw>Y</draw>
     </GUI>

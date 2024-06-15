@@ -503,16 +503,6 @@
       <enabled>Y</enabled>
     </hop>
     <hop>
-      <from>divide budget amount by No descriptions to avoid multi-counting</from>
-      <to>Select only relevant columns</to>
-      <enabled>Y</enabled>
-    </hop>
-    <hop>
-      <from>Select only relevant columns</from>
-      <to>trn_budget_transaction_combined</to>
-      <enabled>Y</enabled>
-    </hop>
-    <hop>
       <from>Count Descriptions by transaction</from>
       <to>change 0 to 1 for division</to>
       <enabled>Y</enabled>
@@ -520,6 +510,16 @@
     <hop>
       <from>change 0 to 1 for division</from>
       <to>Merge description count</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>divide budget amount by No descriptions to avoid multi-counting</from>
+      <to>Filter rows</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>divide budget amount by No descriptions to avoid multi-counting</from>
+      <to>trn_budget_transaction_combined</to>
       <enabled>Y</enabled>
     </hop>
   </order>
@@ -553,6 +553,7 @@ select
 ,	trn.transaction_date
 ,	trn.transaction_description
 ,	trn.transaction_type
+,	trn.interest_nacm
 from
 	trn_transactions_split_debit_credit trn
 full outer join
@@ -949,6 +950,29 @@ order by
         <date_format_timezone>Africa/Johannesburg</date_format_timezone>
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
+      <value-meta>
+        <type>String</type>
+        <storagetype>normal</storagetype>
+        <name>interest_nacm</name>
+        <length>2147483647</length>
+        <precision>-1</precision>
+        <origin>Budget Transaction Combined</origin>
+        <comments>interest_nacm</comments>
+        <conversion_Mask/>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol>,</grouping_symbol>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
     </row-meta>
     <attributes/>
     <cluster_schema/>
@@ -1020,10 +1044,75 @@ order by
     </GUI>
   </step>
   <step>
+    <name>Filter rows</name>
+    <type>FilterRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <send_true_to/>
+    <send_false_to/>
+    <compare>
+      <condition>
+        <negated>N</negated>
+        <conditions>
+          <condition>
+            <negated>N</negated>
+            <leftvalue>account</leftvalue>
+            <function>=</function>
+            <rightvalue/>
+            <value>
+              <name>constant</name>
+              <type>String</type>
+              <text>Jeanre Transactional</text>
+              <length>-1</length>
+              <precision>-1</precision>
+              <isnull>N</isnull>
+              <mask/>
+            </value>
+          </condition>
+          <condition>
+            <negated>N</negated>
+            <operator>AND</operator>
+            <leftvalue>budget_month_id</leftvalue>
+            <function>=</function>
+            <rightvalue/>
+            <value>
+              <name>constant</name>
+              <type>Timestamp</type>
+              <text/>
+              <length>-1</length>
+              <precision>-1</precision>
+              <isnull>Y</isnull>
+              <mask/>
+            </value>
+          </condition>
+        </conditions>
+      </condition>
+    </compare>
+    <attributes/>
+    <cluster_schema/>
+    <remotesteps>
+      <input>
+      </input>
+      <output>
+      </output>
+    </remotesteps>
+    <GUI>
+      <xloc>1024</xloc>
+      <yloc>512</yloc>
+      <draw>Y</draw>
+    </GUI>
+  </step>
+  <step>
     <name>Merge description count</name>
     <type>MergeJoin</type>
     <description/>
-    <distribute>Y</distribute>
+    <distribute>N</distribute>
     <custom_distribution/>
     <copies>1</copies>
     <partitioning>
@@ -1055,53 +1144,6 @@ order by
     </remotesteps>
     <GUI>
       <xloc>736</xloc>
-      <yloc>320</yloc>
-      <draw>Y</draw>
-    </GUI>
-  </step>
-  <step>
-    <name>Select only relevant columns</name>
-    <type>SelectValues</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning>
-      <method>none</method>
-      <schema_name/>
-    </partitioning>
-    <fields>
-      <field>
-        <name>budget_amount_final</name>
-        <rename>budget_amount</rename>
-      </field>
-      <select_unspecified>Y</select_unspecified>
-      <remove>
-        <name>account_1</name>
-      </remove>
-      <remove>
-        <name>account_secondary_1</name>
-      </remove>
-      <remove>
-        <name>budget_amount</name>
-      </remove>
-      <remove>
-        <name>budget_month_id_1</name>
-      </remove>
-      <remove>
-        <name>movement_1</name>
-      </remove>
-    </fields>
-    <attributes/>
-    <cluster_schema/>
-    <remotesteps>
-      <input>
-      </input>
-      <output>
-      </output>
-    </remotesteps>
-    <GUI>
-      <xloc>1376</xloc>
       <yloc>320</yloc>
       <draw>Y</draw>
     </GUI>
@@ -1144,7 +1186,7 @@ order by
     <name>divide budget amount by No descriptions to avoid multi-counting</name>
     <type>Calculator</type>
     <description/>
-    <distribute>Y</distribute>
+    <distribute>N</distribute>
     <custom_distribution/>
     <copies>1</copies>
     <partitioning>
@@ -1232,7 +1274,7 @@ order by
       </field>
       <field>
         <column_name>budget_amount</column_name>
-        <stream_name>budget_amount_1</stream_name>
+        <stream_name>budget_amount_final</stream_name>
       </field>
       <field>
         <column_name>budget_month_id</column_name>
@@ -1274,6 +1316,10 @@ order by
         <column_name>transaction_type</column_name>
         <stream_name>transaction_type</stream_name>
       </field>
+      <field>
+        <column_name>interest_nacm</column_name>
+        <stream_name>interest_nacm</stream_name>
+      </field>
     </fields>
     <attributes/>
     <cluster_schema/>
@@ -1284,7 +1330,7 @@ order by
       </output>
     </remotesteps>
     <GUI>
-      <xloc>1696</xloc>
+      <xloc>1472</xloc>
       <yloc>320</yloc>
       <draw>Y</draw>
     </GUI>

@@ -499,6 +499,26 @@
     </hop>
     <hop>
       <from>Append streams</from>
+      <to>Sort rows on Account</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>Sort rows on Account</from>
+      <to>Join Account details into set</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>Get Account Details</from>
+      <to>Sort on incoming Account</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>Sort on incoming Account</from>
+      <to>Join Account details into set</to>
+      <enabled>Y</enabled>
+    </hop>
+    <hop>
+      <from>Join Account details into set</from>
       <to>Transactions</to>
       <enabled>Y</enabled>
     </hop>
@@ -507,7 +527,7 @@
     <name>Append streams</name>
     <type>Append</type>
     <description/>
-    <distribute>Y</distribute>
+    <distribute>N</distribute>
     <custom_distribution/>
     <copies>1</copies>
     <partitioning>
@@ -525,8 +545,249 @@
       </output>
     </remotesteps>
     <GUI>
-      <xloc>640</xloc>
-      <yloc>176</yloc>
+      <xloc>208</xloc>
+      <yloc>224</yloc>
+      <draw>Y</draw>
+    </GUI>
+  </step>
+  <step>
+    <name>Get Account Details</name>
+    <type>ExcelInput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <header>Y</header>
+    <noempty>Y</noempty>
+    <stoponempty>N</stoponempty>
+    <filefield/>
+    <sheetfield/>
+    <sheetrownumfield/>
+    <rownumfield/>
+    <sheetfield/>
+    <filefield/>
+    <limit>0</limit>
+    <encoding/>
+    <add_to_result_filenames>Y</add_to_result_filenames>
+    <accept_filenames>N</accept_filenames>
+    <accept_field/>
+    <accept_stepname/>
+    <file>
+      <name>${Internal.Entry.Current.Directory}/source files/</name>
+      <filemask>accounts.*\.xlsx</filemask>
+      <exclude_filemask/>
+      <file_required>N</file_required>
+      <include_subfolders>N</include_subfolders>
+    </file>
+    <fields>
+      <field>
+        <name>Account</name>
+        <type>String</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>Account Type</name>
+        <type>String</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>Modelling Type</name>
+        <type>String</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+      <field>
+        <name>Entity</name>
+        <type>String</type>
+        <length>-1</length>
+        <precision>-1</precision>
+        <trim_type>none</trim_type>
+        <repeat>N</repeat>
+        <format/>
+        <currency/>
+        <decimal/>
+        <group/>
+      </field>
+    </fields>
+    <sheets>
+      <sheet>
+        <name>Accounts</name>
+        <startrow>0</startrow>
+        <startcol>0</startcol>
+      </sheet>
+    </sheets>
+    <strict_types>N</strict_types>
+    <error_ignored>N</error_ignored>
+    <error_line_skipped>N</error_line_skipped>
+    <bad_line_files_destination_directory/>
+    <bad_line_files_extension>warning</bad_line_files_extension>
+    <error_line_files_destination_directory/>
+    <error_line_files_extension>error</error_line_files_extension>
+    <line_number_files_destination_directory/>
+    <line_number_files_extension>line</line_number_files_extension>
+    <shortFileFieldName/>
+    <pathFieldName/>
+    <hiddenFieldName/>
+    <lastModificationTimeFieldName/>
+    <uriNameFieldName/>
+    <rootUriNameFieldName/>
+    <extensionFieldName/>
+    <sizeFieldName/>
+    <spreadsheet_type>POI</spreadsheet_type>
+    <password>Encrypted </password>
+    <attributes/>
+    <cluster_schema/>
+    <remotesteps>
+      <input>
+      </input>
+      <output>
+      </output>
+    </remotesteps>
+    <GUI>
+      <xloc>672</xloc>
+      <yloc>32</yloc>
+      <draw>Y</draw>
+    </GUI>
+  </step>
+  <step>
+    <name>Join Account details into set</name>
+    <type>MergeJoin</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <join_type>FULL OUTER</join_type>
+    <step1>Sort rows on Account</step1>
+    <step2>Sort on incoming Account</step2>
+    <keys_1>
+      <key>account</key>
+    </keys_1>
+    <keys_2>
+      <key>account</key>
+    </keys_2>
+    <attributes/>
+    <cluster_schema/>
+    <remotesteps>
+      <input>
+      </input>
+      <output>
+      </output>
+    </remotesteps>
+    <GUI>
+      <xloc>672</xloc>
+      <yloc>224</yloc>
+      <draw>Y</draw>
+    </GUI>
+  </step>
+  <step>
+    <name>Sort on incoming Account</name>
+    <type>SortRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <directory>%%java.io.tmpdir%%</directory>
+    <prefix>out</prefix>
+    <sort_size>1000000</sort_size>
+    <free_memory/>
+    <compress>N</compress>
+    <compress_variable/>
+    <unique_rows>N</unique_rows>
+    <fields>
+      <field>
+        <name>Account</name>
+        <ascending>Y</ascending>
+        <case_sensitive>N</case_sensitive>
+        <collator_enabled>N</collator_enabled>
+        <collator_strength>0</collator_strength>
+        <presorted>N</presorted>
+      </field>
+    </fields>
+    <attributes/>
+    <cluster_schema/>
+    <remotesteps>
+      <input>
+      </input>
+      <output>
+      </output>
+    </remotesteps>
+    <GUI>
+      <xloc>672</xloc>
+      <yloc>112</yloc>
+      <draw>Y</draw>
+    </GUI>
+  </step>
+  <step>
+    <name>Sort rows on Account</name>
+    <type>SortRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <directory>%%java.io.tmpdir%%</directory>
+    <prefix>out</prefix>
+    <sort_size>1000000</sort_size>
+    <free_memory/>
+    <compress>N</compress>
+    <compress_variable/>
+    <unique_rows>N</unique_rows>
+    <fields>
+      <field>
+        <name>account</name>
+        <ascending>Y</ascending>
+        <case_sensitive>N</case_sensitive>
+        <collator_enabled>N</collator_enabled>
+        <collator_strength>0</collator_strength>
+        <presorted>N</presorted>
+      </field>
+    </fields>
+    <attributes/>
+    <cluster_schema/>
+    <remotesteps>
+      <input>
+      </input>
+      <output>
+      </output>
+    </remotesteps>
+    <GUI>
+      <xloc>464</xloc>
+      <yloc>224</yloc>
       <draw>Y</draw>
     </GUI>
   </step>
@@ -570,10 +831,6 @@
       <field>
         <column_name>account_secondary</column_name>
         <stream_name>account_secondary</stream_name>
-      </field>
-      <field>
-        <column_name>account_number</column_name>
-        <stream_name>account_number</stream_name>
       </field>
       <field>
         <column_name>movement</column_name>
@@ -623,6 +880,22 @@
         <column_name>transaction_type</column_name>
         <stream_name>transaction_type</stream_name>
       </field>
+      <field>
+        <column_name>account_type</column_name>
+        <stream_name>Account Type</stream_name>
+      </field>
+      <field>
+        <column_name>entity</column_name>
+        <stream_name>Entity</stream_name>
+      </field>
+      <field>
+        <column_name>modelling_type</column_name>
+        <stream_name>Modelling Type</stream_name>
+      </field>
+      <field>
+        <column_name>interest_nacm</column_name>
+        <stream_name>interest_nacm</stream_name>
+      </field>
     </fields>
     <attributes/>
     <cluster_schema/>
@@ -633,8 +906,8 @@
       </output>
     </remotesteps>
     <GUI>
-      <xloc>848</xloc>
-      <yloc>176</yloc>
+      <xloc>1168</xloc>
+      <yloc>224</yloc>
       <draw>Y</draw>
     </GUI>
   </step>
@@ -654,10 +927,10 @@
  	budget_month_id::date
 , 	account
 , 	account_secondary
-,	account_number
+--,	account_number
 , 	movement
 , 	amount::decimal
-, 	budget_amount
+, 	budget_amount::decimal
 , 	branch
 , 	source_file_name
 , 	journal_number
@@ -667,6 +940,7 @@
 , 	transaction_date::date
 , 	transaction_description
 , 	transaction_type
+,	interest_nacm::decimal
 from 
 	trn_budget_transaction_combined
 order by
@@ -750,29 +1024,6 @@ order by
       <value-meta>
         <type>String</type>
         <storagetype>normal</storagetype>
-        <name>account_number</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
-        <comments>account_number</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
         <name>movement</name>
         <length>2147483647</length>
         <precision>-1</precision>
@@ -820,8 +1071,8 @@ order by
         <type>BigNumber</type>
         <storagetype>normal</storagetype>
         <name>budget_amount</name>
-        <length>20</length>
-        <precision>4</precision>
+        <length>-1</length>
+        <precision>-1</precision>
         <origin>trn_budget_transactions_combined</origin>
         <comments>budget_amount</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
@@ -1046,6 +1297,29 @@ order by
         <date_format_timezone>Africa/Johannesburg</date_format_timezone>
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
+      <value-meta>
+        <type>BigNumber</type>
+        <storagetype>normal</storagetype>
+        <name>interest_nacm</name>
+        <length>-1</length>
+        <precision>-1</precision>
+        <origin>trn_budget_transactions_combined</origin>
+        <comments>interest_nacm</comments>
+        <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol/>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
     </row-meta>
     <attributes/>
     <cluster_schema/>
@@ -1057,7 +1331,7 @@ order by
     </remotesteps>
     <GUI>
       <xloc>208</xloc>
-      <yloc>304</yloc>
+      <yloc>400</yloc>
       <draw>Y</draw>
     </GUI>
   </step>
@@ -1078,7 +1352,7 @@ select
 	coalesce(budget_month_id,budget_month_id_1)::date as budget_month_id
 ,	coalesce(account,account_1) as account
 ,	coalesce(account_secondary,account_secondary_1) as account_secondary
-,	coalesce(account_number, account_number_1) as account_number
+--,	coalesce(account_number, account_number_1) as account_number
 ,	coalesce(movement,movement_1) as movement
 ,	coalesce(amount::decimal,amount_1::decimal)::decimal as amount
 ,	coalesce(budget_amount::decimal,budget_amount_1::decimal) as budget_amount
@@ -1091,6 +1365,7 @@ select
 ,	coalesce(transaction_date,transaction_date_1)::date as transaction_date
 ,	coalesce(transaction_description,transaction_description_1) as transaction_description
 ,	coalesce(transaction_type,transaction_type_1) as transaction_type
+,	coalesce(interest_nacm::decimal, interest_nacm_1::decimal) as interest_nacm
 from 
 	trn_retained_balances
 order by
@@ -1156,29 +1431,6 @@ order by
         <precision>-1</precision>
         <origin>trn_retained_balance</origin>
         <comments>account_secondary</comments>
-        <conversion_Mask/>
-        <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
-        <currency_symbol/>
-        <trim_type>none</trim_type>
-        <case_insensitive>N</case_insensitive>
-        <collator_disabled>Y</collator_disabled>
-        <collator_strength>0</collator_strength>
-        <sort_descending>N</sort_descending>
-        <output_padding>N</output_padding>
-        <date_format_lenient>N</date_format_lenient>
-        <date_format_locale>en_US</date_format_locale>
-        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
-        <lenient_string_to_number>N</lenient_string_to_number>
-      </value-meta>
-      <value-meta>
-        <type>String</type>
-        <storagetype>normal</storagetype>
-        <name>account_number</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
-        <comments>account_number</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
         <grouping_symbol>,</grouping_symbol>
@@ -1470,6 +1722,29 @@ order by
         <date_format_timezone>Africa/Johannesburg</date_format_timezone>
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
+      <value-meta>
+        <type>BigNumber</type>
+        <storagetype>normal</storagetype>
+        <name>interest_nacm</name>
+        <length>-1</length>
+        <precision>-1</precision>
+        <origin>trn_retained_balance</origin>
+        <comments>interest_nacm</comments>
+        <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol/>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
     </row-meta>
     <attributes/>
     <cluster_schema/>
@@ -1481,7 +1756,7 @@ order by
     </remotesteps>
     <GUI>
       <xloc>208</xloc>
-      <yloc>96</yloc>
+      <yloc>48</yloc>
       <draw>Y</draw>
     </GUI>
   </step>

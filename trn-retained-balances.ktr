@@ -645,6 +645,7 @@ select
 ,	b.budget_month_id as transaction_date
 ,	'Retained Balance Calculations' as transaction_description
 ,	'CALCULATED' as transaction_type
+,	0.0 as interest_nacm
 from
 	ret_balance a
 join
@@ -1005,6 +1006,29 @@ order by
         <date_format_timezone>Africa/Johannesburg</date_format_timezone>
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
+      <value-meta>
+        <type>BigNumber</type>
+        <storagetype>normal</storagetype>
+        <name>interest_nacm</name>
+        <length>-1</length>
+        <precision>-1</precision>
+        <origin>Retained amount balances</origin>
+        <comments>interest_nacm</comments>
+        <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol/>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
     </row-meta>
     <attributes/>
     <cluster_schema/>
@@ -1091,19 +1115,20 @@ select
 	b.budget_month_id
 ,	a.account
 --,	a.account_number
-,	'Retained Balance' as account_secondary
+,	'Budget Retained Balance' as account_secondary
 ,	case when a.budget_amount + a.prev_month_budget_amount &lt; 0 then 'Debit' else 'Credit' end as movement
 , 	case when (a.budget_amount + a.prev_month_budget_amount) &lt; 0 then ((a.budget_amount + a.prev_month_budget_amount) * -1) else (a.budget_amount + a.prev_month_budget_amount) end as budget_amount
 ,	null as amount
 ,	null as branch
-,	'Retained Balance Calculations' as source_file_name
+,	'Retained Balance Calculations for Budget' as source_file_name
 ,	null as journal_number
 ,	null as narrative
 ,	0 as sequence
 ,	0 as transaction_balance_from_source
 ,	b.budget_month_id as transaction_date
-,	'Retained Balance Calculations' as transaction_description
+,	'Retained Balance Calculations for Budget' as transaction_description
 ,	'CALCULATED' as transaction_type
+,	0.0 as interest_nacm
 from
 	ret_balance a
 join
@@ -1212,16 +1237,16 @@ order by
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
       <value-meta>
-        <type>BigNumber</type>
+        <type>Number</type>
         <storagetype>normal</storagetype>
         <name>budget_amount</name>
         <length>-1</length>
         <precision>-1</precision>
         <origin>Retained budget amount balances</origin>
         <comments>budget_amount</comments>
-        <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
+        <conversion_Mask>####0.0#########;-####0.0#########</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol/>
+        <grouping_symbol>,</grouping_symbol>
         <currency_symbol/>
         <trim_type>none</trim_type>
         <case_insensitive>N</case_insensitive>
@@ -1239,7 +1264,7 @@ order by
         <storagetype>normal</storagetype>
         <name>amount</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained budget amount balances</origin>
         <comments>amount</comments>
         <conversion_Mask/>
@@ -1262,7 +1287,7 @@ order by
         <storagetype>normal</storagetype>
         <name>branch</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained budget amount balances</origin>
         <comments>branch</comments>
         <conversion_Mask/>
@@ -1285,7 +1310,7 @@ order by
         <storagetype>normal</storagetype>
         <name>source_file_name</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained budget amount balances</origin>
         <comments>source_file_name</comments>
         <conversion_Mask/>
@@ -1308,7 +1333,7 @@ order by
         <storagetype>normal</storagetype>
         <name>journal_number</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained budget amount balances</origin>
         <comments>journal_number</comments>
         <conversion_Mask/>
@@ -1331,7 +1356,7 @@ order by
         <storagetype>normal</storagetype>
         <name>narrative</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained budget amount balances</origin>
         <comments>narrative</comments>
         <conversion_Mask/>
@@ -1423,7 +1448,7 @@ order by
         <storagetype>normal</storagetype>
         <name>transaction_description</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained budget amount balances</origin>
         <comments>transaction_description</comments>
         <conversion_Mask/>
@@ -1446,12 +1471,35 @@ order by
         <storagetype>normal</storagetype>
         <name>transaction_type</name>
         <length>-1</length>
-        <precision>-1</precision>
+        <precision>0</precision>
         <origin>Retained budget amount balances</origin>
         <comments>transaction_type</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
         <grouping_symbol>,</grouping_symbol>
+        <currency_symbol/>
+        <trim_type>none</trim_type>
+        <case_insensitive>N</case_insensitive>
+        <collator_disabled>Y</collator_disabled>
+        <collator_strength>0</collator_strength>
+        <sort_descending>N</sort_descending>
+        <output_padding>N</output_padding>
+        <date_format_lenient>N</date_format_lenient>
+        <date_format_locale>en_US</date_format_locale>
+        <date_format_timezone>Africa/Johannesburg</date_format_timezone>
+        <lenient_string_to_number>N</lenient_string_to_number>
+      </value-meta>
+      <value-meta>
+        <type>BigNumber</type>
+        <storagetype>normal</storagetype>
+        <name>interest_nacm</name>
+        <length>-1</length>
+        <precision>-1</precision>
+        <origin>Retained budget amount balances</origin>
+        <comments>interest_nacm</comments>
+        <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
+        <decimal_symbol>.</decimal_symbol>
+        <grouping_symbol/>
         <currency_symbol/>
         <trim_type>none</trim_type>
         <case_insensitive>N</case_insensitive>
@@ -1627,6 +1675,14 @@ order by
       <field>
         <column_name>transaction_type_1</column_name>
         <stream_name>transaction_type_1</stream_name>
+      </field>
+      <field>
+        <column_name>interest_nacm</column_name>
+        <stream_name>interest_nacm</stream_name>
+      </field>
+      <field>
+        <column_name>interest_nacm_1</column_name>
+        <stream_name>interest_nacm_1</stream_name>
       </field>
     </fields>
     <attributes/>
