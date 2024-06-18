@@ -4,8 +4,7 @@ select
 from 
 	pg_stat_activity
 where 
-	pg_stat_activity.datname = 'JPersonal'
-	
+	pg_stat_activity.datname = 'JPersonal'	
 and
 	pg_stat_activity.application_name not like 'DBeaver%'
 
@@ -23,3 +22,6 @@ from
 	pg_stat_activity
 where 
 	pg_stat_activity.datname = 'JPersonal'
+	
+	
+drop table public.transactions
