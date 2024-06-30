@@ -702,6 +702,8 @@
 		when transaction_description like '%to Credit Card (6010640066)%' then 'Bernice Credit Card'
 		when transaction_description like '%Apple.com/bill%' then 'Apple One'
 		when transaction_description like '%Netflix Amsterdam%' then 'Netflix'
+		when transaction_description like '%Licence Disc Renewal:%' then 'Vehicle Licenses'
+		when transaction_description like '%City Of Matlosana%' then 'Municipal Account'
 		else 'Other' end as account_secondary
 ,	source_file_name
 ,	interest_nacm
@@ -1037,16 +1039,16 @@ from
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
       <value-meta>
-        <type>String</type>
+        <type>BigNumber</type>
         <storagetype>normal</storagetype>
         <name>interest_nacm</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
+        <length>16</length>
+        <precision>4</precision>
         <origin>trn_transactions_start_balances</origin>
         <comments>interest_nacm</comments>
-        <conversion_Mask/>
+        <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
+        <grouping_symbol/>
         <currency_symbol/>
         <trim_type>none</trim_type>
         <case_insensitive>N</case_insensitive>

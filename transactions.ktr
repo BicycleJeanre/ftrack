@@ -567,6 +567,95 @@
     </GUI>
   </step>
   <step>
+    <name>Filter rows</name>
+    <type>FilterRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <send_true_to/>
+    <send_false_to/>
+    <compare>
+      <condition>
+        <negated>N</negated>
+        <leftvalue>account</leftvalue>
+        <function>=</function>
+        <rightvalue/>
+        <value>
+          <name>constant</name>
+          <type>String</type>
+          <text>Home Loan</text>
+          <length>-1</length>
+          <precision>-1</precision>
+          <isnull>N</isnull>
+          <mask/>
+        </value>
+      </condition>
+    </compare>
+    <attributes/>
+    <cluster_schema/>
+    <remotesteps>
+      <input>
+      </input>
+      <output>
+      </output>
+    </remotesteps>
+    <GUI>
+      <xloc>1568</xloc>
+      <yloc>112</yloc>
+      <draw>Y</draw>
+    </GUI>
+  </step>
+  <step>
+    <name>Fix data Types</name>
+    <type>SelectValues</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning>
+      <method>none</method>
+      <schema_name/>
+    </partitioning>
+    <fields>
+      <select_unspecified>N</select_unspecified>
+      <meta>
+        <name>interest_nacm_1</name>
+        <rename>interest_nacm_1</rename>
+        <type>Number</type>
+        <length>-2</length>
+        <precision>-2</precision>
+        <conversion_mask/>
+        <date_format_lenient>false</date_format_lenient>
+        <date_format_locale/>
+        <date_format_timezone/>
+        <lenient_string_to_number>false</lenient_string_to_number>
+        <encoding/>
+        <decimal_symbol/>
+        <grouping_symbol/>
+        <currency_symbol/>
+        <storage_type/>
+      </meta>
+    </fields>
+    <attributes/>
+    <cluster_schema/>
+    <remotesteps>
+      <input>
+      </input>
+      <output>
+      </output>
+    </remotesteps>
+    <GUI>
+      <xloc>1568</xloc>
+      <yloc>224</yloc>
+      <draw>Y</draw>
+    </GUI>
+  </step>
+  <step>
     <name>Get Account Details</name>
     <type>ExcelInput</type>
     <description/>
@@ -696,8 +785,8 @@
       </output>
     </remotesteps>
     <GUI>
-      <xloc>672</xloc>
-      <yloc>16</yloc>
+      <xloc>1296</xloc>
+      <yloc>32</yloc>
       <draw>Y</draw>
     </GUI>
   </step>
@@ -730,7 +819,7 @@
       </output>
     </remotesteps>
     <GUI>
-      <xloc>672</xloc>
+      <xloc>1296</xloc>
       <yloc>224</yloc>
       <draw>Y</draw>
     </GUI>
@@ -772,7 +861,7 @@
       </output>
     </remotesteps>
     <GUI>
-      <xloc>672</xloc>
+      <xloc>1296</xloc>
       <yloc>112</yloc>
       <draw>Y</draw>
     </GUI>
@@ -814,7 +903,7 @@
       </output>
     </remotesteps>
     <GUI>
-      <xloc>464</xloc>
+      <xloc>1088</xloc>
       <yloc>224</yloc>
       <draw>Y</draw>
     </GUI>
@@ -934,7 +1023,7 @@
       </output>
     </remotesteps>
     <GUI>
-      <xloc>1168</xloc>
+      <xloc>1792</xloc>
       <yloc>224</yloc>
       <draw>Y</draw>
     </GUI>
@@ -1076,7 +1165,7 @@
       </output>
     </remotesteps>
     <GUI>
-      <xloc>1168</xloc>
+      <xloc>1792</xloc>
       <yloc>304</yloc>
       <draw>Y</draw>
     </GUI>
@@ -1128,7 +1217,7 @@ order by
         <name>budget_month_id</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>budget_month_id</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1151,7 +1240,7 @@ order by
         <name>account</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>account</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1174,7 +1263,7 @@ order by
         <name>account_secondary</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>account_secondary</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1197,7 +1286,7 @@ order by
         <name>movement</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>movement</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1220,7 +1309,7 @@ order by
         <name>amount</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>amount</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1243,7 +1332,7 @@ order by
         <name>budget_amount</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>budget_amount</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1266,7 +1355,7 @@ order by
         <name>branch</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>branch</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1289,7 +1378,7 @@ order by
         <name>source_file_name</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>source_file_name</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1312,7 +1401,7 @@ order by
         <name>journal_number</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>journal_number</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1335,7 +1424,7 @@ order by
         <name>narrative</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>narrative</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1358,7 +1447,7 @@ order by
         <name>sequence</name>
         <length>15</length>
         <precision>0</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>sequence</comments>
         <conversion_Mask>####0;-####0</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1381,7 +1470,7 @@ order by
         <name>transaction_balance_from_source</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>transaction_balance_from_source</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1404,7 +1493,7 @@ order by
         <name>transaction_date</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>transaction_date</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1427,7 +1516,7 @@ order by
         <name>transaction_description</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>transaction_description</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1450,7 +1539,7 @@ order by
         <name>transaction_type</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>transaction_type</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1473,7 +1562,7 @@ order by
         <name>interest_nacm</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_budget_transactions_combined</origin>
+        <origin>trn_budget_transaction_combined</origin>
         <comments>interest_nacm</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1518,26 +1607,59 @@ order by
     </partitioning>
     <connection>BIDEV - Jeanre Personal</connection>
     <sql>	
-select 
-	coalesce(budget_month_id,budget_month_id_1)::date as budget_month_id
-,	coalesce(account,account_1) as account
-,	coalesce(account_secondary,account_secondary_1) as account_secondary
+--select 
+--	coalesce(budget_month_id,budget_month_id_1)::date as budget_month_id
+--,	coalesce(account,account_1) as account
+--,	coalesce(account_secondary,account_secondary_1) as account_secondary
 --,	coalesce(account_number, account_number_1) as account_number
-,	coalesce(movement,movement_1) as movement
-,	coalesce(amount::decimal,amount_1::decimal)::decimal as amount
-,	coalesce(budget_amount::decimal,budget_amount_1::decimal) as budget_amount
-,	coalesce(branch,branch_1) as branch
-,	coalesce(source_file_name,source_file_name_1) as source_file_name
-,	coalesce(journal_number,journal_number_1) as journal_number
-,	coalesce(narrative,narrative_1) as narrative
-,	coalesce("sequence","sequence_1") as "sequence"
-,	coalesce(transaction_balance_from_source,transaction_balance_from_source_1)::decimal as transaction_balance_from_source
-,	coalesce(transaction_date,transaction_date_1)::date as transaction_date
-,	coalesce(transaction_description,transaction_description_1) as transaction_description
-,	coalesce(transaction_type,transaction_type_1) as transaction_type
-,	coalesce(interest_nacm::decimal, interest_nacm_1::decimal) as interest_nacm
+--,	coalesce(movement,movement_1) as movement
+--,	coalesce(amount::decimal,amount_1::decimal)::decimal as amount
+--,	coalesce(budget_amount::decimal,budget_amount_1::decimal) as budget_amount
+--,	coalesce(branch,branch_1) as branch
+--,	coalesce(source_file_name,source_file_name_1) as source_file_name
+--,	coalesce(journal_number,journal_number_1) as journal_number
+--,	coalesce(narrative,narrative_1) as narrative
+--,	coalesce("sequence","sequence_1") as "sequence"
+--,	coalesce(transaction_balance_from_source,transaction_balance_from_source_1)::decimal as transaction_balance_from_source
+--,	coalesce(transaction_date,transaction_date_1)::date as transaction_date
+--,	coalesce(transaction_description,transaction_description_1) as transaction_description
+--,	coalesce(transaction_type,transaction_type_1) as transaction_type
+--,	coalesce(interest_nacm::decimal, interest_nacm_1::decimal) as interest_nacm
+--from 
+--	trn_retained_balances
+--where
+--	budget_amount is not null
+--or
+--	budget_amount_1 is not null
+--order by
+--	1,2,3,4
+
+
+
+select 
+	budget_month_id:: date
+,	account
+,	account_secondary
+--,	coalesce(account_number, account_number_1) as account_number
+,	movement
+,	amount::decimal
+,	budget_amount::decimal
+,	branch
+,	source_file_name
+,	journal_number
+,	narrative
+,	"sequence"
+,	transaction_balance_from_source::decimal
+,	transaction_date::date
+,	transaction_description
+,	transaction_type
+,	interest_nacm::decimal
 from 
 	trn_retained_balances
+--where
+--	budget_amount is not null
+--or
+--	budget_amount_1 is not null
 order by
 	1,2,3,4</sql>
     <limit>0</limit>
@@ -1553,7 +1675,7 @@ order by
         <name>budget_month_id</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>budget_month_id</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1576,7 +1698,7 @@ order by
         <name>account</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>account</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1599,7 +1721,7 @@ order by
         <name>account_secondary</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>account_secondary</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1622,7 +1744,7 @@ order by
         <name>movement</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>movement</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1645,7 +1767,7 @@ order by
         <name>amount</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>amount</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1668,7 +1790,7 @@ order by
         <name>budget_amount</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>budget_amount</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1691,7 +1813,7 @@ order by
         <name>branch</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>branch</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1714,7 +1836,7 @@ order by
         <name>source_file_name</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>source_file_name</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1737,7 +1859,7 @@ order by
         <name>journal_number</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>journal_number</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1760,7 +1882,7 @@ order by
         <name>narrative</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>narrative</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1783,7 +1905,7 @@ order by
         <name>sequence</name>
         <length>9</length>
         <precision>0</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>sequence</comments>
         <conversion_Mask>####0;-####0</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1806,7 +1928,7 @@ order by
         <name>transaction_balance_from_source</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>transaction_balance_from_source</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1829,7 +1951,7 @@ order by
         <name>transaction_date</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>transaction_date</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1852,7 +1974,7 @@ order by
         <name>transaction_description</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>transaction_description</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1875,7 +1997,7 @@ order by
         <name>transaction_type</name>
         <length>2147483647</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>transaction_type</comments>
         <conversion_Mask/>
         <decimal_symbol>.</decimal_symbol>
@@ -1898,7 +2020,7 @@ order by
         <name>interest_nacm</name>
         <length>-1</length>
         <precision>-1</precision>
-        <origin>trn_retained_balance</origin>
+        <origin>trn_retained_balances</origin>
         <comments>interest_nacm</comments>
         <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
@@ -1927,95 +2049,6 @@ order by
     <GUI>
       <xloc>208</xloc>
       <yloc>48</yloc>
-      <draw>Y</draw>
-    </GUI>
-  </step>
-  <step>
-    <name>Filter rows</name>
-    <type>FilterRows</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning>
-      <method>none</method>
-      <schema_name/>
-    </partitioning>
-    <send_true_to/>
-    <send_false_to/>
-    <compare>
-      <condition>
-        <negated>N</negated>
-        <leftvalue>account</leftvalue>
-        <function>=</function>
-        <rightvalue/>
-        <value>
-          <name>constant</name>
-          <type>String</type>
-          <text>Home Loan</text>
-          <length>-1</length>
-          <precision>-1</precision>
-          <isnull>N</isnull>
-          <mask/>
-        </value>
-      </condition>
-    </compare>
-    <attributes/>
-    <cluster_schema/>
-    <remotesteps>
-      <input>
-      </input>
-      <output>
-      </output>
-    </remotesteps>
-    <GUI>
-      <xloc>944</xloc>
-      <yloc>112</yloc>
-      <draw>Y</draw>
-    </GUI>
-  </step>
-  <step>
-    <name>Fix data Types</name>
-    <type>SelectValues</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning>
-      <method>none</method>
-      <schema_name/>
-    </partitioning>
-    <fields>
-      <select_unspecified>N</select_unspecified>
-      <meta>
-        <name>interest_nacm_1</name>
-        <rename>interest_nacm_1</rename>
-        <type>Number</type>
-        <length>-2</length>
-        <precision>-2</precision>
-        <conversion_mask/>
-        <date_format_lenient>false</date_format_lenient>
-        <date_format_locale/>
-        <date_format_timezone/>
-        <lenient_string_to_number>false</lenient_string_to_number>
-        <encoding/>
-        <decimal_symbol/>
-        <grouping_symbol/>
-        <currency_symbol/>
-        <storage_type/>
-      </meta>
-    </fields>
-    <attributes/>
-    <cluster_schema/>
-    <remotesteps>
-      <input>
-      </input>
-      <output>
-      </output>
-    </remotesteps>
-    <GUI>
-      <xloc>944</xloc>
-      <yloc>224</yloc>
       <draw>Y</draw>
     </GUI>
   </step>

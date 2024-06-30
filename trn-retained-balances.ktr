@@ -490,17 +490,17 @@
     <hop>
       <from>Retained amount balances</from>
       <to>Merge join</to>
-      <enabled>Y</enabled>
+      <enabled>N</enabled>
     </hop>
     <hop>
       <from>Retained budget amount balances</from>
       <to>Merge join</to>
-      <enabled>Y</enabled>
+      <enabled>N</enabled>
     </hop>
     <hop>
       <from>Merge join</from>
       <to>trn_retained_balances</to>
-      <enabled>Y</enabled>
+      <enabled>N</enabled>
     </hop>
     <hop>
       <from>Merge join</from>
@@ -510,6 +510,11 @@
     <hop>
       <from>Retained amount balances</from>
       <to>Filter rows</to>
+      <enabled>N</enabled>
+    </hop>
+    <hop>
+      <from>Retained amount balances</from>
+      <to>trn_retained_balances</to>
       <enabled>Y</enabled>
     </hop>
   </order>
@@ -553,7 +558,7 @@
     </remotesteps>
     <GUI>
       <xloc>592</xloc>
-      <yloc>160</yloc>
+      <yloc>48</yloc>
       <draw>Y</draw>
     </GUI>
   </step>
@@ -1686,74 +1691,6 @@ order by
         <column_name>transaction_type</column_name>
         <stream_name>transaction_type</stream_name>
       </field>
-      <field>
-        <column_name>budget_month_id_1</column_name>
-        <stream_name>budget_month_id_1</stream_name>
-      </field>
-      <field>
-        <column_name>account_1</column_name>
-        <stream_name>account_1</stream_name>
-      </field>
-      <field>
-        <column_name>account_secondary_1</column_name>
-        <stream_name>account_secondary_1</stream_name>
-      </field>
-      <field>
-        <column_name>movement_1</column_name>
-        <stream_name>movement_1</stream_name>
-      </field>
-      <field>
-        <column_name>budget_amount_1</column_name>
-        <stream_name>budget_amount_1</stream_name>
-      </field>
-      <field>
-        <column_name>amount_1</column_name>
-        <stream_name>amount_1</stream_name>
-      </field>
-      <field>
-        <column_name>branch_1</column_name>
-        <stream_name>branch_1</stream_name>
-      </field>
-      <field>
-        <column_name>source_file_name</column_name>
-        <stream_name>source_file_name_1</stream_name>
-      </field>
-      <field>
-        <column_name>journal_number_1</column_name>
-        <stream_name>journal_number_1</stream_name>
-      </field>
-      <field>
-        <column_name>narrative_1</column_name>
-        <stream_name>narrative_1</stream_name>
-      </field>
-      <field>
-        <column_name>sequence_1</column_name>
-        <stream_name>sequence_1</stream_name>
-      </field>
-      <field>
-        <column_name>transaction_balance_from_source_1</column_name>
-        <stream_name>transaction_balance_from_source_1</stream_name>
-      </field>
-      <field>
-        <column_name>transaction_date_1</column_name>
-        <stream_name>transaction_date_1</stream_name>
-      </field>
-      <field>
-        <column_name>transaction_description_1</column_name>
-        <stream_name>transaction_description_1</stream_name>
-      </field>
-      <field>
-        <column_name>transaction_type_1</column_name>
-        <stream_name>transaction_type_1</stream_name>
-      </field>
-      <field>
-        <column_name>interest_nacm</column_name>
-        <stream_name>interest_nacm</stream_name>
-      </field>
-      <field>
-        <column_name>interest_nacm_1</column_name>
-        <stream_name>interest_nacm_1</stream_name>
-      </field>
     </fields>
     <attributes/>
     <cluster_schema/>
@@ -1765,7 +1702,7 @@ order by
     </remotesteps>
     <GUI>
       <xloc>896</xloc>
-      <yloc>320</yloc>
+      <yloc>192</yloc>
       <draw>Y</draw>
     </GUI>
   </step>

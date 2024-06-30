@@ -570,8 +570,8 @@ full outer join
 		credit_amount &lt;&gt; 0.0
 	and
 		credit_amount is not null
-	and
-		transaction_description not like '%Payment Received B Labuschagne%'
+	--and
+		--transaction_description not like '%Payment Received B Labuschagne%'
 	--and
 	--	transaction_date = '2024-01-26'
 ) credits on debits.account_debit = credits.account_debit and debits.account_credit = credits.account_credit and debits.amount = credits.amount and debits.transaction_date = credits.transaction_date
@@ -883,16 +883,16 @@ full outer join
         <lenient_string_to_number>N</lenient_string_to_number>
       </value-meta>
       <value-meta>
-        <type>String</type>
+        <type>BigNumber</type>
         <storagetype>normal</storagetype>
         <name>interest_nacm</name>
-        <length>2147483647</length>
-        <precision>-1</precision>
+        <length>20</length>
+        <precision>4</precision>
         <origin>trn_transactions_account_secondary</origin>
         <comments>interest_nacm</comments>
-        <conversion_Mask/>
+        <conversion_Mask>######0.0###################;-######0.0###################</conversion_Mask>
         <decimal_symbol>.</decimal_symbol>
-        <grouping_symbol>,</grouping_symbol>
+        <grouping_symbol/>
         <currency_symbol/>
         <trim_type>none</trim_type>
         <case_insensitive>N</case_insensitive>

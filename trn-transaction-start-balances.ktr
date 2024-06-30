@@ -1070,7 +1070,7 @@ from
         <storagetype>normal</storagetype>
         <name>journal_number</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>journal_number</comments>
         <conversion_Mask/>
@@ -1093,7 +1093,7 @@ from
         <storagetype>normal</storagetype>
         <name>transaction_type</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>transaction_type</comments>
         <conversion_Mask/>
@@ -1116,7 +1116,7 @@ from
         <storagetype>normal</storagetype>
         <name>branch</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>branch</comments>
         <conversion_Mask/>
@@ -1139,7 +1139,7 @@ from
         <storagetype>normal</storagetype>
         <name>narrative</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>narrative</comments>
         <conversion_Mask/>
@@ -1185,7 +1185,7 @@ from
         <storagetype>normal</storagetype>
         <name>transaction_description</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>transaction_description</comments>
         <conversion_Mask/>
@@ -1277,7 +1277,7 @@ from
         <storagetype>normal</storagetype>
         <name>source_file_name</name>
         <length>-1</length>
-        <precision>0</precision>
+        <precision>-1</precision>
         <origin>src_capitec_transactions - Start Balance</origin>
         <comments>source_file_name</comments>
         <conversion_Mask/>
