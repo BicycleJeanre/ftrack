@@ -25,3 +25,5 @@ where
 	
 	
 drop table public.transactions
+
+drop database 'JPersonal';
