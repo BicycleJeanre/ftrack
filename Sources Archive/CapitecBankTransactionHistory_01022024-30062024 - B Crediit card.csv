@@ -1,0 +1,49 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+6010640066,06/02/2024,71327708979,FINANCIAL,"","Banking App Transfer Received from Savings Plan (1706227645) Transfer",,1000.00,"Transfer",797.25
+6010640066,07/02/2024,71373511754,FINANCIAL,"","Yoco *marica Pienaar Klerksdorp (Card 5758)",800.00,,"Yoco   *Marica Pienaar Klerksdorp   NWZA",-2.75
+6010640066,22/02/2024,71951694902,FINANCIAL,"","Banking App External Payment: Vision Meat",3614.52,,"VISION MEAT",-3617.27
+6010640066,22/02/2024,71951694904,FINANCIAL,"","External Payment Fee",2.00,,"",-3619.27
+6010640066,25/02/2024,72126453832,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,700.00,"Transfer",-2919.27
+6010640066,28/02/2024,72303750473,FINANCIAL,"","Interest Received",,0.08,"",-2919.19
+6010640066,28/02/2024,72303750474,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-2969.19
+6010640066,28/02/2024,72303750475,FINANCIAL,"","Death Insurance Payment",0.85,,"",-2970.04
+6010640066,28/02/2024,72303750476,FINANCIAL,"","Disability Insurance Payment",0.07,,"",-2970.11
+6010640066,28/02/2024,72303750477,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",2.74,,"",-2972.85
+6010640066,01/03/2024,72468595357,FINANCIAL,"","Wimpy Potchefstroom (Card 5758)",100.00,,"WIMPY MOOI RIVER MALL  POTCHEFSTROOMMGZA",-3072.85
+6010640066,02/03/2024,72579299796,FINANCIAL,"","Banking App External Payment: Henri Labuschagne",125.00,,"HENRI LABUSCHAGNE",-3197.85
+6010640066,02/03/2024,72579299813,FINANCIAL,"","External Payment Fee",2.00,,"",-3199.85
+6010640066,25/03/2024,73567878807,FINANCIAL,"","Account Payment",,152.12,"",-3047.73
+6010640066,26/03/2024,73644193295,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,700.00,"Transfer",-2347.73
+6010640066,31/03/2024,73971891533,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",52.44,,"",-2400.17
+6010640066,31/03/2024,73971891534,FINANCIAL,"","Interest Charged for Purchases",0.71,,"",-2400.88
+6010640066,31/03/2024,73971891535,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-2450.88
+6010640066,31/03/2024,73971891536,FINANCIAL,"","Death Insurance Payment",3.15,,"",-2454.03
+6010640066,31/03/2024,73971891537,FINANCIAL,"","Disability Insurance Payment",0.27,,"",-2454.30
+6010640066,31/03/2024,73971891538,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",10.19,,"",-2464.49
+6010640066,25/04/2024,75163629898,FINANCIAL,"","Account Payment",,136.15,"",-2328.34
+6010640066,27/04/2024,75280255270,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,2350.00,"Transfer",21.66
+6010640066,29/04/2024,75383756451,FINANCIAL,"","Banking App Prepaid Purchase Cell C",15.00,,"Cell C",6.66
+6010640066,29/04/2024,75383756456,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",6.16
+6010640066,30/04/2024,75476066862,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",29.34,,"",-23.18
+6010640066,30/04/2024,75476066863,FINANCIAL,"","Interest Charged for Purchases",4.07,,"",-27.25
+6010640066,30/04/2024,75476066864,FINANCIAL,"","Interest Received",,0.01,"",-27.24
+6010640066,30/04/2024,75476066865,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-77.24
+6010640066,30/04/2024,75476066866,FINANCIAL,"","Death Insurance Payment",2.21,,"",-79.45
+6010640066,30/04/2024,75476066867,FINANCIAL,"","Disability Insurance Payment",0.19,,"",-79.64
+6010640066,30/04/2024,75476066868,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",7.16,,"",-86.80
+6010640066,10/05/2024,76070214588,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,700.00,"Transfer",613.20
+6010640066,12/05/2024,76159397813,FINANCIAL,"","Yoco *marica Pienaar Klerksdorp (Card 5758)",800.00,,"Yoco   *Marica Pienaar Klerksdorp   NWZA",-186.80
+6010640066,25/05/2024,76700363737,FINANCIAL,"","Banking App Prepaid Purchase Cell C",20.00,,"Cell C",-206.80
+6010640066,25/05/2024,76700363739,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",-207.30
+6010640066,27/05/2024,76800322161,FINANCIAL,"","All States Bridal Johannesburg (Card 5758)",800.00,,"ALL STATES BRIDAL      JOHANNESBURG ZAZA",-1007.30
+6010640066,27/05/2024,76800421541,FINANCIAL,"","Zhilin Trading Dragon Johannesburg (Card 5758)",250.00,,"ZHILIN TRADING DRAGON  JOHANNESBURG ZAZA",-1257.30
+6010640066,31/05/2024,77080884991,FINANCIAL,"","Interest Received",,0.12,"",-1257.18
+6010640066,31/05/2024,77080884992,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-1307.18
+6010640066,31/05/2024,77080884993,FINANCIAL,"","Death Insurance Payment",0.29,,"",-1307.47
+6010640066,31/05/2024,77080884994,FINANCIAL,"","Disability Insurance Payment",0.03,,"",-1307.50
+6010640066,31/05/2024,77080884995,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",0.94,,"",-1308.44
+6010640066,01/06/2024,77192581416,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,2000.00,"Transfer",691.56
+6010640066,28/06/2024,78472595874,FINANCIAL,"","Banking App External Immediate Payment: Vision Meat",3548.49,,"VISION MEAT",-2856.93
+6010640066,28/06/2024,78472595882,FINANCIAL,"","External Immediate Payment Fee",6.50,,"",-2863.43
+6010640066,29/06/2024,78544607397,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,500.00,"Transfer",-2363.43
