@@ -1,0 +1,15 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+1759358744,10/04/2024,74535847973,FINANCIAL,"","Banking App Transfer to Credit Card (6002709354) Transfer",400.00,,"Transfer",72.75
+1759358744,27/04/2024,75280241884,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,200.00,"Transfer",272.75
+1759358744,30/04/2024,75490665848,FINANCIAL,"","Interest Received",,0.58,"",273.33
+1759358744,31/05/2024,77087566940,FINANCIAL,"","Interest Received",,0.74,"",274.07
+1759358744,01/06/2024,77193074931,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,200.00,"Transfer",474.07
+1759358744,29/06/2024,78544835807,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,200.00,"Transfer",674.07
+1759358744,30/06/2024,78641201647,FINANCIAL,"","Interest Received",,1.28,"",675.35
+1759358744,13/07/2024,79364607592,FINANCIAL,"","Banking App Transfer to Credit Card (6002709354) Transfer",200.00,,"Transfer",475.35
+1759358744,26/07/2024,79899749689,FINANCIAL,"","Banking App Prepaid Purchase MTN",50.00,,"MTN",425.35
+1759358744,26/07/2024,79899749692,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",424.85
+1759358744,31/07/2024,80310413380,FINANCIAL,"","Interest Received",,1.40,"",426.25
+1759358744,04/08/2024,80560285145,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,200.00,"Transfer",626.25
+1759358744,22/08/2024,81330817242,FINANCIAL,"","Banking App Transfer to Credit Card (6002709354) Transfer",400.00,,"Transfer",226.25

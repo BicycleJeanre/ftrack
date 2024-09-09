@@ -438,7 +438,7 @@
   </notepads>
   <connection>
     <name>BIDEV - Jeanre Personal</name>
-    <server>pyramid.dev.bicycleclouds.com</server>
+    <server>pyramiddev.bicyclebi.com</server>
     <type>POSTGRESQL</type>
     <access>Native</access>
     <database>JPersonal</database>
@@ -681,6 +681,7 @@
 		when transaction_description like '%Checkers%' then 'Running Costs'
 		when transaction_description like '%Food Zone%' then 'Running Costs'
 		when transaction_description like '%Delhi Delicious%' then 'Eating Out'
+		when transaction_description like '%ringers Pub Gril%' then 'Eating Out'
 		when transaction_description like '%Badgeradm%' then 'Netstar'
 		when transaction_description like '%Jodine Van Wyk%' then 'Jodine Transactional'
 		when transaction_description like '%Immediate Payment Jeanre Van Wyk%' then 'Jeanre Transactional'
@@ -713,6 +714,9 @@
 		when transaction_description like '%Westpack%' then 'Running Costs'
 		when transaction_description like '%Rtc%' and account like 'Jeanre Transactional' then 'Personal Wealth'
 		when transaction_description like '%(TAXTIM)%' then 'Tax'
+		when transaction_description like '%Stilfontein Midtown Su%' then 'Running Costs'
+		when transaction_description like '%GGSERVERS%' then 'Gaming'
+		when transaction_description like 'Burger King%' then 'Eating Out'
 		
 		else 'Other' end as account_secondary
 ,	source_file_name

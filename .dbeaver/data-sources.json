@@ -7,10 +7,10 @@
 			"name": "01. Pyramid Development Local",
 			"save-password": true,
 			"configuration": {
-				"host": "pyramid.dev.bicycleclouds.com",
+				"host": "pyramiddev.bicyclebi.com",
 				"port": "12130",
 				"database": "postgres",
-				"url": "jdbc:postgresql://pyramid.dev.bicycleclouds.com:12130/postgres",
+				"url": "jdbc:postgresql://pyramiddev.bicyclebi.com:12130/postgres",
 				"configurationType": "MANUAL",
 				"home": "/Applications/Postgres.app/Contents/Versions/13",
 				"type": "dev",
@@ -34,6 +34,33 @@
 				},
 				"auth-model": "native"
 			}
+		},
+		"postgres-jdbc-191883f7671-3d8388a24800e40e": {
+			"provider": "postgresql",
+			"driver": "postgres-jdbc",
+			"name": "jay",
+			"save-password": true,
+			"configuration": {
+				"host": "localhost",
+				"port": "5432",
+				"database": "jay",
+				"url": "jdbc:postgresql://localhost:5432/jay",
+				"configurationType": "MANUAL",
+				"home": "/Applications/Postgres.app/Contents/Versions/13",
+				"type": "dev",
+				"closeIdleConnection": false,
+				"provider-properties": {
+					"@dbeaver-show-non-default-db@": "false",
+					"@dbeaver-show-template-db@": "false",
+					"@dbeaver-show-unavailable-db@": "false",
+					"show-database-statistics": "false",
+					"@dbeaver-read-all-data-types-db@": "false",
+					"@dbeaver-use-prepared-statements-db@": "false",
+					"postgresql.dd.plain.string": "false",
+					"postgresql.dd.tag.string": "false"
+				},
+				"auth-model": "native"
+			}
 		}
 	},
 	"connection-types": {
@@ -45,7 +72,7 @@
 			"confirm-execute": false,
 			"confirm-data-change": false,
 			"smart-commit": false,
-			"smart-commit-recover": false,
+			"smart-commit-recover": true,
 			"auto-close-transactions": true,
 			"close-transactions-period": 1800,
 			"auto-close-connections": true,
