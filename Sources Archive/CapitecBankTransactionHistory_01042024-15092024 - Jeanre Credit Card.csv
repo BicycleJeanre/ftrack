@@ -97,3 +97,13 @@ Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,Debi
 6002709354,29/08/2024,81699907034,FINANCIAL,"","Recurring Card Purchase: Ggservers Ltd. Downtown Toro (Card 8013)",107.03,,"GGSERVERS LTD.         DOWNTOWN TOROONCA",-9491.26
 6002709354,29/08/2024,81699907040,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Ggservers Ltd.",3.00,,"GGSERVERS LTD.         DOWNTOWN TORO  CA|REC_RECURRING_TXN",-9494.26
 6002709354,31/08/2024,81856351578,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,500.00,"Transfer",-8994.26
+6002709354,31/08/2024,81901465108,FINANCIAL,"","Interest Charged for Purchases",168.83,,"",-9163.09
+6002709354,31/08/2024,81901465109,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-9213.09
+6002709354,31/08/2024,81901465110,FINANCIAL,"","Death Insurance Payment",10.15,,"",-9223.24
+6002709354,31/08/2024,81901465111,FINANCIAL,"","Disability Insurance Payment",0.65,,"",-9223.89
+6002709354,31/08/2024,81901465112,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",31.09,,"",-9254.98
+6002709354,09/09/2024,82433072045,FINANCIAL,"","Recurring Card Purchase: Apple.com/bill Itunes.com (Card 8013)",229.99,,"APPLE.COM/BILL         ITUNES.COM   IRIE",-9484.97
+6002709354,09/09/2024,82433072050,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Apple.com/bill",5.00,,"APPLE.COM/BILL         ITUNES.COM     IE|REC_RECURRING_TXN",-9489.97
+6002709354,11/09/2024,82527980967,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer Jansie Fuel",,800.00,"Transfer Jansie fuel",-8689.97
+6002709354,13/09/2024,82601659250,FINANCIAL,"","Recurring Card Purchase: Netflix Amsterdam (Card 8013)",199.00,,"NETFLIX.COM            Amsterdam    NLNL",-8888.97
+6002709354,13/09/2024,82601659256,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Netflix.com",3.00,,"NETFLIX.COM            Amsterdam      NL|REC_RECURRING_TXN",-8891.97

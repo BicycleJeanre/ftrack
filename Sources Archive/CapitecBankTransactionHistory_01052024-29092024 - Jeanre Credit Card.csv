@@ -1,38 +1,5 @@
 sep=,
 Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
-6002709354,01/04/2024,74059356743,FINANCIAL,"","Checkers Klerksdorp (Card 4089)",1016.14,,"CheckersHyper Klerksdr KLERKSDORP     ZA",-7700.55
-6002709354,01/04/2024,74070996306,FINANCIAL,"","Cl Universal Store Klerksdorp (Card 4089)",185.00,,"CL UNIVERSAL STORE     KLERKSDORP     ZA",-7885.55
-6002709354,01/04/2024,74073366217,FINANCIAL,"","Food Lover's Market Klerksdorp (Card 4089)",639.93,,"FLM Klerksdorp         KLERKSDORP   NWZA",-8525.48
-6002709354,01/04/2024,74078069086,FINANCIAL,"","Food Zone Klerksdorp (Card 4089)",101.94,,"FOOD ZONE FLAMWOOD - L KLERKSDORP   ZAZA",-8627.42
-6002709354,01/04/2024,74078276982,FINANCIAL,"","Westpack Lifestyle Kle Klerksdorp (Card 4089)",89.90,,"WESTPACK LIFESTYLE KLE Klerksdorp     ZA",-8717.32
-6002709354,01/04/2024,74083120489,FINANCIAL,"","Puff And Pazz Klerksdorp (Card 4089)",329.00,,"PUFF AND PAZZ          Klerksdorp     ZA",-9046.32
-6002709354,04/04/2024,74233838096,FINANCIAL,"","Spar Stilfontein (Card 4089)",37.48,,"Spar Scott Cresent     Stilfontein    ZA",-9083.80
-6002709354,04/04/2024,74240165471,FINANCIAL,"","Delhi Delicious Flamwo Klerksdorp (Card 4089)",126.00,,"DELHI DELICIOUS FLAMWO KLERKSDORP     ZA",-9209.80
-6002709354,08/04/2024,74444456578,FINANCIAL,"","Dis-Chem Klerksdorp (Card 4089)",62.95,,"Dischem Klerksdorp     KLERKSDORP   NWZA",-9272.75
-6002709354,08/04/2024,74445031567,FINANCIAL,"","Spar Stilfontein (Card 4089)",218.91,,"Spar Scott Cresent     Stilfontein    ZA",-9491.66
-6002709354,08/04/2024,74458462223,FINANCIAL,"","Banking App Transfer Received from Holiday Acc (1434293481) Transfer",,900.00,"Transfer",-8591.66
-6002709354,10/04/2024,74535847978,FINANCIAL,"","Banking App Transfer Received from Emergency (1759358744) Transfer",,400.00,"Transfer",-8191.66
-6002709354,10/04/2024,74535866771,FINANCIAL,"","Banking App External Payment: Conti Gas And Equip",700.00,,"CONTI GAS AND EQUIP",-8891.66
-6002709354,10/04/2024,74535866772,FINANCIAL,"","External Payment Fee",2.00,,"",-8893.66
-6002709354,11/04/2024,74555833626,FINANCIAL,"","Recurring Card Purchase: Apple.com/bill Itunes.com (Card 4089)",229.99,,"APPLE.COM/BILL         ITUNES.COM   IRIE",-9123.65
-6002709354,11/04/2024,74555833631,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Apple.com/bill",5.00,,"APPLE.COM/BILL         ITUNES.COM     IE|REC_RECURRING_TXN",-9128.65
-6002709354,11/04/2024,74559467605,FINANCIAL,"","De Ka Apteek Stilfontein (Card 4089)",121.60,,"DE KA APTEEK           STILFONTEIN    ZA",-9250.25
-6002709354,13/04/2024,74631892541,FINANCIAL,"","Recurring Card Purchase: Netflix Amsterdam (Card 4089)",199.00,,"NETFLIX.COM            Amsterdam    NLNL",-9449.25
-6002709354,13/04/2024,74631892546,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Netflix.com",3.00,,"NETFLIX.COM            Amsterdam      NL|REC_RECURRING_TXN",-9452.25
-6002709354,14/04/2024,74684448545,FINANCIAL,"","Banking App Transfer Received from Monthly Save (1421952910) Transfer",,200.00,"Transfer",-9252.25
-6002709354,16/04/2024,74756053886,FINANCIAL,"","Spar Stilfontein (Card 4089)",145.94,,"Spar Scott Cresent     Stilfontein    ZA",-9398.19
-6002709354,18/04/2024,74843095530,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,200.00,"Transfer",-9198.19
-6002709354,20/04/2024,74943225125,FINANCIAL,"","Banking App Transfer Received from Monthly Save (1421952910) Transfer",,300.00,"Transfer",-8898.19
-6002709354,21/04/2024,74964639385,FINANCIAL,"","Shell Stilfontein (Card 4089)",200.00,,"SHELL STILFONTEIN      Stilfontein    ZA",-9098.19
-6002709354,22/04/2024,75002400762,FINANCIAL,"","Spar Stilfontein (Card 4089)",250.18,,"Spar Scott Cresent     Stilfontein    ZA",-9348.37
-6002709354,23/04/2024,75032009558,FINANCIAL,"","Spar Stilfontein (Card 4089)",98.14,,"Spar Scott Cresent     Stilfontein    ZA",-9446.51
-6002709354,27/04/2024,75280293707,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,500.00,"Transfer",-8946.51
-6002709354,30/04/2024,75475737582,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",18.99,,"",-8965.50
-6002709354,30/04/2024,75475737583,FINANCIAL,"","Interest Charged for Purchases",127.86,,"",-9093.36
-6002709354,30/04/2024,75475737584,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-9143.36
-6002709354,30/04/2024,75475737585,FINANCIAL,"","Death Insurance Payment",9.98,,"",-9153.34
-6002709354,30/04/2024,75475737586,FINANCIAL,"","Disability Insurance Payment",0.64,,"",-9153.98
-6002709354,30/04/2024,75475737587,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",30.57,,"",-9184.55
 6002709354,11/05/2024,76105499663,FINANCIAL,"","Recurring Card Purchase: Apple.com/bill Itunes.com (Card 4089)",229.99,,"APPLE.COM/BILL         ITUNES.COM   IRIE",-9414.54
 6002709354,11/05/2024,76105499668,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Apple.com/bill",5.00,,"APPLE.COM/BILL         ITUNES.COM     IE|REC_RECURRING_TXN",-9419.54
 6002709354,13/05/2024,76183966206,FINANCIAL,"","Recurring Card Purchase: Netflix Amsterdam (Card 4089)",199.00,,"NETFLIX.COM            Amsterdam    NLNL",-9618.54
@@ -97,3 +64,24 @@ Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,Debi
 6002709354,29/08/2024,81699907034,FINANCIAL,"","Recurring Card Purchase: Ggservers Ltd. Downtown Toro (Card 8013)",107.03,,"GGSERVERS LTD.         DOWNTOWN TOROONCA",-9491.26
 6002709354,29/08/2024,81699907040,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Ggservers Ltd.",3.00,,"GGSERVERS LTD.         DOWNTOWN TORO  CA|REC_RECURRING_TXN",-9494.26
 6002709354,31/08/2024,81856351578,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,500.00,"Transfer",-8994.26
+6002709354,31/08/2024,81901465108,FINANCIAL,"","Interest Charged for Purchases",168.83,,"",-9163.09
+6002709354,31/08/2024,81901465109,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-9213.09
+6002709354,31/08/2024,81901465110,FINANCIAL,"","Death Insurance Payment",10.15,,"",-9223.24
+6002709354,31/08/2024,81901465111,FINANCIAL,"","Disability Insurance Payment",0.65,,"",-9223.89
+6002709354,31/08/2024,81901465112,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",31.09,,"",-9254.98
+6002709354,09/09/2024,82433072045,FINANCIAL,"","Recurring Card Purchase: Apple.com/bill Itunes.com (Card 8013)",229.99,,"APPLE.COM/BILL         ITUNES.COM   IRIE",-9484.97
+6002709354,09/09/2024,82433072050,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Apple.com/bill",5.00,,"APPLE.COM/BILL         ITUNES.COM     IE|REC_RECURRING_TXN",-9489.97
+6002709354,11/09/2024,82527980967,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer Jansie Fuel",,800.00,"Transfer Jansie fuel",-8689.97
+6002709354,13/09/2024,82601659250,FINANCIAL,"","Recurring Card Purchase: Netflix Amsterdam (Card 8013)",199.00,,"NETFLIX.COM            Amsterdam    NLNL",-8888.97
+6002709354,13/09/2024,82601659256,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Netflix.com",3.00,,"NETFLIX.COM            Amsterdam      NL|REC_RECURRING_TXN",-8891.97
+6002709354,20/09/2024,82927935777,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,500.00,"Transfer",-8391.97
+6002709354,22/09/2024,82996355062,FINANCIAL,"","Overland Liquors Klerksdorp (Card 8013)",375.98,,"OVERLAND LIQUORS FLAMW KLERKSDORP   ZAZA",-8767.95
+6002709354,22/09/2024,82996379248,FINANCIAL,"","Food Zone Gauteng (Card 8013)",212.44,,"FOOD ZONE FLAMWOOD - L GAUTENG      ZAZA",-8980.39
+6002709354,22/09/2024,83012522204,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,700.00,"Transfer",-8280.39
+6002709354,23/09/2024,83040355806,FINANCIAL,"","Shell Stilfontein (Card 8013)",500.00,,"SHELL STILFONTEIN      Stilfontein    ZA",-8780.39
+6002709354,23/09/2024,83048672444,FINANCIAL,"","USSD Prepaid Purchase MTN",50.00,,"MTN",-8830.39
+6002709354,23/09/2024,83048672448,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",-8830.89
+6002709354,25/09/2024,83129016436,FINANCIAL,"","Oostermoed Garage1 Hekpoort (Card 8013)",600.00,,"OOSTERMOED GARAGE1     HEKPOORT     ZAZA",-9430.89
+6002709354,28/09/2024,83335172779,FINANCIAL,"","Recurring Card Purchase: Ggservers Ltd. Downtown Toro (Card 8013)",103.99,,"GGSERVERS LTD.         DOWNTOWN TOROONCA",-9534.88
+6002709354,28/09/2024,83335172790,FINANCIAL,"","International Processing Recurring Card Purchase Fee: Ggservers Ltd.",3.00,,"GGSERVERS LTD.         +16476099405   CA|REC_RECURRING_TXN",-9537.88
+6002709354,29/09/2024,83432624351,FINANCIAL,"","Internet Banking Transfer Received from Savings Account (1421945264)",,1000.00,"",-8537.88

@@ -19,3 +19,4 @@ Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,Debi
 1656301685,05/08/2024,80599263307,FINANCIAL,"","External Payment Fee",2.00,,"",8123.34
 1656301685,31/08/2024,81856256237,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,500.00,"Transfer",8623.34
 1656301685,31/08/2024,81857634557,FINANCIAL,"","Banking App Transfer to Savings Account (1421945264) Transfer",5400.00,,"Transfer",3223.34
+1656301685,31/08/2024,81965199399,FINANCIAL,"","Interest Received",,21.95,"",3245.29

@@ -1,0 +1,80 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+1678993059,01/05/2024,75560729663,FINANCIAL,"","Live Better Interest Sweep",3.46,,"LB Interest sweep | APR 2024",938.24
+1678993059,04/05/2024,75771778299,FINANCIAL,"","Recurring Card Purchase: Naked Insurance Milpark (Card 9639)",104.00,,"NakedIn                MILPARK        ZA",834.24
+1678993059,06/05/2024,75876533325,FINANCIAL,"","Dis-Chem Klerksdorp (Card 9639)",93.10,,"Dischem Klerksdorp     KLERKSDORP   NWZA",741.14
+1678993059,07/05/2024,75920690481,FINANCIAL,"","Live Better Round-up Transfer",0.90,,"Round-up Transfer",740.24
+1678993059,10/05/2024,76070214573,FINANCIAL,"","Banking App Transfer to Credit Card (6010640066) Transfer",700.00,,"Transfer",40.24
+1678993059,25/05/2024,76705408989,FINANCIAL,"","Payment Received: Bicycle                       Payment   1776999487",,11000.00,"BICYCLE                       PAYMENT   1776999487",11040.24
+1678993059,31/05/2024,77104110314,FINANCIAL,"","Interest Received",,7.46,"",11047.70
+1678993059,31/05/2024,77104110358,FINANCIAL,"","Monthly Account Admin Fee",7.50,,"",11040.20
+1678993059,01/06/2024,77169058031,FINANCIAL,"","Live Better Interest Sweep",7.46,,"LB Interest sweep | MAY 2024",11032.74
+1678993059,01/06/2024,77192457504,FINANCIAL,"","Banking App Immediate Payment Jeanre Van Wyk",7700.00,,"JEANRE VAN WYK",3332.74
+1678993059,01/06/2024,77192457516,FINANCIAL,"","Immediate Payment Fee",1.00,,"",3331.74
+1678993059,01/06/2024,77192581406,FINANCIAL,"","Banking App Transfer to Credit Card (6010640066) Transfer",2000.00,,"Transfer",1331.74
+1678993059,01/06/2024,77192653257,FINANCIAL,"","Banking App Transfer to Savings Plan (1706227645) Transfer",200.00,,"Transfer",1131.74
+1678993059,03/06/2024,77304042168,FINANCIAL,"","Dis-Chem Klerksdorp (Card 9639)",31.54,,"Dischem Klerksdorp     KLERKSDORP   NWZA",1100.20
+1678993059,04/06/2024,77356130758,FINANCIAL,"","Live Better Round-up Transfer",8.46,,"Round-up Transfer",1091.74
+1678993059,05/06/2024,77407501633,FINANCIAL,"","Recurring Card Purchase: Naked Insurance Milpark (Card 9639)",104.00,,"NakedIn                MILPARK        ZA",987.74
+1678993059,06/06/2024,77459463852,FINANCIAL,"","Live Better Round-up Transfer",6.00,,"Round-up Transfer",981.74
+1678993059,09/06/2024,77622987614,FINANCIAL,"","Yoco *marica Pienaar Klerksdorp (Card 9639)",800.00,,"Yoco   *Marica Pienaar Klerksdorp   NWZA",181.74
+1678993059,10/06/2024,77659207594,FINANCIAL,"","Banking App Transfer to Vehicle Savings (1984239218) Transfer",6.50,,"Transfer",175.24
+1678993059,10/06/2024,77659216951,FINANCIAL,"","Banking App Transfer to Savings Plan (1706227645) Transfer",6.50,,"Transfer",168.74
+1678993059,25/06/2024,78273376316,FINANCIAL,"","Payment Received: Bicycle                       Payment   1827273652",,8800.00,"BICYCLE                       PAYMENT   1827273652",8968.74
+1678993059,29/06/2024,78544571256,FINANCIAL,"","Banking App Immediate Payment Jeanre Van Wyk",7000.00,,"JEANRE VAN WYK",1968.74
+1678993059,29/06/2024,78544571263,FINANCIAL,"","Immediate Payment Fee",1.00,,"",1967.74
+1678993059,29/06/2024,78544581530,FINANCIAL,"","Banking App Transfer to Savings Plan (1706227645) Transfer",200.00,,"Transfer",1767.74
+1678993059,29/06/2024,78544607380,FINANCIAL,"","Banking App Transfer to Credit Card (6010640066) Transfer",500.00,,"Transfer",1267.74
+1678993059,30/06/2024,78653312752,FINANCIAL,"","Interest Received",,4.33,"",1272.07
+1678993059,30/06/2024,78653312801,FINANCIAL,"","Monthly Account Admin Fee",7.50,,"",1264.57
+1678993059,01/07/2024,78723497016,FINANCIAL,"","Live Better Interest Sweep",4.33,,"LB Interest sweep | JUN 2024",1260.24
+1678993059,01/07/2024,78732438291,FINANCIAL,"","Dis-Chem Klerksdorp (Card 9639)",178.86,,"Dischem Klerksdorp     KLERKSDORP   NWZA",1081.38
+1678993059,02/07/2024,78805662951,FINANCIAL,"","Live Better Round-up Transfer",1.14,,"Round-up Transfer",1080.24
+1678993059,04/07/2024,78919173366,FINANCIAL,"","Recurring Card Purchase: Naked Insurance Johannesburg (Card 9639)",104.00,,"Naked Insurance        JOHANNESBURG   ZA",976.24
+1678993059,05/07/2024,78974506146,FINANCIAL,"","Live Better Round-up Transfer",6.00,,"Round-up Transfer",970.24
+1678993059,06/07/2024,79042785227,FINANCIAL,"","King Pie Klerksdorp (Card 9639)",60.00,,"KING PIE MATLOSANA MAL KLERKSDORP   GWZA",910.24
+1678993059,06/07/2024,79048633742,FINANCIAL,"","Banking App Prepaid Purchase Cell C",12.00,,"Cell C",898.24
+1678993059,06/07/2024,79048633744,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",897.74
+1678993059,09/07/2024,79178226644,FINANCIAL,"","Shell Stilfontein (Card 9639)",24.00,,"SHELL STILFONTEIN      Stilfontein    ZA",873.74
+1678993059,10/07/2024,79212563825,FINANCIAL,"","Live Better Round-up Transfer",6.00,,"Round-up Transfer",867.74
+1678993059,14/07/2024,79386868866,FINANCIAL,"","Yoco *marica Pienaar Klerksdorp (Card 9639)",800.00,,"Yoco   *Marica Pienaar Klerksdorp   NWZA",67.74
+1678993059,26/07/2024,79893346241,FINANCIAL,"","Banking App Prepaid Purchase Cell C",12.00,,"Cell C",55.74
+1678993059,26/07/2024,79893346245,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",55.24
+1678993059,26/07/2024,79905106781,FINANCIAL,"","Payment Received: Bicycle                       Payment   1887348140",,8800.00,"BICYCLE                       PAYMENT   1887348140",8855.24
+1678993059,26/07/2024,79905106795,FINANCIAL,"","DebiCheck Debit Order (1880900071): Capitec (60106400660001)",120.58,,"CAPITEC   60106400660001240725DEBICHECK 1880900071",8734.66
+1678993059,30/07/2024,80138297970,FINANCIAL,"","Dis-Chem Klerksdorp (Card 9639)",65.81,,"Dischem Klerksdorp     KLERKSDORP   NWZA",8668.85
+1678993059,31/07/2024,80193620083,FINANCIAL,"","Live Better Round-up Transfer",4.19,,"Round-up Transfer",8664.66
+1678993059,31/07/2024,80252365770,FINANCIAL,"","Interest Received",,5.39,"",8670.05
+1678993059,31/07/2024,80252365803,FINANCIAL,"","Monthly Account Admin Fee",7.50,,"",8662.55
+1678993059,01/08/2024,80329470346,FINANCIAL,"","Live Better Interest Sweep",5.39,,"LB Interest sweep | JUL 2024",8657.16
+1678993059,02/08/2024,80423285581,FINANCIAL,"","Shirts And Skirts Laun Klerksdorp (Card 9639)",129.29,,"SHIRTS AND SKIRTS LAUN KLERKSDORP     ZA",8527.87
+1678993059,03/08/2024,80479293068,FINANCIAL,"","Live Better Round-up Transfer",0.71,,"Round-up Transfer",8527.16
+1678993059,04/08/2024,80543965978,FINANCIAL,"","Recurring Card Purchase: Naked Insurance Johannesburg (Card 9639)",104.00,,"Naked Insurance        JOHANNESBURG   ZA",8423.16
+1678993059,04/08/2024,80559851457,FINANCIAL,"","Banking App Immediate Payment Jeanre Van Wyk",7000.00,,"JEANRE VAN WYK",1423.16
+1678993059,04/08/2024,80559851464,FINANCIAL,"","Immediate Payment Fee",1.00,,"",1422.16
+1678993059,04/08/2024,80559884921,FINANCIAL,"","Banking App Transfer to Savings Plan (1706227645) Transfer",200.00,,"Transfer",1222.16
+1678993059,04/08/2024,80559891633,FINANCIAL,"","Banking App Transfer to Credit Card (6010640066) Transfer",500.00,,"Transfer",722.16
+1678993059,04/08/2024,80559956358,FINANCIAL,"","Payment Received J Van Wyk",,200.00,"J VAN WYK",922.16
+1678993059,05/08/2024,80586857923,FINANCIAL,"","Live Better Round-up Transfer",6.00,,"Round-up Transfer",916.16
+1678993059,06/08/2024,80634272044,FINANCIAL,"","Stilfontein Motors Con Stilfontein (Card 9639)",86.00,,"STILFONTEIN MOTORS CON STILFONTEIN  FSZA",830.16
+1678993059,07/08/2024,80688640843,FINANCIAL,"","Live Better Round-up Transfer",4.00,,"Round-up Transfer",826.16
+1678993059,16/08/2024,81088905889,FINANCIAL,"","Card Purchase Insufficient Funds Fee: Yoco   *marica Pienaar Klerksdorp     Za",1.00,,"INSF. FUNDS |          Yoco   *Marica Pienaar Klerksdorp     ZA",825.16
+1678993059,24/08/2024,81429427710,FINANCIAL,"","Dis-Chem Klerksdorp (Card 9639)",83.81,,"Dischem Klerksdorp     KLERKSDORP   NWZA",741.35
+1678993059,25/08/2024,81484689159,FINANCIAL,"","Live Better Round-up Transfer",6.19,,"Round-up Transfer",735.16
+1678993059,26/08/2024,81548506352,FINANCIAL,"","Payment Received: Bicycle                       Payment   1939668402",,8800.00,"BICYCLE                       PAYMENT   1939668402",9535.16
+1678993059,26/08/2024,81551022237,FINANCIAL,"","Banking App Transfer to Credit Card (6010640066) Transfer",800.00,,"Transfer",8735.16
+1678993059,31/08/2024,81860078290,FINANCIAL,"","Banking App Immediate Payment Jeanre Van Wyk",7000.00,,"JEANRE VAN WYK",1735.16
+1678993059,31/08/2024,81860078298,FINANCIAL,"","Immediate Payment Fee",1.00,,"",1734.16
+1678993059,31/08/2024,81860098147,FINANCIAL,"","Banking App Transfer to Credit Card (6010640066) Transfer",500.00,,"Transfer",1234.16
+1678993059,31/08/2024,81860130532,FINANCIAL,"","Banking App Transfer to Savings Plan (1706227645) Transfer",200.00,,"Transfer",1034.16
+1678993059,31/08/2024,81963234919,FINANCIAL,"","Interest Received",,7.26,"",1041.42
+1678993059,31/08/2024,81963234930,FINANCIAL,"","Monthly Account Admin Fee",7.50,,"",1033.92
+1678993059,01/09/2024,81995280669,FINANCIAL,"","Live Better Interest Sweep",7.26,,"LB Interest sweep | AUG 2024",1026.66
+1678993059,04/09/2024,82182732982,FINANCIAL,"","Recurring Card Purchase: Naked Insurance Johannesburg (Card 9639)",104.00,,"Naked Insurance        JOHANNESBURG   ZA",922.66
+1678993059,05/09/2024,82228321694,FINANCIAL,"","Live Better Round-up Transfer",6.00,,"Round-up Transfer",916.66
+1678993059,09/09/2024,82444594800,FINANCIAL,"","Caltex Stilfontein (Card 9639)",34.00,,"CALTEX PIONEER MOTORS  Stilfontein    ZA",882.66
+1678993059,10/09/2024,82481318802,FINANCIAL,"","Live Better Round-up Transfer",6.00,,"Round-up Transfer",876.66
+1678993059,15/09/2024,82706560360,FINANCIAL,"","Yoco *marica Pienaar Klerksdorp (Card 9639)",800.00,,"Yoco   *Marica Pienaar Klerksdorp   NWZA",76.66
+1678993059,21/09/2024,82957112071,FINANCIAL,"","Live Better Round-up Transfer",2.70,,"Round-up Transfer",73.96
+1678993059,25/09/2024,83141418694,FINANCIAL,"","Payment Received: Bicycle                       Payment   1993185700",,8800.00,"BICYCLE                       PAYMENT   1993185700",8873.96
+1678993059,25/09/2024,83141418712,FINANCIAL,"","DebiCheck Debit Order (1991153836): Capitec (60106400660001)",94.01,,"CAPITEC   60106400660001240925DEBICHECK 1991153836",8779.95

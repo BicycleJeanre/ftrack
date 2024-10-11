@@ -666,6 +666,7 @@
 		when transaction_description like '%KFC%' then 'Eating Out'
 		when transaction_description like '%ECONO FOODS%' then 'Running Costs'
 		when transaction_description like '%Payment Received: J Van Wyk%' then 'Jansie'
+		when transaction_description like '%Payment Received J Van Wyk%' then 'Jansie'
 		when transaction_description like '%Best Breeders%' then 'Jansie'
 		when transaction_description like '%Game Klerksdorp%' then 'Running Costs'
 		when transaction_description like '%Food Lover%' then 'Running Costs'
@@ -717,6 +718,14 @@
 		when transaction_description like '%Stilfontein Midtown Su%' then 'Running Costs'
 		when transaction_description like '%GGSERVERS%' then 'Gaming'
 		when transaction_description like 'Burger King%' then 'Eating Out'
+		when transaction_description like '%Eldie Pienaar%' then 'Medical'
+		when transaction_description like 'Hanson Home%' then 'Running Costs'
+		when transaction_description like '%takealot%' then 'Running Costs'
+		when transaction_description like 'McDonalds%' then 'Eating Out'
+		when transaction_description like 'Burger King%' then 'Eating Out'
+		when transaction_description like '%1318301189%' then 'Tax Refund'
+		when transaction_description like '%Saverite%' then 'Running Costs'
+		when transaction_description like '%Superspar%' then 'Running Costs'
 		
 		else 'Other' end as account_secondary
 ,	source_file_name
