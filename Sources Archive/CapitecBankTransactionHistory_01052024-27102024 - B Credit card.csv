@@ -1,0 +1,53 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+6010640066,10/05/2024,76070214588,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,700.00,"Transfer",613.20
+6010640066,12/05/2024,76159397813,FINANCIAL,"","Yoco *marica Pienaar Klerksdorp (Card 5758)",800.00,,"Yoco   *Marica Pienaar Klerksdorp   NWZA",-186.80
+6010640066,25/05/2024,76700363737,FINANCIAL,"","Banking App Prepaid Purchase Cell C",20.00,,"Cell C",-206.80
+6010640066,25/05/2024,76700363739,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",-207.30
+6010640066,27/05/2024,76800322161,FINANCIAL,"","All States Bridal Johannesburg (Card 5758)",800.00,,"ALL STATES BRIDAL      JOHANNESBURG ZAZA",-1007.30
+6010640066,27/05/2024,76800421541,FINANCIAL,"","Zhilin Trading Dragon Johannesburg (Card 5758)",250.00,,"ZHILIN TRADING DRAGON  JOHANNESBURG ZAZA",-1257.30
+6010640066,31/05/2024,77080884991,FINANCIAL,"","Interest Received",,0.12,"",-1257.18
+6010640066,31/05/2024,77080884992,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-1307.18
+6010640066,31/05/2024,77080884993,FINANCIAL,"","Death Insurance Payment",0.29,,"",-1307.47
+6010640066,31/05/2024,77080884994,FINANCIAL,"","Disability Insurance Payment",0.03,,"",-1307.50
+6010640066,31/05/2024,77080884995,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",0.94,,"",-1308.44
+6010640066,01/06/2024,77192581416,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,2000.00,"Transfer",691.56
+6010640066,28/06/2024,78472595874,FINANCIAL,"","Banking App External Immediate Payment: Vision Meat",3548.49,,"VISION MEAT",-2856.93
+6010640066,28/06/2024,78472595882,FINANCIAL,"","External Immediate Payment Fee",6.50,,"",-2863.43
+6010640066,29/06/2024,78544607397,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,500.00,"Transfer",-2363.43
+6010640066,30/06/2024,78639172631,FINANCIAL,"","Interest Received",,1.79,"",-2361.64
+6010640066,30/06/2024,78639172632,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-2411.64
+6010640066,20/07/2024,79646230769,FINANCIAL,"","The Cutting Room 72336 Klerksdorp (Card 5758)",200.00,,"000      THE CUTTING ROOM  72336KLERKSDORP   NWZA",-2611.64
+6010640066,26/07/2024,79910169370,FINANCIAL,"","Account Payment",,120.58,"",-2491.06
+6010640066,31/07/2024,80248698792,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",37.98,,"",-2529.04
+6010640066,31/07/2024,80248698793,FINANCIAL,"","Interest Charged for Purchases",0.59,,"",-2529.63
+6010640066,31/07/2024,80248698794,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-2579.63
+6010640066,31/07/2024,80248698795,FINANCIAL,"","Death Insurance Payment",2.56,,"",-2582.19
+6010640066,31/07/2024,80248698796,FINANCIAL,"","Disability Insurance Payment",0.22,,"",-2582.41
+6010640066,31/07/2024,80248698797,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",8.31,,"",-2590.72
+6010640066,04/08/2024,80559891639,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,500.00,"Transfer",-2090.72
+6010640066,18/08/2024,81175484776,FINANCIAL,"","Yoco *marica Pienaar Klerksdorp (Card 5758)",800.00,,"Yoco   *Marica Pienaar Klerksdorp   NWZA",-2890.72
+6010640066,26/08/2024,81551022247,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,800.00,"Transfer",-2090.72
+6010640066,31/08/2024,81860098166,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,500.00,"Transfer",-1590.72
+6010640066,31/08/2024,81901719914,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",25.76,,"",-1616.48
+6010640066,31/08/2024,81901719915,FINANCIAL,"","Interest Charged for Purchases",4.21,,"",-1620.69
+6010640066,31/08/2024,81901719916,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-1670.69
+6010640066,31/08/2024,81901719917,FINANCIAL,"","Death Insurance Payment",2.42,,"",-1673.11
+6010640066,31/08/2024,81901719918,FINANCIAL,"","Disability Insurance Payment",0.21,,"",-1673.32
+6010640066,31/08/2024,81901719919,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",7.85,,"",-1681.17
+6010640066,20/09/2024,82907538973,FINANCIAL,"","Saverite Stilfontein (Card 5758)",107.30,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1788.47
+6010640066,25/09/2024,83132533479,FINANCIAL,"","Saverite Stilfontein (Card 5758)",60.00,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1848.47
+6010640066,25/09/2024,83144274980,FINANCIAL,"","Account Payment",,94.01,"",-1754.46
+6010640066,29/09/2024,83432475203,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,500.00,"Transfer",-1254.46
+6010640066,30/09/2024,83529394096,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",7.85,,"",-1262.31
+6010640066,30/09/2024,83529394097,FINANCIAL,"","Interest Charged for Purchases",20.42,,"",-1282.73
+6010640066,30/09/2024,83529394098,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-1332.73
+6010640066,30/09/2024,83529394099,FINANCIAL,"","Death Insurance Payment",1.75,,"",-1334.48
+6010640066,30/09/2024,83529394100,FINANCIAL,"","Disability Insurance Payment",0.15,,"",-1334.63
+6010640066,30/09/2024,83529394101,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",5.66,,"",-1340.29
+6010640066,19/10/2024,84533997198,FINANCIAL,"","Saverite Stilfontein (Card 5758)",63.90,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1404.19
+6010640066,22/10/2024,84652451058,FINANCIAL,"","Dis-Chem Klerksdorp (Card 5758)",76.84,,"Dischem Klerksdorp     KLERKSDORP   NWZA",-1481.03
+6010640066,25/10/2024,84799247904,FINANCIAL,"","Saverite Stilfontein (Card 5758)",55.50,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1536.53
+6010640066,26/10/2024,84910368546,FINANCIAL,"","Account Payment",,74.20,"",-1462.33
+6010640066,27/10/2024,84981753349,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,700.00,"Transfer",-762.33
+6010640066,27/10/2024,84981781175,FINANCIAL,"","Banking App Transfer to Savings Account (1678993059) Transfer",70.00,,"Transfer",-832.33

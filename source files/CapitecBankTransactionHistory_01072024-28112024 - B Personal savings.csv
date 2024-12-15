@@ -1,0 +1,11 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+1706227645,31/07/2024,80252365679,FINANCIAL,"","Interest Received",,38.44,"",14973.09
+1706227645,04/08/2024,80559884929,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,200.00,"Transfer",15173.09
+1706227645,31/08/2024,81860130546,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,200.00,"Transfer",15373.09
+1706227645,31/08/2024,81963234880,FINANCIAL,"","Interest Received",,38.52,"",15411.61
+1706227645,29/09/2024,83432487957,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,200.00,"Transfer",15611.61
+1706227645,30/09/2024,83592607806,FINANCIAL,"","Interest Received",,36.77,"",15648.38
+1706227645,27/10/2024,84981792881,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,200.00,"Transfer",15848.38
+1706227645,31/10/2024,85318266829,FINANCIAL,"","Interest Received",,36.52,"",15884.90
+1706227645,28/11/2024,86800124770,FINANCIAL,"","Banking App Transfer Received from Main Account (1678993059) Transfer",,200.00,"Transfer",16084.90

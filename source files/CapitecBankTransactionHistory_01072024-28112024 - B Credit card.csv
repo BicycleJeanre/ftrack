@@ -1,0 +1,52 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+6010640066,20/07/2024,79646230769,FINANCIAL,"","The Cutting Room 72336 Klerksdorp (Card 5758)",200.00,,"000      THE CUTTING ROOM  72336KLERKSDORP   NWZA",-2611.64
+6010640066,26/07/2024,79910169370,FINANCIAL,"","Account Payment",,120.58,"",-2491.06
+6010640066,31/07/2024,80248698792,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",37.98,,"",-2529.04
+6010640066,31/07/2024,80248698793,FINANCIAL,"","Interest Charged for Purchases",0.59,,"",-2529.63
+6010640066,31/07/2024,80248698794,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-2579.63
+6010640066,31/07/2024,80248698795,FINANCIAL,"","Death Insurance Payment",2.56,,"",-2582.19
+6010640066,31/07/2024,80248698796,FINANCIAL,"","Disability Insurance Payment",0.22,,"",-2582.41
+6010640066,31/07/2024,80248698797,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",8.31,,"",-2590.72
+6010640066,04/08/2024,80559891639,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,500.00,"Transfer",-2090.72
+6010640066,18/08/2024,81175484776,FINANCIAL,"","Yoco *marica Pienaar Klerksdorp (Card 5758)",800.00,,"Yoco   *Marica Pienaar Klerksdorp   NWZA",-2890.72
+6010640066,26/08/2024,81551022247,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,800.00,"Transfer",-2090.72
+6010640066,31/08/2024,81860098166,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,500.00,"Transfer",-1590.72
+6010640066,31/08/2024,81901719914,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",25.76,,"",-1616.48
+6010640066,31/08/2024,81901719915,FINANCIAL,"","Interest Charged for Purchases",4.21,,"",-1620.69
+6010640066,31/08/2024,81901719916,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-1670.69
+6010640066,31/08/2024,81901719917,FINANCIAL,"","Death Insurance Payment",2.42,,"",-1673.11
+6010640066,31/08/2024,81901719918,FINANCIAL,"","Disability Insurance Payment",0.21,,"",-1673.32
+6010640066,31/08/2024,81901719919,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",7.85,,"",-1681.17
+6010640066,20/09/2024,82907538973,FINANCIAL,"","Saverite Stilfontein (Card 5758)",107.30,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1788.47
+6010640066,25/09/2024,83132533479,FINANCIAL,"","Saverite Stilfontein (Card 5758)",60.00,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1848.47
+6010640066,25/09/2024,83144274980,FINANCIAL,"","Account Payment",,94.01,"",-1754.46
+6010640066,29/09/2024,83432475203,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,500.00,"Transfer",-1254.46
+6010640066,30/09/2024,83529394096,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",7.85,,"",-1262.31
+6010640066,30/09/2024,83529394097,FINANCIAL,"","Interest Charged for Purchases",20.42,,"",-1282.73
+6010640066,30/09/2024,83529394098,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-1332.73
+6010640066,30/09/2024,83529394099,FINANCIAL,"","Death Insurance Payment",1.75,,"",-1334.48
+6010640066,30/09/2024,83529394100,FINANCIAL,"","Disability Insurance Payment",0.15,,"",-1334.63
+6010640066,30/09/2024,83529394101,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",5.66,,"",-1340.29
+6010640066,19/10/2024,84533997198,FINANCIAL,"","Saverite Stilfontein (Card 5758)",63.90,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1404.19
+6010640066,22/10/2024,84652451058,FINANCIAL,"","Dis-Chem Klerksdorp (Card 5758)",76.84,,"Dischem Klerksdorp     KLERKSDORP   NWZA",-1481.03
+6010640066,25/10/2024,84799247904,FINANCIAL,"","Saverite Stilfontein (Card 5758)",55.50,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1536.53
+6010640066,26/10/2024,84910368546,FINANCIAL,"","Account Payment",,74.20,"",-1462.33
+6010640066,27/10/2024,84981753349,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,700.00,"Transfer",-762.33
+6010640066,27/10/2024,84981781175,FINANCIAL,"","Banking App Transfer to Savings Account (1678993059) Transfer",70.00,,"Transfer",-832.33
+6010640066,29/10/2024,85085338635,FINANCIAL,"","Westpack Lifestyle Kle Klerksdorp (Card 5758)",51.90,,"WESTPACK LIFESTYLE KLE Klerksdorp     ZA",-884.23
+6010640066,29/10/2024,85085916006,FINANCIAL,"","Shell Stilfontein (Card 5758)",39.00,,"SHELL STILFONTEIN      Stilfontein    ZA",-923.23
+6010640066,30/10/2024,85142373589,FINANCIAL,"","The Fun Company Emeral Vanderbijlpar (Card 5758)",103.00,,"THE FUN COMPANY EMERAL VANDERBIJLPAR  ZA",-1026.23
+6010640066,31/10/2024,85263250323,FINANCIAL,"","Interest Charged for Cash Withdrawals/Transfers",1.06,,"",-1027.29
+6010640066,31/10/2024,85263250324,FINANCIAL,"","Interest Charged for Purchases",17.18,,"",-1044.47
+6010640066,31/10/2024,85263250325,FINANCIAL,"","Monthly Credit Card Service Fee",50.00,,"",-1094.47
+6010640066,31/10/2024,85263250326,FINANCIAL,"","Death Insurance Payment",1.36,,"",-1095.83
+6010640066,31/10/2024,85263250327,FINANCIAL,"","Disability Insurance Payment",0.12,,"",-1095.95
+6010640066,31/10/2024,85263250328,FINANCIAL,"","Insurance Payment: Unemployment (Excluding Disability)",4.39,,"",-1100.34
+6010640066,02/11/2024,85446649524,FINANCIAL,"","Shell Stilfontein (Card 5758)",39.00,,"SHELL STILFONTEIN      Stilfontein    ZA",-1139.34
+6010640066,18/11/2024,86254778719,FINANCIAL,"","Dis-Chem Klerksdorp (Card 5758)",61.79,,"Dischem Klerksdorp     KLERKSDORP   NWZA",-1201.13
+6010640066,18/11/2024,86256784578,FINANCIAL,"","Saverite Stilfontein (Card 5758)",129.90,,"SAVERITE STILFONTEIN   Stilfontein    ZA",-1331.03
+6010640066,21/11/2024,86390706023,FINANCIAL,"","Banking App Prepaid Purchase Cell C",50.00,,"Cell C",-1381.03
+6010640066,21/11/2024,86390706026,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",-1381.53
+6010640066,26/11/2024,86674196015,FINANCIAL,"","Account Payment",,60.59,"",-1320.94
+6010640066,28/11/2024,86800089900,FINANCIAL,"","Banking App Transfer Received from Main Account (1678993059) Transfer",,600.00,"Transfer",-720.94

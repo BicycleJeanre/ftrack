@@ -1,0 +1,28 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+1928213578,01/05/2024,75555891895,FINANCIAL,"","Interest Sweep",,12.19,"LB Interest sweep | APR 2024",3948.95
+1928213578,01/05/2024,75564583215,FINANCIAL,"","Round-up Transfer",,4.75,"Round-up Transfer",3953.70
+1928213578,02/05/2024,75637497502,FINANCIAL,"","Round-up Transfer",,1.42,"Round-up Transfer",3955.12
+1928213578,07/05/2024,75919450315,FINANCIAL,"","Round-up Transfer",,9.06,"Round-up Transfer",3964.18
+1928213578,09/05/2024,76013310397,FINANCIAL,"","Round-up Transfer",,11.87,"Round-up Transfer",3976.05
+1928213578,10/05/2024,76057964202,FINANCIAL,"","Dis-Chem Rewards",,1.26,"Dis-Chem",3977.31
+1928213578,10/05/2024,76060206924,FINANCIAL,"","Credit Card Cash Back (Apr 2024)",,15.64,"Credit Card Cash Back | APR 2024",3992.95
+1928213578,12/05/2024,76150428784,FINANCIAL,"","Round-up Transfer",,0.01,"Round-up Transfer",3992.96
+1928213578,13/05/2024,76186911553,FINANCIAL,"","Round-up Transfer",,1.00,"Round-up Transfer",3993.96
+1928213578,14/05/2024,76222181073,FINANCIAL,"","Round-up Transfer",,2.30,"Round-up Transfer",3996.26
+1928213578,16/05/2024,76306580206,FINANCIAL,"","Round-up Transfer",,8.93,"Round-up Transfer",4005.19
+1928213578,29/05/2024,76915577726,FINANCIAL,"","Round-up Transfer",,2.40,"Round-up Transfer",4007.59
+1928213578,31/05/2024,77025151417,FINANCIAL,"","Round-up Transfer",,7.04,"Round-up Transfer",4014.63
+1928213578,31/05/2024,77087566887,FINANCIAL,"","Interest Received",,14.19,"",4028.82
+1928213578,01/06/2024,77164018847,FINANCIAL,"","Interest Sweep",,15.20,"LB Interest sweep | MAY 2024",4044.02
+1928213578,04/06/2024,77354019430,FINANCIAL,"","Round-up Transfer",,18.41,"Round-up Transfer",4062.43
+1928213578,06/06/2024,77456690993,FINANCIAL,"","Round-up Transfer",,1.01,"Round-up Transfer",4063.44
+1928213578,10/06/2024,77650379893,FINANCIAL,"","Credit Card Cash Back (May 2024)",,4.29,"Credit Card Cash Back | MAY 2024",4067.73
+1928213578,12/06/2024,77726390318,FINANCIAL,"","Round-up Transfer",,0.10,"Round-up Transfer",4067.83
+1928213578,14/06/2024,77806260196,FINANCIAL,"","Round-up Transfer",,1.00,"Round-up Transfer",4068.83
+1928213578,21/06/2024,78100172279,FINANCIAL,"","Round-up Transfer",,2.07,"Round-up Transfer",4070.90
+1928213578,26/06/2024,78322760594,FINANCIAL,"","Round-up Transfer",,7.08,"Round-up Transfer",4077.98
+1928213578,30/06/2024,78594564966,FINANCIAL,"","Round-up Transfer",,3.00,"Round-up Transfer",4080.98
+1928213578,30/06/2024,78641201610,FINANCIAL,"","Interest Received",,14.00,"",4094.98
+1928213578,01/07/2024,78720241137,FINANCIAL,"","Interest Sweep",,12.66,"LB Interest sweep | JUN 2024",4107.64
+1928213578,02/07/2024,78802786341,FINANCIAL,"","Round-up Transfer",,10.50,"Round-up Transfer",4118.14
