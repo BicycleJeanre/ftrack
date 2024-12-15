@@ -1,0 +1,8 @@
+__turbopack_load_page_chunks__("/maintenance", [
+  "static/chunks/node_modules_next_dist_f1b02b._.js",
+  "static/chunks/node_modules_react-dom_82bb97._.js",
+  "static/chunks/node_modules_1b7400._.js",
+  "static/chunks/[root of the server]__de60e3._.js",
+  "static/chunks/src_pages_maintenance_5771e1._.js",
+  "static/chunks/src_pages_maintenance_f82f5c._.js"
+])

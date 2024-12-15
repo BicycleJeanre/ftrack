@@ -1,10 +1,7 @@
-import type { Metadata } from "next";
 import "./globals.css";
+import Navbar from './components/Navbar';
 
-export const metadata: Metadata = {
-  title: "Budget App",
-  description: "Personal budget management application",
-};
+// Removed metadata export to comply with Next.js requirements for client components.
 
 export default function RootLayout({
   children,
@@ -13,7 +10,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        {children}
+      </body>
     </html>
   );
 }
