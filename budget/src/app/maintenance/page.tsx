@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Layout from '../layout';
+import Layout from './layout';
 import { CreateDatabaseForm, DeleteDatabaseList, PrepareDB} from './forms';
 
 export default function Maintenance() {
@@ -10,28 +10,6 @@ export default function Maintenance() {
     const [loading, setLoading] = useState(true);
 
     console.log('Initial databases state:', databases);
-
-    console.log('Create Database form submitted with dbName:', dbName);
-    const handleSubmit = async (dbName: string) => {
-        console.log('Submit handler called'); // Log to check if the handler is triggered
-        try {
-            const response = await fetch('/api/maintainDB', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ dbName }),
-            });
-
-            const data = await response.json();
-            console.log('Database creation response:', data);
-            alert(data.message || data.error);
-            fetchDatabases(); // This line ensures the grid is refreshed
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Failed to create database. Please try again.');
-        }
-    };
 
     const fetchDatabases = async () => {
         console.log('Fetching databases...');
@@ -70,16 +48,45 @@ export default function Maintenance() {
         }
     };
 
+    const handleSubmit = async (dbName: string) => {
+        console.log('Submit handler called'); // Log to check if the handler is triggered
+        try {
+            const response = await fetch('/api/maintainDB', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ dbName }),
+            });
+
+            const data = await response.json();
+            console.log('Database creation response:', data);
+            alert(data.message || data.error);
+            fetchDatabases(); // This line ensures the grid is refreshed
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to create database. Please try again.');
+        }
+    };
+
     useEffect(() => {
         fetchDatabases(); // Fetch databases when the component mounts
     }, []);
+
+    const db = {
+        // Initialize or retrieve your database connection here
+        // For example:
+        // const db = await connectToDatabase();
+        // or
+        // const db = useDatabaseConnection();
+    };
 
     return (
         <Layout>
             <h1>Database Maintenance</h1>
             <CreateDatabaseForm onSubmit={handleSubmit} />
             <DeleteDatabaseList databases={databases} onDelete={handleDelete} />
-            <PrepareDB />
+            <PrepareDB db={db} />
         </Layout>
     );
 }

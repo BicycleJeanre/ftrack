@@ -10,8 +10,10 @@ export const listDatabasesQuery = (ignoreDatabases: string[] = ignoredDatabases)
 };
 
 export const createAccountsTable = async (db: any) => {
-    const query = `DROP TABLE IF EXISTS budget.public.accounts;
-    CREATE TABLE budget.public.accounts (
+    await db.query('SET search_path TO public;');
+
+    const query = `DROP TABLE IF EXISTS accounts;
+    CREATE TABLE accounts (
         account_id SERIAL PRIMARY KEY,
         account_name VARCHAR(255) NOT NULL,
         account_description TEXT,
@@ -20,4 +22,13 @@ export const createAccountsTable = async (db: any) => {
         interest_nacm_negative_balance DECIMAL(10, 2)
     );`;
     await db.query(query);
+};
+
+export const listTablesQuery = async (db: any) => {
+    const result = await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public';");
+    return result.rows; // Return the list of table names
+};
+
+export const deleteTableQuery = async (db: any, tableName: string) => {
+    await db.query(`DROP TABLE IF EXISTS ${tableName};`);
 };

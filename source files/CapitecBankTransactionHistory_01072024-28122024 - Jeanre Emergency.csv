@@ -1,0 +1,19 @@
+sep=,
+Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
+1759358744,13/07/2024,79364607592,FINANCIAL,"","Banking App Transfer to Credit Card (6002709354) Transfer",200.00,,"Transfer",475.35
+1759358744,26/07/2024,79899749689,FINANCIAL,"","Banking App Prepaid Purchase MTN",50.00,,"MTN",425.35
+1759358744,26/07/2024,79899749692,FINANCIAL,"","Prepaid Mobile Purchase Fee",0.50,,"",424.85
+1759358744,31/07/2024,80310413380,FINANCIAL,"","Interest Received",,1.40,"",426.25
+1759358744,04/08/2024,80560285145,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,200.00,"Transfer",626.25
+1759358744,22/08/2024,81330817242,FINANCIAL,"","Banking App Transfer to Credit Card (6002709354) Transfer",400.00,,"Transfer",226.25
+1759358744,31/08/2024,81856241020,FINANCIAL,"","Banking App Transfer Received from Savings Account (1421945264) Transfer",,200.00,"Transfer",426.25
+1759358744,31/08/2024,81965199446,FINANCIAL,"","Interest Received",,1.23,"",427.48
+1759358744,30/09/2024,83534171979,FINANCIAL,"","Interest Received",,1.02,"",428.50
+1759358744,12/10/2024,84242916243,FINANCIAL,"","Banking App Transfer to Credit Card (6002709354) Transfer",200.00,,"Transfer",228.50
+1759358744,27/10/2024,84981851934,FINANCIAL,"","Internet Banking Transfer Received from Savings Account (1421945264)",,200.00,"",428.50
+1759358744,31/10/2024,85325876914,FINANCIAL,"","Interest Received",,0.77,"",429.27
+1759358744,12/11/2024,85989528837,FINANCIAL,"","Banking App Transfer to Credit Card (6002709354) Transfer",200.00,,"Transfer",229.27
+1759358744,12/11/2024,85989542015,FINANCIAL,"","Banking App Transfer to Main Account (1421945264) Transfer Fuel And Dentist",200.00,,"Transfer Fuel and dentist",29.27
+1759358744,28/11/2024,86799759396,FINANCIAL,"","Banking App Transfer Received from Main Account (1421945264) Transfer",,200.00,"Transfer",229.27
+1759358744,30/11/2024,87076176186,FINANCIAL,"","Interest Received",,0.44,"",229.71
+1759358744,14/12/2024,87919198332,FINANCIAL,"","Banking App Transfer to Main Account (1421945264) Transfer",200.00,,"Transfer",29.71

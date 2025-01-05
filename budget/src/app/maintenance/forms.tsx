@@ -1,21 +1,21 @@
 // Forms related components for database management
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import React from 'react';
+// import { useEffect, useState } from 'react';
+import { listTablesQuery, deleteTableQuery } from '../../lib/dbQueries';
 
 export const CreateDatabaseForm = ({ onSubmit }: { onSubmit: (dbName: string) => void }) => {
     const [dbName, setDbName] = useState('');
 
-    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        onSubmit(dbName);
-        setDbName(''); // Clear the input after submission
-    };
-
     return (
         <div>
             <h2 className="text-xl font-bold mb-2">Create Database</h2>
-            <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-5 border-2 border-blue-500 p-2 rounded-md">
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                onSubmit(dbName);
+                setDbName(''); // Clear the input after submission
+            }} className="flex flex-wrap gap-2 mb-5 border-2 border-blue-500 p-2 rounded-md">
                 <input
                     type="text"
                     value={dbName}
@@ -64,11 +64,44 @@ export const CreateAccountsTable: React.FC = () => {
     );
 };
 
-export const PrepareDB: React.FC = () => {
+export const ShowTables: React.FC<{ tables: string[]; onDelete: (tableName: string) => void }> = ({ tables, onDelete }) => {
+    return (
+        <ul>
+            {tables.map((table) => (
+                <li key={table}>
+                    {table}
+                    <button onClick={() => onDelete(table)} className="ml-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
+                        Delete
+                    </button>
+                </li>
+            ))}
+        </ul>
+    );
+};
+
+export const PrepareDB: React.FC<{ db: any }> = ({ db }) => {
+    const [tables, setTables] = useState<string[]>([]);
+
+    const fetchTables = async () => {
+        const fetchedTables = await listTablesQuery(db); // Fetch the list of tables with the db connection
+        setTables(fetchedTables);
+    };
+
+    const handleDeleteTable = async (tableName: string) => {
+        await deleteTableQuery(tableName); // Call the delete function
+        fetchTables(); // Refresh the table list after deletion
+    };
+
+    useEffect(() => {
+        fetchTables(); // Fetch tables when the component mounts
+    }, []);
+
     return (
         <div className="border-2 border-blue-500 p-2 rounded-md">
             <h2 className="text-xl font-bold mb-2">Prepare Database</h2>
             <CreateAccountsTable />
+            <h3 className="text-lg font-bold mb-2">Tables:</h3>
+            <ShowTables tables={tables} onDelete={handleDeleteTable} />
         </div>
     );
 };
