@@ -24,6 +24,9 @@ export default function KeyValue(props){
 
     function handleSubmit(event){
         event.preventDefault()
+
+        props.submit(data)
+
     }
 
     function handleAddNew(event){
@@ -42,13 +45,13 @@ export default function KeyValue(props){
             <li key={item.id} className="p-2">
                 <label >
                     <input
-                        className="m-2 rounded p-1 bg-transparent" 
+                        className="m-1 rounded p-1 bg-transparent" 
                         type="text" 
                         defaultValue={item.keyDescription}
                         name={item.keyName}>
                     </input>
                     <input 
-                        className="m-2 rounded p-1" 
+                        className="m-1 rounded p-1" 
                         type="text" 
                         defaultValue={item.valueDescription}
                         name={item.valueName}
@@ -71,13 +74,14 @@ export default function KeyValue(props){
                 {itemMarkup}
             </ul>   
             <button 
-                className="basic-button bg-blue-500" 
-                onClick={handleSubmit}
-            >Submit Changes!</button>
-            <button 
                 className="basic-button bg-green-500" 
                 onClick={handleAddNew}
             >Add New</button>
+            <button 
+                className="float-right basic-button bg-blue-500" 
+                onClick={handleSubmit}
+            >Submit Changes!</button>
+            
         </form>
     )
 }
