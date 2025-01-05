@@ -1,12 +1,16 @@
 import "./globals.css";
+import Navbar from './components/Navbar.jsx'
 
+export default function RootLayout({ children }) {
 
-export default function RootLayout({children}) {
-  return (
-    <html lang="en">
-      <body>      
-            {children}
-      </body>
-    </html>
-  );
+    const pages = [{id: 1, display: "Home", link: "/"}, {id: 2, display: "Maintenance", link: "/Maintenance"}]
+
+    return (
+        <html lang="en">    
+            <body>
+                <Navbar pages={pages}/>
+                {children}
+            </body>
+        </html>
+    );
 }
