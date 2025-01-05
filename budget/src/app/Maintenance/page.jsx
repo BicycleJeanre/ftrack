@@ -1,3 +1,4 @@
+"use client"
 import KeyValue from '@/components/KeyValue'
 
 export default function Maintenance(){
@@ -5,11 +6,13 @@ export default function Maintenance(){
         {id: 1, keyName: "serverName", keyDescription: "Server Name", valueDescription:"localhost", valueName:"localhost"},
         {id: 2, keyName: "databaseName", keyDescription: "Database Name", valueDescription:"budget", valueName:"budget"}
     ]
+    function submitServerDetails(serverDetails){
 
+    }
     return(
         <main className="main-page-layout">
             <h1 className="text-white text-3xl">Maintenance</h1>
-            <KeyValue data={connectionDetails}/>
+            <KeyValue data={connectionDetails} submit={submitServerDetails}/>
         </main>
     )
 }

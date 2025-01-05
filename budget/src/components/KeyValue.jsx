@@ -1,9 +1,13 @@
 "use client"
 import {useState, useEffect} from 'react'
 
-export default function KeyValue(props){    
-    const [data, setData] = useState(props.data); // Initialize state once with props
+export default function KeyValue(props){   
 
+    const [data, setData] = useState(props.data.map(item => ({...item, isNew: false}))) // Initialize state once with props
+    let enableSubmit = false
+    if (props.submit) {
+        enableSubmit = true
+    }
     // useEffect(() => {
     //     // If props.data changes, update state only if necessary
     //     setData(props.data);
@@ -24,8 +28,8 @@ export default function KeyValue(props){
 
     function handleSubmit(event){
         event.preventDefault()
-
-        props.submit(data)
+        const {isNew, ...submissionData} = data //no, I don't undeerstand how this works... Smart AI
+        props.submit(submissionData)
 
     }
 
@@ -34,7 +38,7 @@ export default function KeyValue(props){
         const newId = data.reduce((aggr, item) => {
             return item.id > aggr ? item.id : aggr
         }, 0) + 1
-        setData(prevData => [...prevData, {id: newId, keyName: "newKey", keyDescription: "New Key", valueDescription: "New Value"}])
+        setData(prevData => [...prevData, {id: newId, keyName: "newKey", keyDescription: "New Key", valueDescription: "New Value", isNew: true}])
     }
 
     console.log(JSON.stringify(data))
@@ -42,8 +46,7 @@ export default function KeyValue(props){
     const itemMarkup = data.map(item => {
         console.log(item)
         return(
-            <li key={item.id} className="p-2">
-                <label >
+            <li key={item.id} className={item.isNew ? "p-1 border-orange-600 border-2 rounded" :"p-1"}>
                     <input
                         className="m-1 rounded p-1 bg-transparent" 
                         type="text" 
@@ -61,8 +64,6 @@ export default function KeyValue(props){
                         className="basic-button bg-red-500"
                         id={item.keyName}
                     >Remove</button>
-                </label>
-
             </li>
         )
     })
@@ -77,10 +78,13 @@ export default function KeyValue(props){
                 className="basic-button bg-green-500" 
                 onClick={handleAddNew}
             >Add New</button>
-            <button 
-                className="float-right basic-button bg-blue-500" 
-                onClick={handleSubmit}
-            >Submit Changes!</button>
+            {enableSubmit ? 
+                <button 
+                    className="float-right basic-button bg-blue-500" 
+                    onClick={handleSubmit}
+                >Submit Changes!</button>   
+            :null}
+            
             
         </form>
     )
