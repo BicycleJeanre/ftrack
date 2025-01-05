@@ -1,9 +1,13 @@
 "use client"
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 
-export default function KeyValue(props){
-    const [data, setData] = useState(props.data) //[{},{}...]
-    
+export default function KeyValue(props){    
+    const [data, setData] = useState(props.data); // Initialize state once with props
+
+    // useEffect(() => {
+    //     // If props.data changes, update state only if necessary
+    //     setData(props.data);
+    // }, [props.data]); // Only update if props.data changes
 
     function handleRemove(event){
         event.preventDefault()
@@ -18,9 +22,17 @@ export default function KeyValue(props){
         })
     }
 
-    function handleSubmit(){}
+    function handleSubmit(event){
+        event.preventDefault()
+    }
 
-    function handleAddNew(){}
+    function handleAddNew(event){
+        event.preventDefault()
+        const newId = data.reduce((aggr, item) => {
+            return item.id > aggr ? item.id : aggr
+        }, 0) + 1
+        setData(prevData => [...prevData, {id: newId, keyName: "newKey", keyDescription: "New Key", valueDescription: "New Value"}])
+    }
 
     console.log(JSON.stringify(data))
 
@@ -29,14 +41,17 @@ export default function KeyValue(props){
         return(
             <li key={item.id} className="p-2">
                 <label >
-                    <span > 
-                        {item.keyDescription}:
-                    </span>
+                    <input
+                        className="m-2 rounded p-1 bg-transparent" 
+                        type="text" 
+                        defaultValue={item.keyDescription}
+                        name={item.keyName}>
+                    </input>
                     <input 
                         className="m-2 rounded p-1" 
                         type="text" 
-                        defaultValue={item.value}
-                        name={item.keyName}
+                        defaultValue={item.valueDescription}
+                        name={item.valueName}
                     ></input>
                     <button 
                         onClick={handleRemove}
