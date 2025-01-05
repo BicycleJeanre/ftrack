@@ -24,3 +24,11 @@
     bg-black 
    
 }
+
+
+.basic-button{
+    @apply
+    p-1
+    rounded
+    m-1
+}
