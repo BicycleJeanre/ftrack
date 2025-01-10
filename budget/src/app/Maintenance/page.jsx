@@ -2,12 +2,19 @@
 import KeyValue from '@/components/KeyValue'
 
 export default function Maintenance(){
-    const connectionDetails = [
-        {id: 1, keyName: "serverName", keyDescription: "Server Name", valueDescription:"localhost", valueName:"localhost"},
-        {id: 2, keyName: "databaseName", keyDescription: "Database Name", valueDescription:"budget", valueName:"budget"}
-    ]
-    function submitServerDetails(serverDetails){
+    // const connectionDetails = [
+    //     {id: 1, keyName: "serverName", keyDescription: "Server Name", valueDescription:"localhost", valueName:"localhost"},
+    //     {id: 2, keyName: "databaseName", keyDescription: "Database Name", valueDescription:"budget", valueName:"budget"}
+    // ]
 
+    const connectionDetails = [
+        {key: "Server Name", value: "localhost"},
+        {key: "Database Name", value: "budget"},
+    ]
+
+
+    function submitServerDetails(serverDetails){
+        console.log(serverDetails)
     }
     return(
         <main className="main-page-layout">

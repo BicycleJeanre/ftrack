@@ -1,25 +1,23 @@
 "use client"
 import {useState, useEffect} from 'react'
 
-export default function KeyValue(props){   
+export default function KeyValue(props){  
+    let enableSubmit = props.submit ? true : false 
+    // console.log("reload")
+    const [data, setData] = useState(props.data.map((item, index) => {
+        const keyName =  index + item.key.toLowerCase().replace('/\s+/g', '')
+        const valueName = index + item.value.toLowerCase().replace('/\s+/g', '')
 
-    const [data, setData] = useState(props.data.map(item => ({...item, isNew: false}))) // Initialize state once with props
-    let enableSubmit = false
-    if (props.submit) {
-        enableSubmit = true
-    }
-    // useEffect(() => {
-    //     // If props.data changes, update state only if necessary
-    //     setData(props.data);
-    // }, [props.data]); // Only update if props.data changes
+        return {isNew: false, itemID: index, ...item}
+    })) // Initialize state once with props
 
     function handleRemove(event){
         event.preventDefault()
-        const idToRemove = event.target.id
+        const idToRemove = event.currentTarget.id
 
         setData(prevData => {
             return prevData.filter(item => {
-                if (item.keyName != idToRemove){
+                if (item.itemID != idToRemove){
                     return item
                 }
             })
@@ -28,41 +26,65 @@ export default function KeyValue(props){
 
     function handleSubmit(event){
         event.preventDefault()
-        const {isNew, ...submissionData} = data //no, I don't undeerstand how this works... Smart AI
-        props.submit(submissionData)
+        // const {isNew, ...submissionData} = data //no, I don't undeerstand how this works... Smart AI
+        props.submit(data)
 
     }
 
-    function handleAddNew(event){
+    function handleNew(event){
         event.preventDefault()
         const newId = data.reduce((aggr, item) => {
-            return item.id > aggr ? item.id : aggr
+            return item.itemID > aggr ? item.itemID : aggr
         }, 0) + 1
-        setData(prevData => [...prevData, {id: newId, keyName: "newKey", keyDescription: "New Key", valueDescription: "New Value", isNew: true}])
+        const newKeyName = newId + "key"
+        const newValueName = newId + "value"
+        setData(prevData => [...prevData, {isNew: true, itemID: newId, key: "Key", value: "Value" }])
     }
 
-    console.log(JSON.stringify(data))
+    function handleKeyChange(event){
+        const newKey = event.currentTarget.value
+        const itemID = event.currentTarget.id
+        setData(prevData => {
+           return prevData.map(item => {
+                return item.itemID == itemID ? {...item, key: newKey} : item
+            })
+        })
+
+
+    }
+
+    function handleValueChange(event){
+        const newValue = event.currentTarget.value
+        const itemID = event.currentTarget.id
+        setData(prevData => {
+           return prevData.map(item => {
+                return item.itemID == itemID ? {...item, value: newValue} : item
+            })
+        })  
+    }
 
     const itemMarkup = data.map(item => {
-        console.log(item)
         return(
-            <li key={item.id} className={item.isNew ? "p-1 border-orange-600 border-2 rounded" :"p-1"}>
+            <li key={item.itemID} id={item.itemID} className={item.isNew ? "p-1 border-orange-600 border-1 rounded" :"p-1"}>
                     <input
-                        className="m-1 rounded p-1 bg-transparent" 
+                        className="m-1 rounded p-1 bg-transparent text-" 
                         type="text" 
-                        defaultValue={item.keyDescription}
-                        name={item.keyName}>
+                        onChange={handleKeyChange}
+                        value={item.key}
+                        id={item.itemID}
+                        >
                     </input>
                     <input 
-                        className="m-1 rounded p-1" 
+                        className="m-1 rounded p-1 text-black" 
                         type="text" 
-                        defaultValue={item.valueDescription}
-                        name={item.valueName}
+                        onChange={handleValueChange}
+                        value={item.value}
+                        id={item.itemID}
                     ></input>
                     <button 
                         onClick={handleRemove}
                         className="basic-button bg-red-500"
-                        id={item.keyName}
+                        id={item.itemID}
                     >Remove</button>
             </li>
         )
@@ -76,7 +98,7 @@ export default function KeyValue(props){
             </ul>   
             <button 
                 className="basic-button bg-green-500" 
-                onClick={handleAddNew}
+                onClick={handleNew}
             >Add New</button>
             {enableSubmit ? 
                 <button 
