@@ -1,5 +1,235 @@
 {
-  "accounts": [],
-  "transactions": [],
-  "simulationResults": []
+  "accounts": [
+    {
+      "name": "Checking",
+      "balance": 1000,
+      "interest": 0.5
+    },
+    {
+      "name": "Savings",
+      "balance": 5000,
+      "interest": 1.2
+    }
+  ],
+  "transactions": [
+    {
+      "name": "Salary",
+      "account": "Checking",
+      "amount": 3000,
+      "date": "2025-07-01",
+      "recurring": true,
+      "freq": "month",
+      "pct_change": 2,
+      "apply_to": "amount"
+    },
+    {
+      "name": "Rent",
+      "account": "Checking",
+      "amount": -1200,
+      "date": "2025-07-01",
+      "recurring": true,
+      "freq": "month",
+      "end_date": "2025-12-01",
+      "apply_to": "amount"
+    },
+    {
+      "name": "Groceries",
+      "account": "Checking",
+      "amount": -400,
+      "date": "2025-07-05",
+      "recurring": false,
+      "apply_to": "amount"
+    },
+    {
+      "name": "Interest Bonus",
+      "account": "Savings",
+      "amount": 50,
+      "date": "2025-07-15",
+      "recurring": true,
+      "freq": "month",
+      "pct_change": 0,
+      "apply_to": "balance"
+    },
+    {
+      "name": "Gift",
+      "account": "Checking",
+      "amount": 200,
+      "date": "2025-07-20"
+    },
+    {
+      "name": "Utility Bill",
+      "account": "Checking",
+      "amount": -150,
+      "date": "2025-07-10",
+      "recurring": true,
+      "freq": "month",
+      "pct_change": 5,
+      "apply_to": "both"
+    },
+    {
+      "name": "Test Missing Fields",
+      "account": "Checking",
+      "amount": 0,
+      "date": "2025-07-25",
+      "apply_to": "amount"
+    }
+  ],
+  "simulationResults": [
+    {
+      "period": "Period 1",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "4055.25"
+        },
+        {
+          "name": "Savings",
+          "balance": "5110.00"
+        }
+      ]
+    },
+    {
+      "period": "Period 2",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "7334.80"
+        },
+        {
+          "name": "Savings",
+          "balance": "5221.32"
+        }
+      ]
+    },
+    {
+      "period": "Period 3",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "10851.94"
+        },
+        {
+          "name": "Savings",
+          "balance": "5333.98"
+        }
+      ]
+    },
+    {
+      "period": "Period 4",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "14620.67"
+        },
+        {
+          "name": "Savings",
+          "balance": "5447.98"
+        }
+      ]
+    },
+    {
+      "period": "Period 5",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "18655.79"
+        },
+        {
+          "name": "Savings",
+          "balance": "5563.36"
+        }
+      ]
+    },
+    {
+      "period": "Period 6",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "22972.94"
+        },
+        {
+          "name": "Savings",
+          "balance": "5680.12"
+        }
+      ]
+    },
+    {
+      "period": "Period 7",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "27588.59"
+        },
+        {
+          "name": "Savings",
+          "balance": "5798.28"
+        }
+      ]
+    },
+    {
+      "period": "Period 8",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "32520.15"
+        },
+        {
+          "name": "Savings",
+          "balance": "5917.86"
+        }
+      ]
+    },
+    {
+      "period": "Period 9",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "37786.00"
+        },
+        {
+          "name": "Savings",
+          "balance": "6038.87"
+        }
+      ]
+    },
+    {
+      "period": "Period 10",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "43405.52"
+        },
+        {
+          "name": "Savings",
+          "balance": "6161.34"
+        }
+      ]
+    },
+    {
+      "period": "Period 11",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "49399.17"
+        },
+        {
+          "name": "Savings",
+          "balance": "6285.28"
+        }
+      ]
+    },
+    {
+      "period": "Period 12",
+      "accounts": [
+        {
+          "name": "Checking",
+          "balance": "55788.56"
+        },
+        {
+          "name": "Savings",
+          "balance": "6410.70"
+        }
+      ]
+    }
+  ]
 }

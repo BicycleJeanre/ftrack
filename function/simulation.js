@@ -184,10 +184,12 @@ getEl('transactionForm').addEventListener('submit', function(e) {
 });
 // --- Simulation Logic ---
 function runSimulation() {
+    console.log('runSimulation called');
     // Determine periods
     const mode = getEl('mode').value;
     let periods = [];
     let periodType = getEl('period_type').value;
+    console.log('mode:', mode, 'periodType:', periodType);
     if (mode === 'daterange') {
         let date = new Date(getEl('start_date').value);
         const end = new Date(getEl('end_date').value);
@@ -203,9 +205,12 @@ function runSimulation() {
             date = addPeriod(date, periodType, 1);
         }
     }
+    console.log('periods:', periods);
     // Initialize account balances
     let acctStates = accounts.map(acct => ({ name: acct.name, balance: new Decimal(acct.balance), interest: new Decimal(acct.interest) }));
     let txnStates = transactions.map(txn => ({...txn, currentAmount: new Decimal(txn.amount)}));
+    console.log('accounts:', accounts);
+    console.log('transactions:', transactions);
     let results = [];
     periods.forEach((period, idx) => {
         // Apply interest to each account
