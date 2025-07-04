@@ -324,3 +324,114 @@ let d = new Date(); d.setMonth(d.getMonth()+11);
 getEl('end_date').value = d.toISOString().slice(0,10);
 renderAccounts();
 renderTransactions();
+// --- JSON Schema Validation on Import ---
+async function validateAndImportSimulationData(data) {
+    // Load schema
+    let schema;
+    try {
+        const res = await fetch('assets/simulation-data.schema.json');
+        schema = await res.json();
+    } catch (e) {
+        alert('Failed to load schema: ' + e.message);
+        return;
+    }
+    // Validate with Ajv
+    const ajv = new window.Ajv({ allErrors: true, strict: false });
+    const validate = ajv.compile(schema);
+    const valid = validate(data);
+    if (valid) {
+        accounts = data.accounts;
+        transactions = data.transactions;
+        simulationResults = data.simulationResults;
+        afterDataChange();
+        alert('Simulation data imported!');
+        return;
+    }
+    // Show errors in modal
+    showValidationErrors(validate.errors, data, validate, schema);
+}
+
+function showValidationErrors(errors, data, validate, schema) {
+    const modal = document.getElementById('validationErrorModal');
+    const list = document.getElementById('validationErrorList');
+    const autoFixBtn = document.getElementById('autoFixBtn');
+    list.innerHTML = '<ul>' + errors.map(e => `<li><b>${e.instancePath||e.dataPath}</b>: ${e.message}</li>`).join('') + '</ul>';
+    modal.style.display = 'block';
+    autoFixBtn.style.display = 'inline-block';
+    autoFixBtn.onclick = function() {
+        autoFixCommonErrors(data, errors, schema);
+        // Re-validate
+        const ajv = new window.Ajv({ allErrors: true, strict: false });
+        const validate2 = ajv.compile(schema);
+        const valid2 = validate2(data);
+        if (valid2) {
+            modal.style.display = 'none';
+            accounts = data.accounts;
+            transactions = data.transactions;
+            simulationResults = data.simulationResults;
+            afterDataChange();
+            alert('Simulation data imported after auto-fix!');
+        } else {
+            showValidationErrors(validate2.errors, data, validate2, schema);
+        }
+    };
+    document.getElementById('closeValidationModal').onclick = function() {
+        modal.style.display = 'none';
+    };
+}
+
+function autoFixCommonErrors(data, errors, schema) {
+    // Only fix missing required fields and type mismatches for accounts/transactions
+    errors.forEach(e => {
+        if (e.keyword === 'required') {
+            const path = e.instancePath || e.dataPath;
+            const missing = e.params.missingProperty;
+            if (path.startsWith('/accounts/')) {
+                const idx = parseInt(path.split('/')[2]);
+                if (!isNaN(idx)) data.accounts[idx][missing] = getDefaultForField('accounts', missing, schema);
+            } else if (path.startsWith('/transactions/')) {
+                const idx = parseInt(path.split('/')[2]);
+                if (!isNaN(idx)) data.transactions[idx][missing] = getDefaultForField('transactions', missing, schema);
+            }
+        } else if (e.keyword === 'type') {
+            const path = e.instancePath || e.dataPath;
+            if (path.startsWith('/accounts/')) {
+                const idx = parseInt(path.split('/')[2]);
+                const field = path.split('/')[3];
+                if (!isNaN(idx) && field) data.accounts[idx][field] = getDefaultForField('accounts', field, schema);
+            } else if (path.startsWith('/transactions/')) {
+                const idx = parseInt(path.split('/')[2]);
+                const field = path.split('/')[3];
+                if (!isNaN(idx) && field) data.transactions[idx][field] = getDefaultForField('transactions', field, schema);
+            }
+        }
+    });
+}
+
+function getDefaultForField(section, field, schema) {
+    // Provide sensible defaults based on schema
+    const defs = {
+        accounts: { name: '', balance: 0, interest: 0 },
+        transactions: { name: '', account: '', amount: 0, date: '', recurring: false, end_date: null, freq: 'month', pct_change: 0, apply_to: 'amount' }
+    };
+    return defs[section][field] !== undefined ? defs[section][field] : null;
+}
+
+// Patch import event to use validation
+const importInput = document.getElementById('importJsonInput');
+if (importInput) {
+    importInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                validateAndImportSimulationData(data);
+            } catch (err) {
+                alert('Error reading file: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    });
+}
