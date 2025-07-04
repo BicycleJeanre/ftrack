@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SimulationData",
+  "type": "object",
+  "properties": {
+    "accounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "balance": { "type": "number" },
+          "interest": { "type": "number" }
+        },
+        "required": ["name", "balance", "interest"]
+      }
+    },
+    "transactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "account": { "type": "string" },
+          "amount": { "type": "number" },
+          "date": { "type": "string", "format": "date" },
+          "recurring": { "type": "boolean" },
+          "end_date": { "type": ["string", "null"], "format": "date" },
+          "freq": { "type": "string", "enum": ["month", "day"] },
+          "pct_change": { "type": "number" },
+          "apply_to": { "type": "string", "enum": ["amount", "balance", "both"] }
+        },
+        "required": ["name", "account", "amount", "date", "recurring", "freq", "pct_change", "apply_to"]
+      }
+    },
+    "simulationResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string" },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "balance": { "type": "string" }
+              },
+              "required": ["name", "balance"]
+            }
+          }
+        },
+        "required": ["period", "accounts"]
+      }
+    }
+  },
+  "required": ["accounts", "transactions", "simulationResults"]
+}
