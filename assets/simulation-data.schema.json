@@ -26,11 +26,11 @@
           "date": { "type": "string", "format": "date" },
           "recurring": { "type": "boolean" },
           "end_date": { "type": ["string", "null"], "format": "date" },
-          "freq": { "type": "string", "enum": ["month", "day"] },
+          "freq": { "type": "string" },
           "pct_change": { "type": "number" },
-          "apply_to": { "type": "string", "enum": ["amount", "balance", "both"] }
+          "apply_to": { "type": "string" }
         },
-        "required": ["name", "account", "amount", "date", "recurring", "freq", "pct_change", "apply_to"]
+        "required": []
       }
     },
     "simulationResults": {

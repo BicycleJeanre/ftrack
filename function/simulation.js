@@ -350,3 +350,26 @@ if (importInput) {
         reader.readAsText(file);
     });
 }
+
+// When loading or processing transactions, use default values for missing fields
+function getTransactionWithDefaults(tx) {
+  return {
+    name: typeof tx.name === 'string' ? tx.name : '',
+    account: typeof tx.account === 'string' ? tx.account : '',
+    amount: typeof tx.amount === 'number' ? tx.amount : 0.0,
+    date: typeof tx.date === 'string' ? tx.date : '',
+    recurring: typeof tx.recurring === 'boolean' ? tx.recurring : false,
+    end_date: typeof tx.end_date === 'string' || tx.end_date === null ? tx.end_date : null,
+    freq: typeof tx.freq === 'string' ? tx.freq : '',
+    pct_change: typeof tx.pct_change === 'number' ? tx.pct_change : 0.0,
+    apply_to: typeof tx.apply_to === 'string' ? tx.apply_to : ''
+  };
+}
+// Use this function wherever transactions are loaded or displayed
+// Example: transactions.map(getTransactionWithDefaults)
+
+function afterDataChange() {
+    renderAccounts();
+    renderTransactions();
+    // Add any other UI updates needed after data changes
+}
