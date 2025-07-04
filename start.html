@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles/simulation.css">
     <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-    <script src="function/ajv7.min.js"></script>
+    <!-- <script src="function/ajv7.min.js"></script> -->
 </head>
 <body>
     <div class="container">
@@ -143,20 +143,5 @@
         <button type="button" onclick="document.getElementById('importJsonInput').click()">Import Simulation Data</button>
     </div>
     <script src="function/simulation.js"></script>
-    <!-- Validation Error Modal -->
-    <div id="validationErrorModal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <span class="close" id="closeValidationModal">&times;</span>
-            <h2>Import Validation Errors</h2>
-            <div id="validationErrorList"></div>
-            <button id="autoFixBtn" style="display:none;">Auto-fix Common Issues</button>
-        </div>
-    </div>
-    <style>
-    .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100vw; height:100vh; overflow:auto; background:rgba(0,0,0,0.4); }
-    .modal-content { background:#fff; margin:10% auto; padding:20px; border:1px solid #888; width:90%; max-width:500px; border-radius:8px; }
-    .close { float:right; font-size:28px; font-weight:bold; cursor:pointer; }
-    #validationErrorList { margin: 1em 0; color: #b00; }
-    </style>
 </body>
 </html>
