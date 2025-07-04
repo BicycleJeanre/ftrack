@@ -1,7 +1,0 @@
-sep=,
-Account,Transaction Date,Journal Number,Transaction Type,Branch,Description,DebitAmount,CreditAmount,Narrative,BalanceAmount
-1984239218,29/02/2024,72428498771,FINANCIAL,"","Interest Received",,0.94,"",302.85
-1984239218,26/03/2024,73644179179,FINANCIAL,"","Banking App Transfer Received from Savings Account (1678993059) Transfer",,200.00,"Transfer",502.85
-1984239218,31/03/2024,74014448981,FINANCIAL,"","Interest Received",,1.01,"",503.86
-1984239218,30/04/2024,75509337821,FINANCIAL,"","Interest Received",,1.32,"",505.18
-1984239218,31/05/2024,77104110400,FINANCIAL,"","Interest Received",,1.37,"",506.55
