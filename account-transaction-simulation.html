@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account & Transaction Financial Simulation</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='-5' y='90' font-size='100'%3E%24%3C/text%3E%3C/svg%3E" type="image/svg+xml">
+    <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <style>
+        body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #181c24;
+        color: #e6e6e6;
+    }
+    .container {
+        background-color: #23243a;
+        border-radius: 18px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        padding: 32px;
+        max-width: 1200px;
+        width: 100%;
+        margin: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+    }
+    h1, h2 {
+        color: #a18aff;
+        text-align: center;
+        letter-spacing: 1px;
+        font-weight: 700;
+    }
+    .input-section, .results-section, .chart-section {
+        background: #23243a;
+        border: 1px solid #2d3350;
+        border-radius: 14px;
+        padding: 28px 24px 20px 24px;
+        margin-bottom: 0;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0;
+        cursor: pointer;
+        user-select: none;
+        padding: 0 0 0 4px;
+        min-height: 48px;
+        border-radius: 10px 10px 0 0;
+        transition: background 0.2s;
+    }
+    .panel-header:hover {
+        background: #282a3f;
+    }
+    .panel-arrow {
+        font-size: 1.3em;
+        color: #a18aff;
+        margin-left: 8px;
+        transition: transform 0.2s;
+    }
+    .collapsed-panel .panel-arrow {
+        transform: rotate(-90deg);
+    }
+    .panel-content {
+        padding-top: 18px;
+        display: block;
+        transition: max-height 0.3s cubic-bezier(.4,0,.2,1), opacity 0.2s;
+        overflow: hidden;
+        opacity: 1;
+        max-height: 2000px;
+    }
+    .collapsed-panel .panel-content {
+        max-height: 0;
+        opacity: 0;
+        padding-top: 0;
+        pointer-events: none;
+    }
+    /* Remove close-btn and show-panels-btn styles */
+    .close-btn, .show-panels-btn, .show-panels-dropdown { display: none !important; }
+    .account-list, .transaction-list {
+        margin-bottom: 20px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        background: #23243a;
+        color: #e6e6e6;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    th, td {
+        border: 1px solid #2d3350;
+        padding: 10px 8px;
+        text-align: left;
+    }
+    th {
+        background: #2d3350;
+        color: #a18aff;
+        font-weight: 600;
+        font-size: 1.05em;
+    }
+    tr:nth-child(even) td {
+        background: #23243a;
+    }
+    tr:nth-child(odd) td {
+        background: #20213a;
+    }
+    .form-inline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 18px;
+    }
+    .form-inline input, .form-inline select {
+        padding: 10px 12px;
+        border-radius: 6px;
+        border: 1px solid #353b6d;
+        background: #20213a;
+        color: #e6e6e6;
+        font-size: 1em;
+        transition: border-color 0.2s;
+    }
+    .form-inline input:focus, .form-inline select:focus {
+        border-color: #a18aff;
+        outline: none;
+        box-shadow: 0 0 0 2px #a18aff33;
+    }
+    .form-inline label {
+        font-weight: 500;
+        color: #bfc7d5;
+        font-size: 0.98em;
+    }
+    .desc {
+        font-size: 1em;
+        color: #bfc7d5;
+        margin-bottom: 12px;
+    }
+    button {
+        background: linear-gradient(90deg, #a18aff 0%, #4f8cff 60%, #ff4f81 100%);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 22px;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(161,138,255,0.08);
+        transition: background 0.2s, color 0.2s, transform 0.1s;
+    }
+    button:hover {
+        background: linear-gradient(90deg, #4f8cff 0%, #a18aff 60%, #ff4f81 100%);
+        color: #fff;
+        transform: translateY(-2px) scale(1.03);
+    }
+    .results-summary {
+        background: #23243a;
+        border-radius: 8px;
+        padding: 20px;
+        font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+        font-size: 1em;
+        color: #a18aff;
+        min-height: 100px;
+        overflow-x: auto;
+        border: 1px solid #2d3350;
+    }
+    #financialChart {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #2d3350;
+        border-radius: 8px;
+        margin-top: 20px;
+        background: #181c24;
+    }
+    /* Responsive */
+    @media (max-width: 900px) {
+        .container { padding: 10px; }
+        .input-section, .results-section, .chart-section { padding: 12px 6px 10px 6px; }
+        .form-inline { gap: 8px; }
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="input-section" id="panel-settings">
+            <div class="panel-header" onclick="toggleAccordion('panel-settings')">
+                <h2>Simulation Settings</h2>
+                <span class="panel-arrow">&#9662;</span>
+            </div>
+            <div class="panel-content">
+                <div class="desc">Choose how to run your simulation: by date range, by number of periods, or in timeless mode (just N periods, no dates).</div>
+                <form id="settingsForm" class="form-inline">
+                    <label for="mode">Mode</label>
+                    <select id="mode">
+                        <option value="daterange">Between Dates</option>
+                        <option value="periods">Number of Periods</option>
+                        <option value="timeless">Timeless (just N periods)</option>
+                    </select>
+                    <span id="dateFields">
+                        <label for="start_date">Start Date</label>
+                        <input type="date" id="start_date">
+                        <label for="end_date">End Date</label>
+                        <input type="date" id="end_date">
+                    </span>
+                    <span id="periodFields" style="display:none;">
+                        <label for="period_count">Periods</label>
+                        <input type="number" id="period_count" value="12" min="1" step="1">
+                    </span>
+                    <label for="period_type">Period Type</label>
+                    <select id="period_type">
+                        <option value="month">Month</option>
+                        <option value="day">Day</option>
+                    </select>
+                    <button type="button" id="runSimulationBtn">Run Simulation</button>
+                </form>
+            </div>
+        </div>
+        <div class="input-section" id="panel-accounts">
+            <div class="panel-header" onclick="toggleAccordion('panel-accounts')">
+                <h2>Accounts</h2>
+                <span class="panel-arrow">&#9662;</span>
+            </div>
+            <div class="panel-content">
+                <div class="desc">Add one or more accounts. Each account can have a starting balance and an interest rate (applied each period).</div>
+                <form id="accountForm" class="form-inline">
+                    <label for="acct_name">Name</label>
+                    <input type="text" id="acct_name" required placeholder="e.g. Checking">
+                    <label for="acct_balance">Starting Balance</label>
+                    <input type="number" id="acct_balance" required placeholder="e.g. 1000">
+                    <label for="acct_interest">Interest Rate (%/period)</label>
+                    <input type="number" id="acct_interest" value="0" step="0.01" placeholder="e.g. 0.5">
+                    <button type="submit">Add/Update</button>
+                </form>
+                <div class="account-list">
+                    <table id="accountsTable">
+                        <thead>
+                            <tr><th>Name</th><th>Start Balance</th><th>Interest %</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="input-section" id="panel-transactions">
+            <div class="panel-header" onclick="toggleAccordion('panel-transactions')">
+                <h2>Transactions</h2>
+                <span class="panel-arrow">&#9662;</span>
+            </div>
+            <div class="panel-content">
+                <div class="desc">Add transactions. Each transaction affects an account, can be one-off or recurring, and can have a % change per period (e.g. salary increase, inflation, etc).<br>
+                <b>Amount:</b> Positive for income, negative for expense.<br>
+                <b>Date:</b> When the transaction first occurs.<br>
+                <b>Recurring:</b> If checked, transaction repeats until end date.<br>
+                <b>% Change/Period:</b> Applied to amount, account balance, or both (choose below).</div>
+                <form id="transactionForm" class="form-inline">
+                    <label for="txn_name">Name</label>
+                    <input type="text" id="txn_name" required placeholder="e.g. Salary, Rent">
+                    <label for="txn_account">Account</label>
+                    <select id="txn_account"></select>
+                    <label for="txn_amount">Amount</label>
+                    <input type="number" id="txn_amount" required placeholder="e.g. 1000 or -500">
+                    <label for="txn_date">Date</label>
+                    <input type="date" id="txn_date" required>
+                    <label for="txn_recurring">Recurring</label>
+                    <input type="checkbox" id="txn_recurring">
+                    <label for="txn_end_date">End Date</label>
+                    <input type="date" id="txn_end_date">
+                    <label for="txn_freq">Freq</label>
+                    <select id="txn_freq">
+                        <option value="month">Monthly</option>
+                        <option value="day">Daily</option>
+                    </select>
+                    <label for="txn_pct_change">% Change/Period</label>
+                    <input type="number" id="txn_pct_change" value="0" step="0.01" placeholder="e.g. 2">
+                    <label for="txn_apply_to">Apply % to</label>
+                    <select id="txn_apply_to">
+                        <option value="amount">Amount</option>
+                        <option value="balance">Balance</option>
+                        <option value="both">Both</option>
+                    </select>
+                    <button type="submit">Add/Update</button>
+                </form>
+                <div class="transaction-list">
+                    <table id="transactionsTable">
+                        <thead>
+                            <tr><th>Name</th><th>Account</th><th>Amount</th><th>Date</th><th>Recurring</th><th>End Date</th><th>Freq</th><th>% Change</th><th>Apply %</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="results-section" id="panel-results">
+            <div class="panel-header" onclick="toggleAccordion('panel-results')">
+                <h2>Results Table</h2>
+                <span class="panel-arrow">&#9662;</span>
+            </div>
+            <div class="panel-content">
+                <div id="resultsTableDiv"></div>
+            </div>
+        </div>
+        <div class="chart-section" id="panel-chart">
+            <div class="panel-header" onclick="toggleAccordion('panel-chart')">
+                <h2>Account Balances Over Time</h2>
+                <span class="panel-arrow">&#9662;</span>
+            </div>
+            <div class="panel-content">
+                <div id="financialChart"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // --- Data Structures ---
+        let accounts = [];
+        let transactions = [];
+        let editingAccount = null;
+        let editingTxn = null;
+        let simulationResults = [];
+
+        // --- Helpers ---
+        const getEl = id => document.getElementById(id);
+        function formatDate(date) { return date.toISOString().slice(0,10); }
+        function addPeriod(date, type, count=1) {
+            let d = new Date(date);
+            if (type === 'month') d.setMonth(d.getMonth() + count);
+            else if (type === 'day') d.setDate(d.getDate() + count);
+            return d;
+        }
+        function dateInRange(date, start, end) {
+            return (!start || date >= start) && (!end || date <= end);
+        }
+        function updateTxnAccountOptions() {
+            const sel = getEl('txn_account');
+            sel.innerHTML = '';
+            accounts.forEach((acct, idx) => {
+                const opt = document.createElement('option');
+                opt.value = acct.name;
+                opt.textContent = acct.name;
+                sel.appendChild(opt);
+            });
+        }
+
+        // --- Account Table ---
+        function renderAccounts() {
+            const tbody = getEl('accountsTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            accounts.forEach((acct, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${acct.name}</td>
+                    <td>${acct.balance}</td>
+                    <td>${acct.interest}</td>
+                    <td>
+                        <button onclick="editAccount(${idx})">Edit</button>
+                        <button onclick="deleteAccount(${idx})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            updateTxnAccountOptions();
+        }
+        function editAccount(idx) {
+            const acct = accounts[idx];
+            getEl('acct_name').value = acct.name;
+            getEl('acct_balance').value = acct.balance;
+            getEl('acct_interest').value = acct.interest;
+            editingAccount = idx;
+        }
+        function deleteAccount(idx) {
+            accounts.splice(idx,1);
+            renderAccounts();
+        }
+
+        // --- Account Form ---
+        getEl('accountForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const acct = {
+                name: getEl('acct_name').value,
+                balance: parseFloat(getEl('acct_balance').value),
+                interest: parseFloat(getEl('acct_interest').value)
+            };
+            if (editingAccount !== null) {
+                accounts[editingAccount] = acct;
+                editingAccount = null;
+            } else {
+                accounts.push(acct);
+            }
+            this.reset();
+            renderAccounts();
+        });
+
+        // --- Transaction Table ---
+        function renderTransactions() {
+            const tbody = getEl('transactionsTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            transactions.forEach((txn, idx) => {
+                const tr = document.createElement('tr');
+                const fields = ['name','account','amount','date','recurring','end_date','freq','pct_change','apply_to'];
+                fields.forEach(field => {
+                    const td = document.createElement('td');
+                    if (field === 'recurring') {
+                        td.textContent = txn.recurring ? 'Yes' : 'No';
+                    } else if (field === 'amount' || field === 'pct_change') {
+                        td.textContent = txn[field];
+                    } else {
+                        td.textContent = txn[field] || '';
+                    }
+                    if (field !== 'recurring' && field !== 'account') {
+                        td.classList.add('editable-cell');
+                        td.onclick = function() { makeTxnCellEditable(td, idx, field); };
+                    }
+                    tr.appendChild(td);
+                });
+                // Actions
+                const tdActions = document.createElement('td');
+                tdActions.innerHTML = `
+                    <button onclick="editTxn(${idx})">Edit</button>
+                    <button onclick="deleteTxn(${idx})">Delete</button>
+                `;
+                tr.appendChild(tdActions);
+                tbody.appendChild(tr);
+            });
+        }
+        function editTxn(idx) {
+            const txn = transactions[idx];
+            getEl('txn_name').value = txn.name;
+            getEl('txn_account').value = txn.account;
+            getEl('txn_amount').value = txn.amount;
+            getEl('txn_date').value = txn.date;
+            getEl('txn_recurring').checked = txn.recurring;
+            getEl('txn_end_date').value = txn.end_date || '';
+            getEl('txn_freq').value = txn.freq;
+            getEl('txn_pct_change').value = txn.pct_change;
+            getEl('txn_apply_to').value = txn.apply_to;
+            editingTxn = idx;
+        }
+        function deleteTxn(idx) {
+            transactions.splice(idx,1);
+            renderTransactions();
+        }
+
+        // --- Transaction Form ---
+        getEl('transactionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const txn = {
+                name: getEl('txn_name').value,
+                account: getEl('txn_account').value,
+                amount: parseFloat(getEl('txn_amount').value),
+                date: getEl('txn_date').value,
+                recurring: getEl('txn_recurring').checked,
+                end_date: getEl('txn_end_date').value || null,
+                freq: getEl('txn_freq').value,
+                pct_change: parseFloat(getEl('txn_pct_change').value),
+                apply_to: getEl('txn_apply_to').value
+            };
+            if (editingTxn !== null) {
+                transactions[editingTxn] = txn;
+                editingTxn = null;
+            } else {
+                transactions.push(txn);
+            }
+            this.reset();
+            renderTransactions();
+        });
+
+        // --- Simulation Logic ---
+        function runSimulation() {
+            // Determine periods
+            const mode = getEl('mode').value;
+            let periods = [];
+            let periodType = getEl('period_type').value;
+            if (mode === 'daterange') {
+                let date = new Date(getEl('start_date').value);
+                const end = new Date(getEl('end_date').value);
+                while (date <= end) {
+                    periods.push(formatDate(date));
+                    date = addPeriod(date, periodType, 1);
+                }
+            } else if (mode === 'periods' || mode === 'timeless') {
+                let count = parseInt(getEl('period_count').value);
+                let date = new Date();
+                for (let i=0; i<count; i++) {
+                    periods.push(mode === 'timeless' ? `Period ${i+1}` : formatDate(date));
+                    date = addPeriod(date, periodType, 1);
+                }
+            }
+            // Initialize account balances
+            let acctStates = accounts.map(acct => ({ name: acct.name, balance: new Decimal(acct.balance), interest: new Decimal(acct.interest) }));
+            let txnStates = transactions.map(txn => ({...txn, currentAmount: new Decimal(txn.amount)}));
+            let results = [];
+            periods.forEach((period, idx) => {
+                // Apply interest to each account
+                acctStates.forEach(acct => {
+                    if (acct.interest && !isNaN(acct.interest)) {
+                        acct.balance = acct.balance.times(new Decimal(1).plus(acct.interest.div(100)));
+                    }
+                });
+                // Apply transactions
+                txnStates.forEach(txn => {
+                    let apply = false;
+                    let txnDate = txn.date;
+                    let endDate = txn.end_date;
+                    if (txn.recurring) {
+                        if (dateInRange(period, txnDate, endDate)) {
+                            apply = true;
+                        }
+                    } else if (txnDate === period) {
+                        apply = true;
+                    }
+                    if (apply) {
+                        let acct = acctStates.find(a => a.name === txn.account);
+                        if (!acct) return;
+                        let amt = txn.currentAmount;
+                        if (txn.apply_to === 'amount' || txn.apply_to === 'both') {
+                            txn.currentAmount = txn.currentAmount.times(new Decimal(1).plus(new Decimal(txn.pct_change).div(100)));
+                        }
+                        if (txn.apply_to === 'balance' || txn.apply_to === 'both') {
+                            amt = amt.plus(acct.balance.times(new Decimal(txn.pct_change).div(100)));
+                        }
+                        acct.balance = acct.balance.plus(amt);
+                    }
+                });
+                // Record snapshot
+                results.push({ period, accounts: acctStates.map(a => ({ name: a.name, balance: a.balance.toFixed(2) })) });
+            });
+            simulationResults = results;
+            renderResultsTable();
+            renderFinancialChart();
+        }
+
+        // --- Results Table ---
+        function renderResultsTable() {
+            const div = getEl('resultsTableDiv');
+            let html = '<table><thead><tr><th>Period</th>';
+            if (accounts.length) accounts.forEach(a => { html += `<th>${a.name}</th>`; });
+            html += '</tr></thead><tbody>';
+            simulationResults.forEach(row => {
+                html += `<tr><td>${row.period}</td>`;
+                row.accounts.forEach(a => { html += `<td>${a.balance}</td>`; });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            div.innerHTML = html;
+        }
+
+        // --- Chart ---
+        function renderFinancialChart() {
+            const periods = simulationResults.map(r => r.period);
+            let data = accounts.map((acct, idx) => {
+                return {
+                    x: periods,
+                    y: simulationResults.map(row => {
+                        let a = row.accounts.find(x => x.name === acct.name);
+                        return a ? parseFloat(a.balance) : 0;
+                    }),
+                    mode: 'lines+markers',
+                    name: acct.name
+                };
+            });
+            Plotly.newPlot('financialChart', data, { title: 'Account Balances Over Time', xaxis: { title: 'Period' }, yaxis: { title: 'Balance' } }, { responsive: true });
+        }
+
+        // --- Panel Toggling ---
+        function toggleAccordion(panelId) {
+            const panel = document.getElementById(panelId);
+            panel.classList.toggle('collapsed-panel');
+        }
+
+        // --- Inline Editing for Transactions Table ---
+        function renderTransactions() {
+            const tbody = getEl('transactionsTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            transactions.forEach((txn, idx) => {
+                const tr = document.createElement('tr');
+                const fields = ['name','account','amount','date','recurring','end_date','freq','pct_change','apply_to'];
+                fields.forEach(field => {
+                    const td = document.createElement('td');
+                    if (field === 'recurring') {
+                        td.textContent = txn.recurring ? 'Yes' : 'No';
+                    } else if (field === 'amount' || field === 'pct_change') {
+                        td.textContent = txn[field];
+                    } else {
+                        td.textContent = txn[field] || '';
+                    }
+                    if (field !== 'recurring' && field !== 'account') {
+                        td.classList.add('editable-cell');
+                        td.onclick = function() { makeTxnCellEditable(td, idx, field); };
+                    }
+                    tr.appendChild(td);
+                });
+                // Actions
+                const tdActions = document.createElement('td');
+                tdActions.innerHTML = `
+                    <button onclick="editTxn(${idx})">Edit</button>
+                    <button onclick="deleteTxn(${idx})">Delete</button>
+                `;
+                tr.appendChild(tdActions);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function makeTxnCellEditable(td, idx, field) {
+            if (td.querySelector('input,select')) return;
+            const oldValue = transactions[idx][field];
+            let input;
+            if (field === 'date' || field === 'end_date') {
+                input = document.createElement('input');
+                input.type = 'date';
+                input.value = oldValue || '';
+            } else if (field === 'recurring') {
+                input = document.createElement('select');
+                input.innerHTML = '<option value="true">Yes</option><option value="false">No</option>';
+                input.value = oldValue ? 'true' : 'false';
+            } else if (field === 'freq' || field === 'apply_to') {
+                input = document.createElement('select');
+                if (field === 'freq') input.innerHTML = '<option value="month">Monthly</option><option value="day">Daily</option>';
+                if (field === 'apply_to') input.innerHTML = '<option value="amount">Amount</option><option value="balance">Balance</option><option value="both">Both</option>';
+                input.value = oldValue;
+            } else if (field === 'amount' || field === 'pct_change') {
+                input = document.createElement('input');
+                input.type = 'number';
+                input.value = oldValue;
+                input.step = '0.01';
+            } else {
+                input = document.createElement('input');
+                input.type = 'text';
+                input.value = oldValue;
+            }
+            input.onblur = input.onchange = function() {
+                let val = input.value;
+                if (field === 'recurring') val = val === 'true';
+                if (field === 'amount' || field === 'pct_change') val = parseFloat(val);
+                transactions[idx][field] = val;
+                renderTransactions();
+            };
+            input.onkeydown = function(e) {
+                if (e.key === 'Enter') {
+                    input.blur();
+                } else if (e.key === 'Escape') {
+                    td.textContent = oldValue;
+                }
+            };
+            td.textContent = '';
+            td.appendChild(input);
+            input.focus();
+        }
+
+        // --- Event Listeners ---
+        getEl('runSimulationBtn').addEventListener('click', runSimulation);
+        getEl('mode').addEventListener('change', function() {
+            if (this.value === 'daterange') {
+                getEl('dateFields').style.display = '';
+                getEl('periodFields').style.display = 'none';
+            } else {
+                getEl('dateFields').style.display = 'none';
+                getEl('periodFields').style.display = '';
+            }
+        });
+        // Set default start/end date
+        getEl('start_date').value = new Date().toISOString().slice(0,10);
+        let d = new Date(); d.setMonth(d.getMonth()+11);
+        getEl('end_date').value = d.toISOString().slice(0,10);
+        renderAccounts();
+        renderTransactions();
+    </script>
+</body>
+</html>
