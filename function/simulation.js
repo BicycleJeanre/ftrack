@@ -1,3 +1,72 @@
+// --- Embedded Default Data and Calculator Fields ---
+// Place these at the very top so they are available everywhere
+
+// Embedded default simulation data (from simulation-testset.json)
+const defaultSimulationData = {
+    accounts: [
+        { name: "Checking", balance: 1000, interest: 0.5 },
+        { name: "Savings", balance: 5000, interest: 1.2 }
+    ],
+    transactions: [
+        { name: "Salary", account: "Checking", amount: 3000, date: "2025-07-01", recurring: true, freq: "month", pct_change: 2.0, apply_to: "amount" },
+        { name: "Rent", account: "Checking", amount: -1200, date: "2025-07-01", recurring: true, freq: "month", end_date: "2025-12-01", apply_to: "amount" },
+        { name: "Groceries", account: "Checking", amount: -400, date: "2025-07-05", recurring: false, apply_to: "amount" },
+        { name: "Interest Bonus", account: "Savings", amount: 50, date: "2025-07-15", recurring: true, freq: "month", pct_change: 0.0, apply_to: "balance" },
+        { name: "Gift", account: "Checking", amount: 200, date: "2025-07-20" },
+        { name: "Utility Bill", account: "Checking", amount: -150, date: "2025-07-10", recurring: true, freq: "month", pct_change: 5.0, apply_to: "both" },
+        { name: "Test Missing Fields", account: "Checking", amount: 0, date: "2025-07-25", apply_to: "amount" }
+    ],
+    simulationResults: []
+};
+
+// Calculator formula fields
+const formulaFields = {
+    'compound-fv': [
+        { id: 'pv', label: 'Present Value (PV)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'compound-pv': [
+        { id: 'fv', label: 'Future Value (FV)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'annuity-fv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'annuity-pv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'annuity-due-fv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'annuity-due-pv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'perpetuity-pv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' }
+    ],
+    'ear': [
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' }
+    ]
+};
+
 // Functions for Account & Transaction Financial Simulation
 // --- Data Structures ---
 let accounts = [];
@@ -5,7 +74,11 @@ let transactions = [];
 let editingAccount = null;
 let editingTxn = null;
 let simulationResults = [];
-
+let activeDataSource = 'Default (simulation-testset.json)';
+function updateActiveDataSourceDisplay() {
+    const el = document.getElementById('activeDataSource');
+    if (el) el.textContent = activeDataSource;
+}
 // --- Helpers ---
 const getEl = id => document.getElementById(id);
 function formatDate(date) { return date.toISOString().slice(0,10); }
@@ -88,6 +161,10 @@ function saveSimulationData() {
     } catch (e) {
         alert('Failed to save simulation data: ' + e.message);
     }
+}
+function updateActiveDataSourceDisplay() {
+    const el = document.getElementById('activeDataSource');
+    if (el) el.textContent = activeDataSource;
 }
 // --- Account Table ---
 function renderAccounts() {
@@ -452,8 +529,78 @@ let d = new Date(); d.setMonth(d.getMonth()+11);
 getEl('end_date').value = d.toISOString().slice(0,10);
 renderAccounts();
 renderTransactions();
-// --- Patch import event to use simple import logic ---
-const importInput = document.getElementById('importJsonInput');
+// --- Auto-load default simulation data on startup ---
+function loadDefaultSimulationData() {
+    console.log('Loading embedded default simulation data...');
+    const data = defaultSimulationData;
+    if (data.accounts && data.transactions && data.simulationResults) {
+        accounts = JSON.parse(JSON.stringify(data.accounts));
+        transactions = JSON.parse(JSON.stringify(data.transactions));
+        simulationResults = JSON.parse(JSON.stringify(data.simulationResults));
+        activeDataSource = 'Default (embedded)';
+        afterDataChange();
+        updateActiveDataSourceDisplay();
+    } else {
+        console.warn('Embedded default data missing required properties:', data);
+    }
+}
+// --- Auto-save/load to localStorage ---
+function saveToLocal() {
+    const data = {
+        accounts,
+        transactions,
+        simulationResults
+    };
+    localStorage.setItem('simulationData', JSON.stringify(data));
+}
+function loadFromLocal() {
+    const data = localStorage.getItem('simulationData');
+    if (data) {
+        try {
+            const parsed = JSON.parse(data);
+            console.log('Loaded from localStorage:', parsed);
+            if (parsed.accounts && parsed.transactions && parsed.simulationResults) {
+                accounts = parsed.accounts;
+                transactions = parsed.transactions;
+                simulationResults = parsed.simulationResults;
+                activeDataSource = 'Local (autosave)';
+                afterDataChange();
+                updateActiveDataSourceDisplay();
+                return true;
+            } else {
+                console.warn('Local data missing required properties:', parsed);
+            }
+        } catch (e) {
+            console.error('Error parsing localStorage data:', e);
+        }
+    }
+    return false;
+}
+const _afterDataChange = afterDataChange;
+afterDataChange = function() {
+    console.log('afterDataChange: accounts', accounts, 'transactions', transactions, 'results', simulationResults);
+    _afterDataChange();
+    saveToLocal();
+    updateActiveDataSourceDisplay();
+};
+// On page load, try localStorage, else load default
+window.addEventListener('DOMContentLoaded', function() {
+    if (!loadFromLocal()) {
+        loadDefaultSimulationData();
+    }
+    // Reset to Default button logic
+    const resetBtn = document.getElementById('resetToDefaultBtn');
+    if (resetBtn) {
+        resetBtn.onclick = function() {
+            localStorage.removeItem('simulationData');
+            loadDefaultSimulationData();
+            activeDataSource = 'Default (simulation-testset.json)';
+            updateActiveDataSourceDisplay();
+        };
+    }
+});
+// Update import logic to show file name
+importInput = document.getElementById('importJsonInput');
 if (importInput) {
     importInput.addEventListener('change', function(event) {
         const file = event.target.files[0];
@@ -466,7 +613,9 @@ if (importInput) {
                     accounts = data.accounts;
                     transactions = data.transactions;
                     simulationResults = data.simulationResults;
+                    activeDataSource = 'Imported: ' + file.name;
                     afterDataChange();
+                    updateActiveDataSourceDisplay();
                     alert('Simulation data imported!');
                 } else {
                     alert('Invalid simulation data file.');
@@ -502,52 +651,54 @@ function afterDataChange() {
     // Add any other UI updates needed after data changes
 }
 // --- Financial Calculator ---
-const formulaFields = {
-    'compound-fv': [
-        { id: 'pv', label: 'Present Value (PV)', type: 'number', step: '0.01' },
-        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
-        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
-        { id: 't', label: 'Years', type: 'number', step: '0.01' }
-    ],
-    'compound-pv': [
-        { id: 'fv', label: 'Future Value (FV)', type: 'number', step: '0.01' },
-        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
-        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
-        { id: 't', label: 'Years', type: 'number', step: '0.01' }
-    ],
-    'annuity-fv': [
-        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
-        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
-        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
-        { id: 't', label: 'Years', type: 'number', step: '0.01' }
-    ],
-    'annuity-pv': [
-        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
-        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
-        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
-        { id: 't', label: 'Years', type: 'number', step: '0.01' }
-    ],
-    'annuity-due-fv': [
-        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
-        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
-        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
-        { id: 't', label: 'Years', type: 'number', step: '0.01' }
-    ],
-    'annuity-due-pv': [
-        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
-        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
-        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
-        { id: 't', label: 'Years', type: 'number', step: '0.01' }
-    ],
-    'perpetuity-pv': [
-        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
-        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' }
-    ],
-    'ear': [
-        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
-        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' }
-    ]
-};
+if (!formulaFields) {
+    formulaFields = {
+        'compound-fv': [
+            { id: 'pv', label: 'Present Value (PV)', type: 'number', step: '0.01' },
+            { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+            { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+            { id: 't', label: 'Years', type: 'number', step: '0.01' }
+        ],
+        'compound-pv': [
+            { id: 'fv', label: 'Future Value (FV)', type: 'number', step: '0.01' },
+            { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+            { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+            { id: 't', label: 'Years', type: 'number', step: '0.01' }
+        ],
+        'annuity-fv': [
+            { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+            { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+            { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+            { id: 't', label: 'Years', type: 'number', step: '0.01' }
+        ],
+        'annuity-pv': [
+            { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+            { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+            { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+            { id: 't', label: 'Years', type: 'number', step: '0.01' }
+        ],
+        'annuity-due-fv': [
+            { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+            { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+            { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+            { id: 't', label: 'Years', type: 'number', step: '0.01' }
+        ],
+        'annuity-due-pv': [
+            { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+            { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+            { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+            { id: 't', label: 'Years', type: 'number', step: '0.01' }
+        ],
+        'perpetuity-pv': [
+            { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+            { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' }
+        ],
+        'ear': [
+            { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+            { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' }
+        ]
+    };
+}
 
 function renderCalcFields() {
     const formula = getEl('calc_formula').value;

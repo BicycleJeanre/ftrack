@@ -12,6 +12,8 @@
 </head>
 <body>
     <div class="container">
+        <div id="activeDataInfo" class="active-data-info">Loaded: <span id="activeDataSource">Default (simulation-testset.json)</span></div>
+        <button type="button" id="resetToDefaultBtn" style="margin-bottom:18px;">Reset to Default Data</button>
         <!-- ...existing HTML content for panels and forms... -->
         <div class="input-section" id="panel-settings">
             <div class="panel-header" onclick="toggleAccordion('panel-settings')">
@@ -208,6 +210,7 @@
         </div>
         <input type="file" id="importJsonInput" accept=".json" style="display:none;">
         <button type="button" onclick="document.getElementById('importJsonInput').click()">Import Simulation Data</button>
+        <button type="button" id="resetToDefaultBtn">Reset to Default Data</button>
     </div>
     <script src="function/simulation.js"></script>
 </body>

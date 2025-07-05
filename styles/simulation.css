@@ -336,6 +336,31 @@ body, html, h1, h2, h3, h4, h5, h6, p, label, span, div, table, th, td, input, s
     padding: 12px 18px;
     min-height: 32px;
 }
+.active-data-info {
+    background: #232526;
+    color: #b6ff00;
+    font-size: 1.08em;
+    padding: 8px 18px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: inline-block;
+}
+#resetToDefaultBtn {
+    background: #232526;
+    color: #ededed;
+    border: 1px solid #b6ff00;
+    border-radius: 4px;
+    padding: 6px 18px;
+    font-size: 1em;
+    cursor: pointer;
+    margin-left: 18px;
+    margin-bottom: 18px;
+    transition: background 0.2s, color 0.2s;
+}
+#resetToDefaultBtn:hover {
+    background: #b6ff00;
+    color: #181a1b;
+}
 
 /* Responsive tweaks */
 @media (max-width: 800px) {
