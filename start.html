@@ -3,29 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account & Transaction Financial Simulation</title>
+    <title>Account & Transaction Financial Forecast</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='-5' y='90' font-size='100'%3E%24%3C/text%3E%3C/svg%3E" type="image/svg+xml">
-    <link rel="stylesheet" href="styles/simulation.css">
+    <link rel="stylesheet" href="styles/app.css">
     <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
     <!-- <script src="function/ajv7.min.js"></script> -->
 </head>
-<body>
+<body class="dark">
     <div class="container">
-        <div id="activeDataInfo" class="active-data-info">Loaded: <span id="activeDataSource">Default (simulation-testset.json)</span></div>
-        
-        <ul>
-          <li><a href="partials/accounts.html">Accounts Partial</a></li>
-          <li><a href="partials/transactions.html">Transactions Partial</a></li>
-          <li><a href="partials/simulation.html">Simulation Partial</a></li>
-          <li><a href="partials/calculator.html">Calculator Partial</a></li>
-          <li><a href="partials/filemgmt.html">File Management Partial</a></li>
-        </ul>
-        
+        <div id="main-navbar"></div>
+        <!-- Unified Navbar Partial -->
+        <!--#include partials/navbar.html -->
+        <h1>Financial Overview</h1>
+        <div class="desc" style="margin-bottom:24px;">
+          Welcome! This app helps you manage accounts, track transactions, forecast your financial future, and run advanced calculations. Use the navigation above to access each module.
+        </div>
+        <div class="section" id="overview-section">
+          <h2>Current Data Snapshot</h2>
+          <ul id="overview-list">
+            <li><strong>Accounts:</strong> <span id="overview-accounts">-</span></li>
+            <li><strong>Total Balance:</strong> <span id="overview-balance">-</span></li>
+            <li><strong>Transactions:</strong> <span id="overview-transactions">-</span></li>
+            <li><strong>Forecast Periods:</strong> <span id="overview-periods">-</span></li>
+          </ul>
+        </div>
         <!-- File Management Partial -->
         <!--#include partials/filemgmt.html -->
-        <!-- Simulation Settings, Results, and Chart Partial -->
-        <!--#include partials/simulation.html -->
+        <!-- Financial Forecast Settings, Results, and Chart Partial -->
+        <!--#include partials/forecast.html -->
         <!-- Accounts Section Partial -->
         <!--#include partials/accounts.html -->
         <!-- Transactions Section Partial -->
@@ -35,8 +41,21 @@
     </div>
     <script src="js/accounts.js"></script>
     <script src="js/transactions.js"></script>
-    <script src="js/simulation.js"></script>
+    <script src="js/forecast.js"></script>
     <script src="js/calculator.js"></script>
     <script src="js/filemgmt.js"></script>
+    <script src="js/navbar.js"></script>
+    <script>
+      // Overview data population
+      document.addEventListener('DOMContentLoaded', function() {
+        let accts = window.accounts || [];
+        let txns = window.transactions || [];
+        let forecast = window.getSimulationState ? window.getSimulationState() : {};
+        document.getElementById('overview-accounts').textContent = accts.length;
+        document.getElementById('overview-balance').textContent = accts.reduce((sum, a) => sum + (a.balance || 0), 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+        document.getElementById('overview-transactions').textContent = txns.length;
+        document.getElementById('overview-periods').textContent = forecast.periods || '-';
+      });
+    </script>
 </body>
 </html>

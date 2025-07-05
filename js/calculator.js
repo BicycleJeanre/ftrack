@@ -1,5 +1,59 @@
 // Financial calculator logic partial
 // --- Financial Calculator ---
+
+// Polyfill for getEl if not present
+if (typeof window !== 'undefined' && typeof window.getEl === 'undefined') {
+    window.getEl = function(id) { return document.getElementById(id); };
+}
+
+// Define formula fields for each calculator formula
+const formulaFields = {
+    'compound-fv': [
+        { id: 'pv', label: 'Present Value (PV)', type: 'number', step: 'any' },
+        { id: 'r', label: 'Interest Rate (%)', type: 'number', step: 'any' },
+        { id: 'n', label: 'Compounds per Year', type: 'number', step: '1', min: 1 },
+        { id: 't', label: 'Years', type: 'number', step: 'any' }
+    ],
+    'compound-pv': [
+        { id: 'fv', label: 'Future Value (FV)', type: 'number', step: 'any' },
+        { id: 'r', label: 'Interest Rate (%)', type: 'number', step: 'any' },
+        { id: 'n', label: 'Compounds per Year', type: 'number', step: '1', min: 1 },
+        { id: 't', label: 'Years', type: 'number', step: 'any' }
+    ],
+    'annuity-fv': [
+        { id: 'p', label: 'Payment per Period', type: 'number', step: 'any' },
+        { id: 'r', label: 'Interest Rate (%)', type: 'number', step: 'any' },
+        { id: 'n', label: 'Periods per Year', type: 'number', step: '1', min: 1 },
+        { id: 't', label: 'Years', type: 'number', step: 'any' }
+    ],
+    'annuity-pv': [
+        { id: 'p', label: 'Payment per Period', type: 'number', step: 'any' },
+        { id: 'r', label: 'Interest Rate (%)', type: 'number', step: 'any' },
+        { id: 'n', label: 'Periods per Year', type: 'number', step: '1', min: 1 },
+        { id: 't', label: 'Years', type: 'number', step: 'any' }
+    ],
+    'annuity-due-fv': [
+        { id: 'p', label: 'Payment per Period', type: 'number', step: 'any' },
+        { id: 'r', label: 'Interest Rate (%)', type: 'number', step: 'any' },
+        { id: 'n', label: 'Periods per Year', type: 'number', step: '1', min: 1 },
+        { id: 't', label: 'Years', type: 'number', step: 'any' }
+    ],
+    'annuity-due-pv': [
+        { id: 'p', label: 'Payment per Period', type: 'number', step: 'any' },
+        { id: 'r', label: 'Interest Rate (%)', type: 'number', step: 'any' },
+        { id: 'n', label: 'Periods per Year', type: 'number', step: '1', min: 1 },
+        { id: 't', label: 'Years', type: 'number', step: 'any' }
+    ],
+    'perpetuity-pv': [
+        { id: 'p', label: 'Payment per Period', type: 'number', step: 'any' },
+        { id: 'r', label: 'Interest Rate (%)', type: 'number', step: 'any' }
+    ],
+    'ear': [
+        { id: 'r', label: 'Nominal Rate (%)', type: 'number', step: 'any' },
+        { id: 'n', label: 'Compounds per Year', type: 'number', step: '1', min: 1 }
+    ]
+};
+
 function renderCalcFields() {
     const formula = getEl('calc_formula').value;
     const fields = formulaFields[formula] || [];
@@ -61,5 +115,15 @@ if (getEl('calculatorForm')) {
                 result = 'N/A';
         }
         getEl('calc-result').textContent = (typeof result === 'number' && !isNaN(result)) ? 'Result: ' + result.toFixed(6) : 'Invalid input.';
+    });
+}
+
+// Ensure calculator fields render on DOMContentLoaded
+if (typeof window !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', function() {
+        if (getEl('calc_formula')) {
+            getEl('calc_formula').addEventListener('change', renderCalcFields);
+            renderCalcFields();
+        }
     });
 }

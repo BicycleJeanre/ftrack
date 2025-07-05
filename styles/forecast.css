@@ -1,5 +1,7 @@
 /* This file has been deprecated. All styles have been migrated to styles/app.css. Please update your HTML to use app.css. */
 
+/* Financial Forecast Styles (copied from simulation.css) */
+
 /* Dark theme base colors */
 body, html {
     background: #181a1b;
@@ -9,7 +11,6 @@ body, html {
     padding: 0;
 }
 
-/* Styles for Account & Transaction Financial Simulation */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
@@ -84,8 +85,6 @@ h1, h2 {
 .account-list, .transaction-list {
     margin-top: 18px;
 }
-
-/* Scrollable table styling */
 .account-list table, .transaction-list table {
     width: 100%;
     min-width: 1200px;
@@ -95,7 +94,6 @@ h1, h2 {
     border-radius: 8px;
     overflow: hidden;
 }
-
 .account-list thead, .transaction-list thead {
     background: #232526;
     color: #f3f3f3;
@@ -103,37 +101,31 @@ h1, h2 {
     top: 0;
     z-index: 2;
 }
-
 .account-list tbody, .transaction-list tbody {
     display: block;
     max-height: 220px;
     overflow-y: auto;
     background: #181a1b;
 }
-
 .account-list thead tr, .transaction-list thead tr {
     display: table;
     width: 100%;
     table-layout: fixed;
 }
-
 .account-list tbody tr, .transaction-list tbody tr {
     display: table;
     width: 100%;
     table-layout: fixed;
 }
-
 .account-list td, .account-list th, .transaction-list td, .transaction-list th {
     padding: 10px 8px;
     border-bottom: 1px solid #232a23;
     color: #ededed;
     text-align: left;
 }
-
 .account-list tr:last-child td, .transaction-list tr:last-child td {
     border-bottom: none;
 }
-
 .account-list td button, .transaction-list td button {
     background: #232526;
     color: #ededed;
@@ -144,7 +136,6 @@ h1, h2 {
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
 }
-
 .account-list td button:hover, .transaction-list td button:hover {
     background: #b6ff00;
     color: #181a1b;
@@ -262,19 +253,14 @@ input[type="file"] {
     background: #b6ff00;
     border-radius: 6px;
 }
-
-/* Misc accent */
 .desc {
     color: #ededed;
     margin-bottom: 10px;
 }
-
 ::selection {
     background: #b6ff00;
     color: #181a1b;
 }
-
-/* Global text color rule */
 body, html, h1, h2, h3, h4, h5, h6, p, label, span, div, table, th, td, input, select, button {
     color: #ededed !important;
 }
@@ -284,8 +270,6 @@ body, html, h1, h2, h3, h4, h5, h6, p, label, span, div, table, th, td, input, s
 .panel-arrow {
     color: #ededed !important;
 }
-
-/* Calculator styles */
 #panel-calculator .panel-content {
     background: #232526;
     border-radius: 0 0 10px 10px;
@@ -363,8 +347,6 @@ body, html, h1, h2, h3, h4, h5, h6, p, label, span, div, table, th, td, input, s
     background: #b6ff00;
     color: #181a1b;
 }
-
-/* Responsive tweaks */
 @media (max-width: 800px) {
     .container {
         padding: 10px 2px;

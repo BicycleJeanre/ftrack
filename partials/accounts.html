@@ -5,23 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accounts | Financial Simulation</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='-5' y='90' font-size='100'%3E%24%3C/text%3E%3C/svg%3E" type="image/svg+xml">
-    <link rel="stylesheet" href="../styles/simulation.css">
+    <link rel="stylesheet" href="../styles/app.css">
+    <script src="../js/simulation-storage.js"></script>
+    <script src="../js/default-data.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
     <script src="../js/accounts.js"></script>
+    <script src="../js/navbar.js"></script>
 </head>
-<body>
+<body class="dark">
     <div class="container">
-        <nav style="margin-bottom:24px;">
-            <ul style="display:flex;gap:16px;list-style:none;padding:0;justify-content:center;">
-                <li><a href="accounts.html">Accounts</a></li>
-                <li><a href="transactions.html">Transactions</a></li>
-                <li><a href="simulation.html">Simulation</a></li>
-                <li><a href="calculator.html">Calculator</a></li>
-                <li><a href="filemgmt.html">File Management</a></li>
-                <li><a href="../start.html">Full App</a></li>
-            </ul>
-        </nav>
+        <div id="main-navbar"></div>
         <!-- Accounts Section Partial -->
         <div class="input-section" id="panel-accounts">
             <div class="panel-header" onclick="toggleAccordion('panel-accounts')">

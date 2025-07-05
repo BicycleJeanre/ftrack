@@ -1,4 +1,27 @@
 <!-- File Management Partial -->
-<input type="file" id="importJsonInput" accept=".json" style="display:none;">
-<button type="button" onclick="document.getElementById('importJsonInput').click()">Import Simulation Data</button>
-<button type="button" id="resetToDefaultBtn">Reset to Default Data</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Management</title>
+    <link rel="stylesheet" href="../styles/app.css">
+</head>
+<body class="dark">
+<!--#include partials/navbar.html -->
+<div class="container">
+  <div id="main-navbar"></div>
+  <h1>File Management</h1>
+  <div class="desc" style="margin-bottom:24px;">
+    Import/export your financial data, or reset to the default dataset. Use this page to manage your simulation files.
+  </div>
+  <div class="input-section">
+    <input type="file" id="importJsonInput" accept=".json" style="display:none;">
+    <button type="button" onclick="document.getElementById('importJsonInput').click()">Import Simulation Data</button>
+    <button type="button" id="resetToDefaultBtn">Reset to Default Data</button>
+  </div>
+</div>
+<script src="../js/filemgmt.js"></script>
+<script src="../js/navbar.js"></script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+/* Unified app styles for all modules (accounts, transactions, forecast, calculator, filemgmt)
+   Move all relevant styles from simulation.css, forecast.css, and any other module-specific CSS here. */
+
+/* --- Light Theme (default) --- */
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f7f7fa;
+  color: #222;
+  margin: 0;
+  padding: 0;
+}
+.container {
+  max-width: 900px;
+  margin: 32px auto;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  padding: 32px 36px 36px 36px;
+}
+h1, h2, h3 {
+  color: #2a3a4a;
+  margin-top: 0;
+}
+nav {
+  margin-bottom: 24px;
+}
+nav a {
+  color: #2a3a4a;
+  text-decoration: none;
+  margin-right: 18px;
+  font-weight: 500;
+}
+nav a.active, nav a:focus {
+  color: #1976d2;
+  text-decoration: underline;
+}
+button {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 18px;
+  font-size: 1em;
+  cursor: pointer;
+  margin: 0 4px;
+  transition: background 0.2s;
+}
+button:hover, button:focus {
+  background: #1256a2;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+}
+th, td {
+  border: 1px solid #e0e0e0;
+  padding: 8px 12px;
+  text-align: left;
+}
+th {
+  background: #f0f4f8;
+}
+tr:nth-child(even) {
+  background: #fafbfc;
+}
+input, select {
+  padding: 6px 10px;
+  border: 1px solid #b0b8c1;
+  border-radius: 3px;
+  font-size: 1em;
+  margin-bottom: 8px;
+}
+label {
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: block;
+}
+.section {
+  margin-bottom: 32px;
+}
+.panel {
+  background: #f5f7fa;
+  border-radius: 6px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.panel-header {
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 1px solid #e0e0e0;
+}
+.panel-content {
+  padding: 16px 18px;
+  display: block;
+}
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.18);
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 28px 32px 24px 32px;
+  min-width: 320px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.13);
+}
+.modal-header {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-bottom: 18px;
+}
+.modal-actions {
+  text-align: right;
+  margin-top: 18px;
+}
+
+/* --- Dark Theme (from simulation.css/forecast.css) --- */
+body.dark, html.dark {
+    background: #181a1b;
+    color: #ededed;
+}
+body.dark .container {
+    background: #232526;
+    color: #ededed;
+}
+h1, h2, h3 {
+    color: #2a3a4a;
+}
+body.dark h1, body.dark h2, body.dark h3 {
+    color: #f3f3f3;
+}
+.input-section, .results-section, .chart-section {
+    background: #202223;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 8px #0006;
+    border: 1px solid #232a23;
+}
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #181a1b;
+    color: #ededed !important;
+    padding: 16px 20px;
+    border-radius: 10px 10px 0 0;
+    cursor: pointer;
+    font-size: 1.2em;
+    font-weight: 600;
+    border-bottom: 1px solid #232a23;
+    transition: background 0.2s;
+}
+.panel-header:hover {
+    background: #3a5c2c;
+    color: #ededed !important;
+}
+.panel-arrow {
+    color: #b6ff00 !important;
+    font-size: 1.3em;
+}
+.collapsed-panel .panel-arrow {
+    transform: rotate(-90deg);
+}
+.panel-content {
+    padding: 18px 20px 20px 20px;
+    background: #232526;
+    border-radius: 0 0 10px 10px;
+    display: block;
+    transition: max-height 0.3s cubic-bezier(.4,0,.2,1), opacity 0.2s;
+    overflow: hidden;
+    opacity: 1;
+    max-height: 2000px;
+}
+.collapsed-panel .panel-content {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    pointer-events: none;
+}
+.account-list, .transaction-list {
+    margin-top: 18px;
+}
+.account-list table, .transaction-list table {
+    width: 100%;
+    min-width: 1200px;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #181a1b;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.account-list thead, .transaction-list thead {
+    background: #232526;
+    color: #f3f3f3;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.account-list tbody, .transaction-list tbody {
+    display: block;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #181a1b;
+}
+.account-list thead tr, .transaction-list thead tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+.account-list tbody tr, .transaction-list tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+.account-list td, .account-list th, .transaction-list td, .transaction-list th {
+    padding: 10px 8px;
+    border-bottom: 1px solid #232a23;
+    color: #ededed;
+    text-align: left;
+}
+.account-list tr:last-child td, .transaction-list tr:last-child td {
+    border-bottom: none;
+}
+.account-list td button, .transaction-list td button {
+    background: #232526;
+    color: #ededed;
+    border: 1px solid #b6ff00;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.account-list td button:hover, .transaction-list td button:hover {
+    background: #b6ff00;
+    color: #181a1b;
+}
+
+/* Table styles (light/dark) */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background: #23243a;
+    color: #e6e6e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+body:not(.dark) table {
+    background: #fff;
+    color: #222;
+}
+th, td {
+    border: 1px solid #2d3350;
+    padding: 10px 8px;
+    text-align: left;
+}
+th {
+    background: #232526;
+    color: #f3f3f3;
+    font-weight: 600;
+    font-size: 1.05em;
+}
+body:not(.dark) th {
+    background: #f0f4f8;
+    color: #2a3a4a;
+}
+tr:nth-child(even) td {
+    background: #232526;
+}
+tr:nth-child(odd) td {
+    background: #202223;
+}
+body:not(.dark) tr:nth-child(even) td {
+    background: #fafbfc;
+}
+body:not(.dark) tr:nth-child(odd) td {
+    background: #fff;
+}
+.form-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 18px;
+}
+.form-inline input, .form-inline select {
+    background: #232526;
+    color: #ededed;
+    border: 1px solid #444;
+    border-radius: 5px;
+    padding: 6px 10px;
+    margin-right: 12px;
+    margin-bottom: 8px;
+    outline: none;
+    transition: border 0.2s;
+}
+body:not(.dark) .form-inline input, body:not(.dark) .form-inline select {
+    background: #fff;
+    color: #222;
+    border: 1px solid #b0b8c1;
+}
+.form-inline input:focus, .form-inline select:focus {
+    border: 1.5px solid #b6ff00;
+    box-shadow: 0 0 0 2px #b6ff0033;
+}
+.form-inline label {
+    color: #ededed !important;
+    margin-right: 8px;
+}
+body:not(.dark) .form-inline label {
+    color: #222 !important;
+}
+button[type="button"], button {
+    background: #232526;
+    color: #ededed;
+    border: 1.5px solid #b6ff00;
+    border-radius: 5px;
+    padding: 8px 18px;
+    font-weight: 700;
+    cursor: pointer;
+}
+button[type="button"]:hover, button:hover {
+    background: #b6ff00;
+    color: #181a1b;
+}
+body:not(.dark) button[type="button"], body:not(.dark) button {
+    background: #1976d2;
+    color: #fff;
+    border: none;
+}
+body:not(.dark) button[type="button"]:hover, body:not(.dark) button:hover {
+    background: #1256a2;
+}
+
+/* Hide unused controls */
+.close-btn, .show-panels-btn, .show-panels-dropdown { display: none !important; }
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .container {
+    padding: 12px 4vw;
+  }
+  .modal-content {
+    min-width: 0;
+    width: 96vw;
+    padding: 18px 6vw 16px 6vw;
+  }
+}
+/* Add any additional styles from simulation.css, forecast.css, etc. below as needed */
