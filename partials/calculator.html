@@ -1,0 +1,26 @@
+<!-- Financial Calculator Partial -->
+<div class="input-section" id="panel-calculator">
+    <div class="panel-header" onclick="toggleAccordion('panel-calculator')">
+        <h2>Financial Calculator</h2>
+        <span class="panel-arrow">&#9662;</span>
+    </div>
+    <div class="panel-content">
+        <div class="desc">Calculate compound interest, annuities, and more. Select a formula, enter values, and get instant results.</div>
+        <form id="calculatorForm" class="form-inline">
+            <label for="calc_formula">Formula</label>
+            <select id="calc_formula">
+                <option value="compound-fv">Compound Interest (Future Value)</option>
+                <option value="compound-pv">Compound Interest (Present Value)</option>
+                <option value="annuity-fv">Future Value of Ordinary Annuity</option>
+                <option value="annuity-pv">Present Value of Ordinary Annuity</option>
+                <option value="annuity-due-fv">Future Value of Annuity Due</option>
+                <option value="annuity-due-pv">Present Value of Annuity Due</option>
+                <option value="perpetuity-pv">Perpetuity (Present Value)</option>
+                <option value="ear">Effective Annual Rate (EAR)</option>
+            </select>
+            <div id="calc-fields"></div>
+            <button type="submit">Calculate</button>
+        </form>
+        <div id="calc-result" class="calc-result"></div>
+    </div>
+</div>

@@ -1,0 +1,50 @@
+<!-- Transactions Section Partial -->
+<div class="input-section" id="panel-transactions">
+    <div class="panel-header" onclick="toggleAccordion('panel-transactions')">
+        <h2>Transactions</h2>
+        <span class="panel-arrow">&#9662;</span>
+    </div>
+    <div class="panel-content">
+        <div class="desc">Add transactions. Each transaction affects an account, can be one-off or recurring, and can have a % change per period (e.g. salary increase, inflation, etc).<br>
+        <b>Amount:</b> Positive for income, negative for expense.<br>
+        <b>Date:</b> When the transaction first occurs.<br>
+        <b>Recurring:</b> If checked, transaction repeats until end date.<br>
+        <b>% Change/Period:</b> Applied to amount, account balance, or both (choose below).</div>
+        <form id="transactionForm" class="form-inline">
+            <label for="txn_name">Name</label>
+            <input type="text" id="txn_name" required placeholder="e.g. Salary, Rent">
+            <label for="txn_account">Account</label>
+            <select id="txn_account"></select>
+            <label for="txn_amount">Amount</label>
+            <input type="number" id="txn_amount" required placeholder="e.g. 1000 or -500">
+            <label for="txn_date">Date</label>
+            <input type="date" id="txn_date" required>
+            <label for="txn_recurring">Recurring</label>
+            <input type="checkbox" id="txn_recurring">
+            <label for="txn_end_date">End Date</label>
+            <input type="date" id="txn_end_date">
+            <label for="txn_freq">Freq</label>
+            <select id="txn_freq">
+                <option value="month">Monthly</option>
+                <option value="day">Daily</option>
+            </select>
+            <label for="txn_pct_change">% Change/Period</label>
+            <input type="number" id="txn_pct_change" value="0" step="0.01" placeholder="e.g. 2">
+            <label for="txn_apply_to">Apply % to</label>
+            <select id="txn_apply_to">
+                <option value="amount">Amount</option>
+                <option value="balance">Balance</option>
+                <option value="both">Both</option>
+            </select>
+            <button type="submit">Add/Update</button>
+        </form>
+        <div class="transaction-list">
+            <table id="transactionsTable">
+                <thead>
+                    <tr><th>Name</th><th>Account</th><th>Amount</th><th>Date</th><th>Recurring</th><th>End Date</th><th>Freq</th><th>% Change</th><th>Apply %</th><th>Actions</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
