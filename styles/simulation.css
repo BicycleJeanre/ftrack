@@ -283,6 +283,60 @@ body, html, h1, h2, h3, h4, h5, h6, p, label, span, div, table, th, td, input, s
     color: #ededed !important;
 }
 
+/* Calculator styles */
+#panel-calculator .panel-content {
+    background: #232526;
+    border-radius: 0 0 10px 10px;
+}
+#calculatorForm {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    margin-bottom: 18px;
+}
+#calculatorForm label {
+    min-width: 120px;
+    color: #ededed;
+}
+#calculatorForm select, #calculatorForm input[type="number"] {
+    background: #181a1b;
+    color: #ededed;
+    border: 1px solid #b6ff00;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 1em;
+}
+#calculatorForm button {
+    background: #232526;
+    color: #ededed;
+    border: 1px solid #b6ff00;
+    border-radius: 4px;
+    padding: 6px 18px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+#calculatorForm button:hover {
+    background: #b6ff00;
+    color: #181a1b;
+}
+#calc-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+}
+.calc-result {
+    margin-top: 18px;
+    font-size: 1.2em;
+    color: #b6ff00;
+    background: #181a1b;
+    border-radius: 6px;
+    padding: 12px 18px;
+    min-height: 32px;
+}
+
 /* Responsive tweaks */
 @media (max-width: 800px) {
     .container {

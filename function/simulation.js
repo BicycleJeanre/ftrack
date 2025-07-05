@@ -11,8 +11,34 @@ const getEl = id => document.getElementById(id);
 function formatDate(date) { return date.toISOString().slice(0,10); }
 function addPeriod(date, type, count=1) {
     let d = new Date(date);
-    if (type === 'month') d.setMonth(d.getMonth() + count);
-    else if (type === 'day') d.setDate(d.getDate() + count);
+    switch(type) {
+        case 'month':
+            d.setMonth(d.getMonth() + count);
+            break;
+        case 'quarter':
+            d.setMonth(d.getMonth() + 3 * count);
+            break;
+        case 'year':
+            d.setFullYear(d.getFullYear() + count);
+            break;
+        case 'week-break': {
+            // Advance by week, but break on month
+            let startMonth = d.getMonth();
+            let startYear = d.getFullYear();
+            d.setDate(d.getDate() + 7 * count);
+            if (d.getMonth() !== startMonth || d.getFullYear() !== startYear) {
+                // Go to first of next month
+                d = new Date(startYear, startMonth + 1, 1);
+            }
+            break;
+        }
+        case 'week':
+            d.setDate(d.getDate() + 7 * count);
+            break;
+        case 'day':
+        default:
+            d.setDate(d.getDate() + count);
+    }
     return d;
 }
 function dateInRange(date, start, end) {
@@ -68,47 +94,81 @@ function renderAccounts() {
     const tbody = getEl('accountsTable').querySelector('tbody');
     tbody.innerHTML = '';
     accounts.forEach((acct, idx) => {
+        const interestPeriod = acct.interest_period || 'month';
+        const compoundPeriod = acct.compound_period || 'month';
+        const interestType = acct.interest_type || 'compound';
+        const interestDisplay = (acct.interest !== undefined && acct.interest !== null && acct.interest !== 0)
+            ? `${acct.interest} (${interestPeriod}, ${interestType}, comp: ${compoundPeriod})`
+            : '<span style="color:#888">None</span>';
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${acct.name}</td>
             <td>${acct.balance}</td>
-            <td>${acct.interest}</td>
+            <td>${interestDisplay}</td>
             <td>
                 <button onclick="editAccount(${idx})">Edit</button>
                 <button onclick="deleteAccount(${idx})">Delete</button>
+                <button onclick="openInterestModal(${idx})">Add/Edit Interest</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
     updateTxnAccountOptions();
 }
-function editAccount(idx) {
+
+// --- Interest Modal Logic ---
+function openInterestModal(idx) {
     const acct = accounts[idx];
-    getEl('acct_name').value = acct.name;
-    getEl('acct_balance').value = acct.balance;
-    getEl('acct_interest').value = acct.interest;
-    editingAccount = idx;
+    const modal = document.getElementById('interestModal');
+    modal.style.display = 'flex';
+    modal.dataset.idx = idx;
+    getEl('modal_acct_interest').value = acct.interest !== undefined ? acct.interest : 0;
+    getEl('modal_acct_interest_period').value = acct.interest_period || 'month';
+    getEl('modal_acct_compound_period').value = acct.compound_period || 'month';
+    getEl('modal_acct_interest_type').value = acct.interest_type || 'compound';
 }
-function deleteAccount(idx) {
-    accounts.splice(idx,1);
-    afterDataChange();
-}
+getEl('closeInterestModal').onclick = function() {
+    document.getElementById('interestModal').style.display = 'none';
+};
+getEl('cancelInterestBtn').onclick = function() {
+    document.getElementById('interestModal').style.display = 'none';
+};
+getEl('saveInterestBtn').onclick = function() {
+    const idx = document.getElementById('interestModal').dataset.idx;
+    if (idx !== undefined && accounts[idx]) {
+        accounts[idx].interest = parseFloat(getEl('modal_acct_interest').value);
+        accounts[idx].interest_period = getEl('modal_acct_interest_period').value;
+        accounts[idx].compound_period = getEl('modal_acct_compound_period').value;
+        accounts[idx].interest_type = getEl('modal_acct_interest_type').value;
+        afterDataChange();
+    }
+    document.getElementById('interestModal').style.display = 'none';
+};
+
 // --- Account Form ---
 getEl('accountForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const acct = {
         name: getEl('acct_name').value,
-        balance: parseFloat(getEl('acct_balance').value),
-        interest: parseFloat(getEl('acct_interest').value)
+        balance: parseFloat(getEl('acct_balance').value)
     };
+    let newIdx = null;
     if (editingAccount !== null) {
+        // preserve interest settings if present
+        Object.assign(acct, accounts[editingAccount]);
+        acct.name = getEl('acct_name').value;
+        acct.balance = parseFloat(getEl('acct_balance').value);
         accounts[editingAccount] = acct;
+        newIdx = editingAccount;
         editingAccount = null;
     } else {
         accounts.push(acct);
+        newIdx = accounts.length - 1;
     }
     this.reset();
     afterDataChange();
+    // Immediately open interest modal for new/edited account
+    openInterestModal(newIdx);
 });
 // --- Transaction Table ---
 function renderTransactions() {
@@ -183,6 +243,28 @@ getEl('transactionForm').addEventListener('submit', function(e) {
     afterDataChange();
 });
 // --- Simulation Logic ---
+function getPeriodsPerYear(periodType) {
+    switch (periodType) {
+        case 'year': return 1;
+        case 'quarter': return 4;
+        case 'month': return 12;
+        case 'week': return 52;
+        case 'day': return 365;
+        default: return 1;
+    }
+}
+function shouldCompoundThisPeriod(idx, compoundPeriod, periodType) {
+    // Returns true if this period is a compounding point
+    const periodsPerYear = getPeriodsPerYear(periodType);
+    const compoundPerYear = getPeriodsPerYear(compoundPeriod);
+    if (compoundPerYear >= periodsPerYear) {
+        // e.g. monthly compounding in monthly periods, or less frequent
+        return (idx + 1) % Math.round(periodsPerYear / compoundPerYear) === 0;
+    } else {
+        // e.g. daily compounding in monthly periods (not typical, but handle)
+        return true;
+    }
+}
 function runSimulation() {
     console.log('runSimulation called');
     // Determine periods
@@ -207,7 +289,14 @@ function runSimulation() {
     }
     console.log('periods:', periods);
     // Initialize account balances
-    let acctStates = accounts.map(acct => ({ name: acct.name, balance: new Decimal(acct.balance), interest: new Decimal(acct.interest) }));
+    let acctStates = accounts.map(acct => ({
+        name: acct.name,
+        balance: new Decimal(acct.balance),
+        interest: new Decimal(acct.interest || 0),
+        interest_period: acct.interest_period || 'year',
+        compound_period: acct.compound_period || 'year',
+        interest_type: acct.interest_type || 'compound'
+    }));
     let txnStates = transactions.map(txn => ({...txn, currentAmount: new Decimal(txn.amount)}));
     console.log('accounts:', accounts);
     console.log('transactions:', transactions);
@@ -216,7 +305,23 @@ function runSimulation() {
         // Apply interest to each account
         acctStates.forEach(acct => {
             if (acct.interest && !isNaN(acct.interest)) {
-                acct.balance = acct.balance.times(new Decimal(1).plus(acct.interest.div(100)));
+                // Only apply if this is a compounding period
+                if (shouldCompoundThisPeriod(idx, acct.compound_period, periodType)) {
+                    const periodsPerYear = getPeriodsPerYear(periodType);
+                    const compoundPerYear = getPeriodsPerYear(acct.compound_period);
+                    // Convert annual rate to per-compound-period rate
+                    let r = acct.interest.div(100);
+                    let n = compoundPerYear;
+                    let ratePerCompound = r.div(n);
+                    if (acct.interest_type === 'compound') {
+                        acct.balance = acct.balance.times(new Decimal(1).plus(ratePerCompound));
+                    } else {
+                        // Simple interest: add interest only on original principal
+                        // (simulate by storing original principal if needed)
+                        if (!acct._principal) acct._principal = acct.balance;
+                        acct.balance = acct.balance.plus(acct._principal.times(ratePerCompound));
+                    }
+                }
             }
         });
         // Apply transactions
@@ -322,7 +427,25 @@ function makeTxnCellEditable(td, idx, field) {
 }
 // --- Event Listeners ---
 getEl('runSimulationBtn').addEventListener('click', runSimulation);
-getEl('mode').addEventListener('change', function() {});
+getEl('mode').addEventListener('change', function() {
+    const mode = getEl('mode').value;
+    const dateFields = document.getElementById('dateFields');
+    const periodFields = document.getElementById('periodFields');
+    const periodTypeFields = document.getElementById('periodTypeFields');
+    if (mode === 'daterange') {
+        dateFields.style.display = '';
+        periodFields.style.display = 'none';
+        periodTypeFields.style.display = '';
+    } else if (mode === 'periods') {
+        dateFields.style.display = 'none';
+        periodFields.style.display = '';
+        periodTypeFields.style.display = '';
+    } else if (mode === 'timeless') {
+        dateFields.style.display = 'none';
+        periodFields.style.display = '';
+        periodTypeFields.style.display = '';
+    }
+});
 // Set default start/end date
 getEl('start_date').value = new Date().toISOString().slice(0,10);
 let d = new Date(); d.setMonth(d.getMonth()+11);
@@ -377,4 +500,115 @@ function afterDataChange() {
     renderAccounts();
     renderTransactions();
     // Add any other UI updates needed after data changes
+}
+// --- Financial Calculator ---
+const formulaFields = {
+    'compound-fv': [
+        { id: 'pv', label: 'Present Value (PV)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'compound-pv': [
+        { id: 'fv', label: 'Future Value (FV)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'annuity-fv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'annuity-pv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'annuity-due-fv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'annuity-due-pv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' },
+        { id: 't', label: 'Years', type: 'number', step: '0.01' }
+    ],
+    'perpetuity-pv': [
+        { id: 'p', label: 'Payment/Period (P)', type: 'number', step: '0.01' },
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' }
+    ],
+    'ear': [
+        { id: 'r', label: 'Annual Rate (%)', type: 'number', step: '0.0001' },
+        { id: 'n', label: 'Compounds/Year', type: 'number', step: '1', min: '1' }
+    ]
+};
+
+function renderCalcFields() {
+    const formula = getEl('calc_formula').value;
+    const fields = formulaFields[formula] || [];
+    const div = getEl('calc-fields');
+    div.innerHTML = '';
+    fields.forEach(f => {
+        const label = document.createElement('label');
+        label.htmlFor = 'calc_' + f.id;
+        label.textContent = f.label;
+        const input = document.createElement('input');
+        input.type = f.type;
+        input.id = 'calc_' + f.id;
+        input.step = f.step;
+        if (f.min) input.min = f.min;
+        input.required = true;
+        div.appendChild(label);
+        div.appendChild(input);
+    });
+}
+if (getEl('calc_formula')) {
+    getEl('calc_formula').addEventListener('change', renderCalcFields);
+    renderCalcFields();
+}
+if (getEl('calculatorForm')) {
+    getEl('calculatorForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formula = getEl('calc_formula').value;
+        let v = {};
+        (formulaFields[formula] || []).forEach(f => {
+            v[f.id] = parseFloat(getEl('calc_' + f.id).value);
+        });
+        let result = '';
+        switch (formula) {
+            case 'compound-fv':
+                result = v.pv * Math.pow(1 + v.r/100/v.n, v.n*v.t);
+                break;
+            case 'compound-pv':
+                result = v.fv / Math.pow(1 + v.r/100/v.n, v.n*v.t);
+                break;
+            case 'annuity-fv':
+                result = v.p * ( (Math.pow(1 + v.r/100/v.n, v.n*v.t) - 1) / (v.r/100/v.n) );
+                break;
+            case 'annuity-pv':
+                result = v.p * (1 - Math.pow(1 + v.r/100/v.n, -v.n*v.t)) / (v.r/100/v.n);
+                break;
+            case 'annuity-due-fv':
+                result = v.p * ( (Math.pow(1 + v.r/100/v.n, v.n*v.t) - 1) / (v.r/100/v.n) ) * (1 + v.r/100/v.n);
+                break;
+            case 'annuity-due-pv':
+                result = v.p * (1 - Math.pow(1 + v.r/100/v.n, -v.n*v.t)) / (v.r/100/v.n) * (1 + v.r/100/v.n);
+                break;
+            case 'perpetuity-pv':
+                result = v.p / (v.r/100);
+                break;
+            case 'ear':
+                result = Math.pow(1 + v.r/100/v.n, v.n) - 1;
+                break;
+            default:
+                result = 'N/A';
+        }
+        getEl('calc-result').textContent = (typeof result === 'number' && !isNaN(result)) ? 'Result: ' + result.toFixed(6) : 'Invalid input.';
+    });
 }
