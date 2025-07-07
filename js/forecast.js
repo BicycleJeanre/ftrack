@@ -3,29 +3,11 @@
 // --- Financial Forecast Logic ---
 // Adapted from simulation.js
 
-// --- Ensure forecast-storage.js and default-data.js are loaded ---
-(function ensureSharedScripts() {
-    function loadScript(src) {
-        return new Promise(function(resolve, reject) {
-            if (document.querySelector('script[src="' + src + '"]')) return resolve();
-            var s = document.createElement('script');
-            s.src = src;
-            s.onload = function() { console.log('[DEBUG] Loaded script:', src); resolve(); };
-            s.onerror = function(e) { console.error('[DEBUG] Failed to load script:', src, e); reject(e); };
-            document.head.appendChild(s);
-        });
-    }
-    if (!window.getForecastState || !window.saveForecastToLocalStorage) {
-        console.log('[DEBUG] forecast-storage.js not loaded, loading...');
-        loadScript('js/forecast-storage.js');
-    }
-    if (!window.accounts || !window.transactions) {
-        console.log('[DEBUG] default-data.js not loaded, loading...');
-        loadScript('js/default-data.js');
-    }
-})();
-
 // --- Helper Functions ---
+if (typeof window.getEl === 'undefined') {
+    window.getEl = function(id) { return document.getElementById(id); };
+}
+
 function getPeriodsPerYear(periodType) {
     switch (periodType) {
         case 'year': return 1;
@@ -66,7 +48,6 @@ function dateInRange(period, start, end) {
 }
 
 // --- Forecast Logic ---
-let forecastResults = [];
 function runForecast() {
     console.log('[DEBUG] runForecast called');
     // Determine periods
@@ -144,7 +125,7 @@ function runForecast() {
         // Record snapshot
         results.push({ period, accounts: acctStates.map(a => ({ name: a.name, balance: a.balance.toFixed(2) })) });
     });
-    forecastResults = results;
+    window.forecastResults = results;
     renderResultsTable();
     renderFinancialChart();
     saveForecastData();
@@ -152,31 +133,47 @@ function runForecast() {
 // --- Results Table ---
 function renderResultsTable() {
     const div = getEl('resultsTableDiv');
+    if (!div) return;
     let html = '<table><thead><tr><th>Period</th>';
-    if (accounts.length) accounts.forEach(a => { html += `<th>${a.name}</th>`; });
+    if (window.accounts && window.accounts.length) window.accounts.forEach(a => { html += `<th>${a.name}</th>`; });
     html += '</tr></thead><tbody>';
-    forecastResults.forEach(row => {
-        html += `<tr><td>${row.period}</td>`;
-        row.accounts.forEach(a => { html += `<td>${a.balance}</td>`; });
-        html += '</tr>';
-    });
+    if (window.forecastResults) {
+        window.forecastResults.forEach(row => {
+            html += `<tr><td>${row.period}</td>`;
+            if (window.accounts) {
+                window.accounts.forEach(acc => {
+                    const accountResult = row.accounts.find(a => a.name === acc.name);
+                    html += `<td>${accountResult ? accountResult.balance : 'N/A'}</td>`;
+                });
+            }
+            html += '</tr>';
+        });
+    }
     html += '</tbody></table>';
     div.innerHTML = html;
 }
 // --- Chart ---
 function renderFinancialChart() {
-    const periods = forecastResults.map(r => r.period);
-    let data = accounts.map((acct, idx) => {
-        return {
-            x: periods,
-            y: forecastResults.map(row => {
-                let a = row.accounts.find(x => x.name === acct.name);
-                return a ? parseFloat(a.balance) : 0;
-            }),
-            mode: 'lines+markers',
-            name: acct.name
-        };
-    });
+    if (!getEl('financialChart')) return;
+    if (!window.forecastResults || window.forecastResults.length === 0) {
+        Plotly.newPlot('financialChart', [], { title: 'Account Balances Over Time' });
+        return;
+    }
+    const periods = window.forecastResults.map(r => r.period);
+    let data = [];
+    if (window.accounts) {
+        data = window.accounts.map((acct, idx) => {
+            return {
+                x: periods,
+                y: window.forecastResults.map(row => {
+                    let a = row.accounts.find(x => x.name === acct.name);
+                    return a ? parseFloat(a.balance) : 0;
+                }),
+                mode: 'lines+markers',
+                name: acct.name
+            };
+        });
+    }
     Plotly.newPlot('financialChart', data, { title: 'Account Balances Over Time', xaxis: { title: 'Period' }, yaxis: { title: 'Balance' } }, { responsive: true });
 }
 // --- Panel Toggling ---
@@ -211,33 +208,51 @@ function addSaveButton() {
         if (container) container.insertBefore(btn, container.firstChild.nextSibling);
     }
 }
+
 document.addEventListener('DOMContentLoaded', function() {
-    addSaveButton();
-    // Set up event listeners
-    getEl('runForecastBtn').addEventListener('click', runForecast);
-    getEl('mode').addEventListener('change', function() {
-        const mode = getEl('mode').value;
-        const dateFields = document.getElementById('dateFields');
-        const periodFields = document.getElementById('periodFields');
-        const periodTypeFields = document.getElementById('periodTypeFields');
-        if (mode === 'daterange') {
-            dateFields.style.display = '';
-            periodFields.style.display = 'none';
-            periodTypeFields.style.display = '';
-        } else if (mode === 'periods') {
-            dateFields.style.display = 'none';
-            periodFields.style.display = '';
-            periodTypeFields.style.display = '';
-        } else if (mode === 'timeless') {
-            dateFields.style.display = 'none';
-            periodFields.style.display = '';
-            periodTypeFields.style.display = '';
+    const runForecastBtn = getEl('runForecastBtn');
+    if (runForecastBtn) {
+        runForecastBtn.addEventListener('click', runForecast);
+    }
+
+    const modeSelect = getEl('mode');
+    if (modeSelect) {
+        modeSelect.addEventListener('change', function() {
+            const mode = this.value;
+            const dateFields = document.getElementById('dateFields');
+            const periodFields = document.getElementById('periodFields');
+            const periodTypeFields = document.getElementById('periodTypeFields');
+
+            if (dateFields) dateFields.style.display = (mode === 'daterange') ? '' : 'none';
+            if (periodFields) periodFields.style.display = (mode === 'periods' || mode === 'timeless') ? '' : 'none';
+            if (periodTypeFields) periodTypeFields.style.display = '';
+        });
+
+        // Set default start/end date
+        const startDateEl = getEl('start_date');
+        if (startDateEl) {
+            startDateEl.value = new Date().toISOString().slice(0,10);
         }
-    });
-    // Set default start/end date
-    getEl('start_date').value = new Date().toISOString().slice(0,10);
-    let d = new Date(); d.setMonth(d.getMonth()+11);
-    getEl('end_date').value = d.toISOString().slice(0,10);
-    renderAccounts && renderAccounts();
-    renderTransactions && renderTransactions();
+        const endDateEl = getEl('end_date');
+        if (endDateEl) {
+            let d = new Date(); d.setMonth(d.getMonth()+11);
+            endDateEl.value = d.toISOString().slice(0,10);
+        }
+    }
+
+    // Initial setup if elements exist
+    if (getEl('runForecastBtn')) {
+        addSaveButton();
+    }
+    if (typeof renderAccounts === 'function' && document.getElementById('accountsTable')) {
+        renderAccounts();
+    }
+    if (typeof renderTransactions === 'function' && document.getElementById('transactionsTable')) {
+        renderTransactions();
+    }
+    // Render initial forecast data if available
+    if (window.forecastResults && window.forecastResults.length > 0) {
+        renderResultsTable();
+        renderFinancialChart();
+    }
 });

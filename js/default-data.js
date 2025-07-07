@@ -12,4 +12,11 @@ if (typeof window !== 'undefined') {
             { name: 'Rent', account: 'Checking', amount: -500, date: '2025-07-01', recurring: true, end_date: '2025-12-31', freq: 'month', pct_change: 0, apply_to: 'amount' }
         ];
     }
+    if (typeof window.forecastResults === 'undefined') {
+        window.forecastResults = [
+            { period: '2025-07-01', accounts: [{ name: 'Checking', balance: '1700.50' }, { name: 'Savings', balance: '5005.00' }] },
+            { period: '2025-08-01', accounts: [{ name: 'Checking', balance: '2220.50' }, { name: 'Savings', balance: '5010.00' }] },
+            { period: '2025-09-01', accounts: [{ name: 'Checking', balance: '2740.50' }, { name: 'Savings', balance: '5015.00' }] }
+        ];
+    }
 }
