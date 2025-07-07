@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SimulationData",
+  "title": "ForecastData",
   "type": "object",
   "properties": {
     "accounts": {
@@ -33,7 +33,7 @@
         "required": []
       }
     },
-    "simulationResults": {
+    "forecastResults": {
       "type": "array",
       "items": {
         "type": "object",
@@ -55,5 +55,5 @@
       }
     }
   },
-  "required": ["accounts", "transactions", "simulationResults"]
+  "required": ["accounts", "transactions", "forecastResults"]
 }

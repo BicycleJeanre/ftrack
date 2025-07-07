@@ -1,0 +1,11 @@
+{
+  "accounts": [
+    // ...existing code from simulation-data.json, but with simulationResults changed to forecastResults...
+  ],
+  "transactions": [
+    // ...existing code from simulation-data.json...
+  ],
+  "forecastResults": [
+    // ...existing code from simulation-data.json, but with simulationResults changed to forecastResults...
+  ]
+}

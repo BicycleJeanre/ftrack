@@ -2,7 +2,7 @@
 (function() {
   var navHtml = `
     <nav id="main-navbar">
-      <a href="../start.html" id="nav-home">Home</a>
+      <a href="home.html" id="nav-home">Home</a>
       <a href="accounts.html" id="nav-accounts">Accounts</a>
       <a href="transactions.html" id="nav-transactions">Transactions</a>
       <a href="forecast.html" id="nav-forecast">Financial Forecast</a>
@@ -12,12 +12,12 @@
   `;
   function getPage() {
     var path = window.location.pathname.split('/').pop();
-    if (path === '' || path === 'index.html') return 'start.html';
+    if (path === '' || path === 'index.html') return 'home.html';
     return path;
   }
   function highlightActive() {
     var navMap = {
-      'start.html': 'nav-home',
+      'home.html': 'nav-home',
       'accounts.html': 'nav-accounts',
       'transactions.html': 'nav-transactions',
       'forecast.html': 'nav-forecast',

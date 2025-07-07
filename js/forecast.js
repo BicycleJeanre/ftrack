@@ -1,7 +1,9 @@
+// This file was renamed from simulation.js. All logic now uses forecast/Forecast naming conventions.
+
 // --- Financial Forecast Logic ---
 // Adapted from simulation.js
 
-// --- Ensure simulation-storage.js and default-data.js are loaded ---
+// --- Ensure forecast-storage.js and default-data.js are loaded ---
 (function ensureSharedScripts() {
     function loadScript(src) {
         return new Promise(function(resolve, reject) {
@@ -13,9 +15,9 @@
             document.head.appendChild(s);
         });
     }
-    if (!window.getSimulationState || !window.saveSimulationToLocalStorage) {
-        console.log('[DEBUG] simulation-storage.js not loaded, loading...');
-        loadScript('js/simulation-storage.js');
+    if (!window.getForecastState || !window.saveForecastToLocalStorage) {
+        console.log('[DEBUG] forecast-storage.js not loaded, loading...');
+        loadScript('js/forecast-storage.js');
     }
     if (!window.accounts || !window.transactions) {
         console.log('[DEBUG] default-data.js not loaded, loading...');
@@ -184,8 +186,8 @@ function toggleAccordion(panelId) {
 }
 // --- Save/Load Logic ---
 function saveForecastData() {
-    if (window.saveSimulationToLocalStorage) {
-        window.saveSimulationToLocalStorage();
+    if (window.saveForecastToLocalStorage) {
+        window.saveForecastToLocalStorage();
         console.log('[DEBUG] Forecast state saved to LocalStorage.');
     }
 }
@@ -198,11 +200,11 @@ function addSaveButton() {
         btn.style = 'margin: 12px 0 24px 0; float:right;';
         btn.onclick = function() {
             console.log('[DEBUG] Save Forecast button clicked');
-            if (window.downloadSimulationFile) {
-                window.downloadSimulationFile();
-                console.log('[DEBUG] Forecast state downloaded:', window.getSimulationState());
+            if (window.downloadForecastFile) {
+                window.downloadForecastFile();
+                console.log('[DEBUG] Forecast state downloaded:', window.getForecastState());
             } else {
-                console.error('[DEBUG] downloadSimulationFile is not defined');
+                console.error('[DEBUG] downloadForecastFile is not defined');
             }
         };
         const container = document.querySelector('.container');

@@ -12,7 +12,7 @@ if (typeof window !== 'undefined') {
     }
 }
 
-// --- Ensure simulation-storage.js and default-data.js are loaded ---
+// --- Ensure forecast-storage.js and default-data.js are loaded ---
 (function ensureSharedScripts() {
     function loadScript(src) {
         return new Promise(function(resolve, reject) {
@@ -24,9 +24,9 @@ if (typeof window !== 'undefined') {
             document.head.appendChild(s);
         });
     }
-    if (!window.getSimulationState || !window.saveSimulationToLocalStorage) {
-        console.log('[DEBUG] simulation-storage.js not loaded, loading...');
-        loadScript('js/simulation-storage.js');
+    if (!window.getForecastState || !window.saveForecastToLocalStorage) {
+        console.log('[DEBUG] forecast-storage.js not loaded, loading...');
+        loadScript('js/forecast-storage.js');
     }
     if (!window.accounts || !window.transactions) {
         console.log('[DEBUG] default-data.js not loaded, loading...');

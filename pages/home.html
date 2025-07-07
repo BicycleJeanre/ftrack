@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Account & Transaction Financial Forecast</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='-5' y='90' font-size='100'%3E%24%3C/text%3E%3C/svg%3E" type="image/svg+xml">
-    <link rel="stylesheet" href="styles/app.css">
+    <link rel="stylesheet" href="../styles/app.css">
     <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
     <!-- <script src="function/ajv7.min.js"></script> -->
@@ -14,7 +14,7 @@
     <div class="container">
         <div id="main-navbar"></div>
         <!-- Unified Navbar Partial -->
-        <!--#include partials/navbar.html -->
+        <!--#include navbar.html -->
         <h1>Financial Overview</h1>
         <div class="desc" style="margin-bottom:24px;">
           Welcome! This app helps you manage accounts, track transactions, forecast your financial future, and run advanced calculations. Use the navigation above to access each module.
@@ -29,28 +29,28 @@
           </ul>
         </div>
         <!-- File Management Partial -->
-        <!--#include partials/filemgmt.html -->
+        <!--#include filemgmt.html -->
         <!-- Financial Forecast Settings, Results, and Chart Partial -->
-        <!--#include partials/forecast.html -->
+        <!--#include forecast.html -->
         <!-- Accounts Section Partial -->
-        <!--#include partials/accounts.html -->
+        <!--#include accounts.html -->
         <!-- Transactions Section Partial -->
-        <!--#include partials/transactions.html -->
+        <!--#include transactions.html -->
         <!-- Financial Calculator Partial -->
-        <!--#include partials/calculator.html -->
+        <!--#include calculator.html -->
     </div>
-    <script src="js/accounts.js"></script>
-    <script src="js/transactions.js"></script>
-    <script src="js/forecast.js"></script>
-    <script src="js/calculator.js"></script>
-    <script src="js/filemgmt.js"></script>
-    <script src="js/navbar.js"></script>
+    <script src="../js/accounts.js"></script>
+    <script src="../js/transactions.js"></script>
+    <script src="../js/forecast.js"></script>
+    <script src="../js/calculator.js"></script>
+    <script src="../js/filemgmt.js"></script>
+    <script src="../js/navbar.js"></script>
     <script>
       // Overview data population
       document.addEventListener('DOMContentLoaded', function() {
         let accts = window.accounts || [];
         let txns = window.transactions || [];
-        let forecast = window.getSimulationState ? window.getSimulationState() : {};
+        let forecast = window.getForecastState ? window.getForecastState() : {};
         document.getElementById('overview-accounts').textContent = accts.length;
         document.getElementById('overview-balance').textContent = accts.reduce((sum, a) => sum + (a.balance || 0), 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
         document.getElementById('overview-transactions').textContent = txns.length;

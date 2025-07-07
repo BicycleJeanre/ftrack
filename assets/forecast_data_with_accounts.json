@@ -1,0 +1,9 @@
+{
+  "accounts": [
+    // ...existing code from simulation_data_with_accounts.json...
+  ],
+  "transactions": [
+    // ...existing code from simulation_data_with_accounts.json...
+  ],
+  "forecastResults": []
+}

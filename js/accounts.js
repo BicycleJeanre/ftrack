@@ -1,4 +1,4 @@
-// --- Ensure simulation-storage.js and default-data.js are loaded ---
+// --- Ensure forecast-storage.js and default-data.js are loaded ---
 // This should be at the top of both accounts.js and transactions.js, but is missing.
 // Dynamically load them if not present (for standalone/partial pages)
 (function ensureSharedScripts() {
@@ -12,9 +12,9 @@
             document.head.appendChild(s);
         });
     }
-    if (!window.getSimulationState || !window.saveSimulationToLocalStorage) {
-        console.log('[DEBUG] simulation-storage.js not loaded, loading...');
-        loadScript('js/simulation-storage.js');
+    if (!window.getForecastState || !window.saveForecastToLocalStorage) {
+        console.log('[DEBUG] forecast-storage.js not loaded, loading...');
+        loadScript('js/forecast-storage.js');
     }
     if (!window.accounts || !window.transactions) {
         console.log('[DEBUG] default-data.js not loaded, loading...');
@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const originalAfterDataChange = window.afterDataChange;
     window.afterDataChange = function() {
         if (originalAfterDataChange) originalAfterDataChange();
-        window.saveSimulationToLocalStorage();
+        window.saveForecastToLocalStorage();
     };
     // Add Save button to page if not present
     function addSaveButton() {
