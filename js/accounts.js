@@ -30,9 +30,9 @@ function initializeAccountsPage() {
     // This function dynamically builds the HTML for the accounts table based on the global `accounts` array.
     window.renderAccounts = function() {
         const accountsTable = getEl('accountsTable');
-        if (!accountsTable) return; // Exit if the table element doesn't exist on the page
+        if (!accountsTable) return;
         const tbody = accountsTable.querySelector('tbody');
-        tbody.innerHTML = ''; // Clear the existing table body
+        tbody.innerHTML = '';
         accounts.forEach((acct, idx) => {
             const interestPeriod = acct.interest_period || 'month';
             const compoundPeriod = acct.compound_period || 'month';
@@ -46,14 +46,20 @@ function initializeAccountsPage() {
                 <td>${acct.balance}</td>
                 <td>${interestDisplay}</td>
                 <td>
-                    <button onclick="editAccount(${idx})">Edit</button>
-                    <button onclick="deleteAccount(${idx})">Delete</button>
-                    <button onclick="openInterestModal(${idx})">Add/Edit Interest</button>
+                    <button class="edit-account-btn">Edit</button>
+                    <button class="delete-account-btn">Delete</button>
+                    <button class="interest-account-btn">Add/Edit Interest</button>
                 </td>
             `;
+            // Attach event listeners for CSP compliance
+            const editBtn = tr.querySelector('.edit-account-btn');
+            const deleteBtn = tr.querySelector('.delete-account-btn');
+            const interestBtn = tr.querySelector('.interest-account-btn');
+            editBtn.addEventListener('click', () => editAccount(idx));
+            deleteBtn.addEventListener('click', () => deleteAccount(idx));
+            interestBtn.addEventListener('click', () => openInterestModal(idx));
             tbody.appendChild(tr);
         });
-        // After rendering, update the account dropdowns in the Transactions page, if it exists.
         updateTxnAccountOptions();
     };
 
@@ -121,3 +127,18 @@ function deleteAccount(idx) {
 
 // Import the InterestModal object from the modal-interest.js module
 import { InterestModal } from './modal-interest.js';
+
+function openInterestModal(idx) {
+    const acct = accounts[idx];
+    InterestModal.show(
+        acct,
+        (updated) => {
+            // Save changes to the account
+            accounts[idx] = { ...acct, ...updated };
+            window.afterDataChange();
+        },
+        () => {
+            // Cancel handler (optional)
+        }
+    );
+}
