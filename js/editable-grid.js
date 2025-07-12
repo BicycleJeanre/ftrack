@@ -210,16 +210,7 @@ export class EditableGrid {
                         input.className = 'editable-grid-input';
                         input.style.width = '100%';
                         input.style.boxSizing = 'border-box';
-                        // Store original value for revert
-                        const originalValue = input.value;
-                        input.addEventListener('blur', (e) => {
-                            // If not saved, revert cell to original value
-                            if (input.value !== originalValue) {
-                                input.value = originalValue;
-                            }
-                            cell.innerHTML = originalValue;
-                            cell.contentEditable = false;
-                        });
+                        // No blur revert here
                         cell.appendChild(input);
                     }
                 } else {
@@ -241,6 +232,16 @@ export class EditableGrid {
 
         row.classList.toggle('editing', isEditing);
         if (isEditing) {
+            // Add focusout handler to row to revert when leaving the row
+            const onRowFocusOut = (e) => {
+                // If focus is moving outside the row (not to a child)
+                if (!row.contains(e.relatedTarget)) {
+                    this.toggleEditState(row, false);
+                    row.removeEventListener('focusout', onRowFocusOut);
+                }
+            };
+            row.addEventListener('focusout', onRowFocusOut);
+
             const firstEditable = this.columns.find(c => c.editable);
             if (firstEditable) {
                 const cellToFocus = row.querySelector(`td[data-field="${firstEditable.field}"]`);
