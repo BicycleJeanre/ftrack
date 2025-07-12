@@ -324,3 +324,51 @@ td[contenteditable="true"] {
     display: block;
     width: fit-content;
 }
+
+/* New styles for additional UI elements */
+.data-table .disabled-text {
+    color: #999;
+    font-style: italic;
+}
+
+.editable-cell-link {
+    color: var(--primary-color);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.editable-cell-link:hover {
+    color: var(--accent-color);
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: #232526;
+  border-radius: 8px;
+  padding: 28px 32px 24px 32px;
+  min-width: 320px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  border: 1px solid #444;
+}
+
+.modal-header {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-bottom: 18px;
+  color: #f3f3f3;
+}
+
+.modal-actions {
+  text-align: right;
+  margin-top: 18px;
+}

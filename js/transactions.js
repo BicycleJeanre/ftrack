@@ -1,81 +1,85 @@
-// --- Standalone/Helper Functions (must be first!) ---
+// This script manages the Transactions page (/pages/transactions.html).
+// It uses the EditableGrid module to render and manage the transactions table.
+
+import { EditableGrid } from './editable-grid.js';
+import { RecurrenceModal } from './modal-recurrence.js';
+import { AmountChangeModal } from './modal-amount-change.js';
+import { CreateAccountModal } from './modal-create-account.js';
+
+// --- Global Helper Functions ---
 if (typeof window !== 'undefined') {
     if (typeof window.getEl === 'undefined') {
-        window.getEl = function(id) { return document.getElementById(id); };
+        window.getEl = (id) => document.getElementById(id);
     }
     if (typeof window.toggleAccordion === 'undefined') {
-        window.toggleAccordion = function(id) {
-            var panel = document.getElementById(id);
-            var content = panel.querySelector('.panel-content');
+        window.toggleAccordion = (id) => {
+            const panel = document.getElementById(id);
+            const content = panel.querySelector('.panel-content');
             content.style.display = (content.style.display === 'none') ? 'block' : 'none';
         };
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Provide a minimal transactions array and afterDataChange for demo/standalone
-    if (typeof window.transactions === 'undefined') {
-        window.transactions = [];
-    }
-    if (typeof window.editingTxn === 'undefined') {
-        window.editingTxn = null;
-    }
-    if (typeof window.afterDataChange === 'undefined') {
-        window.afterDataChange = function() { 
-            if(window.filemgmt && typeof window.filemgmt.saveAppDataToFile === 'function') {
-                window.filemgmt.saveAppDataToFile({
-                    accounts: window.accounts,
-                    transactions: window.transactions,
-                    forecast: window.forecast,
-                    budget: window.budget
-                });
-            }
-            renderTransactions(); 
-            updateTxnAccountOptions(); 
+// --- Transaction Data Management ---
+function getTransactions() {
+    return window.transactions || [];
+}
+
+function getAccounts() {
+    return window.accounts || [];
+}
+
+function saveTransaction(idx, data, row) {
+    const transactions = getTransactions();
+    
+    if (idx === -1) { // New transaction
+        const newTxn = {
+            description: data.description || 'New Transaction',
+            amount: data.amount || 0,
+            account: data.account || '',
+            isRecurring: data.isRecurring || false,
+            executionDate: data.isRecurring ? null : (new Date().toISOString().split('T')[0]),
+            recurrence: data.isRecurring ? { frequency: 'monthly', dayOfMonth: 1, endDate: '' } : null,
+            amountChange: null,
+            tags: []
         };
-    }
-
-    // Attach core functions to window for standalone mode
-    window.editTxn = editTxn;
-    window.deleteTxn = deleteTxn;
-    window.renderTransactions = renderTransactions;
-
-    // Initial render
-    if (document.getElementById('transactionsTable')) {
-        renderTransactions();
-    }
-
-    // --- Transaction Form ---
-    var txnForm = getEl('transactionForm');
-    if (txnForm) {
-        txnForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const txn = {
-                name: getEl('txn_name').value,
-                account: getEl('txn_account').value,
-                amount: parseFloat(getEl('txn_amount').value),
-                date: getEl('txn_date').value,
-                recurring: getEl('txn_recurring').checked,
-                end_date: getEl('txn_end_date').value || null,
-                freq: getEl('txn_freq').value,
-                pct_change: parseFloat(getEl('txn_pct_change').value),
-                apply_to: getEl('txn_apply_to').value
-            };
-            if (editingTxn !== null) {
-                transactions[editingTxn] = txn;
-                editingTxn = null;
-            } else {
-                transactions.push(txn);
+        transactions.push(newTxn);
+    } else { // Existing transaction
+        const txn = transactions[idx];
+        Object.assign(txn, data);
+        // Ensure consistency after edit
+        if (txn.isRecurring) {
+            txn.executionDate = null;
+            if (!txn.recurrence) {
+                txn.recurrence = { frequency: 'monthly', dayOfMonth: 1, endDate: '' };
             }
-            this.reset();
-            afterDataChange();
-        });
+        } else {
+            txn.recurrence = null;
+        }
     }
-});
+    
+    window.afterDataChange();
+}
 
-// Transactions logic partial
-// --- Transaction Table ---
-function renderTransactions() {
+function deleteTransaction(idx) {
+    if (confirm('Are you sure you want to delete this transaction?')) {
+        getTransactions().splice(idx, 1);
+        window.afterDataChange();
+    }
+}
+
+let grid; // Module-level variable to hold the grid instance
+
+// --- Main Page Initialization ---
+function initializeTransactionsPage() {
+    window.transactions = window.transactions || [];
+
+    const panelHeader = document.createElement('div');
+    panelHeader.className = 'panel-header';
+    panelHeader.innerHTML = `<h2>Transactions</h2><span class="panel-arrow">&#9662;</span>`;
+    panelHeader.addEventListener('click', () => window.toggleAccordion('panel-transactions'));
+    getEl('transactions-panel-header').replaceWith(panelHeader);
+
     const table = getEl('transactionsTable');
     if (!table) return;
 
@@ -111,25 +115,25 @@ function renderTransactions() {
         { 
             field: 'recurrence', 
             header: 'Recurrence', 
-            editable: (t) => t.isRecurring, 
+            editable: false, // Handled by modal
             render: t => {
                 if (!t.isRecurring || !t.recurrence) return '<span class="disabled-text">N/A</span>';
-                return `${t.recurrence.frequency} on day ${t.recurrence.dayOfMonth}, until ${t.recurrence.endDate}`;
+                return `<span class="editable-cell-link">${t.recurrence.frequency} on day ${t.recurrence.dayOfMonth}, until ${t.recurrence.endDate || '...'}</span>`;
             }
         },
         { 
             field: 'amountChange', 
             header: 'Amount Change', 
-            editable: false, // Will be handled by a modal
+            editable: false, // Handled by modal
             render: t => {
-                if (!t.amountChange) return 'None';
-                return `${t.amountChange.type}: ${t.amountChange.value} per ${t.amountChange.frequency}`;
+                if (!t.amountChange) return '<span class="editable-cell-link">None</span>';
+                return `<span class="editable-cell-link">${t.amountChange.type}: ${t.amountChange.value} per ${t.amountChange.frequency}</span>`;
             }
         },
         { field: 'tags', header: 'Tags', editable: true, type: 'text', render: t => (t.tags || []).join(', ') }
     ];
 
-    const grid = new EditableGrid({
+    grid = new EditableGrid({
         targetElement: table,
         columns: columns,
         data: getTransactions(),
@@ -137,18 +141,43 @@ function renderTransactions() {
         onDelete: deleteTransaction,
         onUpdate: (e, idx, row) => {
             const cell = e.target.closest('td');
-            if (cell && cell.dataset.field === 'account') {
+            if (!cell) return;
+
+            const transactions = getTransactions();
+            const txn = transactions[idx];
+            if (!txn) return;
+
+            // Handle creating a new account from the dropdown
+            if (cell.dataset.field === 'account') {
                 const select = cell.querySelector('select');
                 if (select && select.value === '__CREATE_NEW__') {
+                    // When 'Create New' is selected, we need to find the actual row being edited.
+                    // The `row` parameter from the event handler is the correct one.
                     handleCreateNewAccount(row);
                 }
+            }
+
+            // Handle opening the recurrence modal
+            if (cell.dataset.field === 'recurrence' && txn.isRecurring) {
+                RecurrenceModal.show(txn.recurrence, (updatedRecurrence) => {
+                    txn.recurrence = updatedRecurrence;
+                    window.afterDataChange();
+                });
+            }
+
+            // Handle opening the amount change modal
+            if (cell.dataset.field === 'amountChange') {
+                AmountChangeModal.show(txn.amountChange, (updatedAmountChange) => {
+                    txn.amountChange = updatedAmountChange;
+                    window.afterDataChange();
+                });
             }
         },
         quickAddButton: getEl('quickAddTransactionBtn')
     });
 
     window.renderTransactions = function() {
-        grid.setData(getTransactions());
+        grid.data = getTransactions();
         grid.render();
     };
 
@@ -156,59 +185,34 @@ function renderTransactions() {
 }
 
 function handleCreateNewAccount(row) {
-    // A simple modal could be created here instead of a prompt
-    const newAccountName = prompt("Enter the name for the new account:");
-    if (newAccountName) {
-        const newAccount = {
-            name: newAccountName,
-            balance: 0,
-            current_balance: 0,
-            group: "Expense", // Default group
-            tags: [],
-            interest: 0,
-            interest_period: 'year',
-            compound_period: 'none',
-            interest_type: 'simple'
-        };
+    CreateAccountModal.show((newAccount) => {
+        // 1. Add account to global data
         getAccounts().push(newAccount);
+        
+        // 2. Notify system of data change
         window.afterDataChange();
-        
-        // Re-initialize the page to get fresh data and re-render the grid
-        initializeTransactionsPage();
-        
-        // Ideally, we would find the row that triggered this and set its new value.
-        // This is complex because the grid has been entirely rebuilt.
-        // For now, the user will have to re-select the new account manually.
-    }
-}
 
-function getTransactions() {
-    return window.transactions || [];
-}
+        // 3. Update the grid's column definition dynamically
+        const accountColumn = grid.columns.find(c => c.field === 'account');
+        if (accountColumn) {
+            const newOption = { value: newAccount.name, text: newAccount.name };
+            // Insert before the '-- Create New --' option
+            accountColumn.options.splice(accountColumn.options.length - 1, 0, newOption);
+        }
 
-function getAccounts() {
-    return window.accounts || [];
-}
-
-function saveTransaction(idx, data, row) {
-    // Custom save logic if needed
-    afterDataChange();
-}
-
-function deleteTransaction(idx) {
-    transactions.splice(idx, 1);
-    afterDataChange();
-}
-
-// --- Transaction Table ---
-function updateTxnAccountOptions() {
-    var sel = getEl('txn_account');
-    if (!sel) return;
-    sel.innerHTML = '';
-    (window.accounts || []).forEach(acct => {
-        var opt = document.createElement('option');
-        opt.value = acct.name;
-        opt.textContent = acct.name;
-        sel.appendChild(opt);
+        // 4. Update the select element in the currently editing row
+        const select = row.querySelector('td[data-field="account"] select');
+        if (select) {
+            const option = document.createElement('option');
+            option.value = newAccount.name;
+            option.text = newAccount.name;
+            // Insert it before the 'Create New' option
+            select.insertBefore(option, select.options[select.options.length - 1]);
+            
+            // Set the value to the newly created account
+            select.value = newAccount.name;
+        }
     });
 }
+
+document.addEventListener('DOMContentLoaded', initializeTransactionsPage);
