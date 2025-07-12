@@ -1,7 +1,7 @@
 # filemgmt.md
 
 ## Purpose
-Defines the File Management page, allowing users to import/export their financial data as JSON and reset to default data.
+Defines the File Management page, allowing users to import/export their financial data as JSON and reset to the default dataset. All data is loaded from and saved to a unified JSON file on disk via `filemgmt.js`.
 
 ## Key Elements
 - **Import Button**: Opens file picker to import a JSON file.
@@ -10,13 +10,13 @@ Defines the File Management page, allowing users to import/export their financia
 
 ## Interactions
 - Uses `filemgmt.js` for import/export/reset logic.
-- Reads/writes the global state and persists to localStorage.
+- Reads/writes the global state and persists to the unified JSON file.
 - Uses `navbar.js` for navigation.
 
-## Diagrams
+## Data Flow Diagram
 ```mermaid
 flowchart TD
   ImportBtn[Import Button] -->|import| filemgmt.js
   ResetBtn[Reset Button] -->|reset| filemgmt.js
-  filemgmt.js -->|update| localStorage
+  filemgmt.js -->|update| AppData[Unified JSON file]
 ```

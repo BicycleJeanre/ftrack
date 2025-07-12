@@ -118,13 +118,21 @@ function initializeAccountsPage() {
     // --- Data Change Handler Enhancement ---
     // This is a critical piece of the application's architecture.
     // It enhances the global `afterDataChange` function (defined in `data-startup.js`).
-    // This ensures that whenever data is changed, it is first saved to localStorage and THEN the UI is updated.
+    // This ensures that whenever data is changed, it is first saved to file and THEN the UI is updated.
     if(typeof window.afterDataChange === 'function'){
         const _afterDataChange = window.afterDataChange; // Store the original function
         window.afterDataChange = function() {
-            _afterDataChange(); // Step 1: Call the original function (saves data to localStorage)
+            if (window.filemgmt && typeof window.filemgmt.saveAppDataToFile === 'function') {
+                window.filemgmt.saveAppDataToFile({
+                    accounts: window.accounts,
+                    transactions: window.transactions,
+                    forecast: window.forecast,
+                    budget: window.budget
+                });
+            }
+            _afterDataChange(); // Step 2: Call the original function (updates UI)
             if (document.getElementById('accountsTable')) {
-                window.renderAccounts(); // Step 2: Update the UI by re-rendering the accounts table
+                window.renderAccounts(); // Step 3: Update the UI by re-rendering the accounts table
             }
         };
     }

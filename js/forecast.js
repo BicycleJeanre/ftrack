@@ -183,9 +183,14 @@ function toggleAccordion(panelId) {
 }
 // --- Save/Load Logic ---
 function saveForecastData() {
-    if (window.saveForecastToLocalStorage) {
-        window.saveForecastToLocalStorage();
-        console.log('[DEBUG] Forecast state saved to LocalStorage.');
+    if(window.filemgmt && typeof window.filemgmt.saveAppDataToFile === 'function') {
+        window.filemgmt.saveAppDataToFile({
+            accounts: window.accounts,
+            transactions: window.transactions,
+            forecast: window.forecast,
+            budget: window.budget
+        });
+        console.log('[DEBUG] Forecast state saved to file.');
     }
 }
 // --- Add Save Forecast Button ---
@@ -209,50 +214,32 @@ function addSaveButton() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const runForecastBtn = getEl('runForecastBtn');
-    if (runForecastBtn) {
-        runForecastBtn.addEventListener('click', runForecast);
+// --- On Load ---
+window.addEventListener('load', () => {
+    console.log('[DEBUG] Window loaded');
+    // --- Account and Transaction Setup ---
+    if (typeof window.accounts === 'undefined' || !window.accounts.length) {
+        window.accounts = [
+            { name: 'Checking', balance: 1000, interest: 2, interest_period: 'year', compound_period: 'year', interest_type: 'compound' },
+            { name: 'Savings', balance: 5000, interest: 5, interest_period: 'year', compound_period: 'year', interest_type: 'compound' }
+        ];
     }
-
-    const modeSelect = getEl('mode');
-    if (modeSelect) {
-        modeSelect.addEventListener('change', function() {
-            const mode = this.value;
-            const dateFields = document.getElementById('dateFields');
-            const periodFields = document.getElementById('periodFields');
-            const periodTypeFields = document.getElementById('periodTypeFields');
-
-            if (dateFields) dateFields.style.display = (mode === 'daterange') ? '' : 'none';
-            if (periodFields) periodFields.style.display = (mode === 'periods' || mode === 'timeless') ? '' : 'none';
-            if (periodTypeFields) periodTypeFields.style.display = '';
-        });
-
-        // Set default start/end date
-        const startDateEl = getEl('start_date');
-        if (startDateEl) {
-            startDateEl.value = new Date().toISOString().slice(0,10);
-        }
-        const endDateEl = getEl('end_date');
-        if (endDateEl) {
-            let d = new Date(); d.setMonth(d.getMonth()+11);
-            endDateEl.value = d.toISOString().slice(0,10);
-        }
+    if (typeof window.transactions === 'undefined' || !window.transactions.length) {
+        window.transactions = [
+            { account: 'Checking', amount: 100, date: '2023-01-01', recurring: false, apply_to: 'balance', pct_change: 0 },
+            { account: 'Savings', amount: 200, date: '2023-01-01', recurring: false, apply_to: 'balance', pct_change: 0 }
+        ];
     }
-
-    // Initial setup if elements exist
-    if (getEl('runForecastBtn')) {
-        addSaveButton();
+    // --- Forecast and Budget Setup ---
+    if (typeof window.forecast === 'undefined') {
+        window.forecast = { /* default forecast settings */ };
     }
-    if (typeof renderAccounts === 'function' && document.getElementById('accountsTable')) {
-        renderAccounts();
+    if (typeof window.budget === 'undefined') {
+        window.budget = { /* default budget settings */ };
     }
-    if (typeof renderTransactions === 'function' && document.getElementById('transactionsTable')) {
-        renderTransactions();
-    }
-    // Render initial forecast data if available
-    if (window.forecastResults && window.forecastResults.length > 0) {
-        renderResultsTable();
-        renderFinancialChart();
-    }
+    // --- UI Initialization ---
+    renderResultsTable();
+    renderFinancialChart();
+    addSaveButton();
+    console.log('[DEBUG] Initialization complete');
 });

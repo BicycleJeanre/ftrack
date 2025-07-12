@@ -90,3 +90,45 @@ if (importInput) {
 function updateActiveDataSourceDisplay() {
     // Placeholder for a UI element to show the data source
 }
+
+// --- File-based App Data Management ---
+
+const APP_DATA_PATH = 'assets/app-data.json';
+
+async function loadAppDataFromFile() {
+    try {
+        const response = await fetch(APP_DATA_PATH);
+        if (!response.ok) throw new Error('Failed to load app data file');
+        const data = await response.json();
+        window.accounts = data.accounts || [];
+        window.transactions = data.transactions || [];
+        window.forecast = data.forecast || [];
+        window.budget = data.budget || [];
+        return data;
+    } catch (err) {
+        console.error('Error loading app data:', err);
+        // Fallback to empty arrays if file not found or error
+        window.accounts = [];
+        window.transactions = [];
+        window.forecast = [];
+        window.budget = [];
+        return { accounts: [], transactions: [], forecast: [], budget: [] };
+    }
+}
+
+async function saveAppDataToFile(data) {
+    try {
+        // For browser-only, this is a no-op or could POST to a backend API
+        // For Node/Electron, use fs.writeFileSync or similar
+        // Here, we just log for demo
+        console.log('Saving app data:', data);
+        // TODO: Implement actual file write if running in Node/Electron
+    } catch (err) {
+        console.error('Error saving app data:', err);
+    }
+}
+
+window.filemgmt = {
+    loadAppDataFromFile,
+    saveAppDataToFile
+};

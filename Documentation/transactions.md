@@ -1,7 +1,7 @@
 # transactions.md
 
 ## Purpose
-Defines the Transactions page, where users can add, edit, and delete financial transactions that affect accounts. Supports recurring transactions and percentage changes.
+Defines the Transactions page, where users can add, edit, and delete financial transactions that affect accounts. Supports recurring transactions and percentage changes. All data is loaded from and saved to a unified JSON file on disk via `filemgmt.js`.
 
 ## Key Elements
 - **Form**: For adding/updating transactions (name, account, amount, date, recurrence, etc.).
@@ -9,17 +9,15 @@ Defines the Transactions page, where users can add, edit, and delete financial t
 - **Script Includes**: Loads all required JS for data, logic, and UI.
 
 ## Interactions
-- Reads and writes transaction data to the global state (window.transactions).
-- Triggers `afterDataChange` to save to localStorage and update the UI.
+- Reads and writes transaction data to the global state (`window.transactions`).
+- Triggers `afterDataChange` to save all app data (accounts, transactions, forecast, budget) to the unified JSON file via `filemgmt.js` and update the UI.
 - Interacts with `accounts.js` for account selection.
-- Uses `forecast-storage.js`, `default-data.js`, and `data-startup.js` for data persistence and initialization.
 
-## Diagrams
+## Data Flow Diagram
 ```mermaid
 flowchart TD
-  Form[Transaction Form] -->|submit| Table[Transactions Table]
-  Table -->|edit/delete| Form
-  Form -->|change| afterDataChange
-  afterDataChange -->|save| localStorage
-  afterDataChange -->|update| renderTransactions
+  Filemgmt[Filemgmt.js] -->|load| AppData[Global data: accounts, transactions, forecast, budget]
+  AppData -->|modify| Filemgmt
+  AppData -->|UI update| TransactionsPage[Transactions UI]
+  TransactionsPage -->|user action| AppData
 ```

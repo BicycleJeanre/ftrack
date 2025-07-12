@@ -22,9 +22,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (typeof window.afterDataChange === 'undefined') {
         window.afterDataChange = function() { 
-            console.log("[DEBUG] afterDataChange called from transactions.js");
-            if(window.saveForecastToLocalStorage) {
-                saveForecastToLocalStorage();
+            if(window.filemgmt && typeof window.filemgmt.saveAppDataToFile === 'function') {
+                window.filemgmt.saveAppDataToFile({
+                    accounts: window.accounts,
+                    transactions: window.transactions,
+                    forecast: window.forecast,
+                    budget: window.budget
+                });
             }
             renderTransactions(); 
             updateTxnAccountOptions(); 

@@ -11,8 +11,9 @@ Defines a reusable JavaScript object for displaying and managing the Interest Se
 ## Interactions
 - Used by `accounts.js` to open the modal and update account interest settings.
 - Can be reused by other modules for similar modal needs.
+- All data changes are persisted to the unified JSON file via `filemgmt.js` and `afterDataChange`.
 
-## Diagrams
+## Data Flow Diagram
 ```mermaid
 flowchart TD
   AccountsJS[accounts.js] -->|import| InterestModal[modal-interest.js]
@@ -20,4 +21,5 @@ flowchart TD
   User -->|clicks| InterestModal
   InterestModal -->|onSave| AccountsJS
   InterestModal -->|onCancel| AccountsJS
+  AccountsJS -->|save| filemgmt.js
 ```
