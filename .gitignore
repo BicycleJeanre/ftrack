@@ -1,8 +1,17 @@
-.env
+# Ignore node_modules and large build artifacts
 node_modules/
-.next
-./budget/.next
-./budget/node_modules
+budget/node_modules/
+*.log
 .DS_Store
-*/.DS_Store
-.vscode
+# Ignore OS and editor files
+.vscode/
+.idea/
+# Ignore build output
+/dist/
+/build/
+# Ignore system files
+Thumbs.db
+# Ignore next.js build artifacts
+.next/
+# Ignore large binaries
+*.node
