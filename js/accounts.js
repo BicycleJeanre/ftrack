@@ -77,7 +77,12 @@ function initializeAccountsPage() {
     panelHeader.className = 'panel-header';
     panelHeader.innerHTML = `<h2>Accounts</h2><span class="panel-arrow">&#9662;</span>`;
     panelHeader.addEventListener('click', () => window.toggleAccordion('panel-accounts'));
-    getEl('accounts-panel-header').replaceWith(panelHeader);
+    const headerEl = getEl('accounts-panel-header');
+    if (headerEl) {
+        headerEl.replaceWith(panelHeader);
+    } else {
+        console.warn('[Accounts] accounts-panel-header not found, skipping replaceWith.');
+    }
 
     const table = getEl('accountsTable');
     if (!table) return;
