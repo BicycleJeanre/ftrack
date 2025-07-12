@@ -208,7 +208,7 @@ label {
   position: fixed;
   z-index: 1000;
   left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.35); /* less opaque */
   align-items: center;
   justify-content: center;
 }
@@ -403,5 +403,15 @@ td[contenteditable="true"] {
 
 /* Hide quickly add transactions button if present */
 .quick-add-btn, .quick-add-transactions-btn {
+  display: none !important;
+}
+
+/* Remove vertical shape under create account modal */
+.create-account-modal::after {
+  display: none !important;
+}
+
+/* Remove vertical shape under interest modal if present */
+#interestModal::after {
   display: none !important;
 }
