@@ -120,6 +120,10 @@ label {
     gap: 16px;
 }
 
+.form-field {
+    margin-bottom: 15px;
+}
+
 /* --- Panels & Sections --- */
 .section, .input-section, .results-section, .chart-section {
   margin-bottom: 32px;
@@ -245,4 +249,32 @@ label {
     margin: 0 5px;
     padding: 6px 8px;
   }
+}
+
+/* --- Tooltip Styles --- */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    border-bottom: 1px dotted black;
+}
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 220px;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -110px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
 }

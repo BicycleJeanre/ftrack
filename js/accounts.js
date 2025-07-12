@@ -34,9 +34,11 @@ function editAccount(idx) {
     console.log('[Accounts] editAccount idx', idx, accounts[idx]);
     getEl('acct_name').value = accounts[idx].name;
     getEl('acct_balance').value = accounts[idx].balance;
+    // The interest data is now managed by the modal itself.
+    // We pass the full account object to the modal, which will handle populating its fields.
     newAccountInterest = {
         interest: accounts[idx].interest ?? 0,
-        interest_period: accounts[idx].interest_period || 'month',
+        interest_period: accounts[idx].interest_period || 'year',
         compound_period: accounts[idx].compound_period || 'month',
         interest_type: accounts[idx].interest_type || 'compound'
     };
@@ -59,7 +61,13 @@ function openInterestModal(idx) {
     if (typeof idx === 'number') {
         acct = { ...accounts[idx] };
         onSave = (updated) => {
-            accounts[idx] = { ...acct, ...updated };
+            // Ensure the name and balance are preserved from the original object
+            const originalAcct = accounts[idx];
+            accounts[idx] = { 
+                name: originalAcct.name, 
+                balance: originalAcct.balance, 
+                ...updated 
+            };
             if (editingAccount === idx) {
                 newAccountInterest = { ...updated };
             }
@@ -109,12 +117,33 @@ function initializeAccountsPage() {
         tbody.innerHTML = '';
         console.log('[Accounts] renderAccounts: window.accounts =', window.accounts);
         window.accounts.forEach((acct, idx) => {
-            const interestPeriod = acct.interest_period || 'month';
-            const compoundPeriod = acct.compound_period || 'month';
+            const interest = acct.interest ?? 0;
+            const interestPeriod = acct.interest_period || 'year';
             const interestType = acct.interest_type || 'compound';
-            const interestDisplay = (acct.interest !== undefined && acct.interest !== null && acct.interest !== 0)
-                ? `${acct.interest} (${interestPeriod}, ${interestType}, comp: ${compoundPeriod})`
-                : '<span style="color:#888">None</span>';
+            const compoundPeriod = acct.compound_period || 'none';
+
+            let interestDisplay;
+            if (interest === 0) {
+                interestDisplay = '<span style="color:#888">None</span>';
+            } else {
+                const rate = `${interest}%`;
+                if (interestType === 'compound' && interestPeriod === 'year') {
+                    let acronym = '';
+                    switch (compoundPeriod) {
+                        case 'month':   acronym = 'NACM'; break;
+                        case 'quarter': acronym = 'NACQ'; break;
+                        case 'year':    acronym = 'NACA'; break;
+                        case 'week':    acronym = 'NACW'; break;
+                        case 'day':     acronym = 'NACD'; break;
+                    }
+                    interestDisplay = acronym ? `${rate} ${acronym}` : `${rate} Annually, Compounded ${compoundPeriod}`;
+                } else {
+                    const typeLabel = interestType.charAt(0).toUpperCase() + interestType.slice(1);
+                    const periodLabel = interestPeriod.charAt(0).toUpperCase() + interestPeriod.slice(1);
+                    interestDisplay = `${rate} ${typeLabel} (per ${periodLabel})`;
+                }
+            }
+            
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${acct.name}</td>
@@ -142,8 +171,15 @@ function initializeAccountsPage() {
     if (addInterestBtn) {
         addInterestBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            // For a new account, we pass a default interest object
+            const defaultInterest = { 
+                interest: 0, 
+                interest_period: 'year', 
+                compound_period: 'month', 
+                interest_type: 'compound' 
+            };
             InterestModal.show(
-                newAccountInterest,
+                newAccountInterest.interest !== undefined ? newAccountInterest : defaultInterest,
                 (updated) => {
                     newAccountInterest = { ...newAccountInterest, ...updated };
                 },
@@ -153,28 +189,6 @@ function initializeAccountsPage() {
     }
 
     // --- Account Form Handling ---
-    // DEBUG: Check if form exists and log early
-    setTimeout(() => {
-        const accountForm = getEl('accountForm');
-        const addUpdateBtn = document.getElementById('addUpdateBtn');
-        console.log('[Accounts] DEBUG: accountForm:', accountForm, 'addUpdateBtn:', addUpdateBtn);
-        if (!accountForm) {
-            console.error('[Accounts] ERROR: accountForm not found in DOM at init');
-        }
-        if (!addUpdateBtn) {
-            console.warn('[Accounts] WARNING: addUpdateBtn not found in DOM at init');
-        }
-        // Extra: Try to attach a click handler directly for debugging
-        if (addUpdateBtn) {
-            addUpdateBtn.addEventListener('click', () => {
-                console.log('[Accounts] DEBUG: addUpdateBtn clicked');
-            });
-        }
-    }, 0);
-
-    // DEBUG: Log when initializeAccountsPage is called
-    console.log('[Accounts] DEBUG: initializeAccountsPage called');
-
     const accountForm = getEl('accountForm');
     console.log('hello')
     if (accountForm) {
@@ -186,6 +200,12 @@ function initializeAccountsPage() {
                 balance: parseFloat(getEl('acct_balance').value),
                 ...newAccountInterest
             };
+            // Ensure default interest values if none were set
+            acct.interest = acct.interest ?? 0;
+            acct.interest_period = acct.interest_period || 'year';
+            acct.compound_period = acct.compound_period || 'none';
+            acct.interest_type = acct.interest_type || 'simple';
+
             if (editingAccount !== null) {
                 window.accounts[editingAccount] = acct;
                 console.log('[Accounts] Updated account at index', editingAccount, acct);

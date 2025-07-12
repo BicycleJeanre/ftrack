@@ -1,12 +1,20 @@
 {
   "accounts": [
     {
-      "name": "1",
-      "balance": 1,
+      "name": "Transactional",
+      "balance": 10000,
       "interest": 2,
-      "interest_period": "month",
+      "interest_period": "year",
       "compound_period": "month",
       "interest_type": "compound"
+    },
+    {
+      "name": "credit",
+      "balance": 10000,
+      "interest": 7.25,
+      "interest_period": "month",
+      "interest_type": "compound",
+      "compound_period": "day"
     }
   ],
   "transactions": [],
