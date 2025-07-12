@@ -79,27 +79,39 @@ export class EditableGrid {
     // Method to handle table click events
     handleTableClick(e) {
         const btn = e.target.closest('.icon-btn');
-        if (!btn) return;
+        const cell = e.target.closest('td');
+        const row = e.target.closest('tr');
+        const isNew = row && row.dataset.idx === 'new';
+        const idx = isNew ? -1 : (row ? parseInt(row.dataset.idx, 10) : null);
 
-        const row = btn.closest('tr');
-        const isNew = row.dataset.idx === 'new';
-        const idx = isNew ? -1 : parseInt(row.dataset.idx, 10);
+        // Per-cell and per-column callback support
+        if (cell && row && this.columns) {
+            const colDef = this.columns.find(c => c.field === cell.dataset.field);
+            if (colDef && typeof colDef.onCellClick === 'function') {
+                colDef.onCellClick({ event: e, idx, row, cell, grid: this });
+                return;
+            }
+        }
 
-        if (btn.classList.contains('edit-btn')) {
-            this.toggleEditState(row, true);
-        } else if (btn.classList.contains('delete-btn')) {
-            if (this.onDelete) this.onDelete(idx);
-        } else if (btn.classList.contains('save-btn')) {
-            this.saveRow(idx, row);
-        } else if (btn.classList.contains('cancel-btn')) {
-            if (isNew) {
-                row.remove();
-            } else {
-                this.toggleEditState(row, false);
-                this.render(); // Re-render to restore original data
+        if (btn) {
+            if (btn.classList.contains('edit-btn')) {
+                this.toggleEditState(row, true);
+            } else if (btn.classList.contains('delete-btn')) {
+                if (this.onDelete) this.onDelete(idx);
+            } else if (btn.classList.contains('save-btn')) {
+                this.saveRow(idx, row);
+            } else if (btn.classList.contains('cancel-btn')) {
+                if (isNew) {
+                    row.remove();
+                } else {
+                    this.toggleEditState(row, false);
+                    this.render(); // Re-render to restore original data
+                }
+            } else if (this.onUpdate) {
+                this.onUpdate(e, idx, row);
             }
         } else if (this.onUpdate) {
-             this.onUpdate(e, idx, row);
+            this.onUpdate(e, idx, row);
         }
     }
 
