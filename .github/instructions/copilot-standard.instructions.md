@@ -12,8 +12,8 @@
 * Apply updates directly to code files.
 
 ## Git Commit
-
 * Stage all changes with `git add .`
+* Generate and execute a oneliner for this.
 * Use this commit format:
 
   ```
@@ -24,6 +24,7 @@
   - path/to/file2: what changed"
   ```
 * Use aliases: `git`, `gitit`, `commit`
+* do not push to origin
 
 ## Git Branching
 

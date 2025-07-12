@@ -76,16 +76,32 @@ function initializeAccountsPage() {
         updateTxnAccountOptions();
     };
 
+    // --- Add/Edit Interest Modal for New Account ---
+    let newAccountInterest = {};
+    const addInterestBtn = document.getElementById('addInterestBtn');
+    if (addInterestBtn) {
+        addInterestBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            InterestModal.show(
+                newAccountInterest,
+                (updated) => {
+                    newAccountInterest = { ...newAccountInterest, ...updated };
+                },
+                () => {}
+            );
+        });
+    }
+
     // --- Account Form Handling ---
     // This section manages the submission of the main form for adding or editing accounts.
     const accountForm = getEl('accountForm');
     if (accountForm) {
         accountForm.addEventListener('submit', function(e) {
-            e.preventDefault(); // Prevent the default form submission (page reload)
+            e.preventDefault();
             const acct = {
                 name: getEl('acct_name').value,
                 balance: parseFloat(getEl('acct_balance').value),
-                interest: 0
+                ...newAccountInterest
             };
             // If `editingAccount` is set, update the existing account; otherwise, add a new one.
             if (editingAccount !== null) {
@@ -94,6 +110,7 @@ function initializeAccountsPage() {
             } else {
                 accounts.push(acct);
             }
+            newAccountInterest = {}; // Reset after use
             this.reset(); // Clear the form fields
             window.afterDataChange(); // Notify the app that data has changed
         });

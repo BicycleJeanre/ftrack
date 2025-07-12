@@ -26,3 +26,5 @@ flowchart TD
   afterDataChange -->|update| renderAccounts
   Modal -->|imported by| AccountsJS[accounts.js]
 ```
+
+- The main account form now includes an **Add/Edit Interest** button, allowing you to set interest details for a new account before adding it. This opens the same reusable interest modal used for editing existing accounts.
