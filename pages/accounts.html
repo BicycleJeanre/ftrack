@@ -19,19 +19,11 @@
         <div class="input-section" id="panel-accounts">
             <div id="accounts-panel-header"></div>
             <div class="panel-content">
-                <div class="desc">Add one or more accounts. Each account can have a starting balance and an interest rate (applied each period).</div>
-                <form id="accountForm" class="form-inline">
-                    <label for="acct_name">Name</label>
-                    <input type="text" id="acct_name" required placeholder="e.g. Checking">
-                    <label for="acct_balance">Starting Balance</label>
-                    <input type="number" id="acct_balance" required placeholder="e.g. 1000">
-                    <button type="button" id="addInterestBtn">Add/Edit Interest</button>
-                    <button type="submit" id="addUpdateBtn">Add/Update</button>
-                </form>
+                <div class="desc">Manage your accounts below. Click the 'Edit' icon to change a name or starting balance, or use the '+ Add Account' button to create a new one.</div>
                 <div class="account-list">
                     <table id="accountsTable">
                         <thead>
-                            <tr><th>Name</th><th>Start Balance</th><th>Interest %</th><th>Actions</th></tr>
+                            <tr><th>Name</th><th>Start Balance</th><th>Current Balance</th><th>Interest</th><th>Actions</th></tr>
                         </thead>
                         <tbody>
                         </tbody>

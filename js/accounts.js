@@ -1,268 +1,290 @@
 // This script manages the Accounts page (/pages/accounts.html).
-// It handles rendering the accounts table, managing the interest settings modal,
-// and processing the form for adding or updating accounts.
+// It handles rendering the accounts table with inline editing and quick-add functionality.
 
-// --- Standalone/Helper Functions (must be first!) ---
+import { InterestModal } from './modal-interest.js';
+
+// --- Standalone/Helper Functions ---
 if (typeof window !== 'undefined') {
     if (typeof window.getEl === 'undefined') {
-        window.getEl = function(id) { return document.getElementById(id); };
+        window.getEl = (id) => document.getElementById(id);
     }
     if (typeof window.toggleAccordion === 'undefined') {
-        window.toggleAccordion = function(id) {
-            var panel = document.getElementById(id);
-            var content = panel.querySelector('.panel-content');
+        window.toggleAccordion = (id) => {
+            const panel = document.getElementById(id);
+            const content = panel.querySelector('.panel-content');
             content.style.display = (content.style.display === 'none') ? 'block' : 'none';
         };
     }
     if (typeof window.updateTxnAccountOptions === 'undefined') {
-        window.updateTxnAccountOptions = function() {};
+        window.updateTxnAccountOptions = () => {};
     }
 }
 
-// --- Global Account Management State ---
-let editingAccount = null;
-let newAccountInterest = {};
-console.log('hello')
-// Always use window.accounts in global functions
+// --- SVG Icons for Actions ---
+const ICONS = {
+    edit: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+    delete: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
+    save: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
+    cancel: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+    interest: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>'
+};
+
+// --- Global Account Management Functions ---
 function getAccounts() {
     return window.accounts || [];
 }
 
-// --- Global Account Management Functions ---
-function editAccount(idx) {
-    const accounts = getAccounts();
-    console.log('[Accounts] editAccount idx', idx, accounts[idx]);
-    getEl('acct_name').value = accounts[idx].name;
-    getEl('acct_balance').value = accounts[idx].balance;
-    // The interest data is now managed by the modal itself.
-    // We pass the full account object to the modal, which will handle populating its fields.
-    newAccountInterest = {
-        interest: accounts[idx].interest ?? 0,
-        interest_period: accounts[idx].interest_period || 'year',
-        compound_period: accounts[idx].compound_period || 'month',
-        interest_type: accounts[idx].interest_type || 'compound'
-    };
-    editingAccount = idx;
+function toggleEditState(row, isEditing) {
+    const nameCell = row.querySelector('td[data-field="name"]');
+    const balanceCell = row.querySelector('td[data-field="balance"]');
+    
+    nameCell.contentEditable = isEditing;
+    balanceCell.contentEditable = isEditing;
+    
+    row.querySelector('.edit-btn').style.display = isEditing ? 'none' : 'inline-block';
+    row.querySelector('.delete-btn').style.display = isEditing ? 'none' : 'inline-block';
+    row.querySelector('.save-btn').style.display = isEditing ? 'inline-block' : 'none';
+    row.querySelector('.cancel-btn').style.display = isEditing ? 'inline-block' : 'none';
+    
+    row.classList.toggle('editing', isEditing);
+    if (isEditing) {
+        nameCell.focus();
+        // Select all text in the cell to allow for immediate typing
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(nameCell);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
 }
 
-function deleteAccount(idx) {
+function saveAccount(idx, row) {
+    const name = row.querySelector('td[data-field="name"]').textContent;
+    const balance = parseFloat(row.querySelector('td[data-field="balance"]').textContent);
     const accounts = getAccounts();
-    accounts.splice(idx, 1);
-    console.log('[Accounts] deleteAccount idx', idx);
+    const transactions = window.transactions || [];
+
+    if (idx === -1) { // This is a new account
+        const tempInterestData = row.tempInterestData || {};
+        const newAccount = {
+            name,
+            balance,
+            current_balance: balance, // For a new account, current balance is the starting balance
+            interest: tempInterestData.interest ?? 0,
+            interest_period: tempInterestData.interest_period || 'year',
+            compound_period: tempInterestData.compound_period || 'none',
+            interest_type: tempInterestData.interest_type || 'simple'
+        };
+        accounts.push(newAccount);
+    } else { // This is an existing account
+        const accountToUpdate = accounts[idx];
+        accountToUpdate.name = name;
+        accountToUpdate.balance = balance;
+
+        // Recalculate current_balance based on the new starting balance and existing transactions
+        const netTransactions = transactions
+            .filter(t => t.account === accountToUpdate.name)
+            .reduce((sum, t) => sum + t.amount, 0);
+        
+        accountToUpdate.current_balance = balance + netTransactions;
+    }
+    
     window.afterDataChange();
 }
 
-import { InterestModal } from './modal-interest.js';
+function deleteAccount(idx) {
+    if (confirm('Are you sure you want to delete this account?')) {
+        getAccounts().splice(idx, 1);
+        window.afterDataChange();
+    }
+}
 
-function openInterestModal(idx) {
+function openInterestModal(idx, row = null) {
     const accounts = getAccounts();
     let acct;
     let onSave;
-    if (typeof idx === 'number') {
+
+    if (idx === -1 && row) { // New account row
+        acct = row.tempInterestData || {
+            interest: 0,
+            interest_period: 'year',
+            compound_period: 'none',
+            interest_type: 'simple'
+        };
+        onSave = (updated) => {
+            row.tempInterestData = updated; // Store data on the row temporarily
+        };
+    } else { // Existing account
         acct = { ...accounts[idx] };
         onSave = (updated) => {
-            // Ensure the name and balance are preserved from the original object
-            const originalAcct = accounts[idx];
-            accounts[idx] = { 
-                name: originalAcct.name, 
-                balance: originalAcct.balance, 
-                ...updated 
-            };
-            if (editingAccount === idx) {
-                newAccountInterest = { ...updated };
-            }
-            console.log('[Accounts] openInterestModal save', idx, accounts[idx]);
+            accounts[idx] = { ...acct, ...updated };
             window.afterDataChange();
         };
-    } else {
-        acct = { ...newAccountInterest };
-        onSave = (updated) => {
-            newAccountInterest = { ...newAccountInterest, ...updated };
-            console.log('[Accounts] openInterestModal new interest', newAccountInterest);
-        };
     }
-    InterestModal.show(
-        acct,
-        onSave,
-        () => {
-            console.log('[Accounts] openInterestModal cancel');
-        }
-    );
+    InterestModal.show(acct, onSave);
 }
 
 // --- Main Page Initialization ---
 function initializeAccountsPage() {
-    // Always use window.accounts for all operations
     window.accounts = window.accounts || [];
-    console.log('[Accounts] initializeAccountsPage: window.accounts =', window.accounts);
 
-    // --- Inject Panel Header with Accordion Toggle ---
     const panelHeader = document.createElement('div');
     panelHeader.className = 'panel-header';
-    panelHeader.innerHTML = `
-        <h2>Accounts</h2>
-        <span class="panel-arrow">&#9662;</span>
-    `;
-    panelHeader.addEventListener('click', function() {
-        window.toggleAccordion('panel-accounts');
-    });
-    const headerContainer = document.getElementById('accounts-panel-header');
-    if (headerContainer) headerContainer.replaceWith(panelHeader);
+    panelHeader.innerHTML = `<h2>Accounts</h2><span class="panel-arrow">&#9662;</span>`;
+    panelHeader.addEventListener('click', () => window.toggleAccordion('panel-accounts'));
+    getEl('accounts-panel-header').replaceWith(panelHeader);
 
-    // --- Account Table Rendering ---
     window.renderAccounts = function() {
-        const accountsTable = getEl('accountsTable');
-        if (!accountsTable) return;
-        const tbody = accountsTable.querySelector('tbody');
+        const table = getEl('accountsTable');
+        if (!table) return;
+        const tbody = table.querySelector('tbody');
         tbody.innerHTML = '';
-        console.log('[Accounts] renderAccounts: window.accounts =', window.accounts);
-        window.accounts.forEach((acct, idx) => {
-            const interest = acct.interest ?? 0;
-            const interestPeriod = acct.interest_period || 'year';
-            const interestType = acct.interest_type || 'compound';
-            const compoundPeriod = acct.compound_period || 'none';
 
-            let interestDisplay;
-            if (interest === 0) {
-                interestDisplay = '<span style="color:#888">None</span>';
-            } else {
+        getAccounts().forEach((acct, idx) => {
+            const interest = acct.interest ?? 0;
+            let interestDisplay = '<span style="color:#888">None</span>';
+            if (interest !== 0) {
                 const rate = `${interest}%`;
-                if (interestType === 'compound' && interestPeriod === 'year') {
-                    let acronym = '';
-                    switch (compoundPeriod) {
-                        case 'month':   acronym = 'NACM'; break;
-                        case 'quarter': acronym = 'NACQ'; break;
-                        case 'year':    acronym = 'NACA'; break;
-                        case 'week':    acronym = 'NACW'; break;
-                        case 'day':     acronym = 'NACD'; break;
-                    }
-                    interestDisplay = acronym ? `${rate} ${acronym}` : `${rate} Annually, Compounded ${compoundPeriod}`;
+                const type = (acct.interest_type || 'simple').charAt(0).toUpperCase() + (acct.interest_type || 'simple').slice(1);
+                const period = (acct.interest_period || 'year').charAt(0).toUpperCase() + (acct.interest_period || 'year').slice(1);
+                if (acct.interest_type === 'compound' && acct.interest_period === 'year') {
+                    const acronym = { month: 'NACM', quarter: 'NACQ', year: 'NACA', week: 'NACW', day: 'NACD' }[acct.compound_period];
+                    interestDisplay = acronym ? `${rate} ${acronym}` : `${rate} Annually, Compounded ${acct.compound_period}`;
                 } else {
-                    const typeLabel = interestType.charAt(0).toUpperCase() + interestType.slice(1);
-                    const periodLabel = interestPeriod.charAt(0).toUpperCase() + interestPeriod.slice(1);
-                    interestDisplay = `${rate} ${typeLabel} (per ${periodLabel})`;
+                    interestDisplay = `${rate} ${type} (per ${period})`;
                 }
             }
-            
+
             const tr = document.createElement('tr');
+            tr.dataset.idx = idx;
             tr.innerHTML = `
-                <td>${acct.name}</td>
-                <td>${acct.balance}</td>
-                <td>${interestDisplay}</td>
-                <td>
-                    <button class="edit-account-btn">Edit</button>
-                    <button class="delete-account-btn">Delete</button>
-                    <button class="interest-account-btn">Add/Edit Interest</button>
+                <td data-field="name">${acct.name}</td>
+                <td data-field="balance">${acct.balance}</td>
+                <td data-field="current_balance">${acct.current_balance ?? acct.balance}</td>
+                <td data-field="interest">${interestDisplay}</td>
+                <td class="actions">
+                    <button class="icon-btn edit-btn" title="Edit">${ICONS.edit}</button>
+                    <button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>
+                    <button class="icon-btn save-btn" title="Save" style="display:none;">${ICONS.save}</button>
+                    <button class="icon-btn cancel-btn" title="Cancel" style="display:none;">${ICONS.cancel}</button>
+                    <button class="icon-btn interest-btn" title="Interest Settings">${ICONS.interest}</button>
                 </td>
             `;
-            const editBtn = tr.querySelector('.edit-account-btn');
-            const deleteBtn = tr.querySelector('.delete-account-btn');
-            const interestBtn = tr.querySelector('.interest-account-btn');
-            editBtn.addEventListener('click', () => editAccount(idx));
-            deleteBtn.addEventListener('click', () => deleteAccount(idx));
-            interestBtn.addEventListener('click', () => openInterestModal(idx));
             tbody.appendChild(tr);
         });
         window.updateTxnAccountOptions();
     };
 
-    // --- Add/Edit Interest Modal for New Account ---
-    const addInterestBtn = document.getElementById('addInterestBtn');
-    if (addInterestBtn) {
-        addInterestBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            // For a new account, we pass a default interest object
-            const defaultInterest = { 
-                interest: 0, 
-                interest_period: 'year', 
-                compound_period: 'month', 
-                interest_type: 'compound' 
-            };
-            InterestModal.show(
-                newAccountInterest.interest !== undefined ? newAccountInterest : defaultInterest,
-                (updated) => {
-                    newAccountInterest = { ...newAccountInterest, ...updated };
-                },
-                () => {}
-            );
-        });
-    }
+    const accountsTable = getEl('accountsTable');
+    if (accountsTable) {
+        accountsTable.querySelector('tbody').addEventListener('click', (e) => {
+            const btn = e.target.closest('.icon-btn');
+            if (!btn) return;
+            
+            const row = btn.closest('tr');
+            const isNew = row.dataset.idx === 'new';
+            const idx = isNew ? -1 : parseInt(row.dataset.idx, 10);
 
-    // --- Account Form Handling ---
-    const accountForm = getEl('accountForm');
-    console.log('hello')
-    if (accountForm) {
-        accountForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            console.log('[Accounts] Form submit handler fired');
-            const acct = {
-                name: getEl('acct_name').value,
-                balance: parseFloat(getEl('acct_balance').value),
-                ...newAccountInterest
-            };
-            // Ensure default interest values if none were set
-            acct.interest = acct.interest ?? 0;
-            acct.interest_period = acct.interest_period || 'year';
-            acct.compound_period = acct.compound_period || 'none';
-            acct.interest_type = acct.interest_type || 'simple';
-
-            if (editingAccount !== null) {
-                window.accounts[editingAccount] = acct;
-                console.log('[Accounts] Updated account at index', editingAccount, acct);
-                editingAccount = null;
-            } else {
-                window.accounts.push(acct);
-                console.log('[Accounts] Added new account:', acct);
+            if (btn.classList.contains('edit-btn')) {
+                toggleEditState(row, true);
+            } else if (btn.classList.contains('delete-btn')) {
+                deleteAccount(idx);
+            } else if (btn.classList.contains('save-btn')) {
+                saveAccount(idx, row);
+                if (isNew) {
+                    window.renderAccounts(); // Re-render to fix index and add new row correctly
+                } else {
+                    toggleEditState(row, false);
+                }
+            } else if (btn.classList.contains('cancel-btn')) {
+                if (isNew) {
+                    row.remove();
+                } else {
+                    toggleEditState(row, false);
+                    window.renderAccounts(); // Re-render to restore original values
+                }
+            } else if (btn.classList.contains('interest-btn')) {
+                openInterestModal(idx, row);
             }
-            newAccountInterest = {};
-            this.reset();
-            window.afterDataChange();
         });
-    } else {
-        console.error('[Accounts] ERROR: accountForm not found when trying to add submit event listener');
+
+        // Add keydown listener for Enter key submission
+        accountsTable.querySelector('tbody').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.isContentEditable) {
+                e.preventDefault(); // Prevent adding a new line
+                const row = e.target.closest('tr');
+                const saveBtn = row.querySelector('.save-btn');
+                if (saveBtn) {
+                    saveBtn.click();
+                }
+            }
+        });
+
+        const quickAddBtn = document.createElement('button');
+        quickAddBtn.id = 'quickAddAccountBtn';
+        quickAddBtn.textContent = '+ Add Account';
+        accountsTable.insertAdjacentElement('afterend', quickAddBtn);
+
+        quickAddBtn.addEventListener('click', () => {
+            const tbody = accountsTable.querySelector('tbody');
+            const tr = document.createElement('tr');
+            tr.dataset.idx = 'new';
+            tr.innerHTML = `
+                <td data-field="name">New Account</td>
+                <td data-field="balance">0</td>
+                <td data-field="current_balance">0</td>
+                <td data-field="interest"><span style="color:#888">None</span></td>
+                <td class="actions">
+                    <button class="icon-btn edit-btn" style="display:none;">${ICONS.edit}</button>
+                    <button class="icon-btn delete-btn" style="display:none;">${ICONS.delete}</button>
+                    <button class="icon-btn save-btn" title="Save">${ICONS.save}</button>
+                    <button class="icon-btn cancel-btn" title="Cancel">${ICONS.cancel}</button>
+                    <button class="icon-btn interest-btn" title="Interest Settings">${ICONS.interest}</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            toggleEditState(tr, true);
+        });
     }
 
-    // --- Data Change Handler Enhancement ---
     if(typeof window.afterDataChange === 'function'){
         const _afterDataChange = window.afterDataChange;
         window.afterDataChange = function() {
-            console.log('[Accounts] afterDataChange: saving data', {
-                accounts: window.accounts,
-                transactions: window.transactions,
-                forecast: window.forecast,
-                budget: window.budget
-            });
             if (window.filemgmt && typeof window.filemgmt.saveAppDataToFile === 'function') {
                 window.filemgmt.saveAppDataToFile({
-                    accounts: window.accounts,
-                    transactions: window.transactions,
-                    forecast: window.forecast,
-                    budget: window.budget
+                    accounts: getAccounts(),
+                    transactions: window.transactions || [],
+                    forecast: window.forecast || [],
+                    budget: window.budget || []
                 });
             }
             _afterDataChange();
-            if (document.getElementById('accountsTable')) {
+            if (getEl('accountsTable')) {
                 window.renderAccounts();
             }
         };
     }
 
-    // --- Initial Render ---
-    if (document.getElementById('accountsTable')) {
+    if (getEl('accountsTable')) {
         window.renderAccounts();
     }
 }
 
 // --- Initialization: Only after data is loaded ---
 function tryInitAccountsPage() {
-    document.addEventListener('appDataLoaded', () => {
+    const init = () => {
+        // Ensure accounts have current_balance
+        (window.accounts || []).forEach(acc => {
+            if (acc.current_balance === undefined) {
+                acc.current_balance = acc.balance;
+            }
+        });
         initializeAccountsPage();
-        console.log('[Accounts] App data loaded, initializing accounts page');
-    }, { once: true });
-    
+    };
+
+    document.addEventListener('appDataLoaded', init, { once: true });
     if (window.accounts && Array.isArray(window.accounts)) {
-        console.log('[Accounts] Initializing accounts page with existing data');
-        initializeAccountsPage();
+        init();
     }
 }
 

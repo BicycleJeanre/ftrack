@@ -3,18 +3,20 @@
     {
       "name": "Transactional",
       "balance": 10000,
+      "current_balance": 10000,
       "interest": 2,
       "interest_period": "year",
       "compound_period": "month",
       "interest_type": "compound"
     },
     {
-      "name": "credit",
-      "balance": 10000,
-      "interest": 7.25,
-      "interest_period": "month",
-      "interest_type": "compound",
-      "compound_period": "day"
+      "name": "Credit",
+      "balance": 100,
+      "current_balance": 100,
+      "interest": 2,
+      "interest_period": "year",
+      "compound_period": "month",
+      "interest_type": "compound"
     }
   ],
   "transactions": [],

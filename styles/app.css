@@ -278,3 +278,49 @@ label {
     visibility: visible;
     opacity: 1;
 }
+
+/* --- Inline Editing & Actions --- */
+td[contenteditable="true"] {
+    background-color: #3a3d40;
+    outline: 2px solid #b6ff00;
+    box-shadow: 0 0 5px #b6ff00;
+}
+
+.actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    margin: 0 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.icon-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: #b0b8c1;
+    transition: stroke 0.2s;
+}
+
+.icon-btn:hover {
+    background-color: #3a3d40;
+}
+
+.icon-btn:hover svg {
+    stroke: #b6ff00;
+}
+
+#quickAddAccountBtn {
+    margin-top: 12px;
+    display: block;
+    width: fit-content;
+}
