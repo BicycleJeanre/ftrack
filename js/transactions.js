@@ -191,7 +191,6 @@ function initializeTransactionsPage() {
                 });
             }
         },
-        quickAddButton: getEl('quickAddTransactionBtn'),
         actions: { add: true, edit: true, delete: true }
     });
 

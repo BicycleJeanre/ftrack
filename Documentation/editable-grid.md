@@ -11,6 +11,7 @@ A reusable, configurable grid component that provides inline editing capabilitie
 - **Dynamic Actions**: Supports enabling/disabling add, edit, delete, and custom actions per grid instance
 - **Per-Cell/Column Callbacks**: Use `onCellClick` in column definition to trigger external code or modals
 - **Modal Display Icon**: Use `modalIcon` and `onModalIconClick` in column definition to show an icon and trigger a callback
+- **Add Icon Placement**: The add (quick add) button is now an icon centered below the grid, managed by the grid itself
 
 ## Configuration
 The EditableGrid accepts a configuration object with:
@@ -20,7 +21,6 @@ The EditableGrid accepts a configuration object with:
 - `onSave`: Callback for save operations
 - `onDelete`: Callback for delete operations
 - `onUpdate`: Callback for cell-specific actions (e.g., opening modals)
-- `quickAddButton`: Optional button element for adding new rows
 - `actions`: Object to enable/disable actions: `{ add: true, edit: true, delete: true }` (all true by default)
 
 ## Column Types
@@ -47,4 +47,4 @@ const grid = new EditableGrid({
 });
 ```
 
-> **Update Note:** Added `modalIcon` and `onModalIconClick` for modal/icon support in columns.
+> **Update Note:** The add (quick add) button is now an icon centered below the grid, managed by the grid itself.

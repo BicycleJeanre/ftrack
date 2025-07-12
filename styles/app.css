@@ -372,3 +372,16 @@ td[contenteditable="true"] {
   text-align: right;
   margin-top: 18px;
 }
+
+.grid-add-btn {
+  display: block;
+  margin: 18px auto 0 auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s;
+}
+.grid-add-btn:focus, .grid-add-btn:hover {
+  background: #2e3a2c;
+}

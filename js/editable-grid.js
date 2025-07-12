@@ -21,14 +21,10 @@ export class EditableGrid {
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
         this.onUpdate = options.onUpdate;
-        this.quickAddButton = options.quickAddButton;
         this.actions = options.actions || { add: true, edit: true, delete: true };
 
         this.tbody = this.targetElement.querySelector('tbody');
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
-        if (this.quickAddButton && this.actions.add !== false) {
-            this.quickAddButton.addEventListener('click', this.addNewRow.bind(this));
-        }
     }
 
     // Method to render the entire grid
@@ -38,6 +34,37 @@ export class EditableGrid {
             const tr = this.createRow(item, idx);
             this.tbody.appendChild(tr);
         });
+        // Render add icon below the grid if enabled
+        if (this.actions.add !== false) {
+            this.renderAddIcon();
+        } else {
+            this.removeAddIcon();
+        }
+    }
+
+    renderAddIcon() {
+        // Remove any existing add icon
+        this.removeAddIcon();
+        const addIcon = document.createElement('button');
+        addIcon.className = 'icon-btn grid-add-btn';
+        addIcon.title = 'Add New Row';
+        addIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>';
+        addIcon.style.display = 'block';
+        addIcon.style.margin = '18px auto 0 auto';
+        addIcon.style.background = 'none';
+        addIcon.style.border = 'none';
+        addIcon.style.cursor = 'pointer';
+        addIcon.setAttribute('tabindex', '0');
+        addIcon.addEventListener('click', () => this.addNewRow());
+        this.targetElement.parentNode.insertBefore(addIcon, this.targetElement.nextSibling);
+        this._addIcon = addIcon;
+    }
+
+    removeAddIcon() {
+        if (this._addIcon && this._addIcon.parentNode) {
+            this._addIcon.parentNode.removeChild(this._addIcon);
+            this._addIcon = null;
+        }
     }
 
     createRow(item, idx) {
