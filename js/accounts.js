@@ -55,6 +55,9 @@ function saveAccount(idx, data, row) {
     }
     
     window.afterDataChange();
+    if (typeof window.renderAccounts === 'function') {
+        window.renderAccounts();
+    }
 }
 
 function deleteAccount(idx) {
