@@ -42,6 +42,8 @@ flowchart TD
 
 ## JSON Schema
 
+> **Update Note:** The Account and Transaction schemas have been significantly updated to support new features like transaction recurrence, dynamic amount changes, and better account organization.
+
 The main data object (persisted in the unified JSON file and used for import/export) has the following structure:
 
 ```mermaid
@@ -55,21 +57,33 @@ classDiagram
   class Account {
     string name
     number balance
+    number current_balance
+    string group
+    string[] tags
     number interest
     string interest_period
     string compound_period
     string interest_type
   }
   class Transaction {
-    string name
-    string account
+    string description
     number amount
-    string date
-    bool recurring
-    string end_date
-    string freq
-    number pct_change
-    string apply_to
+    string account
+    boolean isRecurring
+    string executionDate
+    Recurrence recurrence
+    AmountChange amountChange
+    string[] tags
+  }
+  class Recurrence {
+    string frequency
+    number dayOfMonth
+    string endDate
+  }
+  class AmountChange {
+    string type
+    number value
+    string frequency
   }
   class ForecastResult {
     string period
@@ -78,4 +92,7 @@ classDiagram
   class BudgetItem {
     // ...future fields
   }
+
+  Transaction "1" -- "0..1" Recurrence
+  Transaction "1" -- "0..1" AmountChange
 ```

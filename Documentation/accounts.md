@@ -1,27 +1,35 @@
 # accounts.md
 
+> **Update Note:** The Accounts page has been refactored to use the new EditableGrid component, providing a more consistent and modern interface aligned with the transactions page.
+
 ## Purpose
-Defines the Accounts page, where users can add, edit, and delete financial accounts, including setting interest rates and compounding options. Now uses a reusable modal component for interest settings. All data is loaded from and saved to a unified JSON file on disk via `filemgmt.js`.
+Defines the Accounts page, where users can add, edit, and delete financial accounts, including setting interest rates and compounding options. Now uses the reusable EditableGrid component for inline editing and the modal component system for interest settings. All data is loaded from and saved to a unified JSON file on disk via `filemgmt.js`.
 
 ## Key Elements
-- **Form**: For adding/updating account name and starting balance.
-- **Table**: Lists all accounts with their balances and interest settings.
-- **Interest Modal**: Managed by `modal-interest.js` as a reusable component.
-- **Script Includes**: Loads all required JS for data, logic, and UI.
+- **EditableGrid**: Uses the same reusable grid component as transactions for consistent inline editing
+- **Interest Modal**: Managed by `modal-interest.js` as a reusable component for complex interest configurations
+- **Quick Add Button**: Allows rapid addition of new accounts directly in the grid
+- **Enhanced Data Structure**: Supports new fields like group, tags, and current_balance
+
+## Components Used
+- **EditableGrid** (`js/editable-grid.js`): Provides inline editing capabilities
+- **InterestModal** (`js/modal-interest.js`): Handles complex interest rate configurations
 
 ## Interactions
-- Reads and writes account data to the global state (`window.accounts`).
-- Triggers `afterDataChange` to save all app data (accounts, transactions, forecast, budget) to the unified JSON file via `filemgmt.js` and update the UI.
-- Interacts with `transactions.js` for account dropdowns.
-- Imports and uses `InterestModal` from `modal-interest.js` for interest editing.
+- Reads and writes account data to the global state (`window.accounts`) with enhanced data structure
+- Triggers `afterDataChange` to save all app data to the unified JSON file via `filemgmt.js`
+- Interacts with `transactions.js` for account dropdowns
+- Uses the same grid system as transactions for consistent user experience
 
 ## Data Flow Diagram
 ```mermaid
 flowchart TD
   Filemgmt[Filemgmt.js] -->|load| AppData[Global data: accounts, transactions, forecast, budget]
   AppData -->|modify| Filemgmt
-  AppData -->|UI update| AccountsPage[Accounts UI]
-  AccountsPage -->|user action| AppData
+  AppData -->|UI update| AccountsGrid[EditableGrid Component]
+  AccountsGrid -->|user action| InterestModal[Interest Modal]
+  InterestModal -->|complex edit| AppData
+  AccountsGrid -->|inline edit| AppData
 ```
 
 - The main account form includes an **Add/Edit Interest** button, allowing you to set interest details for a new account before adding it. This opens the same reusable interest modal used for editing existing accounts.
