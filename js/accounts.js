@@ -26,6 +26,19 @@ document.addEventListener('DOMContentLoaded', initializeAccountsPage);
 
 // This function sets up the entire Accounts page. It's called once the DOM is ready.
 function initializeAccountsPage() {
+    // --- Inject Panel Header with Accordion Toggle ---
+    const panelHeader = document.createElement('div');
+    panelHeader.className = 'panel-header';
+    panelHeader.innerHTML = `
+        <h2>Accounts</h2>
+        <span class="panel-arrow">&#9662;</span>
+    `;
+    panelHeader.addEventListener('click', function() {
+        window.toggleAccordion('panel-accounts');
+    });
+    const headerContainer = document.getElementById('accounts-panel-header');
+    if (headerContainer) headerContainer.replaceWith(panelHeader);
+
     // --- Account Table Rendering ---
     // This function dynamically builds the HTML for the accounts table based on the global `accounts` array.
     window.renderAccounts = function() {
