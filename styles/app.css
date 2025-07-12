@@ -341,63 +341,67 @@ td[contenteditable="true"] {
     color: var(--accent-color);
 }
 
-/* Modal Styles */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0; top: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-content {
-  background: #232526;
-  border-radius: 8px;
-  padding: 28px 32px 24px 32px;
-  min-width: 320px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-  border: 1px solid #444;
-}
-
-.modal-header {
-  font-size: 1.2em;
-  font-weight: 600;
-  margin-bottom: 18px;
-  color: #f3f3f3;
-}
-
-.modal-actions {
-  text-align: right;
-  margin-top: 18px;
-}
-
-.grid-add-btn {
-  display: block;
-  margin: 18px auto 0 auto;
-  background: none;
-  border: none;
-  cursor: pointer;
-  outline: none;
-  transition: background 0.2s;
-}
-.grid-add-btn:focus, .grid-add-btn:hover {
-  background: #2e3a2c;
-}
-
+/* Editable grid cell and input for dark theme */
 .editable-grid-input {
   width: 100%;
   box-sizing: border-box;
   padding: 4px 6px;
   font-size: 1em;
-  border: 1px solid #ccc;
+  border: 1px solid #444;
   border-radius: 3px;
-  background: #fff;
+  background: #232526;
+  color: #f3f3f3;
   outline: none;
-  transition: border 0.2s;
+  transition: border 0.2s, background 0.2s;
 }
 .editable-grid-input:focus {
-  border: 1.5px solid #0078d7;
-  background: #f7fbff;
+  border: 1.5px solid #00bfff;
+  background: #181a1b;
+}
+
+.editable-grid-table td, .editable-grid-table th {
+  background: #232526;
+  color: #f3f3f3;
+}
+
+/* Modal base for dark theme */
+.modal {
+  background: #232526 !important;
+  color: #f3f3f3 !important;
+  border-radius: 10px;
+  box-shadow: 0 4px 32px #000a;
+}
+
+/* Recurrence modal: small, detached */
+.recurrence-modal {
+  width: 340px !important;
+  min-width: 0 !important;
+  max-width: 90vw;
+  left: 50% !important;
+  top: 20vh !important;
+  transform: translate(-50%, 0);
+  background: #232526 !important;
+  color: #f3f3f3 !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 32px #000a;
+  padding: 24px 20px 20px 20px;
+}
+
+.create-account-modal {
+  width: 340px !important;
+  min-width: 0 !important;
+  max-width: 90vw;
+  left: 50% !important;
+  top: 20vh !important;
+  transform: translate(-50%, 0);
+  background: #232526 !important;
+  color: #f3f3f3 !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 32px #000a;
+  padding: 24px 20px 20px 20px;
+}
+
+/* Hide quickly add transactions button if present */
+.quick-add-btn, .quick-add-transactions-btn {
+  display: none !important;
 }

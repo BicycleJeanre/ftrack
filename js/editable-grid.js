@@ -10,7 +10,8 @@ const ICONS = {
     delete: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
     save: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
     cancel: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-    interest: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>'
+    // Dollar sign icon for interest
+    interest: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><text x="12" y="16" text-anchor="middle" font-size="12" fill="currentColor" dy=".3em">$</text></svg>'
 };
 
 export class EditableGrid {
@@ -124,9 +125,7 @@ export class EditableGrid {
         }
         td.innerHTML += `<button class="icon-btn save-btn" title="Save" style="display:none;">${ICONS.save}</button>`;
         td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel" style="display:none;">${ICONS.cancel}</button>`;
-        if (this.columns.find(c => c.field === 'interest')) {
-            td.innerHTML += `<button class="icon-btn interest-btn" title="Interest Settings">${ICONS.interest}</button>`;
-        }
+        // Interest icon removed from actions cell
         return td;
     }
 
@@ -205,13 +204,22 @@ export class EditableGrid {
                         checkbox.checked = !!currentValue;
                         cell.appendChild(checkbox);
                     } else {
-                        // Use input for text/number to prevent overflow
                         const input = document.createElement('input');
                         input.type = col.type === 'number' ? 'number' : 'text';
                         input.value = currentValue !== undefined && currentValue !== null ? currentValue : '';
                         input.className = 'editable-grid-input';
                         input.style.width = '100%';
                         input.style.boxSizing = 'border-box';
+                        // Store original value for revert
+                        const originalValue = input.value;
+                        input.addEventListener('blur', (e) => {
+                            // If not saved, revert cell to original value
+                            if (input.value !== originalValue) {
+                                input.value = originalValue;
+                            }
+                            cell.innerHTML = originalValue;
+                            cell.contentEditable = false;
+                        });
                         cell.appendChild(input);
                     }
                 } else {

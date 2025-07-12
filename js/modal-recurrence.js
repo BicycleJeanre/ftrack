@@ -11,8 +11,10 @@ export class RecurrenceModal {
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'recurrenceModal';
-            modal.className = 'modal';
+            modal.className = 'modal recurrence-modal'; // Add recurrence-modal class
             document.body.appendChild(modal);
+        } else {
+            modal.className = 'modal recurrence-modal'; // Ensure class is set on reuse
         }
 
         const data = recurrenceData || { frequency: 'monthly', dayOfMonth: 1, endDate: '' };

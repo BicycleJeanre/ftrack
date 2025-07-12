@@ -11,8 +11,10 @@ export class CreateAccountModal {
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'createAccountModal';
-            modal.className = 'modal';
+            modal.className = 'modal create-account-modal'; // Add class for styling
             document.body.appendChild(modal);
+        } else {
+            modal.className = 'modal create-account-modal'; // Ensure class is set on reuse
         }
 
         modal.innerHTML = `
