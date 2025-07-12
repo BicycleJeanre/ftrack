@@ -71,6 +71,13 @@ export class EditableGrid {
         const tr = document.createElement('tr');
         tr.dataset.idx = idx;
 
+        // Double-click to edit row
+        tr.addEventListener('dblclick', (e) => {
+            if (this.actions.edit !== false) {
+                this.toggleEditState(tr, true);
+            }
+        });
+
         this.columns.forEach(col => {
             const td = document.createElement('td');
             td.dataset.field = col.field;

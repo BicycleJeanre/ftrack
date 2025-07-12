@@ -70,4 +70,13 @@ const grid = new EditableGrid({
 
 - When editing, the cell displays a text input that fits perfectly inside the cell.
 
+## vNext: Double-Click Row Editing
+
+- Users can now double-click any row in the grid to enter edit mode (if editing is enabled for that row).
+- This provides a faster, more intuitive way to start editing without using the edit icon.
+
+**Example:**
+
+- Double-click a row: the row switches to edit mode, allowing inline changes.
+
 ---
