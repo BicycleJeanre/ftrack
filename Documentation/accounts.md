@@ -28,3 +28,10 @@ flowchart TD
 ```
 
 - The main account form now includes an **Add/Edit Interest** button, allowing you to set interest details for a new account before adding it. This opens the same reusable interest modal used for editing existing accounts.
+
+## Interest Settings Behavior (Editing vs. Creating)
+
+- When **creating a new account**, clicking the Add/Edit Interest button opens the interest modal. Any settings you enter are saved to the new account when you submit the form.
+- When **editing an existing account**, the Add/Edit Interest button and the interest modal in the table both pre-fill with the current account's interest settings. Any changes you make are saved to the account when you save the modal or the main form.
+- If you edit an account and do not open the interest modal, the existing interest settings are preserved.
+- All interest settings are always preserved unless explicitly changed.

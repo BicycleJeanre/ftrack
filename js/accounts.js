@@ -77,7 +77,6 @@ function initializeAccountsPage() {
     };
 
     // --- Add/Edit Interest Modal for New Account ---
-    let newAccountInterest = {};
     const addInterestBtn = document.getElementById('addInterestBtn');
     if (addInterestBtn) {
         addInterestBtn.addEventListener('click', function(e) {
@@ -140,12 +139,20 @@ function initializeAccountsPage() {
 // --- Global Account Management Functions ---
 // These functions are defined in the global scope so they can be called directly from `onclick` attributes in the HTML.
 let editingAccount = null; // A state variable to track which account is being edited.
+let newAccountInterest = {}; // <-- Move this to global scope so it's shared for both add and edit
 
 // Pre-fills the main form with the data of the account to be edited.
 function editAccount(idx) {
     const acct = accounts[idx];
     getEl('acct_name').value = acct.name;
     getEl('acct_balance').value = acct.balance;
+    // Pre-fill interest settings for editing
+    newAccountInterest = {
+        interest: acct.interest ?? 0,
+        interest_period: acct.interest_period || 'month',
+        compound_period: acct.compound_period || 'month',
+        interest_type: acct.interest_type || 'compound'
+    };
     editingAccount = idx; // Set the editing state
 }
 
@@ -159,14 +166,30 @@ function deleteAccount(idx) {
 import { InterestModal } from './modal-interest.js';
 
 function openInterestModal(idx) {
-    const acct = accounts[idx];
-    InterestModal.show(
-        acct,
-        (updated) => {
+    let acct;
+    let onSave;
+    if (typeof idx === 'number') {
+        // Editing existing account
+        acct = { ...accounts[idx] };
+        onSave = (updated) => {
             // Save changes to the account
             accounts[idx] = { ...acct, ...updated };
+            // Also update newAccountInterest if editing
+            if (editingAccount === idx) {
+                newAccountInterest = { ...updated };
+            }
             window.afterDataChange();
-        },
+        };
+    } else {
+        // Creating new account
+        acct = { ...newAccountInterest };
+        onSave = (updated) => {
+            newAccountInterest = { ...newAccountInterest, ...updated };
+        };
+    }
+    InterestModal.show(
+        acct,
+        onSave,
         () => {
             // Cancel handler (optional)
         }
