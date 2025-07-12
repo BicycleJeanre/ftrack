@@ -7,6 +7,7 @@ function saveToLocal() {
         transactions,
         forecastResults: window.forecastResults || [] // Ensure forecastResults exists
     };
+    console.log('[filemgmt] saveToLocal called, saving:', data);
     localStorage.setItem('forecastData', JSON.stringify(data));
 }
 
@@ -34,8 +35,17 @@ function loadFromLocal() {
 // Overwrite afterDataChange to automatically save to local storage
 const _afterDataChange = window.afterDataChange || function() {};
 window.afterDataChange = function() {
+    console.log('[filemgmt] afterDataChange called, window.accounts:', window.accounts, 'window.transactions:', window.transactions);
     _afterDataChange();
-    saveToLocal();
+    // Always save to disk in Electron/Node.js
+    const data = {
+        accounts: window.accounts,
+        transactions: window.transactions,
+        forecastResults: window.forecastResults || [],
+        forecast: window.forecast || [],
+        budget: window.budget || []
+    };
+    saveAppDataToFile(data);
     if(typeof updateActiveDataSourceDisplay === 'function') updateActiveDataSourceDisplay();
 };
 
@@ -129,6 +139,7 @@ async function loadAppDataFromFile() {
 
 async function saveAppDataToFile(data) {
     try {
+        console.log('[filemgmt] saveAppDataToFile called with:', data);
         if (fs && path) {
             fs.writeFileSync(APP_DATA_PATH, JSON.stringify(data, null, 2), 'utf-8');
         } else {

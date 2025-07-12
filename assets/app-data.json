@@ -9,18 +9,22 @@
       "compound_period": "month",
       "interest_type": "compound",
       "group": "Asset",
-      "tags": ["primary"]
+      "tags": [
+        "primary"
+      ]
     },
     {
-      "name": "Credit",
-      "balance": 100,
+      "name": "",
+      "balance": 0,
       "current_balance": 100,
       "interest": 2,
       "interest_period": "year",
       "compound_period": "month",
       "interest_type": "compound",
       "group": "Liability",
-      "tags": ["credit card"]
+      "tags": [
+        "credit card"
+      ]
     }
   ],
   "transactions": [
@@ -35,7 +39,9 @@
         "dayOfMonth": 15
       },
       "amountChange": null,
-      "tags": ["income"]
+      "tags": [
+        "income"
+      ]
     },
     {
       "description": "Rent",
@@ -52,9 +58,13 @@
         "value": 2,
         "frequency": "yearly"
       },
-      "tags": ["housing", "rent"]
+      "tags": [
+        "housing",
+        "rent"
+      ]
     }
   ],
+  "forecastResults": [],
   "forecast": [],
   "budget": []
 }

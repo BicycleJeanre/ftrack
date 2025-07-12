@@ -145,8 +145,6 @@ function initializeAccountsPage() {
     window.renderAccounts();
 }
 
-document.addEventListener('DOMContentLoaded', initializeAccountsPage);
-
 // --- Initialization: Only after data is loaded ---
 function tryInitAccountsPage() {
     const init = () => {
