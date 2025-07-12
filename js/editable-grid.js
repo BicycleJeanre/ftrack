@@ -26,6 +26,7 @@ export class EditableGrid {
 
         this.tbody = this.targetElement.querySelector('tbody');
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
+        this._ignoreNextFocusout = false; // Flag to ignore next focusout
     }
 
     // Method to render the entire grid
@@ -148,6 +149,7 @@ export class EditableGrid {
 
         if (btn) {
             if (btn.classList.contains('edit-btn')) {
+                this._ignoreNextFocusout = true; // Prevent immediate revert
                 this.toggleEditState(row, true);
             } else if (btn.classList.contains('delete-btn')) {
                 if (this.onDelete) this.onDelete(idx);
@@ -234,6 +236,10 @@ export class EditableGrid {
         if (isEditing) {
             // Add focusout handler to row to revert when leaving the row
             const onRowFocusOut = (e) => {
+                if (this._ignoreNextFocusout) {
+                    this._ignoreNextFocusout = false;
+                    return;
+                }
                 // If focus is moving outside the row (not to a child)
                 if (!row.contains(e.relatedTarget)) {
                     this.toggleEditState(row, false);
