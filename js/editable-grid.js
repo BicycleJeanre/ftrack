@@ -292,19 +292,24 @@ export class EditableGrid {
             }
         });
 
+        // Update internal data array
+        if (idx === -1) {
+            this.data.push(updatedData);
+        } else {
+            this.data[idx] = { ...this.data[idx], ...updatedData };
+        }
+
+        // Call consumer's onSave
         if (this.onSave) {
             this.onSave(idx, updatedData, row);
         }
-
-        if (idx === -1) { // New row
-            this.render(); // Re-render to integrate the new row properly
-        } else {
-            this.toggleEditState(row, false);
-            // After saving, we need to update the row's display
-            const updatedItem = { ...this.data[idx], ...updatedData };
-            const newRowContent = this.createRow(updatedItem, idx);
-            row.innerHTML = newRowContent.innerHTML;
+        // Call consumer's onAfterSave if defined
+        if (typeof this.onAfterSave === 'function') {
+            this.onAfterSave(idx, updatedData, row);
         }
+
+        // Always re-render grid after save
+        this.render();
     }
 
     // Method to add a new, empty row for quick adding

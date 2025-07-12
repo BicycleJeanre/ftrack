@@ -138,6 +138,9 @@ function initializeAccountsPage() {
         columns: columns,
         data: getAccounts(),
         onSave: saveAccount,
+        onAfterSave: () => {
+            if (typeof window.afterDataChange === 'function') window.afterDataChange();
+        },
         onDelete: deleteAccount,
         onUpdate: (e, idx, row) => {
             if (e.target.closest('.interest-btn')) {
