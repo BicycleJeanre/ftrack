@@ -27,8 +27,14 @@ function getAccounts() {
 }
 
 function saveAccount(idx, data, row, grid) {
-    // Always update window.accounts from grid.data
+    console.log(`[Accounts] saveAccount called for idx=${idx}`);
     window.accounts = grid.data;
+    console.log('[Accounts] window.accounts updated from grid.data');
+    if (typeof window.afterDataChange === 'function') {
+        console.log('[Accounts] Calling window.afterDataChange()');
+        window.afterDataChange();
+    }
+    console.log('[Accounts] Save process complete for idx=' + idx);
 }
 
 function deleteAccount(idx) {
@@ -110,7 +116,11 @@ function initializeAccountsPage() {
         data: getAccounts(),
         onSave: saveAccount,
         onAfterSave: () => {
-            if (typeof window.afterDataChange === 'function') window.afterDataChange();
+            console.log('[Accounts] onAfterSave: refreshing grid from window.accounts');
+            grid.data = getAccounts();
+            grid.render();
+            window.updateTxnAccountOptions();
+            console.log('[Accounts] Grid refreshed after save.');
         },
         onDelete: deleteAccount,
         onUpdate: (e, idx, row) => {

@@ -262,7 +262,8 @@ export class EditableGrid {
     }
 
     // Method to save a row's data
-    saveRow(idx, row) {
+    async saveRow(idx, row) {
+        console.log(`[EditableGrid] saveRow called for idx=${idx}`);
         const updatedData = {};
         const originalData = this.data[idx] || {};
 
@@ -292,21 +293,36 @@ export class EditableGrid {
             }
         });
 
-        // Update internal data array
-        if (idx === -1) {
-            this.data.push(updatedData);
-        } else {
-            this.data[idx] = { ...this.data[idx], ...updatedData };
-        }
+        // Show spinner on the row
+        row.classList.add('saving-spinner');
+        const spinner = document.createElement('span');
+        spinner.className = 'row-spinner';
+        spinner.innerHTML = '<svg width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#888" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.415, 31.415" transform="rotate(0 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>';
+        row.querySelector('td:last-child').appendChild(spinner);
+        console.log(`[EditableGrid] Spinner shown for idx=${idx}`);
 
         // Call consumer's onSave
+        let saveResult;
         if (this.onSave) {
-            this.onSave(idx, updatedData, row, this);
+            console.log(`[EditableGrid] Calling onSave for idx=${idx}`);
+            saveResult = this.onSave(idx, updatedData, row, this);
         }
+        if (saveResult && typeof saveResult.then === 'function') {
+            await saveResult;
+        }
+        console.log(`[EditableGrid] onSave complete for idx=${idx}`);
+
         // Call consumer's onAfterSave if defined
         if (typeof this.onAfterSave === 'function') {
-            this.onAfterSave(idx, updatedData, row, this);
+            console.log(`[EditableGrid] Calling onAfterSave for idx=${idx}`);
+            await this.onAfterSave(idx, updatedData, row, this);
         }
+        console.log(`[EditableGrid] onAfterSave complete for idx=${idx}`);
+
+        // Remove spinner
+        if (spinner.parentNode) spinner.parentNode.removeChild(spinner);
+        row.classList.remove('saving-spinner');
+        console.log(`[EditableGrid] Spinner removed for idx=${idx}`);
 
         // Always re-render grid after save
         this.render();

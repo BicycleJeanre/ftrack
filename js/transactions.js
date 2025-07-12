@@ -29,36 +29,15 @@ function getAccounts() {
     return window.accounts || [];
 }
 
-function saveTransaction(idx, data, row) {
-    const transactions = getTransactions();
-    
-    if (idx === -1) { // New transaction
-        const newTxn = {
-            description: data.description || 'New Transaction',
-            amount: data.amount || 0,
-            account: data.account || '',
-            isRecurring: data.isRecurring || false,
-            executionDate: data.isRecurring ? null : (new Date().toISOString().split('T')[0]),
-            recurrence: data.isRecurring ? { frequency: 'monthly', dayOfMonth: 1, endDate: '' } : null,
-            amountChange: null,
-            tags: []
-        };
-        transactions.push(newTxn);
-    } else { // Existing transaction
-        const txn = transactions[idx];
-        Object.assign(txn, data);
-        // Ensure consistency after edit
-        if (txn.isRecurring) {
-            txn.executionDate = null;
-            if (!txn.recurrence) {
-                txn.recurrence = { frequency: 'monthly', dayOfMonth: 1, endDate: '' };
-            }
-        } else {
-            txn.recurrence = null;
-        }
+function saveTransaction(idx, data, row, grid) {
+    console.log(`[Transactions] saveTransaction called for idx=${idx}`);
+    window.transactions = grid.data;
+    console.log('[Transactions] window.transactions updated from grid.data');
+    if (typeof window.afterDataChange === 'function') {
+        console.log('[Transactions] Calling window.afterDataChange()');
+        window.afterDataChange();
     }
-    
-    window.afterDataChange();
+    console.log('[Transactions] Save process complete for idx=' + idx);
 }
 
 function deleteTransaction(idx) {
@@ -157,6 +136,12 @@ function initializeTransactionsPage() {
         columns: columns,
         data: getTransactions(),
         onSave: saveTransaction,
+        onAfterSave: () => {
+            console.log('[Transactions] onAfterSave: refreshing grid from window.transactions');
+            grid.data = getTransactions();
+            grid.render();
+            console.log('[Transactions] Grid refreshed after save.');
+        },
         onDelete: deleteTransaction,
         onUpdate: (e, idx, row) => {
             const cell = e.target.closest('td');
