@@ -11,7 +11,8 @@
     <script src="../js/data-startup.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-    <script src="../js/accounts.js"></script>
+    <script src="../js/modal-interest.js" type="module"></script>
+    <script src="../js/accounts.js" type="module"></script>
     <script src="../js/navbar.js"></script>
 </head>
 <body class="dark">
@@ -43,41 +44,7 @@
                     </table>
                 </div>
                 <!-- Interest Settings Modal -->
-                <div id="interestModal" class="modal" style="display:none;">
-                    <div class="modal-content">
-                        <span class="close" id="closeInterestModal">&times;</span>
-                        <h3>Interest Settings</h3>
-                        <form id="interestForm">
-                            <label for="modal_acct_interest">Interest Rate</label>
-                            <input type="number" id="modal_acct_interest" value="0" step="0.01" placeholder="e.g. 0.5">
-                            <label for="modal_acct_interest_period">Interest Rate Period</label>
-                            <select id="modal_acct_interest_period">
-                                <option value="year">per Year</option>
-                                <option value="quarter">per Quarter</option>
-                                <option value="month">per Month</option>
-                                <option value="week">per Week</option>
-                                <option value="day">per Day</option>
-                            </select>
-                            <label for="modal_acct_compound_period">Compounding Period</label>
-                            <select id="modal_acct_compound_period">
-                                <option value="year">Yearly</option>
-                                <option value="quarter">Quarterly</option>
-                                <option value="month">Monthly</option>
-                                <option value="week">Weekly</option>
-                                <option value="day">Daily</option>
-                            </select>
-                            <label for="modal_acct_interest_type">Interest Type</label>
-                            <select id="modal_acct_interest_type">
-                                <option value="simple">Simple</option>
-                                <option value="compound">Compound</option>
-                            </select>
-                            <div class="modal-actions">
-                                <button type="button" id="saveInterestBtn">Save</button>
-                                <button type="button" id="cancelInterestBtn">Cancel</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <!-- Modal is now injected by JS -->
             </div>
         </div>
     </div>

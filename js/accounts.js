@@ -57,41 +57,6 @@ function initializeAccountsPage() {
         updateTxnAccountOptions();
     };
 
-    // --- Interest Modal Logic ---
-    // This section controls the behavior of the pop-up modal for editing interest details.
-    const interestModal = document.getElementById('interestModal');
-    if (interestModal) {
-        // Opens the modal and pre-fills it with the selected account's data.
-        window.openInterestModal = function(idx) {
-            const acct = accounts[idx];
-            interestModal.style.display = 'flex';
-            interestModal.dataset.idx = idx; // Store the account index on the modal for later use
-            getEl('modal_acct_interest').value = acct.interest !== undefined ? acct.interest : 0;
-            getEl('modal_acct_interest_period').value = acct.interest_period || 'month';
-            getEl('modal_acct_compound_period').value = acct.compound_period || 'month';
-            getEl('modal_acct_interest_type').value = acct.interest_type || 'compound';
-        };
-        // Handlers for closing the modal.
-        getEl('closeInterestModal').onclick = function() {
-            interestModal.style.display = 'none';
-        };
-        getEl('cancelInterestBtn').onclick = function() {
-            interestModal.style.display = 'none';
-        };
-        // Saves the interest data back to the `accounts` array and triggers a data change.
-        getEl('saveInterestBtn').onclick = function() {
-            const idx = interestModal.dataset.idx;
-            if (idx !== undefined && accounts[idx]) {
-                accounts[idx].interest = parseFloat(getEl('modal_acct_interest').value);
-                accounts[idx].interest_period = getEl('modal_acct_interest_period').value;
-                accounts[idx].compound_period = getEl('modal_acct_compound_period').value;
-                accounts[idx].interest_type = getEl('modal_acct_interest_type').value;
-                afterDataChange(); // Notify the app that data has changed
-            }
-            interestModal.style.display = 'none';
-        };
-    }
-
     // --- Account Form Handling ---
     // This section manages the submission of the main form for adding or editing accounts.
     const accountForm = getEl('accountForm');
@@ -153,3 +118,6 @@ function deleteAccount(idx) {
     accounts.splice(idx, 1);
     window.afterDataChange(); // Notify the app that data has changed
 }
+
+// Import the InterestModal object from the modal-interest.js module
+import { InterestModal } from './modal-interest.js';

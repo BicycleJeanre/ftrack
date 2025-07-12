@@ -37,6 +37,8 @@ flowchart TD
   - No external APIs are used for data persistence; all data is local to the browser.
 - **Data Sharing**:  
   - All modules (accounts, transactions, forecast) share a single global state object, which is updated and saved on every change.
+- **Component Modals**:  
+  - Modals (such as the interest settings modal) are now implemented as reusable JS modules (e.g., `modal-interest.js`) and injected dynamically, following a component-based approach similar to React.
 
 ## JSON Schema
 
@@ -85,3 +87,4 @@ classDiagram
 - **accounts**: List of user accounts, each with balance and interest settings.
 - **transactions**: List of transactions, each linked to an account and supporting recurrence and percentage changes.
 - **forecastResults**: List of forecasted periods, each with account balances for that period.
+- **modals**: Modal UI is now managed by reusable JS modules, not static HTML.
