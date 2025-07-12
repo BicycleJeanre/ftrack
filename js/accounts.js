@@ -26,38 +26,9 @@ function getAccounts() {
     return window.accounts || [];
 }
 
-function saveAccount(idx, data, row) {
-    const accounts = getAccounts();
-    const transactions = window.transactions || [];
-
-    if (idx === -1) { // New account
-        const tempInterestData = row.tempInterestData || {};
-        const newAccount = {
-            name: data.name,
-            balance: data.balance,
-            current_balance: data.balance,
-            interest: tempInterestData.interest ?? 0,
-            interest_period: tempInterestData.interest_period || 'year',
-            compound_period: tempInterestData.compound_period || 'none',
-            interest_type: tempInterestData.interest_type || 'simple'
-        };
-        accounts.push(newAccount);
-    } else { // Existing account
-        const accountToUpdate = accounts[idx];
-        accountToUpdate.name = data.name;
-        accountToUpdate.balance = data.balance;
-
-        const netTransactions = transactions
-            .filter(t => t.account === accountToUpdate.name)
-            .reduce((sum, t) => sum + t.amount, 0);
-        
-        accountToUpdate.current_balance = data.balance + netTransactions;
-    }
-    
-    window.afterDataChange();
-    if (typeof window.renderAccounts === 'function') {
-        window.renderAccounts();
-    }
+function saveAccount(idx, data, row, grid) {
+    // Always update window.accounts from grid.data
+    window.accounts = grid.data;
 }
 
 function deleteAccount(idx) {

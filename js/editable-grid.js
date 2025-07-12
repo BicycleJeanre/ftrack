@@ -301,11 +301,11 @@ export class EditableGrid {
 
         // Call consumer's onSave
         if (this.onSave) {
-            this.onSave(idx, updatedData, row);
+            this.onSave(idx, updatedData, row, this);
         }
         // Call consumer's onAfterSave if defined
         if (typeof this.onAfterSave === 'function') {
-            this.onAfterSave(idx, updatedData, row);
+            this.onAfterSave(idx, updatedData, row, this);
         }
 
         // Always re-render grid after save
