@@ -52,6 +52,18 @@ export class EditableGrid {
             } else {
                 td.textContent = item[col.field];
             }
+            // Modal display icon support
+            if (col.modalIcon && typeof col.onModalIconClick === 'function') {
+                const iconBtn = document.createElement('button');
+                iconBtn.className = 'icon-btn modal-icon-btn';
+                iconBtn.title = col.modalIconTitle || 'Open Modal';
+                iconBtn.innerHTML = col.modalIcon;
+                iconBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    col.onModalIconClick({ event: e, idx, row: tr, cell: td, grid: this });
+                });
+                td.appendChild(iconBtn);
+            }
             tr.appendChild(td);
         });
 

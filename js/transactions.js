@@ -119,6 +119,15 @@ function initializeTransactionsPage() {
             render: t => {
                 if (!t.isRecurring || !t.recurrence) return '<span class="disabled-text">N/A</span>';
                 return `<span class="editable-cell-link">${t.recurrence.frequency} on day ${t.recurrence.dayOfMonth}, until ${t.recurrence.endDate || '...'}</span>`;
+            },
+            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line></svg>',
+            modalIconTitle: 'Edit Recurrence',
+            onModalIconClick: ({ idx }) => {
+                const txn = getTransactions()[idx];
+                RecurrenceModal.show(txn.recurrence, (updatedRecurrence) => {
+                    txn.recurrence = updatedRecurrence;
+                    window.afterDataChange();
+                });
             }
         },
         { 
@@ -128,6 +137,15 @@ function initializeTransactionsPage() {
             render: t => {
                 if (!t.amountChange) return '<span class="editable-cell-link">None</span>';
                 return `<span class="editable-cell-link">${t.amountChange.type}: ${t.amountChange.value} per ${t.amountChange.frequency}</span>`;
+            },
+            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4l3 3"></path></svg>',
+            modalIconTitle: 'Edit Amount Change',
+            onModalIconClick: ({ idx }) => {
+                const txn = getTransactions()[idx];
+                AmountChangeModal.show(txn.amountChange, (updatedAmountChange) => {
+                    txn.amountChange = updatedAmountChange;
+                    window.afterDataChange();
+                });
             }
         },
         { field: 'tags', header: 'Tags', editable: true, type: 'text', render: t => (t.tags || []).join(', ') }

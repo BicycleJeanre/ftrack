@@ -1,7 +1,7 @@
 # editable-grid.md
 
 ## Purpose
-A reusable, configurable grid component that provides inline editing capabilities for tabular data. Supports various input types, conditional editability, custom rendering functions, dynamic action configuration, and per-cell/cell event callbacks.
+A reusable, configurable grid component that provides inline editing capabilities for tabular data. Supports various input types, conditional editability, custom rendering functions, dynamic action configuration, per-cell event callbacks, and modal display icons.
 
 ## Key Features
 - **Multiple Input Types**: text, number, select, checkbox, date
@@ -10,11 +10,12 @@ A reusable, configurable grid component that provides inline editing capabilitie
 - **Event Handling**: Configurable callbacks for save, delete, update, and per-cell actions
 - **Dynamic Actions**: Supports enabling/disabling add, edit, delete, and custom actions per grid instance
 - **Per-Cell/Column Callbacks**: Use `onCellClick` in column definition to trigger external code or modals
+- **Modal Display Icon**: Use `modalIcon` and `onModalIconClick` in column definition to show an icon and trigger a callback
 
 ## Configuration
 The EditableGrid accepts a configuration object with:
 - `targetElement`: The table element to enhance
-- `columns`: Array of column definitions with field, header, type, editability rules, and optional `onCellClick`
+- `columns`: Array of column definitions with field, header, type, editability rules, and optional `onCellClick`, `modalIcon`, `onModalIconClick`
 - `data`: Array of data objects to display
 - `onSave`: Callback for save operations
 - `onDelete`: Callback for delete operations
@@ -37,7 +38,7 @@ const grid = new EditableGrid({
         { field: 'name', header: 'Name', editable: true, type: 'text' },
         { field: 'active', header: 'Active', editable: true, type: 'checkbox' },
         { field: 'category', header: 'Category', editable: (row) => row.type === 'custom', type: 'select', options: [...] },
-        { field: 'modal', header: 'Modal', render: () => 'Open', onCellClick: ({ idx, row, cell }) => alert('Modal for row ' + idx) }
+        { field: 'modal', header: 'Modal', render: () => 'Open', modalIcon: '<svg>...</svg>', onModalIconClick: ({ idx }) => alert('Modal for row ' + idx) }
     ],
     data: myDataArray,
     onSave: (idx, data) => { /* handle save */ },
@@ -46,4 +47,4 @@ const grid = new EditableGrid({
 });
 ```
 
-> **Update Note:** Added `onCellClick` per-column callback for external code/modal triggers.
+> **Update Note:** Added `modalIcon` and `onModalIconClick` for modal/icon support in columns.
