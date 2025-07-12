@@ -138,7 +138,8 @@ function initializeAccountsPage() {
                 openInterestModal(idx, row);
             }
         },
-        quickAddButton: getEl('quickAddAccountBtn')
+        quickAddButton: getEl('quickAddAccountBtn'),
+        actions: { add: true, edit: true, delete: true }
     });
 
     window.renderAccounts = function() {

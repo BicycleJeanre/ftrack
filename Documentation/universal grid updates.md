@@ -1,0 +1,16 @@
+- update the universal grid object. 
+    - make it allow actions dynamically (add, edit, delete, etc ) when called
+    - add should be an icon below the grid in the middle. 
+    - ensure text input boxes for the grid are not larger than the grid cell. scale, don't overflow.
+    - double clicking a row will edit it in cell underneath cursor. 
+    - double clicking interest opens up interest modal. 
+    - allow grid content to trigger external code such as a modal
+        - use thsi to implement a function where thr grid can be called and told what modal(s) or code to run externally. 
+    - do this for recurrence, amount change and interest.
+    - i.e., the grid allows adding a callback function to an optional modaldisplay icon in a grid cell.
+
+- rules
+  - work on one item at a time and fully complete it and commit before moving on. 
+  - update the documentation after making the changes. 
+  - branch out before maing changes
+  - do not change or remove existing code unles expelicitly necessary. 

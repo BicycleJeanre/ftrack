@@ -22,10 +22,11 @@ export class EditableGrid {
         this.onDelete = options.onDelete;
         this.onUpdate = options.onUpdate;
         this.quickAddButton = options.quickAddButton;
+        this.actions = options.actions || { add: true, edit: true, delete: true };
 
         this.tbody = this.targetElement.querySelector('tbody');
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
-        if (this.quickAddButton) {
+        if (this.quickAddButton && this.actions.add !== false) {
             this.quickAddButton.addEventListener('click', this.addNewRow.bind(this));
         }
     }
@@ -61,15 +62,16 @@ export class EditableGrid {
     createActionsCell() {
         const td = document.createElement('td');
         td.className = 'actions';
-        td.innerHTML = `
-            <button class="icon-btn edit-btn" title="Edit">${ICONS.edit}</button>
-            <button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>
-            <button class="icon-btn save-btn" title="Save" style="display:none;">${ICONS.save}</button>
-            <button class="icon-btn cancel-btn" title="Cancel" style="display:none;">${ICONS.cancel}</button>
-        `;
-        // Add other buttons if needed, e.g., interest
+        if (this.actions.edit !== false) {
+            td.innerHTML += `<button class="icon-btn edit-btn" title="Edit">${ICONS.edit}</button>`;
+        }
+        if (this.actions.delete !== false) {
+            td.innerHTML += `<button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>`;
+        }
+        td.innerHTML += `<button class="icon-btn save-btn" title="Save" style="display:none;">${ICONS.save}</button>`;
+        td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel" style="display:none;">${ICONS.cancel}</button>`;
         if (this.columns.find(c => c.field === 'interest')) {
-             td.innerHTML += `<button class="icon-btn interest-btn" title="Interest Settings">${ICONS.interest}</button>`;
+            td.innerHTML += `<button class="icon-btn interest-btn" title="Interest Settings">${ICONS.interest}</button>`;
         }
         return td;
     }
