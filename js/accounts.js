@@ -1,3 +1,7 @@
+// This script manages the Accounts page (/pages/accounts.html).
+// It handles rendering the accounts table, managing the interest settings modal,
+// and processing the form for adding or updating accounts.
+
 // --- Standalone/Helper Functions (must be first!) ---
 if (typeof window !== 'undefined') {
     if (typeof window.getEl === 'undefined') {
@@ -16,13 +20,19 @@ if (typeof window !== 'undefined') {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // --- Account Table ---
+// Wait for the DOM to be fully loaded before running any script that interacts with it.
+// This ensures that all HTML elements are available to the script.
+document.addEventListener('DOMContentLoaded', initializeAccountsPage);
+
+// This function sets up the entire Accounts page. It's called once the DOM is ready.
+function initializeAccountsPage() {
+    // --- Account Table Rendering ---
+    // This function dynamically builds the HTML for the accounts table based on the global `accounts` array.
     window.renderAccounts = function() {
         const accountsTable = getEl('accountsTable');
-        if (!accountsTable) return;
+        if (!accountsTable) return; // Exit if the table element doesn't exist on the page
         const tbody = accountsTable.querySelector('tbody');
-        tbody.innerHTML = '';
+        tbody.innerHTML = ''; // Clear the existing table body
         accounts.forEach((acct, idx) => {
             const interestPeriod = acct.interest_period || 'month';
             const compoundPeriod = acct.compound_period || 'month';
@@ -43,27 +53,32 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             tbody.appendChild(tr);
         });
+        // After rendering, update the account dropdowns in the Transactions page, if it exists.
         updateTxnAccountOptions();
     };
 
     // --- Interest Modal Logic ---
+    // This section controls the behavior of the pop-up modal for editing interest details.
     const interestModal = document.getElementById('interestModal');
     if (interestModal) {
+        // Opens the modal and pre-fills it with the selected account's data.
         window.openInterestModal = function(idx) {
             const acct = accounts[idx];
             interestModal.style.display = 'flex';
-            interestModal.dataset.idx = idx;
+            interestModal.dataset.idx = idx; // Store the account index on the modal for later use
             getEl('modal_acct_interest').value = acct.interest !== undefined ? acct.interest : 0;
             getEl('modal_acct_interest_period').value = acct.interest_period || 'month';
             getEl('modal_acct_compound_period').value = acct.compound_period || 'month';
             getEl('modal_acct_interest_type').value = acct.interest_type || 'compound';
         };
+        // Handlers for closing the modal.
         getEl('closeInterestModal').onclick = function() {
             interestModal.style.display = 'none';
         };
         getEl('cancelInterestBtn').onclick = function() {
             interestModal.style.display = 'none';
         };
+        // Saves the interest data back to the `accounts` array and triggers a data change.
         getEl('saveInterestBtn').onclick = function() {
             const idx = interestModal.dataset.idx;
             if (idx !== undefined && accounts[idx]) {
@@ -71,61 +86,70 @@ document.addEventListener('DOMContentLoaded', function() {
                 accounts[idx].interest_period = getEl('modal_acct_interest_period').value;
                 accounts[idx].compound_period = getEl('modal_acct_compound_period').value;
                 accounts[idx].interest_type = getEl('modal_acct_interest_type').value;
-                afterDataChange();
+                afterDataChange(); // Notify the app that data has changed
             }
             interestModal.style.display = 'none';
         };
     }
 
-    // --- Account Form ---
+    // --- Account Form Handling ---
+    // This section manages the submission of the main form for adding or editing accounts.
     const accountForm = getEl('accountForm');
     if (accountForm) {
         accountForm.addEventListener('submit', function(e) {
-            e.preventDefault();
+            e.preventDefault(); // Prevent the default form submission (page reload)
             const acct = {
                 name: getEl('acct_name').value,
                 balance: parseFloat(getEl('acct_balance').value),
                 interest: 0
             };
+            // If `editingAccount` is set, update the existing account; otherwise, add a new one.
             if (editingAccount !== null) {
                 accounts[editingAccount] = acct;
-                editingAccount = null;
+                editingAccount = null; // Reset the editing state
             } else {
                 accounts.push(acct);
             }
-            this.reset();
-            afterDataChange();
+            this.reset(); // Clear the form fields
+            window.afterDataChange(); // Notify the app that data has changed
         });
     }
 
-    // Initial render
-    if (document.getElementById('accountsTable')) {
-        renderAccounts();
+    // --- Data Change Handler Enhancement ---
+    // This is a critical piece of the application's architecture.
+    // It enhances the global `afterDataChange` function (defined in `data-startup.js`).
+    // This ensures that whenever data is changed, it is first saved to localStorage and THEN the UI is updated.
+    if(typeof window.afterDataChange === 'function'){
+        const _afterDataChange = window.afterDataChange; // Store the original function
+        window.afterDataChange = function() {
+            _afterDataChange(); // Step 1: Call the original function (saves data to localStorage)
+            if (document.getElementById('accountsTable')) {
+                window.renderAccounts(); // Step 2: Update the UI by re-rendering the accounts table
+            }
+        };
     }
-});
 
-// --- Account Management ---
-let editingAccount = null;
+    // --- Initial Render ---
+    // This ensures that when the page loads, the accounts table is immediately populated with any existing data.
+    if (document.getElementById('accountsTable')) {
+        window.renderAccounts();
+    }
+}
 
+// --- Global Account Management Functions ---
+// These functions are defined in the global scope so they can be called directly from `onclick` attributes in the HTML.
+let editingAccount = null; // A state variable to track which account is being edited.
+
+// Pre-fills the main form with the data of the account to be edited.
 function editAccount(idx) {
     const acct = accounts[idx];
     getEl('acct_name').value = acct.name;
     getEl('acct_balance').value = acct.balance;
-    editingAccount = idx;
+    editingAccount = idx; // Set the editing state
 }
 
+// Deletes an account from the `accounts` array and triggers a data change.
 function deleteAccount(idx) {
     accounts.splice(idx, 1);
-    afterDataChange();
-}
-
-// Overwrite afterDataChange to trigger rerender
-if(typeof window.afterDataChange === 'function'){
-    const _afterDataChange = window.afterDataChange;
-    window.afterDataChange = function() {
-        _afterDataChange();
-        if (document.getElementById('accountsTable')) {
-            renderAccounts();
-        }
-    };
+    window.afterDataChange(); // Notify the app that data has changed
 }
