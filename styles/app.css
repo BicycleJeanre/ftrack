@@ -385,3 +385,19 @@ td[contenteditable="true"] {
 .grid-add-btn:focus, .grid-add-btn:hover {
   background: #2e3a2c;
 }
+
+.editable-grid-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  font-size: 1em;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  outline: none;
+  transition: border 0.2s;
+}
+.editable-grid-input:focus {
+  border: 1.5px solid #0078d7;
+  background: #f7fbff;
+}

@@ -48,3 +48,26 @@ const grid = new EditableGrid({
 ```
 
 > **Update Note:** The add (quick add) button is now an icon centered below the grid, managed by the grid itself.
+
+## vNext: Input Sizing and Overflow
+
+- Editable cells for text/number now use `<input>` elements with the `.editable-grid-input` class.
+- Inputs are sized to fit their cell (`width: 100%`, `box-sizing: border-box`), preventing overflow and improving UX.
+- Custom styles can be applied via `.editable-grid-input` in your CSS.
+
+**Example:**
+
+```js
+{
+  field: 'name',
+  editable: true,
+  type: 'text',
+  // ...
+}
+```
+
+**Result:**
+
+- When editing, the cell displays a text input that fits perfectly inside the cell.
+
+---

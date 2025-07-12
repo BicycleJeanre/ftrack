@@ -190,8 +190,14 @@ export class EditableGrid {
                         checkbox.checked = !!currentValue;
                         cell.appendChild(checkbox);
                     } else {
-                        cell.textContent = currentValue;
-                        cell.contentEditable = true;
+                        // Use input for text/number to prevent overflow
+                        const input = document.createElement('input');
+                        input.type = col.type === 'number' ? 'number' : 'text';
+                        input.value = currentValue !== undefined && currentValue !== null ? currentValue : '';
+                        input.className = 'editable-grid-input';
+                        input.style.width = '100%';
+                        input.style.boxSizing = 'border-box';
+                        cell.appendChild(input);
                     }
                 } else {
                     // When turning editing off, revert to text
