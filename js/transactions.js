@@ -78,113 +78,126 @@ document.addEventListener('DOMContentLoaded', function() {
 function renderTransactions() {
     const table = getEl('transactionsTable');
     if (!table) return;
-    const tbody = table.querySelector('tbody');
-    tbody.innerHTML = '';
-    transactions.forEach((txn, idx) => {
-        const tr = document.createElement('tr');
-        const fields = ['name','account','amount','date','recurring','end_date','freq','pct_change','apply_to'];
-        fields.forEach(field => {
-            const td = document.createElement('td');
-            if (field === 'recurring') {
-                td.textContent = txn.recurring ? 'Yes' : 'No';
-            } else if (field === 'amount' || field === 'pct_change') {
-                td.textContent = txn[field];
-            } else {
-                td.textContent = txn[field] || '';
+
+    const accountOptions = getAccounts().map(acc => ({ value: acc.name, text: acc.name }));
+
+    const columns = [
+        { field: 'description', header: 'Description', editable: true, type: 'text' },
+        { field: 'amount', header: 'Amount', editable: true, type: 'number' },
+        { 
+            field: 'account', 
+            header: 'Account', 
+            editable: true, 
+            type: 'select',
+            options: [
+                ...accountOptions,
+                { value: '__CREATE_NEW__', text: '-- Create New Account --' }
+            ]
+        },
+        { 
+            field: 'isRecurring', 
+            header: 'Recurring', 
+            editable: true, 
+            type: 'checkbox',
+            render: t => t.isRecurring ? '✔️' : '❌'
+        },
+        { 
+            field: 'executionDate', 
+            header: 'Execution Date', 
+            editable: (t) => !t.isRecurring, 
+            type: 'date',
+            render: t => t.isRecurring ? '<span class="disabled-text">N/A</span>' : (t.executionDate || '')
+        },
+        { 
+            field: 'recurrence', 
+            header: 'Recurrence', 
+            editable: (t) => t.isRecurring, 
+            render: t => {
+                if (!t.isRecurring || !t.recurrence) return '<span class="disabled-text">N/A</span>';
+                return `${t.recurrence.frequency} on day ${t.recurrence.dayOfMonth}, until ${t.recurrence.endDate}`;
             }
-            if (field !== 'recurring' && field !== 'account') {
-                td.classList.add('editable-cell');
-                td.onclick = function() { makeTxnCellEditable(td, idx, field); };
+        },
+        { 
+            field: 'amountChange', 
+            header: 'Amount Change', 
+            editable: false, // Will be handled by a modal
+            render: t => {
+                if (!t.amountChange) return 'None';
+                return `${t.amountChange.type}: ${t.amountChange.value} per ${t.amountChange.frequency}`;
             }
-            tr.appendChild(td);
-        });
-        // Actions
-        const tdActions = document.createElement('td');
-        tdActions.innerHTML = `
-            <button onclick="editTxn(${idx})">Edit</button>
-            <button onclick="deleteTxn(${idx})">Delete</button>
-        `;
-        tr.appendChild(tdActions);
-        tbody.appendChild(tr);
+        },
+        { field: 'tags', header: 'Tags', editable: true, type: 'text', render: t => (t.tags || []).join(', ') }
+    ];
+
+    const grid = new EditableGrid({
+        targetElement: table,
+        columns: columns,
+        data: getTransactions(),
+        onSave: saveTransaction,
+        onDelete: deleteTransaction,
+        onUpdate: (e, idx, row) => {
+            const cell = e.target.closest('td');
+            if (cell && cell.dataset.field === 'account') {
+                const select = cell.querySelector('select');
+                if (select && select.value === '__CREATE_NEW__') {
+                    handleCreateNewAccount(row);
+                }
+            }
+        },
+        quickAddButton: getEl('quickAddTransactionBtn')
     });
-    updateTxnAccountOptions();
+
+    window.renderTransactions = function() {
+        grid.setData(getTransactions());
+        grid.render();
+    };
+
+    window.renderTransactions();
 }
 
-function editTxn(idx) {
-    const txn = transactions[idx];
-    getEl('txn_name').value = txn.name;
-    getEl('txn_account').value = txn.account;
-    getEl('txn_amount').value = txn.amount;
-    getEl('txn_date').value = txn.date;
-    getEl('txn_recurring').checked = txn.recurring;
-    getEl('txn_end_date').value = txn.end_date || '';
-    getEl('txn_freq').value = txn.freq;
-    getEl('txn_pct_change').value = txn.pct_change;
-    getEl('txn_apply_to').value = txn.apply_to;
-    editingTxn = idx;
+function handleCreateNewAccount(row) {
+    // A simple modal could be created here instead of a prompt
+    const newAccountName = prompt("Enter the name for the new account:");
+    if (newAccountName) {
+        const newAccount = {
+            name: newAccountName,
+            balance: 0,
+            current_balance: 0,
+            group: "Expense", // Default group
+            tags: [],
+            interest: 0,
+            interest_period: 'year',
+            compound_period: 'none',
+            interest_type: 'simple'
+        };
+        getAccounts().push(newAccount);
+        window.afterDataChange();
+        
+        // Re-initialize the page to get fresh data and re-render the grid
+        initializeTransactionsPage();
+        
+        // Ideally, we would find the row that triggered this and set its new value.
+        // This is complex because the grid has been entirely rebuilt.
+        // For now, the user will have to re-select the new account manually.
+    }
 }
 
-function deleteTxn(idx) {
-    transactions.splice(idx, 1);
+function getTransactions() {
+    return window.transactions || [];
+}
+
+function getAccounts() {
+    return window.accounts || [];
+}
+
+function saveTransaction(idx, data, row) {
+    // Custom save logic if needed
     afterDataChange();
 }
 
-// --- Inline Editing for Transactions Table ---
-function makeTxnCellEditable(td, idx, field) {
-    if (td.querySelector('input,select')) return;
-    const oldValue = transactions[idx][field];
-    let input;
-    if (field === 'date' || field === 'end_date') {
-        input = document.createElement('input');
-        input.type = 'date';
-        input.value = oldValue || '';
-    } else if (field === 'recurring') {
-        input = document.createElement('select');
-        input.innerHTML = '<option value="true">Yes</option><option value="false">No</option>';
-        input.value = oldValue ? 'true' : 'false';
-    } else if (field === 'freq' || field === 'apply_to') {
-        input = document.createElement('select');
-        if (field === 'freq') input.innerHTML = '<option value="week">Weekly</option><option value="bi-week">Bi-Weekly</option><option value="month">Monthly</option><option value="day">Daily</option>';
-        if (field === 'apply_to') input.innerHTML = '<option value="amount">Amount</option><option value="balance">Balance</option><option value="both">Both</option>';
-        input.value = oldValue;
-    } else if (field === 'amount' || field === 'pct_change') {
-        input = document.createElement('input');
-        input.type = 'number';
-        input.value = oldValue;
-        input.step = '0.01';
-    } else {
-        input = document.createElement('input');
-        input.type = 'text';
-        input.value = oldValue || '';
-    }
-
-    const saveChange = () => {
-        let newValue = input.value;
-        if (input.type === 'number') {
-            newValue = parseFloat(newValue);
-        } else if (input.type === 'date') {
-            // no change
-        } else if (input.tagName.toLowerCase() === 'select' && field === 'recurring') {
-            newValue = (newValue === 'true');
-        }
-        
-        transactions[idx][field] = newValue;
-        td.textContent = field === 'recurring' ? (newValue ? 'Yes' : 'No') : newValue;
-        afterDataChange();
-    };
-
-    input.onblur = saveChange;
-    input.onkeydown = function(e) {
-        if (e.key === 'Enter') {
-            saveChange();
-        } else if (e.key === 'Escape') {
-            td.textContent = field === 'recurring' ? (oldValue ? 'Yes' : 'No') : oldValue;
-        }
-    };
-
-    td.innerHTML = '';
-    td.appendChild(input);
-    input.focus();
+function deleteTransaction(idx) {
+    transactions.splice(idx, 1);
+    afterDataChange();
 }
 
 // --- Transaction Table ---

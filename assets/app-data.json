@@ -7,7 +7,9 @@
       "interest": 2,
       "interest_period": "year",
       "compound_period": "month",
-      "interest_type": "compound"
+      "interest_type": "compound",
+      "group": "Asset",
+      "tags": ["primary"]
     },
     {
       "name": "Credit",
@@ -16,10 +18,43 @@
       "interest": 2,
       "interest_period": "year",
       "compound_period": "month",
-      "interest_type": "compound"
+      "interest_type": "compound",
+      "group": "Liability",
+      "tags": ["credit card"]
     }
   ],
-  "transactions": [],
+  "transactions": [
+    {
+      "description": "Salary",
+      "amount": 5000,
+      "account": "Transactional",
+      "isRecurring": true,
+      "recurrence": {
+        "frequency": "monthly",
+        "endDate": "2030-12-31",
+        "dayOfMonth": 15
+      },
+      "amountChange": null,
+      "tags": ["income"]
+    },
+    {
+      "description": "Rent",
+      "amount": -2000,
+      "account": "Transactional",
+      "isRecurring": true,
+      "recurrence": {
+        "frequency": "monthly",
+        "endDate": "2030-12-31",
+        "dayOfMonth": 1
+      },
+      "amountChange": {
+        "type": "percentage",
+        "value": 2,
+        "frequency": "yearly"
+      },
+      "tags": ["housing", "rent"]
+    }
+  ],
   "forecast": [],
   "budget": []
 }

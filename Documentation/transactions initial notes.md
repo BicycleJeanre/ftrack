@@ -1,0 +1,13 @@
+- branch out
+- change descriptions to tooltips. 
+- convert transactions into editable grid 
+    - make editable grid from account a separate module that can be reused for both the account and transaction pages. 
+- remove option for apply % to
+- make start and end date requirements dynamic based on the recurrence flag
+- make both name and account utilise accounts
+    - can select existing or create new from transactions page
+    - create an accounts grouping property where the user can select from the standard accounting accounts (e.g, assets, liabilities, etc. )
+        - default should be expense (or accounting equivalent) when entered from transaction page
+    - allow custom tagging of accounts and transactions. 
+- make change per period an optional item to add to a transaction definition
+    - split the concepts of a transaction definition and a transaction instance (used for forecast and budget sections later on)
