@@ -88,15 +88,16 @@ function initializeTransactionsPage() {
     const columns = [
         { field: 'description', header: 'Description', editable: true, type: 'text' },
         { field: 'amount', header: 'Amount', editable: true, type: 'number' },
-        { 
-            field: 'account', 
-            header: 'Account', 
-            editable: true, 
+        {
+            field: 'account',
+            header: 'Account',
+            editable: true,
             type: 'select',
-            options: [
-                ...accountOptions,
-                { value: '__CREATE_NEW__', text: '-- Create New Account --' }
-            ]
+            options: accountOptions,
+            // Add modal icon for creating new account
+            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>',
+            modalIconTitle: 'Create New Account',
+            onModalIconClick: ({ row }) => handleCreateNewAccount(row)
         },
         { 
             field: 'isRecurring', 
@@ -164,16 +165,6 @@ function initializeTransactionsPage() {
             const transactions = getTransactions();
             const txn = transactions[idx];
             if (!txn) return;
-
-            // Handle creating a new account from the dropdown
-            if (cell.dataset.field === 'account') {
-                const select = cell.querySelector('select');
-                if (select && select.value === '__CREATE_NEW__') {
-                    // When 'Create New' is selected, we need to find the actual row being edited.
-                    // The `row` parameter from the event handler is the correct one.
-                    handleCreateNewAccount(row);
-                }
-            }
 
             // Handle opening the recurrence modal
             if (cell.dataset.field === 'recurrence' && txn.isRecurring) {
