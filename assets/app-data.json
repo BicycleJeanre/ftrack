@@ -25,6 +25,10 @@
       "tags": [
         "credit card"
       ]
+    },
+    {
+      "name": "",
+      "balance": 0
     }
   ],
   "transactions": [

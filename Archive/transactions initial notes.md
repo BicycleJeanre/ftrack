@@ -11,3 +11,6 @@
     - allow custom tagging of accounts and transactions. 
 - make change per period an optional item to add to a transaction definition
     - split the concepts of a transaction definition and a transaction instance (used for forecast and budget sections later on)
+
+> **Update Note:**
+> The grid and persistence architecture described here is now fully implemented: transactions and accounts both use the shared EditableGrid module, with all changes saved immediately to disk (Electron/Node.js) via callback-driven persistence.

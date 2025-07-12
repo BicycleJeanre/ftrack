@@ -44,3 +44,4 @@
 * If structure, navigation, or data flow changes, update `PROJECT_OVERVIEW.md`.
 * Keep format consistent, use Mermaid diagrams when needed.
 * Only update affected docs. Add new ones for new files.
+- use the `documentation/Update Documentation` for details on how to update.

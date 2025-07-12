@@ -1,6 +1,7 @@
 # accounts.md
 
-> **Update Note:** The Accounts page now uses a modal icon in the interest column to trigger the interest modal directly from the grid, and the add (quick add) button is now a centered icon below the grid. Grid text/number inputs are now properly sized and do not overflow their cells.
+> **Update Note:**
+> The Accounts page now uses the EditableGrid as the exclusive editing interface. All changes are saved immediately to disk (Electron/Node.js) via callback-driven persistence to `filemgmt.js`. Spinners and logging provide user feedback and traceability. Form-based editing has been removed.
 
 ## Purpose
 Defines the Accounts page, where users can add, edit, and delete financial accounts, including setting interest rates and compounding options. Now uses the reusable EditableGrid component for inline editing and the modal component system for interest settings. All data is loaded from and saved to a unified JSON file on disk via `filemgmt.js`.
@@ -17,7 +18,7 @@ Defines the Accounts page, where users can add, edit, and delete financial accou
 
 ## Interactions
 - Reads and writes account data to the global state (`window.accounts`) with enhanced data structure
-- Triggers `afterDataChange` to save all app data to the unified JSON file via `filemgmt.js`
+- Triggers `afterDataChange` to save all app data to the unified JSON file via `filemgmt.js` (disk persistence only)
 - Interacts with `transactions.js` for account dropdowns
 - Uses the same grid system as transactions for consistent user experience
 

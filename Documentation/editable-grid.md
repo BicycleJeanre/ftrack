@@ -1,5 +1,8 @@
 # editable-grid.md
 
+> **Update Note:**
+> The EditableGrid now supports a callback-driven, always-in-sync save flow. All edits trigger immediate persistence to disk (Electron/Node.js) via callbacks to `filemgmt.js`. The grid also features spinners and console logging for user feedback and traceability. It is now the exclusive editing interface for accounts and transactions.
+
 ## Purpose
 A reusable, configurable grid component that provides inline editing capabilities for tabular data. Supports various input types, conditional editability, custom rendering functions, dynamic action configuration, per-cell event callbacks, and modal display icons.
 
@@ -12,13 +15,16 @@ A reusable, configurable grid component that provides inline editing capabilitie
 - **Per-Cell/Column Callbacks**: Use `onCellClick` in column definition to trigger external code or modals
 - **Modal Display Icon**: Use `modalIcon` and `onModalIconClick` in column definition to show an icon and trigger a callback
 - **Add Icon Placement**: The add (quick add) button is now an icon centered below the grid, managed by the grid itself
+- **Callback-Driven Save Flow**: All edits are immediately persisted to disk via the provided `onSave` callback, which triggers the global save logic in `filemgmt.js`.
+- **Spinners and Logging**: Visual feedback (spinner) and console logging are provided during save operations for better UX and debugging.
+- **Exclusive Editing Interface**: EditableGrid is now the only way to edit accounts and transactions; all form-based editing has been removed.
 
 ## Configuration
 The EditableGrid accepts a configuration object with:
 - `targetElement`: The table element to enhance
 - `columns`: Array of column definitions with field, header, type, editability rules, and optional `onCellClick`, `modalIcon`, `onModalIconClick`
 - `data`: Array of data objects to display
-- `onSave`: Callback for save operations
+- `onSave`: Callback for save operations (should persist to disk via filemgmt.js)
 - `onDelete`: Callback for delete operations
 - `onUpdate`: Callback for cell-specific actions (e.g., opening modals)
 - `actions`: Object to enable/disable actions: `{ add: true, edit: true, delete: true }` (all true by default)

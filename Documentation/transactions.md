@@ -1,6 +1,7 @@
 # transactions.md
 
-> **Update Note:** The Transactions page has been completely refactored from a form-based interface to a modern, grid-based system using the new EditableGrid component with inline editing capabilities.
+> **Update Note:**
+> The Transactions page now uses the EditableGrid as the exclusive editing interface. All changes are saved immediately to disk (Electron/Node.js) via callback-driven persistence to `filemgmt.js`. Spinners and logging provide user feedback and traceability. Form-based editing has been removed.
 
 ## Purpose
 Defines the Transactions page, where users can add, edit, and delete financial transactions that affect accounts. Supports recurring transactions with complex recurrence patterns and dynamic amount changes over time. Features an inline-editable grid interface with modal dialogs for complex data entry. All data is loaded from and saved to a unified JSON file on disk via `filemgmt.js`.
@@ -19,7 +20,7 @@ Defines the Transactions page, where users can add, edit, and delete financial t
 
 ## Interactions
 - Reads and writes transaction data to the global state (`window.transactions`) with enhanced data structure
-- Triggers `afterDataChange` to save all app data to the unified JSON file via `filemgmt.js`
+- Triggers `afterDataChange` to save all app data to the unified JSON file via `filemgmt.js` (disk persistence only)
 - Dynamically updates account dropdown options when new accounts are created
 - Uses conditional rendering to show/hide fields based on transaction type (recurring vs one-time)
 
