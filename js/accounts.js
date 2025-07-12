@@ -14,18 +14,80 @@ if (typeof window !== 'undefined') {
             content.style.display = (content.style.display === 'none') ? 'block' : 'none';
         };
     }
-    // Ensure updateTxnAccountOptions is always defined before use
     if (typeof window.updateTxnAccountOptions === 'undefined') {
         window.updateTxnAccountOptions = function() {};
     }
 }
 
-// Wait for the DOM to be fully loaded before running any script that interacts with it.
-// This ensures that all HTML elements are available to the script.
-document.addEventListener('DOMContentLoaded', initializeAccountsPage);
+// --- Global Account Management State ---
+let editingAccount = null;
+let newAccountInterest = {};
+console.log('hello')
+// Always use window.accounts in global functions
+function getAccounts() {
+    return window.accounts || [];
+}
 
-// This function sets up the entire Accounts page. It's called once the DOM is ready.
+// --- Global Account Management Functions ---
+function editAccount(idx) {
+    const accounts = getAccounts();
+    console.log('[Accounts] editAccount idx', idx, accounts[idx]);
+    getEl('acct_name').value = accounts[idx].name;
+    getEl('acct_balance').value = accounts[idx].balance;
+    newAccountInterest = {
+        interest: accounts[idx].interest ?? 0,
+        interest_period: accounts[idx].interest_period || 'month',
+        compound_period: accounts[idx].compound_period || 'month',
+        interest_type: accounts[idx].interest_type || 'compound'
+    };
+    editingAccount = idx;
+}
+
+function deleteAccount(idx) {
+    const accounts = getAccounts();
+    accounts.splice(idx, 1);
+    console.log('[Accounts] deleteAccount idx', idx);
+    window.afterDataChange();
+}
+
+import { InterestModal } from './modal-interest.js';
+
+function openInterestModal(idx) {
+    const accounts = getAccounts();
+    let acct;
+    let onSave;
+    if (typeof idx === 'number') {
+        acct = { ...accounts[idx] };
+        onSave = (updated) => {
+            accounts[idx] = { ...acct, ...updated };
+            if (editingAccount === idx) {
+                newAccountInterest = { ...updated };
+            }
+            console.log('[Accounts] openInterestModal save', idx, accounts[idx]);
+            window.afterDataChange();
+        };
+    } else {
+        acct = { ...newAccountInterest };
+        onSave = (updated) => {
+            newAccountInterest = { ...newAccountInterest, ...updated };
+            console.log('[Accounts] openInterestModal new interest', newAccountInterest);
+        };
+    }
+    InterestModal.show(
+        acct,
+        onSave,
+        () => {
+            console.log('[Accounts] openInterestModal cancel');
+        }
+    );
+}
+
+// --- Main Page Initialization ---
 function initializeAccountsPage() {
+    // Always use window.accounts for all operations
+    window.accounts = window.accounts || [];
+    console.log('[Accounts] initializeAccountsPage: window.accounts =', window.accounts);
+
     // --- Inject Panel Header with Accordion Toggle ---
     const panelHeader = document.createElement('div');
     panelHeader.className = 'panel-header';
@@ -40,13 +102,13 @@ function initializeAccountsPage() {
     if (headerContainer) headerContainer.replaceWith(panelHeader);
 
     // --- Account Table Rendering ---
-    // This function dynamically builds the HTML for the accounts table based on the global `accounts` array.
     window.renderAccounts = function() {
         const accountsTable = getEl('accountsTable');
         if (!accountsTable) return;
         const tbody = accountsTable.querySelector('tbody');
         tbody.innerHTML = '';
-        accounts.forEach((acct, idx) => {
+        console.log('[Accounts] renderAccounts: window.accounts =', window.accounts);
+        window.accounts.forEach((acct, idx) => {
             const interestPeriod = acct.interest_period || 'month';
             const compoundPeriod = acct.compound_period || 'month';
             const interestType = acct.interest_type || 'compound';
@@ -64,7 +126,6 @@ function initializeAccountsPage() {
                     <button class="interest-account-btn">Add/Edit Interest</button>
                 </td>
             `;
-            // Attach event listeners for CSP compliance
             const editBtn = tr.querySelector('.edit-account-btn');
             const deleteBtn = tr.querySelector('.delete-account-btn');
             const interestBtn = tr.querySelector('.interest-account-btn');
@@ -73,7 +134,7 @@ function initializeAccountsPage() {
             interestBtn.addEventListener('click', () => openInterestModal(idx));
             tbody.appendChild(tr);
         });
-        updateTxnAccountOptions();
+        window.updateTxnAccountOptions();
     };
 
     // --- Add/Edit Interest Modal for New Account ---
@@ -92,36 +153,65 @@ function initializeAccountsPage() {
     }
 
     // --- Account Form Handling ---
-    // This section manages the submission of the main form for adding or editing accounts.
+    // DEBUG: Check if form exists and log early
+    setTimeout(() => {
+        const accountForm = getEl('accountForm');
+        const addUpdateBtn = document.getElementById('addUpdateBtn');
+        console.log('[Accounts] DEBUG: accountForm:', accountForm, 'addUpdateBtn:', addUpdateBtn);
+        if (!accountForm) {
+            console.error('[Accounts] ERROR: accountForm not found in DOM at init');
+        }
+        if (!addUpdateBtn) {
+            console.warn('[Accounts] WARNING: addUpdateBtn not found in DOM at init');
+        }
+        // Extra: Try to attach a click handler directly for debugging
+        if (addUpdateBtn) {
+            addUpdateBtn.addEventListener('click', () => {
+                console.log('[Accounts] DEBUG: addUpdateBtn clicked');
+            });
+        }
+    }, 0);
+
+    // DEBUG: Log when initializeAccountsPage is called
+    console.log('[Accounts] DEBUG: initializeAccountsPage called');
+
     const accountForm = getEl('accountForm');
+    console.log('hello')
     if (accountForm) {
         accountForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            console.log('[Accounts] Form submit handler fired');
             const acct = {
                 name: getEl('acct_name').value,
                 balance: parseFloat(getEl('acct_balance').value),
                 ...newAccountInterest
             };
-            // If `editingAccount` is set, update the existing account; otherwise, add a new one.
             if (editingAccount !== null) {
-                accounts[editingAccount] = acct;
-                editingAccount = null; // Reset the editing state
+                window.accounts[editingAccount] = acct;
+                console.log('[Accounts] Updated account at index', editingAccount, acct);
+                editingAccount = null;
             } else {
-                accounts.push(acct);
+                window.accounts.push(acct);
+                console.log('[Accounts] Added new account:', acct);
             }
-            newAccountInterest = {}; // Reset after use
-            this.reset(); // Clear the form fields
-            window.afterDataChange(); // Notify the app that data has changed
+            newAccountInterest = {};
+            this.reset();
+            window.afterDataChange();
         });
+    } else {
+        console.error('[Accounts] ERROR: accountForm not found when trying to add submit event listener');
     }
 
     // --- Data Change Handler Enhancement ---
-    // This is a critical piece of the application's architecture.
-    // It enhances the global `afterDataChange` function (defined in `data-startup.js`).
-    // This ensures that whenever data is changed, it is first saved to file and THEN the UI is updated.
     if(typeof window.afterDataChange === 'function'){
-        const _afterDataChange = window.afterDataChange; // Store the original function
+        const _afterDataChange = window.afterDataChange;
         window.afterDataChange = function() {
+            console.log('[Accounts] afterDataChange: saving data', {
+                accounts: window.accounts,
+                transactions: window.transactions,
+                forecast: window.forecast,
+                budget: window.budget
+            });
             if (window.filemgmt && typeof window.filemgmt.saveAppDataToFile === 'function') {
                 window.filemgmt.saveAppDataToFile({
                     accounts: window.accounts,
@@ -130,76 +220,30 @@ function initializeAccountsPage() {
                     budget: window.budget
                 });
             }
-            _afterDataChange(); // Step 2: Call the original function (updates UI)
+            _afterDataChange();
             if (document.getElementById('accountsTable')) {
-                window.renderAccounts(); // Step 3: Update the UI by re-rendering the accounts table
+                window.renderAccounts();
             }
         };
     }
 
     // --- Initial Render ---
-    // This ensures that when the page loads, the accounts table is immediately populated with any existing data.
     if (document.getElementById('accountsTable')) {
         window.renderAccounts();
     }
 }
 
-// --- Global Account Management Functions ---
-// These functions are defined in the global scope so they can be called directly from `onclick` attributes in the HTML.
-let editingAccount = null; // A state variable to track which account is being edited.
-let newAccountInterest = {}; // <-- Move this to global scope so it's shared for both add and edit
-
-// Pre-fills the main form with the data of the account to be edited.
-function editAccount(idx) {
-    const acct = accounts[idx];
-    getEl('acct_name').value = acct.name;
-    getEl('acct_balance').value = acct.balance;
-    // Pre-fill interest settings for editing
-    newAccountInterest = {
-        interest: acct.interest ?? 0,
-        interest_period: acct.interest_period || 'month',
-        compound_period: acct.compound_period || 'month',
-        interest_type: acct.interest_type || 'compound'
-    };
-    editingAccount = idx; // Set the editing state
-}
-
-// Deletes an account from the `accounts` array and triggers a data change.
-function deleteAccount(idx) {
-    accounts.splice(idx, 1);
-    window.afterDataChange(); // Notify the app that data has changed
-}
-
-// Import the InterestModal object from the modal-interest.js module
-import { InterestModal } from './modal-interest.js';
-
-function openInterestModal(idx) {
-    let acct;
-    let onSave;
-    if (typeof idx === 'number') {
-        // Editing existing account
-        acct = { ...accounts[idx] };
-        onSave = (updated) => {
-            // Save changes to the account
-            accounts[idx] = { ...acct, ...updated };
-            // Also update newAccountInterest if editing
-            if (editingAccount === idx) {
-                newAccountInterest = { ...updated };
-            }
-            window.afterDataChange();
-        };
-    } else {
-        // Creating new account
-        acct = { ...newAccountInterest };
-        onSave = (updated) => {
-            newAccountInterest = { ...newAccountInterest, ...updated };
-        };
+// --- Initialization: Only after data is loaded ---
+function tryInitAccountsPage() {
+    document.addEventListener('appDataLoaded', () => {
+        initializeAccountsPage();
+        console.log('[Accounts] App data loaded, initializing accounts page');
+    }, { once: true });
+    
+    if (window.accounts && Array.isArray(window.accounts)) {
+        console.log('[Accounts] Initializing accounts page with existing data');
+        initializeAccountsPage();
     }
-    InterestModal.show(
-        acct,
-        onSave,
-        () => {
-            // Cancel handler (optional)
-        }
-    );
 }
+
+tryInitAccountsPage();

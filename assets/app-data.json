@@ -1,5 +1,14 @@
 {
-  "accounts": [],
+  "accounts": [
+    {
+      "name": "1",
+      "balance": 1,
+      "interest": 2,
+      "interest_period": "month",
+      "compound_period": "month",
+      "interest_type": "compound"
+    }
+  ],
   "transactions": [],
   "forecast": [],
   "budget": []

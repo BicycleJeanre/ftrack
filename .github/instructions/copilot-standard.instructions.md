@@ -34,7 +34,7 @@
 
 ## Git Merging
 
-* `mergeup`: merge current branch into its origin.
+* `mergeup`: merge current branch into its base branch
 * Provide one-liner for this.
 * Suggest deleting the feature branch after merge.
 

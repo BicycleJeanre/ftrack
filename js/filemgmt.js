@@ -87,27 +87,38 @@ if (importInput) {
     });
 }
 
-function updateActiveDataSourceDisplay() {
-    // Placeholder for a UI element to show the data source
-}
-
 // --- File-based App Data Management ---
 
-const APP_DATA_PATH = 'assets/app-data.json';
+const path = window.require ? window.require('path') : null;
+const fs = window.require ? window.require('fs') : null;
+// For Electron/Node.js, always resolve from the app root, never use browser fetch path
+const APP_DATA_PATH = (fs && path)
+    ? path.resolve(process.cwd(), 'assets/app-data.json')
+    : '/assets/app-data.json';
 
 async function loadAppDataFromFile() {
     try {
-        const response = await fetch(APP_DATA_PATH);
-        if (!response.ok) throw new Error('Failed to load app data file');
-        const data = await response.json();
-        window.accounts = data.accounts || [];
-        window.transactions = data.transactions || [];
-        window.forecast = data.forecast || [];
-        window.budget = data.budget || [];
-        return data;
+        if (fs && path) {
+            const dataRaw = fs.readFileSync(APP_DATA_PATH, 'utf-8');
+            const data = JSON.parse(dataRaw);
+            window.accounts = data.accounts || [];
+            window.transactions = data.transactions || [];
+            window.forecast = data.forecast || [];
+            window.budget = data.budget || [];
+            return data;
+        } else {
+            // Fallback for browser: fetch
+            const response = await fetch(APP_DATA_PATH);
+            if (!response.ok) throw new Error('Failed to load app data file');
+            const data = await response.json();
+            window.accounts = data.accounts || [];
+            window.transactions = data.transactions || [];
+            window.forecast = data.forecast || [];
+            window.budget = data.budget || [];
+            return data;
+        }
     } catch (err) {
         console.error('Error loading app data:', err);
-        // Fallback to empty arrays if file not found or error
         window.accounts = [];
         window.transactions = [];
         window.forecast = [];
@@ -118,11 +129,12 @@ async function loadAppDataFromFile() {
 
 async function saveAppDataToFile(data) {
     try {
-        // For browser-only, this is a no-op or could POST to a backend API
-        // For Node/Electron, use fs.writeFileSync or similar
-        // Here, we just log for demo
-        console.log('Saving app data:', data);
-        // TODO: Implement actual file write if running in Node/Electron
+        if (fs && path) {
+            fs.writeFileSync(APP_DATA_PATH, JSON.stringify(data, null, 2), 'utf-8');
+        } else {
+            // In browser: no-op or could trigger a download
+            console.log('Saving app data (browser mode):', data);
+        }
     } catch (err) {
         console.error('Error saving app data:', err);
     }
