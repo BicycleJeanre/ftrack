@@ -79,4 +79,13 @@ const grid = new EditableGrid({
 
 - Double-click a row: the row switches to edit mode, allowing inline changes.
 
+## vNext: Double-Click Interest Modal
+
+- Double-clicking the interest column cell now opens the interest modal directly (if the column is configured with a modal icon and callback).
+- This provides a fast, keyboard-free way to access advanced settings from the grid.
+
+**Example:**
+
+- Double-click the interest cell: the interest modal opens for that row.
+
 ---

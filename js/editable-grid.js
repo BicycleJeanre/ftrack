@@ -73,6 +73,14 @@ export class EditableGrid {
 
         // Double-click to edit row
         tr.addEventListener('dblclick', (e) => {
+            // If double-clicked cell is interest column and has modalIcon/onModalIconClick, open modal
+            const cell = e.target.closest('td');
+            const colDef = cell && this.columns.find(c => c.field === cell.dataset.field);
+            if (colDef && colDef.modalIcon && typeof colDef.onModalIconClick === 'function') {
+                colDef.onModalIconClick({ event: e, idx, row: tr, cell, grid: this });
+                return;
+            }
+            // Otherwise, double-click edits row
             if (this.actions.edit !== false) {
                 this.toggleEditState(tr, true);
             }
