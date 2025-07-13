@@ -27,6 +27,7 @@ export class EditableGrid {
         this.tbody = this.targetElement.querySelector('tbody');
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
         this._ignoreNextFocusout = false; // Flag to ignore next focusout
+        this.onAfterDelete = options.onAfterDelete;
     }
 
     // Method to render the entire grid
@@ -148,7 +149,7 @@ export class EditableGrid {
                 this._ignoreNextFocusout = true; // Prevent immediate revert
                 this.toggleEditState(row, true);
             } else if (btn.classList.contains('delete-btn')) {
-                if (this.onDelete) this.onDelete(idx);
+                this.deleteRow(idx, row);
             } else if (btn.classList.contains('save-btn')) {
                 this.saveRow(idx, row);
             } else if (btn.classList.contains('cancel-btn')) {
@@ -166,98 +167,104 @@ export class EditableGrid {
         }
     }
 
-    // Method to toggle the edit state of a row
-    toggleEditState(row, isEditing) {
-        const item = this.data[row.dataset.idx] || {};
+    // Method to delete a row's data (NEW)
+    async deleteRow(idx, row) {
+        if (!this._deletingRows) this._deletingRows = new Set();
+        if (this._deletingRows.has(row)) {
+            console.warn(`[EditableGrid] deleteRow already in progress for idx=${idx}`);
+            return;
+        }
+        this._deletingRows.add(row);
+        try {
+            // Show spinner on the row
+            row.classList.add('saving-spinner');
+            const spinner = document.createElement('span');
+            spinner.className = 'row-spinner';
+            spinner.innerHTML = '<svg width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#888" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.415, 31.415" transform="rotate(0 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>';
+            row.querySelector('td:last-child').appendChild(spinner);
+            console.log(`[EditableGrid] Spinner shown for delete idx=${idx}`);
 
-        this.columns.forEach(col => {
-            let isCellEditable = false;
-            if (typeof col.editable === 'function') {
-                isCellEditable = col.editable(item);
-            } else {
-                isCellEditable = !!col.editable;
+            // Call consumer's onDelete
+            let deleteResult;
+            if (this.onDelete) {
+                console.log(`[EditableGrid] Calling onDelete for idx=${idx}`);
+                deleteResult = this.onDelete(idx, row, this);
             }
-
-            if (isCellEditable) {
-                const cell = row.querySelector(`td[data-field="${col.field}"]`);
-                if (isEditing) {
-                    const currentValue = item[col.field];
-                    cell.innerHTML = ''; // Clear the cell
-
-                    if (col.type === 'select') {
-                        const select = document.createElement('select');
-                        if (col.options) {
-                            col.options.forEach(opt => {
-                                const option = document.createElement('option');
-                                option.value = typeof opt === 'object' ? opt.value : opt;
-                                option.textContent = typeof opt === 'object' ? opt.text : opt;
-                                select.appendChild(option);
-                            });
-                        }
-                        select.value = currentValue;
-                        cell.appendChild(select);
-                    } else if (col.type === 'checkbox') {
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.checked = !!currentValue;
-                        cell.appendChild(checkbox);
-                    } else {
-                        const input = document.createElement('input');
-                        input.type = col.type === 'number' ? 'number' : 'text';
-                        input.value = currentValue !== undefined && currentValue !== null ? currentValue : '';
-                        input.className = 'editable-grid-input';
-                        input.style.width = '100%';
-                        input.style.boxSizing = 'border-box';
-                        // No blur revert here
-                        cell.appendChild(input);
-                    }
-                } else {
-                    // When turning editing off, revert to text
-                    cell.contentEditable = false;
-                    if (col.render) {
-                        cell.innerHTML = col.render(item);
-                    } else {
-                        cell.textContent = item[col.field];
-                    }
-                }
+            if (deleteResult && typeof deleteResult.then === 'function') {
+                await deleteResult;
             }
-        });
+            console.log(`[EditableGrid] onDelete complete for idx=${idx}`);
 
-        row.querySelector('.edit-btn').classList.toggle('hidden', isEditing);
-        row.querySelector('.delete-btn').classList.toggle('hidden', isEditing);
-        row.querySelector('.save-btn').classList.toggle('hidden', !isEditing);
-        row.querySelector('.cancel-btn').classList.toggle('hidden', !isEditing);
+            // Do NOT mutate this.data here; let consumer own the data
+            // this.data.splice(idx, 1);
 
-        row.classList.toggle('editing', isEditing);
-        if (isEditing) {
-            // Add focusout handler to row to revert when leaving the row
-            const onRowFocusOut = (e) => {
-                if (this._ignoreNextFocusout) {
-                    this._ignoreNextFocusout = false;
-                    return;
-                }
-                // If focus is moving outside the row (not to a child)
-                if (!row.contains(e.relatedTarget)) {
-                    this.toggleEditState(row, false);
-                    row.removeEventListener('focusout', onRowFocusOut);
-                }
-            };
-            row.addEventListener('focusout', onRowFocusOut);
-
-            const firstEditable = this.columns.find(c => c.editable);
-            if (firstEditable) {
-                const cellToFocus = row.querySelector(`td[data-field="${firstEditable.field}"]`);
-                cellToFocus.focus();
-                const selection = window.getSelection();
-                const range = document.createRange();
-                range.selectNodeContents(cellToFocus);
-                selection.removeAllRanges();
-                selection.addRange(range);
+            // Call consumer's onAfterDelete if defined
+            if (typeof this.onAfterDelete === 'function') {
+                console.log(`[EditableGrid] Calling onAfterDelete for idx=${idx}`);
+                await this.onAfterDelete(idx, row, this);
             }
+            console.log(`[EditableGrid] onAfterDelete complete for idx=${idx}`);
+
+            // Remove spinner
+            if (spinner.parentNode) spinner.parentNode.removeChild(spinner);
+            row.classList.remove('saving-spinner');
+            console.log(`[EditableGrid] Spinner removed for delete idx=${idx}`);
+
+            // Remove row from DOM
+            if (row.parentNode) row.parentNode.removeChild(row);
+            // Always re-sync grid data from source and re-render
+            if (typeof this.options === 'object' && this.options.data) {
+                this.data = this.options.data;
+            }
+            this.render();
+        } finally {
+            this._deletingRows.delete(row);
         }
     }
 
-    // Method to save a row's data
+    // Split out row data extraction (for saveRow)
+    extractRowData(row, idx) {
+        const updatedData = {};
+        const originalData = this.data[idx] || {};
+        this.columns.forEach(col => {
+            let isCellEditable = false;
+            if (typeof col.editable === 'function') {
+                isCellEditable = col.editable(originalData);
+            } else {
+                isCellEditable = !!col.editable;
+            }
+            if (isCellEditable) {
+                const cell = row.querySelector(`td[data-field="${col.field}"]`);
+                let value;
+                if (col.type === 'select') {
+                    const select = cell.querySelector('select');
+                    value = select ? select.value : (originalData[col.field] ?? col.default ?? '');
+                } else if (col.type === 'checkbox') {
+                    const checkbox = cell.querySelector('input[type="checkbox"]');
+                    value = checkbox ? checkbox.checked : (originalData[col.field] ?? col.default ?? false);
+                } else {
+                    const input = cell.querySelector('input');
+                    if (input) {
+                        value = input.value;
+                        if (col.type === 'number') {
+                            const parsed = parseFloat(value);
+                            value = isNaN(parsed) ? 0 : parsed;
+                        }
+                    } else {
+                        value = cell.textContent;
+                        if (col.type === 'number') {
+                            const parsed = parseFloat(value);
+                            value = isNaN(parsed) ? 0 : parsed;
+                        }
+                    }
+                }
+                updatedData[col.field] = value;
+            }
+        });
+        return updatedData;
+    }
+
+    // Method to save a row's data (refactored to use extractRowData)
     async saveRow(idx, row) {
         if (!this._savingRows) this._savingRows = new Set();
         if (this._savingRows.has(row)) {
@@ -267,46 +274,7 @@ export class EditableGrid {
         this._savingRows.add(row);
         try {
             console.log(`[EditableGrid] saveRow called for idx=${idx}`);
-            const updatedData = {};
-            const originalData = this.data[idx] || {};
-
-            this.columns.forEach(col => {
-                let isCellEditable = false;
-                if (typeof col.editable === 'function') {
-                    isCellEditable = col.editable(originalData);
-                } else {
-                    isCellEditable = !!col.editable;
-                }
-
-                if (isCellEditable) {
-                    const cell = row.querySelector(`td[data-field="${col.field}"]`);
-                    let value;
-
-                    if (col.type === 'select') {
-                        const select = cell.querySelector('select');
-                        value = select ? select.value : (originalData[col.field] ?? col.default ?? '');
-                    } else if (col.type === 'checkbox') {
-                        const checkbox = cell.querySelector('input[type="checkbox"]');
-                        value = checkbox ? checkbox.checked : (originalData[col.field] ?? col.default ?? false);
-                    } else {
-                        const input = cell.querySelector('input');
-                        if (input) {
-                            value = input.value;
-                            if (col.type === 'number') {
-                                const parsed = parseFloat(value);
-                                value = isNaN(parsed) ? 0 : parsed;
-                            }
-                        } else {
-                            value = cell.textContent;
-                            if (col.type === 'number') {
-                                const parsed = parseFloat(value);
-                                value = isNaN(parsed) ? 0 : parsed;
-                            }
-                        }
-                    }
-                    updatedData[col.field] = value;
-                }
-            });
+            const updatedData = this.extractRowData(row, idx);
 
             // Update internal data array BEFORE calling onSave
             if (idx === -1) {
@@ -361,5 +329,89 @@ export class EditableGrid {
         this.tbody.appendChild(newRow);
         this.toggleEditState(newRow, true);
         // Do NOT call this.render() here; let saveRow handle re-render after save
+    }
+
+    // Method to toggle the edit state of a row
+    toggleEditState(row, isEditing) {
+        const item = this.data[row.dataset.idx] || {};
+        this.columns.forEach(col => {
+            let isCellEditable = false;
+            if (typeof col.editable === 'function') {
+                isCellEditable = col.editable(item);
+            } else {
+                isCellEditable = !!col.editable;
+            }
+            if (isCellEditable) {
+                const cell = row.querySelector(`td[data-field="${col.field}"]`);
+                if (isEditing) {
+                    const currentValue = item[col.field];
+                    cell.innerHTML = '';
+                    if (col.type === 'select') {
+                        const select = document.createElement('select');
+                        if (col.options) {
+                            col.options.forEach(opt => {
+                                const option = document.createElement('option');
+                                option.value = typeof opt === 'object' ? opt.value : opt;
+                                option.textContent = typeof opt === 'object' ? opt.text : opt;
+                                select.appendChild(option);
+                            });
+                        }
+                        select.value = currentValue;
+                        cell.appendChild(select);
+                    } else if (col.type === 'checkbox') {
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.checked = !!currentValue;
+                        cell.appendChild(checkbox);
+                    } else {
+                        const input = document.createElement('input');
+                        input.type = col.type === 'number' ? 'number' : 'text';
+                        input.value = currentValue !== undefined && currentValue !== null ? currentValue : '';
+                        input.className = 'editable-grid-input';
+                        input.style.width = '100%';
+                        input.style.boxSizing = 'border-box';
+                        cell.appendChild(input);
+                    }
+                } else {
+                    cell.contentEditable = false;
+                    if (col.render) {
+                        cell.innerHTML = col.render(item);
+                    } else {
+                        cell.textContent = item[col.field];
+                    }
+                }
+            }
+        });
+        row.querySelector('.edit-btn').classList.toggle('hidden', isEditing);
+        row.querySelector('.delete-btn').classList.toggle('hidden', isEditing);
+        row.querySelector('.save-btn').classList.toggle('hidden', !isEditing);
+        row.querySelector('.cancel-btn').classList.toggle('hidden', !isEditing);
+        row.classList.toggle('editing', isEditing);
+        if (isEditing) {
+            // Add focusout handler to row to revert when leaving the row
+            const onRowFocusOut = (e) => {
+                if (this._ignoreNextFocusout) {
+                    this._ignoreNextFocusout = false;
+                    return;
+                }
+                if (!row.contains(e.relatedTarget)) {
+                    this.toggleEditState(row, false);
+                    row.removeEventListener('focusout', onRowFocusOut);
+                }
+            };
+            row.addEventListener('focusout', onRowFocusOut);
+            const firstEditable = this.columns.find(c => c.editable);
+            if (firstEditable) {
+                const cellToFocus = row.querySelector(`td[data-field="${firstEditable.field}"]`);
+                if (cellToFocus) {
+                    cellToFocus.focus();
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(cellToFocus);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+        }
     }
 }

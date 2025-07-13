@@ -1,33 +1,21 @@
 {
   "accounts": [
     {
-      "name": "Transactional",
-      "balance": 10000,
-      "current_balance": 10000,
-      "interest": 2,
-      "interest_period": "year",
-      "compound_period": "month",
-      "interest_type": "compound",
-      "group": "Asset",
-      "tags": [
-        "primary"
-      ]
-    },
-    {
-      "name": "",
+      "name": "Jeanre Credit Card",
       "balance": 0,
-      "current_balance": 100,
-      "interest": 2,
-      "interest_period": "year",
-      "compound_period": "month",
-      "interest_type": "compound",
-      "group": "Liability",
-      "tags": [
-        "credit card"
-      ]
+      "current_balance": 0
     },
     {
-      "name": "",
+      "name": "Jeanre Transactional",
+      "balance": 0,
+      "current_balance": 0
+    },
+    {
+      "name": "Bernice Transactional",
+      "balance": 0
+    },
+    {
+      "name": "Bernice Credit Card",
       "balance": 0
     }
   ],
@@ -46,21 +34,6 @@
       "tags": [
         "income"
       ]
-    },
-    {
-      "description": "update",
-      "amount": 0,
-      "account": "Transactional",
-      "isRecurring": true,
-      "tags": ""
-    },
-    {
-      "description": "new",
-      "amount": 0,
-      "account": "",
-      "isRecurring": false,
-      "executionDate": "",
-      "tags": ""
     }
   ],
   "forecastResults": [],

@@ -37,11 +37,10 @@ function saveAccount(idx, data, row, grid) {
     console.log('[Accounts] Save process complete for idx=' + idx);
 }
 
-function deleteAccount(idx) {
-    if (confirm('Are you sure you want to delete this account?')) {
-        getAccounts().splice(idx, 1);
-        window.afterDataChange();
-    }
+function deleteAccount(idx, row, grid) {
+    // No UI or confirmation here; UI handled by EditableGrid
+    getAccounts().splice(idx, 1);
+    window.afterDataChange();
 }
 
 function openInterestModal(idx, row) {
@@ -127,7 +126,12 @@ function initializeAccountsPage() {
             window.updateTxnAccountOptions();
             console.log('[Accounts] Grid refreshed after save.');
         },
-        onDelete: deleteAccount,
+        onDelete: (idx, row, gridInstance) => {
+            deleteAccount(idx, row, gridInstance);
+        },
+        onAfterDelete: (idx, row, gridInstance) => {
+            window.updateTxnAccountOptions();
+        },
         onUpdate: (e, idx, row) => {
             if (e.target.closest('.interest-btn')) {
                 openInterestModal(idx, row);
