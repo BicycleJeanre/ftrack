@@ -170,6 +170,7 @@ label {
   overflow: hidden;
   opacity: 1;
   max-height: 2000px;
+  
 }
 
 .collapsed-panel .panel-content {

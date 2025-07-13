@@ -48,24 +48,19 @@
       ]
     },
     {
-      "description": "Rent",
-      "amount": -2000,
+      "description": "update",
+      "amount": 0,
       "account": "Transactional",
       "isRecurring": true,
-      "recurrence": {
-        "frequency": "monthly",
-        "endDate": "2030-12-31",
-        "dayOfMonth": 1
-      },
-      "amountChange": {
-        "type": "percentage",
-        "value": 2,
-        "frequency": "yearly"
-      },
-      "tags": [
-        "housing",
-        "rent"
-      ]
+      "tags": ""
+    },
+    {
+      "description": "new",
+      "amount": 0,
+      "account": "",
+      "isRecurring": false,
+      "executionDate": "",
+      "tags": ""
     }
   ],
   "forecastResults": [],

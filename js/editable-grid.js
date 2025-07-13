@@ -22,7 +22,7 @@ export class EditableGrid {
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
         this.onUpdate = options.onUpdate;
-        this.actions = options.actions || { add: true, edit: true, delete: true };
+        this.actions = options.actions || { add: false, edit: false, delete: false };
 
         this.tbody = this.targetElement.querySelector('tbody');
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
@@ -51,11 +51,7 @@ export class EditableGrid {
         addIcon.className = 'icon-btn grid-add-btn';
         addIcon.title = 'Add New Row';
         addIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>';
-        addIcon.style.display = 'block';
-        addIcon.style.margin = '18px auto 0 auto';
-        addIcon.style.background = 'none';
-        addIcon.style.border = 'none';
-        addIcon.style.cursor = 'pointer';
+        addIcon.classList.add('grid-add-btn-styled');
         addIcon.setAttribute('tabindex', '0');
         addIcon.addEventListener('click', () => this.addNewRow());
         this.targetElement.parentNode.insertBefore(addIcon, this.targetElement.nextSibling);
@@ -124,8 +120,8 @@ export class EditableGrid {
         if (this.actions.delete !== false) {
             td.innerHTML += `<button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>`;
         }
-        td.innerHTML += `<button class="icon-btn save-btn" title="Save" style="display:none;">${ICONS.save}</button>`;
-        td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel" style="display:none;">${ICONS.cancel}</button>`;
+        td.innerHTML += `<button class="icon-btn save-btn" title="Save">${ICONS.save}</button>`;
+        td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel">${ICONS.cancel}</button>`;
         // Interest icon removed from actions cell
         return td;
     }
@@ -227,10 +223,10 @@ export class EditableGrid {
             }
         });
 
-        row.querySelector('.edit-btn').style.display = isEditing ? 'none' : 'inline-block';
-        row.querySelector('.delete-btn').style.display = isEditing ? 'none' : 'inline-block';
-        row.querySelector('.save-btn').style.display = isEditing ? 'inline-block' : 'none';
-        row.querySelector('.cancel-btn').style.display = isEditing ? 'inline-block' : 'none';
+        row.querySelector('.edit-btn').classList.toggle('hidden', isEditing);
+        row.querySelector('.delete-btn').classList.toggle('hidden', isEditing);
+        row.querySelector('.save-btn').classList.toggle('hidden', !isEditing);
+        row.querySelector('.cancel-btn').classList.toggle('hidden', !isEditing);
 
         row.classList.toggle('editing', isEditing);
         if (isEditing) {
@@ -287,13 +283,25 @@ export class EditableGrid {
                     let value;
 
                     if (col.type === 'select') {
-                        value = cell.querySelector('select').value;
+                        const select = cell.querySelector('select');
+                        value = select ? select.value : (originalData[col.field] ?? col.default ?? '');
                     } else if (col.type === 'checkbox') {
-                        value = cell.querySelector('input[type="checkbox"]').checked;
+                        const checkbox = cell.querySelector('input[type="checkbox"]');
+                        value = checkbox ? checkbox.checked : (originalData[col.field] ?? col.default ?? false);
                     } else {
-                        value = cell.textContent;
-                        if (col.type === 'number') {
-                            value = parseFloat(value) || 0;
+                        const input = cell.querySelector('input');
+                        if (input) {
+                            value = input.value;
+                            if (col.type === 'number') {
+                                const parsed = parseFloat(value);
+                                value = isNaN(parsed) ? 0 : parsed;
+                            }
+                        } else {
+                            value = cell.textContent;
+                            if (col.type === 'number') {
+                                const parsed = parseFloat(value);
+                                value = isNaN(parsed) ? 0 : parsed;
+                            }
                         }
                     }
                     updatedData[col.field] = value;
@@ -340,7 +348,8 @@ export class EditableGrid {
 
             // Ensure row exits edit mode after save
             this.toggleEditState(row, false);
-            // Do not re-render here; let onAfterSave handle grid refresh for consistency.
+            // Always re-render grid after data change
+            this.render();
         } finally {
             this._savingRows.delete(row);
         }
@@ -351,5 +360,6 @@ export class EditableGrid {
         const newRow = this.createRow({}, 'new');
         this.tbody.appendChild(newRow);
         this.toggleEditState(newRow, true);
+        // Do NOT call this.render() here; let saveRow handle re-render after save
     }
 }
