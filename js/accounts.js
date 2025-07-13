@@ -88,6 +88,13 @@ function initializeAccountsPage() {
 
     const columns = [
         { field: 'name', header: 'Account Name', editable: true, type: 'text' },
+        { field: 'type', header: 'Type', editable: true, type: 'select', options: [
+            { value: 'asset', text: 'Asset' },
+            { value: 'liability', text: 'Liability' },
+            { value: 'equity', text: 'Equity' },
+            { value: 'income', text: 'Income' },
+            { value: 'expense', text: 'Expense' }
+        ], default: 'asset', tooltip: 'Standard account type/group.' },
         { field: 'balance', header: 'Starting Balance', editable: true, type: 'number' },
         { field: 'current_balance', header: 'Current Balance', editable: false, render: acct => acct.current_balance ?? acct.balance },
         { 

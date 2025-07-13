@@ -3,29 +3,34 @@
     {
       "name": "Jeanre Credit Card",
       "balance": 0,
-      "current_balance": 0
+      "current_balance": 0,
+      "type": "liability"
     },
     {
       "name": "Jeanre Transactional",
       "balance": 0,
-      "current_balance": 0
+      "current_balance": 0,
+      "type": "asset"
     },
     {
       "name": "Bernice Transactional",
       "balance": 0,
-      "current_balance": 0
+      "current_balance": 0,
+      "type": "asset"
     },
     {
       "name": "Bernice Credit Card",
       "balance": 0,
-      "current_balance": 0
+      "current_balance": 0,
+      "type": "liability"
     }
   ],
   "transactions": [
     {
-      "description": "Salary",
-      "amount": 5000,
-      "account": "Transactional",
+      "account_primary": "Jeanre Transactional",
+      "account_secondary": "Jeanre Credit Card",
+      "debit": 5000,
+      "credit": 0,
       "isRecurring": true,
       "recurrence": {
         "frequency": "monthly",

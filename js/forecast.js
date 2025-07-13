@@ -97,7 +97,7 @@ function runForecast() {
                 }
             }
         });
-        // Apply transactions
+        // Apply transactions (dual-account, debit/credit logic)
         txnStates.forEach(txn => {
             let apply = false;
             let txnDate = txn.date;
@@ -110,16 +110,20 @@ function runForecast() {
                 apply = true;
             }
             if (apply) {
-                let acct = acctStates.find(a => a.name === txn.account);
-                if (!acct) return;
-                let amt = txn.currentAmount;
-                if (txn.apply_to === 'amount' || txn.apply_to === 'both') {
-                    txn.currentAmount = txn.currentAmount.times(new Decimal(1).plus(new Decimal(txn.pct_change).div(100)));
+                // Dual-account logic
+                let acctPrimary = acctStates.find(a => a.name === txn.account_primary);
+                let acctSecondary = acctStates.find(a => a.name === txn.account_secondary);
+                if (!acctPrimary || !acctSecondary) return;
+                // Debit: money moves from primary to secondary
+                if (Number(txn.debit) > 0) {
+                    acctPrimary.balance = acctPrimary.balance.minus(new Decimal(txn.debit));
+                    acctSecondary.balance = acctSecondary.balance.plus(new Decimal(txn.debit));
                 }
-                if (txn.apply_to === 'balance' || txn.apply_to === 'both') {
-                    amt = amt.plus(acct.balance.times(new Decimal(txn.pct_change).div(100)));
+                // Credit: money moves from secondary to primary
+                if (Number(txn.credit) > 0) {
+                    acctSecondary.balance = acctSecondary.balance.minus(new Decimal(txn.credit));
+                    acctPrimary.balance = acctPrimary.balance.plus(new Decimal(txn.credit));
                 }
-                acct.balance = acct.balance.plus(amt);
             }
         });
         // Record snapshot

@@ -65,20 +65,10 @@ function initializeTransactionsPage() {
     const accountOptions = getAccounts().map(acc => ({ value: acc.name, text: acc.name }));
 
     const columns = [
-        { field: 'description', header: 'Description', editable: true, type: 'text', default: '' },
-        { field: 'amount', header: 'Amount', editable: true, type: 'number', default: 0 },
-        {
-            field: 'account',
-            header: 'Account',
-            editable: true,
-            type: 'select',
-            options: accountOptions,
-            default: accountOptions.length > 0 ? accountOptions[0].value : '',
-            // Add modal icon for creating new account
-            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>',
-            modalIconTitle: 'Create New Account',
-            onModalIconClick: ({ row }) => handleCreateNewAccount(row)
-        },
+        { field: 'account_primary', header: 'Primary Account', editable: true, type: 'select', options: accountOptions, default: accountOptions[0]?.value || '' },
+        { field: 'account_secondary', header: 'Secondary Account', editable: true, type: 'select', options: accountOptions, default: accountOptions[0]?.value || '' },
+        { field: 'debit', header: 'Debit', editable: true, type: 'number', default: 0, tooltip: 'Money moving from primary to secondary account.' },
+        { field: 'credit', header: 'Credit', editable: true, type: 'number', default: 0, tooltip: 'Money moving from secondary to primary account.' },
         { 
             field: 'isRecurring', 
             header: 'Recurring', 
@@ -86,14 +76,6 @@ function initializeTransactionsPage() {
             type: 'checkbox',
             default: false,
             render: t => t.isRecurring ? '✔️' : '❌'
-        },
-        { 
-            field: 'executionDate', 
-            header: 'Execution Date', 
-            editable: (t) => !t.isRecurring, 
-            type: 'date',
-            default: '',
-            render: t => t.isRecurring ? '<span class="disabled-text">N/A</span>' : (t.executionDate || '')
         },
         { 
             field: 'recurrence', 
@@ -162,13 +144,17 @@ function initializeTransactionsPage() {
                     }
                 }
             });
+            // Validation
+            const errors = validateTransaction(updatedData, getAccounts());
+            if (errors.length) {
+                alert('Transaction validation failed:\n' + errors.join('\n'));
+                return;
+            }
             // Only update for edits, not for new rows (handled by EditableGrid)
             if (idx !== -1) {
                 gridInstance.data[idx] = updatedData;
             }
             saveTransaction(idx, updatedData, row, gridInstance);
-            console.log('[Transactions] Grid data after save:', gridInstance.data);
-            console.log('[Transactions] window.transactions after save:', window.transactions);
             grid.data = getTransactions();
             grid.render();
         },
@@ -272,3 +258,17 @@ function handleCreateNewAccount(row) {
 }
 
 document.addEventListener('DOMContentLoaded', initializeTransactionsPage);
+
+function validateTransaction(txn, accountsList) {
+    const errors = [];
+    // Check both accounts exist
+    const primaryExists = accountsList.some(acc => acc.name === txn.account_primary);
+    const secondaryExists = accountsList.some(acc => acc.name === txn.account_secondary);
+    if (!primaryExists) errors.push('Primary account does not exist.');
+    if (!secondaryExists) errors.push('Secondary account does not exist.');
+    // Accounts must differ
+    if (txn.account_primary === txn.account_secondary) errors.push('Primary and secondary accounts must differ.');
+    // At least one of debit/credit must be nonzero
+    if (!(Number(txn.debit) > 0 || Number(txn.credit) > 0)) errors.push('Either debit or credit must be greater than zero.');
+    return errors;
+}
