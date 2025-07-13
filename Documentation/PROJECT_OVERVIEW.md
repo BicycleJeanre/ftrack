@@ -147,3 +147,24 @@ classDiagram
   Transaction "1" -- "0..1" Recurrence
   Transaction "1" -- "0..1" AmountChange
 ```
+
+---
+
+## Keyboard Shortcut System (July 2025)
+
+A global, user-editable keyboard shortcut system is now implemented:
+- All shortcut definitions are centralized in `assets/shortcuts.json`.
+- The config is loaded at runtime by `js/config.js`, which provides `getShortcut`, `getAllShortcuts`, and `matchShortcut` utilities.
+- Feature modules (such as `EditableGrid`) query this config for their keybindings and register listeners accordingly.
+- Users can edit the JSON config to change shortcuts globally.
+
+```mermaid
+flowchart TD
+  User[User] -->|edits| ShortcutsConfig[shortcuts.json]
+  ShortcutsConfig -->|loaded by| ConfigModule[config.js]
+  ConfigModule -->|provides| EditableGrid[EditableGrid]
+  EditableGrid -->|registers| KeyListeners[Keydown Listeners]
+  KeyListeners -->|trigger| GridActions[Grid Actions]
+```
+
+See `Documentation/keyboard-shortcuts.md` for details and usage examples.

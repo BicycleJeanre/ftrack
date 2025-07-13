@@ -12,11 +12,13 @@
     },
     {
       "name": "Bernice Transactional",
-      "balance": 0
+      "balance": 0,
+      "current_balance": 0
     },
     {
       "name": "Bernice Credit Card",
-      "balance": 0
+      "balance": 0,
+      "current_balance": 0
     }
   ],
   "transactions": [

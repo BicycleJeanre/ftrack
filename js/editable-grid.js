@@ -5,6 +5,8 @@
  * It handles rendering data, inline editing, and user actions.
  */
 
+import { loadConfig, getShortcut, matchShortcut } from './config.js';
+
 const ICONS = {
     edit: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
     delete: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
@@ -28,10 +30,21 @@ export class EditableGrid {
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
         this._ignoreNextFocusout = false; // Flag to ignore next focusout
         this.onAfterDelete = options.onAfterDelete;
+        this._shortcutsLoaded = false;
+        this._keydownHandler = this._handleKeydown.bind(this);
+    }
+
+    async _ensureShortcutsLoaded() {
+        if (!this._shortcutsLoaded) {
+            await loadConfig();
+            this._shortcutsLoaded = true;
+            this._registerShortcuts();
+        }
     }
 
     // Method to render the entire grid
-    render() {
+    async render() {
+        await this._ensureShortcutsLoaded();
         this.tbody.innerHTML = '';
         this.data.forEach((item, idx) => {
             const tr = this.createRow(item, idx);
@@ -329,6 +342,38 @@ export class EditableGrid {
         this.tbody.appendChild(newRow);
         this.toggleEditState(newRow, true);
         // Do NOT call this.render() here; let saveRow handle re-render after save
+    }
+
+    _registerShortcuts() {
+        if (this._shortcutsRegistered) return;
+        this._shortcutsRegistered = true;
+        document.addEventListener('keydown', this._keydownHandler);
+    }
+
+    _handleKeydown(e) {
+        // Only trigger if grid is visible
+        if (!this.targetElement.offsetParent) return;
+        const saveKey = getShortcut('EditableGrid', 'saveRow');
+        const deleteKey = getShortcut('EditableGrid', 'deleteRow');
+        const addKey = getShortcut('EditableGrid', 'addRow');
+        if (matchShortcut(e, saveKey)) {
+            const editingRow = this.tbody.querySelector('tr.editing');
+            if (editingRow) {
+                const idx = editingRow.dataset.idx === 'new' ? -1 : parseInt(editingRow.dataset.idx, 10);
+                this.saveRow(idx, editingRow);
+                e.preventDefault();
+            }
+        } else if (matchShortcut(e, deleteKey)) {
+            const editingRow = this.tbody.querySelector('tr.editing');
+            if (editingRow) {
+                const idx = editingRow.dataset.idx === 'new' ? -1 : parseInt(editingRow.dataset.idx, 10);
+                this.deleteRow(idx, editingRow);
+                e.preventDefault();
+            }
+        } else if (matchShortcut(e, addKey)) {
+            this.addNewRow();
+            e.preventDefault();
+        }
     }
 
     // Method to toggle the edit state of a row
