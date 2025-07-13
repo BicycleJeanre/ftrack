@@ -1,46 +1,69 @@
 # accounts.md
 
-> **Update Note:**
-> The Accounts page now uses the EditableGrid as the exclusive editing interface. All changes are saved immediately to disk (Electron/Node.js) via callback-driven persistence to `filemgmt.js`. Spinners and logging provide user feedback and traceability. Form-based editing has been removed.
+## Summary
+This document describes the Accounts page, where users manage financial accounts with interest and grouping options. It covers both the user experience and the technical implementation, including grid editing, modal integration, and data flow.
 
-## Purpose
-Defines the Accounts page, where users can add, edit, and delete financial accounts, including setting interest rates and compounding options. Now uses the reusable EditableGrid component for inline editing and the modal component system for interest settings. All data is loaded from and saved to a unified JSON file on disk via `filemgmt.js`.
+## UX/UI
 
-## Key Elements
-- **EditableGrid**: Uses the same reusable grid component as transactions for consistent inline editing
-- **Interest Modal**: Managed by `modal-interest.js` as a reusable component for complex interest configurations, now accessible via a modal icon in the grid
-- **Add Icon**: A centered add icon below the grid allows rapid addition of new accounts
-- **Enhanced Data Structure**: Supports new fields like group, tags, and current_balance
+### User Experience Overview
+- The Accounts page allows users to add, edit, and delete accounts using an inline-editable grid.
+- Interest settings are managed via a modal dialog, accessible from a modal icon in the grid.
+- The add (quick add) button is a centered icon below the grid.
+- All changes are saved automatically and immediately, with spinners and logging for feedback.
+- Grid inputs are sized to fit their cells for a clean UI.
 
-## Components Used
-- **EditableGrid** (`js/editable-grid.js`): Provides inline editing capabilities
-- **InterestModal** (`js/modal-interest.js`): Handles complex interest rate configurations
+### Available Functions and UI Elements
+- Inline grid editing for all account fields
+- Add, edit, and delete account actions
+- Modal icon in the interest column for advanced settings
+- Spinners for save feedback
+- Consistent grid system shared with transactions
 
-## Interactions
-- Reads and writes account data to the global state (`window.accounts`) with enhanced data structure
-- Triggers `afterDataChange` to save all app data to the unified JSON file via `filemgmt.js` (disk persistence only)
-- Interacts with `transactions.js` for account dropdowns
-- Uses the same grid system as transactions for consistent user experience
+### Usage Example
+- Add a new account by clicking the add icon and filling in the grid row.
+- Edit interest settings by clicking the modal icon in the interest column.
+- Delete an account using the delete action in the grid.
 
-## Data Flow Diagram
+### UI Diagram
 ```mermaid
 flowchart TD
-  Filemgmt[Filemgmt.js] -->|load| AppData[Global data: accounts, transactions, forecast, budget]
-  AppData -->|modify| Filemgmt
-  AppData -->|UI update| AccountsGrid[EditableGrid Component]
-  AccountsGrid -->|user action| InterestModal[Interest Modal]
-  InterestModal -->|complex edit| AppData
-  AccountsGrid -->|inline edit| AppData
+  User[User] -->|add/edit/delete| AccountsGrid[Accounts EditableGrid]
+  AccountsGrid -->|open modal| InterestModal[Interest Modal]
+  AccountsGrid -->|show spinner| Spinner[Spinner]
 ```
 
-- The main account form includes an **Add/Edit Interest** button, allowing you to set interest details for a new account before adding it. This opens the same reusable interest modal used for editing existing accounts.
-- The interest column in the grid now includes a modal icon for direct access to the interest modal.
-- The add icon below the grid allows you to quickly add a new account row.
-- When editing, grid text/number inputs are sized to fit their cells and do not overflow.
+---
 
-## Interest Settings Behavior (Editing vs. Creating)
+## Technical Overview
 
-- When **creating a new account**, clicking the Add/Edit Interest button opens the interest modal. Any settings you enter are saved to the new account when you submit the form.
-- When **editing an existing account**, the Add/Edit Interest button and the interest modal in the table both pre-fill with the current account's interest settings. Any changes you make are saved to the account when you save the modal or the main form.
-- If you edit an account and do not open the interest modal, the existing interest settings are preserved.
-- All interest settings are always preserved unless explicitly changed.
+### Internal Functions and Data Flow
+- The Accounts page uses EditableGrid for all editing, with a configuration object specifying columns, data, and callbacks.
+- The interest modal is managed by `modal-interest.js` and updates the account's interest fields.
+- All edits trigger the `onSave` callback, which updates `window.accounts` and persists to disk via `filemgmt.js`.
+- The page triggers `afterDataChange` to ensure all app data is saved.
+
+### Data Flow Diagram
+```mermaid
+flowchart TD
+  User[User Action] --> AccountsGrid[EditableGrid]
+  AccountsGrid -->|onSave| Filemgmt[filemgmt.js]
+  Filemgmt -->|persist| Disk[app-data.json]
+  AccountsGrid -->|onModalIconClick| InterestModal[Interest Modal]
+  InterestModal -->|update| AccountsGrid
+```
+
+### Variable Scope
+- **Global:** `window.accounts`, `appData`
+- **Module:** EditableGrid instance, configuration object
+- **Function:** Local variables within event handlers and callbacks
+
+### Key Code Snippet
+```js
+// Example onSave callback for accounts
+function onSave(idx, data) {
+  window.accounts[idx] = data;
+  filemgmt.saveAppDataToFile(window.appData);
+}
+```
+
+---

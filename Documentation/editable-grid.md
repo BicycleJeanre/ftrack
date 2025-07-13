@@ -1,42 +1,26 @@
 # editable-grid.md
 
-> **Update Note:**
-> The EditableGrid now supports a callback-driven, always-in-sync save flow. All edits trigger immediate persistence to disk (Electron/Node.js) via callbacks to `filemgmt.js`. The grid also features spinners and console logging for user feedback and traceability. It is now the exclusive editing interface for accounts and transactions.
+## Summary
+This document describes the EditableGrid component, which provides a flexible, inline-editable grid for managing tabular data in the app. It covers both the user experience and the technical implementation, including configuration, callbacks, and data flow.
 
-## Purpose
-A reusable, configurable grid component that provides inline editing capabilities for tabular data. Supports various input types, conditional editability, custom rendering functions, dynamic action configuration, per-cell event callbacks, and modal display icons.
+## UX/UI
 
-## Key Features
-- **Multiple Input Types**: text, number, select, checkbox, date
-- **Conditional Editability**: Fields can be made editable based on other row data
-- **Custom Rendering**: Supports custom render functions for displaying complex data
-- **Event Handling**: Configurable callbacks for save, delete, update, and per-cell actions
-- **Dynamic Actions**: Supports enabling/disabling add, edit, delete, and custom actions per grid instance
-- **Per-Cell/Column Callbacks**: Use `onCellClick` in column definition to trigger external code or modals
-- **Modal Display Icon**: Use `modalIcon` and `onModalIconClick` in column definition to show an icon and trigger a callback
-- **Add Icon Placement**: The add (quick add) button is now an icon centered below the grid, managed by the grid itself
-- **Callback-Driven Save Flow**: All edits are immediately persisted to disk via the provided `onSave` callback, which triggers the global save logic in `filemgmt.js`.
-- **Spinners and Logging**: Visual feedback (spinner) and console logging are provided during save operations for better UX and debugging.
-- **Exclusive Editing Interface**: EditableGrid is now the only way to edit accounts and transactions; all form-based editing has been removed.
+### User Experience Overview
+- EditableGrid is the exclusive interface for editing accounts and transactions.
+- Users can add, edit, and delete rows directly in the grid.
+- Inline editing is available for text, number, select, checkbox, and date fields.
+- Spinners and console logging provide feedback during save operations.
+- Modal icons in cells allow for advanced editing (e.g., interest settings, recurrence).
+- The add (quick add) button is an icon centered below the grid.
 
-## Configuration
-The EditableGrid accepts a configuration object with:
-- `targetElement`: The table element to enhance
-- `columns`: Array of column definitions with field, header, type, editability rules, and optional `onCellClick`, `modalIcon`, `onModalIconClick`
-- `data`: Array of data objects to display
-- `onSave`: Callback for save operations (should persist to disk via filemgmt.js)
-- `onDelete`: Callback for delete operations
-- `onUpdate`: Callback for cell-specific actions (e.g., opening modals)
-- `actions`: Object to enable/disable actions: `{ add: true, edit: true, delete: true }` (all true by default)
+### Available Functions and UI Elements
+- Inline cell editing (double-click or edit icon)
+- Add, edit, and delete row actions
+- Modal icons for advanced settings
+- Spinners for save feedback
+- Configurable columns and actions per grid instance
 
-## Column Types
-- **text**: Basic text input
-- **number**: Numeric input with automatic parsing
-- **select**: Dropdown with predefined options
-- **checkbox**: Boolean checkbox input
-- **date**: Date picker input
-
-## Usage Example
+### Usage Example
 ```javascript
 const grid = new EditableGrid({
     targetElement: document.getElementById('myTable'),
@@ -53,45 +37,46 @@ const grid = new EditableGrid({
 });
 ```
 
-> **Update Note:** The add (quick add) button is now an icon centered below the grid, managed by the grid itself.
-
-## vNext: Input Sizing and Overflow
-
-- Editable cells for text/number now use `<input>` elements with the `.editable-grid-input` class.
-- Inputs are sized to fit their cell (`width: 100%`, `box-sizing: border-box`), preventing overflow and improving UX.
-- Custom styles can be applied via `.editable-grid-input` in your CSS.
-
-**Example:**
-
-```js
-{
-  field: 'name',
-  editable: true,
-  type: 'text',
-  // ...
-}
+### UI Diagram
+```mermaid
+flowchart TD
+  User[User] -->|edit/add/delete| EditableGrid[EditableGrid UI]
+  EditableGrid -->|open modal| Modal[Modal Dialog]
+  EditableGrid -->|show spinner| Spinner[Spinner]
 ```
 
-**Result:**
+---
 
-- When editing, the cell displays a text input that fits perfectly inside the cell.
+## Technical Overview
 
-## vNext: Double-Click Row Editing
+### Internal Functions and Data Flow
+- EditableGrid is initialized with a configuration object specifying columns, data, and callbacks.
+- All edits trigger the `onSave` callback, which persists changes to disk via `filemgmt.js`.
+- The grid manages its own state and updates the global state as needed.
+- Modal icons and callbacks allow for advanced, per-cell editing.
 
-- Users can now double-click any row in the grid to enter edit mode (if editing is enabled for that row).
-- This provides a faster, more intuitive way to start editing without using the edit icon.
+### Data Flow Diagram
+```mermaid
+flowchart TD
+  User[User Action] --> Grid[EditableGrid]
+  Grid -->|onSave| Filemgmt[filemgmt.js]
+  Filemgmt -->|persist| Disk[app-data.json]
+  Grid -->|onModalIconClick| Modal[Modal Component]
+  Modal -->|update| Grid
+```
 
-**Example:**
+### Variable Scope
+- **Global:** `window.accounts`, `window.transactions`, `appData`
+- **Module:** EditableGrid instance, configuration object
+- **Function:** Local variables within event handlers and callbacks
 
-- Double-click a row: the row switches to edit mode, allowing inline changes.
-
-## vNext: Double-Click Interest Modal
-
-- Double-clicking the interest column cell now opens the interest modal directly (if the column is configured with a modal icon and callback).
-- This provides a fast, keyboard-free way to access advanced settings from the grid.
-
-**Example:**
-
-- Double-click the interest cell: the interest modal opens for that row.
+### Key Code Snippet
+```js
+// Example onSave callback
+function onSave(idx, data) {
+  window.accounts[idx] = data;
+  filemgmt.saveAppDataToFile(window.appData);
+}
+```
 
 ---

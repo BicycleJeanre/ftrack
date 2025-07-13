@@ -1,25 +1,71 @@
 # forecast.md
 
-## Purpose
-This file defines the Financial Forecast page of the application. It allows users to configure forecast settings, run a financial forecast, and view results in both tabular and chart form. All data is loaded from and saved to a unified JSON file on disk via `filemgmt.js`.
+## Summary
+This document describes the Financial Forecast page, where users can configure and run forecasts, and view results in tables and charts. It covers both the user experience and the technical implementation, including settings, results, and data flow.
 
-## Key Elements
-- **HTML Structure**: Contains sections for forecast settings, results table, and a chart.
-- **Form Elements**: Users can select forecast mode, date range, period count, and period type.
-- **Results Table**: Displays forecasted account balances for each period.
-- **Chart**: Visualizes account balances over time using Plotly.js.
-- **Script Includes**: Loads all required JavaScript modules for data, logic, and UI.
+## UX/UI
 
-## Interactions
-- Reads and writes forecast data to the global state (`window.forecast`).
-- Triggers `afterDataChange` to save all app data (accounts, transactions, forecast, budget) to the unified JSON file via `filemgmt.js` and update the UI.
-- Interacts with `accounts.js` and `transactions.js` for data.
+### User Experience Overview
+- The Forecast page allows users to select forecast mode, date range, period count, and period type.
+- Results are displayed in a table and as a chart (using Plotly.js).
+- All changes are saved automatically and immediately, with spinners and logging for feedback.
+- The interface is organized into settings, results, and chart sections.
 
-## Data Flow Diagram
+### Available Functions and UI Elements
+- Form elements for forecast configuration
+- Results table for account balances
+- Chart for visualizing balances over time
+- Spinners for feedback during forecast calculation
+
+### Usage Example
+- Configure forecast settings and click the run button to generate results.
+- View forecasted balances in the table and chart.
+
+### UI Diagram
 ```mermaid
 flowchart TD
-  Filemgmt[Filemgmt.js] -->|load| AppData[Global data: accounts, transactions, forecast, budget]
-  AppData -->|modify| Filemgmt
-  AppData -->|UI update| ForecastPage[Forecast UI]
-  ForecastPage -->|user action| AppData
+  User[User] -->|configure/run| ForecastUI[Forecast Page UI]
+  ForecastUI -->|show spinner| Spinner[Spinner]
+  ForecastUI -->|display| ResultsTable[Results Table]
+  ForecastUI -->|display| Chart[Chart]
 ```
+
+---
+
+## Technical Overview
+
+### Internal Functions and Data Flow
+- The Forecast page reads and writes forecast data to the global state (`window.forecast`).
+- Triggers `afterDataChange` to save all app data and update the UI.
+- Interacts with `accounts.js` and `transactions.js` for data.
+- Uses Plotly.js for chart rendering.
+
+### Data Flow Diagram
+```mermaid
+flowchart TD
+  User[User Action] --> ForecastUI[Forecast Page UI]
+  ForecastUI -->|run forecast| ForecastLogic[forecast.js]
+  ForecastLogic -->|update| windowForecast[window.forecast]
+  ForecastLogic -->|trigger| afterDataChange[afterDataChange]
+  afterDataChange -->|persist| Filemgmt[filemgmt.js]
+  Filemgmt -->|update| Disk[app-data.json]
+  ForecastLogic -->|render| ResultsTable[Results Table]
+  ForecastLogic -->|render| Chart[Chart]
+```
+
+### Variable Scope
+- **Global:** `window.forecast`, `appData`
+- **Module:** forecast.js functions
+- **Function:** Local variables within event handlers and forecast calculations
+
+### Key Code Snippet
+```js
+// Example forecast run handler
+function runForecast(settings) {
+  const results = calculateForecast(settings, window.accounts, window.transactions);
+  window.forecast = results;
+  afterDataChange();
+}
+```
+
+---

@@ -1,25 +1,71 @@
 # modal-interest.md
 
-## Purpose
-Defines a reusable JavaScript object for displaying and managing the Interest Settings modal for accounts. This allows the modal to be used as a component, similar to React-style code management.
+## Summary
+This document describes the Interest Modal, a reusable component for displaying and managing interest settings for accounts. It covers both the user experience and the technical implementation, including modal usage, data handling, and integration patterns.
 
-## Key Elements
-- **InterestModal Object**: Provides `show`, `hide`, and `create` methods for modal lifecycle.
-- **Dynamic Injection**: Modal HTML is injected into the DOM only when needed.
-- **Event Handling**: Handles save and cancel actions, passing data back to the caller.
+## UX/UI
 
-## Interactions
-- Used by `accounts.js` to open the modal and update account interest settings.
-- Can be reused by other modules for similar modal needs.
-- All data changes are persisted to the unified JSON file via `filemgmt.js` and `afterDataChange`.
+### User Experience Overview
+- The Interest Modal allows users to configure complex interest settings for accounts.
+- Users can set interest rates, compounding periods, and interest types.
+- The modal provides a clean interface for advanced account configuration.
+- Changes are saved automatically when confirmed.
 
-## Data Flow Diagram
+### Available Functions and UI Elements
+- Modal dialog for interest configuration
+- Input fields for interest rate, periods, and types
+- Dropdown menus for compounding options
+- Save and cancel buttons
+- Modal icon in the grid for quick access
+
+### Usage Example
+- Click the modal icon in the interest column to open the modal.
+- Configure interest rate, period, and compounding settings.
+- Save to apply changes or cancel to discard.
+
+### UI Diagram
 ```mermaid
 flowchart TD
-  AccountsJS[accounts.js] -->|import| InterestModal[modal-interest.js]
-  InterestModal -->|injects| DOM[Modal in DOM]
-  User -->|clicks| InterestModal
-  InterestModal -->|onSave| AccountsJS
-  InterestModal -->|onCancel| AccountsJS
-  AccountsJS -->|save| filemgmt.js
+  User-->|click icon| InterestModal
+  InterestModal-->|configure| InterestSettings
+  InterestModal-->|save| AccountsGrid
+  InterestModal-->|cancel| AccountsGrid
 ```
+
+---
+
+## Technical Overview
+
+### Internal Functions and Data Flow
+- The modal is implemented as a reusable JavaScript object in `modal-interest.js`.
+- Provides show, hide, and create methods for modal lifecycle management.
+- Modal HTML is dynamically injected into the DOM when needed.
+- Handles save and cancel actions, passing data back to the caller.
+
+### Data Flow Diagram
+```mermaid
+flowchart TD
+  AccountsJS-->|import| InterestModal
+  InterestModal-->|inject| DOMModal
+  User-->|interact| InterestModal
+  InterestModal-->|onSave| AccountsJS
+  InterestModal-->|onCancel| AccountsJS
+  AccountsJS-->|persist| FilemgmtJS
+```
+
+### Variable Scope
+- **Global:** None - modal state is encapsulated
+- **Module:** InterestModal object, modal configuration
+- **Function:** Local variables for form data and event handling
+
+### Key Code Snippet
+```javascript
+// Example modal usage
+InterestModal.show(accountData, (updatedData) => {
+  // Handle save
+  updateAccount(updatedData);
+  saveToFile();
+});
+```
+
+---

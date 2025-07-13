@@ -1,42 +1,90 @@
 # modal-create-account.md
 
-## Purpose
-A simplified modal component for creating new accounts directly from the transactions grid. Provides a streamlined interface for quickly adding accounts without leaving the transaction editing workflow.
+## Summary
+This document describes the Create Account Modal, a simplified component for creating new accounts directly from the transactions grid. It covers both the user experience and the technical implementation, including modal usage, account creation, and workflow integration.
 
-## Features
-- **Account Name Input**: Text field for the new account name
-- **Starting Balance**: Numeric input for the initial account balance
-- **Default Values**: Automatically sets sensible defaults for new accounts
-- **Validation**: Ensures required fields are completed
+## UX/UI
 
-## Usage
-```javascript
-import { CreateAccountModal } from './modal-create-account.js';
+### User Experience Overview
+- The Create Account Modal provides a streamlined interface for quickly adding accounts without leaving the transaction editing workflow.
+- Users can enter an account name and starting balance.
+- Default values are automatically set for new accounts.
+- The modal includes validation to ensure required fields are completed.
 
-CreateAccountModal.show((newAccount) => {
-    // Handle the newly created account
-    accounts.push(newAccount);
-    updateUI();
-});
+### Available Functions and UI Elements
+- Modal dialog for account creation
+- Text field for account name
+- Numeric input for starting balance
+- Validation feedback
+- Create and cancel buttons
+
+### Usage Example
+- Select "Create New Account" from the account dropdown in the transactions grid.
+- Enter the account name and starting balance.
+- Click create to add the account and return to the transaction.
+
+### UI Diagram
+```mermaid
+flowchart TD
+  User-->|select create| CreateAccountModal
+  CreateAccountModal-->|enter details| AccountForm
+  CreateAccountModal-->|validate| ValidationCheck
+  CreateAccountModal-->|confirm| TransactionsGrid
 ```
 
-## Default Account Structure
+---
+
+## Technical Overview
+
+### Internal Functions and Data Flow
+- The modal is implemented as a reusable JS module in `modal-create-account.js`.
+- Triggered from the EditableGrid when users select "Create New Account" from dropdown.
+- Creates account with default structure and user-provided values.
+- Updates the account dropdown and sets the new account as selected.
+
+### Data Flow Diagram
+```mermaid
+flowchart TD
+  TransactionsGrid-->|trigger| CreateAccountModal
+  CreateAccountModal-->|create| NewAccount
+  NewAccount-->|add to| AccountsList
+  AccountsList-->|update| TransactionsGrid
+```
+
+### Variable Scope
+- **Global:** `window.accounts` - updated with new account
+- **Module:** CreateAccountModal instance, form data
+- **Function:** Local variables for validation and account creation
+
+### Default Account Structure
 New accounts are created with:
 - `name`: User-provided name
 - `balance` and `current_balance`: User-provided starting balance
-- `group`: "Expense" (default)
+- `group`: "Expense" as default
 - `tags`: Empty array
 - `interest`: 0
 - `interest_period`: 'year'
 - `compound_period`: 'none'
 - `interest_type`: 'simple'
 
-## Integration
-This modal is triggered from the EditableGrid when users select "-- Create New Account --" from the account dropdown in the transactions grid.
+### Key Code Snippet
+```javascript
+// Example account creation
+function createAccount(name, balance) {
+  const newAccount = {
+    name,
+    balance,
+    current_balance: balance,
+    group: "Expense",
+    tags: [],
+    interest: 0,
+    interest_period: 'year',
+    compound_period: 'none',
+    interest_type: 'simple'
+  };
+  window.accounts.push(newAccount);
+  return newAccount;
+}
+```
 
-## Workflow
-1. User selects "Create New Account" from dropdown
-2. Modal opens with form fields
-3. User enters account details
-4. Account is created and immediately available in the dropdown
-5. The dropdown value is automatically set to the new account
+---
