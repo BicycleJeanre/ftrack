@@ -19,19 +19,24 @@ const ICONS = {
 export class EditableGrid {
     constructor(options) {
         this.targetElement = options.targetElement;
-        this.columns = options.columns;
+        this.schema = options.schema || null;
         this.data = options.data;
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
         this.onUpdate = options.onUpdate;
         this.actions = options.actions || { add: false, edit: false, delete: false };
-
         this.tbody = this.targetElement.querySelector('tbody');
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
-        this._ignoreNextFocusout = false; // Flag to ignore next focusout
+        this._ignoreNextFocusout = false;
         this.onAfterDelete = options.onAfterDelete;
         this._shortcutsLoaded = false;
         this._keydownHandler = this._handleKeydown.bind(this);
+        // Parse columns from schema if provided
+        if (this.schema && this.schema.mainGrid && Array.isArray(this.schema.mainGrid.columns)) {
+            this.columns = this.schema.mainGrid.columns;
+        } else {
+            this.columns = options.columns;
+        }
     }
 
     async _ensureShortcutsLoaded() {
@@ -46,6 +51,8 @@ export class EditableGrid {
     async render() {
         await this._ensureShortcutsLoaded();
         this.tbody.innerHTML = '';
+        // Render headers dynamically from schema
+        this.renderHeaders();
         this.data.forEach((item, idx) => {
             const tr = this.createRow(item, idx);
             this.tbody.appendChild(tr);
@@ -58,25 +65,19 @@ export class EditableGrid {
         }
     }
 
-    renderAddIcon() {
-        // Remove any existing add icon
-        this.removeAddIcon();
-        const addIcon = document.createElement('button');
-        addIcon.className = 'icon-btn grid-add-btn';
-        addIcon.title = 'Add New Row';
-        addIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>';
-        addIcon.classList.add('grid-add-btn-styled');
-        addIcon.setAttribute('tabindex', '0');
-        addIcon.addEventListener('click', () => this.addNewRow());
-        this.targetElement.parentNode.insertBefore(addIcon, this.targetElement.nextSibling);
-        this._addIcon = addIcon;
-    }
-
-    removeAddIcon() {
-        if (this._addIcon && this._addIcon.parentNode) {
-            this._addIcon.parentNode.removeChild(this._addIcon);
-            this._addIcon = null;
-        }
+    renderHeaders() {
+        const thead = this.targetElement.querySelector('thead');
+        if (!thead) return;
+        thead.innerHTML = '';
+        const tr = document.createElement('tr');
+        this.columns.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = col.header || col.field;
+            if (col.tooltip) th.title = col.tooltip;
+            tr.appendChild(th);
+        });
+        tr.appendChild(document.createElement('th')).textContent = 'Actions';
+        thead.appendChild(tr);
     }
 
     createRow(item, idx) {
@@ -88,8 +89,8 @@ export class EditableGrid {
             // If double-clicked cell is interest column and has modalIcon/onModalIconClick, open modal
             const cell = e.target.closest('td');
             const colDef = cell && this.columns.find(c => c.field === cell.dataset.field);
-            if (colDef && colDef.modalIcon && typeof colDef.onModalIconClick === 'function') {
-                colDef.onModalIconClick({ event: e, idx, row: tr, cell, grid: this });
+            if (colDef && colDef.type === 'modal' && colDef.modalId) {
+                this.openModal(colDef.modalId, item, colDef);
                 return;
             }
             // Otherwise, double-click edits row
@@ -101,28 +102,34 @@ export class EditableGrid {
         this.columns.forEach(col => {
             const td = document.createElement('td');
             td.dataset.field = col.field;
-            if (col.render) {
-                td.innerHTML = col.render(item);
-            } else {
-                td.textContent = item[col.field];
-            }
-            // Modal display icon support
-            if (col.modalIcon && typeof col.onModalIconClick === 'function') {
+            if (col.type === 'modal' && col.modalIcon) {
                 const iconBtn = document.createElement('button');
                 iconBtn.className = 'icon-btn modal-icon-btn';
                 iconBtn.title = col.modalIconTitle || 'Open Modal';
-                iconBtn.innerHTML = col.modalIcon;
+                iconBtn.innerHTML = ICONS[col.modalIcon] || ICONS.edit;
                 iconBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    col.onModalIconClick({ event: e, idx, row: tr, cell: td, grid: this });
+                    this.openModal(col.modalId, item, col);
                 });
                 td.appendChild(iconBtn);
+            } else if (col.render) {
+                td.innerHTML = col.render(item);
+            } else {
+                td.textContent = item[col.field];
             }
             tr.appendChild(td);
         });
 
         tr.appendChild(this.createActionsCell());
         return tr;
+    }
+
+    openModal(modalId, cellData, colDef) {
+        if (!this.schema || !this.schema[modalId]) return;
+        // Instantiate another EditableGrid for modal
+        // Modal implementation should be generic and use schema[modalId]
+        // ...modal logic to be implemented...
+        alert('Open modal: ' + modalId + ' for ' + JSON.stringify(cellData));
     }
 
     createActionsCell() {
@@ -380,16 +387,10 @@ export class EditableGrid {
     toggleEditState(row, isEditing) {
         const item = this.data[row.dataset.idx] || {};
         this.columns.forEach(col => {
-            let isCellEditable = false;
-            if (typeof col.editable === 'function') {
-                isCellEditable = col.editable(item);
-            } else {
-                isCellEditable = !!col.editable;
-            }
+            let isCellEditable = typeof col.editable === 'function' ? col.editable(item) : !!col.editable;
+            const cell = row.querySelector(`td[data-field="${col.field}"]`);
             if (isCellEditable) {
-                const cell = row.querySelector(`td[data-field="${col.field}"]`);
                 if (isEditing) {
-                    const currentValue = item[col.field];
                     cell.innerHTML = '';
                     if (col.type === 'select') {
                         const select = document.createElement('select');
@@ -401,20 +402,19 @@ export class EditableGrid {
                                 select.appendChild(option);
                             });
                         }
-                        select.value = currentValue;
+                        select.value = item[col.field] ?? col.default ?? '';
                         cell.appendChild(select);
-                    } else if (col.type === 'checkbox') {
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.checked = !!currentValue;
-                        cell.appendChild(checkbox);
+                    } else if (col.type === 'number') {
+                        const input = document.createElement('input');
+                        input.type = 'number';
+                        input.value = item[col.field] ?? col.default ?? 0;
+                        input.className = 'editable-grid-input';
+                        cell.appendChild(input);
                     } else {
                         const input = document.createElement('input');
-                        input.type = col.type === 'number' ? 'number' : 'text';
-                        input.value = currentValue !== undefined && currentValue !== null ? currentValue : '';
+                        input.type = 'text';
+                        input.value = item[col.field] ?? col.default ?? '';
                         input.className = 'editable-grid-input';
-                        input.style.width = '100%';
-                        input.style.boxSizing = 'border-box';
                         cell.appendChild(input);
                     }
                 } else {
