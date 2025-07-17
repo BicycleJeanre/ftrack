@@ -1,0 +1,28 @@
+{
+  "mainGrid": {
+    "columns": [
+      { "field": "name", "header": "Account Name", "editable": true, "type": "text" },
+      { "field": "type", "header": "Type", "editable": true, "type": "select", "options": ["asset", "liability", "equity", "income", "expense"], "default": "asset" },
+      { "field": "balance", "header": "Starting Balance", "editable": true, "type": "number" },
+      { "field": "current_balance", "header": "Current Balance", "editable": false, "type": "number" },
+      { "field": "interest", "header": "Interest", "editable": false, "type": "modal", "modalId": "interestModal", "modalIcon": "edit", "modalIconTitle": "Edit Interest" }
+    ]
+  },
+  "interestModal": {
+    "columns": [
+      { "field": "presetOption", "header": "Standard Calculation", "type": "select", "options": [
+        "Custom",
+        "NACM (Compounded Monthly)",
+        "NACQ (Compounded Quarterly)",
+        "NACA (Compounded Annually)",
+        "NACW (Compounded Weekly)",
+        "NACD (Compounded Daily)"
+      ] },
+      { "field": "nominalRate", "header": "Nominal Annual Rate (%)", "type": "number" },
+      { "field": "effectiveRate", "header": "Effective Annual Rate (EAR) (%)", "type": "number" },
+      { "field": "nominalRatePeriod", "header": "Nominal Rate Period", "type": "select", "options": ["Annually", "Monthly", "Quarterly", "Weekly", "Daily"] },
+      { "field": "calculationMethod", "header": "Calculation Method", "type": "select", "options": ["Compound", "Simple"] },
+      { "field": "compoundingInterval", "header": "Compounding Interval", "type": "select", "options": ["Monthly", "Quarterly", "Annually", "Weekly", "Daily"] }
+    ]
+  }
+}

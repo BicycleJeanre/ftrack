@@ -1,0 +1,32 @@
+{
+  "mainGrid": {
+    "columns": [
+      { "field": "id", "header": "ID", "editable": false, "type": "number" },
+      { "field": "debit_account", "header": "Debit Account", "editable": true, "type": "select", "optionsSource": "accounts" },
+      { "field": "credit_account", "header": "Credit Account", "editable": true, "type": "select", "optionsSource": "accounts" },
+      { "field": "amount", "header": "Amount", "editable": true, "type": "number" },
+      { "field": "isRecurring", "header": "Recurring?", "editable": true, "type": "checkbox" },
+      { "field": "recurrence", "header": "Recurrence", "editable": false, "type": "modal", "modalType": "recurrenceModal", "modalIcon": "edit", "modalIconTitle": "Edit Recurrence" },
+      { "field": "amountChange", "header": "Amount Change", "editable": false, "type": "modal", "modalType": "amountChangeModal", "modalIcon": "edit", "modalIconTitle": "Edit Amount Change" },
+      { "field": "tags", "header": "Tags", "editable": true, "type": "tags" }
+    ]
+  },
+  "recurrenceModal": {
+    "columns": [
+      { "field": "frequency", "header": "Frequency", "type": "select", "options": ["monthly", "weekly", "yearly"] },
+      { "field": "endDate", "header": "End Date", "type": "date" },
+      { "field": "dayOfMonth", "header": "Day of Month", "type": "number" }
+    ]
+  },
+  "amountChangeModal": {
+    "columns": [
+      { "field": "customizable", "header": "Customizable?", "type": "checkbox" },
+      { "field": "changeType", "header": "Change Type", "type": "select", "options": ["percentage", "fixed"] },
+      { "field": "changeValue", "header": "Change Value", "type": "number" },
+      { "field": "changeFrequency", "header": "Change Frequency", "type": "select", "options": ["yearly", "monthly"] },
+      { "field": "startDate", "header": "Start Date", "type": "date" },
+      { "field": "endDate", "header": "End Date", "type": "date" },
+      { "field": "notes", "header": "Notes", "type": "text" }
+    ]
+  }
+}

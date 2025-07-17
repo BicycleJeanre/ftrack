@@ -1,49 +1,101 @@
 {
+  "profile": "Jeanre",
   "accounts": [
     {
+      "id": 1,
       "name": "Jeanre Credit Card",
+      "start_amount": 0,
       "balance": 0,
-      "current_balance": 0,
-      "type": "liability"
+      "balance_as_of": "2025-07-17",
+      "type": "liability",
+      "date_created": "2025-07-17",
+      "interest": {
+        "presetOption": "Custom",
+        "nominalRate": 0,
+        "effectiveRate": 0.0000,
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Monthly"
+      }
     },
     {
+      "id": 2,
       "name": "Jeanre Transactional",
+      "start_amount": 0,
       "balance": 0,
-      "current_balance": 0,
-      "type": "asset"
+      "balance_as_of": "2025-07-17",
+      "type": "asset",
+      "date_created": "2025-07-17",
+      "interest": {
+        "presetOption": "Custom",
+        "nominalRate": 0,
+        "effectiveRate": 0.0000,
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Monthly"
+      }
     },
     {
+      "id": 3,
       "name": "Bernice Transactional",
+      "start_amount": 0,
       "balance": 0,
-      "current_balance": 0,
-      "type": "asset"
+      "balance_as_of": "2025-07-17",
+      "type": "asset",
+      "date_created": "2025-07-17",
+      "interest": {
+        "presetOption": "Custom",
+        "nominalRate": 0,
+        "effectiveRate": 0.0000,
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Monthly"
+      }
     },
     {
+      "id": 4,
       "name": "Bernice Credit Card",
+      "start_amount": 0,
       "balance": 0,
-      "current_balance": 0,
-      "type": "liability"
+      "balance_as_of": "2025-07-17",
+      "type": "liability",
+      "date_created": "2025-07-17",
+      "interest": {
+        "presetOption": "Custom",
+        "nominalRate": 0,
+        "effectiveRate": 0.0000,
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Monthly"
+      }
     }
   ],
   "transactions": [
     {
-      "account_primary": "Jeanre Transactional",
-      "account_secondary": "Jeanre Credit Card",
-      "debit": 5000,
-      "credit": 0,
+      "id": 1,
+      "debit_account": 2,
+      "credit_account": 1,
+      "amount": 5000,
       "isRecurring": true,
       "recurrence": {
         "frequency": "monthly",
         "endDate": "2030-12-31",
         "dayOfMonth": 15
       },
-      "amountChange": null,
+      "amountChange": {
+        "customizable": true,
+        "changeType": "percentage",
+        "changeValue": 5,
+        "changeFrequency": "yearly",
+        "startDate": "2025-07-17",
+        "endDate": null,
+        "notes": "Rent may increase by 5% per year for planning purposes."
+      },
       "tags": [
         "income"
       ]
     }
   ],
-  "forecastResults": [],
   "forecast": [],
   "budget": []
 }
