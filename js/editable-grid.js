@@ -6,6 +6,7 @@
  */
 
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
+import { openModal } from './modal.js';
 
 const ICONS = {
     edit: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
@@ -125,11 +126,41 @@ export class EditableGrid {
     }
 
     openModal(modalId, cellData, colDef) {
-        if (!this.schema || !this.schema[modalId]) return;
-        // Instantiate another EditableGrid for modal
-        // Modal implementation should be generic and use schema[modalId]
-        // ...modal logic to be implemented...
-        alert('Open modal: ' + modalId + ' for ' + JSON.stringify(cellData));
+        if (!this.schema || !this.schema[modalId]) {
+            console.error(`Modal schema not found for modalId: ${modalId}`);
+            return;
+        }
+
+        // Use the generic modal handler
+        const handleModalSave = async (modalData, originalCellData) => {
+            // Update the cell data with the modal data
+            const modalSchema = this.schema[modalId];
+            const dataField = modalSchema.dataField || modalId;
+            originalCellData[dataField] = modalData;
+            
+            // Re-render the grid to reflect changes
+            this.render();
+            
+            // Call the grid's onSave if it exists
+            if (this.onSave) {
+                const rowIndex = this.data.indexOf(originalCellData);
+                await this.onSave(rowIndex, originalCellData, null, this);
+            }
+        };
+
+        const handleModalClose = () => {
+            // Optional: Handle modal close
+            console.log('Modal closed');
+        };
+
+        openModal(
+            modalId,
+            this.schema,
+            cellData,
+            colDef,
+            handleModalSave,
+            handleModalClose
+        );
     }
 
     createActionsCell() {
