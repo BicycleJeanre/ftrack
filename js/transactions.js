@@ -33,17 +33,19 @@ function saveTransaction(idx, data, row, grid) {
     console.log(`[Transactions] saveTransaction called for idx=${idx}`);
     window.transactions = grid.data;
     console.log('[Transactions] window.transactions updated from grid.data');
-    if (typeof window.afterDataChange === 'function') {
-        console.log('[Transactions] Calling window.afterDataChange()');
-        window.afterDataChange();
-    }
+    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+    // if (typeof window.afterDataChange === 'function') {
+    //     console.log('[Transactions] Calling window.afterDataChange()');
+    //     window.afterDataChange();
+    // }
     console.log('[Transactions] Save process complete for idx=' + idx);
 }
 
 function deleteTransaction(idx) {
     if (confirm('Are you sure you want to delete this transaction?')) {
         getTransactions().splice(idx, 1);
-        window.afterDataChange();
+        // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+        // window.afterDataChange();
     }
 }
 
@@ -92,7 +94,8 @@ function initializeTransactionsPage() {
                 const txn = getTransactions()[idx];
                 RecurrenceModal.show(txn.recurrence, (updatedRecurrence) => {
                     txn.recurrence = updatedRecurrence;
-                    window.afterDataChange();
+                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+                    // window.afterDataChange();
                 });
             }
         },
@@ -111,7 +114,8 @@ function initializeTransactionsPage() {
                 const txn = getTransactions()[idx];
                 AmountChangeModal.show(txn.amountChange, (updatedAmountChange) => {
                     txn.amountChange = updatedAmountChange;
-                    window.afterDataChange();
+                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+                    // window.afterDataChange();
                 });
             }
         },
@@ -191,7 +195,8 @@ function initializeTransactionsPage() {
                 RecurrenceModal.show(txn.recurrence, (updatedRecurrence) => {
                     console.log('[Transactions] RecurrenceModal callback, updatedRecurrence:', updatedRecurrence);
                     txn.recurrence = updatedRecurrence;
-                    window.afterDataChange();
+                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+                    // window.afterDataChange();
                     console.log('[Transactions] Transaction after recurrence update:', txn);
                     // Refresh grid after update
                     grid.data = getTransactions();
@@ -205,7 +210,8 @@ function initializeTransactionsPage() {
                 AmountChangeModal.show(txn.amountChange, (updatedAmountChange) => {
                     console.log('[Transactions] AmountChangeModal callback, updatedAmountChange:', updatedAmountChange);
                     txn.amountChange = updatedAmountChange;
-                    window.afterDataChange();
+                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+                    // window.afterDataChange();
                     console.log('[Transactions] Transaction after amountChange update:', txn);
                     // Refresh grid after update
                     grid.data = getTransactions();
@@ -232,7 +238,8 @@ function handleCreateNewAccount(row) {
         getAccounts().push(newAccount);
         
         // 2. Notify system of data change
-        window.afterDataChange();
+        // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+        // window.afterDataChange();
 
         // 3. Update the grid's column definition dynamically
         const accountColumn = grid.columns.find(c => c.field === 'account');

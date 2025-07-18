@@ -187,15 +187,17 @@ function toggleAccordion(panelId) {
 }
 // --- Save/Load Logic ---
 function saveForecastData() {
-    if(window.filemgmt && typeof window.filemgmt.saveAppDataToFile === 'function') {
-        window.filemgmt.saveAppDataToFile({
-            accounts: window.accounts,
-            transactions: window.transactions,
-            forecast: window.forecast,
-            budget: window.budget
-        });
-        console.log('[DEBUG] Forecast state saved to file.');
-    }
+    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+    // if(window.filemgmt && typeof window.filemgmt.saveAppDataToFile === 'function') {
+    //     window.filemgmt.saveAppDataToFile({
+    //         accounts: window.accounts,
+    //         transactions: window.transactions,
+    //         forecast: window.forecast,
+    //         budget: window.budget
+    //     });
+    //     console.log('[DEBUG] Forecast state saved to file.');
+    // }
+    console.log('[DEBUG] Forecast save temporarily disabled for testing');
 }
 // --- Add Save Forecast Button ---
 function addSaveButton() {

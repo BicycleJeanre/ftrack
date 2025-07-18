@@ -1,8 +1,10 @@
 {
   "mainGrid": {
     "columns": [
+      { "field": "id", "header": "ID", "editable": false, "type": "number" },
       { "field": "name", "header": "Account Name", "editable": true, "type": "text" },
       { "field": "type", "header": "Type", "editable": true, "type": "select", "options": ["asset", "liability", "equity", "income", "expense"], "default": "asset" },
+      { "field": "currency", "header": "Currency", "editable": true, "type": "select", "options": ["ZAR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD"], "default": "ZAR" },
       { "field": "balance", "header": "Starting Balance", "editable": true, "type": "number" },
       { "field": "current_balance", "header": "Current Balance", "editable": false, "type": "number" },
       { "field": "interest", "header": "Interest", "editable": false, "type": "modal", "modalId": "interestModal", "modalIcon": "edit", "modalIconTitle": "Edit Interest" }

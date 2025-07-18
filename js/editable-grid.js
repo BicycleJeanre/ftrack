@@ -25,6 +25,7 @@ export class EditableGrid {
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
         this.onUpdate = options.onUpdate;
+        this.onAfterSave = options.onAfterSave;
         this.actions = options.actions || { add: false, edit: false, delete: false };
         this.tbody = this.targetElement.querySelector('tbody');
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
@@ -60,9 +61,9 @@ export class EditableGrid {
         });
         // Render add icon below the grid if enabled
         if (this.actions.add !== false) {
-            this.renderAddIcon();
+            this.displayAddNewOption();
         } else {
-            this.removeAddIcon();
+            this.removeAddNewOption();
         }
     }
 
@@ -365,9 +366,7 @@ export class EditableGrid {
             row.classList.remove('saving-spinner');
             console.log(`[EditableGrid] Spinner removed for idx=${idx}`);
 
-            // Ensure row exits edit mode after save
-            this.toggleEditState(row, false);
-            // Always re-render grid after data change
+            // Always re-render grid after data change (do this before toggleEditState)
             this.render();
         } finally {
             this._savingRows.delete(row);
@@ -380,6 +379,39 @@ export class EditableGrid {
         this.tbody.appendChild(newRow);
         this.toggleEditState(newRow, true);
         // Do NOT call this.render() here; let saveRow handle re-render after save
+    }
+
+    // Method to display the add new row option below the grid
+    displayAddNewOption() {
+        // Remove existing add option if it exists
+        this.removeAddNewOption();
+        
+        // Create add button container
+        const addContainer = document.createElement('div');
+        addContainer.className = 'add-row-container';
+        addContainer.id = `add-row-${this.targetElement.id || 'grid'}`;
+        
+        // Create add button
+        const addBtn = document.createElement('button');
+        addBtn.className = 'btn btn-primary add-row-btn';
+        addBtn.innerHTML = '+ Add New Row';
+        addBtn.addEventListener('click', () => {
+            this.addNewRow();
+        });
+        
+        addContainer.appendChild(addBtn);
+        
+        // Insert after the table
+        this.targetElement.parentNode.insertBefore(addContainer, this.targetElement.nextSibling);
+    }
+
+    // Method to remove the add new row option
+    removeAddNewOption() {
+        const containerId = `add-row-${this.targetElement.id || 'grid'}`;
+        const existingContainer = document.getElementById(containerId);
+        if (existingContainer) {
+            existingContainer.remove();
+        }
     }
 
     _registerShortcuts() {

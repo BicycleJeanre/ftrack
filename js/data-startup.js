@@ -6,10 +6,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (window.filemgmt && typeof window.filemgmt.loadAppDataFromFile === 'function') {
         console.log('[data-startup] filemgmt and loadAppDataFromFile found');
         await window.filemgmt.loadAppDataFromFile();
-        if (typeof window.afterDataChange === 'function') {
-            console.log('[data-startup] afterDataChange found, calling');
-            window.afterDataChange();
-        }
+        // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+        // if (typeof window.afterDataChange === 'function') {
+        //     console.log('[data-startup] afterDataChange found, calling');
+        //     window.afterDataChange();
+        // }
         // Dispatch a custom event to signal data is loaded
         console.log('[data-startup] Dispatching appDataLoaded');
         document.dispatchEvent(new CustomEvent('appDataLoaded'));

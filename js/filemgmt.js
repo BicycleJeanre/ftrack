@@ -20,9 +20,10 @@ function loadFromLocal() {
                 window.accounts = parsed.accounts;
                 window.transactions = parsed.transactions;
                 window.forecastResults = parsed.forecastResults || [];
-                if (typeof window.afterDataChange === 'function') {
-                    window.afterDataChange();
-                }
+                // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+                // if (typeof window.afterDataChange === 'function') {
+                //     window.afterDataChange();
+                // }
                 return true;
             }
         } catch (e) {
@@ -45,7 +46,8 @@ window.afterDataChange = function() {
         forecast: window.forecast || [],
         budget: window.budget || []
     };
-    saveAppDataToFile(data);
+    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+    // saveAppDataToFile(data);
     if(typeof updateActiveDataSourceDisplay === 'function') updateActiveDataSourceDisplay();
 };
 
@@ -83,7 +85,8 @@ if (importInput) {
                     window.transactions = data.transactions;
                     window.forecastResults = data.forecastResults || [];
                     activeDataSource = 'Imported: ' + file.name;
-                    if(typeof afterDataChange === 'function') afterDataChange();
+                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+                    // if(typeof afterDataChange === 'function') afterDataChange();
                     if(typeof updateActiveDataSourceDisplay === 'function') updateActiveDataSourceDisplay();
                     alert('Forecast data imported!');
                 } else {
@@ -115,6 +118,8 @@ async function loadAppDataFromFile() {
             window.transactions = data.transactions || [];
             window.forecast = data.forecast || [];
             window.budget = data.budget || [];
+            // Store the full data structure for preservation
+            window.globalAppData = data;
             return data;
         } else {
             // Fallback for browser: fetch
@@ -125,6 +130,8 @@ async function loadAppDataFromFile() {
             window.transactions = data.transactions || [];
             window.forecast = data.forecast || [];
             window.budget = data.budget || [];
+            // Store the full data structure for preservation
+            window.globalAppData = data;
             return data;
         }
     } catch (err) {
@@ -133,6 +140,8 @@ async function loadAppDataFromFile() {
         window.transactions = [];
         window.forecast = [];
         window.budget = [];
+        // Initialize with empty structure
+        window.globalAppData = { accounts: [], transactions: [], forecast: [], budget: [] };
         return { accounts: [], transactions: [], forecast: [], budget: [] };
     }
 }
