@@ -9,20 +9,23 @@
     ]
   },
   "interestModal": {
+    "title": "Edit Interest Settings",
+    "dataField": "interest_data",
+    "actions": { "add": true, "edit": true, "delete": true },
     "columns": [
-      { "field": "presetOption", "header": "Standard Calculation", "type": "select", "options": [
+      { "field": "presetOption", "header": "Standard Calculation", "editable": true, "type": "select", "options": [
         "Custom",
         "NACM (Compounded Monthly)",
         "NACQ (Compounded Quarterly)",
         "NACA (Compounded Annually)",
         "NACW (Compounded Weekly)",
         "NACD (Compounded Daily)"
-      ] },
-      { "field": "nominalRate", "header": "Nominal Annual Rate (%)", "type": "number" },
-      { "field": "effectiveRate", "header": "Effective Annual Rate (EAR) (%)", "type": "number" },
-      { "field": "nominalRatePeriod", "header": "Nominal Rate Period", "type": "select", "options": ["Annually", "Monthly", "Quarterly", "Weekly", "Daily"] },
-      { "field": "calculationMethod", "header": "Calculation Method", "type": "select", "options": ["Compound", "Simple"] },
-      { "field": "compoundingInterval", "header": "Compounding Interval", "type": "select", "options": ["Monthly", "Quarterly", "Annually", "Weekly", "Daily"] }
+      ], "default": "Custom" },
+      { "field": "nominalRate", "header": "Nominal Annual Rate (%)", "editable": true, "type": "number", "default": 0 },
+      { "field": "effectiveRate", "header": "Effective Annual Rate (EAR) (%)", "editable": true, "type": "number", "default": 0 },
+      { "field": "nominalRatePeriod", "header": "Nominal Rate Period", "editable": true, "type": "select", "options": ["Annually", "Monthly", "Quarterly", "Weekly", "Daily"], "default": "Annually" },
+      { "field": "calculationMethod", "header": "Calculation Method", "editable": true, "type": "select", "options": ["Compound", "Simple"], "default": "Simple" },
+      { "field": "compoundingInterval", "header": "Compounding Interval", "editable": true, "type": "select", "options": ["Monthly", "Quarterly", "Annually", "Weekly", "Daily"], "default": "Monthly" }
     ]
   }
 }
