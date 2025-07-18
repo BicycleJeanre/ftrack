@@ -1,7 +1,6 @@
 // This script manages the Accounts page (/pages/accounts.html).
 // It uses the EditableGrid module to render and manage the accounts table.
 
-import { InterestModal } from './modal-interest.js';
 import { EditableGrid } from './editable-grid.js';
 
 // --- Global Helper Functions ---
@@ -18,6 +17,18 @@ if (typeof window !== 'undefined') {
     }
     if (typeof window.updateTxnAccountOptions === 'undefined') {
         window.updateTxnAccountOptions = () => {};
+    }
+}
+
+// --- Schema Loading ---
+async function loadAccountsGridSchema() {
+    try {
+        const response = await fetch('./assets/accounts-grid.json');
+        if (!response.ok) throw new Error('Failed to load accounts grid schema');
+        return await response.json();
+    } catch (error) {
+        console.error('Error loading accounts grid schema:', error);
+        return null;
     }
 }
 
@@ -43,34 +54,16 @@ function deleteAccount(idx, row, grid) {
     window.afterDataChange();
 }
 
-function openInterestModal(idx, row) {
-    const accounts = getAccounts();
-    let acct;
-    let onSave;
-
-    if (idx === -1 && row) { // New account row
-        acct = row.tempInterestData || {
-            interest: 0,
-            interest_period: 'year',
-            compound_period: 'none',
-            interest_type: 'simple'
-        };
-        onSave = (updated) => {
-            row.tempInterestData = updated; // Store data on the row temporarily
-        };
-    } else { // Existing account
-        acct = { ...accounts[idx] };
-        onSave = (updated) => {
-            accounts[idx] = { ...acct, ...updated };
-            window.afterDataChange();
-        };
-    }
-    InterestModal.show(acct, onSave);
-}
-
 // --- Main Page Initialization ---
-function initializeAccountsPage() {
+async function initializeAccountsPage() {
     window.accounts = window.accounts || [];
+
+    // Load the schema
+    const schema = await loadAccountsGridSchema();
+    if (!schema) {
+        console.error('Failed to load accounts grid schema');
+        return;
+    }
 
     const panelHeader = document.createElement('div');
     panelHeader.className = 'panel-header';
@@ -86,44 +79,51 @@ function initializeAccountsPage() {
     const table = getEl('accountsTable');
     if (!table) return;
 
-    const columns = [
-        { field: 'name', header: 'Account Name', editable: true, type: 'text' },
-        { field: 'type', header: 'Type', editable: true, type: 'select', options: [
-            { value: 'asset', text: 'Asset' },
-            { value: 'liability', text: 'Liability' },
-            { value: 'equity', text: 'Equity' },
-            { value: 'income', text: 'Income' },
-            { value: 'expense', text: 'Expense' }
-        ], default: 'asset', tooltip: 'Standard account type/group.' },
-        { field: 'balance', header: 'Starting Balance', editable: true, type: 'number' },
-        { field: 'current_balance', header: 'Current Balance', editable: false, render: acct => acct.current_balance ?? acct.balance },
-        { 
-            field: 'interest', 
-            header: 'Interest', 
-            editable: false, 
-            render: (acct) => {
-                const interest = acct.interest ?? 0;
-                if (interest === 0) return '<span style="color:#888">None</span>';
-                
-                const rate = `${interest}%`;
-                const type = (acct.interest_type || 'simple').charAt(0).toUpperCase() + (acct.interest_type || 'simple').slice(1);
-                const period = (acct.interest_period || 'year').charAt(0).toUpperCase() + (acct.interest_period || 'year').slice(1);
-                
-                if (acct.interest_type === 'compound' && acct.interest_period === 'year') {
-                    const acronym = { month: 'NACM', quarter: 'NACQ', year: 'NACA', week: 'NACW', day: 'NACD' }[acct.compound_period];
-                    return acronym ? `${rate} ${acronym}` : `${rate} Annually, Compounded ${acct.compound_period}`;
-                }
-                return `${rate} ${type} (per ${period})`;
-            },
-            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
-            modalIconTitle: 'Edit Interest',
-            onModalIconClick: ({ idx, row }) => openInterestModal(idx, row)
-        }
-    ];
+    // Add custom render function for current_balance
+    const currentBalanceColumn = schema.mainGrid.columns.find(col => col.field === 'current_balance');
+    if (currentBalanceColumn) {
+        currentBalanceColumn.render = (acct) => {
+            const balance = acct.current_balance ?? acct.balance ?? 0;
+            return balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        };
+    }
+
+    // Add custom render function for balance
+    const balanceColumn = schema.mainGrid.columns.find(col => col.field === 'balance');
+    if (balanceColumn) {
+        balanceColumn.render = (acct) => {
+            const balance = acct.balance ?? 0;
+            return balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        };
+    }
+
+    // Add custom render function for interest
+    const interestColumn = schema.mainGrid.columns.find(col => col.field === 'interest');
+    if (interestColumn) {
+        interestColumn.render = (acct) => {
+            // Check if account has interest data
+            if (!acct.interest_data || acct.interest_data.length === 0) {
+                return '<span style="color:#888">None</span>';
+            }
+            
+            const interestData = acct.interest_data[0]; // Use first interest setting
+            const rate = interestData.nominalRate || interestData.effectiveRate || 0;
+            if (rate === 0) return '<span style="color:#888">None</span>';
+            
+            const method = interestData.calculationMethod || 'Simple';
+            const preset = interestData.presetOption || 'Custom';
+            
+            if (preset !== 'Custom') {
+                return `${rate}% ${preset}`;
+            }
+            
+            return `${rate}% ${method}`;
+        };
+    }
 
     const grid = new EditableGrid({
         targetElement: table,
-        columns: columns,
+        schema: schema,
         data: getAccounts(),
         onSave: saveAccount,
         onAfterSave: () => {
@@ -139,11 +139,6 @@ function initializeAccountsPage() {
         onAfterDelete: (idx, row, gridInstance) => {
             window.updateTxnAccountOptions();
         },
-        onUpdate: (e, idx, row) => {
-            if (e.target.closest('.interest-btn')) {
-                openInterestModal(idx, row);
-            }
-        },
         actions: { add: true, edit: true, delete: true }
     });
 
@@ -157,20 +152,35 @@ function initializeAccountsPage() {
 }
 
 // --- Initialization: Only after data is loaded ---
-function tryInitAccountsPage() {
-    const init = () => {
-        // Ensure accounts have current_balance
+async function tryInitAccountsPage() {
+    const init = async () => {
+        // Ensure accounts have current_balance and proper structure
         (window.accounts || []).forEach(acc => {
             if (acc.current_balance === undefined) {
                 acc.current_balance = acc.balance;
             }
+            // Ensure interest_data field exists for modal schema
+            if (!acc.interest_data) {
+                acc.interest_data = [];
+            }
+            // Migrate old interest format to new schema if needed
+            if (acc.interest && !acc.interest_data.length) {
+                acc.interest_data = [{
+                    presetOption: 'Custom',
+                    nominalRate: acc.interest || 0,
+                    effectiveRate: acc.interest || 0,
+                    nominalRatePeriod: 'Annually',
+                    calculationMethod: acc.interest_type === 'compound' ? 'Compound' : 'Simple',
+                    compoundingInterval: acc.compound_period || 'Monthly'
+                }];
+            }
         });
-        initializeAccountsPage();
+        await initializeAccountsPage();
     };
 
     document.addEventListener('appDataLoaded', init, { once: true });
     if (window.accounts && Array.isArray(window.accounts)) {
-        init();
+        await init();
     }
 }
 
