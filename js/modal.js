@@ -48,18 +48,6 @@ export class Modal {
     createModalOverlay() {
         this.overlay = document.createElement('div');
         this.overlay.className = 'modal-overlay';
-        this.overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        `;
 
         // Close modal when clicking overlay
         this.overlay.addEventListener('click', (e) => {
@@ -77,48 +65,18 @@ export class Modal {
     createModalElement(modalSchema, cellData) {
         this.modalElement = document.createElement('div');
         this.modalElement.className = 'modal-content';
-        this.modalElement.style.cssText = `
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            max-width: 90vw;
-            max-height: 90vh;
-            overflow: auto;
-            position: relative;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        `;
 
         // Create modal header
         const header = document.createElement('div');
         header.className = 'modal-header';
-        header.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        `;
 
         const title = document.createElement('h3');
         title.textContent = modalSchema.title || 'Modal';
-        title.style.margin = '0';
+        title.className = 'modal-title';
 
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '×';
         closeBtn.className = 'modal-close-btn';
-        closeBtn.style.cssText = `
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        `;
         closeBtn.addEventListener('click', () => this.closeModal());
 
         header.appendChild(title);
@@ -129,12 +87,7 @@ export class Modal {
         body.className = 'modal-body';
 
         const table = document.createElement('table');
-        table.className = 'editable-grid-table';
-        table.style.cssText = `
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        `;
+        table.className = 'editable-grid-table modal-table';
 
         const thead = document.createElement('thead');
         const tbody = document.createElement('tbody');
@@ -146,13 +99,6 @@ export class Modal {
         // Create modal footer
         const footer = document.createElement('div');
         footer.className = 'modal-footer';
-        footer.style.cssText = `
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #eee;
-        `;
 
         const cancelBtn = document.createElement('button');
         cancelBtn.textContent = 'Cancel';
@@ -180,18 +126,29 @@ export class Modal {
     createModalGrid(modalSchema, cellData, onSave, onClose) {
         const tableElement = this.modalElement.querySelector('table');
         
+        console.log('[Modal] Creating modal grid with schema:', modalSchema);
+        console.log('[Modal] Cell data:', cellData);
+        console.log('[Modal] Looking for dataField:', modalSchema.dataField);
+        
         // Get modal data - this could be an array or single object
         let modalData = cellData[modalSchema.dataField] || [];
+        console.log('[Modal] Modal data found:', modalData);
         
         // If it's not an array, make it one for the grid
         if (!Array.isArray(modalData)) {
             modalData = modalData ? [modalData] : [];
+            console.log('[Modal] Converted to array:', modalData);
         }
+
+        console.log('[Modal] Final modal data for grid:', modalData);
+        console.log('[Modal] Table element:', tableElement);
+        console.log('[Modal] Table tbody:', tableElement?.querySelector('tbody'));
 
         // Create the EditableGrid instance
         this.currentGrid = new EditableGrid({
             targetElement: tableElement,
             schema: modalSchema,
+            columns: modalSchema.columns, // Pass columns directly since modal schema has columns at root level
             data: modalData,
             actions: {
                 add: modalSchema.actions?.add !== false,
@@ -232,7 +189,9 @@ export class Modal {
         this.modalSchema = modalSchema;
 
         // Render the grid
+        console.log('[Modal] About to render grid with data:', modalData);
         this.currentGrid.render();
+        console.log('[Modal] Grid rendered');
     }
 
     /**
