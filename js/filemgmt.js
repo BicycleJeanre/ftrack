@@ -149,14 +149,23 @@ async function loadAppDataFromFile() {
 async function saveAppDataToFile(data) {
     try {
         console.log('[filemgmt] saveAppDataToFile called with:', data);
+        console.log('[filemgmt] fs available:', !!fs);
+        console.log('[filemgmt] path available:', !!path);
+        console.log('[filemgmt] APP_DATA_PATH:', APP_DATA_PATH);
+        
         if (fs && path) {
-            fs.writeFileSync(APP_DATA_PATH, JSON.stringify(data, null, 2), 'utf-8');
+            console.log('[filemgmt] Writing to file system');
+            const jsonString = JSON.stringify(data, null, 2);
+            console.log('[filemgmt] JSON string length:', jsonString.length);
+            fs.writeFileSync(APP_DATA_PATH, jsonString, 'utf-8');
+            console.log('[filemgmt] File written successfully');
         } else {
             // In browser: no-op or could trigger a download
-            console.log('Saving app data (browser mode):', data);
+            console.log('[filemgmt] Saving app data (browser mode):', data);
         }
     } catch (err) {
-        console.error('Error saving app data:', err);
+        console.error('[filemgmt] Error saving app data:', err);
+        throw err; // Re-throw to see the error in the calling code
     }
 }
 

@@ -69,6 +69,11 @@ function mapAccountFromFile(fileAccount) {
 
 // Map grid format back to file format
 function mapAccountToFile(gridAccount, originalFileAccount = {}) {
+    // Handle null originalFileAccount
+    if (!originalFileAccount) {
+        originalFileAccount = {};
+    }
+    
     const fileAccount = {
         // Preserve original file fields
         id: gridAccount.id || originalFileAccount.id || getNextAccountId(),
@@ -118,68 +123,109 @@ function getNextAccountId() {
 
 function saveAccount(idx, data, row, grid) {
     console.log(`[Accounts] saveAccount called for idx=${idx}`, 'data:', data);
+    console.log('[Accounts] Current window.globalAppData:', window.globalAppData);
     
-    // Get the current account from grid data
-    const currentAccount = grid.data[idx];
+    // Get the current account from grid data or data parameter for new rows
+    let currentAccount;
+    if (idx === -1 || idx === 'new') {
+        // New row - use the data parameter
+        currentAccount = data;
+        console.log('[Accounts] New row - using data parameter:', currentAccount);
+    } else {
+        // Existing row - use grid data
+        currentAccount = grid.data[idx];
+        console.log('[Accounts] Existing row - using grid data:', currentAccount);
+    }
     
-    if (!currentAccount.id) {
+    console.log('[Accounts] Final currentAccount:', currentAccount);
+    
+    if (!currentAccount || !currentAccount.id) {
         // New account - add to global data
+        console.log('[Accounts] Adding new account');
+        
+        // Ensure globalAppData exists and has accounts array
+        if (!window.globalAppData) {
+            console.error('[Accounts] window.globalAppData is not initialized!');
+            return;
+        }
+        if (!window.globalAppData.accounts) {
+            console.log('[Accounts] Initializing globalAppData.accounts array');
+            window.globalAppData.accounts = [];
+        }
+        
         const originalAccount = null; // No original for new accounts
         const fileAccount = mapAccountToFile(currentAccount, originalAccount);
         fileAccount.id = getNextAccountId();
+        console.log('[Accounts] New file account:', fileAccount);
         window.globalAppData.accounts.push(fileAccount);
+        console.log('[Accounts] globalAppData.accounts after push:', window.globalAppData.accounts);
     } else {
         // Update existing account - preserve original structure
+        console.log('[Accounts] Updating existing account with id:', currentAccount.id);
         const existingIndex = window.globalAppData.accounts.findIndex(a => a.id == currentAccount.id);
+        console.log('[Accounts] Found existing account at index:', existingIndex);
         if (existingIndex !== -1) {
             const originalAccount = window.globalAppData.accounts[existingIndex];
+            console.log('[Accounts] Original account:', originalAccount);
             const updatedAccount = mapAccountToFile(currentAccount, originalAccount);
+            console.log('[Accounts] Updated account:', updatedAccount);
             window.globalAppData.accounts[existingIndex] = updatedAccount;
+            console.log('[Accounts] globalAppData.accounts after update:', window.globalAppData.accounts);
         }
     }
     
     // Update window.accounts with mapped data for grid compatibility
     window.accounts = window.globalAppData.accounts.map(account => mapAccountFromFile(account));
+    console.log('[Accounts] Updated window.accounts:', window.accounts);
     
     // Save to file using the filemgmt module
+    console.log('[Accounts] Checking filemgmt availability:', !!window.filemgmt, !!window.filemgmt?.saveAppDataToFile);
     if (window.filemgmt && window.filemgmt.saveAppDataToFile) {
-        window.filemgmt.saveAppDataToFile(window.globalAppData);
+        console.log('[Accounts] Calling saveAppDataToFile with:', window.globalAppData);
+        try {
+            window.filemgmt.saveAppDataToFile(window.globalAppData);
+            console.log('[Accounts] saveAppDataToFile completed successfully');
+        } catch (error) {
+            console.error('[Accounts] Error in saveAppDataToFile:', error);
+        }
+    } else {
+        console.error('[Accounts] filemgmt or saveAppDataToFile not available!');
     }
     
     console.log('[Accounts] window.accounts updated with file format, count:', window.accounts.length);
     
-    // Don't call afterDataChange here as it will also trigger a save
-    // if (typeof window.afterDataChange === 'function') {
-    //     console.log('[Accounts] Calling window.afterDataChange()');
-    //     window.afterDataChange();
-    // }
+
     console.log('[Accounts] Save process complete for idx=' + idx);
 }
 
 function deleteAccount(idx, row, grid) {
+    console.log(`[Accounts] deleteAccount called for idx=${idx}`);
+    
     // Get the account to delete
     const accountToDelete = grid.data[idx];
+    console.log('[Accounts] Account to delete:', accountToDelete);
     
-    if (accountToDelete.id) {
+    if (accountToDelete && accountToDelete.id) {
         // Remove from global data
         const existingIndex = window.globalAppData.accounts.findIndex(a => a.id == accountToDelete.id);
+        console.log('[Accounts] Found account in globalAppData at index:', existingIndex);
         if (existingIndex !== -1) {
             window.globalAppData.accounts.splice(existingIndex, 1);
+            console.log('[Accounts] Removed from globalAppData, new count:', window.globalAppData.accounts.length);
         }
     }
     
     // Update window.accounts with mapped data for grid compatibility
     window.accounts = window.globalAppData.accounts.map(account => mapAccountFromFile(account));
+    console.log('[Accounts] Updated window.accounts, new count:', window.accounts.length);
     
     // Save to file using the filemgmt module
     if (window.filemgmt && window.filemgmt.saveAppDataToFile) {
+        console.log('[Accounts] Saving to file after delete');
         window.filemgmt.saveAppDataToFile(window.globalAppData);
     }
     
-    // Don't call afterDataChange here as it will also trigger a save
-    // if (typeof window.afterDataChange === 'function') {
-    //     window.afterDataChange();
-    // }
+    console.log('[Accounts] Delete process complete for idx=' + idx);
 }
 
 // --- Main Page Initialization ---
@@ -257,8 +303,17 @@ async function initializeAccountsPage() {
         schema: schema,
         data: gridAccounts, // Use the mapped grid format data
         onSave: saveAccount,
-        onAfterSave: () => {
-            console.log('[Accounts] onAfterSave: updating transaction options');
+        onAfterSave: (idx, updatedData, row, gridInstance) => {
+            console.log('[Accounts] onAfterSave: updating grid data and transaction options');
+            // Update grid data with fresh mapped data after save (especially important for new accounts with generated IDs)
+            const gridAccounts = (window.accounts || []).map(fileAccount => mapAccountFromFile(fileAccount));
+            gridInstance.data = gridAccounts;
+            console.log('[Accounts] Grid data updated after save, new count:', gridAccounts.length);
+            
+            // Force a complete re-render to ensure new ID is displayed
+            gridInstance.render();
+            console.log('[Accounts] Grid re-rendered after save');
+            
             window.updateTxnAccountOptions();
             console.log('[Accounts] Transaction options updated after save.');
         },
@@ -266,6 +321,16 @@ async function initializeAccountsPage() {
             deleteAccount(idx, row, gridInstance);
         },
         onAfterDelete: (idx, row, gridInstance) => {
+            console.log('[Accounts] onAfterDelete: updating grid data');
+            // Update grid data with fresh mapped data after delete
+            const gridAccounts = (window.accounts || []).map(fileAccount => mapAccountFromFile(fileAccount));
+            gridInstance.data = gridAccounts;
+            console.log('[Accounts] Grid data updated, new count:', gridAccounts.length);
+            
+            // Force a complete re-render to ensure deleted row is removed
+            gridInstance.render();
+            console.log('[Accounts] Grid re-rendered after delete');
+            
             window.updateTxnAccountOptions();
         },
         actions: { add: true, edit: true, delete: true }
@@ -285,6 +350,25 @@ async function initializeAccountsPage() {
 // --- Initialization: Only after data is loaded ---
 async function tryInitAccountsPage() {
     const init = async () => {
+        console.log('[Accounts] Initializing accounts page');
+        console.log('[Accounts] window.globalAppData available:', !!window.globalAppData);
+        console.log('[Accounts] window.globalAppData content:', window.globalAppData);
+        console.log('[Accounts] window.accounts available:', !!window.accounts);
+        console.log('[Accounts] window.filemgmt available:', !!window.filemgmt);
+        
+        // Check if globalAppData is missing and create it from window data
+        if (!window.globalAppData && window.accounts) {
+            console.log('[Accounts] Creating globalAppData from window data');
+            window.globalAppData = {
+                profile: "Jeanre", // Default profile
+                accounts: window.accounts || [],
+                transactions: window.transactions || [],
+                forecast: window.forecast || [],
+                budget: window.budget || []
+            };
+            console.log('[Accounts] Created globalAppData:', window.globalAppData);
+        }
+        
         // No migration needed - mapping handles format conversion
         await initializeAccountsPage();
     };

@@ -4,15 +4,17 @@
     {
       "id": 1,
       "name": "Jeanre Credit Card",
-      "start_amount": 0,
-      "balance": 0,
-      "balance_as_of": "2025-07-17",
       "type": "liability",
+      "currency": "ZAR",
+      "start_amount": 0,
+      "balance": 10000,
+      "current_balance": 10000,
+      "balance_as_of": "2025-07-17",
       "date_created": "2025-07-17",
       "interest": {
         "presetOption": "Custom",
         "nominalRate": 0,
-        "effectiveRate": 0.0000,
+        "effectiveRate": 0,
         "nominalRatePeriod": "Annually",
         "calculationMethod": "Compound",
         "compoundingInterval": "Monthly"
@@ -29,7 +31,7 @@
       "interest": {
         "presetOption": "Custom",
         "nominalRate": 0,
-        "effectiveRate": 0.0000,
+        "effectiveRate": 0,
         "nominalRatePeriod": "Annually",
         "calculationMethod": "Compound",
         "compoundingInterval": "Monthly"
@@ -46,7 +48,7 @@
       "interest": {
         "presetOption": "Custom",
         "nominalRate": 0,
-        "effectiveRate": 0.0000,
+        "effectiveRate": 0,
         "nominalRatePeriod": "Annually",
         "calculationMethod": "Compound",
         "compoundingInterval": "Monthly"
@@ -63,7 +65,7 @@
       "interest": {
         "presetOption": "Custom",
         "nominalRate": 0,
-        "effectiveRate": 0.0000,
+        "effectiveRate": 0,
         "nominalRatePeriod": "Annually",
         "calculationMethod": "Compound",
         "compoundingInterval": "Monthly"

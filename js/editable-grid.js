@@ -264,11 +264,15 @@ export class EditableGrid {
 
             // Remove row from DOM
             if (row.parentNode) row.parentNode.removeChild(row);
-            // Always re-sync grid data from source and re-render
-            if (typeof this.options === 'object' && this.options.data) {
-                this.data = this.options.data;
+            
+            // Only re-render if onAfterDelete is not defined (otherwise onAfterDelete handles it)
+            if (typeof this.onAfterDelete !== 'function') {
+                // Always re-sync grid data from source and re-render
+                if (typeof this.options === 'object' && this.options.data) {
+                    this.data = this.options.data;
+                }
+                this.render();
             }
-            this.render();
         } finally {
             this._deletingRows.delete(row);
         }
@@ -366,8 +370,10 @@ export class EditableGrid {
             row.classList.remove('saving-spinner');
             console.log(`[EditableGrid] Spinner removed for idx=${idx}`);
 
-            // Always re-render grid after data change (do this before toggleEditState)
-            this.render();
+            // Only re-render if onAfterSave is not defined (otherwise onAfterSave handles it)
+            if (typeof this.onAfterSave !== 'function') {
+                this.render();
+            }
         } finally {
             this._savingRows.delete(row);
         }
