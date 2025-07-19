@@ -32,14 +32,15 @@
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
 import { openModal } from './modal.js';
 import { CalculationEngine } from './calculation-engine.js';
+import { ICON_EDIT, ICON_DELETE, ICON_SAVE, ICON_CANCEL, ICON_INTEREST, ICON_ADD } from '../styles/icons.js';
 
 const ICONS = {
-    edit: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
-    delete: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
-    save: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
-    cancel: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-    // Dollar sign icon for interest
-    interest: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><text x="12" y="16" text-anchor="middle" font-size="12" fill="currentColor" dy=".3em">$</text></svg>'
+    edit: ICON_EDIT,
+    delete: ICON_DELETE,
+    save: ICON_SAVE,
+    cancel: ICON_CANCEL,
+    interest: ICON_INTEREST,
+    add: ICON_ADD
 };
 
 export class EditableGrid {
@@ -645,8 +646,8 @@ export class EditableGrid {
         addContainer.id = `add-row-${this.targetElement.id || 'grid'}`;
         // Create add button
         const addBtn = document.createElement('button');
-        addBtn.className = 'btn btn-primary add-row-btn';
-        addBtn.innerHTML = '+ Add New Row';
+        addBtn.className = 'btn icon-btn';
+        addBtn.innerHTML = `${ICONS.add}`;
         addBtn.addEventListener('click', () => {
             this.addNewRow();
         });
