@@ -82,29 +82,92 @@ export class EditableGrid {
         thead.appendChild(tr);
     }
 
-    createRow(item, idx) {
+    createRow(item, idx, actionsOverride = null, isEditing = false) {
         const tr = document.createElement('tr');
         tr.dataset.idx = idx;
-
+        const rowActions = actionsOverride || this.actions;
         // Double-click to edit row
         tr.addEventListener('dblclick', (e) => {
-            // If double-clicked cell is interest column and has modalIcon/onModalIconClick, open modal
             const cell = e.target.closest('td');
             const colDef = cell && this.columns.find(c => c.field === cell.dataset.field);
             if (colDef && colDef.type === 'modal' && colDef.modalId) {
                 this.openModal(colDef.modalId, item, colDef);
                 return;
             }
-            // Otherwise, double-click edits row
-            if (this.actions.edit !== false) {
+            if (rowActions.edit !== false) {
                 this.toggleEditState(tr, true);
             }
         });
-
         this.columns.forEach(col => {
             const td = document.createElement('td');
             td.dataset.field = col.field;
-            if (col.type === 'modal' && col.modalIcon) {
+            let isCellEditable = false;
+            if (typeof col.editable === 'function') {
+                isCellEditable = col.editable(item);
+            } else {
+                isCellEditable = !!col.editable;
+            }
+            if (isEditing && isCellEditable) {
+                // Debug: log select field, options, and value
+                if (col.type === 'select') {
+                    console.log(`[EditableGrid] Rendering select for field '${col.field}'`, {
+                        options: col.options,
+                        itemValue: item[col.field],
+                        default: col.default
+                    });
+                }
+                // Render editable controls
+                if (col.type === 'select' && Array.isArray(col.options)) {
+                    console.log(`[EditableGrid] FULL options array for field '${col.field}':`, col.options);
+                    const select = document.createElement('select');
+                    if (Array.isArray(col.options) && col.options.length > 0) {
+                        let selectedValue = typeof item[col.field] !== 'undefined' ? item[col.field] : (col.default ?? col.options[0].value);
+                        console.log(`[EditableGrid] Select field '${col.field}' selectedValue:`, selectedValue);
+                        col.options.forEach(opt => {
+                            // Support both string and object option formats
+                            let value, label;
+                            if (typeof opt === 'string') {
+                                value = opt;
+                                label = opt;
+                            } else {
+                                value = typeof opt.value !== 'undefined' ? opt.value : '';
+                                label = typeof opt.label !== 'undefined' ? opt.label : (typeof opt.value !== 'undefined' ? opt.value : JSON.stringify(opt));
+                            }
+                            console.log(`[EditableGrid] Select field '${col.field}' option:`, { value, label, raw: opt });
+                            const option = document.createElement('option');
+                            option.value = value;
+                            option.textContent = label;
+                            if (selectedValue == value) option.selected = true;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        console.warn(`[EditableGrid] No options defined for select field '${col.field}'`);
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = 'No options defined';
+                        select.appendChild(option);
+                        select.disabled = true;
+                    }
+                    td.appendChild(select);
+                } else if (col.type === 'checkbox') {
+                    console.log(`[EditableGrid] Rendering checkbox for field '${col.field}'`, {
+                        value: item[col.field]
+                    });
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = !!item[col.field];
+                    td.appendChild(checkbox);
+                } else {
+                    console.log(`[EditableGrid] Rendering input for field '${col.field}'`, {
+                        value: item[col.field],
+                        type: col.type
+                    });
+                    const input = document.createElement('input');
+                    input.type = col.type === 'number' ? 'number' : 'text';
+                    input.value = item[col.field] ?? col.default ?? '';
+                    td.appendChild(input);
+                }
+            } else if (col.type === 'modal' && col.modalIcon) {
                 const iconBtn = document.createElement('button');
                 iconBtn.className = 'icon-btn modal-icon-btn';
                 iconBtn.title = col.modalIconTitle || 'Open Modal';
@@ -121,8 +184,16 @@ export class EditableGrid {
             }
             tr.appendChild(td);
         });
-
-        tr.appendChild(this.createActionsCell());
+        // Add actions cell and ensure edit button triggers editing
+        const actionsCell = this.createActionsCell(rowActions);
+        const editBtn = actionsCell.querySelector('.edit-btn');
+        if (editBtn && rowActions.edit !== false) {
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleEditState(tr, true);
+            });
+        }
+        tr.appendChild(actionsCell);
         return tr;
     }
 
@@ -164,18 +235,17 @@ export class EditableGrid {
         );
     }
 
-    createActionsCell() {
+    createActionsCell(actions) {
         const td = document.createElement('td');
         td.className = 'actions';
-        if (this.actions.edit !== false) {
+        if (actions && actions.edit !== false) {
             td.innerHTML += `<button class="icon-btn edit-btn" title="Edit">${ICONS.edit}</button>`;
         }
-        if (this.actions.delete !== false) {
+        if (actions && actions.delete !== false) {
             td.innerHTML += `<button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>`;
         }
         td.innerHTML += `<button class="icon-btn save-btn" title="Save">${ICONS.save}</button>`;
         td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel">${ICONS.cancel}</button>`;
-        // Interest icon removed from actions cell
         return td;
     }
 
@@ -391,12 +461,10 @@ export class EditableGrid {
     displayAddNewOption() {
         // Remove existing add option if it exists
         this.removeAddNewOption();
-        
         // Create add button container
         const addContainer = document.createElement('div');
         addContainer.className = 'add-row-container';
         addContainer.id = `add-row-${this.targetElement.id || 'grid'}`;
-        
         // Create add button
         const addBtn = document.createElement('button');
         addBtn.className = 'btn btn-primary add-row-btn';
@@ -404,9 +472,7 @@ export class EditableGrid {
         addBtn.addEventListener('click', () => {
             this.addNewRow();
         });
-        
         addContainer.appendChild(addBtn);
-        
         // Insert after the table
         this.targetElement.parentNode.insertBefore(addContainer, this.targetElement.nextSibling);
     }
@@ -454,76 +520,61 @@ export class EditableGrid {
 
     // Method to toggle the edit state of a row
     toggleEditState(row, isEditing) {
-        const item = this.data[row.dataset.idx] || {};
-        this.columns.forEach(col => {
-            let isCellEditable = typeof col.editable === 'function' ? col.editable(item) : !!col.editable;
-            const cell = row.querySelector(`td[data-field="${col.field}"]`);
-            if (isCellEditable) {
-                if (isEditing) {
-                    cell.innerHTML = '';
-                    if (col.type === 'select') {
-                        const select = document.createElement('select');
-                        if (col.options) {
-                            col.options.forEach(opt => {
-                                const option = document.createElement('option');
-                                option.value = typeof opt === 'object' ? opt.value : opt;
-                                option.textContent = typeof opt === 'object' ? opt.text : opt;
-                                select.appendChild(option);
-                            });
-                        }
-                        select.value = item[col.field] ?? col.default ?? '';
-                        cell.appendChild(select);
-                    } else if (col.type === 'number') {
-                        const input = document.createElement('input');
-                        input.type = 'number';
-                        input.value = item[col.field] ?? col.default ?? 0;
-                        input.className = 'editable-grid-input';
-                        cell.appendChild(input);
-                    } else {
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.value = item[col.field] ?? col.default ?? '';
-                        input.className = 'editable-grid-input';
-                        cell.appendChild(input);
-                    }
-                } else {
-                    cell.contentEditable = false;
-                    if (col.render) {
-                        cell.innerHTML = col.render(item);
-                    } else {
-                        cell.textContent = item[col.field];
-                    }
-                }
-            }
-        });
-        row.querySelector('.edit-btn').classList.toggle('hidden', isEditing);
-        row.querySelector('.delete-btn').classList.toggle('hidden', isEditing);
-        row.querySelector('.save-btn').classList.toggle('hidden', !isEditing);
-        row.querySelector('.cancel-btn').classList.toggle('hidden', !isEditing);
+        if (!row) return;
+        const idx = row.dataset.idx === 'new' ? -1 : parseInt(row.dataset.idx, 10);
+        // Only toggle buttons that exist
+        const deleteBtn = row.querySelector('.delete-btn');
+        if (deleteBtn) deleteBtn.classList.toggle('hidden', isEditing);
+        const saveBtn = row.querySelector('.save-btn');
+        if (saveBtn) saveBtn.classList.toggle('hidden', !isEditing);
+        const cancelBtn = row.querySelector('.cancel-btn');
+        if (cancelBtn) cancelBtn.classList.toggle('hidden', !isEditing);
         row.classList.toggle('editing', isEditing);
+        // Re-render row with editable controls if editing
         if (isEditing) {
+            // Always use the latest row data for editing
+            let item;
+            if (idx === -1) {
+                item = {};
+            } else {
+                item = { ...this.data[idx] };
+                this.columns.forEach(col => {
+                    const cell = row.querySelector(`td[data-field="${col.field}"]`);
+                    if (cell) {
+                        // Only override if undefined (not just falsy)
+                        if (typeof item[col.field] === 'undefined') {
+                            if (col.type === 'checkbox') {
+                                const checkbox = cell.querySelector('input[type="checkbox"]');
+                                item[col.field] = checkbox ? checkbox.checked : false;
+                            } else if (col.type === 'select') {
+                                const select = cell.querySelector('select');
+                                item[col.field] = select ? select.value : cell.textContent;
+                            } else {
+                                item[col.field] = cell.textContent;
+                            }
+                        }
+                    }
+                });
+            }
+            const newRow = this.createRow(item, row.dataset.idx, null, true);
+            row.replaceWith(newRow);
             // Add focusout handler to row to revert when leaving the row
             const onRowFocusOut = (e) => {
                 if (this._ignoreNextFocusout) {
                     this._ignoreNextFocusout = false;
                     return;
                 }
-                if (!row.contains(e.relatedTarget)) {
-                    this.toggleEditState(row, false);
-                    row.removeEventListener('focusout', onRowFocusOut);
+                if (!newRow.contains(e.relatedTarget)) {
+                    this.toggleEditState(newRow, false);
+                    newRow.removeEventListener('focusout', onRowFocusOut);
                 }
             };
-            row.addEventListener('focusout', onRowFocusOut);
+            newRow.addEventListener('focusout', onRowFocusOut);
             const firstEditable = this.columns.find(c => c.editable);
             if (firstEditable) {
-                const cellToFocus = row.querySelector(`td[data-field="${firstEditable.field}"]`);
+                const cellToFocus = newRow.querySelector(`td[data-field="${firstEditable.field}"] input, td[data-field="${firstEditable.field}"] select`);
                 if (cellToFocus) {
                     cellToFocus.focus();
-                    const selection = window.getSelection();
-                    const range = document.createRange();
-                    range.selectNodeContents(cellToFocus);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
                 }
             }
         }

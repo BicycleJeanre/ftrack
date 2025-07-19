@@ -12,12 +12,12 @@
       "balance_as_of": "2025-07-17",
       "date_created": "2025-07-17",
       "interest": {
-        "presetOption": "NACM (Compounded Monthly)",
+        "presetOption": "NACW (Compounded Weekly)",
         "nominalRate": 6,
         "effectiveRate": 0,
-        "nominalRatePeriod": "Annually",
-        "calculationMethod": "Compound",
-        "compoundingInterval": "Monthly"
+        "nominalRatePeriod": "Quarterly",
+        "calculationMethod": "Simple",
+        "compoundingInterval": "Annually"
       }
     },
     {
@@ -57,14 +57,16 @@
     {
       "id": 4,
       "name": "Bernice Credit Card",
+      "type": "liability",
+      "currency": "JPY",
       "start_amount": 0,
       "balance": 0,
+      "current_balance": 0,
       "balance_as_of": "2025-07-17",
-      "type": "liability",
       "date_created": "2025-07-17",
       "interest": {
-        "presetOption": "Custom",
-        "nominalRate": 0,
+        "presetOption": "NACQ (Compounded Quarterly)",
+        "nominalRate": 1,
         "effectiveRate": 0,
         "nominalRatePeriod": "Annually",
         "calculationMethod": "Compound",

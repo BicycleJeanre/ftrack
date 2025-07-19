@@ -1,4 +1,5 @@
 import { EditableGrid } from './editable-grid.js';
+import { CalculationEngine } from './calculation-engine.js';
 
 /**
  * Modal Handler for EditableGrid
@@ -125,73 +126,52 @@ export class Modal {
      */
     createModalGrid(modalSchema, cellData, onSave, onClose) {
         const tableElement = this.modalElement.querySelector('table');
-        
-        console.log('[Modal] Creating modal grid with schema:', modalSchema);
-        console.log('[Modal] Cell data:', cellData);
-        console.log('[Modal] Looking for dataField:', modalSchema.dataField);
-        
-        // Get modal data - this could be an array or single object
         let modalData = cellData[modalSchema.dataField] || [];
-        console.log('[Modal] Modal data found:', modalData);
-        
-        // If it's not an array, make it one for the grid
         if (!Array.isArray(modalData)) {
             modalData = modalData ? [modalData] : [];
-            console.log('[Modal] Converted to array:', modalData);
         }
-
-        console.log('[Modal] Final modal data for grid:', modalData);
-        console.log('[Modal] Table element:', tableElement);
-        console.log('[Modal] Table tbody:', tableElement?.querySelector('tbody'));
-
+        // Create calculation engine instance
+        const calcEngine = new CalculationEngine(modalSchema);
         // Create the EditableGrid instance
         this.currentGrid = new EditableGrid({
             targetElement: tableElement,
             schema: modalSchema,
-            columns: modalSchema.columns, // Pass columns directly since modal schema has columns at root level
+            columns: modalSchema.columns,
             data: modalData,
             actions: {
                 add: modalSchema.actions?.add !== false,
                 edit: modalSchema.actions?.edit !== false,
                 delete: modalSchema.actions?.delete !== false
             },
+            onFieldChange: (field, value, rowData) => {
+                // Call calculation engine for generic formula-based updates
+                calcEngine.handleFieldChange(field, value, rowData);
+                // Re-render the grid row (or grid) as needed
+                this.currentGrid.render();
+            },
             onSave: async (idx, updatedData, row, grid) => {
-                // Update the modal data
                 if (idx === -1) {
-                    // New row
                     modalData.push(updatedData);
                 } else {
-                    // Update existing row
                     modalData[idx] = { ...modalData[idx], ...updatedData };
                 }
-                
-                // Call the provided onSave callback if it exists
                 if (onSave) {
                     await onSave(modalData, cellData);
                 }
             },
             onDelete: async (idx, row, grid) => {
-                // Remove from modal data
                 modalData.splice(idx, 1);
-                
-                // Call the provided onSave callback to update parent
                 if (onSave) {
                     await onSave(modalData, cellData);
                 }
             }
         });
-
-        // Store callbacks for later use
         this.onSave = onSave;
         this.onClose = onClose;
         this.cellData = cellData;
         this.modalData = modalData;
         this.modalSchema = modalSchema;
-
-        // Render the grid
-        console.log('[Modal] About to render grid with data:', modalData);
         this.currentGrid.render();
-        console.log('[Modal] Grid rendered');
     }
 
     /**

@@ -13,7 +13,7 @@
   "interestModal": {
     "title": "Edit Interest Settings",
     "dataField": "interest_data",
-    "actions": { "add": true, "edit": true, "delete": true },
+    "actions": { "add": false, "edit": true, "delete": false },
     "columns": [
       { "field": "presetOption", "header": "Standard Calculation", "editable": true, "type": "select", "options": [
         "Custom",
@@ -23,11 +23,63 @@
         "NACW (Compounded Weekly)",
         "NACD (Compounded Daily)"
       ], "default": "Custom" },
-      { "field": "nominalRate", "header": "Nominal Annual Rate (%)", "editable": true, "type": "number", "default": 0 },
-      { "field": "effectiveRate", "header": "Effective Annual Rate (EAR) (%)", "editable": true, "type": "number", "default": 0 },
+      { "field": "nominalRate", "header": "Nominal Rate (%)", "editable": true, "type": "number", "default": 0 },
+      { "field": "effectiveRate", "header": "Effective Rate (EAR) (%)", "editable": true, "type": "number", "default": 0 },
       { "field": "nominalRatePeriod", "header": "Nominal Rate Period", "editable": true, "type": "select", "options": ["Annually", "Monthly", "Quarterly", "Weekly", "Daily"], "default": "Annually" },
       { "field": "calculationMethod", "header": "Calculation Method", "editable": true, "type": "select", "options": ["Compound", "Simple"], "default": "Simple" },
       { "field": "compoundingInterval", "header": "Compounding Interval", "editable": true, "type": "select", "options": ["Monthly", "Quarterly", "Annually", "Weekly", "Daily"], "default": "Monthly" }
-    ]
+    ],
+    "fieldDefaults": {
+      "NACM (Compounded Monthly)": {
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Monthly"
+      },
+      "NACQ (Compounded Quarterly)": {
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Quarterly"
+      },
+      "NACA (Compounded Annually)": {
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Annually"
+      },
+      "NACW (Compounded Weekly)": {
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Weekly"
+      },
+      "NACD (Compounded Daily)": {
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Compound",
+        "compoundingInterval": "Daily"
+      }
+    },
+    "formulas": {
+      "nominalRate": {
+        "onChange": "effectiveRate = Math.pow(1 + nominalRate/100/constants.periods[compoundingInterval], constants.periods[compoundingInterval]) - 1"
+      },
+      "effectiveRate": {
+        "onChange": "nominalRate = (Math.pow(1 + effectiveRate, 1/constants.periods[compoundingInterval]) - 1) * constants.periods[compoundingInterval] * 100"
+      },
+      "presetOption": {
+        "onChange": {
+          "nominalRatePeriod": "fieldDefaults[presetOption].nominalRatePeriod",
+          "calculationMethod": "fieldDefaults[presetOption].calculationMethod",
+          "compoundingInterval": "fieldDefaults[presetOption].compoundingInterval"
+        }
+      }
+    },
+    "constants": {
+      "periods": {
+        "Monthly": 12,
+        "Quarterly": 4,
+        "Annually": 1,
+        "Weekly": 52,
+        "Daily": 365,
+        "default": 12
+      }
+    }
   }
 }
