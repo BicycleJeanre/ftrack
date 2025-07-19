@@ -7,6 +7,7 @@
 
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
 import { openModal } from './modal.js';
+import { CalculationEngine } from './calculation-engine.js';
 
 const ICONS = {
     edit: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
@@ -39,6 +40,7 @@ export class EditableGrid {
         } else {
             this.columns = options.columns;
         }
+        this.calcEngine = this.schema ? new CalculationEngine(this.schema) : null;
     }
 
     async _ensureShortcutsLoaded() {
@@ -148,6 +150,67 @@ export class EditableGrid {
                         select.appendChild(option);
                         select.disabled = true;
                     }
+                    select.addEventListener('change', (e) => {
+                        console.log(`[EditableGrid] Select change triggered for field '${col.field}'`, {
+                            value: select.value,
+                            item: { ...item },
+                            idx,
+                            col,
+                            isEditing
+                        });
+                        if (this.calcEngine && this.schema && this.schema.formulas && this.schema.formulas[col.field] && this.schema.formulas[col.field].onChange) {
+                            // Use CalculationEngine for formula-based updates
+                            this.calcEngine.handleFieldChange(col.field, select.value, item);
+                            console.log(`[EditableGrid] After calcEngine.handleFieldChange for field '${col.field}'`, {
+                                item: { ...item }
+                            });
+                            // Re-render row with updated item
+                            const newRow = this.createRow(item, idx, actionsOverride, true);
+                            tr.replaceWith(newRow);
+                            console.log(`[EditableGrid] Row replaced after select change for field '${col.field}'`, {
+                                item: { ...item },
+                                idx
+                            });
+                            // Re-attach event handler recursively for the new select element
+                            const newSelect = newRow.querySelector(`td[data-field="${col.field}"] select`);
+                            if (newSelect) {
+                                console.log(`[EditableGrid] Re-attaching select change handler for field '${col.field}'`, {
+                                    value: newSelect.value,
+                                    item: { ...item },
+                                    idx
+                                });
+                                newSelect.addEventListener('change', function handler(ev) {
+                                    console.log(`[EditableGrid] Recursive select change triggered for field '${col.field}'`, {
+                                        value: newSelect.value,
+                                        item: { ...item },
+                                        idx
+                                    });
+                                    if (this.calcEngine && this.schema && this.schema.formulas && this.schema.formulas[col.field] && this.schema.formulas[col.field].onChange) {
+                                        this.calcEngine.handleFieldChange(col.field, newSelect.value, item);
+                                        console.log(`[EditableGrid] After recursive calcEngine.handleFieldChange for field '${col.field}'`, {
+                                            item: { ...item }
+                                        });
+                                        const newerRow = this.createRow(item, idx, actionsOverride, true);
+                                        newRow.replaceWith(newerRow);
+                                        console.log(`[EditableGrid] Row replaced after recursive select change for field '${col.field}'`, {
+                                            item: { ...item },
+                                            idx
+                                        });
+                                        // Recursively re-attach again
+                                        const newerSelect = newerRow.querySelector(`td[data-field="${col.field}"] select`);
+                                        if (newerSelect) {
+                                            console.log(`[EditableGrid] Recursively re-attaching select change handler for field '${col.field}'`, {
+                                                value: newerSelect.value,
+                                                item: { ...item },
+                                                idx
+                                            });
+                                            newerSelect.addEventListener('change', handler.bind(this));
+                                        }
+                                    }
+                                }.bind(this));
+                            }
+                        }
+                    });
                     td.appendChild(select);
                 } else if (col.type === 'checkbox') {
                     console.log(`[EditableGrid] Rendering checkbox for field '${col.field}'`, {

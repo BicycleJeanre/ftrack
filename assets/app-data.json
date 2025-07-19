@@ -68,9 +68,9 @@
         "presetOption": "NACQ (Compounded Quarterly)",
         "nominalRate": 1,
         "effectiveRate": 0,
-        "nominalRatePeriod": "Annually",
+        "nominalRatePeriod": "Monthly",
         "calculationMethod": "Compound",
-        "compoundingInterval": "Monthly"
+        "compoundingInterval": "Quarterly"
       }
     }
   ],

@@ -73,6 +73,7 @@
       },
       "presetOption": {
         "onChange": {
+          "presetOption": "fieldDefaults[presetOption].presetOption",
           "nominalRatePeriod": "fieldDefaults[presetOption].nominalRatePeriod",
           "calculationMethod": "fieldDefaults[presetOption].calculationMethod",
           "compoundingInterval": "fieldDefaults[presetOption].compoundingInterval"

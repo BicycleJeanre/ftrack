@@ -1,5 +1,4 @@
 import { EditableGrid } from './editable-grid.js';
-import { CalculationEngine } from './calculation-engine.js';
 
 /**
  * Modal Handler for EditableGrid
@@ -130,9 +129,7 @@ export class Modal {
         if (!Array.isArray(modalData)) {
             modalData = modalData ? [modalData] : [];
         }
-        // Create calculation engine instance
-        const calcEngine = new CalculationEngine(modalSchema);
-        // Create the EditableGrid instance
+        // Remove calculation engine instance and onFieldChange logic
         this.currentGrid = new EditableGrid({
             targetElement: tableElement,
             schema: modalSchema,
@@ -142,12 +139,6 @@ export class Modal {
                 add: modalSchema.actions?.add !== false,
                 edit: modalSchema.actions?.edit !== false,
                 delete: modalSchema.actions?.delete !== false
-            },
-            onFieldChange: (field, value, rowData) => {
-                // Call calculation engine for generic formula-based updates
-                calcEngine.handleFieldChange(field, value, rowData);
-                // Re-render the grid row (or grid) as needed
-                this.currentGrid.render();
             },
             onSave: async (idx, updatedData, row, grid) => {
                 if (idx === -1) {
