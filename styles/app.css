@@ -504,3 +504,16 @@ td[contenteditable="true"] {
 .add-row-btn:hover {
   background: #4e7c3a;
 }
+
+
+.add-row-container {
+    display: flex;
+    justify-content: center;
+    margin: 16px 0;
+}
+ 
+
+.add-row-icon-btn {
+
+    /*  */
+}

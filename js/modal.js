@@ -96,26 +96,8 @@ export class Modal {
         table.appendChild(tbody);
         body.appendChild(table);
 
-        // Create modal footer
-        const footer = document.createElement('div');
-        footer.className = 'modal-footer';
-
-        const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = 'Cancel';
-        cancelBtn.className = 'btn btn-secondary';
-        cancelBtn.addEventListener('click', () => this.closeModal());
-
-        const saveBtn = document.createElement('button');
-        saveBtn.textContent = 'Save';
-        saveBtn.className = 'btn btn-primary';
-        saveBtn.addEventListener('click', () => this.saveModal());
-
-        footer.appendChild(cancelBtn);
-        footer.appendChild(saveBtn);
-
         this.modalElement.appendChild(header);
         this.modalElement.appendChild(body);
-        this.modalElement.appendChild(footer);
 
         this.overlay.appendChild(this.modalElement);
     }
@@ -135,11 +117,11 @@ export class Modal {
             schema: modalSchema,
             columns: modalSchema.columns,
             data: modalData,
-            actions: {
-                add: modalSchema.actions?.add !== false,
-                edit: modalSchema.actions?.edit !== false,
-                delete: modalSchema.actions?.delete !== false
-            },
+            // actions: {
+            //     add: modalSchema.actions?.add !== false,
+            //     edit: modalSchema.actions?.edit !== false,
+            //     delete: modalSchema.actions?.delete !== false
+            // },
             onSave: async (idx, updatedData, row, grid) => {
                 if (idx === -1) {
                     modalData.push(updatedData);

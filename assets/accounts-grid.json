@@ -1,5 +1,6 @@
 {
   "mainGrid": {
+    "actions": { "add": true, "edit": true, "delete": true, "save":true },
     "columns": [
       { "field": "id", "header": "ID", "editable": false, "type": "number" },
       { "field": "name", "header": "Account Name", "editable": true, "type": "text" },
@@ -13,7 +14,7 @@
   "interestModal": {
     "title": "Edit Interest Settings",
     "dataField": "interest_data",
-    "actions": { "add": false, "edit": true, "delete": false },
+    "actions": { "add": false, "edit": true, "delete": false, "save":true },
     "columns": [
       { "field": "presetOption", "header": "Standard Calculation", "editable": true, "type": "select", "options": [
         "Custom",

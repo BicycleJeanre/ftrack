@@ -1,8 +1,32 @@
 /**
- * Reusable Editable Grid Module
+ * EditableGrid: Reusable, schema-driven editable grid component
  *
- * This module provides a configurable, editable grid component.
- * It handles rendering data, inline editing, and user actions.
+ * Key properties:
+ * - targetElement: DOM element for grid table
+ * - schema: Grid schema (columns, actions, formulas, etc.)
+ * - data: Array of row objects for grid
+ * - actions: CRUD actions enabled (from schema or options)
+ * - columns: Array of column definitions (from schema or options)
+ * - calcEngine: CalculationEngine instance for formulas
+ *
+ * Key methods:
+ * - render(): Renders grid rows and headers
+ * - createRow(item, idx, actionsOverride, isEditing): Creates a table row
+ *   - item: Object representing row data (from this.data[idx] or new row)
+ *   - idx: Row index in data array (or 'new' for new row)
+ *   - actionsOverride: Optional actions config for this row
+ *   - isEditing: If true, renders editable controls
+ * - openModal(modalId, cellData, colDef): Opens modal for modal-type column
+ * - handleTableClick(e): Handles action button clicks in grid
+ * - saveRow(idx, row): Saves row data to this.data and calls onSave
+ * - deleteRow(idx, row): Deletes row and calls onDelete
+ * - extractRowData(row, idx): Extracts updated data from editable row
+ * - toggleEditState(row, isEditing): Switches row between view/edit mode
+ *
+ * Usage:
+ * - Instantiated with options: { targetElement, schema, columns, data, actions, ... }
+ * - Renders grid based on schema and data
+ * - Handles inline editing, modals, and CRUD actions
  */
 
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
@@ -19,6 +43,37 @@ const ICONS = {
 };
 
 export class EditableGrid {
+    /**
+     * EditableGrid: Reusable, schema-driven editable grid component
+     *
+     * Key properties:
+     * - targetElement: DOM element for grid table
+     * - schema: Grid schema (columns, actions, formulas, etc.)
+     * - data: Array of row objects for grid
+     * - actions: CRUD actions enabled (from schema or options)
+     * - columns: Array of column definitions (from schema or options)
+     * - calcEngine: CalculationEngine instance for formulas
+     *
+     * Key methods:
+     * - render(): Renders grid rows and headers
+     * - createRow(item, idx, actionsOverride, isEditing): Creates a table row
+     *   - item: Object representing row data (from this.data[idx] or new row)
+     *   - idx: Row index in data array (or 'new' for new row)
+     *   - actionsOverride: Optional actions config for this row
+     *   - isEditing: If true, renders editable controls
+     * - openModal(modalId, cellData, colDef): Opens modal for modal-type column
+     * - handleTableClick(e): Handles action button clicks in grid
+     * - saveRow(idx, row): Saves row data to this.data and calls onSave
+     * - deleteRow(idx, row): Deletes row and calls onDelete
+     * - extractRowData(row, idx): Extracts updated data from editable row
+     * - toggleEditState(row, isEditing): Switches row between view/edit mode
+     *
+     * Usage:
+     * - Instantiated with options: { targetElement, schema, columns, data, actions, ... }
+     * - Renders grid based on schema and data
+     * - Handles inline editing, modals, and CRUD actions
+     */
+
     constructor(options) {
         this.targetElement = options.targetElement;
         this.schema = options.schema || null;
@@ -27,7 +82,19 @@ export class EditableGrid {
         this.onDelete = options.onDelete;
         this.onUpdate = options.onUpdate;
         this.onAfterSave = options.onAfterSave;
-        this.actions = options.actions || { add: false, edit: false, delete: false };
+        // if (this.schema.actions){
+        //     this.actions = options.actions
+        // } else {
+        //     this.actions = { add: false, edit: false, delete: false, save: false }
+        // }
+        // Use actions from schema if available
+        if (this.schema && this.schema.mainGrid && this.schema.mainGrid.actions) {
+            this.actions = this.schema.mainGrid.actions;
+        } else if (this.schema && this.schema.actions) {
+            this.actions = this.schema.actions;
+        } else {
+            this.actions = { add: false, edit: false, delete: false, save: false };
+        }
         this.tbody = this.targetElement.querySelector('tbody');
         this.tbody.addEventListener('click', this.handleTableClick.bind(this));
         this._ignoreNextFocusout = false;
@@ -84,6 +151,16 @@ export class EditableGrid {
         thead.appendChild(tr);
     }
 
+    /**
+     * createRow: Builds a table row for the grid
+     * @param {Object} item - Row data object (from this.data[idx] or new row)
+     * @param {number|string} idx - Row index in data array, or 'new' for new row
+     * @param {Object|null} actionsOverride - Optional actions config for this row
+     * @param {boolean} isEditing - If true, renders editable controls
+     *
+     * item: The data for this row. Usually this.data[idx], or {} for new rows.
+     * idx: Index in this.data, or 'new' for add row.
+     */
     createRow(item, idx, actionsOverride = null, isEditing = false) {
         const tr = document.createElement('tr');
         tr.dataset.idx = idx;
@@ -260,6 +337,14 @@ export class EditableGrid {
         return tr;
     }
 
+    /**
+     * openModal: Opens a modal for modal-type columns
+     * @param {string} modalId - The modal schema ID
+     * @param {Object} cellData - Data for the cell/row
+     * @param {Object} colDef - Column definition that triggered modal
+     *
+     * Uses this.schema[modalId] for modal schema
+     */
     openModal(modalId, cellData, colDef) {
         if (!this.schema || !this.schema[modalId]) {
             console.error(`Modal schema not found for modalId: ${modalId}`);
@@ -298,21 +383,32 @@ export class EditableGrid {
         );
     }
 
+    /**
+     * createActionsCell: Builds the actions cell for a row
+     * @param {Object} actions - Actions config (edit, delete, save, cancel)
+     */
     createActionsCell(actions) {
         const td = document.createElement('td');
         td.className = 'actions';
-        if (actions && actions.edit !== false) {
+        // Use actions field to determine which buttons to show
+        if (actions && actions.edit) {
             td.innerHTML += `<button class="icon-btn edit-btn" title="Edit">${ICONS.edit}</button>`;
         }
-        if (actions && actions.delete !== false) {
+        if (actions && actions.delete) {
             td.innerHTML += `<button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>`;
         }
-        td.innerHTML += `<button class="icon-btn save-btn" title="Save">${ICONS.save}</button>`;
+        if (actions && actions.save) {
+            td.innerHTML += `<button class="icon-btn save-btn" title="Save">${ICONS.save}</button>`;
+        }
         td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel">${ICONS.cancel}</button>`;
         return td;
     }
 
     // Method to handle table click events
+    /**
+     * handleTableClick: Handles clicks on action buttons in the grid
+     * @param {MouseEvent} e - Click event
+     */
     handleTableClick(e) {
         const btn = e.target.closest('.icon-btn');
         const cell = e.target.closest('td');
@@ -352,7 +448,11 @@ export class EditableGrid {
         }
     }
 
-    // Method to delete a row's data (NEW)
+    /**
+     * deleteRow: Deletes a row from the grid
+     * @param {number} idx - Index in this.data
+     * @param {HTMLTableRowElement} row - Row element
+     */
     async deleteRow(idx, row) {
         if (!this._deletingRows) this._deletingRows = new Set();
         if (this._deletingRows.has(row)) {
@@ -411,7 +511,12 @@ export class EditableGrid {
         }
     }
 
-    // Split out row data extraction (for saveRow)
+    /**
+     * extractRowData: Extracts updated data from an editable row
+     * @param {HTMLTableRowElement} row - Row element
+     * @param {number} idx - Index in this.data
+     * @returns {Object} updatedData - New row data
+     */
     extractRowData(row, idx) {
         const updatedData = {};
         const originalData = this.data[idx] || {};
@@ -453,7 +558,11 @@ export class EditableGrid {
         return updatedData;
     }
 
-    // Method to save a row's data (refactored to use extractRowData)
+    /**
+     * saveRow: Saves a row's data to this.data and calls onSave
+     * @param {number} idx - Index in this.data
+     * @param {HTMLTableRowElement} row - Row element
+     */
     async saveRow(idx, row) {
         if (!this._savingRows) this._savingRows = new Set();
         if (this._savingRows.has(row)) {
@@ -513,6 +622,9 @@ export class EditableGrid {
     }
 
     // Method to add a new, empty row for quick adding
+    /**
+     * addNewRow: Adds a new, empty row for quick adding
+     */
     addNewRow() {
         const newRow = this.createRow({}, 'new');
         this.tbody.appendChild(newRow);
@@ -521,6 +633,9 @@ export class EditableGrid {
     }
 
     // Method to display the add new row option below the grid
+    /**
+     * displayAddNewOption: Shows the add new row button below the grid
+     */
     displayAddNewOption() {
         // Remove existing add option if it exists
         this.removeAddNewOption();
@@ -541,6 +656,9 @@ export class EditableGrid {
     }
 
     // Method to remove the add new row option
+    /**
+     * removeAddNewOption: Removes the add new row button
+     */
     removeAddNewOption() {
         const containerId = `add-row-${this.targetElement.id || 'grid'}`;
         const existingContainer = document.getElementById(containerId);
@@ -549,12 +667,19 @@ export class EditableGrid {
         }
     }
 
+    /**
+     * _registerShortcuts: Registers keyboard shortcuts for grid actions
+     */
     _registerShortcuts() {
         if (this._shortcutsRegistered) return;
         this._shortcutsRegistered = true;
         document.addEventListener('keydown', this._keydownHandler);
     }
 
+    /**
+     * _handleKeydown: Handles keyboard shortcuts for grid actions
+     * @param {KeyboardEvent} e - Keydown event
+     */
     _handleKeydown(e) {
         // Only trigger if grid is visible
         if (!this.targetElement.offsetParent) return;
@@ -581,7 +706,11 @@ export class EditableGrid {
         }
     }
 
-    // Method to toggle the edit state of a row
+    /**
+     * toggleEditState: Switches a row between view and edit mode
+     * @param {HTMLTableRowElement} row - Row element
+     * @param {boolean} isEditing - If true, enables editing
+     */
     toggleEditState(row, isEditing) {
         if (!row) return;
         const idx = row.dataset.idx === 'new' ? -1 : parseInt(row.dataset.idx, 10);
