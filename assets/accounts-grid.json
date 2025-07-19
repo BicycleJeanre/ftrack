@@ -14,7 +14,7 @@
   "interestModal": {
     "title": "Edit Interest Settings",
     "dataField": "interest_data",
-    "actions": { "add": false, "edit": true, "delete": false, "save":true },
+    "actions": { "add": false, "edit": false, "delete": false, "save":false },
     "columns": [
       { "field": "presetOption", "header": "Standard Calculation", "editable": true, "type": "select", "options": [
         "Custom",

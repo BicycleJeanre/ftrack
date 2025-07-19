@@ -72,6 +72,25 @@
         "calculationMethod": "Compound",
         "compoundingInterval": "Annually"
       }
+    },
+    {
+      "id": 5,
+      "name": "trn",
+      "type": "asset",
+      "currency": "ZAR",
+      "start_amount": 0,
+      "balance": 0,
+      "current_balance": 0,
+      "balance_as_of": "2025-07-19",
+      "date_created": "2025-07-19",
+      "interest": {
+        "presetOption": "Custom",
+        "nominalRate": 0,
+        "effectiveRate": 0,
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Simple",
+        "compoundingInterval": "Monthly"
+      }
     }
   ],
   "transactions": [

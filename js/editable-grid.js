@@ -32,7 +32,7 @@
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
 import { openModal } from './modal.js';
 import { CalculationEngine } from './calculation-engine.js';
-import { ICON_EDIT, ICON_DELETE, ICON_SAVE, ICON_CANCEL, ICON_INTEREST, ICON_ADD } from '../styles/icons.js';
+import { ICON_EDIT, ICON_DELETE, ICON_SAVE, ICON_CANCEL, ICON_INTEREST, ICON_ADD, ICON_SPINNER } from '../styles/icons.js';
 
 const ICONS = {
     edit: ICON_EDIT,
@@ -40,7 +40,8 @@ const ICONS = {
     save: ICON_SAVE,
     cancel: ICON_CANCEL,
     interest: ICON_INTEREST,
-    add: ICON_ADD
+    add: ICON_ADD,
+    spinner: ICON_SPINNER
 };
 
 export class EditableGrid {
@@ -148,7 +149,11 @@ export class EditableGrid {
             if (col.tooltip) th.title = col.tooltip;
             tr.appendChild(th);
         });
-        tr.appendChild(document.createElement('th')).textContent = 'Actions';
+        // Only add Actions header if any action is enabled
+        const actionsEnabled = this.actions && (this.actions.edit || this.actions.delete || this.actions.save || this.actions.add);
+        if (actionsEnabled) {
+            tr.appendChild(document.createElement('th')).textContent = 'Actions';
+        }
         thead.appendChild(tr);
     }
 
@@ -325,16 +330,19 @@ export class EditableGrid {
             }
             tr.appendChild(td);
         });
-        // Add actions cell and ensure edit button triggers editing
-        const actionsCell = this.createActionsCell(rowActions);
-        const editBtn = actionsCell.querySelector('.edit-btn');
-        if (editBtn && rowActions.edit !== false) {
-            editBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.toggleEditState(tr, true);
-            });
+        // Only add actions cell if any action is enabled
+        const actionsEnabled = rowActions && (rowActions.edit || rowActions.delete || rowActions.save || rowActions.add);
+        if (actionsEnabled) {
+            const actionsCell = this.createActionsCell(rowActions);
+            const editBtn = actionsCell.querySelector('.edit-btn');
+            if (editBtn && rowActions.edit !== false) {
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleEditState(tr, true);
+                });
+            }
+            tr.appendChild(actionsCell);
         }
-        tr.appendChild(actionsCell);
         return tr;
     }
 
@@ -392,16 +400,24 @@ export class EditableGrid {
         const td = document.createElement('td');
         td.className = 'actions';
         // Use actions field to determine which buttons to show
+        let anyAction = false;
         if (actions && actions.edit) {
             td.innerHTML += `<button class="icon-btn edit-btn" title="Edit">${ICONS.edit}</button>`;
+            anyAction = true;
         }
         if (actions && actions.delete) {
             td.innerHTML += `<button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>`;
+            anyAction = true;
         }
         if (actions && actions.save) {
             td.innerHTML += `<button class="icon-btn save-btn" title="Save">${ICONS.save}</button>`;
+            anyAction = true;
         }
-        td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel">${ICONS.cancel}</button>`;
+        // If all actions are false, render only the cancel button
+        if (anyAction) {
+            td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel">${ICONS.cancel}</button>`;
+        } 
+        
         return td;
     }
 
@@ -466,7 +482,7 @@ export class EditableGrid {
             row.classList.add('saving-spinner');
             const spinner = document.createElement('span');
             spinner.className = 'row-spinner';
-            spinner.innerHTML = '<svg width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#888" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.415, 31.415" transform="rotate(0 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>';
+            spinner.innerHTML = ICONS.spinner;
             row.querySelector('td:last-child').appendChild(spinner);
             console.log(`[EditableGrid] Spinner shown for delete idx=${idx}`);
 
