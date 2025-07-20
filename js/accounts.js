@@ -37,80 +37,33 @@ function getAccounts() {
     return window.accounts || [];
 }
 
-// Map file format to grid format
-function mapAccountFromFile(fileAccount) {
-    const gridAccount = {
-        id: fileAccount.id,
-        name: fileAccount.name,
-        type: fileAccount.type,
-        currency: fileAccount.currency || 'ZAR',
-        balance: fileAccount.balance || fileAccount.start_amount || 0,
-        current_balance: fileAccount.current_balance || fileAccount.balance || fileAccount.start_amount || 0,
-        interest_data: []
-    };
-
-    // Map interest data if it exists
-    if (fileAccount.interest_data && Array.isArray(fileAccount.interest_data)) {
-        gridAccount.interest_data = fileAccount.interest_data;
-    } else if (fileAccount.interest && typeof fileAccount.interest === 'object') {
-        // Convert old interest format to new format
-        gridAccount.interest_data = [{
-            presetOption: fileAccount.interest.presetOption || 'Custom',
-            nominalRate: fileAccount.interest.nominalRate || 0,
-            effectiveRate: fileAccount.interest.effectiveRate || 0,
-            nominalRatePeriod: fileAccount.interest.nominalRatePeriod || 'Annually',
-            calculationMethod: fileAccount.interest.calculationMethod || 'Simple',
-            compoundingInterval: fileAccount.interest.compoundingInterval || 'Monthly'
-        }];
-    }
-
+// Map file format to grid format dynamically using schema
+function mapAccountFromFile(fileAccount, schemaColumns) {
+    const gridAccount = {};
+    schemaColumns.forEach(col => {
+        const path = col.field;
+        // Support nested field access (dot notation)
+        const value = path.split('.').reduce((obj, key) => obj && obj[key], fileAccount);
+        gridAccount[path] = value !== undefined ? value : (col.default !== undefined ? col.default : '');
+    });
     return gridAccount;
 }
 
-// Map grid format back to file format
-function mapAccountToFile(gridAccount, originalFileAccount = {}) {
-    // Handle null originalFileAccount
-    if (!originalFileAccount) {
-        originalFileAccount = {};
-    }
-    
-    const fileAccount = {
-        // Preserve original file fields
-        id: gridAccount.id || originalFileAccount.id || getNextAccountId(),
-        name: gridAccount.name,
-        type: gridAccount.type,
-        currency: gridAccount.currency || 'ZAR',
-        
-        // Preserve original file structure and only update what's needed
-        start_amount: originalFileAccount.start_amount !== undefined ? originalFileAccount.start_amount : gridAccount.balance || 0,
-        balance: gridAccount.balance || 0,
-        current_balance: gridAccount.current_balance || gridAccount.balance || 0,
-        balance_as_of: originalFileAccount.balance_as_of || new Date().toISOString().split('T')[0],
-        date_created: originalFileAccount.date_created || new Date().toISOString().split('T')[0]
-    };
-
-    // Handle interest data - only save the interest object (not interest_data array)
-    if (gridAccount.interest_data && gridAccount.interest_data.length > 0) {
-        // Use the first interest data item to create the interest object
-        fileAccount.interest = gridAccount.interest_data[0];
-    } else if (originalFileAccount.interest && typeof originalFileAccount.interest === 'object') {
-        // Keep the original interest structure
-        fileAccount.interest = originalFileAccount.interest;
-    } else {
-        // Default interest structure
-        fileAccount.interest = {
-            presetOption: 'Custom',
-            nominalRate: 0,
-            effectiveRate: 0,
-            nominalRatePeriod: 'Annually',
-            calculationMethod: 'Simple',
-            compoundingInterval: 'Monthly'
-        };
-    }
-
-    // Don't save interest_data to file - only the interest object
-    // This prevents the duplication issue
-
+// Map grid format back to file format dynamically using schema
+function mapAccountToFile(gridAccount, schemaColumns, originalFileAccount = {}) {
+    if (!originalFileAccount) originalFileAccount = {};
+    const fileAccount = { ...originalFileAccount };
+    schemaColumns.forEach(col => {
+        const path = col.field;
+        // Support nested field set (dot notation)
+        const keys = path.split('.');
+        let target = fileAccount;
+        for (let i = 0; i < keys.length - 1; i++) {
+            if (!target[keys[i]]) target[keys[i]] = {};
+            target = target[keys[i]];
+        }
+        target[keys[keys.length - 1]] = gridAccount[path] !== undefined ? gridAccount[path] : (col.default !== undefined ? col.default : '');
+    });
     return fileAccount;
 }
 
@@ -124,7 +77,7 @@ function getNextAccountId() {
 function saveAccount(idx, data, row, grid) {
     console.log(`[Accounts] saveAccount called for idx=${idx}`, 'data:', data);
     console.log('[Accounts] Current window.globalAppData:', window.globalAppData);
-    
+
     // Get the current account from grid data or data parameter for new rows
     let currentAccount;
     if (idx === -1 || idx === 'new') {
@@ -136,14 +89,15 @@ function saveAccount(idx, data, row, grid) {
         currentAccount = grid.data[idx];
         console.log('[Accounts] Existing row - using grid data:', currentAccount);
     }
-    
+
     console.log('[Accounts] Final currentAccount:', currentAccount);
-    
+
+    // Get schema columns from grid instance
+    const schemaColumns = grid.columns || [];
+
     if (!currentAccount || !currentAccount.id) {
         // New account - add to global data
         console.log('[Accounts] Adding new account');
-        
-        // Ensure globalAppData exists and has accounts array
         if (!window.globalAppData) {
             console.error('[Accounts] window.globalAppData is not initialized!');
             return;
@@ -152,9 +106,8 @@ function saveAccount(idx, data, row, grid) {
             console.log('[Accounts] Initializing globalAppData.accounts array');
             window.globalAppData.accounts = [];
         }
-        
-        const originalAccount = null; // No original for new accounts
-        const fileAccount = mapAccountToFile(currentAccount, originalAccount);
+        // Map grid account to file format using schema columns
+        const fileAccount = mapAccountToFile(currentAccount, schemaColumns);
         fileAccount.id = getNextAccountId();
         console.log('[Accounts] New file account:', fileAccount);
         window.globalAppData.accounts.push(fileAccount);
@@ -167,17 +120,14 @@ function saveAccount(idx, data, row, grid) {
         if (existingIndex !== -1) {
             const originalAccount = window.globalAppData.accounts[existingIndex];
             console.log('[Accounts] Original account:', originalAccount);
-            const updatedAccount = mapAccountToFile(currentAccount, originalAccount);
+            // Map grid account to file format using schema columns
+            const updatedAccount = mapAccountToFile(currentAccount, schemaColumns, originalAccount);
             console.log('[Accounts] Updated account:', updatedAccount);
             window.globalAppData.accounts[existingIndex] = updatedAccount;
             console.log('[Accounts] globalAppData.accounts after update:', window.globalAppData.accounts);
         }
     }
-    
-    // Update window.accounts with mapped data for grid compatibility
-    window.accounts = window.globalAppData.accounts.map(account => mapAccountFromFile(account));
-    console.log('[Accounts] Updated window.accounts:', window.accounts);
-    
+
     // Save to file using the filemgmt module
     console.log('[Accounts] Checking filemgmt availability:', !!window.filemgmt, !!window.filemgmt?.saveAppDataToFile);
     if (window.filemgmt && window.filemgmt.saveAppDataToFile) {
@@ -191,20 +141,16 @@ function saveAccount(idx, data, row, grid) {
     } else {
         console.error('[Accounts] filemgmt or saveAppDataToFile not available!');
     }
-    
-    console.log('[Accounts] window.accounts updated with file format, count:', window.accounts.length);
-    
 
     console.log('[Accounts] Save process complete for idx=' + idx);
 }
 
 function deleteAccount(idx, row, grid) {
     console.log(`[Accounts] deleteAccount called for idx=${idx}`);
-    
     // Get the account to delete
     const accountToDelete = grid.data[idx];
     console.log('[Accounts] Account to delete:', accountToDelete);
-    
+
     if (accountToDelete && accountToDelete.id) {
         // Remove from global data
         const existingIndex = window.globalAppData.accounts.findIndex(a => a.id == accountToDelete.id);
@@ -214,24 +160,19 @@ function deleteAccount(idx, row, grid) {
             console.log('[Accounts] Removed from globalAppData, new count:', window.globalAppData.accounts.length);
         }
     }
-    
-    // Update window.accounts with mapped data for grid compatibility
-    window.accounts = window.globalAppData.accounts.map(account => mapAccountFromFile(account));
-    console.log('[Accounts] Updated window.accounts, new count:', window.accounts.length);
-    
+
     // Save to file using the filemgmt module
     if (window.filemgmt && window.filemgmt.saveAppDataToFile) {
         console.log('[Accounts] Saving to file after delete');
         window.filemgmt.saveAppDataToFile(window.globalAppData);
     }
-    
+
     console.log('[Accounts] Delete process complete for idx=' + idx);
 }
 
 // --- Main Page Initialization ---
 async function initializeAccountsPage() {
-    // Convert file format to grid format (in memory only)
-    const gridAccounts = (window.accounts || []).map(fileAccount => mapAccountFromFile(fileAccount));
+    //.map(fileAccount => mapAccountFromFile(fileAccount));
 
     // Load the schema
     const schema = await loadAccountsGridSchema();
@@ -254,129 +195,41 @@ async function initializeAccountsPage() {
     const table = getEl('accountsTable');
     if (!table) return;
 
-    // Add custom render function for current_balance
-    const currentBalanceColumn = schema.mainGrid.columns.find(col => col.field === 'current_balance');
-    if (currentBalanceColumn) {
-        currentBalanceColumn.render = (acct) => {
-            const balance = acct.current_balance ?? acct.balance ?? 0;
-            const currency = acct.currency || 'ZAR'; // Default to South African Rands
-            return balance.toLocaleString('en-ZA', { style: 'currency', currency: currency });
-        };
-    }
-
-    // Add custom render function for balance
-    const balanceColumn = schema.mainGrid.columns.find(col => col.field === 'balance');
-    if (balanceColumn) {
-        balanceColumn.render = (acct) => {
-            const balance = acct.balance ?? 0;
-            const currency = acct.currency || 'ZAR'; // Default to South African Rands
-            return balance.toLocaleString('en-ZA', { style: 'currency', currency: currency });
-        };
-    }
-
-    // Add custom render function for interest
-    const interestColumn = schema.mainGrid.columns.find(col => col.field === 'interest');
-    if (interestColumn) {
-        interestColumn.render = (acct) => {
-            // Check if account has interest data
-            if (!acct.interest_data || acct.interest_data.length === 0) {
-                return '<span style="color:#888">None</span>';
-            }
-            
-            const interestData = acct.interest_data[0]; // Use first interest setting
-            const rate = interestData.nominalRate || interestData.effectiveRate || 0;
-            if (rate === 0) return '<span style="color:#888">None</span>';
-            
-            const method = interestData.calculationMethod || 'Simple';
-            const preset = interestData.presetOption || 'Custom';
-            
-            if (preset !== 'Custom') {
-                return `${rate}% ${preset}`;
-            }
-            
-            return `${rate}% ${method}`;
-        };
-    }
-
+    // Assign custom render functions dynamically based on schema
+    schema.mainGrid.columns.forEach(col => {
+        if (col.customDisplay) {
+            col.render = (row) => {
+                return Object.entries(col.customDisplay)
+                    .map(([label, path]) => {
+                        // Support nested field access (dot notation)
+                        const value = path.split('.').reduce((obj, key) => obj && obj[key], row);
+                        return `${label}: ${value ?? ''}`;
+                    })
+                    .join(' | ');
+            };
+        } else if (col.type === 'currency') {
+            col.render = (row) => {
+                const value = row[col.field] ?? 0;
+                const currency = row.currency || 'ZAR';
+                return value.toLocaleString('en-ZA', { style: 'currency', currency });
+            };
+        }
+    });
+    // Convert file format to grid format (in memory only)
+    const gridAccounts = window.accounts ? window.accounts : []
+    // --- Editable Grid Setup ---
     const grid = new EditableGrid({
-        targetElement: table,
-        schema: schema,
-        data: gridAccounts, // Use the mapped grid format data
+        targetElement: table, // Pass the table element as targetElement
+        schema: schema, 
+        columns: schema.mainGrid.columns,
+        data: gridAccounts,
         onSave: saveAccount,
-        onAfterSave: (idx, updatedData, row, gridInstance) => {
-            console.log('[Accounts] onAfterSave: updating grid data and transaction options');
-            // Update grid data with fresh mapped data after save (especially important for new accounts with generated IDs)
-            const gridAccounts = (window.accounts || []).map(fileAccount => mapAccountFromFile(fileAccount));
-            gridInstance.data = gridAccounts;
-            console.log('[Accounts] Grid data updated after save, new count:', gridAccounts.length);
-            
-            // Force a complete re-render to ensure new ID is displayed
-            gridInstance.render();
-            console.log('[Accounts] Grid re-rendered after save');
-            
-            window.updateTxnAccountOptions();
-            console.log('[Accounts] Transaction options updated after save.');
-        },
-        onDelete: (idx, row, gridInstance) => {
-            deleteAccount(idx, row, gridInstance);
-        },
-        onAfterDelete: (idx, row, gridInstance) => {
-            console.log('[Accounts] onAfterDelete: updating grid data');
-            // Update grid data with fresh mapped data after delete
-            const gridAccounts = (window.accounts || []).map(fileAccount => mapAccountFromFile(fileAccount));
-            gridInstance.data = gridAccounts;
-            console.log('[Accounts] Grid data updated, new count:', gridAccounts.length);
-            
-            // Force a complete re-render to ensure deleted row is removed
-            gridInstance.render();
-            console.log('[Accounts] Grid re-rendered after delete');
-            
-            window.updateTxnAccountOptions();
-        },
-        actions: { add: true, edit: true, delete: true }
+        onDelete: deleteAccount,
     });
 
-    window.renderAccounts = function() {
-        // Map file format to grid format when rendering
-        const gridAccounts = (window.accounts || []).map(fileAccount => mapAccountFromFile(fileAccount));
-        grid.data = gridAccounts;
-        grid.render();
-        window.updateTxnAccountOptions();
-    };
-
-    window.renderAccounts();
+    grid.render();
+    console.log('[Accounts] Grid initialized and rendered');
 }
 
-// --- Initialization: Only after data is loaded ---
-async function tryInitAccountsPage() {
-    const init = async () => {
-        console.log('[Accounts] Initializing accounts page');
-        console.log('[Accounts] window.globalAppData available:', !!window.globalAppData);
-        console.log('[Accounts] window.globalAppData content:', window.globalAppData);
-        console.log('[Accounts] window.accounts available:', !!window.accounts);
-        console.log('[Accounts] window.filemgmt available:', !!window.filemgmt);
-        
-        // Check if globalAppData is missing and create it from window data
-        if (!window.globalAppData && window.accounts) {
-            console.log('[Accounts] Creating globalAppData from window data');
-            window.globalAppData = {
-                profile: "Jeanre", // Default profile
-                accounts: window.accounts || [],
-                transactions: window.transactions || [],
-                forecast: window.forecast || [],
-                budget: window.budget || []
-            };
-            console.log('[Accounts] Created globalAppData:', window.globalAppData);
-        }
-        
-        // No migration needed - mapping handles format conversion
-        await initializeAccountsPage();
-    };
-
-    document.addEventListener('appDataLoaded', init, { once: true });
-    if (window.accounts && Array.isArray(window.accounts)) {
-        await init();
-    }
-}
-
-tryInitAccountsPage();
+// --- Initialize the page ---
+initializeAccountsPage().catch(error => console.error('Error initializing accounts page:', error));

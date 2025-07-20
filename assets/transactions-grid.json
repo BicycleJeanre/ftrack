@@ -1,32 +1,160 @@
 {
-  "mainGrid": {
-    "columns": [
-      { "field": "id", "header": "ID", "editable": false, "type": "number" },
-      { "field": "debit_account", "header": "Debit Account", "editable": true, "type": "select", "optionsSource": "accounts" },
-      { "field": "credit_account", "header": "Credit Account", "editable": true, "type": "select", "optionsSource": "accounts" },
-      { "field": "amount", "header": "Amount", "editable": true, "type": "number" },
-      { "field": "isRecurring", "header": "Recurring?", "editable": true, "type": "checkbox" },
-      { "field": "recurrence", "header": "Recurrence", "editable": false, "type": "modal", "modalType": "recurrenceModal", "modalIcon": "edit", "modalIconTitle": "Edit Recurrence" },
-      { "field": "amountChange", "header": "Amount Change", "editable": false, "type": "modal", "modalType": "amountChangeModal", "modalIcon": "edit", "modalIconTitle": "Edit Amount Change" },
-      { "field": "tags", "header": "Tags", "editable": true, "type": "tags" }
-    ]
-  },
-  "recurrenceModal": {
-    "columns": [
-      { "field": "frequency", "header": "Frequency", "type": "select", "options": ["monthly", "weekly", "yearly"] },
-      { "field": "endDate", "header": "End Date", "type": "date" },
-      { "field": "dayOfMonth", "header": "Day of Month", "type": "number" }
-    ]
-  },
-  "amountChangeModal": {
-    "columns": [
-      { "field": "customizable", "header": "Customizable?", "type": "checkbox" },
-      { "field": "changeType", "header": "Change Type", "type": "select", "options": ["percentage", "fixed"] },
-      { "field": "changeValue", "header": "Change Value", "type": "number" },
-      { "field": "changeFrequency", "header": "Change Frequency", "type": "select", "options": ["yearly", "monthly"] },
-      { "field": "startDate", "header": "Start Date", "type": "date" },
-      { "field": "endDate", "header": "End Date", "type": "date" },
-      { "field": "notes", "header": "Notes", "type": "text" }
-    ]
-  }
+    "mainGrid": {
+        "actions": {
+            "add": true,
+            "edit": true,
+            "delete": true,
+            "save": true
+        },
+        "columns": [
+            {
+                "field": "id",
+                "header": "ID",
+                "editable": false,
+                "type": "number",
+                "display": false
+            },
+            {
+                "field": "debit_account",
+                "header": "Debit Account",
+                "editable": true,
+                "type": "select",
+                "optionsSource": "accounts",
+                "customDisplay": {"displayText": "accounts.name", "join": "transactions.debit_account.id = accounts.id"},
+                "display": true
+            },
+            {
+                "field": "credit_account",
+                "header": "Credit Account",
+                "editable": true,
+                "type": "select",
+                "optionsSource": "accounts",
+                "customDisplay": {"displayText": "accounts.name",  "join": "transactions.debit_account.id = accounts.id"},
+                "display": true
+            },
+            {
+                "field": "amount",
+                "header": "Amount",
+                "editable": true,
+                "type": "number",
+                "display": true
+            },
+            {
+                "field": "isRecurring",
+                "header": "Recurring?",
+                "editable": true,
+                "type": "checkbox",
+                "display": true
+            },
+            {
+                "field": "recurrence",
+                "header": "Recurrence",
+                "editable": false,
+                "type": "modal",
+                "modalType": "recurrenceModal",
+                "modalIcon": "edit",
+                "modalIconTitle": "Edit Recurrence",
+                "display": true
+            },
+            {
+                "field": "amountChange",
+                "header": "Amount Change",
+                "editable": false,
+                "type": "modal",
+                "modalType": "amountChangeModal",
+                "modalIcon": "edit",
+                "modalIconTitle": "Edit Amount Change",
+                "display": true
+            },
+            {
+                "field": "tags",
+                "header": "Tags",
+                "editable": true,
+                "type": "tags",
+                "display": true
+            }
+        ]
+    },
+    "recurrenceModal": {
+        "actions": {
+            "add": false,
+            "edit": true,
+            "delete": true,
+            "save": true
+        },
+        "columns": [
+            {
+                "field": "frequency",
+                "header": "Frequency",
+                "type": "select",
+                "options": [
+                    "Daily",
+                    "Monthly",
+                    "Weekly",
+                    "Yearly"
+                ]
+            },
+            {
+                "field": "endDate",
+                "header": "End Date",
+                "type": "date"
+            },
+            {
+                "field": "dayOfMonth",
+                "header": "Day of Month",
+                "type": "number"
+            }
+        ]
+    },
+    "amountChangeModal": {
+        "actions": {
+            "add": false,
+            "edit": true,
+            "delete": true,
+            "save": true
+        },
+        "columns": [
+            {
+                "field": "changeType",
+                "header": "Change Type",
+                "type": "select",
+                "options": [
+                    "percentage",
+                    "fixed"
+                ]
+            },
+            {
+                "field": "changeValue",
+                "header": "Change Value",
+                "type": "number"
+            },
+            {
+                "field": "changeFrequency",
+                "header": "Change Frequency",
+                "type": "select",
+                "options": [
+                    "Yearly",
+                    "Monthly",
+                    "Quarterly",
+                    "Weekly",
+                    "Daily"
+                ]
+            },
+            {
+                "field": "startDate",
+                "header": "Start Date",
+                "type": "date"
+            },
+            {
+                "field": "endDate",
+                "header": "End Date",
+                "type": "date"
+            },
+            {
+                "field": "notes",
+                "header": "Notes",
+                "type": "text"
+            }
+        ]
+    }
 }

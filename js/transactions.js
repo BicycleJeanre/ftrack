@@ -2,9 +2,6 @@
 // It uses the EditableGrid module to render and manage the transactions table.
 
 import { EditableGrid } from './editable-grid.js';
-import { RecurrenceModal } from './modal-recurrence.js';
-import { AmountChangeModal } from './modal-amount-change.js';
-import { CreateAccountModal } from './modal-create-account.js';
 
 // --- Global Helper Functions ---
 if (typeof window !== 'undefined') {
@@ -18,264 +15,221 @@ if (typeof window !== 'undefined') {
             content.style.display = (content.style.display === 'none') ? 'block' : 'none';
         };
     }
-}
-
-// --- Transaction Data Management ---
-function getTransactions() {
-    return window.transactions || [];
-}
-
-function getAccounts() {
-    return window.accounts || [];
-}
-
-function saveTransaction(idx, data, row, grid) {
-    console.log(`[Transactions] saveTransaction called for idx=${idx}`);
-    window.transactions = grid.data;
-    console.log('[Transactions] window.transactions updated from grid.data');
-    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
-    // if (typeof window.afterDataChange === 'function') {
-    //     console.log('[Transactions] Calling window.afterDataChange()');
-    //     window.afterDataChange();
-    // }
-    console.log('[Transactions] Save process complete for idx=' + idx);
-}
-
-function deleteTransaction(idx) {
-    if (confirm('Are you sure you want to delete this transaction?')) {
-        getTransactions().splice(idx, 1);
-        // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
-        // window.afterDataChange();
+    if (typeof window.updateTxnTransactionOptions === 'undefined') {
+        window.updateTxnTransactionOptions = () => {};
     }
 }
 
-let grid; // Module-level variable to hold the grid instance
+// --- Schema Loading ---
+async function loadTransactionsGridSchema() {
+    try {
+        const response = await fetch('../assets/transactions-grid.json');
+        if (!response.ok) throw new Error('Failed to load transactions grid schema');
+        return await response.json();
+    } catch (error) {
+        console.error('Error loading transactions grid schema:', error);
+        return null;
+    }
+}
+
+// // --- Transaction Data Management ---
+// function getTransactions() {
+//     return window.transactions || [];
+// }
+
+// // Map file format to grid format dynamically using schema
+// function mapTransactionFromFile(fileTransaction, schemaColumns) {
+//     const gridTransaction = {};
+//     schemaColumns.forEach(col => {
+//         const path = col.field;
+//         // Support nested field access (dot notation)
+//         const value = path.split('.').reduce((obj, key) => obj && obj[key], fileTransaction);
+//         gridTransaction[path] = value !== undefined ? value : (col.default !== undefined ? col.default : '');
+//     });
+//     return gridTransaction;
+// }
+
+// Map grid format back to file format dynamically using schema
+function mapTransactionToFile(gridTransaction, schemaColumns, originalFileTransaction = {}) {
+    if (!originalFileTransaction) originalFileTransaction = {};
+    const fileTransaction = { ...originalFileTransaction };
+    schemaColumns.forEach(col => {
+        const path = col.field;
+        // Support nested field set (dot notation)
+        const keys = path.split('.');
+        let target = fileTransaction;
+        for (let i = 0; i < keys.length - 1; i++) {
+            if (!target[keys[i]]) target[keys[i]] = {};
+            target = target[keys[i]];
+        }
+        target[keys[keys.length - 1]] = gridTransaction[path] !== undefined ? gridTransaction[path] : (col.default !== undefined ? col.default : '');
+    });
+    return fileTransaction;
+}
+
+// Generate next available ID
+function getNextTransactionId() {
+    const transactions = window.globalAppData?.transactions || window.transactions || [];
+    const existingIds = transactions.map(acc => acc.id || 0);
+    return Math.max(0, ...existingIds) + 1;
+}
+
+function saveTransaction(idx, data, row, grid) {
+    console.log(`[Transactions] saveTransaction called for idx=${idx}`, 'data:', data);
+    console.log('[Transactions] Current window.globalAppData:', window.globalAppData);
+
+    // Get the current transaction from grid data or data parameter for new rows
+    let currentTransaction;
+    if (idx === -1 || idx === 'new') {
+        // New row - use the data parameter
+        currentTransaction = data;
+        console.log('[Transactions] New row - using data parameter:', currentTransaction);
+    } else {
+        // Existing row - use grid data
+        currentTransaction = grid.data[idx];
+        console.log('[Transactions] Existing row - using grid data:', currentTransaction);
+    }
+
+    console.log('[Transactions] Final currentTransaction:', currentTransaction);
+
+    // Get schema columns from grid instance
+    const schemaColumns = grid.columns || [];
+
+    if (!currentTransaction || !currentTransaction.id) {
+        // New transaction - add to global data
+        console.log('[Transactions] Adding new transaction');
+        if (!window.globalAppData) {
+            console.error('[Transactions] window.globalAppData is not initialized!');
+            return;
+        }
+        if (!window.globalAppData.transactions) {
+            console.log('[Transactions] Initializing globalAppData.transactions array');
+            window.globalAppData.transactions = [];
+        }
+        // Map grid transaction to file format using schema columns
+        const fileTransaction = mapTransactionToFile(currentTransaction, schemaColumns);
+        fileTransaction.id = getNextTransactionId();
+        console.log('[Transactions] New file transaction:', fileTransaction);
+        window.globalAppData.transactions.push(fileTransaction);
+        console.log('[Transactions] globalAppData.transactions after push:', window.globalAppData.transactions);
+    } else {
+        // Update existing transaction - preserve original structure
+        console.log('[Transactions] Updating existing transaction with id:', currentTransaction.id);
+        const existingIndex = window.globalAppData.transactions.findIndex(a => a.id == currentTransaction.id);
+        console.log('[Transactions] Found existing transaction at index:', existingIndex);
+        if (existingIndex !== -1) {
+            const originalTransaction = window.globalAppData.transactions[existingIndex];
+            console.log('[Transactions] Original transaction:', originalTransaction);
+            // Map grid transaction to file format using schema columns
+            const updatedTransaction = mapTransactionToFile(currentTransaction, schemaColumns, originalTransaction);
+            console.log('[Transactions] Updated transaction:', updatedTransaction);
+            window.globalAppData.transactions[existingIndex] = updatedTransaction;
+            console.log('[Transactions] globalAppData.transactions after update:', window.globalAppData.transactions);
+        }
+    }
+
+    // Save to file using the filemgmt module
+    console.log('[Transactions] Checking filemgmt availability:', !!window.filemgmt, !!window.filemgmt?.saveAppDataToFile);
+    if (window.filemgmt && window.filemgmt.saveAppDataToFile) {
+        console.log('[Transactions] Calling saveAppDataToFile with:', window.globalAppData);
+        try {
+            window.filemgmt.saveAppDataToFile(window.globalAppData);
+            console.log('[Transactions] saveAppDataToFile completed successfully');
+        } catch (error) {
+            console.error('[Transactions] Error in saveAppDataToFile:', error);
+        }
+    } else {
+        console.error('[Transactions] filemgmt or saveAppDataToFile not available!');
+    }
+
+    console.log('[Transactions] Save process complete for idx=' + idx);
+}
+
+function deleteTransaction(idx, row, grid) {
+    console.log(`[Transactions] deleteTransaction called for idx=${idx}`);
+    // Get the transaction to delete
+    const transactionToDelete = grid.data[idx];
+    console.log('[Transactions] Transaction to delete:', transactionToDelete);
+
+    if (transactionToDelete && transactionToDelete.id) {
+        // Remove from global data
+        const existingIndex = window.globalAppData.transactions.findIndex(a => a.id == transactionToDelete.id);
+        console.log('[Transactions] Found transaction in globalAppData at index:', existingIndex);
+        if (existingIndex !== -1) {
+            window.globalAppData.transactions.splice(existingIndex, 1);
+            console.log('[Transactions] Removed from globalAppData, new count:', window.globalAppData.transactions.length);
+        }
+    }
+
+    // Save to file using the filemgmt module
+    if (window.filemgmt && window.filemgmt.saveAppDataToFile) {
+        console.log('[Transactions] Saving to file after delete');
+        window.filemgmt.saveAppDataToFile(window.globalAppData);
+    }
+
+    console.log('[Transactions] Delete process complete for idx=' + idx);
+}
 
 // --- Main Page Initialization ---
-function initializeTransactionsPage() {
-    window.transactions = window.transactions || [];
+async function initializeTransactionsPage() {
+    //.map(fileTransaction => mapTransactionFromFile(fileTransaction));
+
+    // Load the schema
+    const schema = await loadTransactionsGridSchema();
+    if (!schema) {
+        console.error('Failed to load transactions grid schema');
+        return;
+    }
 
     const panelHeader = document.createElement('div');
     panelHeader.className = 'panel-header';
     panelHeader.innerHTML = `<h2>Transactions</h2><span class="panel-arrow">&#9662;</span>`;
     panelHeader.addEventListener('click', () => window.toggleAccordion('panel-transactions'));
-    getEl('transactions-panel-header').replaceWith(panelHeader);
+    const headerEl = getEl('transactions-panel-header');
+    if (headerEl) {
+        headerEl.replaceWith(panelHeader);
+    } else {
+        console.warn('[Transactions] transactions-panel-header not found, skipping replaceWith.');
+    }
 
     const table = getEl('transactionsTable');
     if (!table) return;
 
-    const accountOptions = getAccounts().map(acc => ({ value: acc.name, text: acc.name }));
-
-    const columns = [
-        { field: 'account_primary', header: 'Primary Account', editable: true, type: 'select', options: accountOptions, default: accountOptions[0]?.value || '' },
-        { field: 'account_secondary', header: 'Secondary Account', editable: true, type: 'select', options: accountOptions, default: accountOptions[0]?.value || '' },
-        { field: 'debit', header: 'Debit', editable: true, type: 'number', default: 0, tooltip: 'Money moving from primary to secondary account.' },
-        { field: 'credit', header: 'Credit', editable: true, type: 'number', default: 0, tooltip: 'Money moving from secondary to primary account.' },
-        { 
-            field: 'isRecurring', 
-            header: 'Recurring', 
-            editable: true, 
-            type: 'checkbox',
-            default: false,
-            render: t => t.isRecurring ? '✔️' : '❌'
-        },
-        { 
-            field: 'recurrence', 
-            header: 'Recurrence', 
-            editable: false, // Handled by modal
-            default: null,
-            render: t => {
-                if (!t.isRecurring || !t.recurrence) return '<span class="disabled-text">N/A</span>';
-                return `<span class="editable-cell-link">${t.recurrence.frequency} on day ${t.recurrence.dayOfMonth}, until ${t.recurrence.endDate || '...'}</span>`;
-            },
-            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line></svg>',
-            modalIconTitle: 'Edit Recurrence',
-            onModalIconClick: ({ idx }) => {
-                const txn = getTransactions()[idx];
-                RecurrenceModal.show(txn.recurrence, (updatedRecurrence) => {
-                    txn.recurrence = updatedRecurrence;
-                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
-                    // window.afterDataChange();
-                });
-            }
-        },
-        { 
-            field: 'amountChange', 
-            header: 'Amount Change', 
-            editable: false, // Handled by modal
-            default: null,
-            render: t => {
-                if (!t.amountChange) return '<span class="editable-cell-link">None</span>';
-                return `<span class="editable-cell-link">${t.amountChange.type}: ${t.amountChange.value} per ${t.amountChange.frequency}</span>`;
-            },
-            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4l3 3"></path></svg>',
-            modalIconTitle: 'Edit Amount Change',
-            onModalIconClick: ({ idx }) => {
-                const txn = getTransactions()[idx];
-                AmountChangeModal.show(txn.amountChange, (updatedAmountChange) => {
-                    txn.amountChange = updatedAmountChange;
-                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
-                    // window.afterDataChange();
-                });
-            }
-        },
-        { field: 'tags', header: 'Tags', editable: true, type: 'text', default: '', render: t => (t.tags || []).join(', ') }
-    ];
-
-    console.log('[Transactions] Initializing EditableGrid with data:', getTransactions());
-
-    grid = new EditableGrid({
-       targetElement: table,
-        columns: columns,
-        data: getTransactions(),
-        onSave: (idx, data, row, gridInstance) => {
-            console.log(`[Transactions] onSave called for idx=${idx}, data=`, data);
-            console.log('[Transactions] Grid data before save:', gridInstance.data);
-            // Read latest values from the row's input/select elements
-            const updatedData = { ...data };
-            row.querySelectorAll('td').forEach(td => {
-                const field = td.dataset.field;
-                if (!field) return;
-                const input = td.querySelector('input, select, textarea');
-                if (input) {
-                    if (input.type === 'checkbox') {
-                        updatedData[field] = input.checked;
-                    } else if (input.type === 'number') {
-                        const parsed = parseFloat(input.value);
-                        updatedData[field] = isNaN(parsed) ? 0 : parsed;
-                    } else {
-                        updatedData[field] = input.value;
-                    }
-                }
-            });
-            // Validation
-            const errors = validateTransaction(updatedData, getAccounts());
-            if (errors.length) {
-                alert('Transaction validation failed:\n' + errors.join('\n'));
-                return;
-            }
-            // Only update for edits, not for new rows (handled by EditableGrid)
-            if (idx !== -1) {
-                gridInstance.data[idx] = updatedData;
-            }
-            saveTransaction(idx, updatedData, row, gridInstance);
-            grid.data = getTransactions();
-            grid.render();
-        },
-        onAfterSave: () => {
-            console.log('[Transactions] onAfterSave: refreshing grid from window.transactions');
-            console.log('[Transactions] window.transactions before grid refresh:', window.transactions);
-            grid.data = getTransactions();
-            grid.render();
-            console.log('[Transactions] Grid refreshed after save.');
-            console.log('[Transactions] grid.data after refresh:', grid.data);
-        },
-        onDelete: (idx) => {
-            console.log(`[Transactions] onDelete called for idx=${idx}`);
-            console.log('[Transactions] window.transactions before delete:', window.transactions);
-            deleteTransaction(idx);
-            console.log('[Transactions] window.transactions after delete:', window.transactions);
-            grid.data = getTransactions();
-            grid.render();
-        },
-        onUpdate: (e, idx, row) => {
-            const cell = e.target.closest('td');
-            if (!cell) return;
-
-            const transactions = getTransactions();
-            const txn = transactions[idx];
-            if (!txn) return;
-
-            console.log(`[Transactions] onUpdate called for idx=${idx}, field=${cell.dataset.field}`);
-            console.log('[Transactions] Transaction before update:', txn);
-
-            // Handle opening the recurrence modal
-            if (cell.dataset.field === 'recurrence' && txn.isRecurring) {
-                console.log('[Transactions] Opening RecurrenceModal for transaction:', txn);
-                RecurrenceModal.show(txn.recurrence, (updatedRecurrence) => {
-                    console.log('[Transactions] RecurrenceModal callback, updatedRecurrence:', updatedRecurrence);
-                    txn.recurrence = updatedRecurrence;
-                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
-                    // window.afterDataChange();
-                    console.log('[Transactions] Transaction after recurrence update:', txn);
-                    // Refresh grid after update
-                    grid.data = getTransactions();
-                    grid.render();
-                });
-            }
-
-            // Handle opening the amount change modal
-            if (cell.dataset.field === 'amountChange') {
-                console.log('[Transactions] Opening AmountChangeModal for transaction:', txn);
-                AmountChangeModal.show(txn.amountChange, (updatedAmountChange) => {
-                    console.log('[Transactions] AmountChangeModal callback, updatedAmountChange:', updatedAmountChange);
-                    txn.amountChange = updatedAmountChange;
-                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
-                    // window.afterDataChange();
-                    console.log('[Transactions] Transaction after amountChange update:', txn);
-                    // Refresh grid after update
-                    grid.data = getTransactions();
-                    grid.render();
-                });
-            }
-        },
-        actions: { add: true, edit: true, delete: true }
-    });
-
-    console.log('[Transactions] EditableGrid initialized:', grid);
-
-    window.renderTransactions = function() {
-        grid.data = getTransactions();
-        grid.render();
-    };
-
-    window.renderTransactions();
-}
-
-function handleCreateNewAccount(row) {
-    CreateAccountModal.show((newAccount) => {
-        // 1. Add account to global data
-        getAccounts().push(newAccount);
-        
-        // 2. Notify system of data change
-        // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
-        // window.afterDataChange();
-
-        // 3. Update the grid's column definition dynamically
-        const accountColumn = grid.columns.find(c => c.field === 'account');
-        if (accountColumn) {
-            const newOption = { value: newAccount.name, text: newAccount.name };
-            // Insert before the '-- Create New --' option
-            accountColumn.options.splice(accountColumn.options.length - 1, 0, newOption);
-        }
-
-        // 4. Update the select element in the currently editing row
-        const select = row.querySelector('td[data-field="account"] select');
-        if (select) {
-            const option = document.createElement('option');
-            option.value = newAccount.name;
-            option.text = newAccount.name;
-            // Insert it before the 'Create New' option
-            select.insertBefore(option, select.options[select.options.length - 1]);
-            
-            // Set the value to the newly created account
-            select.value = newAccount.name;
+    // Assign custom render functions dynamically based on schema
+    schema.mainGrid.columns.forEach(col => {
+        if (col.customDisplay) {
+            col.render = (row) => {
+                return Object.entries(col.customDisplay)
+                    .map(([label, path]) => {
+                        // Support nested field access (dot notation)
+                        const value = path.split('.').reduce((obj, key) => obj && obj[key], row);
+                        return `${label}: ${value ?? ''}`;
+                    })
+                    .join(' | ');
+            };
+        } else if (col.type === 'currency') {
+            col.render = (row) => {
+                const value = row[col.field] ?? 0;
+                const currency = row.currency || 'ZAR';
+                return value.toLocaleString('en-ZA', { style: 'currency', currency });
+            };
         }
     });
+    // Convert file format to grid format (in memory only)
+    const gridTransactions = window.transactions ? window.transactions : []
+    // --- Editable Grid Setup ---
+    const grid = new EditableGrid({
+        targetElement: table, // Pass the table element as targetElement
+        schema: schema, 
+        columns: schema.mainGrid.columns,
+        data: gridTransactions,
+        onSave: saveTransaction,
+        onDelete: deleteTransaction,
+    });
+
+    grid.render();
+    console.log('[Transactions] Grid initialized and rendered');
 }
 
-document.addEventListener('DOMContentLoaded', initializeTransactionsPage);
-
-function validateTransaction(txn, accountsList) {
-    const errors = [];
-    // Check both accounts exist
-    const primaryExists = accountsList.some(acc => acc.name === txn.account_primary);
-    const secondaryExists = accountsList.some(acc => acc.name === txn.account_secondary);
-    if (!primaryExists) errors.push('Primary account does not exist.');
-    if (!secondaryExists) errors.push('Secondary account does not exist.');
-    // Accounts must differ
-    if (txn.account_primary === txn.account_secondary) errors.push('Primary and secondary accounts must differ.');
-    // At least one of debit/credit must be nonzero
-    if (!(Number(txn.debit) > 0 || Number(txn.credit) > 0)) errors.push('Either debit or credit must be greater than zero.');
-    return errors;
-}
+// --- Initialize the page ---
+initializeTransactionsPage().catch(error => console.error('Error initializing transactions page:', error));

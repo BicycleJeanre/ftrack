@@ -23,9 +23,8 @@ export class Modal {
      */
     openModal(modalId, schema, cellData, colDef, onSave, onClose) {
         // Get the modal schema
-        const modalSchema = schema[modalId];
-        if (!modalSchema) {
-            console.error(`Modal schema not found for modalId: ${modalId}`);
+        if (!schema) {
+            console.error(`Modal schema not found`);
             return;
         }
 
@@ -33,10 +32,10 @@ export class Modal {
         this.createModalOverlay();
 
         // Create modal element
-        this.createModalElement(modalSchema, cellData);
+        this.createModalElement(schema, cellData);
 
         // Create EditableGrid instance for the modal
-        this.createModalGrid(modalSchema, cellData, onSave, onClose);
+        this.createModalGrid(schema, cellData, onSave, onClose);
 
         // Show the modal
         this.showModal();
@@ -117,11 +116,6 @@ export class Modal {
             schema: modalSchema,
             columns: modalSchema.columns,
             data: modalData,
-            // actions: {
-            //     add: modalSchema.actions?.add !== false,
-            //     edit: modalSchema.actions?.edit !== false,
-            //     delete: modalSchema.actions?.delete !== false
-            // },
             onSave: async (idx, updatedData, row, grid) => {
                 if (idx === -1) {
                     modalData.push(updatedData);

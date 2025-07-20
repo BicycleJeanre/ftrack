@@ -24,7 +24,8 @@
       "id": 2,
       "name": "Jeanre Transactional",
       "start_amount": 0,
-      "balance": 0,
+      "current_balance": 0,
+      "currency": "ZAR",
       "balance_as_of": "2025-07-17",
       "type": "asset",
       "date_created": "2025-07-17",
@@ -41,7 +42,8 @@
       "id": 3,
       "name": "Bernice Transactional",
       "start_amount": 0,
-      "balance": 0,
+      "current_balance": 0,
+      "currency": "ZAR",
       "balance_as_of": "2025-07-17",
       "type": "asset",
       "date_created": "2025-07-17",
@@ -64,33 +66,16 @@
       "current_balance": 0,
       "balance_as_of": "2025-07-17",
       "date_created": "2025-07-17",
-      "interest": {
-        "presetOption": "NACD (Compounded Daily)",
-        "nominalRate": 1,
-        "effectiveRate": 0,
-        "nominalRatePeriod": "Annually",
-        "calculationMethod": "Compound",
-        "compoundingInterval": "Annually"
-      }
-    },
-    {
-      "id": 5,
-      "name": "trn",
-      "type": "asset",
-      "currency": "ZAR",
-      "start_amount": 0,
-      "balance": 0,
-      "current_balance": 0,
-      "balance_as_of": "2025-07-19",
-      "date_created": "2025-07-19",
-      "interest": {
-        "presetOption": "Custom",
-        "nominalRate": 0,
-        "effectiveRate": 0,
-        "nominalRatePeriod": "Annually",
-        "calculationMethod": "Simple",
-        "compoundingInterval": "Monthly"
-      }
+      "interest": [
+        {
+          "presetOption": "NACM (Compounded Monthly)",
+          "nominalRate": 1,
+          "effectiveRate": 0,
+          "nominalRatePeriod": "Annually",
+          "calculationMethod": "Compound",
+          "compoundingInterval": "Monthly"
+        }
+      ]
     }
   ],
   "transactions": [
@@ -105,18 +90,22 @@
         "endDate": "2030-12-31",
         "dayOfMonth": 15
       },
+      "tags": [
+        "income"
+      ],
+      "recurrenceModal": {
+        "frequency": "",
+        "endDate": "",
+        "dayOfMonth": ""
+      },
       "amountChange": {
-        "customizable": true,
         "changeType": "percentage",
         "changeValue": 5,
-        "changeFrequency": "yearly",
+        "changeFrequency": "Yearly",
         "startDate": "2025-07-17",
         "endDate": null,
         "notes": "Rent may increase by 5% per year for planning purposes."
-      },
-      "tags": [
-        "income"
-      ]
+      }
     }
   ],
   "forecast": [],

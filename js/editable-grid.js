@@ -141,9 +141,13 @@ export class EditableGrid {
     renderHeaders() {
         const thead = this.targetElement.querySelector('thead');
         if (!thead) return;
+        
         thead.innerHTML = '';
         const tr = document.createElement('tr');
         this.columns.forEach(col => {
+            if (!col.display){
+                return;
+            }
             const th = document.createElement('th');
             th.textContent = col.header || col.field;
             if (col.tooltip) th.title = col.tooltip;
@@ -157,183 +161,155 @@ export class EditableGrid {
         thead.appendChild(tr);
     }
 
-    /**
-     * createRow: Builds a table row for the grid
-     * @param {Object} item - Row data object (from this.data[idx] or new row)
-     * @param {number|string} idx - Row index in data array, or 'new' for new row
-     * @param {Object|null} actionsOverride - Optional actions config for this row
-     * @param {boolean} isEditing - If true, renders editable controls
-     *
-     * item: The data for this row. Usually this.data[idx], or {} for new rows.
-     * idx: Index in this.data, or 'new' for add row.
-     */
-    createRow(item, idx, actionsOverride = null, isEditing = false) {
+    createRow(item, idx, actionsOverride = null, isEditing = false) { //, actionsOverride = null, isEditing = false
+        // Create a new table row
         const tr = document.createElement('tr');
         tr.dataset.idx = idx;
-        const rowActions = actionsOverride || this.actions;
-        // Double-click to edit row
-        tr.addEventListener('dblclick', (e) => {
-            const cell = e.target.closest('td');
-            const colDef = cell && this.columns.find(c => c.field === cell.dataset.field);
-            if (colDef && colDef.type === 'modal' && colDef.modalId) {
-                this.openModal(colDef.modalId, item, colDef);
-                return;
-            }
-            if (rowActions.edit !== false) {
-                this.toggleEditState(tr, true);
-            }
-        });
+        const rowActions = this.actions;
+
+        // // Enable double-click to edit or open modal
+        // tr.addEventListener('dblclick', (e) => {
+        //     const cell = e.target.closest('td');
+        //     const colDef = cell && this.columns.find(c => c.field === cell.dataset.field);
+        //     // If modal column, open modal
+        //     if (colDef && colDef.type === 'modal' && colDef.modalId) {
+        //         this.openModal(colDef.modalId, item, colDef);
+        //         return;
+        //     }
+        //     // Otherwise, toggle edit mode if allowed
+        //     if (rowActions.edit !== false) {
+        //         this.toggleEditState(tr, true);
+        //     }
+        // });
+
+        // Build each cell for the row
         this.columns.forEach(col => {
             const td = document.createElement('td');
             td.dataset.field = col.field;
-            let isCellEditable = false;
-            if (typeof col.editable === 'function') {
-                isCellEditable = col.editable(item);
-            } else {
-                isCellEditable = !!col.editable;
+
+            if (!col.display){
+                return;
             }
-            if (isEditing && isCellEditable) {
-                // Debug: log select field, options, and value
-                if (col.type === 'select') {
-                    console.log(`[EditableGrid] Rendering select for field '${col.field}'`, {
-                        options: col.options,
-                        itemValue: item[col.field],
-                        default: col.default
-                    });
+            let isCellEditable = col.editable;
+            // If not editing or cell not editable, render as read-only
+            if (!isCellEditable) {
+                if (col.type === number){
+                    // Render number input
+                    // For a non-editable number (formatted as currency), use a <span> or <div>
+                    const span = document.createElement('span');
+                    // Format as currency (e.g., USD)
+                    const value = item[col.field] ?? col.default ?? '';
+                    span.textContent = typeof value === 'number'
+                        ? value.toLocaleString(0, { style: 'currency', currency: 'ZAR' })
+                        : value;
+                    td.appendChild(span);
                 }
-                // Render editable controls
-                if (col.type === 'select' && Array.isArray(col.options)) {
-                    console.log(`[EditableGrid] FULL options array for field '${col.field}':`, col.options);
+                // If modal type, show modal icon button
+                if (col.type === 'modal' && col.modalIcon) {
+                    const iconBtn = document.createElement('button');
+                    iconBtn.className = 'icon-btn modal-icon-btn';
+                    iconBtn.title = col.modalIconTitle || 'Open Modal';
+                    iconBtn.innerHTML = ICONS[col.modalIcon] || ICONS.edit;
+                    iconBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.openModal(col.modalId, item, col);
+                    });
+                    td.appendChild(iconBtn);
+
+                    td.textContent = item[col.field];
+                } 
+            }
+
+            
+            switch (col.type) {
+                case 'select': {
                     const select = document.createElement('select');
-                    if (Array.isArray(col.options) && col.options.length > 0) {
-                        let selectedValue = typeof item[col.field] !== 'undefined' ? item[col.field] : (col.default ?? col.options[0].value);
-                        console.log(`[EditableGrid] Select field '${col.field}' selectedValue:`, selectedValue);
+                    // Populate select options
+                    if (Array.isArray(col.options)) {
+                        let selectedValue = typeof item[col.field] !== 'undefined' ? item[col.field] : (col.default ?? (col.options[0] && col.options[0].value));
                         col.options.forEach(opt => {
-                            // Support both string and object option formats
                             let value, label;
                             if (typeof opt === 'string') {
                                 value = opt;
                                 label = opt;
-                            } else {
-                                value = typeof opt.value !== 'undefined' ? opt.value : '';
-                                label = typeof opt.label !== 'undefined' ? opt.label : (typeof opt.value !== 'undefined' ? opt.value : JSON.stringify(opt));
                             }
-                            console.log(`[EditableGrid] Select field '${col.field}' option:`, { value, label, raw: opt });
                             const option = document.createElement('option');
                             option.value = value;
                             option.textContent = label;
                             if (selectedValue == value) option.selected = true;
                             select.appendChild(option);
-                        });
-                    } else {
-                        console.warn(`[EditableGrid] No options defined for select field '${col.field}'`);
+                        });                        
+                    } else if (col.optionsSource) {
+                        return
+                    }else {
+                        // No options defined, show disabled select
                         const option = document.createElement('option');
                         option.value = '';
                         option.textContent = 'No options defined';
                         select.appendChild(option);
                         select.disabled = true;
                     }
+
                     select.addEventListener('change', (e) => {
-                        console.log(`[EditableGrid] Select change triggered for field '${col.field}'`, {
-                            value: select.value,
-                            item: { ...item },
-                            idx,
-                            col,
-                            isEditing
-                        });
-                        if (this.calcEngine && this.schema && this.schema.formulas && this.schema.formulas[col.field] && this.schema.formulas[col.field].onChange) {
-                            // Use CalculationEngine for formula-based updates
-                            this.calcEngine.handleFieldChange(col.field, select.value, item);
-                            console.log(`[EditableGrid] After calcEngine.handleFieldChange for field '${col.field}'`, {
-                                item: { ...item }
-                            });
-                            // Re-render row with updated item
+                            // Update the item with the new value
+                            item[col.field] = select.value;
+
+                            // Re-render the row with the updated item
                             const newRow = this.createRow(item, idx, actionsOverride, true);
                             tr.replaceWith(newRow);
-                            console.log(`[EditableGrid] Row replaced after select change for field '${col.field}'`, {
-                                item: { ...item },
-                                idx
-                            });
-                            // Re-attach event handler recursively for the new select element
-                            const newSelect = newRow.querySelector(`td[data-field="${col.field}"] select`);
-                            if (newSelect) {
-                                console.log(`[EditableGrid] Re-attaching select change handler for field '${col.field}'`, {
-                                    value: newSelect.value,
-                                    item: { ...item },
-                                    idx
-                                });
-                                newSelect.addEventListener('change', function handler(ev) {
-                                    console.log(`[EditableGrid] Recursive select change triggered for field '${col.field}'`, {
-                                        value: newSelect.value,
-                                        item: { ...item },
-                                        idx
-                                    });
-                                    if (this.calcEngine && this.schema && this.schema.formulas && this.schema.formulas[col.field] && this.schema.formulas[col.field].onChange) {
-                                        this.calcEngine.handleFieldChange(col.field, newSelect.value, item);
-                                        console.log(`[EditableGrid] After recursive calcEngine.handleFieldChange for field '${col.field}'`, {
-                                            item: { ...item }
-                                        });
-                                        const newerRow = this.createRow(item, idx, actionsOverride, true);
-                                        newRow.replaceWith(newerRow);
-                                        console.log(`[EditableGrid] Row replaced after recursive select change for field '${col.field}'`, {
-                                            item: { ...item },
-                                            idx
-                                        });
-                                        // Recursively re-attach again
-                                        const newerSelect = newerRow.querySelector(`td[data-field="${col.field}"] select`);
-                                        if (newerSelect) {
-                                            console.log(`[EditableGrid] Recursively re-attaching select change handler for field '${col.field}'`, {
-                                                value: newerSelect.value,
-                                                item: { ...item },
-                                                idx
-                                            });
-                                            newerSelect.addEventListener('change', handler.bind(this));
-                                        }
-                                    }
-                                }.bind(this));
-                            }
-                        }
-                    });
+                        });
                     td.appendChild(select);
-                } else if (col.type === 'checkbox') {
-                    console.log(`[EditableGrid] Rendering checkbox for field '${col.field}'`, {
-                        value: item[col.field]
-                    });
+                    break;
+                }
+                case 'checkbox': {
+                    // Render checkbox input
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.checked = !!item[col.field];
                     td.appendChild(checkbox);
-                } else {
-                    console.log(`[EditableGrid] Rendering input for field '${col.field}'`, {
-                        value: item[col.field],
-                        type: col.type
-                    });
+                    break;
+                }
+                case 'number': {
+                    // Render number input
                     const input = document.createElement('input');
-                    input.type = col.type === 'number' ? 'number' : 'text';
+                    input.type = 'number';
                     input.value = item[col.field] ?? col.default ?? '';
                     td.appendChild(input);
+                    break;
                 }
-            } else if (col.type === 'modal' && col.modalIcon) {
-                const iconBtn = document.createElement('button');
-                iconBtn.className = 'icon-btn modal-icon-btn';
-                iconBtn.title = col.modalIconTitle || 'Open Modal';
-                iconBtn.innerHTML = ICONS[col.modalIcon] || ICONS.edit;
-                iconBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.openModal(col.modalId, item, col);
-                });
-                td.appendChild(iconBtn);
-            } else if (col.render) {
-                td.innerHTML = col.render(item);
-            } else {
-                td.textContent = item[col.field];
+                case 'modal' : {
+                    const displayModal = document.createElement('button');
+                    input.type = 'button';
+                    input.value = ICONS.interest ?? col.modalIconTitle ?? 'No Title';
+                    td.appendChild(displayModal)
+                    break
+                }
+                default: {
+                    // Render text input for other types
+                    if (isCellEditable) {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = '';
+                        input.value = item[col.field] ?? col.default ?? '';
+                        td.appendChild(input);
+                        break;
+                    }
+                    const text = document.createElement('text');
+                    text.type = 'text';
+                    text.value = item[col.field] ?? col.default ?? ''
+                    td.appendChild(input);
+                    break;
+                }
             }
             tr.appendChild(td);
         });
-        // Only add actions cell if any action is enabled
+
+        // tr.appendChild(td);
+        // Add actions cell if any action is enabled
         const actionsEnabled = rowActions && (rowActions.edit || rowActions.delete || rowActions.save || rowActions.add);
         if (actionsEnabled) {
             const actionsCell = this.createActionsCell(rowActions);
+            // Attach edit button handler if allowed
             const editBtn = actionsCell.querySelector('.edit-btn');
             if (editBtn && rowActions.edit !== false) {
                 editBtn.addEventListener('click', (e) => {
@@ -354,8 +330,11 @@ export class EditableGrid {
      *
      * Uses this.schema[modalId] for modal schema
      */
+    
+
     openModal(modalId, cellData, colDef) {
-        if (!this.schema || !this.schema[modalId]) {
+        const modalSchema = this.schema[modalId]
+        if (!this.schema || !modalSchema) {
             console.error(`Modal schema not found for modalId: ${modalId}`);
             return;
         }
@@ -384,7 +363,7 @@ export class EditableGrid {
 
         openModal(
             modalId,
-            this.schema,
+            modalSchema,
             cellData,
             colDef,
             handleModalSave,
@@ -592,11 +571,11 @@ export class EditableGrid {
             const updatedData = this.extractRowData(row, idx);
 
             // Update internal data array BEFORE calling onSave
-            if (idx === -1) {
-                this.data.push(updatedData);
-            } else {
-                this.data[idx] = { ...this.data[idx], ...updatedData };
-            }
+            // if (idx === -1) {
+            //     this.data.push(updatedData);
+            // } else {
+            //     this.data[idx] = { ...this.data[idx], ...updatedData };
+            // }
 
             // Show spinner on the row
             row.classList.add('saving-spinner');
@@ -645,8 +624,7 @@ export class EditableGrid {
     addNewRow() {
         const newRow = this.createRow({}, 'new');
         this.tbody.appendChild(newRow);
-        this.toggleEditState(newRow, true);
-        // Do NOT call this.render() here; let saveRow handle re-render after save
+        // this.toggleEditState(newRow, true);
     }
 
     // Method to display the add new row option below the grid
@@ -723,69 +701,69 @@ export class EditableGrid {
         }
     }
 
-    /**
-     * toggleEditState: Switches a row between view and edit mode
-     * @param {HTMLTableRowElement} row - Row element
-     * @param {boolean} isEditing - If true, enables editing
-     */
-    toggleEditState(row, isEditing) {
-        if (!row) return;
-        const idx = row.dataset.idx === 'new' ? -1 : parseInt(row.dataset.idx, 10);
-        // Only toggle buttons that exist
-        const deleteBtn = row.querySelector('.delete-btn');
-        if (deleteBtn) deleteBtn.classList.toggle('hidden', isEditing);
-        const saveBtn = row.querySelector('.save-btn');
-        if (saveBtn) saveBtn.classList.toggle('hidden', !isEditing);
-        const cancelBtn = row.querySelector('.cancel-btn');
-        if (cancelBtn) cancelBtn.classList.toggle('hidden', !isEditing);
-        row.classList.toggle('editing', isEditing);
-        // Re-render row with editable controls if editing
-        if (isEditing) {
-            // Always use the latest row data for editing
-            let item;
-            if (idx === -1) {
-                item = {};
-            } else {
-                item = { ...this.data[idx] };
-                this.columns.forEach(col => {
-                    const cell = row.querySelector(`td[data-field="${col.field}"]`);
-                    if (cell) {
-                        // Only override if undefined (not just falsy)
-                        if (typeof item[col.field] === 'undefined') {
-                            if (col.type === 'checkbox') {
-                                const checkbox = cell.querySelector('input[type="checkbox"]');
-                                item[col.field] = checkbox ? checkbox.checked : false;
-                            } else if (col.type === 'select') {
-                                const select = cell.querySelector('select');
-                                item[col.field] = select ? select.value : cell.textContent;
-                            } else {
-                                item[col.field] = cell.textContent;
-                            }
-                        }
-                    }
-                });
-            }
-            const newRow = this.createRow(item, row.dataset.idx, null, true);
-            row.replaceWith(newRow);
-            // Add focusout handler to row to revert when leaving the row
-            const onRowFocusOut = (e) => {
-                if (this._ignoreNextFocusout) {
-                    this._ignoreNextFocusout = false;
-                    return;
-                }
-                if (!newRow.contains(e.relatedTarget)) {
-                    this.toggleEditState(newRow, false);
-                    newRow.removeEventListener('focusout', onRowFocusOut);
-                }
-            };
-            newRow.addEventListener('focusout', onRowFocusOut);
-            const firstEditable = this.columns.find(c => c.editable);
-            if (firstEditable) {
-                const cellToFocus = newRow.querySelector(`td[data-field="${firstEditable.field}"] input, td[data-field="${firstEditable.field}"] select`);
-                if (cellToFocus) {
-                    cellToFocus.focus();
-                }
-            }
-        }
-    }
+    // /**
+    //  * toggleEditState: Switches a row between view and edit mode
+    //  * @param {HTMLTableRowElement} row - Row element
+    //  * @param {boolean} isEditing - If true, enables editing
+    //  */
+    // toggleEditState(row, isEditing) {
+    //     if (!row) return;
+    //     const idx = row.dataset.idx === 'new' ? -1 : parseInt(row.dataset.idx, 10);
+    //     // Only toggle buttons that exist
+    //     const deleteBtn = row.querySelector('.delete-btn');
+    //     if (deleteBtn) deleteBtn.classList.toggle('hidden', isEditing);
+    //     const saveBtn = row.querySelector('.save-btn');
+    //     if (saveBtn) saveBtn.classList.toggle('hidden', !isEditing);
+    //     const cancelBtn = row.querySelector('.cancel-btn');
+    //     if (cancelBtn) cancelBtn.classList.toggle('hidden', !isEditing);
+    //     row.classList.toggle('editing', isEditing);
+    //     // Re-render row with editable controls if editing
+    //     if (isEditing) {
+    //         // Always use the latest row data for editing
+    //         let item;
+    //         if (idx === -1) {
+    //             item = {};
+    //         } else {
+    //             item = { ...this.data[idx] };
+    //             this.columns.forEach(col => {
+    //                 const cell = row.querySelector(`td[data-field="${col.field}"]`);
+    //                 if (cell) {
+    //                     // Only override if undefined (not just falsy)
+    //                     if (typeof item[col.field] === 'undefined') {
+    //                         if (col.type === 'checkbox') {
+    //                             const checkbox = cell.querySelector('input[type="checkbox"]');
+    //                             item[col.field] = checkbox ? checkbox.checked : false;
+    //                         } else if (col.type === 'select') {
+    //                             const select = cell.querySelector('select');
+    //                             item[col.field] = select ? select.value : cell.textContent;
+    //                         } else {
+    //                             item[col.field] = cell.textContent;
+    //                         }
+    //                     }
+    //                 }
+    //             });
+    //         }
+    //         const newRow = this.createRow(item, row.dataset.idx, null, true);
+    //         row.replaceWith(newRow);
+    //         // Add focusout handler to row to revert when leaving the row
+    //         const onRowFocusOut = (e) => {
+    //             if (this._ignoreNextFocusout) {
+    //                 this._ignoreNextFocusout = false;
+    //                 return;
+    //             }
+    //             if (!newRow.contains(e.relatedTarget)) {
+    //                 this.toggleEditState(newRow, false);
+    //                 newRow.removeEventListener('focusout', onRowFocusOut);
+    //             }
+    //         };
+    //         newRow.addEventListener('focusout', onRowFocusOut);
+    //         const firstEditable = this.columns.find(c => c.editable);
+    //         if (firstEditable) {
+    //             const cellToFocus = newRow.querySelector(`td[data-field="${firstEditable.field}"] input, td[data-field="${firstEditable.field}"] select`);
+    //             if (cellToFocus) {
+    //                 cellToFocus.focus();
+    //             }
+    //         }
+    //     }
+    // }
 }
