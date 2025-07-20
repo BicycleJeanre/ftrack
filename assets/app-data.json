@@ -19,63 +19,6 @@
         "calculationMethod": "Simple",
         "compoundingInterval": "Annually"
       }
-    },
-    {
-      "id": 2,
-      "name": "Jeanre Transactional",
-      "start_amount": 0,
-      "current_balance": 0,
-      "currency": "ZAR",
-      "balance_as_of": "2025-07-17",
-      "type": "asset",
-      "date_created": "2025-07-17",
-      "interest": {
-        "presetOption": "Custom",
-        "nominalRate": 0,
-        "effectiveRate": 0,
-        "nominalRatePeriod": "Annually",
-        "calculationMethod": "Compound",
-        "compoundingInterval": "Monthly"
-      }
-    },
-    {
-      "id": 3,
-      "name": "Bernice Transactional",
-      "start_amount": 0,
-      "current_balance": 0,
-      "currency": "ZAR",
-      "balance_as_of": "2025-07-17",
-      "type": "asset",
-      "date_created": "2025-07-17",
-      "interest": {
-        "presetOption": "Custom",
-        "nominalRate": 0,
-        "effectiveRate": 0,
-        "nominalRatePeriod": "Annually",
-        "calculationMethod": "Compound",
-        "compoundingInterval": "Monthly"
-      }
-    },
-    {
-      "id": 4,
-      "name": "Bernice Credit Cardf",
-      "type": "income",
-      "currency": "ZAR",
-      "start_amount": 0,
-      "balance": 0,
-      "current_balance": 0,
-      "balance_as_of": "2025-07-17",
-      "date_created": "2025-07-17",
-      "interest": [
-        {
-          "presetOption": "NACM (Compounded Monthly)",
-          "nominalRate": 1,
-          "effectiveRate": 0,
-          "nominalRatePeriod": "Annually",
-          "calculationMethod": "Compound",
-          "compoundingInterval": "Monthly"
-        }
-      ]
     }
   ],
   "transactions": [

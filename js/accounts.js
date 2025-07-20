@@ -97,41 +97,42 @@ function saveAccount(idx, data, row, grid) {
 
     if (!currentAccount || !currentAccount.id) {
         // New account - add to global data
-        console.log('[Accounts] Adding new account');
-        if (!window.globalAppData) {
-            console.error('[Accounts] window.globalAppData is not initialized!');
-            return;
-        }
-        if (!window.globalAppData.accounts) {
-            console.log('[Accounts] Initializing globalAppData.accounts array');
-            window.globalAppData.accounts = [];
-        }
-        // Map grid account to file format using schema columns
-        const fileAccount = mapAccountToFile(currentAccount, schemaColumns);
-        fileAccount.id = getNextAccountId();
-        console.log('[Accounts] New file account:', fileAccount);
-        window.globalAppData.accounts.push(fileAccount);
-        console.log('[Accounts] globalAppData.accounts after push:', window.globalAppData.accounts);
+        // console.log('[Accounts] Adding new account');
+        // // if (!window.globalAppData) {
+        // //     console.error('[Accounts] window.globalAppData is not initialized!');
+        // //     return;
+        // // }
+        // // if (!window.globalAppData.accounts) {
+        // //     console.log('[Accounts] Initializing globalAppData.accounts array');
+        // //     window.globalAppData.accounts = [];
+        // // }
+        // // Map grid account to file format using schema columns
+        // const fileAccount = mapAccountToFile(currentAccount, schemaColumns);
+        // fileAccount.id = getNextAccountId();
+        // console.log('[Accounts] New file account:', fileAccount);
+        // window.globalAppData.accounts.push(fileAccount);
+        // console.log('[Accounts] globalAppData.accounts after push:', window.globalAppData.accounts);
     } else {
+        // const updatedData = {...schema, schema.mainGrid. }
         // Update existing account - preserve original structure
-        console.log('[Accounts] Updating existing account with id:', currentAccount.id);
-        const existingIndex = window.globalAppData.accounts.findIndex(a => a.id == currentAccount.id);
-        console.log('[Accounts] Found existing account at index:', existingIndex);
-        if (existingIndex !== -1) {
-            const originalAccount = window.globalAppData.accounts[existingIndex];
-            console.log('[Accounts] Original account:', originalAccount);
-            // Map grid account to file format using schema columns
-            const updatedAccount = mapAccountToFile(currentAccount, schemaColumns, originalAccount);
-            console.log('[Accounts] Updated account:', updatedAccount);
-            window.globalAppData.accounts[existingIndex] = updatedAccount;
-            console.log('[Accounts] globalAppData.accounts after update:', window.globalAppData.accounts);
-        }
+        // console.log('[Accounts] Updating existing account with id:', currentAccount.id);
+        // const existingIndex = window.globalAppData.accounts.findIndex(a => a.id == currentAccount.id);
+        // console.log('[Accounts] Found existing account at index:', existingIndex);
+        // if (existingIndex !== -1) {
+        //     const originalAccount = window.globalAppData.accounts[existingIndex];
+        //     console.log('[Accounts] Original account:', originalAccount);
+        //     // Map grid account to file format using schema columns
+        //     const updatedAccount = mapAccountToFile(currentAccount, schemaColumns, originalAccount);
+        //     console.log('[Accounts] Updated account:', updatedAccount);
+        //     window.globalAppData.accounts[existingIndex] = updatedAccount;
+        //     console.log('[Accounts] globalAppData.accounts after update:', window.globalAppData.accounts);
+        // }
     }
 
     // Save to file using the filemgmt module
-    console.log('[Accounts] Checking filemgmt availability:', !!window.filemgmt, !!window.filemgmt?.saveAppDataToFile);
+    // console.log('[Accounts] Checking filemgmt availability:', !window.filemgmt, !!window.filemgmt?.saveAppDataToFile);
     if (window.filemgmt && window.filemgmt.saveAppDataToFile) {
-        console.log('[Accounts] Calling saveAppDataToFile with:', window.globalAppData);
+        // console.log('[Accounts] Calling saveAppDataToFile with:', window.globalAppData);
         try {
             window.filemgmt.saveAppDataToFile(window.globalAppData);
             console.log('[Accounts] saveAppDataToFile completed successfully');
@@ -175,11 +176,7 @@ async function initializeAccountsPage() {
     //.map(fileAccount => mapAccountFromFile(fileAccount));
 
     // Load the schema
-    const schema = await loadAccountsGridSchema();
-    if (!schema) {
-        console.error('Failed to load accounts grid schema');
-        return;
-    }
+  
 
     const panelHeader = document.createElement('div');
     panelHeader.className = 'panel-header';
@@ -196,25 +193,25 @@ async function initializeAccountsPage() {
     if (!table) return;
 
     // Assign custom render functions dynamically based on schema
-    schema.mainGrid.columns.forEach(col => {
-        if (col.customDisplay) {
-            col.render = (row) => {
-                return Object.entries(col.customDisplay)
-                    .map(([label, path]) => {
-                        // Support nested field access (dot notation)
-                        const value = path.split('.').reduce((obj, key) => obj && obj[key], row);
-                        return `${label}: ${value ?? ''}`;
-                    })
-                    .join(' | ');
-            };
-        } else if (col.type === 'currency') {
-            col.render = (row) => {
-                const value = row[col.field] ?? 0;
-                const currency = row.currency || 'ZAR';
-                return value.toLocaleString('en-ZA', { style: 'currency', currency });
-            };
-        }
-    });
+    // schema.mainGrid.columns.forEach(col => {
+    //     if (col.customDisplay) {
+    //         col.render = (row) => {
+    //             return Object.entries(col.customDisplay)
+    //                 .map(([label, path]) => {
+    //                     // Support nested field access (dot notation)
+    //                     const value = path.split('.').reduce((obj, key) => obj && obj[key], row);
+    //                     return `${label}: ${value ?? ''}`;
+    //                 })
+    //                 .join(' | ');
+    //         };
+    //     } else if (col.type === 'currency') {
+    //         col.render = (row) => {
+    //             const value = row[col.field] ?? 0;
+    //             const currency = row.currency || 'ZAR';
+    //             return value.toLocaleString('en-ZA', { style: 'currency', currency });
+    //         };
+    //     }
+    // });
     // Convert file format to grid format (in memory only)
     const gridAccounts = window.accounts ? window.accounts : []
     // --- Editable Grid Setup ---
@@ -232,4 +229,8 @@ async function initializeAccountsPage() {
 }
 
 // --- Initialize the page ---
+  const schema = await loadAccountsGridSchema();
+    if (!schema) {
+        console.error('Failed to load accounts grid schema');
+    }
 initializeAccountsPage().catch(error => console.error('Error initializing accounts page:', error));

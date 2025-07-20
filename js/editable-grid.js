@@ -45,36 +45,6 @@ const ICONS = {
 };
 
 export class EditableGrid {
-    /**
-     * EditableGrid: Reusable, schema-driven editable grid component
-     *
-     * Key properties:
-     * - targetElement: DOM element for grid table
-     * - schema: Grid schema (columns, actions, formulas, etc.)
-     * - data: Array of row objects for grid
-     * - actions: CRUD actions enabled (from schema or options)
-     * - columns: Array of column definitions (from schema or options)
-     * - calcEngine: CalculationEngine instance for formulas
-     *
-     * Key methods:
-     * - render(): Renders grid rows and headers
-     * - createRow(item, idx, actionsOverride, isEditing): Creates a table row
-     *   - item: Object representing row data (from this.data[idx] or new row)
-     *   - idx: Row index in data array (or 'new' for new row)
-     *   - actionsOverride: Optional actions config for this row
-     *   - isEditing: If true, renders editable controls
-     * - openModal(modalId, cellData, colDef): Opens modal for modal-type column
-     * - handleTableClick(e): Handles action button clicks in grid
-     * - saveRow(idx, row): Saves row data to this.data and calls onSave
-     * - deleteRow(idx, row): Deletes row and calls onDelete
-     * - extractRowData(row, idx): Extracts updated data from editable row
-     * - toggleEditState(row, isEditing): Switches row between view/edit mode
-     *
-     * Usage:
-     * - Instantiated with options: { targetElement, schema, columns, data, actions, ... }
-     * - Renders grid based on schema and data
-     * - Handles inline editing, modals, and CRUD actions
-     */
 
     constructor(options) {
         this.targetElement = options.targetElement;
@@ -161,164 +131,157 @@ export class EditableGrid {
         thead.appendChild(tr);
     }
 
-    createRow(item, idx, actionsOverride = null, isEditing = false) { //, actionsOverride = null, isEditing = false
+    createRow(item, idx, actionsOverride = null) { //, actionsOverride = null, isEditing = false
         // Create a new table row
         const tr = document.createElement('tr');
         tr.dataset.idx = idx;
         const rowActions = this.actions;
 
-        // // Enable double-click to edit or open modal
-        // tr.addEventListener('dblclick', (e) => {
-        //     const cell = e.target.closest('td');
-        //     const colDef = cell && this.columns.find(c => c.field === cell.dataset.field);
-        //     // If modal column, open modal
-        //     if (colDef && colDef.type === 'modal' && colDef.modalId) {
-        //         this.openModal(colDef.modalId, item, colDef);
-        //         return;
-        //     }
-        //     // Otherwise, toggle edit mode if allowed
-        //     if (rowActions.edit !== false) {
-        //         this.toggleEditState(tr, true);
-        //     }
-        // });
-
         // Build each cell for the row
         this.columns.forEach(col => {
+            //create row object
             const td = document.createElement('td');
             td.dataset.field = col.field;
-
+            //if not display column. exit
             if (!col.display){
                 return;
             }
+
             let isCellEditable = col.editable;
-            // If not editing or cell not editable, render as read-only
+            // If the cell is not editable, render as display only object. 
             if (!isCellEditable) {
-                if (col.type === number){
-                    // Render number input
-                    // For a non-editable number (formatted as currency), use a <span> or <div>
-                    const span = document.createElement('span');
-                    // Format as currency (e.g., USD)
-                    const value = item[col.field] ?? col.default ?? '';
-                    span.textContent = typeof value === 'number'
-                        ? value.toLocaleString(0, { style: 'currency', currency: 'ZAR' })
-                        : value;
-                    td.appendChild(span);
-                }
-                // If modal type, show modal icon button
-                if (col.type === 'modal' && col.modalIcon) {
-                    const iconBtn = document.createElement('button');
-                    iconBtn.className = 'icon-btn modal-icon-btn';
-                    iconBtn.title = col.modalIconTitle || 'Open Modal';
-                    iconBtn.innerHTML = ICONS[col.modalIcon] || ICONS.edit;
-                    iconBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.openModal(col.modalId, item, col);
-                    });
-                    td.appendChild(iconBtn);
-
-                    td.textContent = item[col.field];
-                } 
-            }
-
-            
-            switch (col.type) {
-                case 'select': {
-                    const select = document.createElement('select');
-                    // Populate select options
-                    if (Array.isArray(col.options)) {
-                        let selectedValue = typeof item[col.field] !== 'undefined' ? item[col.field] : (col.default ?? (col.options[0] && col.options[0].value));
-                        col.options.forEach(opt => {
-                            let value, label;
-                            if (typeof opt === 'string') {
-                                value = opt;
-                                label = opt;
-                            }
-                            const option = document.createElement('option');
-                            option.value = value;
-                            option.textContent = label;
-                            if (selectedValue == value) option.selected = true;
-                            select.appendChild(option);
-                        });                        
-                    } else if (col.optionsSource) {
-                        return
-                    }else {
-                        // No options defined, show disabled select
-                        const option = document.createElement('option');
-                        option.value = '';
-                        option.textContent = 'No options defined';
-                        select.appendChild(option);
-                        select.disabled = true;
+                switch (col.type) {
+                    case 'number': {
+                        // Render number input
+                        td.textContent = (item[col.field] ?? col.default ?? 0).toLocaleString(undefined, { style: 'currency', currency: item['currency'] });
+                        break;
                     }
+                    default: {
+                        // Render text input for other types
+                        const text = document.createElement('text');
+                        text.type = 'text';
+                        text.value = item[col.field] ?? col.default ?? ''
+                        td.appendChild(text);
+                        break;
+                    }
+            }
+                
+            } else { //it is editable, render as editable item. 
+                switch (col.type) {
+                    case 'select': {
+                        const select = document.createElement('select');
+                        // Populate select options
+                        if (Array.isArray(col.options)) {
+                            let selectedValue = typeof item[col.field] !== 'undefined' ? item[col.field] : (col.default ?? (col.options[0] && col.options[0].value));
+                            col.options.forEach(opt => {
+                                let value, label;
+                                if (typeof opt === 'string') {
+                                    value = opt;
+                                    label = opt;
+                                }
+                                const option = document.createElement('option');
+                                option.value = value;
+                                option.textContent = label;
+                                if (selectedValue == value) option.selected = true;
+                                select.appendChild(option);
+                            });                        
+                        } else if (col.optionsSource) {
+                            return
+                        }else {
+                            // No options defined, show disabled select
+                            const option = document.createElement('option');
+                            option.value = '';
+                            option.textContent = 'No options defined';
+                            select.appendChild(option);
+                            select.disabled = true;
+                        }
 
-                    select.addEventListener('change', (e) => {
-                            // Update the item with the new value
-                            item[col.field] = select.value;
+                        select.addEventListener('change', (e) => {
+                                // Update the item with the new value
+                                item[col.field] = select.value;
 
-                            // Re-render the row with the updated item
-                            const newRow = this.createRow(item, idx, actionsOverride, true);
-                            tr.replaceWith(newRow);
-                        });
-                    td.appendChild(select);
-                    break;
-                }
-                case 'checkbox': {
-                    // Render checkbox input
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.checked = !!item[col.field];
-                    td.appendChild(checkbox);
-                    break;
-                }
-                case 'number': {
-                    // Render number input
-                    const input = document.createElement('input');
-                    input.type = 'number';
-                    input.value = item[col.field] ?? col.default ?? '';
-                    td.appendChild(input);
-                    break;
-                }
-                case 'modal' : {
-                    const displayModal = document.createElement('button');
-                    input.type = 'button';
-                    input.value = ICONS.interest ?? col.modalIconTitle ?? 'No Title';
-                    td.appendChild(displayModal)
-                    break
-                }
-                default: {
-                    // Render text input for other types
-                    if (isCellEditable) {
+                                // Re-render the row with the updated item
+                                const newRow = this.createRow(item, idx, actionsOverride, true);
+                                tr.replaceWith(newRow);
+                            });
+                        td.appendChild(select);
+                        break;
+                    }
+                    case 'checkbox': {
+                        // Render checkbox input
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.checked = !!item[col.field];
+                        td.appendChild(checkbox);
+                        break;
+                    }
+                    case 'number': {
+                        // Render number input
                         const input = document.createElement('input');
-                        input.type = 'text';
-                        input.value = '';
+                        input.type = 'number';
                         input.value = item[col.field] ?? col.default ?? '';
                         td.appendChild(input);
                         break;
                     }
-                    const text = document.createElement('text');
-                    text.type = 'text';
-                    text.value = item[col.field] ?? col.default ?? ''
+                    case 'modal' : {
+                        const iconBtn = document.createElement('button');
+                        iconBtn.className = 'icon-btn modal-icon-btn';
+                        iconBtn.title = col.modalIconTitle || 'Open Modal';
+                        iconBtn.innerHTML = ICONS[col.modalIcon] || ICONS.edit;
+                        iconBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.openModal(col.modalId, item, col);
+                        });
+                        td.appendChild(iconBtn);
+
+                        td.textContent = item[col.field];
+                        break
+                    }
+                default: {
+                    // Render text input for other types
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = '';
+                    input.value = item[col.field] ?? col.default ?? '';
                     td.appendChild(input);
                     break;
                 }
+                }
             }
+
             tr.appendChild(td);
         });
 
-        // tr.appendChild(td);
         // Add actions cell if any action is enabled
         const actionsEnabled = rowActions && (rowActions.edit || rowActions.delete || rowActions.save || rowActions.add);
         if (actionsEnabled) {
             const actionsCell = this.createActionsCell(rowActions);
             // Attach edit button handler if allowed
-            const editBtn = actionsCell.querySelector('.edit-btn');
-            if (editBtn && rowActions.edit !== false) {
-                editBtn.addEventListener('click', (e) => {
+            // const editBtn = actionsCell.querySelector('.edit-btn');
+            // if (editBtn && rowActions.edit !== false) {
+            //     editBtn.addEventListener('click', (e) => {
+            //         e.stopPropagation();
+            //     });
+            // }
+            const saveBtn = actionsCell.querySelector('.save-btn');
+            if (saveBtn && rowActions.save !== false) {
+                saveBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.toggleEditState(tr, true);
+                    const idx = tr.dataset.idx === 'new' ? -1 : parseInt(tr.dataset.idx, 10);
+                    this.saveRow(idx, tr);
+                });
+            }
+            const deleteBtn = actionsCell.querySelector('.delete-btn');
+            if (deleteBtn && rowActions.delete !== false) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = tr.dataset.idx === 'new' ? -1 : parseInt(tr.dataset.idx, 10);
+                    this.deleteRow(idx, tr);
                 });
             }
             tr.appendChild(actionsCell);
         }
+
         return tr;
     }
 
@@ -379,24 +342,15 @@ export class EditableGrid {
         const td = document.createElement('td');
         td.className = 'actions';
         // Use actions field to determine which buttons to show
-        let anyAction = false;
         if (actions && actions.edit) {
             td.innerHTML += `<button class="icon-btn edit-btn" title="Edit">${ICONS.edit}</button>`;
-            anyAction = true;
         }
         if (actions && actions.delete) {
             td.innerHTML += `<button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>`;
-            anyAction = true;
         }
         if (actions && actions.save) {
             td.innerHTML += `<button class="icon-btn save-btn" title="Save">${ICONS.save}</button>`;
-            anyAction = true;
         }
-        // If all actions are false, render only the cancel button
-        if (anyAction) {
-            td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel">${ICONS.cancel}</button>`;
-        } 
-        
         return td;
     }
 
@@ -507,52 +461,6 @@ export class EditableGrid {
         }
     }
 
-    /**
-     * extractRowData: Extracts updated data from an editable row
-     * @param {HTMLTableRowElement} row - Row element
-     * @param {number} idx - Index in this.data
-     * @returns {Object} updatedData - New row data
-     */
-    extractRowData(row, idx) {
-        const updatedData = {};
-        const originalData = this.data[idx] || {};
-        this.columns.forEach(col => {
-            let isCellEditable = false;
-            if (typeof col.editable === 'function') {
-                isCellEditable = col.editable(originalData);
-            } else {
-                isCellEditable = !!col.editable;
-            }
-            if (isCellEditable) {
-                const cell = row.querySelector(`td[data-field="${col.field}"]`);
-                let value;
-                if (col.type === 'select') {
-                    const select = cell.querySelector('select');
-                    value = select ? select.value : (originalData[col.field] ?? col.default ?? '');
-                } else if (col.type === 'checkbox') {
-                    const checkbox = cell.querySelector('input[type="checkbox"]');
-                    value = checkbox ? checkbox.checked : (originalData[col.field] ?? col.default ?? false);
-                } else {
-                    const input = cell.querySelector('input');
-                    if (input) {
-                        value = input.value;
-                        if (col.type === 'number') {
-                            const parsed = parseFloat(value);
-                            value = isNaN(parsed) ? 0 : parsed;
-                        }
-                    } else {
-                        value = cell.textContent;
-                        if (col.type === 'number') {
-                            const parsed = parseFloat(value);
-                            value = isNaN(parsed) ? 0 : parsed;
-                        }
-                    }
-                }
-                updatedData[col.field] = value;
-            }
-        });
-        return updatedData;
-    }
 
     /**
      * saveRow: Saves a row's data to this.data and calls onSave
@@ -560,77 +468,40 @@ export class EditableGrid {
      * @param {HTMLTableRowElement} row - Row element
      */
     async saveRow(idx, row) {
-        if (!this._savingRows) this._savingRows = new Set();
-        if (this._savingRows.has(row)) {
-            console.warn(`[EditableGrid] saveRow already in progress for idx=${idx}`);
+        if (!this.onSave) {
+            console.warn('[EditableGrid] onSave is not defined');
             return;
         }
-        this._savingRows.add(row);
+
+        // const updatedData = this.extractRowData(row, idx);
+        let updatedData = {};
+
+        this.columns.forEach(col => {
+            if (col.editable) {
+                const cell = row.querySelector(`td[data-field="${col.field}"]`);
+                const input = cell.querySelector('input, select, input[type="checkbox"]');
+                updatedData[col.field] = input ? (input.type === 'checkbox' ? input.checked : input.value) : cell.textContent;
+            }
+        });
+
         try {
-            console.log(`[EditableGrid] saveRow called for idx=${idx}`);
-            const updatedData = this.extractRowData(row, idx);
-
-            // Update internal data array BEFORE calling onSave
-            // if (idx === -1) {
-            //     this.data.push(updatedData);
-            // } else {
-            //     this.data[idx] = { ...this.data[idx], ...updatedData };
-            // }
-
-            // Show spinner on the row
-            row.classList.add('saving-spinner');
-            const spinner = document.createElement('span');
-            spinner.className = 'row-spinner';
-            spinner.innerHTML = '<svg width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#888" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.415, 31.415" transform="rotate(0 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>';
-            row.querySelector('td:last-child').appendChild(spinner);
-            console.log(`[EditableGrid] Spinner shown for idx=${idx}`);
-
-            // Call consumer's onSave
-            let saveResult;
-            if (this.onSave) {
-                console.log(`[EditableGrid] Calling onSave for idx=${idx}`);
-                saveResult = this.onSave(idx, updatedData, row, this);
-            }
-            if (saveResult && typeof saveResult.then === 'function') {
-                await saveResult;
-            }
-            console.log(`[EditableGrid] onSave complete for idx=${idx}`);
-
-            // Call consumer's onAfterSave if defined
+            await this.onSave(idx, updatedData, row, this);
             if (typeof this.onAfterSave === 'function') {
-                console.log(`[EditableGrid] Calling onAfterSave for idx=${idx}`);
                 await this.onAfterSave(idx, updatedData, row, this);
             }
-            console.log(`[EditableGrid] onAfterSave complete for idx=${idx}`);
-
-            // Remove spinner
-            if (spinner.parentNode) spinner.parentNode.removeChild(spinner);
-            row.classList.remove('saving-spinner');
-            console.log(`[EditableGrid] Spinner removed for idx=${idx}`);
-
-            // Only re-render if onAfterSave is not defined (otherwise onAfterSave handles it)
-            if (typeof this.onAfterSave !== 'function') {
-                this.render();
-            }
-        } finally {
-            this._savingRows.delete(row);
+        } catch (error) {
+            console.error(`[EditableGrid] Error saving row idx=${idx}:`, error);
         }
     }
 
-    // Method to add a new, empty row for quick adding
-    /**
-     * addNewRow: Adds a new, empty row for quick adding
-     */
     addNewRow() {
         const newRow = this.createRow({}, 'new');
         this.tbody.appendChild(newRow);
         // this.toggleEditState(newRow, true);
     }
 
-    // Method to display the add new row option below the grid
-    /**
-     * displayAddNewOption: Shows the add new row button below the grid
-     */
+     // displayAddNewOption: Shows the add new row button below the grid
+
     displayAddNewOption() {
         // Remove existing add option if it exists
         this.removeAddNewOption();
@@ -700,70 +571,4 @@ export class EditableGrid {
             e.preventDefault();
         }
     }
-
-    // /**
-    //  * toggleEditState: Switches a row between view and edit mode
-    //  * @param {HTMLTableRowElement} row - Row element
-    //  * @param {boolean} isEditing - If true, enables editing
-    //  */
-    // toggleEditState(row, isEditing) {
-    //     if (!row) return;
-    //     const idx = row.dataset.idx === 'new' ? -1 : parseInt(row.dataset.idx, 10);
-    //     // Only toggle buttons that exist
-    //     const deleteBtn = row.querySelector('.delete-btn');
-    //     if (deleteBtn) deleteBtn.classList.toggle('hidden', isEditing);
-    //     const saveBtn = row.querySelector('.save-btn');
-    //     if (saveBtn) saveBtn.classList.toggle('hidden', !isEditing);
-    //     const cancelBtn = row.querySelector('.cancel-btn');
-    //     if (cancelBtn) cancelBtn.classList.toggle('hidden', !isEditing);
-    //     row.classList.toggle('editing', isEditing);
-    //     // Re-render row with editable controls if editing
-    //     if (isEditing) {
-    //         // Always use the latest row data for editing
-    //         let item;
-    //         if (idx === -1) {
-    //             item = {};
-    //         } else {
-    //             item = { ...this.data[idx] };
-    //             this.columns.forEach(col => {
-    //                 const cell = row.querySelector(`td[data-field="${col.field}"]`);
-    //                 if (cell) {
-    //                     // Only override if undefined (not just falsy)
-    //                     if (typeof item[col.field] === 'undefined') {
-    //                         if (col.type === 'checkbox') {
-    //                             const checkbox = cell.querySelector('input[type="checkbox"]');
-    //                             item[col.field] = checkbox ? checkbox.checked : false;
-    //                         } else if (col.type === 'select') {
-    //                             const select = cell.querySelector('select');
-    //                             item[col.field] = select ? select.value : cell.textContent;
-    //                         } else {
-    //                             item[col.field] = cell.textContent;
-    //                         }
-    //                     }
-    //                 }
-    //             });
-    //         }
-    //         const newRow = this.createRow(item, row.dataset.idx, null, true);
-    //         row.replaceWith(newRow);
-    //         // Add focusout handler to row to revert when leaving the row
-    //         const onRowFocusOut = (e) => {
-    //             if (this._ignoreNextFocusout) {
-    //                 this._ignoreNextFocusout = false;
-    //                 return;
-    //             }
-    //             if (!newRow.contains(e.relatedTarget)) {
-    //                 this.toggleEditState(newRow, false);
-    //                 newRow.removeEventListener('focusout', onRowFocusOut);
-    //             }
-    //         };
-    //         newRow.addEventListener('focusout', onRowFocusOut);
-    //         const firstEditable = this.columns.find(c => c.editable);
-    //         if (firstEditable) {
-    //             const cellToFocus = newRow.querySelector(`td[data-field="${firstEditable.field}"] input, td[data-field="${firstEditable.field}"] select`);
-    //             if (cellToFocus) {
-    //                 cellToFocus.focus();
-    //             }
-    //         }
-    //     }
-    // }
 }
