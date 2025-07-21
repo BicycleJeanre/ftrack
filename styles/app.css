@@ -27,6 +27,29 @@ h1, h2, h3 {
   font-weight: 700;
 }
 
+
+.content {
+  padding: 18px 20px 20px 20px;
+  display: block;
+  background: #232526;
+  border-radius: 0 0 10px 10px;
+  transition: max-height 0.3s cubic-bezier(.4,0,.2,1), opacity 0.2s, padding 0.3s;
+  overflow: hidden;
+  opacity: 1;
+  max-height: 2000px;
+  
+}
+
+.collapsed-panel .content {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    pointer-events: none;
+}
+
+/*--------------------------------------------------------------------------------------*/
+
 /* --- Navigation --- */
 nav {
   margin-bottom: 24px;
@@ -161,25 +184,7 @@ label {
     transform: rotate(-90deg);
 }
 
-.panel-content {
-  padding: 18px 20px 20px 20px;
-  display: block;
-  background: #232526;
-  border-radius: 0 0 10px 10px;
-  transition: max-height 0.3s cubic-bezier(.4,0,.2,1), opacity 0.2s, padding 0.3s;
-  overflow: hidden;
-  opacity: 1;
-  max-height: 2000px;
-  
-}
 
-.collapsed-panel .panel-content {
-    max-height: 0;
-    opacity: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    pointer-events: none;
-}
 
 /* --- Specific Elements --- */
 #resultsTableDiv {

@@ -6,10 +6,7 @@
     <title>Accounts | Financial Simulation</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='-5' y='90' font-size='100'%3E%24%3C/text%3E%3C/svg%3E" type="image/svg+xml">
     <link rel="stylesheet" href="../styles/app.css">
-    <script src="../js/global-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-    <script src="../js/modal-interest.js" type="module"></script>
+    <script src="../js/navbar.js" type="module"></script>
     <script src="../js/accounts.js" type="module"></script>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
 </head>
@@ -17,19 +14,7 @@
     <div class="container">
         <div id="main-navbar"></div>
         <div class="input-section" id="panel-accounts">
-            <div id="accounts-panel-header"></div>
-            <div class="panel-content">
-                <div class="desc">Manage your accounts below. Click the 'Edit' icon to change a name or starting balance, or use the '+ Add Account' button to create a new one.</div>
-                <div class="account-list">
-                    <table id="accountsTable">
-                        <thead>
-                            <tr><th>Name</th><th>Start Balance</th><th>Current Balance</th><th>Interest</th><th>Actions</th></tr>
-                        </thead>
-                        <tbody>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            
         </div>
     </div>
 </body>

@@ -1,33 +1,3 @@
-/**
- * EditableGrid: Reusable, schema-driven editable grid component
- *
- * Key properties:
- * - targetElement: DOM element for grid table
- * - schema: Grid schema (columns, actions, formulas, etc.)
- * - data: Array of row objects for grid
- * - actions: CRUD actions enabled (from schema or options)
- * - columns: Array of column definitions (from schema or options)
- * - calcEngine: CalculationEngine instance for formulas
- *
- * Key methods:
- * - render(): Renders grid rows and headers
- * - createRow(item, idx, actionsOverride, isEditing): Creates a table row
- *   - item: Object representing row data (from this.data[idx] or new row)
- *   - idx: Row index in data array (or 'new' for new row)
- *   - actionsOverride: Optional actions config for this row
- *   - isEditing: If true, renders editable controls
- * - openModal(modalId, cellData, colDef): Opens modal for modal-type column
- * - handleTableClick(e): Handles action button clicks in grid
- * - saveRow(idx, row): Saves row data to this.data and calls onSave
- * - deleteRow(idx, row): Deletes row and calls onDelete
- * - extractRowData(row, idx): Extracts updated data from editable row
- * - toggleEditState(row, isEditing): Switches row between view/edit mode
- *
- * Usage:
- * - Instantiated with options: { targetElement, schema, columns, data, actions, ... }
- * - Renders grid based on schema and data
- * - Handles inline editing, modals, and CRUD actions
- */
 
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
 import { openModal } from './modal.js';
@@ -48,38 +18,31 @@ export class EditableGrid {
 
     constructor(options) {
         this.targetElement = options.targetElement;
-        this.schema = options.schema || null;
+        this.schema = options.schema;
         this.data = options.data;
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
-        this.onUpdate = options.onUpdate;
-        this.onAfterSave = options.onAfterSave;
-        // if (this.schema.actions){
-        //     this.actions = options.actions
+        
+        // if (this.schema && this.schema.mainGrid && this.schema.mainGrid.actions) {
+        //     this.actions = this.schema.mainGrid.actions;
+        // } else if (this.schema && this.schema.actions) {
+        //     this.actions = this.schema.actions;
         // } else {
-        //     this.actions = { add: false, edit: false, delete: false, save: false }
+        //     this.actions = { add: false, edit: false, delete: false, save: false };
         // }
-        // Use actions from schema if available
-        if (this.schema && this.schema.mainGrid && this.schema.mainGrid.actions) {
-            this.actions = this.schema.mainGrid.actions;
-        } else if (this.schema && this.schema.actions) {
-            this.actions = this.schema.actions;
-        } else {
-            this.actions = { add: false, edit: false, delete: false, save: false };
-        }
-        this.tbody = this.targetElement.querySelector('tbody');
-        this.tbody.addEventListener('click', this.handleTableClick.bind(this));
-        this._ignoreNextFocusout = false;
-        this.onAfterDelete = options.onAfterDelete;
-        this._shortcutsLoaded = false;
-        this._keydownHandler = this._handleKeydown.bind(this);
-        // Parse columns from schema if provided
-        if (this.schema && this.schema.mainGrid && Array.isArray(this.schema.mainGrid.columns)) {
-            this.columns = this.schema.mainGrid.columns;
-        } else {
-            this.columns = options.columns;
-        }
-        this.calcEngine = this.schema ? new CalculationEngine(this.schema) : null;
+        // this.tbody = this.targetElement.querySelector('tbody');
+        // this.tbody.addEventListener('click', this.handleTableClick.bind(this));
+        // this._ignoreNextFocusout = false;
+        // this.onAfterDelete = options.onAfterDelete;
+        // this._shortcutsLoaded = false;
+        // this._keydownHandler = this._handleKeydown.bind(this);
+        // // Parse columns from schema if provided
+        // if (this.schema && this.schema.mainGrid && Array.isArray(this.schema.mainGrid.columns)) {
+        //     this.columns = this.schema.mainGrid.columns;
+        // } else {
+        //     this.columns = options.columns;
+        // }
+        // this.calcEngine = this.schema ? new CalculationEngine(this.schema) : null;
     }
 
     async _ensureShortcutsLoaded() {

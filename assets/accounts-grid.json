@@ -26,13 +26,7 @@
                 "header": "Type",
                 "editable": true,
                 "type": "select",
-                "options": [
-                    "asset",
-                    "liability",
-                    "equity",
-                    "income",
-                    "expense"
-                ],
+                "optionsSource": "accountType",
                 "default": "asset",
                 "display": true
             },
@@ -41,15 +35,6 @@
                 "header": "Currency",
                 "editable": true,
                 "type": "select",
-                "options": [
-                    "ZAR",
-                    "USD",
-                    "EUR",
-                    "GBP",
-                    "JPY",
-                    "AUD",
-                    "CAD"
-                ],
                 "default": "ZAR",
                 "display": true
             },
@@ -69,19 +54,34 @@
             },
             {
                 "field": "interest",
-                "customDisplay": {
-                    "Preset": "interest.presetOption"
-                },
+                "displayType": "custom lookup",
+                "customDisplay": "interest.presetOption",
+                "display": true,
                 "header": "Interest",
                 "editable": false,
                 "type": "modal",
                 "modalId": "interestModal",
                 "modalIcon": "edit",
-                "modalIconTitle": "Edit Interest",
-                "display": true
+                "modalIconTitle": "Edit Interest"  
             }
         ]
     },
+    "accountType": [
+        "Asset",
+        "Liability",
+        "Equity",
+        "Income",
+        "Expense"
+    ],
+    "currencies": [
+        "ZAR",
+        "USD",
+        "EUR",
+        "GBP",
+        "JPY",
+        "AUD",
+        "CAD"
+    ],
     "interestModal": {
         "title": "Edit Interest Settings",
         "dataField": "interest",
