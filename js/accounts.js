@@ -49,43 +49,60 @@ async function onDelete(){
 async function createGridSchema(tableElement, onSave, onDelete) {
     let gridData = {}
     gridData.targetElement = tableElement;
+    gridData.tableHeader = 'Accounts'
     gridData.onSave = onSave;
     gridData.onDelete = onDelete;
     // Load the schema file from disk in an Electron app
-    const fs = window.require('fs');
-    const path = process.cwd() + '/assets/accounts-grid.json'
-    fs.readFile(path, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Failed to read schema:', err);
-            return;
-        }
-        try {
-            gridData.schema = JSON.parse(data);
-            // console.log(schema);
-            // You can now use the schema object as needed
-        } catch (parseErr) {
-            console.error('Failed to parse schema JSON:', parseErr);
-        }
-    });
-    const dataPath = process.cwd() + '/assets/app-data.json'
-    fs.readFile(dataPath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Failed to read schema:', err);
-            return;
-        }
-        try {
-            let initialData = JSON.parse(data);
-            //parse internal data
-            gridData.data = initialData.accounts
+    // const fs = window.require('fs');
+    // const path = process.cwd() + '/assets/accounts-grid.json'
+    // await fs.readFile(path, 'utf8', (err, data) => {
+    //     if (err) {
+    //         console.error('Failed to read schema:', err);
+    //         return;
+    //     }
+    //     try {
+    //         gridData.schema = JSON.parse(data);
+    //         // console.log(schema);
+    //         // You can now use the schema object as needed
+    //     } catch (parseErr) {
+    //         console.error('Failed to parse schema JSON:', parseErr);
+    //     }
+    // });
+    // const dataPath = process.cwd() + '/assets/app-data.json'
+    // await fs.readFile(dataPath, 'utf8', (err, data) => {
+    //     if (err) {
+    //         console.error('Failed to read schema:', err);
+    //         return;
+    //     }
+    //     try {
+    //         let initialData = JSON.parse(data);
+    //         //parse internal data
+    //         gridData.data = initialData.accounts
 
-        } catch (parseErr) {
-            console.error('Failed to parse schema JSON:', parseErr);
-        }
-    });
+    //     } catch (parseErr) {
+    //         console.error('Failed to parse schema JSON:', parseErr);
+    //     }
+    // });
 
     // console.log(initialData)
 
-    
+    // Load the schema file from disk in an Electron app
+    const fs = window.require('fs').promises; // Use the promise-based fs module
+    const schemaPath = process.cwd() + '/assets/accounts-grid.json';
+    const dataPath = process.cwd() + '/assets/app-data.json';
+
+    try {
+        const schemaFile = await fs.readFile(schemaPath, 'utf8');
+        gridData.schema = JSON.parse(schemaFile);
+
+        const dataFile = await fs.readFile(dataPath, 'utf8');
+        const initialData = JSON.parse(dataFile);
+        gridData.data = initialData.accounts;
+    } catch (err) {
+        console.error('Failed to read or parse data files:', err);
+        // Return null or an empty structure if files can't be loaded
+        return null; 
+    }
    
     // gridData.data = initialData;
 
@@ -93,9 +110,7 @@ async function createGridSchema(tableElement, onSave, onDelete) {
 }
 
 function loadTable(tableData){
-    const grid =  new EditableGrid(
-        tableData
-    )
+    const grid =  new EditableGrid(tableData)
     grid.render()
 }
 
