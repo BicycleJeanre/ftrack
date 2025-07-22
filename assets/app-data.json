@@ -19,6 +19,15 @@
         "calculationMethod": "Simple",
         "compoundingInterval": "Annually"
       }
+    },
+    {
+      "id": "",
+      "name": "",
+      "type": "asset",
+      "currency": "ZAR",
+      "balance": "",
+      "current_balance": "",
+      "interest": ""
     }
   ],
   "transactions": [

@@ -38,8 +38,22 @@ function buildGridContainer(){
     return table;
 }
 
-async function onSave(){
-    console.log("saving!")
+async function onSave(updatedAccounts) {
+    // updatedAccounts: the new/changed accounts data to persist
+    const fs = window.require('fs').promises;
+    const dataPath = process.cwd() + '/assets/app-data.json';
+    try {
+        // Read the current data file
+        const dataFile = await fs.readFile(dataPath, 'utf8');
+        let appData = JSON.parse(dataFile);
+        // Only update the accounts property with the new data
+        appData.accounts = updatedAccounts;
+        // Write the updated data back to disk
+        await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
+        console.log('Accounts saved successfully!');
+    } catch (err) {
+        console.error('Failed to save accounts data:', err);
+    }
 }
 
 async function onDelete(){
@@ -52,40 +66,7 @@ async function createGridSchema(tableElement, onSave, onDelete) {
     gridData.tableHeader = 'Accounts'
     gridData.onSave = onSave;
     gridData.onDelete = onDelete;
-    // Load the schema file from disk in an Electron app
-    // const fs = window.require('fs');
-    // const path = process.cwd() + '/assets/accounts-grid.json'
-    // await fs.readFile(path, 'utf8', (err, data) => {
-    //     if (err) {
-    //         console.error('Failed to read schema:', err);
-    //         return;
-    //     }
-    //     try {
-    //         gridData.schema = JSON.parse(data);
-    //         // console.log(schema);
-    //         // You can now use the schema object as needed
-    //     } catch (parseErr) {
-    //         console.error('Failed to parse schema JSON:', parseErr);
-    //     }
-    // });
-    // const dataPath = process.cwd() + '/assets/app-data.json'
-    // await fs.readFile(dataPath, 'utf8', (err, data) => {
-    //     if (err) {
-    //         console.error('Failed to read schema:', err);
-    //         return;
-    //     }
-    //     try {
-    //         let initialData = JSON.parse(data);
-    //         //parse internal data
-    //         gridData.data = initialData.accounts
-
-    //     } catch (parseErr) {
-    //         console.error('Failed to parse schema JSON:', parseErr);
-    //     }
-    // });
-
-    // console.log(initialData)
-
+    
     // Load the schema file from disk in an Electron app
     const fs = window.require('fs').promises; // Use the promise-based fs module
     const schemaPath = process.cwd() + '/assets/accounts-grid.json';
@@ -116,5 +97,5 @@ function loadTable(tableData){
 
 loadGlobals();
 const table = buildGridContainer();
-const tableData = await createGridSchema(table)
+const tableData = await createGridSchema(table, onSave, onDelete)
 loadTable(tableData);
