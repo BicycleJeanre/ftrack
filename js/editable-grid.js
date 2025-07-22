@@ -73,6 +73,18 @@ export class EditableGrid {
         //render the whole table
         window.add(this.targetElement, table)
 
+        // Add button below table if add action is enabled
+        if (this.schema.mainGrid.actions.add) {
+            let addButton = document.createElement('span')
+            addButton.innerHTML = ICONS['add']
+            addButton.className = 'add-button'
+            addButton.title = 'Add New Row'
+            addButton.addEventListener('click', () => {
+                this.handleAdd()
+            })
+            window.add(this.targetElement, addButton)
+        }
+
     }
     //method to create headers from schema. Called from render
     createHeader() {
@@ -225,5 +237,10 @@ export class EditableGrid {
     handleSave(rowData) {
         // TODO: Implement save functionality
         console.log('Save clicked for:', rowData)
+    }
+    
+    handleAdd() {
+        // TODO: Implement add functionality
+        console.log('Add new row clicked')
     }
 }
