@@ -36,6 +36,7 @@
                 "editable": true,
                 "type": "select",
                 "default": "ZAR",
+                "optionsSource": "currencies",
                 "display": true
             },
             {

@@ -140,6 +140,24 @@ export class EditableGrid {
                             window.add(textCell, texIn)
                             window.add(row, textCell)
                             break
+                        case 'select':
+                            let selectCell = document.createElement('td')
+                            let selectIn = document.createElement('select')
+                            const options = this.schema[col.optionsSource]
+                            if (options) {
+                                options.forEach(option => {
+                                    const optionEl = document.createElement('option')
+                                    optionEl.value = option
+                                    optionEl.textContent = option
+                                    if (option === acc[col.field]) {
+                                        optionEl.selected = true
+                                    }
+                                    window.add(selectIn, optionEl)
+                                })
+                            }
+                            window.add(selectCell, selectIn)
+                            window.add(row, selectCell)
+                            break
                         default:
                             let defCell = document.createElement('td')
                             let def = document.createElement('input')
