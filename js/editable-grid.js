@@ -24,27 +24,10 @@ export class EditableGrid {
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
 
+        // Internal working data - copy of original data for manipulation
+        this.workingData = [...this.data];
+
         this.showActions = options.schema.mainGrid.actions.add || options.schema.mainGrid.actions.edit || options.schema.mainGrid.actions.mainGrid.actions.delete || options.schema.save
-        // if (this.schema && this.schema.mainGrid && this.schema.mainGrid.actions) {
-        //     this.actions = this.schema.mainGrid.actions;
-        // } else if (this.schema && this.schema.actions) {
-        //     this.actions = this.schema.actions;
-        // } else {
-        //     this.actions = { add: false, edit: false, delete: false, save: false };
-        // }
-        // this.tbody = this.targetElement.querySelector('tbody');
-        // this.tbody.addEventListener('click', this.handleTableClick.bind(this));
-        // this._ignoreNextFocusout = false;
-        // this.onAfterDelete = options.onAfterDelete;
-        // this._shortcutsLoaded = false;
-        // this._keydownHandler = this._handleKeydown.bind(this);
-        // // Parse columns from schema if provided
-        // if (this.schema && this.schema.mainGrid && Array.isArray(this.schema.mainGrid.columns)) {
-        //     this.columns = this.schema.mainGrid.columns;
-        // } else {
-        //     this.columns = options.columns;
-        // }
-        // this.calcEngine = this.schema ? new CalculationEngine(this.schema) : null;
     }
 
     async _ensureShortcutsLoaded() {
@@ -57,6 +40,7 @@ export class EditableGrid {
 
     // Method to render the entire grid
     async render() {
+        this.targetElement.innerHTML = ''
         // await this._ensureShortcutsLoaded();
         const headerText = document.createElement('h2')
         headerText.innerHTML = this.tableHeader
@@ -112,7 +96,7 @@ export class EditableGrid {
     //method to create table row data from input data. Called from render.
     createTableRows() {
         const tbody = document.createElement('tbody')
-        this.data.forEach(acc => {
+        this.workingData.forEach(acc => {
             const row = document.createElement('tr')
             const columns = this.schema.mainGrid.columns
             columns.forEach(col => {
@@ -228,19 +212,36 @@ export class EditableGrid {
         })
         return tbody
     }
-    
+    //method to handle editing a row
     handleEdit(rowData) {
         // TODO: Implement edit functionality
         console.log('Edit clicked for:', rowData)
     }
-    
+    //method to handle saving a row to disk
     handleSave(rowData) {
-        // TODO: Implement save functionality
-        console.log('Save clicked for:', rowData)
+        // Copy working data back to original data
+        this.data.length = 0;
+        this.data.push(...this.workingData);
+        
+        // Call external save handler if provided
+        if (this.onSave) {
+            this.onSave(this.data);
+        }
     }
-    
+    //method for adding a new row to the grid. 
     handleAdd() {
-        // TODO: Implement add functionality
-        console.log('Add new row clicked')
+        // Create new empty row based on schema defaults
+        const newRow = {};
+        this.schema.mainGrid.columns.forEach(col => {
+            if (col.field) {
+                newRow[col.field] = col.default || '';
+            }
+        });
+        
+        // Add to working data
+        this.workingData.push(newRow);
+        
+        // Re-render the grid
+        this.render();
     }
 }
