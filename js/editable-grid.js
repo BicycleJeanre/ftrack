@@ -18,13 +18,13 @@ export class EditableGrid {
 
     constructor(options) {
         this.targetElement = options.targetElement;
-        this.tableHeader= options.tableHeader;
+        this.tableHeader = options.tableHeader;
         this.schema = options.schema;
         this.data = options.data;
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
-        
-        this.showActions = options.schema.mainGrid.actions.add || options.schema.mainGrid.actions.edit|| options.schema.mainGrid.actions.mainGrid.actions.delete || options.schema.save
+
+        this.showActions = options.schema.mainGrid.actions.add || options.schema.mainGrid.actions.edit || options.schema.mainGrid.actions.mainGrid.actions.delete || options.schema.save
         // if (this.schema && this.schema.mainGrid && this.schema.mainGrid.actions) {
         //     this.actions = this.schema.mainGrid.actions;
         // } else if (this.schema && this.schema.actions) {
@@ -66,12 +66,12 @@ export class EditableGrid {
 
         const headers = this.createHeader();
         window.add(table, headers)
-        
+
         const tableData = this.createTableRows()
         window.add(table, tableData)
 
         //render the whole table
-        window.add(this.targetElement, table)        
+        window.add(this.targetElement, table)
 
     }
     //method to create headers from schema. Called from render
@@ -81,12 +81,15 @@ export class EditableGrid {
 
         //add schema columns to header
         this.schema.mainGrid.columns.forEach(col => {
-            const colHead = document.createElement('th')
-            colHead.textContent = col.header
-            window.add(thead, colHead)
+            if (col.display) {
+                const colHead = document.createElement('th')
+                colHead.textContent = col.header
+                window.add(thead, colHead)
+            }
         })
+
         //add actions column if needed
-        if (this.showActions){
+        if (this.showActions) {
             const actionHeader = document.createElement('th')
             actionHeader.textContent = "Actions";
             window.add(thead, actionHeader);
@@ -95,21 +98,61 @@ export class EditableGrid {
         return thead
     }
     //method to create table row data from input data. Called from render.
-    createTableRows(){
+    createTableRows() {
         const tbody = document.createElement('tbody')
-        this.data.forEach(acc => {     
-            const row = document.createElement('tr')       
+        this.data.forEach(acc => {
+            const row = document.createElement('tr')
             const columns = this.schema.mainGrid.columns
             columns.forEach(col => {
-                const cellContent = document.createElement('td')
-                cellContent.textContent = acc[col.field]
-                window.add(row, cellContent)
-
+                if (!col.display) return
+                if (!col.editable) {
+                    let cellContent = document.createElement('td')
+                    cellContent.textContent = acc[col.field]
+                    window.add(row, cellContent)
+                } else {
+                    switch (col.type) {
+                        case 'currency':
+                            let currencyCell = document.createElement('td')
+                            let currencyIn = document.createElement('input')
+                            currencyIn.type = 'number'
+                            currencyIn.step = '1'
+                            currencyIn.value = new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: acc.currency
+                            }).format(acc[col.field])
+                            window.add(currencyCell, currencyIn)
+                            window.add(row, currencyCell)
+                            break
+                        case 'number':
+                            let numCell = document.createElement('td')
+                            let numIn = document.createElement('input')
+                            numIn.type = 'number'
+                            numIn.step = '1'
+                            numIn.value = acc[col.field]
+                            window.add(numCell, numIn)
+                            window.add(row, numCell)
+                            break
+                        case 'text':
+                            let textCell = document.createElement('td')
+                            let texIn = document.createElement('input')
+                            texIn.type = 'text'
+                            texIn.value = acc[col.field]
+                            window.add(textCell, texIn)
+                            window.add(row, textCell)
+                            break
+                        default:
+                            let defCell = document.createElement('td')
+                            let def = document.createElement('input')
+                            def.type = 'text'
+                            def.value = acc[col.field]
+                            window.add(defCell, def)
+                            window.add(row, defCell)
+                            break
+                    }
+                }
             })
-            window.add(tbody, row)   
+            window.add(tbody, row)
         })
-
         return tbody
-
     }
 }
