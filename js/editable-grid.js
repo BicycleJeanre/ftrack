@@ -1,4 +1,3 @@
-
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
 import { openModal } from './modal.js';
 import { CalculationEngine } from './calculation-engine.js';
@@ -27,7 +26,7 @@ export class EditableGrid {
         // Internal working data - copy of original data for manipulation
         this.workingData = [...this.data];
 
-        this.showActions = options.schema.mainGrid.actions.add || options.schema.mainGrid.actions.edit || options.schema.mainGrid.actions.mainGrid.actions.delete || options.schema.save
+        this.showActions = options.schema.mainGrid.actions.add || options.schema.mainGrid.actions.edit || options.schema.mainGrid.actions.delete || options.schema.mainGrid.actions.save
     }
 
     async _ensureShortcutsLoaded() {
@@ -101,7 +100,7 @@ export class EditableGrid {
             const columns = this.schema.mainGrid.columns
             columns.forEach(col => {
                 if (!col.display) return
-                if (!col.editable) {
+                if (!col.editable || !this.schema.mainGrid.actions.edit) {
                     let cellContent = document.createElement('td')
                     cellContent.textContent = acc[col.field]
                     window.add(row, cellContent)
@@ -182,29 +181,16 @@ export class EditableGrid {
             // Add actions column if needed
             if (this.showActions) {
                 let actionsCell = document.createElement('td')
-                
-                if (this.schema.mainGrid.actions.edit) {
-                    let editIcon = document.createElement('span')
-                    editIcon.innerHTML = ICONS['edit']
-                    editIcon.className = 'action-icon edit-icon'
-                    editIcon.title = 'Edit'
-                    editIcon.addEventListener('click', () => {
-                        this.handleEdit(acc)
-                    })
-                    window.add(actionsCell, editIcon)
-                }
-                
                 if (this.schema.mainGrid.actions.save) {
                     let saveIcon = document.createElement('span')
                     saveIcon.innerHTML = ICONS['save']
                     saveIcon.className = 'action-icon save-icon'
                     saveIcon.title = 'Save'
-                    saveIcon.addEventListener('click', () => {
-                        this.handleSave(acc)
+                    saveIcon.addEventListener('click', (event) => {
+                        this.handleSave( event.target.closest('tr'))
                     })
                     window.add(actionsCell, saveIcon)
                 }
-                
                 window.add(row, actionsCell)
             }
             
@@ -212,14 +198,35 @@ export class EditableGrid {
         })
         return tbody
     }
-    //method to handle editing a row
-    handleEdit(rowData) {
-        // TODO: Implement edit functionality
-        console.log('Edit clicked for:', rowData)
-    }
+
     //method to handle saving a row to disk
-    handleSave(rowData) {
+    handleSave(row) {
+        const rowData = {};
+        const columns = this.schema.mainGrid.columns;
+        // Loop through columns and extract values from each cell/input
+        columns.forEach((col, i) => {
+            const cell = row.children[i];
+            let value = '';
+             switch (col.type) {
+                        case 'number':
+                        case 'text':
+                            const texIn = cell.querySelector('input, select')
+                            value = texIn ? texIn.value : ''
+                            break
+                        case 'modal':
+                            break
+                        default:
+                            value = cell.textContent;
+                            break
+                    }
+            rowData[col.field] = value;
+        })
+
+        const accToUpdate = this.workingData.findIndex(acc => acc.id === rowData.id)
+        this.workingData[accToUpdate] = rowData
         // Copy working data back to original data
+        
+
         this.data.length = 0;
         this.data.push(...this.workingData);
         
@@ -228,13 +235,19 @@ export class EditableGrid {
             this.onSave(this.data);
         }
     }
+
     //method for adding a new row to the grid. 
     handleAdd() {
         // Create new empty row based on schema defaults
         const newRow = {};
         this.schema.mainGrid.columns.forEach(col => {
             if (col.field) {
-                newRow[col.field] = col.default || '';
+                if (col.field = 'id'){
+                    newRow[col.field] = this.workingData.reduce((max, curr) => curr > max ? curr : max, 0)
+                }else {
+                    newRow[col.field] = col.default || '';
+                }
+                
             }
         });
         
