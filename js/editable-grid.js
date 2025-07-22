@@ -182,8 +182,48 @@ export class EditableGrid {
                     }
                 }
             })
+            
+            // Add actions column if needed
+            if (this.showActions) {
+                let actionsCell = document.createElement('td')
+                
+                if (this.schema.mainGrid.actions.edit) {
+                    let editIcon = document.createElement('span')
+                    editIcon.innerHTML = ICONS['edit']
+                    editIcon.className = 'action-icon edit-icon'
+                    editIcon.title = 'Edit'
+                    editIcon.addEventListener('click', () => {
+                        this.handleEdit(acc)
+                    })
+                    window.add(actionsCell, editIcon)
+                }
+                
+                if (this.schema.mainGrid.actions.save) {
+                    let saveIcon = document.createElement('span')
+                    saveIcon.innerHTML = ICONS['save']
+                    saveIcon.className = 'action-icon save-icon'
+                    saveIcon.title = 'Save'
+                    saveIcon.addEventListener('click', () => {
+                        this.handleSave(acc)
+                    })
+                    window.add(actionsCell, saveIcon)
+                }
+                
+                window.add(row, actionsCell)
+            }
+            
             window.add(tbody, row)
         })
         return tbody
+    }
+    
+    handleEdit(rowData) {
+        // TODO: Implement edit functionality
+        console.log('Edit clicked for:', rowData)
+    }
+    
+    handleSave(rowData) {
+        // TODO: Implement save functionality
+        console.log('Save clicked for:', rowData)
     }
 }
