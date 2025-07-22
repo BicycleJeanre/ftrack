@@ -59,10 +59,10 @@
                 "customDisplay": "interest.presetOption",
                 "display": true,
                 "header": "Interest",
-                "editable": false,
+                "editable": true,
                 "type": "modal",
-                "modalId": "interestModal",
-                "modalIcon": "edit",
+                "modal": "interestModal",
+                "modalIcon": "interest",
                 "modalIconTitle": "Edit Interest"  
             }
         ]

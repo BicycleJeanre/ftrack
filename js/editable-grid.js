@@ -158,6 +158,19 @@ export class EditableGrid {
                             window.add(selectCell, selectIn)
                             window.add(row, selectCell)
                             break
+                        case 'modal':
+                            let modalCell = document.createElement('td')
+                            let modalIcon = document.createElement('span')
+                            modalIcon.innerHTML = ICONS[col.modalIcon]
+                            modalIcon.className = 'modal-icon'
+                            modalIcon.title = col.modalIconTitle
+                            // modalIcon.addEventListener('click', () => {
+                            //     const modalData = this.schema[col.modal]
+                            //     modal.render(modalData)
+                            // })
+                            window.add(modalCell, modalIcon)
+                            window.add(row, modalCell)
+                            break
                         default:
                             let defCell = document.createElement('td')
                             let def = document.createElement('input')
