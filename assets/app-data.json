@@ -4,29 +4,19 @@
     {
       "id": 1,
       "name": "Jeanre Credit Card",
-      "type": "liability",
+      "type": "Equity",
       "currency": "ZAR",
-      "start_amount": 0,
       "balance": 10000,
       "current_balance": 10000,
-      "balance_as_of": "2025-07-17",
-      "date_created": "2025-07-17",
-      "interest": {
-        "presetOption": "NACW (Compounded Weekly)",
-        "nominalRate": 6,
-        "effectiveRate": 0,
-        "nominalRatePeriod": "Quarterly",
-        "calculationMethod": "Simple",
-        "compoundingInterval": "Annually"
-      }
+      "interest": ""
     },
     {
       "id": 2,
-      "name": "",
-      "type": "asset",
-      "currency": "ZAR",
-      "balance": "",
-      "current_balance": "",
+      "name": "tr",
+      "type": "Asset",
+      "currency": "JPY",
+      "balance": 1234,
+      "current_balance": 0,
       "interest": ""
     }
   ],

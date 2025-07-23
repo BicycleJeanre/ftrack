@@ -99,15 +99,14 @@ export class EditableGrid {
             const row = document.createElement('tr')
             const columns = this.schema.mainGrid.columns
             columns.forEach(col => {
-                if (!col.display) return
+                // Always create the cell, but hide if not displayed
+                let cellContent = document.createElement('td')
+                if (!col.display) cellContent.style.display = 'none'
                 if (!col.editable || !this.schema.mainGrid.actions.edit) {
-                    let cellContent = document.createElement('td')
                     cellContent.textContent = acc[col.field]
-                    window.add(row, cellContent)
                 } else {
                     switch (col.type) {
                         case 'currency':
-                            let currencyCell = document.createElement('td')
                             let currencyIn = document.createElement('input')
                             currencyIn.type = 'number'
                             currencyIn.step = '1'
@@ -115,28 +114,22 @@ export class EditableGrid {
                                 style: 'currency',
                                 currency: acc.currency
                             }).format(acc[col.field])
-                            window.add(currencyCell, currencyIn)
-                            window.add(row, currencyCell)
+                            window.add(cellContent, currencyIn)
                             break
                         case 'number':
-                            let numCell = document.createElement('td')
                             let numIn = document.createElement('input')
                             numIn.type = 'number'
                             numIn.step = '1'
                             numIn.value = acc[col.field]
-                            window.add(numCell, numIn)
-                            window.add(row, numCell)
+                            window.add(cellContent, numIn)
                             break
                         case 'text':
-                            let textCell = document.createElement('td')
                             let texIn = document.createElement('input')
                             texIn.type = 'text'
                             texIn.value = acc[col.field]
-                            window.add(textCell, texIn)
-                            window.add(row, textCell)
+                            window.add(cellContent, texIn)
                             break
                         case 'select':
-                            let selectCell = document.createElement('td')
                             let selectIn = document.createElement('select')
                             const options = this.schema[col.optionsSource]
                             if (options) {
@@ -150,11 +143,9 @@ export class EditableGrid {
                                     window.add(selectIn, optionEl)
                                 })
                             }
-                            window.add(selectCell, selectIn)
-                            window.add(row, selectCell)
+                            window.add(cellContent, selectIn)
                             break
                         case 'modal':
-                            let modalCell = document.createElement('td')
                             let modalIcon = document.createElement('span')
                             modalIcon.innerHTML = ICONS[col.modalIcon]
                             modalIcon.className = 'modal-icon'
@@ -163,19 +154,17 @@ export class EditableGrid {
                             //     const modalData = this.schema[col.modal]
                             //     modal.render(modalData)
                             // })
-                            window.add(modalCell, modalIcon)
-                            window.add(row, modalCell)
+                            window.add(cellContent, modalIcon)
                             break
                         default:
-                            let defCell = document.createElement('td')
                             let def = document.createElement('input')
                             def.type = 'text'
                             def.value = acc[col.field]
-                            window.add(defCell, def)
-                            window.add(row, defCell)
+                            window.add(cellContent, def)
                             break
                     }
                 }
+                window.add(row, cellContent)
             })
             
             // Add actions column if needed
@@ -207,22 +196,35 @@ export class EditableGrid {
         columns.forEach((col, i) => {
             const cell = row.children[i];
             let value = '';
-             switch (col.type) {
-                        case 'number':
-                        case 'text':
-                            const texIn = cell.querySelector('input, select')
-                            value = texIn ? texIn.value : ''
-                            break
-                        case 'modal':
-                            break
-                        default:
-                            value = cell.textContent;
-                            break
-                    }
+            switch (col.type) {
+                case 'number': {
+                    const input = cell.querySelector('input');
+                    value = input ? Number(input.value) : Number(cell.textContent);
+                    break;
+                }
+                case 'text': {
+                    const input = cell.querySelector('input');
+                    value = input ? input.value : cell.textContent;
+                    break;
+                }
+                case 'select': {
+                    const select = cell.querySelector('select');
+                    value = select ? select.value : '';
+                    break;
+                }
+                case 'modal': {
+                    // handle modal if needed
+                    break;
+                }
+                default: {
+                    value = cell.textContent;
+                    break;
+                }
+            }
             rowData[col.field] = value;
         })
 
-        const accToUpdate = this.workingData.findIndex(acc => acc.id === rowData.id)
+        const accToUpdate = this.workingData.findIndex(acc => acc.id == rowData.id)
         this.workingData[accToUpdate] = rowData
         // Copy working data back to original data
         
