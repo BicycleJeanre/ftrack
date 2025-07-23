@@ -244,12 +244,13 @@ export class EditableGrid {
         const newRow = {};
         this.schema.mainGrid.columns.forEach(col => {
             if (col.field) {
-                if (col.field = 'id'){
-                    newRow[col.field] = this.workingData.reduce((max, curr) => curr > max ? curr : max, 0)
+                if (col.field === 'id'){
+                    newRow[col.field] = this.workingData.reduce((max, curr) => curr.id > max ? curr.id+1 : max+1, 0)
+                    return
                 }else {
                     newRow[col.field] = col.default || '';
+                    return
                 }
-                
             }
         });
         

@@ -18,6 +18,15 @@
       "balance": 1234,
       "current_balance": 0,
       "interest": ""
+    },
+    {
+      "id": 3,
+      "name": "re",
+      "type": "Asset",
+      "currency": "ZAR",
+      "balance": 0,
+      "current_balance": 0,
+      "interest": ""
     }
   ],
   "transactions": [
