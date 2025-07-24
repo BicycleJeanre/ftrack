@@ -1,5 +1,5 @@
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
-import { openModal } from './modal.js';
+import { Modal } from './modal.js';
 import { CalculationEngine } from './calculation-engine.js';
 import { ICON_EDIT, ICON_DELETE, ICON_SAVE, ICON_CANCEL, ICON_INTEREST, ICON_ADD, ICON_SPINNER } from '../styles/icons.js';
 
@@ -150,10 +150,12 @@ export class EditableGrid {
                             modalIcon.innerHTML = ICONS[col.modalIcon]
                             modalIcon.className = 'modal-icon'
                             modalIcon.title = col.modalIconTitle
-                            // modalIcon.addEventListener('click', () => {
-                            //     const modalData = this.schema[col.modal]
-                            //     modal.render(modalData)
-                            // })
+                            modalIcon.addEventListener('click', () => {
+                                const intModal = new Modal(this.targetElement)
+                                intModal.render()
+                                // const modalData = this.schema[col.modal]
+                                // modal.render(modalData)
+                            })
                             window.add(cellContent, modalIcon)
                             break
                         default:
