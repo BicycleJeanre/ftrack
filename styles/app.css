@@ -1,508 +1,309 @@
-/* Unified app styles for a consistent dark theme */
+/* Minimal app styles per refactor instructions */
 
-/* --- Base Dark Theme --- */
-body, html {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: #181a1b;
+html, body {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  font-size: 18px;
+}
+
+.bg-main {
+  background: linear-gradient(135deg, #181a1b 0%, #232a23 100%) !important;
+}
+
+.text-main, .btn, .table, #main-navbar, .accordion-header, .accordion-content, h1, h2, h3, h4, h5, h6, p, span, div, input, select, textarea, th, td {
+  font-family: inherit !important;
+}
+
+.text-main {
+  color: #ededed !important;
+}
+
+.btn, .icon-btn {
+  background: none;
   color: #ededed;
-  margin: 0;
+  border: none;
+  box-shadow: none;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 44px;
+  max-height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4em;
+  transition: background 0.18s, color 0.18s;
+  cursor: pointer;
   padding: 0;
 }
 
-.container {
-  max-width: 1600px;
-  margin: 32px auto;
-  background: #232526;
-  border-radius: 12px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.6);
-  padding: 32px 24px 24px 24px;
-  width: 98vw;
-}
-
-h1, h2, h3 {
-  color: #f3f3f3;
-  margin-top: 0;
-  text-align: center;
-  letter-spacing: 1px;
-  font-weight: 700;
-}
-
-
-.content {
-  padding: 18px 20px 20px 20px;
+.btn svg, .icon-btn svg {
+  width: 28px;
+  height: 28px;
   display: block;
-  background: #232526;
-  border-radius: 0 0 10px 10px;
+}
+
+.btn:hover, .btn:focus, .icon-btn:hover, .icon-btn:focus {
+  background: #232a23;
+  color: #b6ff00;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #181a1b;
+  color: #ededed;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.table th, .table td {
+  padding: 6px 8px;
+  text-align: left;
+  border: 1px solid #232a23;
+  font-size: 1.08em;
+  background: #181a1b;
+}
+
+.table th {
+  font-size: 1.22em;
+  font-weight: 700;
+  border-radius: 0;
+  background: #202223;
+  border-bottom: 2px solid #232a23;
+  padding: 14px 10px;
+  letter-spacing: 0.02em;
+}
+
+.table tr:hover {
+  background: #232a23;
+}
+
+#main-navbar {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  border-bottom: 2px solid #232a23;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 0 0 0;
+}
+
+#main-navbar a {
+  display: inline-block;
+  min-width: 110px;
+  padding: 0 0 12px 0;
+  margin: 0 18px;
+  font-size: 1.04em;
+  font-weight: 500;
+  color: #ededed;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+  font-family: inherit;
+  position: relative;
+  transition: color 0.18s;
+}
+
+#main-navbar a.active, #main-navbar a:focus, #main-navbar a:hover {
+  color: #b6ff00;
+}
+
+#main-navbar a.active::after, #main-navbar a:focus::after, #main-navbar a:hover::after {
+  content: '';
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 3px;
+  background: #b6ff00;
+  border-radius: 2px 2px 0 0;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.bordered, .accordion-header, .accordion-content {
+  border: 2.5px solid #232a23 !important;
+  box-shadow: 0 6px 32px rgba(0,0,0,0.16);
+}
+
+.rounded {
+  border-radius: 12px !important;
+}
+
+.shadow-lg {
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+}
+.shadow-md {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+.pointer {
+  cursor: pointer;
+}
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.accordion-header {
+  user-select: none;
+  border-bottom: 1.5px solid #232a23;
+  margin-bottom: 0;
+}
+.accordion-content {
   transition: max-height 0.3s cubic-bezier(.4,0,.2,1), opacity 0.2s, padding 0.3s;
   overflow: hidden;
   opacity: 1;
   max-height: 2000px;
-  
+}
+.accordion-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  pointer-events: none;
+}
+.accordion-arrow {
+  transition: transform 0.3s;
 }
 
-.collapsed-panel .content {
-    max-height: 0;
-    opacity: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    pointer-events: none;
-}
-
-/*--------------------------------------------------------------------------------------*/
-
-/* --- Navigation --- */
-nav {
-  margin-bottom: 24px;
-  text-align: center;
-}
-
-nav a {
-  color: #ededed;
-  text-decoration: none;
-  margin: 0 15px;
-  font-weight: 500;
-  padding: 8px 12px;
-  border-radius: 6px;
-  transition: background 0.2s, color 0.2s;
-}
-
-nav a.active, nav a:focus, nav a:hover {
-  color: #b6ff00;
-  background: #3a5c2c;
-  text-decoration: none;
-}
-
-/* --- Buttons --- */
-button {
-  background: #3a5c2c;
-  color: #fff;
+input[type="text"], input[type="number"], select, textarea {
+  background: transparent !important;
+  color: #ededed !important;
   border: none;
-  border-radius: 4px;
-  padding: 10px 20px;
-  font-size: 1em;
-  cursor: pointer;
-  margin: 0 4px;
-  transition: background 0.2s;
-}
-
-button:hover, button:focus {
-  background: #4a7c3c;
-}
-
-/* --- Tables --- */
-table {
+  border-radius: 6px;
+  font-size: 1.08em;
+  padding: 12px 14px;
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  margin-bottom: 18px;
-  background: #181a1b;
-  border-radius: 8px;
-  overflow: hidden;
+  box-sizing: border-box;
+  transition: background 0.2s, box-shadow 0.2s;
+  outline: none;
+  box-shadow: none;
+  border-bottom: 2px solid transparent;
 }
 
-th, td {
-  padding: 12px 18px;
-  text-align: left;
-  border-bottom: 1px solid #232a23;
+input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+  background: #181a1b !important;
+  border-bottom: 2.5px solid #b6ff00;
+  box-shadow: 0 2px 0 0 #b6ff00;
 }
 
-th {
-  background: #232526;
-  color: #f3f3f3;
-  font-weight: 600;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: #181a1b !important;
+  color: #ededed !important;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.08em;
+  padding: 12px 14px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background 0.2s, box-shadow 0.2s;
+  outline: none;
+  box-shadow: none;
+  border-bottom: 2px solid transparent;
 }
 
-tr:hover {
-    background: #3a5c2c;
+select:focus {
+  background: #181a1b !important;
+  border-bottom: 2.5px solid #b6ff00;
+  box-shadow: 0 2px 0 0 #b6ff00;
 }
 
-/* --- Forms --- */
-input, select {
-  padding: 8px 12px;
-  border: 1px solid #444;
-  border-radius: 4px;
-  background: #2a2c2d;
-  color: #ededed;
-  font-size: 1em;
-  margin-bottom: 8px;
-}
-
-label {
-  font-weight: 500;
-  margin-bottom: 4px;
-  display: block;
-}
-
-.form-inline {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 16px;
-}
-
-.form-field {
-    margin-bottom: 15px;
-}
-
-/* --- Panels & Sections --- */
-.section, .input-section, .results-section, .chart-section {
-  margin-bottom: 32px;
-  background: #202223;
-  border-radius: 10px;
-  box-shadow: 0 1px 8px rgba(0,0,0,0.4);
-  border: 1px solid #232a23;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  font-weight: 600;
-  cursor: pointer;
-  border-bottom: 1px solid #232a23;
-  background: #181a1b;
-  border-radius: 10px 10px 0 0;
-  font-size: 1.2em;
-  transition: background 0.2s;
-}
-
-.panel-header:hover {
-    background: #3a5c2c;
-}
-
-.panel-arrow {
-    color: #b6ff00;
-    font-size: 1.3em;
-    transition: transform 0.3s;
-}
-
-.collapsed-panel .panel-arrow {
-    transform: rotate(-90deg);
-}
-
-
-
-/* --- Specific Elements --- */
-#resultsTableDiv {
-    max-height: 60vh;
-    overflow-y: auto;
-    border-radius: 8px;
-    border: 1px solid #232a23;
-}
-
-#financialChart {
-    width: 100%;
-    height: 500px;
-    border-radius: 8px;
-    background: #181a1b;
-}
-
-.desc {
-    font-size: 0.95em;
-    color: #b0b8c1;
-    margin-bottom: 16px;
-    max-width: 800px;
-}
-
-/* --- Modal --- */
+/* Modal overlay and popup styles */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 12, 16, 0.82);
+  backdrop-filter: blur(8px) saturate(120%);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   z-index: 1000;
 }
 
 .modal-content {
   background: #232526;
-  color: #f3f3f3;
-  border-radius: 8px;
-  padding: 20px;
+  color: #ededed;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+  padding: 4vw 2vw 3vw 2vw;
+  width: 80vw;
   max-width: 90vw;
-  max-height: 90vh;
-  overflow: auto;
+  min-width: 0;
+  max-height: 80vh;
+  overflow-y: auto;
   position: relative;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-  border: 1px solid #444;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.modal-content > * {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #444;
-  color: #f3f3f3;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 1.5vw;
+  padding-bottom: 0.5vw;
+  border-bottom: 1.5px solid #232a23;
 }
 
-.modal-title {
+.modal-header h2 {
   margin: 0;
-  color: #f3f3f3;
+  font-size: 1.18em;
+  font-weight: 600;
+  color: #ededed;
 }
 
 .modal-close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #f3f3f3;
+  font-size: 1.3em;
+  background: none;
+  color: #ededed;
+  border: none;
+  box-shadow: none;
+  transition: background 0.18s, color 0.18s;
 }
 
-.modal-close-btn:hover {
-  color: #ccc;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
+.modal-close-btn:hover, .modal-close-btn:focus {
+  background: #232a23;
+  color: #b6ff00;
 }
 
-.modal-body {
-  margin: 20px 0;
-}
-
-.modal-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 20px;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #444;
-}
-
-/* Responsive tweaks */
-@media (max-width: 600px) {
-  .container {
-    padding: 12px 4vw;
-    margin: 16px auto;
-  }
+@media (max-width: 900px) {
   .modal-content {
-    max-width: 95vw;
-    max-height: 95vh;
-    padding: 16px;
+    width: 98vw;
+    max-width: 98vw;
+    padding: 4vw 2vw;
   }
-  
-  .modal-header {
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-  }
-  
-  .modal-footer {
-    padding-top: 8px;
-    gap: 8px;
-  }
-  
-  nav a {
-    margin: 0 5px;
-    padding: 6px 8px;
-  }
-}
-
-/* --- Tooltip Styles --- */
-.tooltip {
-    position: relative;
-    display: inline-block;
-    cursor: pointer;
-    border-bottom: 1px dotted black;
-}
-.tooltip .tooltiptext {
-    visibility: hidden;
-    width: 220px;
-    background-color: #555;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    margin-left: -110px;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-.tooltip:hover .tooltiptext {
-    visibility: visible;
-    opacity: 1;
-}
-
-/* --- Inline Editing & Actions --- */
-td[contenteditable="true"] {
-    background-color: #3a3d40;
-    outline: 2px solid #b6ff00;
-    box-shadow: 0 0 5px #b6ff00;
-}
-
-.actions {
-    text-align: right;
-    white-space: nowrap;
-}
-
-.icon-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    margin: 0 2px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-}
-
-.icon-btn svg {
-    width: 18px;
-    height: 18px;
-    stroke: #b0b8c1;
-    transition: stroke 0.2s;
-}
-
-.icon-btn:hover {
-    background-color: #3a3d40;
-}
-
-.icon-btn:hover svg {
-    stroke: #b6ff00;
-}
-
-#quickAddAccountBtn {
-    margin-top: 12px;
-    display: block;
-    width: fit-content;
-}
-
-/* New styles for additional UI elements */
-.data-table .disabled-text {
-    color: #999;
-    font-style: italic;
-}
-
-.editable-cell-link {
-    color: var(--primary-color);
-    text-decoration: underline;
-    cursor: pointer;
-}
-
-.editable-cell-link:hover {
-    color: var(--accent-color);
-}
-
-/* Editable grid cell and input for dark theme */
-.editable-grid-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 4px 6px;
-  font-size: 1em;
-  border: 1px solid #444;
-  border-radius: 3px;
-  background: #232526;
-  color: #f3f3f3;
-  outline: none;
-  transition: border 0.2s, background 0.2s;
-}
-.editable-grid-input:focus {
-  border: 1.5px solid #00bfff;
-  background: #181a1b;
-}
-
-.editable-grid-table td, .editable-grid-table th {
-  background: #232526;
-  color: #f3f3f3;
-}
-
-/* Modal base for dark theme */
-.modal {
-  background: #232526 !important;
-  color: #f3f3f3 !important;
-  border-radius: 10px;
-  box-shadow: 0 4px 32px #000a;
-}
-
-/* Recurrence modal: small, detached */
-.recurrence-modal {
-  width: 340px !important;
-  min-width: 0 !important;
-  max-width: 90vw;
-  left: 50% !important;
-  top: 20vh !important;
-  transform: translate(-50%, 0);
-  background: #232526 !important;
-  color: #f3f3f3 !important;
-  border-radius: 12px;
-  box-shadow: 0 4px 32px #000a;
-  padding: 24px 20px 20px 20px;
-}
-
-.create-account-modal {
-  width: 340px !important;
-  min-width: 0 !important;
-  max-width: 90vw;
-  left: 50% !important;
-  top: 20vh !important;
-  transform: translate(-50%, 0);
-  background: #232526 !important;
-  color: #f3f3f3 !important;
-  border-radius: 12px;
-  box-shadow: 0 4px 32px #000a;
-  padding: 24px 20px 20px 20px;
-}
-
-/* Hide quickly add transactions button if present */
-.quick-add-btn, .quick-add-transactions-btn {
-  display: none !important;
-}
-
-/* Remove vertical shape under create account modal */
-.create-account-modal::after {
-  display: none !important;
-}
-
-/* Remove vertical shape under interest modal if present */
-#interestModal::after {
-  display: none !important;
-}
-
-/* Hide elements in modal context */
-.modal-hide {
-  display: none !important;
-}
-
-/* Spinner for grid rows */
-.row-spinner {
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 8px;
-  width: 16px;
-  height: 16px;
-}
-
-.add-row-container {
-    display: flex;
-    justify-content: center;
-    margin: 16px 0;
-}
- 
-
-.add-row-icon-btn {
-
-    /*  */
 }

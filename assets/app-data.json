@@ -57,6 +57,24 @@
           "compoundingInterval": "Monthly"
         }
       ]
+    },
+    {
+      "id": 4,
+      "name": "khtd",
+      "type": "Asset",
+      "currency": "ZAR",
+      "balance": 234567,
+      "current_balance": 0,
+      "interest": ""
+    },
+    {
+      "id": 5,
+      "name": "",
+      "type": "Asset",
+      "currency": "ZAR",
+      "balance": 0,
+      "current_balance": 0,
+      "interest": ""
     }
   ],
   "transactions": [

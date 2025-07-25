@@ -1,14 +1,12 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 (function() {
-  var navHtml = `
-    <nav id="main-navbar">
-      <a href="home.html" id="nav-home">Home</a>
-      <a href="accounts.html" id="nav-accounts">Accounts</a>
-      <a href="transactions.html" id="nav-transactions">Transactions</a>
-      <a href="forecast.html" id="nav-forecast">Financial Forecast</a>
-      <a href="calculator.html" id="nav-calculator">Calculator</a>
-      <a href="filemgmt.html" id="nav-filemgmt">File Management</a>
-    </nav>
+  var navLinks = `
+    <a href="home.html" id="nav-home">Home</a>
+    <a href="accounts.html" id="nav-accounts">Accounts</a>
+    <a href="transactions.html" id="nav-transactions">Transactions</a>
+    <a href="forecast.html" id="nav-forecast">Financial Forecast</a>
+    <a href="calculator.html" id="nav-calculator">Calculator</a>
+    <a href="filemgmt.html" id="nav-filemgmt">File Management</a>
   `;
   function getPage() {
     var path = window.location.pathname.split('/').pop();
@@ -33,7 +31,8 @@
   document.addEventListener('DOMContentLoaded', function() {
     var navDiv = document.getElementById('main-navbar');
     if (navDiv) {
-      navDiv.innerHTML = navHtml;
+      navDiv.classList.add('bordered', 'rounded', 'centered');
+      navDiv.innerHTML = navLinks;
       highlightActive();
     }
   });

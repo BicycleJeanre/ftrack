@@ -17,17 +17,17 @@ function buildGridContainer(){
 
     //create header with foldable content    
     const panelHeader = document.createElement('div');
-    panelHeader.className = 'panel-header';
-    panelHeader.innerHTML = `<h2>Accounts</h2><span class="panel-arrow">&#9662;</span>`;
+    panelHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header'
+    panelHeader.innerHTML = `<h2 class="text-main">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
     panelHeader.addEventListener('click', () => window.toggleAccordion('content'));
     window.add(accountsEl, panelHeader);
 
     //foldable content
     const content = document.createElement('div');
     content.id = 'content';
-    content.className = 'content';
-    // content.innerHTML = `<h2>placeholder</h2>`;
+    content.className = 'bg-main rounded shadow-md accordion-content'
     content.style.display = 'block';
+    content.style.padding = '18px 20px 20px 20px';
     window.add(accountsEl, content)
 
     //create accounts table section
@@ -84,8 +84,6 @@ async function createGridSchema(tableElement, onSave, onDelete) {
         // Return null or an empty structure if files can't be loaded
         return null; 
     }
-   
-    // gridData.data = initialData;
 
     return gridData
 }

@@ -1,6 +1,5 @@
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
 import { Modal } from './modal.js';
-import { CalculationEngine } from './calculation-engine.js';
 import { ICON_EDIT, ICON_DELETE, ICON_SAVE, ICON_CANCEL, ICON_INTEREST, ICON_ADD, ICON_SPINNER } from '../styles/icons.js';
 
 const ICONS = {
@@ -102,7 +101,7 @@ export class EditableGrid {
         headerText.innerHTML = this.tableHeader
         // Render headers dynamically from schema
         const table = document.createElement('table')
-        table.className = 'table'
+        table.className = 'table bordered rounded shadow-lg'
 
         const headers = this.createHeader();
         window.add(table, headers)
@@ -117,7 +116,7 @@ export class EditableGrid {
         if (this.mainGrid.actions.add) {
             let addButton = document.createElement('span')
             addButton.innerHTML = ICONS['add']
-            addButton.className = 'add-button'
+            addButton.className = 'btn'
             addButton.title = 'Add New Row'
             addButton.addEventListener('click', () => {
                 this.handleAdd()
@@ -216,7 +215,7 @@ export class EditableGrid {
                         case 'modal':
                             let modalIcon = document.createElement('span')
                             modalIcon.innerHTML = ICONS[col.modalIcon]
-                            modalIcon.className = 'modal-icon'
+                            modalIcon.className = 'btn'
                             modalIcon.title = col.modalIconTitle
                             modalIcon.addEventListener('click', () => {
                                 const modalInfo = this.modals[col.field];
@@ -259,7 +258,7 @@ export class EditableGrid {
                 if (this.mainGrid.actions.save) {
                     let saveIcon = document.createElement('span')
                     saveIcon.innerHTML = ICONS['save']
-                    saveIcon.className = 'action-icon save-icon'
+                    saveIcon.className = 'btn'
                     saveIcon.title = 'Save'
                     saveIcon.addEventListener('click', (event) => {
                         this.handleSave( event.target.closest('tr'))

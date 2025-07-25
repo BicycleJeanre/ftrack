@@ -31,18 +31,23 @@ export class Modal {
         this.modalBox = document.createElement('div');
         this.modalBox.className = 'modal-content';
 
+        // Create modal header container
+        const modalHeader = document.createElement('div');
+        modalHeader.className = 'modal-header flex-between';
+
         // Create close button
         const closeBtn = document.createElement('button');
-        closeBtn.className = 'modal-close-btn';
+        closeBtn.className = 'btn modal-close-btn';
         closeBtn.innerHTML = ICON_CANCEL;
         closeBtn.addEventListener('click', () => {
             this.modalOverlay.remove();
         });
-        window.add(this.modalBox, closeBtn);
 
         const header = document.createElement('h2')
         header.innerHTML = 'MODAL GRID!'
-        window.add(this.modalBox, header)
+        window.add(modalHeader, header)
+        window.add(modalHeader, closeBtn)
+        window.add(this.modalBox, modalHeader)
 
         // Create EditableGrid inside modal
         const gridContainer = document.createElement('div');
