@@ -115,6 +115,16 @@
         "endDate": null,
         "notes": "Rent may increase by 5% per year for planning purposes."
       }
+    },
+    {
+      "id": 2,
+      "debit_account": "Empty",
+      "credit_account": "Empty",
+      "amount": 0,
+      "isRecurring": "",
+      "recurrence": "",
+      "amountChange": "",
+      "tags": ""
     }
   ],
   "forecast": [],
