@@ -22,6 +22,8 @@ export class EditableGrid {
         this.data = options.data;
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
+        this.parentRowId = options.parentRowId;
+        this.parentField =options.parentField;
 
         // Support both {mainGrid: {...}} and {...} schema formats
         this.mainGrid = this.schema.mainGrid ? this.schema.mainGrid : this.schema;
@@ -30,11 +32,6 @@ export class EditableGrid {
         this.workingData = [...this.data];
 
         this.showActions = this.mainGrid.actions.add || this.mainGrid.actions.edit || this.mainGrid.actions.delete || this.mainGrid.actions.save;
-
-        // Debug: Log schema, data, and workingData in constructor
-        console.log('[EditableGrid] Constructor schema:', this.schema);
-        console.log('[EditableGrid] Constructor data:', this.data);
-        console.log('[EditableGrid] workingData:', this.workingData);
 
         this.prepareModals();
         this.prepareSelectOptions();
@@ -228,11 +225,18 @@ export class EditableGrid {
                                     modalData = { ...modalInfo.defaultData };
                                     acc[col.field] = modalData;
                                 }
+                                const parentRowId = acc.id;
+                                const fieldName = col.field;
                                 const intModal = new Modal({
                                     targetElement: this.targetElement,
                                     schema: modalInfo.schema,
-                                    data: [modalData],
+                                    data: Array.isArray(modalData) ? modalData : [modalData],
                                     tableHeader: modalInfo.title,
+                                    onSave: (updatedModalRow) => {
+                                        this.onModalSave(parentRowId, fieldName, updatedModalRow);
+                                    },
+                                    parentRowId: parentRowId,
+                                    parentField: fieldName
                                 });
                                 intModal.render();
                             })
@@ -271,7 +275,7 @@ export class EditableGrid {
     }
 
     //method to handle saving a row to disk
-    handleSave(row) {
+    handleSave(row, rowId = this.parentRowId, field = this.parentField) {
         const rowData = {};
         const columns = this.mainGrid.columns;
         // Loop through columns and extract values from each cell/input
@@ -306,23 +310,19 @@ export class EditableGrid {
             rowData[col.field] = value;
         })
 
-        const accToUpdate = this.workingData.findIndex(acc => acc.id == rowData.id)
-        this.workingData[accToUpdate] = rowData
-        // Copy working data back to original data
-        
+        const rowToUpdate = this.workingData.findIndex(row => row.id == rowData.id)
+        this.workingData[rowToUpdate] = rowData    
 
         this.data.length = 0;
         this.data.push(...this.workingData);
         
-        // Call external save handler if provided
         if (this.onSave) {
-            this.onSave(this.data);
+            // Pass rowId and field for modal grids, undefined for main grids
+            this.onSave(this.data, rowId, field);
         }
-    }
+    };
 
-    //method for adding a new row to the grid. 
     handleAdd() {
-        // Create new empty row based on schema defaults
         const newRow = {};
         this.mainGrid.columns.forEach(col => {
             if (col.field) {
@@ -341,5 +341,19 @@ export class EditableGrid {
         
         // Re-render the grid
         this.render();
+    };
+    // Callback for when a modal's data is saved
+    onModalSave(rowId, field, updatedModalData) {
+        // rowId: id of the parent row in the main grid
+        // field: the field in the parent row to update (e.g., 'interest')
+        // updatedModalData: the new data for that field (already extracted by modal grid)
+        const gridIndex = this.workingData.findIndex(row => row.id == rowId);
+        if (gridIndex !== -1) {
+            this.workingData[gridIndex][field] = updatedModalData;
+            // Call onSave to persist the change using the existing logic
+            if (this.onSave) this.onSave(this.workingData, rowId, field);
+        } else {
+            console.warn('[EditableGrid] onModalSave: Row not found for id', rowId);
+        }
     }
 }

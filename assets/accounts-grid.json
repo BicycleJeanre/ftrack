@@ -120,6 +120,13 @@
         },
         "columns": [
             {
+                "field": "id",
+                "header": "ID",
+                "editable": false,
+                "type": "number",
+                "display": false
+            },
+            {
                 "field": "presetOption",
                 "header": "Standard Calculation",
                 "editable": true,
