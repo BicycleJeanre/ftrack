@@ -87,22 +87,23 @@
                 "field": "frequency",
                 "header": "Frequency",
                 "type": "select",
-                "options": [
-                    "Daily",
-                    "Monthly",
-                    "Weekly",
-                    "Yearly"
-                ]
+                "optionsSource": "recurrenceFrequencies",
+                "display": true,
+                "editable": true
             },
             {
                 "field": "endDate",
                 "header": "End Date",
-                "type": "date"
+                "type": "date",
+                "display": true,
+                "editable": true
             },
             {
                 "field": "dayOfMonth",
                 "header": "Day of Month",
-                "type": "number"
+                "type": "number",
+                "display": true,
+                "editable": true
             }
         ]
     },
@@ -118,43 +119,63 @@
                 "field": "changeType",
                 "header": "Change Type",
                 "type": "select",
-                "options": [
-                    "percentage",
-                    "fixed"
-                ]
+                "optionsSource": "amountChangeTypes",
+                "display": true,
+                "editable": true
             },
             {
                 "field": "changeValue",
                 "header": "Change Value",
-                "type": "number"
+                "type": "number",
+                "display": true,
+                "editable": true
             },
             {
                 "field": "changeFrequency",
                 "header": "Change Frequency",
                 "type": "select",
-                "options": [
-                    "Yearly",
-                    "Monthly",
-                    "Quarterly",
-                    "Weekly",
-                    "Daily"
-                ]
+                "optionsSource": "amountChangeFrequencies",
+                "display": true,
+                "editable": true
             },
             {
                 "field": "startDate",
                 "header": "Start Date",
-                "type": "date"
+                "type": "date",
+                "display": true,
+                "editable": true
             },
             {
                 "field": "endDate",
                 "header": "End Date",
-                "type": "date"
+                "type": "date",
+                "display": true,
+                "editable": true
             },
             {
                 "field": "notes",
                 "header": "Notes",
-                "type": "text"
+                "type": "text",
+                "display": true,
+                "editable": true
             }
         ]
-    }
+    },
+    "recurrenceFrequencies": [
+        "Daily",
+        "Monthly",
+        "Weekly",
+        "Yearly"
+    ],
+    "amountChangeTypes": [
+        "percentage",
+        "fixed"
+    ],
+    "amountChangeFrequencies": [
+        "Yearly",
+        "Monthly",
+        "Quarterly",
+        "Weekly",
+        "Daily"
+    ]
 }

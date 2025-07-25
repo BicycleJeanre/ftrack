@@ -95,18 +95,18 @@
       "amount": 5000,
       "isRecurring": true,
       "recurrence": {
-        "frequency": "monthly",
+        "frequency": "Monthly",
+        "endDate": "2030-12-31",
+        "dayOfMonth": 15
+      },
+      "recurrenceModal": {
+        "frequency": "Monthly",
         "endDate": "2030-12-31",
         "dayOfMonth": 15
       },
       "tags": [
         "income"
       ],
-      "recurrenceModal": {
-        "frequency": "",
-        "endDate": "",
-        "dayOfMonth": ""
-      },
       "amountChange": {
         "changeType": "percentage",
         "changeValue": 5,
