@@ -7,7 +7,10 @@ export class Modal {
         this.tableHeader = options.tableHeader;
         this.schema = options.schema;
         this.data = options.data;
-        this.onSave = () => options.onSave && this.modalOverlay.remove();
+        this.onSave = (...args) => {
+            if (options.onSave) options.onSave(...args);
+            this.modalOverlay.remove();
+        };
         this.onDelete = options.onDelete;
         this.parentRowId = options.parentRowId;
         this.parentField = options.parentField;

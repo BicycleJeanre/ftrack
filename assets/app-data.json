@@ -74,7 +74,17 @@
       "currency": "ZAR",
       "balance": 0,
       "current_balance": 0,
-      "interest": ""
+      "interest": [
+        {
+          "id": 0,
+          "presetOption": "NACW (Compounded Weekly)",
+          "nominalRate": 0,
+          "effectiveRate": 0,
+          "nominalRatePeriod": "Annually",
+          "calculationMethod": "Simple",
+          "compoundingInterval": "Annually"
+        }
+      ]
     }
   ],
   "transactions": [
