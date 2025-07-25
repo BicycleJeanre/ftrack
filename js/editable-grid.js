@@ -23,10 +23,70 @@ export class EditableGrid {
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
 
+        // Support both {mainGrid: {...}} and {...} schema formats
+        this.mainGrid = this.schema.mainGrid ? this.schema.mainGrid : this.schema;
+
         // Internal working data - copy of original data for manipulation
         this.workingData = [...this.data];
 
-        this.showActions = options.schema.mainGrid.actions.add || options.schema.mainGrid.actions.edit || options.schema.mainGrid.actions.delete || options.schema.mainGrid.actions.save
+        this.showActions = this.mainGrid.actions.add || this.mainGrid.actions.edit || this.mainGrid.actions.delete || this.mainGrid.actions.save;
+
+        // Debug: Log schema, data, and workingData in constructor
+        console.log('[EditableGrid] Constructor schema:', this.schema);
+        console.log('[EditableGrid] Constructor data:', this.data);
+        console.log('[EditableGrid] workingData:', this.workingData);
+
+        this.prepareModals();
+        this.prepareSelectOptions();
+    }
+
+    prepareModals() {
+        this.modals = {};
+        this.mainGrid.columns.forEach(col => {
+            if (col.type === 'modal' && this.schema[col.modal]) {
+                // Deep clone the modal schema to avoid mutating the top-level schema
+                const modalSchema = JSON.parse(JSON.stringify(this.schema[col.modal]));
+                // Attach relevant options arrays to the modal schema
+                if (modalSchema.columns) {
+                    modalSchema.columns.forEach(field => {
+                        if (field.type === 'select' && field.optionsSource && this.schema[field.optionsSource]) {
+                            modalSchema[field.optionsSource] = this.schema[field.optionsSource];
+                        }
+                    });
+                }
+                const defaultData = {};
+                if (modalSchema.columns) {
+                    modalSchema.columns.forEach(field => {
+                        defaultData[field.field] = field.default || '';
+                    });
+                }
+                this.modals[col.field] = {
+                    schema: modalSchema,
+                    defaultData: defaultData,
+                    title: modalSchema.title || 'Edit ' + (col.header || col.field)
+                };
+            }
+        });
+    }
+
+    prepareSelectOptions() {
+        this.selectOptions = {};
+        // Main grid columns
+        this.mainGrid.columns.forEach(col => {
+            if (col.type === 'select' && col.optionsSource && this.schema[col.optionsSource]) {
+                this.selectOptions[col.field] = this.schema[col.optionsSource];
+            }
+        });
+        // Modal and other sub-grids
+        Object.values(this.schema).forEach(val => {
+            if (val && val.columns && Array.isArray(val.columns)) {
+                val.columns.forEach(col => {
+                    if (col.type === 'select' && col.optionsSource && this.schema[col.optionsSource]) {
+                        this.selectOptions[col.field] = this.schema[col.optionsSource];
+                    }
+                });
+            }
+        });
     }
 
     async _ensureShortcutsLoaded() {
@@ -57,7 +117,7 @@ export class EditableGrid {
         window.add(this.targetElement, table)
 
         // Add button below table if add action is enabled
-        if (this.schema.mainGrid.actions.add) {
+        if (this.mainGrid.actions.add) {
             let addButton = document.createElement('span')
             addButton.innerHTML = ICONS['add']
             addButton.className = 'add-button'
@@ -75,7 +135,7 @@ export class EditableGrid {
         let thead = document.createElement('thead')
 
         //add schema columns to header
-        this.schema.mainGrid.columns.forEach(col => {
+        this.mainGrid.columns.forEach(col => {
             if (col.display) {
                 const colHead = document.createElement('th')
                 colHead.textContent = col.header
@@ -95,14 +155,25 @@ export class EditableGrid {
     //method to create table row data from input data. Called from render.
     createTableRows() {
         const tbody = document.createElement('tbody')
+        // Debug: Log workingData and columns before rendering rows
+        console.log('[EditableGrid] createTableRows workingData:', this.workingData);
+        console.log('[EditableGrid] createTableRows columns:', this.mainGrid.columns);
         this.workingData.forEach(acc => {
             const row = document.createElement('tr')
-            const columns = this.schema.mainGrid.columns
+            const columns = this.mainGrid.columns
             columns.forEach(col => {
+                // Debug: Log each cell value
+                console.log(`[EditableGrid] Row field '${col.field}':`, acc[col.field]);
+                if (!(col.field in acc)) {
+                    console.warn(`[EditableGrid] WARNING: Field '${col.field}' not found in data object`, acc);
+                }
+                if (acc[col.field] === undefined) {
+                    console.warn(`[EditableGrid] WARNING: Value for field '${col.field}' is undefined. Possible typo or missing data.`, acc);
+                }
                 // Always create the cell, but hide if not displayed
                 let cellContent = document.createElement('td')
                 if (!col.display) cellContent.style.display = 'none'
-                if (!col.editable || !this.schema.mainGrid.actions.edit) {
+                if (!col.editable || !this.mainGrid.actions.edit) {
                     cellContent.textContent = acc[col.field]
                 } else {
                     switch (col.type) {
@@ -131,7 +202,7 @@ export class EditableGrid {
                             break
                         case 'select':
                             let selectIn = document.createElement('select')
-                            const options = this.schema[col.optionsSource]
+                            const options = this.selectOptions[col.field] || ["Empty"];
                             if (options) {
                                 options.forEach(option => {
                                     const optionEl = document.createElement('option')
@@ -151,10 +222,19 @@ export class EditableGrid {
                             modalIcon.className = 'modal-icon'
                             modalIcon.title = col.modalIconTitle
                             modalIcon.addEventListener('click', () => {
-                                const intModal = new Modal(this.targetElement)
-                                intModal.render()
-                                // const modalData = this.schema[col.modal]
-                                // modal.render(modalData)
+                                const modalInfo = this.modals[col.field];
+                                let modalData = acc[col.field];
+                                if (!modalData) {
+                                    modalData = { ...modalInfo.defaultData };
+                                    acc[col.field] = modalData;
+                                }
+                                const intModal = new Modal({
+                                    targetElement: this.targetElement,
+                                    schema: modalInfo.schema,
+                                    data: [modalData],
+                                    tableHeader: modalInfo.title,
+                                });
+                                intModal.render();
                             })
                             window.add(cellContent, modalIcon)
                             break
@@ -172,7 +252,7 @@ export class EditableGrid {
             // Add actions column if needed
             if (this.showActions) {
                 let actionsCell = document.createElement('td')
-                if (this.schema.mainGrid.actions.save) {
+                if (this.mainGrid.actions.save) {
                     let saveIcon = document.createElement('span')
                     saveIcon.innerHTML = ICONS['save']
                     saveIcon.className = 'action-icon save-icon'
@@ -193,7 +273,7 @@ export class EditableGrid {
     //method to handle saving a row to disk
     handleSave(row) {
         const rowData = {};
-        const columns = this.schema.mainGrid.columns;
+        const columns = this.mainGrid.columns;
         // Loop through columns and extract values from each cell/input
         columns.forEach((col, i) => {
             const cell = row.children[i];
@@ -244,7 +324,7 @@ export class EditableGrid {
     handleAdd() {
         // Create new empty row based on schema defaults
         const newRow = {};
-        this.schema.mainGrid.columns.forEach(col => {
+        this.mainGrid.columns.forEach(col => {
             if (col.field) {
                 if (col.field === 'id'){
                     newRow[col.field] = this.workingData.reduce((max, curr) => curr.id > max ? curr.id+1 : max+1, 0)

@@ -8,15 +8,14 @@ const dummySchema = {
         columns: [
             { field: 'id', header: 'ID', display: true, editable: false, type: 'number' },
             { field: 'name', header: 'Name', display: true, editable: true, type: 'text' },
-            { field: 'balance', header: 'Balance', display: true, editable: true, type: 'currency' }
         ],
         actions: { add: true, edit: true, delete: true, save: true }
     }
 };
 const dummyData = [
-    { id: 1, name: 'Checking', balance: 1200, currency: 'USD' },
-    { id: 2, name: 'Savings', balance: 3400, currency: 'USD' },
-    { id: 3, name: 'Investment', balance: 5000, currency: 'USD' }
+    { id: 1, name: 'Checking', balance: 1200 },
+    { id: 2, name: 'Savings', balance: 3400 },
+    { id: 3, name: 'Investment', balance: 5000 }
 ];
 
 
@@ -35,6 +34,9 @@ export class Modal {
         if (this.modalOverlay) {
             this.modalOverlay.remove();
         }
+        // Debug: Log schema and data passed to modal
+        console.log('[Modal] Rendering with schema:', this.schema);
+        console.log('[Modal] Rendering with data:', this.data);
         // Create overlay
         this.modalOverlay = document.createElement('div');
         this.modalOverlay.className = 'modal-overlay';
@@ -60,11 +62,17 @@ export class Modal {
         const gridContainer = document.createElement('div');
         window.add(this.modalBox, gridContainer);
 
+        // Debug: Log data and schema passed to EditableGrid
+        console.log('[Modal] Passing to EditableGrid:', {
+            tableHeader: this.tableHeader || '',
+            schema: this.schema,
+            data: this.data
+        });
         const grid = new EditableGrid({
             targetElement: gridContainer,
-            tableHeader: 'Demo Accounts',
-            schema: dummySchema,
-            data: dummyData,
+            tableHeader: this.tableHeader || '',
+            schema: this.schema,
+            data: this.data,
             onSave: () => {},
             onDelete: () => {}
         });

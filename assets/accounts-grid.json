@@ -83,6 +83,32 @@
         "AUD",
         "CAD"
     ],
+    "interestPresetOptions": [
+        "Custom",
+        "NACM (Compounded Monthly)",
+        "NACQ (Compounded Quarterly)",
+        "NACA (Compounded Annually)",
+        "NACW (Compounded Weekly)",
+        "NACD (Compounded Daily)"
+    ],
+    "interestNominalRatePeriods": [
+        "Annually",
+        "Monthly",
+        "Quarterly",
+        "Weekly",
+        "Daily"
+    ],
+    "interestCalculationMethods": [
+        "Compound",
+        "Simple"
+    ],
+    "interestCompoundingIntervals": [
+        "Monthly",
+        "Quarterly",
+        "Annually",
+        "Weekly",
+        "Daily"
+    ],
     "interestModal": {
         "title": "Edit Interest Settings",
         "dataField": "interest",
@@ -98,14 +124,7 @@
                 "header": "Standard Calculation",
                 "editable": true,
                 "type": "select",
-                "options": [
-                    "Custom",
-                    "NACM (Compounded Monthly)",
-                    "NACQ (Compounded Quarterly)",
-                    "NACA (Compounded Annually)",
-                    "NACW (Compounded Weekly)",
-                    "NACD (Compounded Daily)"
-                ],
+                "optionsSource": "interestPresetOptions",
                 "default": "Custom",
                 "display": true
             },
@@ -130,13 +149,7 @@
                 "header": "Nominal Rate Period",
                 "editable": true,
                 "type": "select",
-                "options": [
-                    "Annually",
-                    "Monthly",
-                    "Quarterly",
-                    "Weekly",
-                    "Daily"
-                ],
+                "optionsSource": "interestNominalRatePeriods",
                 "default": "Annually",
                 "display": true
             },
@@ -145,10 +158,7 @@
                 "header": "Calculation Method",
                 "editable": true,
                 "type": "select",
-                "options": [
-                    "Compound",
-                    "Simple"
-                ],
+                "optionsSource": "interestCalculationMethods",
                 "default": "Simple",
                 "display": true
             },
@@ -157,13 +167,7 @@
                 "header": "Compounding Interval",
                 "editable": true,
                 "type": "select",
-                "options": [
-                    "Monthly",
-                    "Quarterly",
-                    "Annually",
-                    "Weekly",
-                    "Daily"
-                ],
+                "optionsSource": "interestCompoundingIntervals",
                 "default": "Monthly",
                 "display": true
             }

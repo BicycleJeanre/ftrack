@@ -8,7 +8,14 @@
       "currency": "ZAR",
       "balance": 10000,
       "current_balance": 10000,
-      "interest": ""
+      "interest": {
+        "presetOption": "Custom",
+        "nominalRate": 0,
+        "effectiveRate": 0,
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Simple",
+        "compoundingInterval": "Monthly"
+      }
     },
     {
       "id": 2,
@@ -17,7 +24,14 @@
       "currency": "JPY",
       "balance": 1234,
       "current_balance": 0,
-      "interest": ""
+      "interest": {
+        "presetOption": "Custom",
+        "nominalRate": 0,
+        "effectiveRate": 0,
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Simple",
+        "compoundingInterval": "Monthly"
+      }
     },
     {
       "id": 3,
@@ -26,7 +40,14 @@
       "currency": "ZAR",
       "balance": 0,
       "current_balance": 0,
-      "interest": ""
+      "interest": {
+        "presetOption": "Custom",
+        "nominalRate": 0,
+        "effectiveRate": 0,
+        "nominalRatePeriod": "Annually",
+        "calculationMethod": "Simple",
+        "compoundingInterval": "Monthly"
+      }
     }
   ],
   "transactions": [
