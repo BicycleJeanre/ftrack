@@ -356,6 +356,45 @@ select:focus {
   background: #232a23;
 }
 
+.checkbox-input {
+  width: 22px;
+  height: 22px;
+  accent-color: #b6ff00;
+  border-radius: 6px;
+  border: 2px solid #232a23;
+  background: #181a1b;
+  transition: box-shadow 0.18s, border 0.18s;
+  cursor: pointer;
+  /* vertical-align: middle; */
+  margin: 0 auto;
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
+}
+
+.checkbox-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #b6ff0044;
+  border-color: #b6ff00;
+}
+
+.checkbox-input:checked {
+  background: #b6ff00;
+  border-color: #b6ff00;
+}
+
+.checkbox-input:checked::after {
+  content: '\2714';
+  color: #232a23;
+  font-size: 1.1em;
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  pointer-events: none;
+}
+
 @media (max-width: 900px) {
   .modal-content {
     width: 98vw;

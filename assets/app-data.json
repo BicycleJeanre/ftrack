@@ -93,7 +93,7 @@
       "debit_account": "Empty",
       "credit_account": "Empty",
       "amount": 5000,
-      "isRecurring": false,
+      "isRecurring": true,
       "recurrence": [],
       "amountChange": [],
       "tags": [
@@ -107,7 +107,7 @@
       "debit_account": "Empty",
       "credit_account": "Empty",
       "amount": 0,
-      "isRecurring": false,
+      "isRecurring": true,
       "recurrence": [],
       "amountChange": [],
       "tags": []
@@ -117,7 +117,7 @@
       "debit_account": "Empty",
       "credit_account": "Empty",
       "amount": 0,
-      "isRecurring": false,
+      "isRecurring": true,
       "recurrence": [],
       "amountChange": [],
       "tags": []

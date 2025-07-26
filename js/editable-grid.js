@@ -303,6 +303,18 @@ export class EditableGrid {
                             }, 0);
                             break;
                         }
+                        case 'checkbox': {
+                            let checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.checked = acc[col.field];
+                            checkbox.className = 'checkbox-input';
+                            checkbox.onchange = () => {
+                                acc[col.field] = checkbox.checked;
+                                this.render();
+                            };
+                            window.add(cellContent, checkbox);
+                            break;
+                        }
                         default:
                             let def = document.createElement('input')
                             def.type = 'text'
@@ -370,6 +382,11 @@ export class EditableGrid {
                         // Remove trailing remove button (×) if present
                         return span.childNodes[0] ? span.childNodes[0].textContent : span.textContent;
                     }).filter(Boolean);
+                    break;
+                }
+                case 'checkbox': {
+                    const input = cell.querySelector('input[type="checkbox"]');
+                    value = input ? input.checked : false;
                     break;
                 }
                 default: {
