@@ -363,6 +363,15 @@ export class EditableGrid {
                     // handle modal if needed
                     break;
                 }
+                case 'tags': {
+                    // Find all tag-item spans in the cell and extract their text (excluding the remove button)
+                    const tagSpans = cell.querySelectorAll('.tag-item');
+                    value = Array.from(tagSpans).map(span => {
+                        // Remove trailing remove button (×) if present
+                        return span.childNodes[0] ? span.childNodes[0].textContent : span.textContent;
+                    }).filter(Boolean);
+                    break;
+                }
                 default: {
                     value = cell.textContent;
                     break;

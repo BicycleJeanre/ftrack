@@ -96,7 +96,11 @@
       "isRecurring": false,
       "recurrence": [],
       "amountChange": [],
-      "tags": "my×name×is×norma×the×spider×gagger×"
+      "tags": [
+        "tag",
+        "tag2",
+        "tag3"
+      ]
     },
     {
       "id": 2,
