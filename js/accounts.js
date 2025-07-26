@@ -56,16 +56,11 @@ async function onSave(updatedAccounts) {
     }
 }
 
-async function onDelete(){
-    console.log("Deleting!")
-}
-
-async function createGridSchema(tableElement, onSave, onDelete) {
+async function createGridSchema(tableElement, onSave) {
     let gridData = {}
     gridData.targetElement = tableElement;
     gridData.tableHeader = 'Accounts'
     gridData.onSave = onSave;
-    gridData.onDelete = onDelete;
     
     // Load the schema file from disk in an Electron app
     const fs = window.require('fs').promises; // Use the promise-based fs module
@@ -95,5 +90,5 @@ function loadTable(tableData){
 
 loadGlobals();
 const table = buildGridContainer();
-const tableData = await createGridSchema(table, onSave, onDelete)
+const tableData = await createGridSchema(table, onSave)
 loadTable(tableData);

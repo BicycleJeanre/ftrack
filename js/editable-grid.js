@@ -353,9 +353,19 @@ export class EditableGrid {
                     saveIcon.className = 'btn'
                     saveIcon.title = 'Save'
                     saveIcon.addEventListener('click', (event) => {
-                        this.handleSave( event.target.closest('tr'))
+                        this.handleSave(event.target.closest('tr'))
                     })
                     window.add(actionsCell, saveIcon)
+                }
+                if (this.mainGrid.actions.delete) {
+                    let deleteIcon = document.createElement('span')
+                    deleteIcon.innerHTML = ICONS['delete']
+                    deleteIcon.className = 'btn'
+                    deleteIcon.title = 'Delete'
+                    deleteIcon.addEventListener('click', (event) => {
+                        this.handleDelete(event.target.closest('tr'))
+                    })
+                    window.add(actionsCell, deleteIcon)
                 }
                 window.add(row, actionsCell)
             }
@@ -408,7 +418,7 @@ export class EditableGrid {
                     break;
                 }
                 case 'exclusive': {
-                    const input = cell.querySelector('input[type="radio"]');
+                    const input = cell.querySelector('input[type="checkbox"]');
                     value = input ? input.checked : false;
                     break;
                 }
@@ -468,6 +478,20 @@ export class EditableGrid {
             if (this.onSave) this.onSave(this.workingData, rowId, field);
         } else {
             console.warn('[EditableGrid] onModalSave: Row not found for id', rowId);
+        }
+    }
+
+    //method to handle deleting a row
+    handleDelete(row) {
+        const rowIndex = row.rowIndex; 
+        if (rowIndex >= 0 && rowIndex < this.workingData.length) {
+            this.workingData.splice(rowIndex, 1);
+            this.data.length = 0;
+            this.data.push(...this.workingData);
+            if (this.onSave) {
+                this.onSave(this.data);
+            }
+            this.render();
         }
     }
 }

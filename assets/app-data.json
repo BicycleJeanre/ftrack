@@ -96,32 +96,6 @@
       "isRecurring": true,
       "recurrence": [
         {
-          "id": 0,
-          "active": false,
-          "version": 1,
-          "tags": [
-            "hi",
-            "my",
-            "name",
-            "is",
-            "chikka",
-            "chikka",
-            "..."
-          ],
-          "frequency": "Weekly",
-          "endDate": null,
-          "dayOfMonth": 0
-        },
-        {
-          "id": 1,
-          "active": false,
-          "version": 1,
-          "tags": [],
-          "frequency": "Monthly",
-          "endDate": null,
-          "dayOfMonth": 12
-        },
-        {
           "id": 2,
           "active": false,
           "version": 1,
@@ -129,6 +103,33 @@
           "frequency": "",
           "endDate": "",
           "dayOfMonth": ""
+        },
+        {
+          "id": 3,
+          "active": false,
+          "version": 1,
+          "tags": [],
+          "frequency": "Daily",
+          "endDate": null,
+          "dayOfMonth": 0
+        },
+        {
+          "id": 4,
+          "active": false,
+          "version": 1,
+          "tags": [],
+          "frequency": "Daily",
+          "endDate": null,
+          "dayOfMonth": 0
+        },
+        {
+          "id": 5,
+          "active": false,
+          "version": 1,
+          "tags": [],
+          "frequency": "Daily",
+          "endDate": null,
+          "dayOfMonth": 0
         }
       ],
       "amountChange": [],
@@ -139,21 +140,95 @@
       ]
     },
     {
-      "id": 2,
+      "id": 6,
       "debit_account": "Empty",
       "credit_account": "Empty",
-      "amount": 12,
+      "amount": 0,
       "isRecurring": true,
+      "recurrence": [
+        {
+          "id": 0,
+          "active": true,
+          "version": 1,
+          "tags": [],
+          "frequency": "Daily",
+          "endDate": null,
+          "dayOfMonth": 0
+        }
+      ],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 8,
+      "debit_account": "Empty",
+      "credit_account": "Empty",
+      "amount": 0,
+      "isRecurring": true,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": [
+        "tag",
+        "tag",
+        "tag"
+      ]
+    },
+    {
+      "id": 9,
+      "debit_account": "Empty",
+      "credit_account": "Empty",
+      "amount": 0,
+      "isRecurring": false,
       "recurrence": [],
       "amountChange": [],
       "tags": []
     },
     {
-      "id": 3,
+      "id": 10,
       "debit_account": "Empty",
       "credit_account": "Empty",
       "amount": 0,
-      "isRecurring": true,
+      "isRecurring": false,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 11,
+      "debit_account": "",
+      "credit_account": "",
+      "amount": "",
+      "isRecurring": "",
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 12,
+      "debit_account": "",
+      "credit_account": "",
+      "amount": "",
+      "isRecurring": "",
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 13,
+      "debit_account": "",
+      "credit_account": "",
+      "amount": "",
+      "isRecurring": "",
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 14,
+      "debit_account": "",
+      "credit_account": "",
+      "amount": "",
+      "isRecurring": "",
       "recurrence": [],
       "amountChange": [],
       "tags": []

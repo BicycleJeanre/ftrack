@@ -56,10 +56,6 @@ async function onSave(updatedTransactions) {
     }
 }
 
-async function onDelete(){
-    console.log("Deleting!")
-}
-
 async function createGridSchema(tableElement, onSave, onDelete) {
     let gridData = {}
     gridData.targetElement = tableElement;
@@ -95,5 +91,5 @@ function loadTable(tableData){
 
 loadGlobals();
 const table = buildGridContainer();
-const tableData = await createGridSchema(table, onSave, onDelete)
+const tableData = await createGridSchema(table, onSave)
 loadTable(tableData);
