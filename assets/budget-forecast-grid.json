@@ -1,0 +1,104 @@
+{
+  "mainGrid": {
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true
+    },
+    "columns": [
+      {
+        "field": "id",
+        "header": "Version ID",
+        "editable": false,
+        "type": "number",
+        "display": true
+      },
+      {
+        "field": "versionName",
+        "header": "Version Name",
+        "editable": false,
+        "type": "text",
+        "display": true
+      },
+      {
+        "field": "mode",
+        "header": "Mode",
+        "editable": false,
+        "type": "select",
+        "optionsSource": "forecastModes",
+        "display": true
+      },
+      {
+        "field": "startDate",
+        "header": "Start Date",
+        "editable": false,
+        "type": "date",
+        "display": true
+      },
+      {
+        "field": "endDate",
+        "header": "End Date",
+        "editable": false,
+        "type": "date",
+        "display": true
+      },
+      {
+        "field": "periodType",
+        "header": "Period Type",
+        "editable": false,
+        "type": "select",
+        "optionsSource": "periodTypes",
+        "display": true
+      },
+      {
+        "field": "periodCount",
+        "header": "Period Count",
+        "editable": false,
+        "type": "number",
+        "display": true
+      },
+      {
+        "field": "accountIds",
+        "header": "Accounts",
+        "editable": false,
+        "type": "multiselect",
+        "optionsSource": "accounts",
+        "display": true
+      },
+      {
+        "field": "data",
+        "header": "Timeline Data",
+        "editable": false,
+        "type": "json",
+        "display": false
+      },
+      {
+        "field": "notes",
+        "header": "Notes",
+        "editable": false,
+        "type": "text",
+        "display": true
+      },
+      {
+        "field": "tags",
+        "header": "Tags",
+        "editable": false,
+        "type": "tags",
+        "display": true
+      }
+    ]
+  },
+  "forecastModes": [
+    "daterange",
+    "periods",
+    "timeless"
+  ],
+  "periodTypes": [
+    "Day",
+    "Week",
+    "Month",
+    "Quarter",
+    "Year"
+  ]
+}

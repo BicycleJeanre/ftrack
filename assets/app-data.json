@@ -243,5 +243,51 @@
     }
   ],
   "forecast": [],
-  "budget": []
+  "budget": [],
+  "budgetDefinitions": [
+    {
+      "id": 1,
+      "versionName": "Sample Budget Version 1",
+      "mode": "daterange",
+      "startDate": "2025-08-01",
+      "endDate": "2025-10-01",
+      "periodType": "Month",
+      "periodCount": 2,
+      "accounts": [1, 2],
+      "notes": "Test budget version for demo.",
+      "tags": ["demo", "test"]
+    }
+  ],
+  "budgetForecasts": [
+    {
+      "id": 1,
+      "versionName": "Sample Budget Version 1",
+      "mode": "daterange",
+      "startDate": "2025-08-01",
+      "endDate": "2025-10-01",
+      "periodType": "Month",
+      "periodCount": 2,
+      "accountIds": [1, 2],
+      "data": [
+        {
+          "period": "2025-08-01",
+          "accounts": [
+            { "accountId": 1, "balance": 10000 },
+            { "accountId": 2, "balance": 1234 }
+          ],
+          "transactions": [1]
+        },
+        {
+          "period": "2025-09-01",
+          "accounts": [
+            { "accountId": 1, "balance": 10500 },
+            { "accountId": 2, "balance": 1234 }
+          ],
+          "transactions": [6]
+        }
+      ],
+      "notes": "Test forecast results for demo.",
+      "tags": ["demo", "test"]
+    }
+  ]
 }

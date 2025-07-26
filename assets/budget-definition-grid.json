@@ -1,0 +1,99 @@
+{
+  "mainGrid": {
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true
+    },
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "editable": false,
+        "type": "number",
+        "display": false
+      },
+      {
+        "field": "versionName",
+        "header": "Version Name",
+        "editable": true,
+        "type": "text",
+        "display": true
+      },
+      {
+        "field": "mode",
+        "header": "Mode",
+        "editable": true,
+        "type": "select",
+        "optionsSource": "forecastModes",
+        "default": "daterange",
+        "display": true
+      },
+      {
+        "field": "startDate",
+        "header": "Start Date",
+        "editable": true,
+        "type": "date",
+        "display": true
+      },
+      {
+        "field": "endDate",
+        "header": "End Date",
+        "editable": true,
+        "type": "date",
+        "display": true
+      },
+      {
+        "field": "periodType",
+        "header": "Period Type",
+        "editable": true,
+        "type": "select",
+        "optionsSource": "periodTypes",
+        "default": "Month",
+        "display": true
+      },
+      {
+        "field": "periodCount",
+        "header": "Period Count",
+        "editable": true,
+        "type": "number",
+        "display": true
+      },
+      {
+        "field": "accounts",
+        "header": "Accounts",
+        "editable": true,
+        "type": "multiselect",
+        "optionsSource": "accounts",
+        "display": true
+      },
+      {
+        "field": "notes",
+        "header": "Notes",
+        "editable": true,
+        "type": "text",
+        "display": true
+      },
+      {
+        "field": "tags",
+        "header": "Tags",
+        "editable": true,
+        "type": "tags",
+        "display": true
+      }
+    ]
+  },
+  "forecastModes": [
+    "daterange",
+    "periods",
+    "timeless"
+  ],
+  "periodTypes": [
+    "Day",
+    "Week",
+    "Month",
+    "Quarter",
+    "Year"
+  ]
+}
