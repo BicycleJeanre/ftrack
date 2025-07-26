@@ -315,6 +315,24 @@ export class EditableGrid {
                             window.add(cellContent, checkbox);
                             break;
                         }
+                        case 'exclusive': {
+                            let checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.checked = acc[col.field];
+                            checkbox.className = 'checkbox-input';
+                            checkbox.onchange = () => {
+                                if (checkbox.checked) {
+                                    // Exclusivity logic: uncheck all others
+                                    this.workingData.forEach(row => {
+                                        if (row !== acc) row[col.field] = false;
+                                    });
+                                }
+                                acc[col.field] = checkbox.checked;
+                                this.render();
+                            };
+                            window.add(cellContent, checkbox);
+                            break;
+                        }
                         default:
                             let def = document.createElement('input')
                             def.type = 'text'
@@ -386,6 +404,11 @@ export class EditableGrid {
                 }
                 case 'checkbox': {
                     const input = cell.querySelector('input[type="checkbox"]');
+                    value = input ? input.checked : false;
+                    break;
+                }
+                case 'exclusive': {
+                    const input = cell.querySelector('input[type="radio"]');
                     value = input ? input.checked : false;
                     break;
                 }

@@ -47,7 +47,7 @@ export class Modal {
         });
 
         const header = document.createElement('h2')
-        header.innerHTML = 'MODAL GRID!'
+        header.innerHTML = this.tableHeader
         window.add(modalHeader, header)
         window.add(modalHeader, closeBtn)
         window.add(this.modalBox, modalHeader)

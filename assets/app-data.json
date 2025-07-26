@@ -94,7 +94,43 @@
       "credit_account": "Empty",
       "amount": 5000,
       "isRecurring": true,
-      "recurrence": [],
+      "recurrence": [
+        {
+          "id": 0,
+          "active": false,
+          "version": 1,
+          "tags": [
+            "hi",
+            "my",
+            "name",
+            "is",
+            "chikka",
+            "chikka",
+            "..."
+          ],
+          "frequency": "Weekly",
+          "endDate": null,
+          "dayOfMonth": 0
+        },
+        {
+          "id": 1,
+          "active": false,
+          "version": 1,
+          "tags": [],
+          "frequency": "Monthly",
+          "endDate": null,
+          "dayOfMonth": 12
+        },
+        {
+          "id": 2,
+          "active": false,
+          "version": 1,
+          "tags": [],
+          "frequency": "",
+          "endDate": "",
+          "dayOfMonth": ""
+        }
+      ],
       "amountChange": [],
       "tags": [
         "tag",
@@ -106,7 +142,7 @@
       "id": 2,
       "debit_account": "Empty",
       "credit_account": "Empty",
-      "amount": 0,
+      "amount": 12,
       "isRecurring": true,
       "recurrence": [],
       "amountChange": [],

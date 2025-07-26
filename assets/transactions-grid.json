@@ -86,7 +86,7 @@
         "title": "Edit Transaction Recurrence",
         "dataField": "recurrence",
         "actions": {
-            "add": false,
+            "add": true,
             "edit": true,
             "delete": true,
             "save": true
@@ -98,6 +98,30 @@
                 "editable": false,
                 "type": "number",
                 "display": false
+            },
+            {
+                "field": "active",
+                "header": "Active",
+                "type": "exclusive",
+                "editable": true,
+                "display": true,
+                "default": false
+            },
+            {
+                "field": "version",
+                "header": "Version",
+                "type": "number",
+                "editable": true,
+                "display": true,
+                "default": 1
+            },
+            {
+                "field": "tags",
+                "header": "Tags",
+                "type": "tags",
+                "editable": true,
+                "display": true,
+                "default": []
             },
             {
                 "field": "frequency",
@@ -125,12 +149,43 @@
     },
     "amountChangeModal": {
         "actions": {
-            "add": false,
+            "add": true,
             "edit": true,
             "delete": true,
             "save": true
         },
         "columns": [
+            {
+                "field": "id",
+                "header": "ID",
+                "editable": false,
+                "type": "number",
+                "display": false
+            },
+            {
+                "field": "active",
+                "header": "Active",
+                "type": "exclusive",
+                "editable": true,
+                "display": true,
+                "default": false
+            },
+            {
+                "field": "version",
+                "header": "Version",
+                "type": "number",
+                "editable": true,
+                "display": true,
+                "default": 1
+            },
+            {
+                "field": "tags",
+                "header": "Tags",
+                "type": "tags",
+                "editable": true,
+                "display": true,
+                "default": []
+            },
             {
                 "field": "changeType",
                 "header": "Change Type",
