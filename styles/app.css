@@ -300,6 +300,62 @@ select:focus {
   color: #b6ff00;
 }
 
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  align-items: center;
+  min-height: 36px;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+  background: #232a23;
+  color: #b6ff00;
+  border-radius: 16px;
+  padding: 0.18em 0.9em 0.18em 0.7em;
+  font-size: 0.98em;
+  font-weight: 500;
+  margin: 0 0.1em 0.1em 0;
+  border: 1px solid #b6ff00;
+  letter-spacing: 0.01em;
+  transition: background 0.18s, color 0.18s;
+}
+
+.tag-remove {
+  margin-left: 0.4em;
+  color: #ededed;
+  font-size: 1.1em;
+  cursor: pointer;
+  border-radius: 50%;
+  padding: 0 0.2em;
+  transition: background 0.18s, color 0.18s;
+}
+
+.tag-remove:hover {
+  background: #b6ff00;
+  color: #232a23;
+}
+
+.tag-edit-input {
+  background: #181a1b;
+  color: #ededed;
+  border: 1px solid #232a23;
+  border-radius: 8px;
+  padding: 0.2em 0.7em;
+  font-size: 1em;
+  min-width: 90px;
+  margin-left: 0.2em;
+  outline: none;
+  transition: border 0.18s, background 0.18s;
+}
+
+.tag-edit-input:focus {
+  border: 1.5px solid #b6ff00;
+  background: #232a23;
+}
+
 @media (max-width: 900px) {
   .modal-content {
     width: 98vw;

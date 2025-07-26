@@ -241,6 +241,68 @@ export class EditableGrid {
                             })
                             window.add(cellContent, modalIcon)
                             break
+                        case 'tags': {
+                            let tagsContainer = document.createElement('div');
+                            tagsContainer.className = 'tags-container';
+                            // Input for new tag (created first, so tags appear before input)
+                            let tagsInput = document.createElement('input');
+                            tagsInput.type = 'text';
+                            tagsInput.className = 'tag-edit-input';
+                            tagsInput.placeholder = 'Add tag';
+                            // Store focus intent in instance for use after render
+                            if (!this._tagFocus) this._tagFocus = {};
+                            tagsInput.onkeydown = (e) => {
+                                if ((e.key === ' ' || e.key === 'Enter' || e.key === ',') && tagsInput.value.trim()) {
+                                    if (!Array.isArray(acc[col.field])) acc[col.field] = [];
+                                    acc[col.field].push(tagsInput.value.trim());
+                                    tagsInput.value = '';
+                                    this._tagFocus[acc.id + '-' + col.field] = true;
+                                    this.render();
+                                    e.preventDefault();
+                                } else if (
+                                    e.key === 'Backspace' &&
+                                    !tagsInput.value &&
+                                    Array.isArray(acc[col.field]) &&
+                                    acc[col.field].length > 0
+                                ) {
+                                    acc[col.field].pop();
+                                    this._tagFocus[acc.id + '-' + col.field] = true;
+                                    this.render();
+                                    e.preventDefault();
+                                }
+                            };
+                            window.add(tagsContainer, tagsInput);
+                            // Render each tag as a span with remove button (before input)
+                            if (Array.isArray(acc[col.field])) {
+                                acc[col.field].forEach((tag, idx) => {
+                                    let tagEl = document.createElement('span');
+                                    tagEl.className = 'tag-item';
+                                    tagEl.textContent = tag;
+                                    // Remove button (x)
+                                    let removeBtn = document.createElement('span');
+                                    removeBtn.className = 'tag-remove';
+                                    removeBtn.textContent = '×';
+                                    removeBtn.onclick = (e) => {
+                                        e.stopPropagation();
+                                        acc[col.field].splice(idx, 1);
+                                        this._tagFocus[acc.id + '-' + col.field] = true;
+                                        this.render();
+                                    };
+                                    window.add(tagEl, removeBtn);
+                                    // Insert tag before the input
+                                    tagsContainer.insertBefore(tagEl, tagsInput);
+                                });
+                            }
+                            window.add(cellContent, tagsContainer);
+                            // After render, move focus to input if needed
+                            setTimeout(() => {
+                                if (this._tagFocus && this._tagFocus[acc.id + '-' + col.field]) {
+                                    tagsInput.focus();
+                                    delete this._tagFocus[acc.id + '-' + col.field];
+                                }
+                            }, 0);
+                            break;
+                        }
                         default:
                             let def = document.createElement('input')
                             def.type = 'text'
