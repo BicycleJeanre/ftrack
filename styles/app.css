@@ -1,4 +1,43 @@
+/* Modern calendar (date input) styling for app theme */
+.date-input {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 6px 10px;
+  border: 1px solid #232a23;
+  border-radius: 6px;
+  background: #232a23;
+  color: #ededed;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.10);
+  transition: border 0.2s, box-shadow 0.2s;
+}
+.date-input:focus {
+  border: 1.5px solid #b6ff00;
+  outline: none;
+  background: #181a1b;
+  color: #ededed;
+  box-shadow: 0 2px 8px rgba(182,255,0,0.08);
+}
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) sepia(0.2) saturate(2) hue-rotate(60deg);
+  cursor: pointer;
+}
+.date-input[disabled] {
+  background: #181a1b;
+  color: #888;
+  border-color: #232a23;
+}
+/* Native calendar popups (where supported) */
+input[type="date"], input[type="date"]::-webkit-input-placeholder {
+  background: #232a23;
+  color: #ededed;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) sepia(0.2) saturate(2) hue-rotate(60deg);
+}
+
 /* Minimal app styles per refactor instructions */
+
+@import url('./calendar.css');
 
 html, body {
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;

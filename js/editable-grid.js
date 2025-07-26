@@ -333,6 +333,26 @@ export class EditableGrid {
                             window.add(cellContent, checkbox);
                             break;
                         }
+                        case 'date': {
+                            let dateIn = document.createElement('input');
+                            dateIn.type = 'date';
+                            // Use value in YYYY-MM-DD format, fallback to today if empty
+                            let val = acc[col.field];
+                            if (!val) {
+                                // Default to today if not set
+                                const today = new Date();
+                                val = today.toISOString().slice(0, 10);
+                                acc[col.field] = val;
+                            }
+                            dateIn.value = val;
+                            dateIn.className = 'date-input';
+                            dateIn.onchange = () => {
+                                acc[col.field] = dateIn.value;
+                                this.render();
+                            };
+                            window.add(cellContent, dateIn);
+                            break;
+                        }
                         default:
                             let def = document.createElement('input')
                             def.type = 'text'
@@ -420,6 +440,11 @@ export class EditableGrid {
                 case 'exclusive': {
                     const input = cell.querySelector('input[type="checkbox"]');
                     value = input ? input.checked : false;
+                    break;
+                }
+                case 'date': {
+                    const input = cell.querySelector('input[type="date"]');
+                    value = input ? input.value : '';
                     break;
                 }
                 default: {

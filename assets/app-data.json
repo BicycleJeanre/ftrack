@@ -18,7 +18,8 @@
           "calculationMethod": "Simple",
           "compoundingInterval": "Monthly"
         }
-      ]
+      ],
+      "openDate": "2025-06-30"
     },
     {
       "id": 2,
@@ -37,7 +38,8 @@
           "calculationMethod": "Simple",
           "compoundingInterval": "Monthly"
         }
-      ]
+      ],
+      "openDate": "2025-07-22"
     },
     {
       "id": 3,
@@ -56,7 +58,8 @@
           "calculationMethod": "Simple",
           "compoundingInterval": "Monthly"
         }
-      ]
+      ],
+      "openDate": "2025-07-26"
     },
     {
       "id": 4,
@@ -65,26 +68,18 @@
       "currency": "ZAR",
       "balance": 234567,
       "current_balance": 0,
-      "interest": ""
+      "interest": "",
+      "openDate": "2025-07-23"
     },
     {
       "id": 5,
-      "name": "",
+      "name": null,
       "type": "Asset",
       "currency": "ZAR",
       "balance": 0,
       "current_balance": 0,
-      "interest": [
-        {
-          "id": 0,
-          "presetOption": "NACW (Compounded Weekly)",
-          "nominalRate": 0,
-          "effectiveRate": 0,
-          "nominalRatePeriod": "Annually",
-          "calculationMethod": "Simple",
-          "compoundingInterval": "Annually"
-        }
-      ]
+      "interest": null,
+      "openDate": "2025-07-21"
     }
   ],
   "transactions": [
@@ -101,7 +96,7 @@
           "version": 1,
           "tags": [],
           "frequency": "",
-          "endDate": "",
+          "endDate": "2025-07-22",
           "dayOfMonth": ""
         },
         {
@@ -110,7 +105,7 @@
           "version": 1,
           "tags": [],
           "frequency": "Daily",
-          "endDate": null,
+          "endDate": "2025-07-09",
           "dayOfMonth": 0
         },
         {
@@ -119,7 +114,7 @@
           "version": 1,
           "tags": [],
           "frequency": "Daily",
-          "endDate": null,
+          "endDate": "2025-11-26",
           "dayOfMonth": 0
         },
         {
@@ -128,7 +123,7 @@
           "version": 1,
           "tags": [],
           "frequency": "Daily",
-          "endDate": null,
+          "endDate": "2025-07-26",
           "dayOfMonth": 0
         }
       ],

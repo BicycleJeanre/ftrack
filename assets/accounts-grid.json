@@ -64,6 +64,14 @@
                 "modal": "interestModal",
                 "modalIcon": "interest",
                 "modalIconTitle": "Edit Interest"  
+            },
+            {
+                "field": "openDate",
+                "header": "Open Date",
+                "editable": true,
+                "type": "date",
+                "display": true,
+                "default": ""
             }
         ]
     },

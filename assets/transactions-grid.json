@@ -136,7 +136,8 @@
                 "header": "End Date",
                 "type": "date",
                 "display": true,
-                "editable": true
+                "editable": true,
+                "default": ""
             },
             {
                 "field": "dayOfMonth",
@@ -214,14 +215,16 @@
                 "header": "Start Date",
                 "type": "date",
                 "display": true,
-                "editable": true
+                "editable": true,
+                "default": ""
             },
             {
                 "field": "endDate",
                 "header": "End Date",
                 "type": "date",
                 "display": true,
-                "editable": true
+                "editable": true,
+                "default": ""
             },
             {
                 "field": "notes",
