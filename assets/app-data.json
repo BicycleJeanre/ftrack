@@ -90,41 +90,33 @@
   "transactions": [
     {
       "id": 1,
-      "debit_account": 2,
-      "credit_account": 1,
+      "debit_account": "Empty",
+      "credit_account": "Empty",
       "amount": 5000,
-      "isRecurring": true,
-      "recurrence": {
-        "frequency": "Monthly",
-        "endDate": "2030-12-31",
-        "dayOfMonth": 15
-      },
-      "recurrenceModal": {
-        "frequency": "Monthly",
-        "endDate": "2030-12-31",
-        "dayOfMonth": 15
-      },
-      "tags": [
-        "income"
-      ],
-      "amountChange": {
-        "changeType": "percentage",
-        "changeValue": 5,
-        "changeFrequency": "Yearly",
-        "startDate": "2025-07-17",
-        "endDate": null,
-        "notes": "Rent may increase by 5% per year for planning purposes."
-      }
+      "isRecurring": false,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
     },
     {
       "id": 2,
       "debit_account": "Empty",
       "credit_account": "Empty",
       "amount": 0,
-      "isRecurring": "",
-      "recurrence": "",
-      "amountChange": "",
-      "tags": ""
+      "isRecurring": false,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 3,
+      "debit_account": "Empty",
+      "credit_account": "Empty",
+      "amount": 0,
+      "isRecurring": false,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
     }
   ],
   "forecast": [],

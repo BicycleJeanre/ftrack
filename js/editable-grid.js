@@ -306,6 +306,10 @@ export class EditableGrid {
                     break;
                 }
             }
+            // If value is empty string, undefined, or null, use col.default if available, else null
+            if (value === '' || value === undefined || value === null) {
+                value = (typeof col.default !== 'undefined') ? col.default : null;
+            }
             rowData[col.field] = value;
         })
 

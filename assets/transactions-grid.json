@@ -21,6 +21,7 @@
                 "type": "select",
                 "optionsSource": "accounts",
                 "customDisplay": {"displayText": "accounts.name", "join": "transactions.debit_account.id = accounts.id"},
+                "default": "",
                 "display": true
             },
             {
@@ -30,6 +31,7 @@
                 "type": "select",
                 "optionsSource": "accounts",
                 "customDisplay": {"displayText": "accounts.name",  "join": "transactions.debit_account.id = accounts.id"},
+                "default": "",
                 "display": true
             },
             {
@@ -37,6 +39,7 @@
                 "header": "Amount",
                 "editable": true,
                 "type": "number",
+                "default": 0,
                 "display": true
             },
             {
@@ -44,26 +47,29 @@
                 "header": "Recurring?",
                 "editable": true,
                 "type": "checkbox",
+                "default": false,
                 "display": true
             },
             {
                 "field": "recurrence",
                 "header": "Recurrence",
-                "editable": false,
+                "editable": true,
                 "type": "modal",
-                "modalType": "recurrenceModal",
+                "modal": "recurrenceModal",
                 "modalIcon": "edit",
                 "modalIconTitle": "Edit Recurrence",
+                "default": [],
                 "display": true
             },
             {
                 "field": "amountChange",
                 "header": "Amount Change",
-                "editable": false,
+                "editable": true,
                 "type": "modal",
-                "modalType": "amountChangeModal",
+                "modal": "amountChangeModal",
                 "modalIcon": "edit",
                 "modalIconTitle": "Edit Amount Change",
+                "default": [],
                 "display": true
             },
             {
@@ -71,11 +77,14 @@
                 "header": "Tags",
                 "editable": true,
                 "type": "tags",
+                "default": [],
                 "display": true
             }
         ]
     },
     "recurrenceModal": {
+        "title": "Edit Transaction Recurrence",
+        "dataField": "recurrence",
         "actions": {
             "add": false,
             "edit": true,
@@ -83,6 +92,13 @@
             "save": true
         },
         "columns": [
+            {
+                "field": "id",
+                "header": "ID",
+                "editable": false,
+                "type": "number",
+                "display": false
+            },
             {
                 "field": "frequency",
                 "header": "Frequency",
