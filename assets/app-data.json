@@ -132,7 +132,20 @@
           "dayOfMonth": 0
         }
       ],
-      "amountChange": [],
+      "amountChange": [
+        {
+          "id": 0,
+          "active": false,
+          "version": 1,
+          "tags": [],
+          "changeType": "percentage",
+          "changeValue": 0,
+          "changeFrequency": "Yearly",
+          "startDate": null,
+          "endDate": null,
+          "notes": null
+        }
+      ],
       "tags": [
         "tag",
         "tag2",
