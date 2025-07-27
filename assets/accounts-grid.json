@@ -76,46 +76,46 @@
         ]
     },
     "accountType": [
-        "Asset",
-        "Liability",
-        "Equity",
-        "Income",
-        "Expense"
+        { "id": 1, "name": "Asset" },
+        { "id": 2, "name": "Liability" },
+        { "id": 3, "name": "Equity" },
+        { "id": 4, "name": "Income" },
+        { "id": 5, "name": "Expense" }
     ],
     "currencies": [
-        "ZAR",
-        "USD",
-        "EUR",
-        "GBP",
-        "JPY",
-        "AUD",
-        "CAD"
+        { "id": 1, "name": "ZAR" },
+        { "id": 2, "name": "USD" },
+        { "id": 3, "name": "EUR" },
+        { "id": 4, "name": "GBP" },
+        { "id": 5, "name": "JPY" },
+        { "id": 6, "name": "AUD" },
+        { "id": 7, "name": "CAD" }
     ],
     "interestPresetOptions": [
-        "Custom",
-        "NACM (Compounded Monthly)",
-        "NACQ (Compounded Quarterly)",
-        "NACA (Compounded Annually)",
-        "NACW (Compounded Weekly)",
-        "NACD (Compounded Daily)"
+        { "id": 1, "name": "Custom" },
+        { "id": 2, "name": "NACM (Compounded Monthly)" },
+        { "id": 3, "name": "NACQ (Compounded Quarterly)" },
+        { "id": 4, "name": "NACA (Compounded Annually)" },
+        { "id": 5, "name": "NACW (Compounded Weekly)" },
+        { "id": 6, "name": "NACD (Compounded Daily)" }
     ],
     "interestNominalRatePeriods": [
-        "Annually",
-        "Monthly",
-        "Quarterly",
-        "Weekly",
-        "Daily"
+        { "id": 1, "name": "Annually" },
+        { "id": 2, "name": "Monthly" },
+        { "id": 3, "name": "Quarterly" },
+        { "id": 4, "name": "Weekly" },
+        { "id": 5, "name": "Daily" }
     ],
     "interestCalculationMethods": [
-        "Compound",
-        "Simple"
+        { "id": 1, "name": "Compound" },
+        { "id": 2, "name": "Simple" }
     ],
     "interestCompoundingIntervals": [
-        "Monthly",
-        "Quarterly",
-        "Annually",
-        "Weekly",
-        "Daily"
+        { "id": 1, "name": "Monthly" },
+        { "id": 2, "name": "Quarterly" },
+        { "id": 3, "name": "Annually" },
+        { "id": 4, "name": "Weekly" },
+        { "id": 5, "name": "Daily" }
     ],
     "interestModal": {
         "title": "Edit Interest Settings",

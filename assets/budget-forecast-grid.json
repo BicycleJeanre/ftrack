@@ -60,7 +60,7 @@
     ]
   },
   "movementTypes": [
-    "Debit",
-    "Credit"
+    { "id": 1, "name": "Debit" },
+    { "id": 2, "name": "Credit" }
   ]
 }

@@ -236,20 +236,20 @@
         ]
     },
     "recurrenceFrequencies": [
-        "Daily",
-        "Monthly",
-        "Weekly",
-        "Yearly"
+        { "id": 1, "name": "Daily" },
+        { "id": 2, "name": "Monthly" },
+        { "id": 3, "name": "Weekly" },
+        { "id": 4, "name": "Yearly" }
     ],
     "amountChangeTypes": [
-        "percentage",
-        "fixed"
+        { "id": 1, "name": "percentage" },
+        { "id": 2, "name": "fixed" }
     ],
     "amountChangeFrequencies": [
-        "Yearly",
-        "Monthly",
-        "Quarterly",
-        "Weekly",
-        "Daily"
+        { "id": 1, "name": "Yearly" },
+        { "id": 2, "name": "Monthly" },
+        { "id": 3, "name": "Quarterly" },
+        { "id": 4, "name": "Weekly" },
+        { "id": 5, "name": "Daily" }
     ]
 }
