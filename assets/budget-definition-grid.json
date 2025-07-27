@@ -15,8 +15,8 @@
         "display": false
       },
       {
-        "field": "versionName",
-        "header": "Version Name",
+        "field": "name",
+        "header": "Name",
         "editable": true,
         "type": "text",
         "display": true
