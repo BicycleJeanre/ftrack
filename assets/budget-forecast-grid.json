@@ -7,13 +7,21 @@
       "save": true
     },
     "columns": [
+       {
+        "field": "id",
+        "header": "ID",
+        "editable": false,
+        "type": "number",
+        "display": false
+      },
       {
         "field": "movement",
         "header": "Movement",
         "editable": true,
         "type": "select",
         "optionsSource": "movementTypes",
-        "display": true
+        "display": true,
+        "default": "Debit"
       },
       {
         "field": "accountSecondary",
@@ -21,6 +29,7 @@
         "editable": true,
         "type": "select",
         "optionsSource": "accounts",
+        "default": "",
         "display": true
       },
       {
@@ -28,6 +37,7 @@
         "header": "Period",
         "editable": true,
         "type": "text",
+        "default": "",
         "display": true
       },
       {
@@ -36,6 +46,7 @@
         "editable": true,
         "type": "select",
         "optionsSource": "accounts",
+        "default": "",
         "display": true
       },
       {
@@ -43,6 +54,7 @@
         "header": "Amount",
         "editable": true,
         "type": "number",
+        "default": 0,
         "display": true
       }
     ]

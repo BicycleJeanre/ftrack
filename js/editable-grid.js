@@ -479,7 +479,7 @@ export class EditableGrid {
                     newRow[col.field] = this.workingData.reduce((max, curr) => curr.id > max ? curr.id+1 : max+1, 0)
                     return
                 }else {
-                    newRow[col.field] = col.default || '';
+                    newRow[col.field] = (typeof col.default !== 'undefined') ? col.default : '';
                     return
                 }
             }

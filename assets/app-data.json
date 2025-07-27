@@ -70,16 +70,6 @@
       "current_balance": 0,
       "interest": "",
       "openDate": "2025-07-23"
-    },
-    {
-      "id": 5,
-      "name": null,
-      "type": "Asset",
-      "currency": "ZAR",
-      "balance": 0,
-      "current_balance": 0,
-      "interest": null,
-      "openDate": "2025-07-21"
     }
   ],
   "transactions": [
@@ -259,17 +249,31 @@
         "df",
         "df"
       ]
+    },
+    {
+      "id": 2,
+      "name": "ad",
+      "mode": "periods",
+      "startDate": "2025-07-27",
+      "endDate": "2025-07-27",
+      "periodType": "Month",
+      "periodCount": 0,
+      "accounts": null,
+      "notes": null,
+      "tags": []
     }
   ],
   "budgetForecasts": [
     {
+      "id": 1,
       "movement": "Debit",
-      "accountSecondary": 2,
-      "period": "2025-08-01",
-      "accountPrimary": 1,
-      "amount": 1500
+      "accountSecondary": "Empty",
+      "period": "",
+      "accountPrimary": "Empty",
+      "amount": 12
     },
     {
+      "id": 2,
       "movement": "Credit",
       "accountSecondary": 3,
       "period": "2025-08-15",
@@ -277,11 +281,12 @@
       "amount": 250
     },
     {
+      "id": 3,
       "movement": "Debit",
-      "accountSecondary": 1,
-      "period": "2025-01-01",
-      "accountPrimary": 2,
-      "amount": 5000
+      "accountSecondary": "Empty",
+      "period": "2015",
+      "accountPrimary": "Empty",
+      "amount": 0
     }
   ]
 }
