@@ -30,15 +30,21 @@ function buildGridContainer(){
     content.style.padding = '18px 20px 20px 20px';
     window.add(budgetEl, content)
 
-    //create budget table section
-    const table = document.createElement('div');
-    table.id = 'budgetTable';
-    window.add(content, table);
+    //create budget Definition table section
+    const budgetDefinitionTable = document.createElement('div');
+    budgetDefinitionTable.id = 'budgetDefinitionTable';
+    window.add(content, budgetDefinitionTable);
 
-    return table;
+
+    //create budget forecast table section
+    const budgetForecastTable = document.createElement('div');
+    budgetForecastTable.id = 'budgetForecastTable';
+    window.add(content, budgetForecastTable);
+
+    return {budgetForecastTable, budgetDefinitionTable}
 }
 
-async function onSave(updatedBudget) {
+async function onDefinitionSave(updatedBudget) {
     // updatedBudget: the new/changed budget data to persist
     const fs = window.require('fs').promises;
     const dataPath = process.cwd() + '/assets/app-data.json';
@@ -56,11 +62,29 @@ async function onSave(updatedBudget) {
     }
 }
 
-async function createGridSchema(tableElement, onSave) {
+async function onForecastSave(updatedData) {
+    // updatedBudget: the new/changed budget data to persist
+    const fs = window.require('fs').promises;
+    const dataPath = process.cwd() + '/assets/app-data.json';
+    try {
+        // Read the current data file
+        const dataFile = await fs.readFile(dataPath, 'utf8');
+        let appData = JSON.parse(dataFile);
+        // Only update the budget property with the new data
+        appData.budgetForecasts = updatedData;
+        // Write the updated data back to disk
+        await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
+        console.log('Budget saved successfully!');
+    } catch (err) {
+        console.error('Failed to save budget data:', err);
+    }
+}
+
+async function createBudgetDefinitionSchema(tableElement, onDefinitionSave) {
     let gridData = {}
     gridData.targetElement = tableElement;
     gridData.tableHeader = 'Budget'
-    gridData.onSave = onSave;
+    gridData.onSave = onDefinitionSave;
     
     // Load the schema file from disk in an Electron app
     const fs = window.require('fs').promises; 
@@ -82,12 +106,42 @@ async function createGridSchema(tableElement, onSave) {
     return gridData
 }
 
-function loadTable(tableData){
-    const grid =  new EditableGrid(tableData)
-    grid.render()
+async function createBudgetForecastSchema(tableElement, onForecastSave) {
+    let gridData = {}
+    gridData.targetElement = tableElement;
+    gridData.tableHeader = 'Budget'
+    gridData.onSave = onForecastSave;
+    
+    // Load the schema file from disk in an Electron app
+    const fs = window.require('fs').promises; 
+    const schemaPath = process.cwd() + '/assets/budget-forecast-grid.json';
+    const dataPath = process.cwd() + '/assets/app-data.json';
+
+    try {
+        const schemaFile = await fs.readFile(schemaPath, 'utf8');
+        gridData.schema = JSON.parse(schemaFile);
+
+        const dataFile = await fs.readFile(dataPath, 'utf8');
+        const initialData = JSON.parse(dataFile);
+        gridData.data = initialData.budgetForecasts;
+    } catch (err) {
+        console.error('Failed to read or parse data files:', err);
+        return null; 
+    }
+
+    return gridData
+}
+
+function loadTables(budgetDefinitionData, budgetForecastData){
+    const definitionGrid =  new EditableGrid(budgetDefinitionData)
+    definitionGrid.render()
+    const forecastGrid =  new EditableGrid(budgetForecastData)
+    forecastGrid.render()
 }
 
 loadGlobals();
-const table = buildGridContainer();
-const tableData = await createGridSchema(table, onSave)
-loadTable(tableData);
+const {budgetForecastTable, budgetDefinitionTable} = buildGridContainer();
+const budgetDefinitionData = await createBudgetDefinitionSchema(budgetDefinitionTable, onDefinitionSave)
+const budgetForecastData = await createBudgetForecastSchema(budgetForecastTable, onForecastSave)
+
+loadTables(budgetDefinitionData, budgetForecastData);
