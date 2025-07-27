@@ -47,7 +47,7 @@ async function onSave(updatedBudget) {
         const dataFile = await fs.readFile(dataPath, 'utf8');
         let appData = JSON.parse(dataFile);
         // Only update the budget property with the new data
-        appData.budget = updatedBudget;
+        appData.budgetDefinitions = updatedBudget;
         // Write the updated data back to disk
         await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
         console.log('Budget saved successfully!');
@@ -56,16 +56,15 @@ async function onSave(updatedBudget) {
     }
 }
 
-async function createGridSchema(tableElement, onSave, onDelete) {
+async function createGridSchema(tableElement, onSave) {
     let gridData = {}
     gridData.targetElement = tableElement;
     gridData.tableHeader = 'Budget'
     gridData.onSave = onSave;
-    gridData.onDelete = onDelete;
     
     // Load the schema file from disk in an Electron app
-    const fs = window.require('fs').promises; // Use the promise-based fs module
-    const schemaPath = process.cwd() + '/assets/budget-grid.json';
+    const fs = window.require('fs').promises; 
+    const schemaPath = process.cwd() + '/assets/budget-definition-grid.json';
     const dataPath = process.cwd() + '/assets/app-data.json';
 
     try {
@@ -74,10 +73,9 @@ async function createGridSchema(tableElement, onSave, onDelete) {
 
         const dataFile = await fs.readFile(dataPath, 'utf8');
         const initialData = JSON.parse(dataFile);
-        gridData.data = initialData.budget;
+        gridData.data = initialData.budgetDefinitions;
     } catch (err) {
         console.error('Failed to read or parse data files:', err);
-        // Return null or an empty structure if files can't be loaded
         return null; 
     }
 
