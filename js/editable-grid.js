@@ -198,18 +198,24 @@ export class EditableGrid {
                             break
                         case 'select':
                             let selectIn = document.createElement('select')
-                            const options = this.selectOptions[col.field] || ["Empty"];
-                            if (options) {
-                                options.forEach(option => {
-                                    const optionEl = document.createElement('option')
-                                    optionEl.value = option
-                                    optionEl.textContent = option
-                                    if (option === acc[col.field]) {
-                                        optionEl.selected = true
-                                    }
-                                    window.add(selectIn, optionEl)
-                                })
+                            const options = this.selectOptions[col.field] || [];
+                            // Add empty option at the top
+                            const emptyOption = document.createElement('option');
+                            emptyOption.value = '--';
+                            emptyOption.textContent = '--';
+                            if (!acc[col.field] || !acc[col.field].id) {
+                                emptyOption.selected = true;
                             }
+                            window.add(selectIn, emptyOption);
+                            options.forEach(option => {
+                                const optionEl = document.createElement('option')
+                                optionEl.value = option.id;
+                                optionEl.textContent = option.name;
+                                if (acc[col.field] && acc[col.field].id === option.id) {
+                                    optionEl.selected = true;
+                                }
+                                window.add(selectIn, optionEl)
+                            })
                             window.add(cellContent, selectIn)
                             break
                         case 'modal':
@@ -416,7 +422,9 @@ export class EditableGrid {
                 }
                 case 'select': {
                     const select = cell.querySelector('select');
-                    value = select ? select.value : '';
+                    const selectedId = select ? select.value : '';
+                    const options = this.selectOptions[col.field] || [];
+                    value = options.find(opt => String(opt.id) === String(selectedId)) || null;
                     break;
                 }
                 case 'modal': {

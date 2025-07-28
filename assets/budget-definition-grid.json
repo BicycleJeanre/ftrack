@@ -64,8 +64,9 @@
         "field": "accounts",
         "header": "Accounts",
         "editable": true,
-        "type": "multiselect",
+        "type": "select",
         "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
         "display": true
       },
       {
@@ -85,15 +86,15 @@
     ]
   },
   "forecastModes": [
-    "daterange",
-    "periods",
-    "timeless"
+    { "id": 1, "name": "daterange" },
+    { "id": 2, "name": "periods" },
+    { "id": 3, "name": "timeless" }
   ],
   "periodTypes": [
-    "Day",
-    "Week",
-    "Month",
-    "Quarter",
-    "Year"
+    { "id": 1, "name": "Day" },
+    { "id": 2, "name": "Week" },
+    { "id": 3, "name": "Month" },
+    { "id": 4, "name": "Quarter" },
+    { "id": 5, "name": "Year" }
   ]
 }

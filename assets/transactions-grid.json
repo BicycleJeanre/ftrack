@@ -20,6 +20,7 @@
                 "editable": true,
                 "type": "select",
                 "optionsSource": "accounts",
+                "optionsSourceFile": "app-data.json",
                 "customDisplay": {"displayText": "accounts.name", "join": "transactions.debit_account.id = accounts.id"},
                 "default": "",
                 "display": true
@@ -30,6 +31,7 @@
                 "editable": true,
                 "type": "select",
                 "optionsSource": "accounts",
+                "optionsSourceFile": "app-data.json",
                 "customDisplay": {"displayText": "accounts.name",  "join": "transactions.debit_account.id = accounts.id"},
                 "default": "",
                 "display": true

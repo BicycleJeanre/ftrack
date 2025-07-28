@@ -75,6 +75,13 @@ async function createGridSchema(tableElement, onSave, onDelete) {
         const dataFile = await fs.readFile(dataPath, 'utf8');
         const initialData = JSON.parse(dataFile);
         gridData.data = initialData.transactions;
+
+        // Inject dynamic options for columns with optionsSourceFile
+        gridData.schema.mainGrid.columns.forEach(col => {
+            if (col.optionsSourceFile && col.optionsSourceFile === 'app-data.json' && initialData[col.optionsSource]) {
+                gridData.schema[col.optionsSource] = initialData[col.optionsSource].map(opt => ({ id: opt.id, name: opt.name }));
+            }
+        });
     } catch (err) {
         console.error('Failed to read or parse data files:', err);
         // Return null or an empty structure if files can't be loaded

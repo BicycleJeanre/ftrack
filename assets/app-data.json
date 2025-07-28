@@ -4,19 +4,37 @@
     {
       "id": 1,
       "name": "Jeanre Credit Card",
-      "type": { "id": 3, "name": "Equity" },
-      "currency": { "id": 1, "name": "ZAR" },
+      "type": {
+        "id": 4,
+        "name": "Income"
+      },
+      "currency": {
+        "id": 3,
+        "name": "EUR"
+      },
       "balance": 10000,
       "current_balance": 10000,
       "interest": [
         {
-          "id": 1,
-          "presetOption": { "id": 1, "name": "Custom" },
-          "nominalRate": 12,
+          "id": 0,
+          "presetOption": {
+            "id": 1,
+            "name": "Custom"
+          },
+          "nominalRate": 0,
           "effectiveRate": 0,
-          "nominalRatePeriod": { "id": 1, "name": "Annually" },
-          "calculationMethod": { "id": 2, "name": "Simple" },
-          "compoundingInterval": { "id": 1, "name": "Monthly" }
+          "nominalRatePeriod": {
+            "id": 4,
+            "name": "Weekly"
+          },
+          "calculationMethod": {
+            "id": 1,
+            "name": "Compound"
+          },
+          "compoundingInterval": {
+            "id": 5,
+            "name": "Daily"
+          }
         }
       ],
       "openDate": "2025-06-30"
@@ -24,19 +42,37 @@
     {
       "id": 2,
       "name": "tr",
-      "type": { "id": 1, "name": "Asset" },
-      "currency": { "id": 5, "name": "JPY" },
+      "type": {
+        "id": 1,
+        "name": "Asset"
+      },
+      "currency": {
+        "id": 5,
+        "name": "JPY"
+      },
       "balance": 1234,
       "current_balance": 0,
       "interest": [
         {
           "id": 1,
-          "presetOption": { "id": 1, "name": "Custom" },
+          "presetOption": {
+            "id": 1,
+            "name": "Custom"
+          },
           "nominalRate": 14,
           "effectiveRate": 0,
-          "nominalRatePeriod": { "id": 1, "name": "Annually" },
-          "calculationMethod": { "id": 2, "name": "Simple" },
-          "compoundingInterval": { "id": 1, "name": "Monthly" }
+          "nominalRatePeriod": {
+            "id": 1,
+            "name": "Annually"
+          },
+          "calculationMethod": {
+            "id": 2,
+            "name": "Simple"
+          },
+          "compoundingInterval": {
+            "id": 1,
+            "name": "Monthly"
+          }
         }
       ],
       "openDate": "2025-07-22"
@@ -44,19 +80,37 @@
     {
       "id": 3,
       "name": "re",
-      "type": { "id": 1, "name": "Asset" },
-      "currency": { "id": 1, "name": "ZAR" },
+      "type": {
+        "id": 1,
+        "name": "Asset"
+      },
+      "currency": {
+        "id": 1,
+        "name": "ZAR"
+      },
       "balance": 0,
       "current_balance": 0,
       "interest": [
         {
           "id": 1,
-          "presetOption": { "id": 1, "name": "Custom" },
+          "presetOption": {
+            "id": 1,
+            "name": "Custom"
+          },
           "nominalRate": 12,
           "effectiveRate": 0,
-          "nominalRatePeriod": { "id": 1, "name": "Annually" },
-          "calculationMethod": { "id": 2, "name": "Simple" },
-          "compoundingInterval": { "id": 1, "name": "Monthly" }
+          "nominalRatePeriod": {
+            "id": 1,
+            "name": "Annually"
+          },
+          "calculationMethod": {
+            "id": 2,
+            "name": "Simple"
+          },
+          "compoundingInterval": {
+            "id": 1,
+            "name": "Monthly"
+          }
         }
       ],
       "openDate": "2025-07-26"
@@ -64,19 +118,37 @@
     {
       "id": 4,
       "name": "khtd",
-      "type": { "id": 1, "name": "Asset" },
-      "currency": { "id": 1, "name": "ZAR" },
+      "type": {
+        "id": 1,
+        "name": "Asset"
+      },
+      "currency": {
+        "id": 1,
+        "name": "ZAR"
+      },
       "balance": 234567,
       "current_balance": 0,
       "interest": [
         {
           "id": 1,
-          "presetOption": { "id": 1, "name": "Custom" },
+          "presetOption": {
+            "id": 1,
+            "name": "Custom"
+          },
           "nominalRate": 12,
           "effectiveRate": 0,
-          "nominalRatePeriod": { "id": 1, "name": "Annually" },
-          "calculationMethod": { "id": 2, "name": "Simple" },
-          "compoundingInterval": { "id": 1, "name": "Monthly" }
+          "nominalRatePeriod": {
+            "id": 1,
+            "name": "Annually"
+          },
+          "calculationMethod": {
+            "id": 2,
+            "name": "Simple"
+          },
+          "compoundingInterval": {
+            "id": 1,
+            "name": "Monthly"
+          }
         }
       ],
       "openDate": "2025-07-23"
@@ -85,62 +157,18 @@
   "transactions": [
     {
       "id": 1,
-      "debit_account": null,
-      "credit_account": null,
+      "debit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "credit_account": {
+        "id": 3,
+        "name": "re"
+      },
       "amount": 5000,
-      "isRecurring": true,
-      "recurrence": [
-        {
-          "id": 2,
-          "active": false,
-          "version": 1,
-          "tags": [],
-          "frequency": null,
-          "endDate": "2025-07-22",
-          "dayOfMonth": ""
-        },
-        {
-          "id": 3,
-          "active": false,
-          "version": 1,
-          "tags": [],
-          "frequency": { "id": 1, "name": "Daily" },
-          "endDate": "2025-07-09",
-          "dayOfMonth": 0
-        },
-        {
-          "id": 4,
-          "active": false,
-          "version": 1,
-          "tags": [],
-          "frequency": { "id": 1, "name": "Daily" },
-          "endDate": "2025-11-26",
-          "dayOfMonth": 0
-        },
-        {
-          "id": 5,
-          "active": false,
-          "version": 1,
-          "tags": [],
-          "frequency": { "id": 1, "name": "Daily" },
-          "endDate": "2025-07-26",
-          "dayOfMonth": 0
-        }
-      ],
-      "amountChange": [
-        {
-          "id": 0,
-          "active": false,
-          "version": 1,
-          "tags": [],
-          "changeType": { "id": 1, "name": "percentage" },
-          "changeValue": 0,
-          "changeFrequency": { "id": 1, "name": "Yearly" },
-          "startDate": null,
-          "endDate": null,
-          "notes": null
-        }
-      ],
+      "isRecurring": false,
+      "recurrence": [],
+      "amountChange": [],
       "tags": [
         "tag",
         "tag2",
@@ -149,42 +177,36 @@
     },
     {
       "id": 6,
-      "debit_account": null,
-      "credit_account": null,
+      "debit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "credit_account": {
+        "id": 4,
+        "name": "khtd"
+      },
       "amount": 0,
       "isRecurring": true,
-      "recurrence": [
-        {
-          "id": 0,
-          "active": true,
-          "version": 1,
-          "tags": [],
-          "frequency": { "id": 1, "name": "Daily" },
-          "endDate": null,
-          "dayOfMonth": 0
-        }
-      ],
+      "recurrence": [],
       "amountChange": [],
       "tags": []
     },
     {
       "id": 8,
-      "debit_account": null,
-      "credit_account": null,
+      "debit_account": "",
+      "credit_account": "",
       "amount": 0,
       "isRecurring": true,
       "recurrence": [],
       "amountChange": [],
       "tags": [
-        "tag",
-        "tag",
         "tag"
       ]
     },
     {
       "id": 9,
-      "debit_account": null,
-      "credit_account": null,
+      "debit_account": "",
+      "credit_account": "",
       "amount": 0,
       "isRecurring": false,
       "recurrence": [],
@@ -213,20 +235,32 @@
     },
     {
       "id": 12,
-      "debit_account": null,
-      "credit_account": null,
-      "amount": "",
-      "isRecurring": "",
+      "debit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "credit_account": {
+        "id": 2,
+        "name": "tr"
+      },
+      "amount": 0,
+      "isRecurring": false,
       "recurrence": [],
       "amountChange": [],
       "tags": []
     },
     {
       "id": 13,
-      "debit_account": null,
-      "credit_account": null,
-      "amount": "",
-      "isRecurring": "",
+      "debit_account": {
+        "id": 4,
+        "name": "khtd"
+      },
+      "credit_account": {
+        "id": 3,
+        "name": "re"
+      },
+      "amount": 0,
+      "isRecurring": false,
       "recurrence": [],
       "amountChange": [],
       "tags": []
@@ -246,10 +280,16 @@
     {
       "id": 1,
       "name": "Sample Budget Version 1",
-      "mode": "daterange",
+      "mode": {
+        "id": 3,
+        "name": "timeless"
+      },
       "startDate": "2025-08-01",
       "endDate": "2025-10-01",
-      "periodType": "Month",
+      "periodType": {
+        "id": 4,
+        "name": "Quarter"
+      },
       "periodCount": 2,
       "accounts": null,
       "notes": "Test budget version for demo.",
@@ -263,10 +303,16 @@
     {
       "id": 2,
       "name": "ad",
-      "mode": "periods",
+      "mode": {
+        "id": 2,
+        "name": "periods"
+      },
       "startDate": "2025-07-27",
       "endDate": "2025-07-27",
-      "periodType": "Month",
+      "periodType": {
+        "id": 3,
+        "name": "Month"
+      },
       "periodCount": 0,
       "accounts": null,
       "notes": null,
@@ -276,7 +322,10 @@
   "budgetForecasts": [
     {
       "id": 1,
-      "movement": { "id": 1, "name": "Debit" },
+      "movement": {
+        "id": 1,
+        "name": "Debit"
+      },
       "accountSecondary": "Empty",
       "period": "",
       "accountPrimary": "Empty",
@@ -284,15 +333,21 @@
     },
     {
       "id": 2,
-      "movement": { "id": 2, "name": "Credit" },
-      "accountSecondary": 3,
+      "movement": {
+        "id": 1,
+        "name": "Debit"
+      },
+      "accountSecondary": "",
       "period": "2025-08-15",
-      "accountPrimary": 4,
+      "accountPrimary": "",
       "amount": 250
     },
     {
       "id": 3,
-      "movement": { "id": 1, "name": "Debit" },
+      "movement": {
+        "id": 1,
+        "name": "Debit"
+      },
       "accountSecondary": "Empty",
       "period": "2015",
       "accountPrimary": "Empty",
