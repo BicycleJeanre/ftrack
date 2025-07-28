@@ -98,6 +98,13 @@ async function createBudgetDefinitionSchema(tableElement, onDefinitionSave) {
         const dataFile = await fs.readFile(dataPath, 'utf8');
         const initialData = JSON.parse(dataFile);
         gridData.data = initialData.budgetDefinitions;
+
+        // Inject dynamic options for columns with optionsSourceFile
+        gridData.schema.mainGrid.columns.forEach(col => {
+            if (col.optionsSourceFile && col.optionsSourceFile === 'app-data.json' && initialData[col.optionsSourceField]) {
+                gridData.schema[col.optionsSource] = initialData[col.optionsSourceField].map(opt => ({ id: opt.id, name: opt.name }));
+            }
+        });
     } catch (err) {
         console.error('Failed to read or parse data files:', err);
         return null; 
@@ -124,6 +131,13 @@ async function createBudgetForecastSchema(tableElement, onForecastSave) {
         const dataFile = await fs.readFile(dataPath, 'utf8');
         const initialData = JSON.parse(dataFile);
         gridData.data = initialData.budgetForecasts;
+
+        // Inject dynamic options for columns with optionsSourceFile
+        gridData.schema.mainGrid.columns.forEach(col => {
+            if (col.optionsSourceFile && col.optionsSourceFile === 'app-data.json' && initialData[col.optionsSource]) {
+                gridData.schema[col.optionsSource] = initialData[col.optionsSource].map(opt => ({ id: opt.id, name: opt.name }));
+            }
+        });
     } catch (err) {
         console.error('Failed to read or parse data files:', err);
         return null; 

@@ -7,7 +7,7 @@
       "save": true
     },
     "columns": [
-       {
+      {
         "field": "id",
         "header": "ID",
         "editable": false,
@@ -29,6 +29,7 @@
         "editable": true,
         "type": "select",
         "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
         "default": "",
         "display": true
       },
@@ -46,6 +47,7 @@
         "editable": true,
         "type": "select",
         "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
         "default": "",
         "display": true
       },
