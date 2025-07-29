@@ -3,6 +3,7 @@
 
 import { EditableGrid } from './editable-grid.js';
 import { loadGlobals } from './global-app.js';
+import { generateForecast } from './forecast-generator.js';
 
 //Define Editable Grid Schema. 
 //Create Editable Grid. 
@@ -57,8 +58,11 @@ async function onDefinitionSave(updatedBudget) {
         // Write the updated data back to disk
         await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
         console.log('Budget saved successfully!');
+        // Call forecast generator directly
+        await generateForecast();
+        console.log('Forecast generated!');
     } catch (err) {
-        console.error('Failed to save budget data:', err);
+        console.error('Failed to save budget data or generate forecast:', err);
     }
 }
 
