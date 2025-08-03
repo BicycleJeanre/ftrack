@@ -48,14 +48,30 @@
       "current_balance": 0,
       "interest": null,
       "openDate": "2025-01-01"
+    },
+    {
+      "id": 4,
+      "name": "salary2",
+      "type": {
+        "id": 1,
+        "name": "Asset"
+      },
+      "currency": {
+        "id": 1,
+        "name": "ZAR"
+      },
+      "balance": 0,
+      "current_balance": 0,
+      "interest": null,
+      "openDate": ""
     }
   ],
   "transactions": [
     {
       "id": 1,
       "debit_account": {
-        "id": 2,
-        "name": "salary"
+        "id": 4,
+        "name": "salary2"
       },
       "credit_account": {
         "id": 1,
@@ -63,26 +79,9 @@
       },
       "amount": 24600,
       "isRecurring": true,
-      "recurrence": [
-        {
-          "id": 0,
-          "active": true,
-          "version": 1,
-          "tags": [],
-          "frequency": {
-            "id": 2,
-            "name": "Monthly"
-          },
-          "endDate": "2025-07-28",
-          "dayOfMonth": 1
-        }
-      ],
+      "recurrence": [],
       "amountChange": [],
-      "tags": [
-        "tag",
-        "tag2",
-        "tag3"
-      ]
+      "tags": []
     },
     {
       "id": 6,

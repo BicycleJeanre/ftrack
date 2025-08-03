@@ -42,11 +42,64 @@ async function onSave(updatedTransactions) {
     // updatedTransactions: the new/changed transactions data to persist
     const fs = window.require('fs').promises;
     const dataPath = process.cwd() + '/assets/app-data.json';
+    const accountsSchemaPath = process.cwd() + '/assets/accounts-grid.json';
     try {
+        // Load accounts schema for default values
+        const accountsSchemaFile = await fs.readFile(accountsSchemaPath, 'utf8');
+        const accountsSchema = JSON.parse(accountsSchemaFile);
+        const acctCols = accountsSchema.mainGrid.columns;
         // Read the current data file
         const dataFile = await fs.readFile(dataPath, 'utf8');
         let appData = JSON.parse(dataFile);
-        // Only update the transactions property with the new data
+        // Quick-add accounts: detect new account names and assign ids
+        let nextId = appData.accounts.reduce((max, a) => a.id > max ? a.id : max, 0) + 1;
+        updatedTransactions.forEach(tx => {
+            ['debit_account','credit_account'].forEach(field => {
+                const acct = tx[field];
+                if (acct && (acct.id === null || acct.id === undefined)) {
+                    // New account: assign id and add with schema defaults
+                    acct.id = nextId;
+                    const newAcct = { id: nextId, name: acct.name };
+                    acctCols.forEach(col => {
+                        switch(col.field) {
+                            case 'type': {
+                                const def = col.default;
+                                const optList = accountsSchema.accountType || [];
+                                const found = optList.find(o => o.name.toLowerCase() === String(def).toLowerCase());
+                                newAcct.type = found || { id: null, name: def };
+                                break;
+                            }
+                            case 'currency': {
+                                const def = col.default;
+                                const optList = accountsSchema.currencies || [];
+                                const found = optList.find(o => o.name.toLowerCase() === String(def).toLowerCase());
+                                newAcct.currency = found || { id: null, name: def };
+                                break;
+                            }
+                            case 'balance': {
+                                newAcct.balance = (typeof col.default !== 'undefined') ? col.default : 0;
+                                break;
+                            }
+                            case 'current_balance': {
+                                newAcct.current_balance = (typeof col.default !== 'undefined') ? col.default : 0;
+                                break;
+                            }
+                            case 'interest': {
+                                newAcct.interest = col.default || null;
+                                break;
+                            }
+                            case 'openDate': {
+                                newAcct.openDate = (typeof col.default !== 'undefined') ? col.default : '';
+                                break;
+                            }
+                        }
+                    });
+                    appData.accounts.push(newAcct);
+                    nextId++;
+                }
+            });
+        });
+        // Update transactions data
         appData.transactions = updatedTransactions;
         // Write the updated data back to disk
         await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');

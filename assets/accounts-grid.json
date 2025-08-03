@@ -19,7 +19,8 @@
                 "header": "Account Name",
                 "editable": true,
                 "type": "text",
-                "display": true
+                "display": true,
+                "default": ""
             },
             {
                 "field": "type",
@@ -27,7 +28,7 @@
                 "editable": true,
                 "type": "select",
                 "optionsSource": "accountType",
-                "default": "asset",
+                "default": { "id": 1, "name": "Asset" },
                 "display": true
             },
             {
@@ -35,7 +36,7 @@
                 "header": "Currency",
                 "editable": true,
                 "type": "select",
-                "default": "ZAR",
+                "default": { "id": 1, "name": "ZAR" },
                 "optionsSource": "currencies",
                 "display": true
             },
@@ -44,19 +45,19 @@
                 "header": "Starting Balance",
                 "editable": true,
                 "type": "number",
-                "display": true
+                "display": true,
+                "default": 0
             },
             {
                 "field": "current_balance",
                 "header": "Current Balance",
                 "editable": false,
                 "type": "number",
-                "display": true
+                "display": true,
+                "default": 0
             },
             {
                 "field": "interest",
-                "displayType": "custom lookup",
-                "customDisplay": "interest.presetOption",
                 "display": true,
                 "header": "Interest",
                 "editable": true,

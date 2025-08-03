@@ -18,22 +18,20 @@
                 "field": "debit_account",
                 "header": "Debit Account",
                 "editable": true,
-                "type": "select",
+                "type": "addSelect",
                 "optionsSource": "accounts",
                 "optionsSourceFile": "app-data.json",
-                "customDisplay": {"displayText": "accounts.name", "join": "transactions.debit_account.id = accounts.id"},
-                "default": "",
+                "default": { "id": 1, "name": "Jeanre Credit Card" },
                 "display": true
             },
             {
                 "field": "credit_account",
                 "header": "Credit Account",
                 "editable": true,
-                "type": "select",
+                "type": "addSelect",
                 "optionsSource": "accounts",
                 "optionsSourceFile": "app-data.json",
-                "customDisplay": {"displayText": "accounts.name",  "join": "transactions.debit_account.id = accounts.id"},
-                "default": "",
+                "default": { "id": 1, "name": "Jeanre Credit Card" },
                 "display": true
             },
             {

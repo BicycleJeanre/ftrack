@@ -69,7 +69,7 @@ export class EditableGrid {
         this.selectOptions = {};
         // Main grid columns
         this.mainGrid.columns.forEach(col => {
-            if (col.type === 'select' && col.optionsSource && this.schema[col.optionsSource]) {
+            if ((col.type === 'select' || col.type === 'addSelect') && col.optionsSource && this.schema[col.optionsSource]) {
                 this.selectOptions[col.field] = this.schema[col.optionsSource];
             }
         });
@@ -359,6 +359,26 @@ export class EditableGrid {
                             window.add(cellContent, dateIn);
                             break;
                         }
+                        case 'addSelect': {
+                            // Quick-add input tied to datalist
+                            let input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'add-select-input';
+                            input.setAttribute('list', `datalist-${col.field}`);
+                            // Prepopulate existing value name
+                            if (acc[col.field] && acc[col.field].name) input.value = acc[col.field].name;
+                            // Create datalist element
+                            let list = document.createElement('datalist');
+                            list.id = `datalist-${col.field}`;
+                            (this.selectOptions[col.field] || []).forEach(opt => {
+                                let option = document.createElement('option');
+                                option.value = opt.name;
+                                list.appendChild(option);
+                            });
+                            window.add(cellContent, input);
+                            window.add(cellContent, list);
+                            break;
+                        }
                         default:
                             let def = document.createElement('input')
                             def.type = 'text'
@@ -453,6 +473,14 @@ export class EditableGrid {
                 case 'date': {
                     const input = cell.querySelector('input[type="date"]');
                     value = input ? input.value : '';
+                    break;
+                }
+                case 'addSelect': {
+                    const input = cell.querySelector('input');
+                    const text = input ? input.value.trim() : '';
+                    const opts = this.selectOptions[col.field] || [];
+                    const found = opts.find(o => o.name === text);
+                    value = found ? found : { id: null, name: text };
                     break;
                 }
                 default: {
