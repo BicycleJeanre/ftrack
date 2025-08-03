@@ -64,6 +64,50 @@
       "current_balance": 0,
       "interest": null,
       "openDate": ""
+    },
+    {
+      "id": 5,
+      "name": "",
+      "type": {
+        "id": null,
+        "name": {
+          "id": 1,
+          "name": "Asset"
+        }
+      },
+      "currency": {
+        "id": null,
+        "name": {
+          "id": 1,
+          "name": "ZAR"
+        }
+      },
+      "balance": 0,
+      "current_balance": 0,
+      "interest": null,
+      "openDate": ""
+    },
+    {
+      "id": 6,
+      "name": "my drugs",
+      "type": {
+        "id": null,
+        "name": {
+          "id": 1,
+          "name": "Asset"
+        }
+      },
+      "currency": {
+        "id": null,
+        "name": {
+          "id": 1,
+          "name": "ZAR"
+        }
+      },
+      "balance": 0,
+      "current_balance": 0,
+      "interest": null,
+      "openDate": ""
     }
   ],
   "transactions": [
@@ -95,20 +139,39 @@
       },
       "amount": 5000,
       "isRecurring": true,
-      "recurrence": [
-        {
-          "id": 0,
-          "active": true,
-          "version": 1,
-          "tags": [],
-          "frequency": {
-            "id": 2,
-            "name": "Monthly"
-          },
-          "endDate": "2025-07-28",
-          "dayOfMonth": 1
-        }
-      ],
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 7,
+      "debit_account": {
+        "id": 6,
+        "name": "my drugs"
+      },
+      "credit_account": {
+        "id": 4,
+        "name": "salary2"
+      },
+      "amount": 0,
+      "isRecurring": false,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 8,
+      "debit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "credit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "amount": 0,
+      "isRecurring": false,
+      "recurrence": [],
       "amountChange": [],
       "tags": []
     }

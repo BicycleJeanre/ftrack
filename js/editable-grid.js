@@ -360,16 +360,24 @@ export class EditableGrid {
                             break;
                         }
                         case 'addSelect': {
-                            // Quick-add input tied to datalist
+                            // Quick-add input tied to a unique datalist per row
+                            const listId = `datalist-${col.field}-${acc.id}`;
                             let input = document.createElement('input');
                             input.type = 'text';
                             input.className = 'add-select-input';
-                            input.setAttribute('list', `datalist-${col.field}`);
-                            // Prepopulate existing value name
-                            if (acc[col.field] && acc[col.field].name) input.value = acc[col.field].name;
+                            input.setAttribute('list', listId);
+                            // Show current selection as placeholder, keep input empty for full datalist
+                            if (acc[col.field] && acc[col.field].name) {
+                                input.placeholder = acc[col.field].name;
+                            }
+                            // Clear input on focus to show all options
+                            input.addEventListener('focus', () => {
+                                input.select();
+                            });
                             // Create datalist element
                             let list = document.createElement('datalist');
-                            list.id = `datalist-${col.field}`;
+                            list.id = listId;
+                            // Populate options
                             (this.selectOptions[col.field] || []).forEach(opt => {
                                 let option = document.createElement('option');
                                 option.value = opt.name;
@@ -425,6 +433,11 @@ export class EditableGrid {
     handleSave(row, rowId = this.parentRowId, field = this.parentField) {
         const rowData = {};
         const columns = this.mainGrid.columns;
+        
+        // Get the original row data to reference for addSelect preservation
+        const rowIndex = Array.from(row.parentNode.children).indexOf(row);
+        const originalRowData = this.workingData[rowIndex];
+        
         // Loop through columns and extract values from each cell/input
         columns.forEach((col, i) => {
             const cell = row.children[i];
@@ -478,9 +491,14 @@ export class EditableGrid {
                 case 'addSelect': {
                     const input = cell.querySelector('input');
                     const text = input ? input.value.trim() : '';
-                    const opts = this.selectOptions[col.field] || [];
-                    const found = opts.find(o => o.name === text);
-                    value = found ? found : { id: null, name: text };
+                    if (!text) {
+                        // If input is empty, preserve existing value or use placeholder
+                        value = originalRowData[col.field] || null;
+                    } else {
+                        const opts = this.selectOptions[col.field] || [];
+                        const found = opts.find(o => o.name === text);
+                        value = found ? found : { id: null, name: text };
+                    }
                     break;
                 }
                 default: {

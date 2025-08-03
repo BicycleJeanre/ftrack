@@ -434,24 +434,32 @@ select:focus {
   pointer-events: none;
 }
 
-/* Quick-Add select input styling */
+/* Quick-Add select input styling - matches other selects */
 .add-select-input {
-  font-family: inherit;
-  font-size: 1rem;
-  padding: 6px 10px;
-  border: 1px solid #232a23;
+  background: #181a1b !important;
+  color: #ededed !important;
+  border: none;
   border-radius: 6px;
-  background: #232a23;
-  color: #ededed;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.10);
-  transition: border 0.2s, box-shadow 0.2s;
-}
-.add-select-input:focus {
-  border: 1.5px solid #b6ff00;
+  font-size: 1.08em;
+  padding: 12px 14px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background 0.2s, box-shadow 0.2s;
   outline: none;
-  background: #181a1b;
-  color: #ededed;
-  box-shadow: 0 2px 8px rgba(182,255,0,0.08);
+  box-shadow: none;
+  border-bottom: 2px solid transparent;
+  appearance: none !important;
+}
+
+.add-select-input:focus {
+  background: #181a1b !important;
+  border-bottom: 2.5px solid #b6ff00;
+  box-shadow: 0 2px 0 0 #b6ff00;
+}
+
+/* hide native datalist arrow in Chrome/Electron */
+.add-select-input::-webkit-textfield-decoration-container {
+  display: none !important;
 }
 
 @media (max-width: 900px) {
