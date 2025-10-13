@@ -63,29 +63,23 @@
       "balance": 0,
       "current_balance": 0,
       "interest": null,
-      "openDate": ""
+      "openDate": "2025-10-13"
     },
     {
       "id": 5,
-      "name": "",
+      "name": "other stuff",
       "type": {
-        "id": null,
-        "name": {
-          "id": 1,
-          "name": "Asset"
-        }
+        "id": 3,
+        "name": "Equity"
       },
       "currency": {
-        "id": null,
-        "name": {
-          "id": 1,
-          "name": "ZAR"
-        }
+        "id": 1,
+        "name": "ZAR"
       },
-      "balance": 0,
+      "balance": 20,
       "current_balance": 0,
       "interest": null,
-      "openDate": ""
+      "openDate": "2025-10-13"
     },
     {
       "id": 6,
@@ -107,7 +101,7 @@
       "balance": 0,
       "current_balance": 0,
       "interest": null,
-      "openDate": ""
+      "openDate": "2025-10-13"
     }
   ],
   "transactions": [
