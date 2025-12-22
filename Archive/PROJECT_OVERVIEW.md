@@ -91,9 +91,9 @@ flowchart TD
   ModalsSystem -->|complex edit| AppData
 ```
 
-### JSON Schema
+### JSON Schema (Updated for Double-Entry)
 
-> **Update Note:** The Account and Transaction schemas have been significantly updated to support new features like transaction recurrence, dynamic amount changes, and better account organization.
+> **Update Note:** The Account and Transaction schemas have been updated for double-entry support: dual-account references, explicit debit/credit, and standardized account types.
 
 The main data object (persisted in the unified JSON file and used for import/export) has the following structure:
 
@@ -109,44 +109,50 @@ classDiagram
     string name
     number balance
     number current_balance
-    string group
-    string[] tags
-    number interest
-    string interest_period
-    string compound_period
-    string interest_type
+    string type  %% asset, liability, equity, income, expense
+    // ...other fields
   }
   class Transaction {
-    string description
-    number amount
-    string account
+    string account_primary
+    string account_secondary
+    number debit
+    number credit
     boolean isRecurring
-    string executionDate
     Recurrence recurrence
-    AmountChange amountChange
+    object amountChange
     string[] tags
+    // ...other fields
   }
   class Recurrence {
     string frequency
-    number dayOfMonth
     string endDate
+    number dayOfMonth
+    // ...other fields
   }
-  class AmountChange {
-    string type
-    number value
-    string frequency
-  }
-  class ForecastResult {
-    string period
-    AccountBalance[] accounts
-  }
-  class BudgetItem {
-    // ...future fields
-  }
-
-  Transaction "1" -- "0..1" Recurrence
-  Transaction "1" -- "0..1" AmountChange
 ```
+
+#### Example Transaction (Double-Entry)
+```json
+{
+  "account_primary": "Jeanre Transactional",
+  "account_secondary": "Jeanre Credit Card",
+  "debit": 5000,
+  "credit": 0,
+  "isRecurring": true,
+  "recurrence": {
+    "frequency": "monthly",
+    "endDate": "2030-12-31",
+    "dayOfMonth": 15
+  },
+  "amountChange": null,
+  "tags": ["income"]
+}
+```
+
+#### Migration Notes
+- All legacy transactions must be converted to use `account_primary`, `account_secondary`, `debit`, and `credit`.
+- All accounts must have a valid `type` (asset, liability, equity, income, expense).
+- Remove `description` and `amount` from transactions.
 
 ---
 

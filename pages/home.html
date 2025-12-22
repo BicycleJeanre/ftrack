@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="../styles/app.css">
     <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
-    <!-- <script src="function/ajv7.min.js"></script> -->
     <script src="../js/default-data.js"></script>
     <script src="../js/forecast-storage.js"></script>
     <script src="../js/data-startup.js"></script>
@@ -21,34 +20,18 @@
     <script src="../js/filemgmt.js"></script>
     <script src="../js/navbar.js"></script>
 </head>
-<body class="dark">
-    <div class="container">
-        <div id="main-navbar"></div>
-        <!-- Unified Navbar Partial -->
-        <!--#include navbar.html -->
-        <h1>Financial Overview</h1>
-        <div class="desc" style="margin-bottom:24px;">
-          Welcome! This app helps you manage accounts, track transactions, forecast your financial future, and run advanced calculations. Use the navigation above to access each module.
-        </div>
-        <div class="section" id="overview-section">
-          <h2>Current Data Snapshot</h2>
-          <ul id="overview-list">
-            <li><strong>Accounts:</strong> <span id="overview-accounts">-</span></li>
-            <li><strong>Total Balance:</strong> <span id="overview-balance">-</span></li>
-            <li><strong>Transactions:</strong> <span id="overview-transactions">-</span></li>
-            <li><strong>Forecast Periods:</strong> <span id="overview-periods">-</span></li>
-          </ul>
-        </div>
-        <!-- File Management Partial -->
-        <!--#include filemgmt.html -->
-        <!-- Financial Forecast Settings, Results, and Chart Partial -->
-        <!--#include forecast.html -->
-        <!-- Accounts Section Partial -->
-        <!--#include accounts.html -->
-        <!-- Transactions Section Partial -->
-        <!--#include transactions.html -->
-        <!-- Financial Calculator Partial -->
-        <!--#include calculator.html -->
+<body class="bg-main text-main">
+    <div id="main-navbar"></div>
+    <h1 class="text-main">Financial Overview</h1>
+    <div class="text-main">Welcome! This app helps you manage accounts, track transactions, forecast your financial future, and run advanced calculations. Use the navigation above to access each module.</div>
+    <div id="overview-section">
+      <h2 class="text-main">Current Data Snapshot</h2>
+      <ul id="overview-list" class="text-main">
+        <li><strong>Accounts:</strong> <span id="overview-accounts">-</span></li>
+        <li><strong>Total Balance:</strong> <span id="overview-balance">-</span></li>
+        <li><strong>Transactions:</strong> <span id="overview-transactions">-</span></li>
+        <li><strong>Forecast Periods:</strong> <span id="overview-periods">-</span></li>
+      </ul>
     </div>
     <script>
       // Overview data population

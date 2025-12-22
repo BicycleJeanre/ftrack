@@ -1,170 +1,94 @@
 // This script manages the Accounts page (/pages/accounts.html).
 // It uses the EditableGrid module to render and manage the accounts table.
 
-import { InterestModal } from './modal-interest.js';
 import { EditableGrid } from './editable-grid.js';
+import { loadGlobals } from './global-app.js';
 
-// --- Global Helper Functions ---
-if (typeof window !== 'undefined') {
-    if (typeof window.getEl === 'undefined') {
-        window.getEl = (id) => document.getElementById(id);
-    }
-    if (typeof window.toggleAccordion === 'undefined') {
-        window.toggleAccordion = (id) => {
-            const panel = document.getElementById(id);
-            const content = panel.querySelector('.panel-content');
-            content.style.display = (content.style.display === 'none') ? 'block' : 'none';
-        };
-    }
-    if (typeof window.updateTxnAccountOptions === 'undefined') {
-        window.updateTxnAccountOptions = () => {};
-    }
-}
+//Define Editable Grid Schema. 
+//Create Editable Grid. 
+// handle save/insert/delete
+// handle delete
 
-// --- Account Data Management ---
-function getAccounts() {
-    return window.accounts || [];
-}
 
-function saveAccount(idx, data, row, grid) {
-    console.log(`[Accounts] saveAccount called for idx=${idx}`);
-    window.accounts = grid.data;
-    console.log('[Accounts] window.accounts updated from grid.data');
-    if (typeof window.afterDataChange === 'function') {
-        console.log('[Accounts] Calling window.afterDataChange()');
-        window.afterDataChange();
-    }
-    console.log('[Accounts] Save process complete for idx=' + idx);
-}
 
-function deleteAccount(idx, row, grid) {
-    // No UI or confirmation here; UI handled by EditableGrid
-    getAccounts().splice(idx, 1);
-    window.afterDataChange();
-}
+function buildGridContainer(){
 
-function openInterestModal(idx, row) {
-    const accounts = getAccounts();
-    let acct;
-    let onSave;
+    const accountsEl = getEl('panel-accounts');
 
-    if (idx === -1 && row) { // New account row
-        acct = row.tempInterestData || {
-            interest: 0,
-            interest_period: 'year',
-            compound_period: 'none',
-            interest_type: 'simple'
-        };
-        onSave = (updated) => {
-            row.tempInterestData = updated; // Store data on the row temporarily
-        };
-    } else { // Existing account
-        acct = { ...accounts[idx] };
-        onSave = (updated) => {
-            accounts[idx] = { ...acct, ...updated };
-            window.afterDataChange();
-        };
-    }
-    InterestModal.show(acct, onSave);
-}
-
-// --- Main Page Initialization ---
-function initializeAccountsPage() {
-    window.accounts = window.accounts || [];
-
+    //create header with foldable content    
     const panelHeader = document.createElement('div');
-    panelHeader.className = 'panel-header';
-    panelHeader.innerHTML = `<h2>Accounts</h2><span class="panel-arrow">&#9662;</span>`;
-    panelHeader.addEventListener('click', () => window.toggleAccordion('panel-accounts'));
-    const headerEl = getEl('accounts-panel-header');
-    if (headerEl) {
-        headerEl.replaceWith(panelHeader);
-    } else {
-        console.warn('[Accounts] accounts-panel-header not found, skipping replaceWith.');
-    }
+    panelHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header'
+    panelHeader.innerHTML = `<h2 class="text-main">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
+    panelHeader.addEventListener('click', () => window.toggleAccordion('content'));
+    window.add(accountsEl, panelHeader);
 
-    const table = getEl('accountsTable');
-    if (!table) return;
+    //foldable content
+    const content = document.createElement('div');
+    content.id = 'content';
+    content.className = 'bg-main rounded shadow-md accordion-content'
+    content.style.display = 'block';
+    content.style.padding = '18px 20px 20px 20px';
+    window.add(accountsEl, content)
 
-    const columns = [
-        { field: 'name', header: 'Account Name', editable: true, type: 'text' },
-        { field: 'balance', header: 'Starting Balance', editable: true, type: 'number' },
-        { field: 'current_balance', header: 'Current Balance', editable: false, render: acct => acct.current_balance ?? acct.balance },
-        { 
-            field: 'interest', 
-            header: 'Interest', 
-            editable: false, 
-            render: (acct) => {
-                const interest = acct.interest ?? 0;
-                if (interest === 0) return '<span style="color:#888">None</span>';
-                
-                const rate = `${interest}%`;
-                const type = (acct.interest_type || 'simple').charAt(0).toUpperCase() + (acct.interest_type || 'simple').slice(1);
-                const period = (acct.interest_period || 'year').charAt(0).toUpperCase() + (acct.interest_period || 'year').slice(1);
-                
-                if (acct.interest_type === 'compound' && acct.interest_period === 'year') {
-                    const acronym = { month: 'NACM', quarter: 'NACQ', year: 'NACA', week: 'NACW', day: 'NACD' }[acct.compound_period];
-                    return acronym ? `${rate} ${acronym}` : `${rate} Annually, Compounded ${acct.compound_period}`;
-                }
-                return `${rate} ${type} (per ${period})`;
-            },
-            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
-            modalIconTitle: 'Edit Interest',
-            onModalIconClick: ({ idx, row }) => openInterestModal(idx, row)
-        }
-    ];
+    //create accounts table section
+    const table = document.createElement('div');
+    table.id = 'accountsTable';
+    window.add(content, table);
 
-    const grid = new EditableGrid({
-        targetElement: table,
-        columns: columns,
-        data: getAccounts(),
-        onSave: saveAccount,
-        onAfterSave: () => {
-            console.log('[Accounts] onAfterSave: refreshing grid from window.accounts');
-            grid.data = getAccounts();
-            grid.render();
-            window.updateTxnAccountOptions();
-            console.log('[Accounts] Grid refreshed after save.');
-        },
-        onDelete: (idx, row, gridInstance) => {
-            deleteAccount(idx, row, gridInstance);
-        },
-        onAfterDelete: (idx, row, gridInstance) => {
-            window.updateTxnAccountOptions();
-        },
-        onUpdate: (e, idx, row) => {
-            if (e.target.closest('.interest-btn')) {
-                openInterestModal(idx, row);
-            }
-        },
-        actions: { add: true, edit: true, delete: true }
-    });
-
-    window.renderAccounts = function() {
-        grid.data = getAccounts();
-        grid.render();
-        window.updateTxnAccountOptions();
-    };
-
-    window.renderAccounts();
+    return table;
 }
 
-// --- Initialization: Only after data is loaded ---
-function tryInitAccountsPage() {
-    const init = () => {
-        // Ensure accounts have current_balance
-        (window.accounts || []).forEach(acc => {
-            if (acc.current_balance === undefined) {
-                acc.current_balance = acc.balance;
-            }
-        });
-        initializeAccountsPage();
-    };
-
-    document.addEventListener('appDataLoaded', init, { once: true });
-    if (window.accounts && Array.isArray(window.accounts)) {
-        init();
+async function onSave(updatedAccounts) {
+    // updatedAccounts: the new/changed accounts data to persist
+    const fs = window.require('fs').promises;
+    const dataPath = process.cwd() + '/assets/app-data.json';
+    try {
+        // Read the current data file
+        const dataFile = await fs.readFile(dataPath, 'utf8');
+        let appData = JSON.parse(dataFile);
+        // Only update the accounts property with the new data
+        appData.accounts = updatedAccounts;
+        // Write the updated data back to disk
+        await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
+        console.log('Accounts saved successfully!');
+    } catch (err) {
+        console.error('Failed to save accounts data:', err);
     }
 }
 
-tryInitAccountsPage();
+async function createGridSchema(tableElement, onSave) {
+    let gridData = {}
+    gridData.targetElement = tableElement;
+    gridData.tableHeader = 'Accounts'
+    gridData.onSave = onSave;
+    
+    // Load the schema file from disk in an Electron app
+    const fs = window.require('fs').promises; // Use the promise-based fs module
+    const schemaPath = process.cwd() + '/assets/accounts-grid.json';
+    const dataPath = process.cwd() + '/assets/app-data.json';
+
+    try {
+        const schemaFile = await fs.readFile(schemaPath, 'utf8');
+        gridData.schema = JSON.parse(schemaFile);
+
+        const dataFile = await fs.readFile(dataPath, 'utf8');
+        const initialData = JSON.parse(dataFile);
+        gridData.data = initialData.accounts;
+    } catch (err) {
+        console.error('Failed to read or parse data files:', err);
+        // Return null or an empty structure if files can't be loaded
+        return null; 
+    }
+
+    return gridData
+}
+
+function loadTable(tableData){
+    const grid =  new EditableGrid(tableData)
+    grid.render()
+}
+
+loadGlobals();
+const table = buildGridContainer();
+const tableData = await createGridSchema(table, onSave)
+loadTable(tableData);

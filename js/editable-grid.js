@@ -1,37 +1,88 @@
-/**
- * Reusable Editable Grid Module
- *
- * This module provides a configurable, editable grid component.
- * It handles rendering data, inline editing, and user actions.
- */
-
 import { loadConfig, getShortcut, matchShortcut } from './config.js';
+import { Modal } from './modal.js';
+import { ICON_EDIT, ICON_DELETE, ICON_SAVE, ICON_CANCEL, ICON_INTEREST, ICON_ADD, ICON_SPINNER } from '../styles/icons.js';
 
 const ICONS = {
-    edit: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
-    delete: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
-    save: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>',
-    cancel: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-    // Dollar sign icon for interest
-    interest: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><text x="12" y="16" text-anchor="middle" font-size="12" fill="currentColor" dy=".3em">$</text></svg>'
+    edit: ICON_EDIT,
+    delete: ICON_DELETE,
+    save: ICON_SAVE,
+    cancel: ICON_CANCEL,
+    interest: ICON_INTEREST,
+    add: ICON_ADD,
+    spinner: ICON_SPINNER
 };
 
 export class EditableGrid {
+
     constructor(options) {
         this.targetElement = options.targetElement;
-        this.columns = options.columns;
+        this.tableHeader = options.tableHeader;
+        this.schema = options.schema;
         this.data = options.data;
         this.onSave = options.onSave;
         this.onDelete = options.onDelete;
-        this.onUpdate = options.onUpdate;
-        this.actions = options.actions || { add: false, edit: false, delete: false };
+        this.parentRowId = options.parentRowId;
+        this.parentField =options.parentField;
 
-        this.tbody = this.targetElement.querySelector('tbody');
-        this.tbody.addEventListener('click', this.handleTableClick.bind(this));
-        this._ignoreNextFocusout = false; // Flag to ignore next focusout
-        this.onAfterDelete = options.onAfterDelete;
-        this._shortcutsLoaded = false;
-        this._keydownHandler = this._handleKeydown.bind(this);
+        // Support both {mainGrid: {...}} and {...} schema formats
+        this.mainGrid = this.schema.mainGrid ? this.schema.mainGrid : this.schema;
+
+        // Internal working data - copy of original data for manipulation
+        this.workingData = [...this.data];
+
+        this.showActions = this.mainGrid.actions.add || this.mainGrid.actions.edit || this.mainGrid.actions.delete || this.mainGrid.actions.save;
+
+        this.prepareModals();
+        this.prepareSelectOptions();
+    }
+
+    prepareModals() {
+        this.modals = {};
+        this.mainGrid.columns.forEach(col => {
+            if (col.type === 'modal' && this.schema[col.modal]) {
+                // Deep clone the modal schema to avoid mutating the top-level schema
+                const modalSchema = JSON.parse(JSON.stringify(this.schema[col.modal]));
+                // Attach relevant options arrays to the modal schema
+                if (modalSchema.columns) {
+                    modalSchema.columns.forEach(field => {
+                        if (field.type === 'select' && field.optionsSource && this.schema[field.optionsSource]) {
+                            modalSchema[field.optionsSource] = this.schema[field.optionsSource];
+                        }
+                    });
+                }
+                const defaultData = {};
+                if (modalSchema.columns) {
+                    modalSchema.columns.forEach(field => {
+                        defaultData[field.field] = field.default || '';
+                    });
+                }
+                this.modals[col.field] = {
+                    schema: modalSchema,
+                    defaultData: defaultData,
+                    title: modalSchema.title || 'Edit ' + (col.header || col.field)
+                };
+            }
+        });
+    }
+
+    prepareSelectOptions() {
+        this.selectOptions = {};
+        // Main grid columns
+        this.mainGrid.columns.forEach(col => {
+            if ((col.type === 'select' || col.type === 'addSelect') && col.optionsSource && this.schema[col.optionsSource]) {
+                this.selectOptions[col.field] = this.schema[col.optionsSource];
+            }
+        });
+        // Modal and other sub-grids
+        Object.values(this.schema).forEach(val => {
+            if (val && val.columns && Array.isArray(val.columns)) {
+                val.columns.forEach(col => {
+                    if (col.type === 'select' && col.optionsSource && this.schema[col.optionsSource]) {
+                        this.selectOptions[col.field] = this.schema[col.optionsSource];
+                    }
+                });
+            }
+        });
     }
 
     async _ensureShortcutsLoaded() {
@@ -44,419 +95,482 @@ export class EditableGrid {
 
     // Method to render the entire grid
     async render() {
-        await this._ensureShortcutsLoaded();
-        this.tbody.innerHTML = '';
-        this.data.forEach((item, idx) => {
-            const tr = this.createRow(item, idx);
-            this.tbody.appendChild(tr);
-        });
-        // Render add icon below the grid if enabled
-        if (this.actions.add !== false) {
-            this.renderAddIcon();
-        } else {
-            this.removeAddIcon();
-        }
-    }
+        this.targetElement.innerHTML = ''
+        // await this._ensureShortcutsLoaded();
+        const headerText = document.createElement('h2')
+        headerText.innerHTML = this.tableHeader
+        // Render headers dynamically from schema
+        const table = document.createElement('table')
+        table.className = 'table bordered rounded shadow-lg'
 
-    renderAddIcon() {
-        // Remove any existing add icon
-        this.removeAddIcon();
-        const addIcon = document.createElement('button');
-        addIcon.className = 'icon-btn grid-add-btn';
-        addIcon.title = 'Add New Row';
-        addIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>';
-        addIcon.classList.add('grid-add-btn-styled');
-        addIcon.setAttribute('tabindex', '0');
-        addIcon.addEventListener('click', () => this.addNewRow());
-        this.targetElement.parentNode.insertBefore(addIcon, this.targetElement.nextSibling);
-        this._addIcon = addIcon;
-    }
+        const headers = this.createHeader();
+        window.add(table, headers)
 
-    removeAddIcon() {
-        if (this._addIcon && this._addIcon.parentNode) {
-            this._addIcon.parentNode.removeChild(this._addIcon);
-            this._addIcon = null;
-        }
-    }
+        const tableData = this.createTableRows()
+        window.add(table, tableData)
 
-    createRow(item, idx) {
-        const tr = document.createElement('tr');
-        tr.dataset.idx = idx;
+        //render the whole table
+        window.add(this.targetElement, table)
 
-        // Double-click to edit row
-        tr.addEventListener('dblclick', (e) => {
-            // If double-clicked cell is interest column and has modalIcon/onModalIconClick, open modal
-            const cell = e.target.closest('td');
-            const colDef = cell && this.columns.find(c => c.field === cell.dataset.field);
-            if (colDef && colDef.modalIcon && typeof colDef.onModalIconClick === 'function') {
-                colDef.onModalIconClick({ event: e, idx, row: tr, cell, grid: this });
-                return;
-            }
-            // Otherwise, double-click edits row
-            if (this.actions.edit !== false) {
-                this.toggleEditState(tr, true);
-            }
-        });
-
-        this.columns.forEach(col => {
-            const td = document.createElement('td');
-            td.dataset.field = col.field;
-            if (col.render) {
-                td.innerHTML = col.render(item);
-            } else {
-                td.textContent = item[col.field];
-            }
-            // Modal display icon support
-            if (col.modalIcon && typeof col.onModalIconClick === 'function') {
-                const iconBtn = document.createElement('button');
-                iconBtn.className = 'icon-btn modal-icon-btn';
-                iconBtn.title = col.modalIconTitle || 'Open Modal';
-                iconBtn.innerHTML = col.modalIcon;
-                iconBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    col.onModalIconClick({ event: e, idx, row: tr, cell: td, grid: this });
-                });
-                td.appendChild(iconBtn);
-            }
-            tr.appendChild(td);
-        });
-
-        tr.appendChild(this.createActionsCell());
-        return tr;
-    }
-
-    createActionsCell() {
-        const td = document.createElement('td');
-        td.className = 'actions';
-        if (this.actions.edit !== false) {
-            td.innerHTML += `<button class="icon-btn edit-btn" title="Edit">${ICONS.edit}</button>`;
-        }
-        if (this.actions.delete !== false) {
-            td.innerHTML += `<button class="icon-btn delete-btn" title="Delete">${ICONS.delete}</button>`;
-        }
-        td.innerHTML += `<button class="icon-btn save-btn" title="Save">${ICONS.save}</button>`;
-        td.innerHTML += `<button class="icon-btn cancel-btn" title="Cancel">${ICONS.cancel}</button>`;
-        // Interest icon removed from actions cell
-        return td;
-    }
-
-    // Method to handle table click events
-    handleTableClick(e) {
-        const btn = e.target.closest('.icon-btn');
-        const cell = e.target.closest('td');
-        const row = e.target.closest('tr');
-        const isNew = row && row.dataset.idx === 'new';
-        const idx = isNew ? -1 : (row ? parseInt(row.dataset.idx, 10) : null);
-
-        // Per-cell and per-column callback support
-        if (cell && row && this.columns) {
-            const colDef = this.columns.find(c => c.field === cell.dataset.field);
-            if (colDef && typeof colDef.onCellClick === 'function') {
-                colDef.onCellClick({ event: e, idx, row, cell, grid: this });
-                return;
-            }
+        // Add button below table if add action is enabled
+        if (this.mainGrid.actions.add) {
+            let addButton = document.createElement('span')
+            addButton.innerHTML = ICONS['add']
+            addButton.className = 'btn'
+            addButton.title = 'Add New Row'
+            addButton.addEventListener('click', () => {
+                this.handleAdd()
+            })
+            window.add(this.targetElement, addButton)
         }
 
-        if (btn) {
-            if (btn.classList.contains('edit-btn')) {
-                this._ignoreNextFocusout = true; // Prevent immediate revert
-                this.toggleEditState(row, true);
-            } else if (btn.classList.contains('delete-btn')) {
-                this.deleteRow(idx, row);
-            } else if (btn.classList.contains('save-btn')) {
-                this.saveRow(idx, row);
-            } else if (btn.classList.contains('cancel-btn')) {
-                if (isNew) {
-                    row.remove();
-                } else {
-                    this.toggleEditState(row, false);
-                    this.render(); // Re-render to restore original data
+    }
+    //method to create headers from schema. Called from render
+    createHeader() {
+        //create header
+        let thead = document.createElement('thead')
+
+        //add schema columns to header
+        this.mainGrid.columns.forEach(col => {
+            if (col.display) {
+                const colHead = document.createElement('th')
+                colHead.textContent = col.header
+                window.add(thead, colHead)
+            }
+        })
+
+        //add actions column if needed
+        if (this.showActions) {
+            const actionHeader = document.createElement('th')
+            actionHeader.textContent = "Actions";
+            window.add(thead, actionHeader);
+        }
+
+        return thead
+    }
+    //method to create table row data from input data. Called from render.
+    createTableRows() {
+        const tbody = document.createElement('tbody')
+        // Debug: Log workingData and columns before rendering rows
+        console.log('[EditableGrid] createTableRows workingData:', this.workingData);
+        console.log('[EditableGrid] createTableRows columns:', this.mainGrid.columns);
+        this.workingData.forEach(acc => {
+            const row = document.createElement('tr')
+            const columns = this.mainGrid.columns
+            columns.forEach(col => {
+                // Debug: Log each cell value
+                console.log(`[EditableGrid] Row field '${col.field}':`, acc[col.field]);
+                if (!(col.field in acc)) {
+                    console.warn(`[EditableGrid] WARNING: Field '${col.field}' not found in data object`, acc);
                 }
-            } else if (this.onUpdate) {
-                this.onUpdate(e, idx, row);
-            }
-        } else if (this.onUpdate) {
-            this.onUpdate(e, idx, row);
-        }
-    }
-
-    // Method to delete a row's data (NEW)
-    async deleteRow(idx, row) {
-        if (!this._deletingRows) this._deletingRows = new Set();
-        if (this._deletingRows.has(row)) {
-            console.warn(`[EditableGrid] deleteRow already in progress for idx=${idx}`);
-            return;
-        }
-        this._deletingRows.add(row);
-        try {
-            // Show spinner on the row
-            row.classList.add('saving-spinner');
-            const spinner = document.createElement('span');
-            spinner.className = 'row-spinner';
-            spinner.innerHTML = '<svg width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#888" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.415, 31.415" transform="rotate(0 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>';
-            row.querySelector('td:last-child').appendChild(spinner);
-            console.log(`[EditableGrid] Spinner shown for delete idx=${idx}`);
-
-            // Call consumer's onDelete
-            let deleteResult;
-            if (this.onDelete) {
-                console.log(`[EditableGrid] Calling onDelete for idx=${idx}`);
-                deleteResult = this.onDelete(idx, row, this);
-            }
-            if (deleteResult && typeof deleteResult.then === 'function') {
-                await deleteResult;
-            }
-            console.log(`[EditableGrid] onDelete complete for idx=${idx}`);
-
-            // Do NOT mutate this.data here; let consumer own the data
-            // this.data.splice(idx, 1);
-
-            // Call consumer's onAfterDelete if defined
-            if (typeof this.onAfterDelete === 'function') {
-                console.log(`[EditableGrid] Calling onAfterDelete for idx=${idx}`);
-                await this.onAfterDelete(idx, row, this);
-            }
-            console.log(`[EditableGrid] onAfterDelete complete for idx=${idx}`);
-
-            // Remove spinner
-            if (spinner.parentNode) spinner.parentNode.removeChild(spinner);
-            row.classList.remove('saving-spinner');
-            console.log(`[EditableGrid] Spinner removed for delete idx=${idx}`);
-
-            // Remove row from DOM
-            if (row.parentNode) row.parentNode.removeChild(row);
-            // Always re-sync grid data from source and re-render
-            if (typeof this.options === 'object' && this.options.data) {
-                this.data = this.options.data;
-            }
-            this.render();
-        } finally {
-            this._deletingRows.delete(row);
-        }
-    }
-
-    // Split out row data extraction (for saveRow)
-    extractRowData(row, idx) {
-        const updatedData = {};
-        const originalData = this.data[idx] || {};
-        this.columns.forEach(col => {
-            let isCellEditable = false;
-            if (typeof col.editable === 'function') {
-                isCellEditable = col.editable(originalData);
-            } else {
-                isCellEditable = !!col.editable;
-            }
-            if (isCellEditable) {
-                const cell = row.querySelector(`td[data-field="${col.field}"]`);
-                let value;
-                if (col.type === 'select') {
-                    const select = cell.querySelector('select');
-                    value = select ? select.value : (originalData[col.field] ?? col.default ?? '');
-                } else if (col.type === 'checkbox') {
-                    const checkbox = cell.querySelector('input[type="checkbox"]');
-                    value = checkbox ? checkbox.checked : (originalData[col.field] ?? col.default ?? false);
-                } else {
-                    const input = cell.querySelector('input');
-                    if (input) {
-                        value = input.value;
-                        if (col.type === 'number') {
-                            const parsed = parseFloat(value);
-                            value = isNaN(parsed) ? 0 : parsed;
-                        }
-                    } else {
-                        value = cell.textContent;
-                        if (col.type === 'number') {
-                            const parsed = parseFloat(value);
-                            value = isNaN(parsed) ? 0 : parsed;
-                        }
-                    }
+                if (acc[col.field] === undefined) {
+                    console.warn(`[EditableGrid] WARNING: Value for field '${col.field}' is undefined. Possible typo or missing data.`, acc);
                 }
-                updatedData[col.field] = value;
-            }
-        });
-        return updatedData;
-    }
-
-    // Method to save a row's data (refactored to use extractRowData)
-    async saveRow(idx, row) {
-        if (!this._savingRows) this._savingRows = new Set();
-        if (this._savingRows.has(row)) {
-            console.warn(`[EditableGrid] saveRow already in progress for idx=${idx}`);
-            return;
-        }
-        this._savingRows.add(row);
-        try {
-            console.log(`[EditableGrid] saveRow called for idx=${idx}`);
-            const updatedData = this.extractRowData(row, idx);
-
-            // Update internal data array BEFORE calling onSave
-            if (idx === -1) {
-                this.data.push(updatedData);
-            } else {
-                this.data[idx] = { ...this.data[idx], ...updatedData };
-            }
-
-            // Show spinner on the row
-            row.classList.add('saving-spinner');
-            const spinner = document.createElement('span');
-            spinner.className = 'row-spinner';
-            spinner.innerHTML = '<svg width="16" height="16" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#888" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.415, 31.415" transform="rotate(0 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>';
-            row.querySelector('td:last-child').appendChild(spinner);
-            console.log(`[EditableGrid] Spinner shown for idx=${idx}`);
-
-            // Call consumer's onSave
-            let saveResult;
-            if (this.onSave) {
-                console.log(`[EditableGrid] Calling onSave for idx=${idx}`);
-                saveResult = this.onSave(idx, updatedData, row, this);
-            }
-            if (saveResult && typeof saveResult.then === 'function') {
-                await saveResult;
-            }
-            console.log(`[EditableGrid] onSave complete for idx=${idx}`);
-
-            // Call consumer's onAfterSave if defined
-            if (typeof this.onAfterSave === 'function') {
-                console.log(`[EditableGrid] Calling onAfterSave for idx=${idx}`);
-                await this.onAfterSave(idx, updatedData, row, this);
-            }
-            console.log(`[EditableGrid] onAfterSave complete for idx=${idx}`);
-
-            // Remove spinner
-            if (spinner.parentNode) spinner.parentNode.removeChild(spinner);
-            row.classList.remove('saving-spinner');
-            console.log(`[EditableGrid] Spinner removed for idx=${idx}`);
-
-            // Ensure row exits edit mode after save
-            this.toggleEditState(row, false);
-            // Always re-render grid after data change
-            this.render();
-        } finally {
-            this._savingRows.delete(row);
-        }
-    }
-
-    // Method to add a new, empty row for quick adding
-    addNewRow() {
-        const newRow = this.createRow({}, 'new');
-        this.tbody.appendChild(newRow);
-        this.toggleEditState(newRow, true);
-        // Do NOT call this.render() here; let saveRow handle re-render after save
-    }
-
-    _registerShortcuts() {
-        if (this._shortcutsRegistered) return;
-        this._shortcutsRegistered = true;
-        document.addEventListener('keydown', this._keydownHandler);
-    }
-
-    _handleKeydown(e) {
-        // Only trigger if grid is visible
-        if (!this.targetElement.offsetParent) return;
-        const saveKey = getShortcut('EditableGrid', 'saveRow');
-        const deleteKey = getShortcut('EditableGrid', 'deleteRow');
-        const addKey = getShortcut('EditableGrid', 'addRow');
-        if (matchShortcut(e, saveKey)) {
-            const editingRow = this.tbody.querySelector('tr.editing');
-            if (editingRow) {
-                const idx = editingRow.dataset.idx === 'new' ? -1 : parseInt(editingRow.dataset.idx, 10);
-                this.saveRow(idx, editingRow);
-                e.preventDefault();
-            }
-        } else if (matchShortcut(e, deleteKey)) {
-            const editingRow = this.tbody.querySelector('tr.editing');
-            if (editingRow) {
-                const idx = editingRow.dataset.idx === 'new' ? -1 : parseInt(editingRow.dataset.idx, 10);
-                this.deleteRow(idx, editingRow);
-                e.preventDefault();
-            }
-        } else if (matchShortcut(e, addKey)) {
-            this.addNewRow();
-            e.preventDefault();
-        }
-    }
-
-    // Method to toggle the edit state of a row
-    toggleEditState(row, isEditing) {
-        const item = this.data[row.dataset.idx] || {};
-        this.columns.forEach(col => {
-            let isCellEditable = false;
-            if (typeof col.editable === 'function') {
-                isCellEditable = col.editable(item);
-            } else {
-                isCellEditable = !!col.editable;
-            }
-            if (isCellEditable) {
-                const cell = row.querySelector(`td[data-field="${col.field}"]`);
-                if (isEditing) {
-                    const currentValue = item[col.field];
-                    cell.innerHTML = '';
-                    if (col.type === 'select') {
-                        const select = document.createElement('select');
-                        if (col.options) {
-                            col.options.forEach(opt => {
-                                const option = document.createElement('option');
-                                option.value = typeof opt === 'object' ? opt.value : opt;
-                                option.textContent = typeof opt === 'object' ? opt.text : opt;
-                                select.appendChild(option);
+                // Always create the cell, but hide if not displayed
+                let cellContent = document.createElement('td')
+                if (!col.display) cellContent.style.display = 'none'
+                if (!col.editable || !this.mainGrid.actions.edit) {
+                    cellContent.textContent = acc[col.field]
+                } else {
+                    switch (col.type) {
+                        case 'currency':
+                            let currencyIn = document.createElement('input')
+                            currencyIn.type = 'number'
+                            currencyIn.step = '1'
+                            currencyIn.value = new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: acc.currency
+                            }).format(acc[col.field])
+                            window.add(cellContent, currencyIn)
+                            break
+                        case 'number':
+                            let numIn = document.createElement('input')
+                            numIn.type = 'number'
+                            numIn.step = '1'
+                            numIn.value = acc[col.field]
+                            window.add(cellContent, numIn)
+                            break
+                        case 'text':
+                            let texIn = document.createElement('input')
+                            texIn.type = 'text'
+                            texIn.value = acc[col.field]
+                            window.add(cellContent, texIn)
+                            break
+                        case 'select':
+                            let selectIn = document.createElement('select')
+                            const options = this.selectOptions[col.field] || [];
+                            // Add empty option at the top
+                            const emptyOption = document.createElement('option');
+                            emptyOption.value = '--';
+                            emptyOption.textContent = '--';
+                            if (!acc[col.field] || !acc[col.field].id) {
+                                emptyOption.selected = true;
+                            }
+                            window.add(selectIn, emptyOption);
+                            options.forEach(option => {
+                                const optionEl = document.createElement('option')
+                                optionEl.value = option.id;
+                                optionEl.textContent = option.name;
+                                if (acc[col.field] && acc[col.field].id === option.id) {
+                                    optionEl.selected = true;
+                                }
+                                window.add(selectIn, optionEl)
+                            })
+                            window.add(cellContent, selectIn)
+                            break
+                        case 'modal':
+                            let modalIcon = document.createElement('span')
+                            modalIcon.innerHTML = ICONS[col.modalIcon]
+                            modalIcon.className = 'btn'
+                            modalIcon.title = col.modalIconTitle
+                            modalIcon.addEventListener('click', () => {
+                                const modalInfo = this.modals[col.field];
+                                let modalData = acc[col.field];
+                                if (!modalData) {
+                                    modalData = { ...modalInfo.defaultData };
+                                    acc[col.field] = modalData;
+                                }
+                                const parentRowId = acc.id;
+                                const fieldName = col.field;
+                                const intModal = new Modal({
+                                    targetElement: this.targetElement,
+                                    schema: modalInfo.schema,
+                                    data: Array.isArray(modalData) ? modalData : [modalData],
+                                    tableHeader: modalInfo.title,
+                                    onSave: (updatedModalRow) => {
+                                        this.onModalSave(parentRowId, fieldName, updatedModalRow);
+                                    },
+                                    parentRowId: parentRowId,
+                                    parentField: fieldName
+                                });
+                                intModal.render();
+                            })
+                            window.add(cellContent, modalIcon)
+                            break
+                        case 'tags': {
+                            let tagsContainer = document.createElement('div');
+                            tagsContainer.className = 'tags-container';
+                            // Input for new tag (created first, so tags appear before input)
+                            let tagsInput = document.createElement('input');
+                            tagsInput.type = 'text';
+                            tagsInput.className = 'tag-edit-input';
+                            tagsInput.placeholder = 'Add tag';
+                            // Store focus intent in instance for use after render
+                            if (!this._tagFocus) this._tagFocus = {};
+                            tagsInput.onkeydown = (e) => {
+                                if ((e.key === ' ' || e.key === 'Enter' || e.key === ',') && tagsInput.value.trim()) {
+                                    if (!Array.isArray(acc[col.field])) acc[col.field] = [];
+                                    acc[col.field].push(tagsInput.value.trim());
+                                    tagsInput.value = '';
+                                    this._tagFocus[acc.id + '-' + col.field] = true;
+                                    this.render();
+                                    e.preventDefault();
+                                } else if (
+                                    e.key === 'Backspace' &&
+                                    !tagsInput.value &&
+                                    Array.isArray(acc[col.field]) &&
+                                    acc[col.field].length > 0
+                                ) {
+                                    acc[col.field].pop();
+                                    this._tagFocus[acc.id + '-' + col.field] = true;
+                                    this.render();
+                                    e.preventDefault();
+                                }
+                            };
+                            window.add(tagsContainer, tagsInput);
+                            // Render each tag as a span with remove button (before input)
+                            if (Array.isArray(acc[col.field])) {
+                                acc[col.field].forEach((tag, idx) => {
+                                    let tagEl = document.createElement('span');
+                                    tagEl.className = 'tag-item';
+                                    tagEl.textContent = tag;
+                                    // Remove button (x)
+                                    let removeBtn = document.createElement('span');
+                                    removeBtn.className = 'tag-remove';
+                                    removeBtn.textContent = '×';
+                                    removeBtn.onclick = (e) => {
+                                        e.stopPropagation();
+                                        acc[col.field].splice(idx, 1);
+                                        this._tagFocus[acc.id + '-' + col.field] = true;
+                                        this.render();
+                                    };
+                                    window.add(tagEl, removeBtn);
+                                    // Insert tag before the input
+                                    tagsContainer.insertBefore(tagEl, tagsInput);
+                                });
+                            }
+                            window.add(cellContent, tagsContainer);
+                            // After render, move focus to input if needed
+                            setTimeout(() => {
+                                if (this._tagFocus && this._tagFocus[acc.id + '-' + col.field]) {
+                                    tagsInput.focus();
+                                    delete this._tagFocus[acc.id + '-' + col.field];
+                                }
+                            }, 0);
+                            break;
+                        }
+                        case 'checkbox': {
+                            let checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.checked = acc[col.field];
+                            checkbox.className = 'checkbox-input';
+                            checkbox.onchange = () => {
+                                acc[col.field] = checkbox.checked;
+                                this.render();
+                            };
+                            window.add(cellContent, checkbox);
+                            break;
+                        }
+                        case 'exclusive': {
+                            let checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.checked = acc[col.field];
+                            checkbox.className = 'checkbox-input';
+                            checkbox.onchange = () => {
+                                if (checkbox.checked) {
+                                    // Exclusivity logic: uncheck all others
+                                    this.workingData.forEach(row => {
+                                        if (row !== acc) row[col.field] = false;
+                                    });
+                                }
+                                acc[col.field] = checkbox.checked;
+                                this.render();
+                            };
+                            window.add(cellContent, checkbox);
+                            break;
+                        }
+                        case 'date': {
+                            let dateIn = document.createElement('input');
+                            dateIn.type = 'date';
+                            // Use value in YYYY-MM-DD format, fallback to today if empty
+                            let val = acc[col.field];
+                            if (!val) {
+                                // Default to today if not set
+                                const today = new Date();
+                                val = today.toISOString().slice(0, 10);
+                                acc[col.field] = val;
+                            }
+                            dateIn.value = val;
+                            dateIn.className = 'date-input';
+                            dateIn.onchange = () => {
+                                acc[col.field] = dateIn.value;
+                                this.render();
+                            };
+                            window.add(cellContent, dateIn);
+                            break;
+                        }
+                        case 'addSelect': {
+                            // Quick-add input tied to a unique datalist per row
+                            const listId = `datalist-${col.field}-${acc.id}`;
+                            let input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'add-select-input';
+                            input.setAttribute('list', listId);
+                            // Show current selection as placeholder, keep input empty for full datalist
+                            if (acc[col.field] && acc[col.field].name) {
+                                input.placeholder = acc[col.field].name;
+                            }
+                            // Clear input on focus to show all options
+                            input.addEventListener('focus', () => {
+                                input.select();
                             });
+                            // Create datalist element
+                            let list = document.createElement('datalist');
+                            list.id = listId;
+                            // Populate options
+                            (this.selectOptions[col.field] || []).forEach(opt => {
+                                let option = document.createElement('option');
+                                option.value = opt.name;
+                                list.appendChild(option);
+                            });
+                            window.add(cellContent, input);
+                            window.add(cellContent, list);
+                            break;
                         }
-                        select.value = currentValue;
-                        cell.appendChild(select);
-                    } else if (col.type === 'checkbox') {
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.checked = !!currentValue;
-                        cell.appendChild(checkbox);
-                    } else {
-                        const input = document.createElement('input');
-                        input.type = col.type === 'number' ? 'number' : 'text';
-                        input.value = currentValue !== undefined && currentValue !== null ? currentValue : '';
-                        input.className = 'editable-grid-input';
-                        input.style.width = '100%';
-                        input.style.boxSizing = 'border-box';
-                        cell.appendChild(input);
+                        default:
+                            let def = document.createElement('input')
+                            def.type = 'text'
+                            def.value = acc[col.field]
+                            window.add(cellContent, def)
+                            break
                     }
-                } else {
-                    cell.contentEditable = false;
-                    if (col.render) {
-                        cell.innerHTML = col.render(item);
+                }
+                window.add(row, cellContent)
+            })
+            
+            // Add actions column if needed
+            if (this.showActions) {
+                let actionsCell = document.createElement('td')
+                if (this.mainGrid.actions.save) {
+                    let saveIcon = document.createElement('span')
+                    saveIcon.innerHTML = ICONS['save']
+                    saveIcon.className = 'btn'
+                    saveIcon.title = 'Save'
+                    saveIcon.addEventListener('click', (event) => {
+                        this.handleSave(event.target.closest('tr'))
+                    })
+                    window.add(actionsCell, saveIcon)
+                }
+                if (this.mainGrid.actions.delete) {
+                    let deleteIcon = document.createElement('span')
+                    deleteIcon.innerHTML = ICONS['delete']
+                    deleteIcon.className = 'btn'
+                    deleteIcon.title = 'Delete'
+                    deleteIcon.addEventListener('click', (event) => {
+                        this.handleDelete(event.target.closest('tr'))
+                    })
+                    window.add(actionsCell, deleteIcon)
+                }
+                window.add(row, actionsCell)
+            }
+            
+            window.add(tbody, row)
+        })
+        return tbody
+    }
+
+    //method to handle saving a row to disk
+    handleSave(row, rowId = this.parentRowId, field = this.parentField) {
+        const rowData = {};
+        const columns = this.mainGrid.columns;
+        
+        // Get the original row data to reference for addSelect preservation
+        const rowIndex = Array.from(row.parentNode.children).indexOf(row);
+        const originalRowData = this.workingData[rowIndex];
+        
+        // Loop through columns and extract values from each cell/input
+        columns.forEach((col, i) => {
+            const cell = row.children[i];
+            let value = '';
+            switch (col.type) {
+                case 'number': {
+                    const input = cell.querySelector('input');
+                    value = input ? Number(input.value) : Number(cell.textContent);
+                    break;
+                }
+                case 'text': {
+                    const input = cell.querySelector('input');
+                    value = input ? input.value : cell.textContent;
+                    break;
+                }
+                case 'select': {
+                    const select = cell.querySelector('select');
+                    const selectedId = select ? select.value : '';
+                    const options = this.selectOptions[col.field] || [];
+                    value = options.find(opt => String(opt.id) === String(selectedId)) || null;
+                    break;
+                }
+                case 'modal': {
+                    // handle modal if needed
+                    break;
+                }
+                case 'tags': {
+                    // Find all tag-item spans in the cell and extract their text (excluding the remove button)
+                    const tagSpans = cell.querySelectorAll('.tag-item');
+                    value = Array.from(tagSpans).map(span => {
+                        // Remove trailing remove button (×) if present
+                        return span.childNodes[0] ? span.childNodes[0].textContent : span.textContent;
+                    }).filter(Boolean);
+                    break;
+                }
+                case 'checkbox': {
+                    const input = cell.querySelector('input[type="checkbox"]');
+                    value = input ? input.checked : false;
+                    break;
+                }
+                case 'exclusive': {
+                    const input = cell.querySelector('input[type="checkbox"]');
+                    value = input ? input.checked : false;
+                    break;
+                }
+                case 'date': {
+                    const input = cell.querySelector('input[type="date"]');
+                    value = input ? input.value : '';
+                    break;
+                }
+                case 'addSelect': {
+                    const input = cell.querySelector('input');
+                    const text = input ? input.value.trim() : '';
+                    if (!text) {
+                        // If input is empty, preserve existing value or use placeholder
+                        value = originalRowData[col.field] || null;
                     } else {
-                        cell.textContent = item[col.field];
+                        const opts = this.selectOptions[col.field] || [];
+                        const found = opts.find(o => o.name === text);
+                        value = found ? found : { id: null, name: text };
                     }
+                    break;
+                }
+                default: {
+                    value = cell.textContent;
+                    break;
+                }
+            }
+            // If value is empty string, undefined, or null, use col.default if available, else null
+            if (value === '' || value === undefined || value === null) {
+                value = (typeof col.default !== 'undefined') ? col.default : null;
+            }
+            rowData[col.field] = value;
+        })
+
+        const rowToUpdate = this.workingData.findIndex(row => row.id == rowData.id)
+        this.workingData[rowToUpdate] = rowData    
+
+        this.data.length = 0;
+        this.data.push(...this.workingData);
+        
+        if (this.onSave) {
+            // Pass rowId and field for modal grids, undefined for main grids
+            this.onSave(this.data, rowId, field);
+        }
+    };
+
+    handleAdd() {
+        const newRow = {};
+        this.mainGrid.columns.forEach(col => {
+            if (col.field) {
+                if (col.field === 'id'){
+                    newRow[col.field] = this.workingData.reduce((max, curr) => curr.id > max ? curr.id+1 : max+1, 0)
+                    return
+                }else {
+                    newRow[col.field] = (typeof col.default !== 'undefined') ? col.default : '';
+                    return
                 }
             }
         });
-        row.querySelector('.edit-btn').classList.toggle('hidden', isEditing);
-        row.querySelector('.delete-btn').classList.toggle('hidden', isEditing);
-        row.querySelector('.save-btn').classList.toggle('hidden', !isEditing);
-        row.querySelector('.cancel-btn').classList.toggle('hidden', !isEditing);
-        row.classList.toggle('editing', isEditing);
-        if (isEditing) {
-            // Add focusout handler to row to revert when leaving the row
-            const onRowFocusOut = (e) => {
-                if (this._ignoreNextFocusout) {
-                    this._ignoreNextFocusout = false;
-                    return;
-                }
-                if (!row.contains(e.relatedTarget)) {
-                    this.toggleEditState(row, false);
-                    row.removeEventListener('focusout', onRowFocusOut);
-                }
-            };
-            row.addEventListener('focusout', onRowFocusOut);
-            const firstEditable = this.columns.find(c => c.editable);
-            if (firstEditable) {
-                const cellToFocus = row.querySelector(`td[data-field="${firstEditable.field}"]`);
-                if (cellToFocus) {
-                    cellToFocus.focus();
-                    const selection = window.getSelection();
-                    const range = document.createRange();
-                    range.selectNodeContents(cellToFocus);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                }
+        
+        // Add to working data
+        this.workingData.push(newRow);
+        
+        // Re-render the grid
+        this.render();
+    };
+    // Callback for when a modal's data is saved
+    onModalSave(rowId, field, updatedModalData) {
+        // rowId: id of the parent row in the main grid
+        // field: the field in the parent row to update (e.g., 'interest')
+        // updatedModalData: the new data for that field (already extracted by modal grid)
+        const gridIndex = this.workingData.findIndex(row => row.id == rowId);
+        if (gridIndex !== -1) {
+            this.workingData[gridIndex][field] = updatedModalData;
+            // Call onSave to persist the change using the existing logic
+            if (this.onSave) this.onSave(this.workingData, rowId, field);
+        } else {
+            console.warn('[EditableGrid] onModalSave: Row not found for id', rowId);
+        }
+    }
+
+    //method to handle deleting a row
+    handleDelete(row) {
+        const rowIndex = row.rowIndex; 
+        if (rowIndex >= 0 && rowIndex < this.workingData.length) {
+            this.workingData.splice(rowIndex, 1);
+            this.data.length = 0;
+            this.data.push(...this.workingData);
+            if (this.onSave) {
+                this.onSave(this.data);
             }
+            this.render();
         }
     }
 }

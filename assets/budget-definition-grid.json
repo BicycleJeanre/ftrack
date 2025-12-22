@@ -1,0 +1,100 @@
+{
+  "mainGrid": {
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true
+    },
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "editable": false,
+        "type": "number",
+        "display": false
+      },
+      {
+        "field": "name",
+        "header": "Name",
+        "editable": true,
+        "type": "text",
+        "display": true
+      },
+      {
+        "field": "mode",
+        "header": "Mode",
+        "editable": true,
+        "type": "select",
+        "optionsSource": "forecastModes",
+        "default": "daterange",
+        "display": true
+      },
+      {
+        "field": "startDate",
+        "header": "Start Date",
+        "editable": true,
+        "type": "date",
+        "display": true
+      },
+      {
+        "field": "endDate",
+        "header": "End Date",
+        "editable": true,
+        "type": "date",
+        "display": true
+      },
+      {
+        "field": "periodType",
+        "header": "Period Type",
+        "editable": true,
+        "type": "select",
+        "optionsSource": "periodTypes",
+        "default": "Month",
+        "display": true
+      },
+      {
+        "field": "periodCount",
+        "header": "Period Count",
+        "editable": true,
+        "type": "number",
+        "display": true
+      },
+      {
+        "field": "accounts",
+        "header": "Accounts",
+        "editable": true,
+        "type": "select",
+        "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
+        "display": true
+      },
+      {
+        "field": "notes",
+        "header": "Notes",
+        "editable": true,
+        "type": "text",
+        "display": true
+      },
+      {
+        "field": "tags",
+        "header": "Tags",
+        "editable": true,
+        "type": "tags",
+        "display": true
+      }
+    ]
+  },
+  "forecastModes": [
+    { "id": 1, "name": "daterange" },
+    { "id": 2, "name": "periods" },
+    { "id": 3, "name": "timeless" }
+  ],
+  "periodTypes": [
+    { "id": 1, "name": "Day" },
+    { "id": 2, "name": "Week" },
+    { "id": 3, "name": "Month" },
+    { "id": 4, "name": "Quarter" },
+    { "id": 5, "name": "Year" }
+  ]
+}

@@ -20,9 +20,10 @@ function loadFromLocal() {
                 window.accounts = parsed.accounts;
                 window.transactions = parsed.transactions;
                 window.forecastResults = parsed.forecastResults || [];
-                if (typeof window.afterDataChange === 'function') {
-                    window.afterDataChange();
-                }
+                // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+                // if (typeof window.afterDataChange === 'function') {
+                //     window.afterDataChange();
+                // }
                 return true;
             }
         } catch (e) {
@@ -45,7 +46,8 @@ window.afterDataChange = function() {
         forecast: window.forecast || [],
         budget: window.budget || []
     };
-    saveAppDataToFile(data);
+    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+    // saveAppDataToFile(data);
     if(typeof updateActiveDataSourceDisplay === 'function') updateActiveDataSourceDisplay();
 };
 
@@ -83,7 +85,8 @@ if (importInput) {
                     window.transactions = data.transactions;
                     window.forecastResults = data.forecastResults || [];
                     activeDataSource = 'Imported: ' + file.name;
-                    if(typeof afterDataChange === 'function') afterDataChange();
+                    // TEMPORARILY COMMENTED OUT TO TEST ACCOUNTS SAVE ONLY
+                    // if(typeof afterDataChange === 'function') afterDataChange();
                     if(typeof updateActiveDataSourceDisplay === 'function') updateActiveDataSourceDisplay();
                     alert('Forecast data imported!');
                 } else {
@@ -115,6 +118,8 @@ async function loadAppDataFromFile() {
             window.transactions = data.transactions || [];
             window.forecast = data.forecast || [];
             window.budget = data.budget || [];
+            // Store the full data structure for preservation
+            window.globalAppData = data;
             return data;
         } else {
             // Fallback for browser: fetch
@@ -125,6 +130,8 @@ async function loadAppDataFromFile() {
             window.transactions = data.transactions || [];
             window.forecast = data.forecast || [];
             window.budget = data.budget || [];
+            // Store the full data structure for preservation
+            window.globalAppData = data;
             return data;
         }
     } catch (err) {
@@ -133,6 +140,8 @@ async function loadAppDataFromFile() {
         window.transactions = [];
         window.forecast = [];
         window.budget = [];
+        // Initialize with empty structure
+        window.globalAppData = { accounts: [], transactions: [], forecast: [], budget: [] };
         return { accounts: [], transactions: [], forecast: [], budget: [] };
     }
 }
@@ -140,14 +149,23 @@ async function loadAppDataFromFile() {
 async function saveAppDataToFile(data) {
     try {
         console.log('[filemgmt] saveAppDataToFile called with:', data);
+        console.log('[filemgmt] fs available:', !!fs);
+        console.log('[filemgmt] path available:', !!path);
+        console.log('[filemgmt] APP_DATA_PATH:', APP_DATA_PATH);
+        
         if (fs && path) {
-            fs.writeFileSync(APP_DATA_PATH, JSON.stringify(data, null, 2), 'utf-8');
+            console.log('[filemgmt] Writing to file system');
+            const jsonString = JSON.stringify(data, null, 2);
+            console.log('[filemgmt] JSON string length:', jsonString.length);
+            fs.writeFileSync(APP_DATA_PATH, jsonString, 'utf-8');
+            console.log('[filemgmt] File written successfully');
         } else {
             // In browser: no-op or could trigger a download
-            console.log('Saving app data (browser mode):', data);
+            console.log('[filemgmt] Saving app data (browser mode):', data);
         }
     } catch (err) {
-        console.error('Error saving app data:', err);
+        console.error('[filemgmt] Error saving app data:', err);
+        throw err; // Re-throw to see the error in the calling code
     }
 }
 

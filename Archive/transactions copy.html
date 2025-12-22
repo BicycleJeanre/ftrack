@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transactions | Financial Simulation</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='-5' y='90' font-size='100'%3E%24%3C/text%3E%3C/svg%3E" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles/app.css">
+    <script src="https://cdn.jsdelivr.net/npm/decimal.js/decimal.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <script src="../js/global-app.js"></script>
+    <script src="../js/navbar.js"></script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+</head>
+<body class="dark">
+    <div class="container">
+        <div id="main-navbar"></div>        
+        <div class="panel" id="panel-transactions">
+            <div id="transactions-panel-header">
+                <!-- Header will be injected by JS -->
+            </div>
+            <div class="panel-content">
+                <div class="toolbar">
+                    <button id="quickAddTransactionBtn" class="btn">Quick Add Transaction</button>
+                </div>
+                <table id="transactionsTable" class="data-table">
+                    <thead>
+                        <tr>
+                            <th title="A clear description of the transaction.">Description</th>
+                            <th title="The monetary value of the transaction.">Amount</th>
+                            <th title="The account this transaction affects.">Account</th>
+                            <th title="Is this a recurring transaction?">Recurring</th>
+                            <th title="The date for one-time transactions.">Execution Date</th>
+                            <th title="Details of the recurring transaction.">Recurrence</th>
+                            <th title="How the amount changes over time.">Amount Change</th>
+                            <th title="Custom tags for filtering.">Tags</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Grid will be rendered here by js/transactions.js -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <script type="module" src="../js/transactions.js"></script>
+
+    </div>
+</body>
+</html>

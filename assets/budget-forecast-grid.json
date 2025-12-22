@@ -1,0 +1,68 @@
+{
+  "mainGrid": {
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true
+    },
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "editable": false,
+        "type": "number",
+        "display": false
+      },
+      {
+        "field": "movement",
+        "header": "Movement",
+        "editable": true,
+        "type": "select",
+        "optionsSource": "movementTypes",
+        "display": true,
+        "default": "Debit"
+      },
+      {
+        "field": "accountSecondary",
+        "header": "Account Secondary",
+        "editable": true,
+        "type": "select",
+        "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
+        "default": "",
+        "display": true
+      },
+      {
+        "field": "period",
+        "header": "Period",
+        "editable": true,
+        "type": "text",
+        "default": "",
+        "display": true
+      },
+      {
+        "field": "accountPrimary",
+        "header": "Account Primary",
+        "editable": true,
+        "type": "select",
+        "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
+        "default": "",
+        "display": true
+      },
+      {
+        "field": "amount",
+        "header": "Amount",
+        "editable": true,
+        "type": "number",
+        "default": 0,
+        "display": true
+      }
+    ]
+  },
+  "movementTypes": [
+    { "id": 1, "name": "Debit" },
+    { "id": 2, "name": "Credit" }
+  ]
+}

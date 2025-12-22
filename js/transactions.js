@@ -2,273 +2,154 @@
 // It uses the EditableGrid module to render and manage the transactions table.
 
 import { EditableGrid } from './editable-grid.js';
-import { RecurrenceModal } from './modal-recurrence.js';
-import { AmountChangeModal } from './modal-amount-change.js';
-import { CreateAccountModal } from './modal-create-account.js';
+import { loadGlobals } from './global-app.js';
 
-// --- Global Helper Functions ---
-if (typeof window !== 'undefined') {
-    if (typeof window.getEl === 'undefined') {
-        window.getEl = (id) => document.getElementById(id);
-    }
-    if (typeof window.toggleAccordion === 'undefined') {
-        window.toggleAccordion = (id) => {
-            const panel = document.getElementById(id);
-            const content = panel.querySelector('.panel-content');
-            content.style.display = (content.style.display === 'none') ? 'block' : 'none';
-        };
-    }
-}
+//Define Editable Grid Schema. 
+//Create Editable Grid. 
+// handle save/insert/delete
+// handle delete
 
-// --- Transaction Data Management ---
-function getTransactions() {
-    return window.transactions || [];
-}
 
-function getAccounts() {
-    return window.accounts || [];
-}
 
-function saveTransaction(idx, data, row, grid) {
-    console.log(`[Transactions] saveTransaction called for idx=${idx}`);
-    window.transactions = grid.data;
-    console.log('[Transactions] window.transactions updated from grid.data');
-    if (typeof window.afterDataChange === 'function') {
-        console.log('[Transactions] Calling window.afterDataChange()');
-        window.afterDataChange();
-    }
-    console.log('[Transactions] Save process complete for idx=' + idx);
-}
+function buildGridContainer(){
 
-function deleteTransaction(idx) {
-    if (confirm('Are you sure you want to delete this transaction?')) {
-        getTransactions().splice(idx, 1);
-        window.afterDataChange();
-    }
-}
+    const transactionsEl = getEl('panel-transactions');
 
-let grid; // Module-level variable to hold the grid instance
-
-// --- Main Page Initialization ---
-function initializeTransactionsPage() {
-    window.transactions = window.transactions || [];
-
+    //create header with foldable content    
     const panelHeader = document.createElement('div');
-    panelHeader.className = 'panel-header';
-    panelHeader.innerHTML = `<h2>Transactions</h2><span class="panel-arrow">&#9662;</span>`;
-    panelHeader.addEventListener('click', () => window.toggleAccordion('panel-transactions'));
-    getEl('transactions-panel-header').replaceWith(panelHeader);
+    panelHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header'
+    panelHeader.innerHTML = `<h2 class="text-main">Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
+    panelHeader.addEventListener('click', () => window.toggleAccordion('content'));
+    window.add(transactionsEl, panelHeader);
 
-    const table = getEl('transactionsTable');
-    if (!table) return;
+    //foldable content
+    const content = document.createElement('div');
+    content.id = 'content';
+    content.className = 'bg-main rounded shadow-md accordion-content'
+    content.style.display = 'block';
+    content.style.padding = '18px 20px 20px 20px';
+    window.add(transactionsEl, content)
 
-    const accountOptions = getAccounts().map(acc => ({ value: acc.name, text: acc.name }));
+    //create transactions table section
+    const table = document.createElement('div');
+    table.id = 'transactionsTable';
+    window.add(content, table);
 
-    const columns = [
-        { field: 'description', header: 'Description', editable: true, type: 'text', default: '' },
-        { field: 'amount', header: 'Amount', editable: true, type: 'number', default: 0 },
-        {
-            field: 'account',
-            header: 'Account',
-            editable: true,
-            type: 'select',
-            options: accountOptions,
-            default: accountOptions.length > 0 ? accountOptions[0].value : '',
-            // Add modal icon for creating new account
-            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>',
-            modalIconTitle: 'Create New Account',
-            onModalIconClick: ({ row }) => handleCreateNewAccount(row)
-        },
-        { 
-            field: 'isRecurring', 
-            header: 'Recurring', 
-            editable: true, 
-            type: 'checkbox',
-            default: false,
-            render: t => t.isRecurring ? '✔️' : '❌'
-        },
-        { 
-            field: 'executionDate', 
-            header: 'Execution Date', 
-            editable: (t) => !t.isRecurring, 
-            type: 'date',
-            default: '',
-            render: t => t.isRecurring ? '<span class="disabled-text">N/A</span>' : (t.executionDate || '')
-        },
-        { 
-            field: 'recurrence', 
-            header: 'Recurrence', 
-            editable: false, // Handled by modal
-            default: null,
-            render: t => {
-                if (!t.isRecurring || !t.recurrence) return '<span class="disabled-text">N/A</span>';
-                return `<span class="editable-cell-link">${t.recurrence.frequency} on day ${t.recurrence.dayOfMonth}, until ${t.recurrence.endDate || '...'}</span>`;
-            },
-            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line></svg>',
-            modalIconTitle: 'Edit Recurrence',
-            onModalIconClick: ({ idx }) => {
-                const txn = getTransactions()[idx];
-                RecurrenceModal.show(txn.recurrence, (updatedRecurrence) => {
-                    txn.recurrence = updatedRecurrence;
-                    window.afterDataChange();
-                });
-            }
-        },
-        { 
-            field: 'amountChange', 
-            header: 'Amount Change', 
-            editable: false, // Handled by modal
-            default: null,
-            render: t => {
-                if (!t.amountChange) return '<span class="editable-cell-link">None</span>';
-                return `<span class="editable-cell-link">${t.amountChange.type}: ${t.amountChange.value} per ${t.amountChange.frequency}</span>`;
-            },
-            modalIcon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4l3 3"></path></svg>',
-            modalIconTitle: 'Edit Amount Change',
-            onModalIconClick: ({ idx }) => {
-                const txn = getTransactions()[idx];
-                AmountChangeModal.show(txn.amountChange, (updatedAmountChange) => {
-                    txn.amountChange = updatedAmountChange;
-                    window.afterDataChange();
-                });
-            }
-        },
-        { field: 'tags', header: 'Tags', editable: true, type: 'text', default: '', render: t => (t.tags || []).join(', ') }
-    ];
+    return table;
+}
 
-    console.log('[Transactions] Initializing EditableGrid with data:', getTransactions());
-
-    grid = new EditableGrid({
-       targetElement: table,
-        columns: columns,
-        data: getTransactions(),
-        onSave: (idx, data, row, gridInstance) => {
-            console.log(`[Transactions] onSave called for idx=${idx}, data=`, data);
-            console.log('[Transactions] Grid data before save:', gridInstance.data);
-            // Read latest values from the row's input/select elements
-            const updatedData = { ...data };
-            row.querySelectorAll('td').forEach(td => {
-                const field = td.dataset.field;
-                if (!field) return;
-                const input = td.querySelector('input, select, textarea');
-                if (input) {
-                    if (input.type === 'checkbox') {
-                        updatedData[field] = input.checked;
-                    } else if (input.type === 'number') {
-                        const parsed = parseFloat(input.value);
-                        updatedData[field] = isNaN(parsed) ? 0 : parsed;
-                    } else {
-                        updatedData[field] = input.value;
-                    }
+async function onSave(updatedTransactions) {
+    // updatedTransactions: the new/changed transactions data to persist
+    const fs = window.require('fs').promises;
+    const dataPath = process.cwd() + '/assets/app-data.json';
+    const accountsSchemaPath = process.cwd() + '/assets/accounts-grid.json';
+    try {
+        // Load accounts schema for default values
+        const accountsSchemaFile = await fs.readFile(accountsSchemaPath, 'utf8');
+        const accountsSchema = JSON.parse(accountsSchemaFile);
+        const acctCols = accountsSchema.mainGrid.columns;
+        // Read the current data file
+        const dataFile = await fs.readFile(dataPath, 'utf8');
+        let appData = JSON.parse(dataFile);
+        // Quick-add accounts: detect new account names and assign ids
+        let nextId = appData.accounts.reduce((max, a) => a.id > max ? a.id : max, 0) + 1;
+        updatedTransactions.forEach(tx => {
+            ['debit_account','credit_account'].forEach(field => {
+                const acct = tx[field];
+                if (acct && (acct.id === null || acct.id === undefined)) {
+                    // New account: assign id and add with schema defaults
+                    acct.id = nextId;
+                    const newAcct = { id: nextId, name: acct.name };
+                    acctCols.forEach(col => {
+                        switch(col.field) {
+                            case 'type': {
+                                const def = col.default;
+                                const optList = accountsSchema.accountType || [];
+                                const found = optList.find(o => o.name.toLowerCase() === String(def).toLowerCase());
+                                newAcct.type = found || { id: null, name: def };
+                                break;
+                            }
+                            case 'currency': {
+                                const def = col.default;
+                                const optList = accountsSchema.currencies || [];
+                                const found = optList.find(o => o.name.toLowerCase() === String(def).toLowerCase());
+                                newAcct.currency = found || { id: null, name: def };
+                                break;
+                            }
+                            case 'balance': {
+                                newAcct.balance = (typeof col.default !== 'undefined') ? col.default : 0;
+                                break;
+                            }
+                            case 'current_balance': {
+                                newAcct.current_balance = (typeof col.default !== 'undefined') ? col.default : 0;
+                                break;
+                            }
+                            case 'interest': {
+                                newAcct.interest = col.default || null;
+                                break;
+                            }
+                            case 'openDate': {
+                                newAcct.openDate = (typeof col.default !== 'undefined') ? col.default : '';
+                                break;
+                            }
+                        }
+                    });
+                    appData.accounts.push(newAcct);
+                    nextId++;
                 }
             });
-            // Only update for edits, not for new rows (handled by EditableGrid)
-            if (idx !== -1) {
-                gridInstance.data[idx] = updatedData;
-            }
-            saveTransaction(idx, updatedData, row, gridInstance);
-            console.log('[Transactions] Grid data after save:', gridInstance.data);
-            console.log('[Transactions] window.transactions after save:', window.transactions);
-            grid.data = getTransactions();
-            grid.render();
-        },
-        onAfterSave: () => {
-            console.log('[Transactions] onAfterSave: refreshing grid from window.transactions');
-            console.log('[Transactions] window.transactions before grid refresh:', window.transactions);
-            grid.data = getTransactions();
-            grid.render();
-            console.log('[Transactions] Grid refreshed after save.');
-            console.log('[Transactions] grid.data after refresh:', grid.data);
-        },
-        onDelete: (idx) => {
-            console.log(`[Transactions] onDelete called for idx=${idx}`);
-            console.log('[Transactions] window.transactions before delete:', window.transactions);
-            deleteTransaction(idx);
-            console.log('[Transactions] window.transactions after delete:', window.transactions);
-            grid.data = getTransactions();
-            grid.render();
-        },
-        onUpdate: (e, idx, row) => {
-            const cell = e.target.closest('td');
-            if (!cell) return;
-
-            const transactions = getTransactions();
-            const txn = transactions[idx];
-            if (!txn) return;
-
-            console.log(`[Transactions] onUpdate called for idx=${idx}, field=${cell.dataset.field}`);
-            console.log('[Transactions] Transaction before update:', txn);
-
-            // Handle opening the recurrence modal
-            if (cell.dataset.field === 'recurrence' && txn.isRecurring) {
-                console.log('[Transactions] Opening RecurrenceModal for transaction:', txn);
-                RecurrenceModal.show(txn.recurrence, (updatedRecurrence) => {
-                    console.log('[Transactions] RecurrenceModal callback, updatedRecurrence:', updatedRecurrence);
-                    txn.recurrence = updatedRecurrence;
-                    window.afterDataChange();
-                    console.log('[Transactions] Transaction after recurrence update:', txn);
-                    // Refresh grid after update
-                    grid.data = getTransactions();
-                    grid.render();
-                });
-            }
-
-            // Handle opening the amount change modal
-            if (cell.dataset.field === 'amountChange') {
-                console.log('[Transactions] Opening AmountChangeModal for transaction:', txn);
-                AmountChangeModal.show(txn.amountChange, (updatedAmountChange) => {
-                    console.log('[Transactions] AmountChangeModal callback, updatedAmountChange:', updatedAmountChange);
-                    txn.amountChange = updatedAmountChange;
-                    window.afterDataChange();
-                    console.log('[Transactions] Transaction after amountChange update:', txn);
-                    // Refresh grid after update
-                    grid.data = getTransactions();
-                    grid.render();
-                });
-            }
-        },
-        actions: { add: true, edit: true, delete: true }
-    });
-
-    console.log('[Transactions] EditableGrid initialized:', grid);
-
-    window.renderTransactions = function() {
-        grid.data = getTransactions();
-        grid.render();
-    };
-
-    window.renderTransactions();
+        });
+        // Update transactions data
+        appData.transactions = updatedTransactions;
+        // Write the updated data back to disk
+        await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
+        console.log('Transactions saved successfully!');
+    } catch (err) {
+        console.error('Failed to save transactions data:', err);
+    }
 }
 
-function handleCreateNewAccount(row) {
-    CreateAccountModal.show((newAccount) => {
-        // 1. Add account to global data
-        getAccounts().push(newAccount);
-        
-        // 2. Notify system of data change
-        window.afterDataChange();
+async function createGridSchema(tableElement, onSave, onDelete) {
+    let gridData = {}
+    gridData.targetElement = tableElement;
+    gridData.tableHeader = 'Transactions'
+    gridData.onSave = onSave;
+    gridData.onDelete = onDelete;
+    
+    // Load the schema file from disk in an Electron app
+    const fs = window.require('fs').promises; // Use the promise-based fs module
+    const schemaPath = process.cwd() + '/assets/transactions-grid.json';
+    const dataPath = process.cwd() + '/assets/app-data.json';
 
-        // 3. Update the grid's column definition dynamically
-        const accountColumn = grid.columns.find(c => c.field === 'account');
-        if (accountColumn) {
-            const newOption = { value: newAccount.name, text: newAccount.name };
-            // Insert before the '-- Create New --' option
-            accountColumn.options.splice(accountColumn.options.length - 1, 0, newOption);
-        }
+    try {
+        const schemaFile = await fs.readFile(schemaPath, 'utf8');
+        gridData.schema = JSON.parse(schemaFile);
 
-        // 4. Update the select element in the currently editing row
-        const select = row.querySelector('td[data-field="account"] select');
-        if (select) {
-            const option = document.createElement('option');
-            option.value = newAccount.name;
-            option.text = newAccount.name;
-            // Insert it before the 'Create New' option
-            select.insertBefore(option, select.options[select.options.length - 1]);
-            
-            // Set the value to the newly created account
-            select.value = newAccount.name;
-        }
-    });
+        const dataFile = await fs.readFile(dataPath, 'utf8');
+        const initialData = JSON.parse(dataFile);
+        gridData.data = initialData.transactions;
+
+        // Inject dynamic options for columns with optionsSourceFile
+        gridData.schema.mainGrid.columns.forEach(col => {
+            if (col.optionsSourceFile && col.optionsSourceFile === 'app-data.json' && initialData[col.optionsSource]) {
+                gridData.schema[col.optionsSource] = initialData[col.optionsSource].map(opt => ({ id: opt.id, name: opt.name }));
+            }
+        });
+    } catch (err) {
+        console.error('Failed to read or parse data files:', err);
+        // Return null or an empty structure if files can't be loaded
+        return null; 
+    }
+
+    return gridData
 }
 
-document.addEventListener('DOMContentLoaded', initializeTransactionsPage);
+function loadTable(tableData){
+    const grid =  new EditableGrid(tableData)
+    grid.render()
+}
+
+loadGlobals();
+const table = buildGridContainer();
+const tableData = await createGridSchema(table, onSave)
+loadTable(tableData);

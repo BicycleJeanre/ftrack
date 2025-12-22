@@ -1,0 +1,252 @@
+{
+    "mainGrid": {
+        "actions": {
+            "add": true,
+            "edit": true,
+            "delete": true,
+            "save": true
+        },
+        "columns": [
+            {
+                "field": "id",
+                "header": "ID",
+                "editable": false,
+                "type": "number",
+                "display": false
+            },
+            {
+                "field": "name",
+                "header": "Account Name",
+                "editable": true,
+                "type": "text",
+                "display": true,
+                "default": ""
+            },
+            {
+                "field": "type",
+                "header": "Type",
+                "editable": true,
+                "type": "select",
+                "optionsSource": "accountType",
+                "default": { "id": 1, "name": "Asset" },
+                "display": true
+            },
+            {
+                "field": "currency",
+                "header": "Currency",
+                "editable": true,
+                "type": "select",
+                "default": { "id": 1, "name": "ZAR" },
+                "optionsSource": "currencies",
+                "display": true
+            },
+            {
+                "field": "balance",
+                "header": "Starting Balance",
+                "editable": true,
+                "type": "number",
+                "display": true,
+                "default": 0
+            },
+            {
+                "field": "current_balance",
+                "header": "Current Balance",
+                "editable": false,
+                "type": "number",
+                "display": true,
+                "default": 0
+            },
+            {
+                "field": "interest",
+                "display": true,
+                "header": "Interest",
+                "editable": true,
+                "type": "modal",
+                "modal": "interestModal",
+                "modalIcon": "interest",
+                "modalIconTitle": "Edit Interest"  
+            },
+            {
+                "field": "openDate",
+                "header": "Open Date",
+                "editable": true,
+                "type": "date",
+                "display": true,
+                "default": ""
+            }
+        ]
+    },
+    "accountType": [
+        { "id": 1, "name": "Asset" },
+        { "id": 2, "name": "Liability" },
+        { "id": 3, "name": "Equity" },
+        { "id": 4, "name": "Income" },
+        { "id": 5, "name": "Expense" }
+    ],
+    "currencies": [
+        { "id": 1, "name": "ZAR" },
+        { "id": 2, "name": "USD" },
+        { "id": 3, "name": "EUR" },
+        { "id": 4, "name": "GBP" },
+        { "id": 5, "name": "JPY" },
+        { "id": 6, "name": "AUD" },
+        { "id": 7, "name": "CAD" }
+    ],
+    "interestPresetOptions": [
+        { "id": 1, "name": "Custom" },
+        { "id": 2, "name": "NACM (Compounded Monthly)" },
+        { "id": 3, "name": "NACQ (Compounded Quarterly)" },
+        { "id": 4, "name": "NACA (Compounded Annually)" },
+        { "id": 5, "name": "NACW (Compounded Weekly)" },
+        { "id": 6, "name": "NACD (Compounded Daily)" }
+    ],
+    "interestNominalRatePeriods": [
+        { "id": 1, "name": "Annually" },
+        { "id": 2, "name": "Monthly" },
+        { "id": 3, "name": "Quarterly" },
+        { "id": 4, "name": "Weekly" },
+        { "id": 5, "name": "Daily" }
+    ],
+    "interestCalculationMethods": [
+        { "id": 1, "name": "Compound" },
+        { "id": 2, "name": "Simple" }
+    ],
+    "interestCompoundingIntervals": [
+        { "id": 1, "name": "Monthly" },
+        { "id": 2, "name": "Quarterly" },
+        { "id": 3, "name": "Annually" },
+        { "id": 4, "name": "Weekly" },
+        { "id": 5, "name": "Daily" }
+    ],
+    "interestModal": {
+        "title": "Edit Interest Settings",
+        "dataField": "interest",
+        "actions": {
+            "add": false,
+            "edit": true,
+            "delete": false,
+            "save": true
+        },
+        "columns": [
+            {
+                "field": "id",
+                "header": "ID",
+                "editable": false,
+                "type": "number",
+                "display": false
+            },
+            {
+                "field": "presetOption",
+                "header": "Standard Calculation",
+                "editable": true,
+                "type": "select",
+                "optionsSource": "interestPresetOptions",
+                "default": "Custom",
+                "display": true
+            },
+            {
+                "field": "nominalRate",
+                "header": "Nominal Rate (%)",
+                "editable": true,
+                "type": "number",
+                "default": 0,
+                "display": true
+            },
+            {
+                "field": "effectiveRate",
+                "header": "Effective Rate (EAR) (%)",
+                "editable": true,
+                "type": "number",
+                "default": 0,
+                "display": true
+            },
+            {
+                "field": "nominalRatePeriod",
+                "header": "Nominal Rate Period",
+                "editable": true,
+                "type": "select",
+                "optionsSource": "interestNominalRatePeriods",
+                "default": "Annually",
+                "display": true
+            },
+            {
+                "field": "calculationMethod",
+                "header": "Calculation Method",
+                "editable": true,
+                "type": "select",
+                "optionsSource": "interestCalculationMethods",
+                "default": "Simple",
+                "display": true
+            },
+            {
+                "field": "compoundingInterval",
+                "header": "Compounding Interval",
+                "editable": true,
+                "type": "select",
+                "optionsSource": "interestCompoundingIntervals",
+                "default": "Monthly",
+                "display": true
+            }
+        ],
+        "fieldDefaults": {
+            "Custom": {
+                "presetOption": "Custom"
+            },
+            "NACM (Compounded Monthly)": {
+                "presetOption": "NACM (Compounded Monthly)",
+                "nominalRatePeriod": "Annually",
+                "calculationMethod": "Compound",
+                "compoundingInterval": "Monthly"
+            },
+            "NACQ (Compounded Quarterly)": {
+                "presetOption": "NACQ (Compounded Quarterly)",
+                "nominalRatePeriod": "Annually",
+                "calculationMethod": "Compound",
+                "compoundingInterval": "Quarterly"
+            },
+            "NACA (Compounded Annually)": {
+                "presetOption": "NACA (Compounded Annually)",
+                "nominalRatePeriod": "Annually",
+                "calculationMethod": "Compound",
+                "compoundingInterval": "Annually"
+            },
+            "NACW (Compounded Weekly)": {
+                "presetOption": "NACW (Compounded Weekly)",
+                "nominalRatePeriod": "Annually",
+                "calculationMethod": "Compound",
+                "compoundingInterval": "Weekly"
+            },
+            "NACD (Compounded Daily)": {
+                "presetOption": "NACD (Compounded Daily)",
+                "nominalRatePeriod": "Annually",
+                "calculationMethod": "Compound",
+                "compoundingInterval": "Daily"
+            }
+        },
+        "formulas": {
+            "nominalRate": {
+                "onChange": "effectiveRate = Math.pow(1 + nominalRate/100/constants.periods[compoundingInterval], constants.periods[compoundingInterval]) - 1"
+            },
+            "effectiveRate": {
+                "onChange": "nominalRate = (Math.pow(1 + effectiveRate, 1/constants.periods[compoundingInterval]) - 1) * constants.periods[compoundingInterval] * 100"
+            },
+            "presetOption": {
+                "onChange": {
+                    "nominalRatePeriod": "fieldDefaults[presetOption].nominalRatePeriod",
+                    "calculationMethod": "fieldDefaults[presetOption].calculationMethod",
+                    "compoundingInterval": "fieldDefaults[presetOption].compoundingInterval"
+                }
+            }
+        },
+        "constants": {
+            "periods": {
+                "Monthly": 12,
+                "Quarterly": 4,
+                "Annually": 1,
+                "Weekly": 52,
+                "Daily": 365,
+                "default": 12
+            }
+        }
+    }
+}

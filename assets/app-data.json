@@ -1,44 +1,536 @@
 {
+  "profile": "Jeanre",
   "accounts": [
     {
+      "id": 1,
       "name": "Jeanre Credit Card",
-      "balance": 0,
-      "current_balance": 0
+      "type": {
+        "id": 4,
+        "name": "Income"
+      },
+      "currency": {
+        "id": 1,
+        "name": "ZAR"
+      },
+      "balance": 10000,
+      "current_balance": 10000,
+      "interest": null,
+      "openDate": "2025-01-01"
     },
     {
-      "name": "Jeanre Transactional",
-      "balance": 0,
-      "current_balance": 0
+      "id": 2,
+      "name": "salary",
+      "type": {
+        "id": 1,
+        "name": "Asset"
+      },
+      "currency": {
+        "id": 1,
+        "name": "ZAR"
+      },
+      "balance": 24600,
+      "current_balance": 0,
+      "interest": null,
+      "openDate": "2025-01-01"
     },
     {
-      "name": "Bernice Transactional",
-      "balance": 0,
-      "current_balance": 0
+      "id": 3,
+      "name": "expenses",
+      "type": {
+        "id": 1,
+        "name": "Asset"
+      },
+      "currency": {
+        "id": 1,
+        "name": "ZAR"
+      },
+      "balance": 5000,
+      "current_balance": 0,
+      "interest": null,
+      "openDate": "2025-01-01"
     },
     {
-      "name": "Bernice Credit Card",
+      "id": 4,
+      "name": "salary2",
+      "type": {
+        "id": 1,
+        "name": "Asset"
+      },
+      "currency": {
+        "id": 1,
+        "name": "ZAR"
+      },
       "balance": 0,
-      "current_balance": 0
+      "current_balance": 0,
+      "interest": null,
+      "openDate": "2025-10-13"
+    },
+    {
+      "id": 5,
+      "name": "other stuff",
+      "type": {
+        "id": 3,
+        "name": "Equity"
+      },
+      "currency": {
+        "id": 1,
+        "name": "ZAR"
+      },
+      "balance": 20,
+      "current_balance": 0,
+      "interest": null,
+      "openDate": "2025-10-13"
+    },
+    {
+      "id": 6,
+      "name": "my drugs",
+      "type": {
+        "id": null,
+        "name": {
+          "id": 1,
+          "name": "Asset"
+        }
+      },
+      "currency": {
+        "id": null,
+        "name": {
+          "id": 1,
+          "name": "ZAR"
+        }
+      },
+      "balance": 0,
+      "current_balance": 0,
+      "interest": null,
+      "openDate": "2025-10-13"
     }
   ],
   "transactions": [
     {
-      "description": "Salary",
-      "amount": 5000,
-      "account": "Transactional",
-      "isRecurring": true,
-      "recurrence": {
-        "frequency": "monthly",
-        "endDate": "2030-12-31",
-        "dayOfMonth": 15
+      "id": 1,
+      "debit_account": {
+        "id": 4,
+        "name": "salary2"
       },
-      "amountChange": null,
+      "credit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "amount": 24600,
+      "isRecurring": true,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 6,
+      "debit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "credit_account": {
+        "id": 3,
+        "name": "expenses"
+      },
+      "amount": 5000,
+      "isRecurring": true,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 7,
+      "debit_account": {
+        "id": 6,
+        "name": "my drugs"
+      },
+      "credit_account": {
+        "id": 4,
+        "name": "salary2"
+      },
+      "amount": 0,
+      "isRecurring": false,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    },
+    {
+      "id": 8,
+      "debit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "credit_account": {
+        "id": 1,
+        "name": "Jeanre Credit Card"
+      },
+      "amount": 0,
+      "isRecurring": false,
+      "recurrence": [],
+      "amountChange": [],
+      "tags": []
+    }
+  ],
+  "budgetDefinitions": [
+    {
+      "id": 1,
+      "name": "Sample Budget Version 1",
+      "mode": {
+        "id": 2,
+        "name": "periods"
+      },
+      "startDate": "2025-08-01",
+      "endDate": "2025-10-01",
+      "periodType": {
+        "id": 3,
+        "name": "Month"
+      },
+      "periodCount": 24,
+      "accounts": {
+        "id": 2,
+        "name": "tr"
+      },
+      "notes": "Test budget version for demo.",
       "tags": [
-        "income"
+        "demo"
       ]
     }
   ],
-  "forecastResults": [],
-  "forecast": [],
-  "budget": []
+  "budgetForecasts": [
+    {
+      "id": 1,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2025-08-01",
+      "amount": 1248.3966666666668
+    },
+    {
+      "id": 2,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2025-09-01",
+      "amount": 1262.9612944444445
+    },
+    {
+      "id": 3,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2025-10-01",
+      "amount": 1277.6958428796297
+    },
+    {
+      "id": 4,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2025-11-01",
+      "amount": 1292.602294379892
+    },
+    {
+      "id": 5,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2025-12-01",
+      "amount": 1307.682654480991
+    },
+    {
+      "id": 6,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-01-01",
+      "amount": 1322.9389521166026
+    },
+    {
+      "id": 7,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-02-01",
+      "amount": 1338.3732398912964
+    },
+    {
+      "id": 8,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-03-01",
+      "amount": 1353.987594356695
+    },
+    {
+      "id": 9,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-04-01",
+      "amount": 1369.7841162908564
+    },
+    {
+      "id": 10,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-05-01",
+      "amount": 1385.7649309809165
+    },
+    {
+      "id": 11,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-06-01",
+      "amount": 1401.9321885090271
+    },
+    {
+      "id": 12,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-07-01",
+      "amount": 1418.2880640416324
+    },
+    {
+      "id": 13,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-08-01",
+      "amount": 1434.8347581221183
+    },
+    {
+      "id": 14,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-09-01",
+      "amount": 1451.5744969668765
+    },
+    {
+      "id": 15,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-10-01",
+      "amount": 1468.5095327648235
+    },
+    {
+      "id": 16,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-11-01",
+      "amount": 1485.642143980413
+    },
+    {
+      "id": 17,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2026-12-01",
+      "amount": 1502.9746356601845
+    },
+    {
+      "id": 18,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2027-01-01",
+      "amount": 1520.5093397428868
+    },
+    {
+      "id": 19,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2027-02-01",
+      "amount": 1538.2486153732207
+    },
+    {
+      "id": 20,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2027-03-01",
+      "amount": 1556.1948492192416
+    },
+    {
+      "id": 21,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2027-04-01",
+      "amount": 1574.3504557934662
+    },
+    {
+      "id": 22,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2027-05-01",
+      "amount": 1592.7178777777233
+    },
+    {
+      "id": 23,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2027-06-01",
+      "amount": 1611.2995863517967
+    },
+    {
+      "id": 24,
+      "movement": {
+        "id": 2,
+        "name": "Credit"
+      },
+      "accountPrimary": {
+        "id": 2,
+        "name": "tr"
+      },
+      "accountSecondary": null,
+      "period": "2027-07-01",
+      "amount": 1630.098081525901
+    }
+  ]
 }
