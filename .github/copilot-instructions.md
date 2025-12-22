@@ -134,7 +134,6 @@ When user requests `git` workflow:
 2. Create detailed commit message based on changes
 3. Stage all changes with `git add .`
 4. Commit with message using `git commit -m "message"`
-5. Push to origin with `git push origin <branch-name>`
 
 ## Adding New Pages Checklist
 
