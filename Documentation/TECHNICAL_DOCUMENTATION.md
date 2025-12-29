@@ -1,36 +1,36 @@
 # FTrack - Financial Tracking Application
 ## Comprehensive Technical Documentation
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Platform:** Electron Desktop Application  
-**Last Updated:** December 22, 2025
+**Last Updated:** December 29, 2025
 
 ---
 
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)
-2. [Design Standards](#design-standards)
-3. [Coding Standards](#coding-standards)
-4. [Library & Framework Usage](#library--framework-usage)
-5. [Asset Structure & Data Models](#asset-structure--data-models)
-6. [Module Documentation](#module-documentation)
-7. [Component Catalog](#component-catalog)
-8. [Development Guidelines](#development-guidelines)
+1. [Architecture Overview](#1-architecture-overview)
+2. [Design Standards](#2-design-standards)
+3. [Coding Standards](#3-coding-standards)
+4. [Library & Framework Usage](#4-library--framework-usage)
+5. [Asset Structure & Data Models](#5-asset-structure--data-models)
+6. [Module Documentation](#6-module-documentation)
+7. [Component Catalog](#7-component-catalog)
+8. [Development Guidelines](#8-development-guidelines)
 
 ---
 
-## Architecture Overview
+## 1. Architecture Overview
 
-### Application Type
+### 1.1. Application Type
 FTrack is an **Electron-based desktop application** for financial account and transaction management. It uses a modular architecture with:
 
-- **Main Process**: Electron main process ([main.js](../main.js))
-- **Renderer Process**: Standard web technologies (HTML, CSS, JavaScript ES6 modules)
-- **Data Storage**: JSON file-based persistence in `/assets` directory
-- **Security**: Node.js integration enabled, context isolation disabled for direct filesystem access
+&nbsp;&nbsp;&nbsp;&nbsp;1.1.1. **Main Process**: Electron main process ([main.js](../main.js))
+&nbsp;&nbsp;&nbsp;&nbsp;1.1.2. **Renderer Process**: Standard web technologies (HTML, CSS, JavaScript ES6 modules)
+&nbsp;&nbsp;&nbsp;&nbsp;1.1.3. **Data Storage**: JSON file-based persistence in `/assets` directory
+&nbsp;&nbsp;&nbsp;&nbsp;1.1.4. **Security**: Node.js integration enabled, context isolation disabled for direct filesystem access
 
-### Technology Stack
+### 1.2. Technology Stack
 
 | Component | Technology | Version |
 |-----------|-----------|---------|
@@ -40,7 +40,7 @@ FTrack is an **Electron-based desktop application** for financial account and tr
 | **Icons** | SVG (inline) | - |
 | **Data Format** | JSON | - |
 
-### File Structure
+### 1.3. File Structure
 
 ```
 ftrack/
@@ -69,18 +69,18 @@ ftrack/
     └── shortcuts.json             # Keyboard shortcut definitions
 ```
 
-### Page Architecture
+### 1.4. Page Architecture
 
 Each page follows a consistent pattern:
 
-1. **HTML Template**: Minimal structure with navbar injection point and content container
-2. **JavaScript Module**: Loads required dependencies, builds UI, handles data operations
-3. **Schema-Driven Rendering**: Grid configurations loaded from JSON schemas
-4. **Event-Driven Updates**: User actions trigger data mutations and re-renders
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.1. **HTML Template**: Minimal structure with navbar injection point and content container
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.2. **JavaScript Module**: Loads required dependencies, builds UI, handles data operations
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.3. **Schema-Driven Rendering**: Grid configurations loaded from JSON schemas
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.4. **Event-Driven Updates**: User actions trigger data mutations and re-renders
 
 ---
 
-## Design Standards
+## 2. Design Standards
 
 ### Visual Design System
 
@@ -97,61 +97,61 @@ The application uses a **dark theme** with high-contrast accent colors:
 | `surface-hover` | `#202223` | Hover states for table headers |
 | `border-default` | `#232a23` | Default border color |
 
-#### Typography
+#### 2.1.2. Typography
 
-- **Font Family**: `'Inter', 'Segoe UI', Arial, sans-serif`
-- **Base Font Size**: 18px (1rem)
-- **Headings**: 
-  - H2: 1.22em (headers), 1.18em (modals)
-  - Bold weight (700) for table headers
-  - Font weight 600 for modal headers
-- **Body Text**: 1.08em for inputs, table cells
-- **Navigation**: 1.04em with 500 font weight
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.2.1. **Font Family**: `'Inter', 'Segoe UI', Arial, sans-serif`
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.2.2. **Base Font Size**: 18px (1rem)
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.2.3. **Headings**: 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.2.3.1. H2: 1.22em (headers), 1.18em (modals)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.2.3.2. Bold weight (700) for table headers
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.2.3.3. Font weight 600 for modal headers
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.2.4. **Body Text**: 1.08em for inputs, table cells
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.2.5. **Navigation**: 1.04em with 500 font weight
 
-#### Spacing & Layout
+#### 2.1.3. Spacing & Layout
 
-- **Padding**:
-  - Table cells: 6px vertical, 8px horizontal
-  - Inputs: 12px vertical, 14px horizontal
-  - Accordion content: 18-20px
-  - Modal content: 4vw top/bottom, 2vw left/right
-- **Border Radius**:
-  - Default: 12px (`.rounded`)
-  - Inputs: 6px
-  - Buttons: 8px
-  - Tags: 16px
-  - Modal close button: 50% (circular)
-- **Shadows**:
-  - Large: `0 8px 40px rgba(0,0,0,0.18)`
-  - Medium: `0 4px 16px rgba(0,0,0,0.12)`
-  - Input focus: `0 2px 0 0 #b6ff00`
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.1. **Padding**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.1.1. Table cells: 6px vertical, 8px horizontal
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.1.2. Inputs: 12px vertical, 14px horizontal
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.1.3. Accordion content: 18-20px
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.1.4. Modal content: 4vw top/bottom, 2vw left/right
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.2. **Border Radius**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.2.1. Default: 12px (`.rounded`)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.2.2. Inputs: 6px
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.2.3. Buttons: 8px
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.2.4. Tags: 16px
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.2.5. Modal close button: 50% (circular)
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.3. **Shadows**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.3.1. Large: `0 8px 40px rgba(0,0,0,0.18)`
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.3.2. Medium: `0 4px 16px rgba(0,0,0,0.12)`
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.3.3.3. Input focus: `0 2px 0 0 #b6ff00`
 
-#### Interactive Elements
+#### 2.1.4. Interactive Elements
 
-**Buttons**:
-- Size: 44x44px (minimum touch target)
-- SVG icons: 28x28px
-- Hover state: background `#232a23`, color `#b6ff00`
-- Transition: 180ms ease
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.1. **Buttons**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.1.1. Size: 44x44px (minimum touch target)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.1.2. SVG icons: 28x28px
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.1.3. Hover state: background `#232a23`, color `#b6ff00`
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.1.4. Transition: 180ms ease
 
-**Input Fields**:
-- Background: Transparent (default), `#181a1b` (focus)
-- Border: None (default), bottom border 2.5px `#b6ff00` (focus)
-- Focus shadow: `0 2px 0 0 #b6ff00`
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.2. **Input Fields**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.2.1. Background: Transparent (default), `#181a1b` (focus)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.2.2. Border: None (default), bottom border 2.5px `#b6ff00` (focus)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.2.3. Focus shadow: `0 2px 0 0 #b6ff00`
 
-**Select Dropdowns**:
-- Appearance: Custom (native appearance removed)
-- Background: `#181a1b`
-- Same focus styles as text inputs
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.3. **Select Dropdowns**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.3.1. Appearance: Custom (native appearance removed)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.3.2. Background: `#181a1b`
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.3.3. Same focus styles as text inputs
 
-**Checkboxes**:
-- Size: 22x22px
-- Accent color: `#b6ff00`
-- Custom appearance with checkmark (✓) on checked state
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.4. **Checkboxes**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.4.1. Size: 22x22px
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.4.2. Accent color: `#b6ff00`
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.4.4.3. Custom appearance with checkmark (✓) on checked state
 
-#### Component Patterns
+#### 2.1.5. Component Patterns
 
-**Accordion Panels**:
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.1. **Accordion Panels**:
 ```html
 <div class="accordion-header bg-main bordered rounded shadow-lg pointer flex-between">
   <h2>Section Title</h2>
@@ -162,32 +162,32 @@ The application uses a **dark theme** with high-contrast accent colors:
 </div>
 ```
 
-**Navigation Bar**:
-- Horizontal layout with equal-width links (min 110px)
-- Bottom border indicator for active page (3px height, `#b6ff00`)
-- 18px horizontal margin between links
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.2. **Navigation Bar**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.2.1. Horizontal layout with equal-width links (min 110px)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.2.2. Bottom border indicator for active page (3px height, `#b6ff00`)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.2.3. 18px horizontal margin between links
 
-**Tables**:
-- Full width with collapsed borders
-- Alternating row hover state (`#232a23`)
-- Header background: `#202223`
-- Border: 2px bottom border for headers
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.3. **Tables**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.3.1. Full width with collapsed borders
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.3.2. Alternating row hover state (`#232a23`)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.3.3. Header background: `#202223`
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.3.4. Border: 2px bottom border for headers
 
-**Modals**:
-- Overlay: `rgba(10, 12, 16, 0.82)` with 8px blur
-- Content: max 80vw width, 80vh height
-- Centered vertically and horizontally
-- Close button in top-right corner
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.4. **Modals**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.4.1. Overlay: `rgba(10, 12, 16, 0.82)` with 8px blur
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.4.2. Content: max 80vw width, 80vh height
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.4.3. Centered vertically and horizontally
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.4.4. Close button in top-right corner
 
-**Tags**:
-- Pill-shaped containers (16px border radius)
-- Background: `#232a23`, border: 1px `#b6ff00`
-- Remove button (×) with hover effect
-- Input field inline with tags
+&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.5. **Tags**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.5.1. Pill-shaped containers (16px border radius)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.5.2. Background: `#232a23`, border: 1px `#b6ff00`
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.5.3. Remove button (×) with hover effect
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.1.5.5.4. Input field inline with tags
 
 ---
 
-## Coding Standards
+## 3. Coding Standards
 
 ### JavaScript Standards
 
@@ -199,26 +199,26 @@ export class EditableGrid { ... }
 export function loadGlobals() { ... }
 ```
 
-#### Code Organization
+#### 3.1.2. Code Organization
 
-1. **Class-Based Components**:
-   - Constructor initializes state and options
-   - Methods are instance methods (not arrow functions for `this` binding)
-   - Example: `EditableGrid`, `Modal`
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.1. **Class-Based Components**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.1.1. Constructor initializes state and options
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.1.2. Methods are instance methods (not arrow functions for `this` binding)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.1.3. Example: `EditableGrid`, `Modal`
 
-2. **Function-Based Utilities**:
-   - Pure functions for helpers
-   - Example: `global-app.js`, `config.js`
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.2. **Function-Based Utilities**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.2.1. Pure functions for helpers
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.2.2. Example: `global-app.js`, `config.js`
 
-3. **IIFE for Self-Executing Scripts**:
-   - Used in `navbar.js` for immediate execution
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.3. **IIFE for Self-Executing Scripts**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.2.3.1. Used in `navbar.js` for immediate execution
    ```javascript
    (function() {
      // navbar initialization
    })();
    ```
 
-#### Naming Conventions
+#### 3.1.3. Naming Conventions
 
 | Type | Convention | Example |
 |------|-----------|---------|
@@ -230,7 +230,7 @@ export function loadGlobals() { ... }
 | **HTML IDs** | kebab-case | `main-navbar`, `panel-accounts` |
 | **CSS Classes** | kebab-case | `bg-main`, `accordion-header` |
 
-#### Async/Await Pattern
+#### 3.1.4. Async/Await Pattern
 Always use `async/await` for asynchronous operations:
 ```javascript
 async function onSave(updatedAccounts) {
@@ -245,14 +245,14 @@ async function onSave(updatedAccounts) {
 }
 ```
 
-#### Error Handling
-- Use try-catch blocks for all async operations
-- Log errors with descriptive context: `console.error('Failed to save accounts data:', err)`
-- Provide fallback behavior when possible
+#### 3.1.5. Error Handling
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.5.1. Use try-catch blocks for all async operations
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.5.2. Log errors with descriptive context: `console.error('Failed to save accounts data:', err)`
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.5.3. Provide fallback behavior when possible
 
-#### Data Manipulation
+#### 3.1.6. Data Manipulation
 
-1. **Immutability Patterns**:
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.6.1. **Immutability Patterns**:
    ```javascript
    // Create working copy
    this.workingData = [...this.data];
@@ -261,12 +261,12 @@ async function onSave(updatedAccounts) {
    const modalSchema = JSON.parse(JSON.stringify(this.schema[col.modal]));
    ```
 
-2. **Array Operations**:
-   - Use `forEach`, `map`, `find`, `filter` for iteration
-   - Use `reduce` for aggregation
-   - Example: `nextId = appData.accounts.reduce((max, a) => a.id > max ? a.id : max, 0) + 1`
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.6.2. **Array Operations**:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.6.2.1. Use `forEach`, `map`, `find`, `filter` for iteration
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.6.2.2. Use `reduce` for aggregation
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.1.6.2.3. Example: `nextId = appData.accounts.reduce((max, a) => a.id > max ? a.id : max, 0) + 1`
 
-3. **Object Spread**:
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.6.3. **Object Spread**:
    ```javascript
    const newRow = {
        id: nextId,
@@ -275,16 +275,16 @@ async function onSave(updatedAccounts) {
    };
    ```
 
-#### DOM Manipulation
+#### 3.1.7. DOM Manipulation
 
-**Global Helper Functions** (from `global-app.js`):
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.7.1. **Global Helper Functions** (from `global-app.js`):
 ```javascript
 window.getEl = (id) => document.getElementById(id);
 window.add = (parent, child) => parent.appendChild(child);
 window.toggleAccordion = (id) => { /* toggle display */ };
 ```
 
-**Standard Pattern**:
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.7.2. **Standard Pattern**:
 ```javascript
 const element = document.createElement('div');
 element.className = 'bg-main bordered rounded';
@@ -293,11 +293,11 @@ element.addEventListener('click', () => { /* handler */ });
 window.add(parentElement, element);
 ```
 
-#### Event Listeners
+#### 3.1.8. Event Listeners
 
-- Use arrow functions for inline handlers to preserve context
-- Use named functions for complex handlers
-- Remove listeners when appropriate (component cleanup)
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.8.1. Use arrow functions for inline handlers to preserve context
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.8.2. Use named functions for complex handlers
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.8.3. Remove listeners when appropriate (component cleanup)
 
 ```javascript
 // Inline handler
@@ -312,19 +312,19 @@ function onKeyDown(e) {
 input.addEventListener('keydown', onKeyDown);
 ```
 
-#### Console Logging
+#### 3.1.9. Console Logging
 
-**Debug Logging**:
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.9.1. **Debug Logging**:
 ```javascript
 console.log('[EditableGrid] createTableRows workingData:', this.workingData);
 console.warn('[EditableGrid] WARNING: Field not found', acc);
 ```
 
-**Prefix Pattern**: Use `[ClassName/ModuleName]` prefix for debug messages
+&nbsp;&nbsp;&nbsp;&nbsp;3.1.9.2. **Prefix Pattern**: Use `[ClassName/ModuleName]` prefix for debug messages
 
 ---
 
-## Library & Framework Usage
+## 4. Library & Framework Usage
 
 ### Core Dependencies
 

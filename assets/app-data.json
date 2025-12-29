@@ -14,7 +14,17 @@
       },
       "balance": 10000,
       "current_balance": 10000,
-      "interest": null,
+      "interest": [
+        {
+          "id": 0,
+          "presetOption": "Custom",
+          "nominalRate": 0,
+          "effectiveRate": 0,
+          "nominalRatePeriod": "Annually",
+          "calculationMethod": "Simple",
+          "compoundingInterval": "Monthly"
+        }
+      ],
       "openDate": "2025-01-01"
     },
     {

@@ -5,54 +5,56 @@
 
 ---
 
-## Alpha Requirements
+## 1. Alpha Requirements
 
-- Wrap up current data snapshot overview on home page
-- Improve accounts page with Excel-like shortcuts and navigation
-- Rename budget/budget builder references to financial forecast
-- Make transactions grid work like accounts with Excel-like navigation
-- Allow basic named accounts to be added directly from transactions
-- Build and wrap up financial planning
-- Create forecast template interface for setting up accounts with transactions
-- Support listing incomes and expenses in forecast template
-- Enable forecast template creation for one or multiple time periods
-- Support date-range-based templates between specific dates
-- Use forecast template to predict account balances and forecast financial future
-- Track actuals by flagging transactions as completed or not completed for current month
-- Show total money still needed for month to cover remaining expenses
-- Save budget/template separately from forecast
-- Auto-generate forecast from budget for dynamic time frames
-- Consider interest, recurring transactions, and one-off transactions in budget and forecast
-- Allow quick account and transaction addition through budget interface
-- Link accounts so transactions always move value from one account to another
-- Support single account view or overview with all accounts for budget
-- Validate transactions specific to a budget
-- Classify accounts as transfers vs incomes vs expenses
-- Build rollover/carryover logic for unused budget amounts into accounts
-- Track account balance before time frame before applying time frame transactions
+1.1. Data Grid Edit Items
+&nbsp;&nbsp;&nbsp;&nbsp;1.1.1. Improve accounts page with Excel-like shortcuts and navigation
+&nbsp;&nbsp;&nbsp;&nbsp;1.1.2. Rename budget/budget builder references to financial forecast
+&nbsp;&nbsp;&nbsp;&nbsp;1.1.3. Make transactions grid work like accounts with Excel-like navigation
 
----
-
-## Beta Requirements
-
-- Track account transactions and forecast history
-- Ensure multiple screen sizes work
-- Support different types of budgets each with their own forecast
-- Duplicate or clone existing budgets
-- Actual vs budget variance reporting
-- Archive or version budgets for historical tracking
-- Build fund management as part of budget/financial forecast system
-- Track investor deposits and withdrawals as transactions within fund budgets
-- Calculate NAV as part of forecast engine for fund budgets
-- Calculate investor share positions from transaction history
-- Support fund expense tracking within fund budgets
-- Generate fund performance reports from forecast snapshots
-- Add calculator module for financial calculations
+1.2. Wrap up current data snapshot overview on home page
+1.3. Allow basic named accounts to be added directly from transactions
+1.4. Build and wrap up financial planning
+1.5. Create forecast template interface for setting up accounts with transactions
+1.6. Support listing incomes and expenses in forecast template
+1.7. Enable forecast template creation for one or multiple time periods
+1.8. Support date-range-based templates between specific dates
+1.9. Use forecast template to predict account balances and forecast financial future
+1.10. Track actuals by flagging transactions as completed or not completed for current month
+1.11. Show total money still needed for month to cover remaining expenses
+1.12. Save budget/template separately from forecast
+1.13. Auto-generate forecast from budget for dynamic time frames
+1.14. Consider interest, recurring transactions, and one-off transactions in budget and forecast
+1.15. Allow quick account and transaction addition through budget interface
+1.16. Link accounts so transactions always move value from one account to another
+1.17. Support single account view or overview with all accounts for budget
+1.18. Validate transactions specific to a budget
+1.19. Classify accounts as transfers vs incomes vs expenses
+1.20. Build rollover/carryover logic for unused budget amounts into accounts
+1.21. Track account balance before time frame before applying time frame transactions
 
 ---
 
-## Later
+## 2. Beta Requirements
 
-- Budget templates
-- Import actual transactions into budget for reconciliation
-- Alerts when actuals exceed budget thresholds
+2.1. Track account transactions and forecast history
+2.2. Ensure multiple screen sizes work
+2.3. Support different types of budgets each with their own forecast
+2.4. Duplicate or clone existing budgets
+2.5. Actual vs budget variance reporting
+2.6. Archive or version budgets for historical tracking
+2.7. Build fund management as part of budget/financial forecast system
+2.8. Track investor deposits and withdrawals as transactions within fund budgets
+2.9. Calculate NAV as part of forecast engine for fund budgets
+2.10. Calculate investor share positions from transaction history
+2.11. Support fund expense tracking within fund budgets
+2.12. Generate fund performance reports from forecast snapshots
+2.13. Add calculator module for financial calculations
+
+---
+
+## 3. Later
+
+3.1. Budget templates
+3.2. Import actual transactions into budget for reconciliation
+3.3. Alerts when actuals exceed budget thresholds
