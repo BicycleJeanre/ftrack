@@ -35,7 +35,7 @@
     },
     {
       "id": 3,
-      "name": "have to pay",
+      "name": "have to pay 2",
       "type": {
         "id": 2,
         "name": "Liability"
@@ -46,17 +46,7 @@
       },
       "balance": 400,
       "current_balance": 0,
-      "interest": [
-        {
-          "id": 0,
-          "presetOption": "Custom",
-          "nominalRate": 0,
-          "effectiveRate": 0,
-          "nominalRatePeriod": "Annually",
-          "calculationMethod": "Simple",
-          "compoundingInterval": "Monthly"
-        }
-      ],
+      "interest": null,
       "openDate": "2025-01-01"
     },
     {
@@ -93,7 +83,7 @@
     },
     {
       "id": 6,
-      "name": "new acc",
+      "name": "ihtfhgt",
       "type": {
         "id": null,
         "name": {
@@ -170,8 +160,8 @@
         "name": "Jeanre Credit Card"
       },
       "credit_account": {
-        "id": 1,
-        "name": "Jeanre Credit Card"
+        "id": 6,
+        "name": "ihtfhgt"
       },
       "amount": 0,
       "isRecurring": false,
