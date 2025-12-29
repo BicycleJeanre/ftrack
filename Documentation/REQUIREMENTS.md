@@ -8,9 +8,9 @@
 ## 1. Alpha Requirements
 
 1.1. Data Grid Edit Items
-&nbsp;&nbsp;&nbsp;&nbsp;1.1.1. Improve accounts page with Excel-like shortcuts and navigation
-&nbsp;&nbsp;&nbsp;&nbsp;1.1.2. Rename budget/budget builder references to financial forecast
-&nbsp;&nbsp;&nbsp;&nbsp;1.1.3. Make transactions grid work like accounts with Excel-like navigation
+&nbsp;&nbsp;&nbsp;&nbsp;~~1.1.1. Improve accounts page with Excel-like shortcuts and navigation~~
+&nbsp;&nbsp;&nbsp;&nbsp;~~1.1.2. Rename budget/budget builder references to financial forecast~~
+&nbsp;&nbsp;&nbsp;&nbsp;~~1.1.3. Make transactions grid work like accounts with Excel-like navigation~~
 
 1.2. Wrap up current data snapshot overview on home page
 1.3. Allow basic named accounts to be added directly from transactions

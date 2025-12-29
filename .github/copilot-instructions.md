@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions for FTrack
 
-**Version**: 2.1.0  
+**Version**: 2.2.0  
 **Last Updated**: December 29, 2025  
 **Purpose**: Rule-based guidelines for GitHub Copilot when working on FTrack
 
@@ -36,6 +36,8 @@
 3.6. `try-catch` blocks for error handling
 3.7. `process.cwd()` for file paths
 3.8. `loadGlobals()` at the start of each page module
+3.9. Shortcuts config module: `loadConfig()`, `getShortcut(module, action)`, `matchShortcut(event, shortcut)` from `/js/config.js`
+3.10. Keyboard shortcuts from `/assets/shortcuts.json` - NEVER hardcode key bindings
 
 ## 4. Design Pattern Rules
 
@@ -75,96 +77,110 @@
 &nbsp;&nbsp;&nbsp;&nbsp;7.3.3. Add CSS styling if needed
 7.4. Constructor requires: `targetElement`, `tableHeader`, `schema`, `data`, `onSave`
 7.5. Optional params: `onDelete`, `parentRowId`, `parentField` (for nested grids)
+7.6. Excel-like navigation enabled by default: Arrow keys, Tab/Shift+Tab, Enter, F2, Escape
+7.7. Cell selection highlights current cell with `.cell-selected` CSS class
 
-## 8. Data Persistence Rules
+## 8. Keyboard Shortcuts Rules
 
-8.1. Read files using `fs.readFile(process.cwd() + '/path', 'utf8')`
-8.2. Write files using `fs.writeFile(path, JSON.stringify(data, null, 2), 'utf8')`
-8.3. ALWAYS wrap file operations in try-catch blocks
-8.4. ALWAYS read entire `app-data.json`, modify in memory, then write back
-8.5. Log success with `console.log('[Save] Success')`
-8.6. Log errors with `console.error('[Save] Failed:', err)`
+8.1. NEVER hardcode keyboard shortcuts in components
+8.2. ALWAYS define shortcuts in `/assets/shortcuts.json`
+8.3. Load shortcuts with `await loadConfig()` before first use
+8.4. Check shortcuts with `matchShortcut(event, getShortcut('Module', 'action'))`
+8.5. Group shortcuts by module name (e.g., `EditableGrid`, `Global`)
+8.6. Use modifier format: `Meta+Shift+A`, `Control+S`, `Alt+Enter`
+8.7. Arrow keys: `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`
+8.8. Special keys: `Enter`, `Escape`, `Tab`, `Delete`, `F2`
 
-## 9. Page Controller Pattern Rules
+## 9. Data Persistence Rules
 
-9.1. Follow this 5-step structure for all pages
-&nbsp;&nbsp;&nbsp;&nbsp;9.1.1. Build UI container with `buildGridContainer()` - create accordion header, content area, table container
-&nbsp;&nbsp;&nbsp;&nbsp;9.1.2. Define `onSave()` callback for persistence
-&nbsp;&nbsp;&nbsp;&nbsp;9.1.3. Load schema and data with `createGridSchema()` - read schema file, read data file, return config object
-&nbsp;&nbsp;&nbsp;&nbsp;9.1.4. Render grid with `loadTable()` - instantiate `EditableGrid`, call `render()`
-&nbsp;&nbsp;&nbsp;&nbsp;9.1.5. Execute: `loadGlobals()` → build container → create schema → load table
+9.1. Read files using `fs.readFile(process.cwd() + '/path', 'utf8')`
+9.2. Write files using `fs.writeFile(path, JSON.stringify(data, null, 2), 'utf8')`
+9.3. ALWAYS wrap file operations in try-catch blocks
+9.4. ALWAYS read entire `app-data.json`, modify in memory, then write back
+9.5. Log success with `console.log('[Save] Success')`
+9.6. Log errors with `console.error('[Save] Failed:', err)`
 
-## 10. Code Quality Rules
+## 10. Page Controller Pattern Rules
 
-10.1. Provide complete, runnable code - not pseudo-code
-10.2. Include imports at the top
-10.3. Use actual file paths in references
-10.4. Add inline comments for complex logic
-10.5. Use proper indentation and style
-10.6. Keep responses concise - no long explanations when code example is sufficient
-10.7. Reference actual paths: "Update line 45 in /js/editable-grid.js" not "Update the grid file"
-10.8. When applying instructions from this file, list the instruction numbers at the end of the response
+10.1. Follow this 5-step structure for all pages
+&nbsp;&nbsp;&nbsp;&nbsp;10.1.1. Build UI container with `buildGridContainer()` - create accordion header, content area, table container
+&nbsp;&nbsp;&nbsp;&nbsp;10.1.2. Define `onSave()` callback for persistence
+&nbsp;&nbsp;&nbsp;&nbsp;10.1.3. Load schema and data with `createGridSchema()` - read schema file, read data file, return config object
+&nbsp;&nbsp;&nbsp;&nbsp;10.1.4. Render grid with `loadTable()` - instantiate `EditableGrid`, call `render()`
+&nbsp;&nbsp;&nbsp;&nbsp;10.1.5. Execute: `loadGlobals()` → build container → create schema → load table
 
-## 11. Documentation Update Rules
+## 11. Code Quality Rules
 
-11.1. ALWAYS update `/Documentation/TECHNICAL_DOCUMENTATION.md` when
-&nbsp;&nbsp;&nbsp;&nbsp;11.1.1. Adding new components or modules
-&nbsp;&nbsp;&nbsp;&nbsp;11.1.2. Changing architecture patterns
-&nbsp;&nbsp;&nbsp;&nbsp;11.1.3. Modifying data structures
-&nbsp;&nbsp;&nbsp;&nbsp;11.1.4. Adding new column types
-&nbsp;&nbsp;&nbsp;&nbsp;11.1.5. Changing the design system
-11.2. ALWAYS update `.github/copilot-instructions.md` when
-&nbsp;&nbsp;&nbsp;&nbsp;11.2.1. New coding patterns are established
-&nbsp;&nbsp;&nbsp;&nbsp;11.2.2. New rules are confirmed by user
-&nbsp;&nbsp;&nbsp;&nbsp;11.2.3. Project constraints change
-11.3. Keep documentation simple and concise - avoid duplication
-11.4. Reference, don't repeat - link to detailed docs rather than duplicating
-11.5. Use legal numbering (decimal outline format) for all documentation
-11.6. Use non-breaking spaces (`&nbsp;`) for proper indentation in Markdown files
+11.1. Provide complete, runnable code - not pseudo-code
+11.2. Include imports at the top
+11.3. Use actual file paths in references
+11.4. Add inline comments for complex logic
+11.5. Use proper indentation and style
+11.6. Keep responses concise - no long explanations when code example is sufficient
+11.7. Reference actual paths: "Update line 45 in /js/editable-grid.js" not "Update the grid file"
+11.8. When applying instructions from this file, list the instruction numbers at the end of the response
 
-## 12. Self-Update Rules
+## 12. Documentation Update Rules
 
-12.1. Suggest updates to these instructions when patterns emerge or user requests changes
-12.2. ALWAYS get user confirmation before updating this file
-12.3. When suggesting updates: Explain what rule should be added, why it's beneficial, show example, ask for confirmation
-12.4. When updating: Increment version (PATCH for clarifications, MINOR for new rules, MAJOR for breaking changes), update "Last Updated" date, summarize changes
+12.1. NEVER create documentation for individual modules or changes
+12.2. ALWAYS update `/Documentation/TECHNICAL_DOCUMENTATION.md` when
+&nbsp;&nbsp;&nbsp;&nbsp;12.2.1. Adding new components or modules
+&nbsp;&nbsp;&nbsp;&nbsp;12.2.2. Changing architecture patterns
+&nbsp;&nbsp;&nbsp;&nbsp;12.2.3. Modifying data structures
+&nbsp;&nbsp;&nbsp;&nbsp;12.2.4. Adding new column types
+&nbsp;&nbsp;&nbsp;&nbsp;12.2.5. Changing the design system
+12.3. ALWAYS update `.github/copilot-instructions.md` when
+&nbsp;&nbsp;&nbsp;&nbsp;12.3.1. New coding patterns are established
+&nbsp;&nbsp;&nbsp;&nbsp;12.3.2. New rules are confirmed by user
+&nbsp;&nbsp;&nbsp;&nbsp;12.3.3. Project constraints change
+12.4. Keep documentation simple and concise - avoid duplication
+12.5. Reference, don't repeat - link to detailed docs rather than duplicating
+12.6. Use legal numbering (decimal outline format) for all documentation
+12.7. Use non-breaking spaces (`&nbsp;`) for proper indentation in Markdown files
 
-## 13. Standard Workflows
+## 13. Self-Update Rules
 
-13.1. Git Commit & Push
-&nbsp;&nbsp;&nbsp;&nbsp;13.1.1. Analyze all changes (staged and unstaged) using `get_changed_files`
-&nbsp;&nbsp;&nbsp;&nbsp;13.1.2. Create detailed commit message based on changes
-&nbsp;&nbsp;&nbsp;&nbsp;13.1.3. Stage all changes with `git add .`
-&nbsp;&nbsp;&nbsp;&nbsp;13.1.4. Commit with message using `git commit -m "message"`
+13.1. Suggest updates to these instructions when patterns emerge or user requests changes
+13.2. ALWAYS get user confirmation before updating this file
+13.3. When suggesting updates: Explain what rule should be added, why it's beneficial, show example, ask for confirmation
+13.4. When updating: Increment version (PATCH for clarifications, MINOR for new rules, MAJOR for breaking changes), update "Last Updated" date, summarize changes
 
-## 14. Adding New Pages Checklist
+## 14. Standard Workflows
 
-14.1. Create HTML in `/pages/[name].html` with proper structure
-14.2. Create module in `/js/[name].js` using page controller pattern
-14.3. Create schema in `/assets/[name]-grid.json`
-14.4. Add data array to `/assets/app-data.json`
-14.5. Add navigation link in `/js/navbar.js`
-14.6. Test CRUD operations
+14.1. Git Commit & Push
+&nbsp;&nbsp;&nbsp;&nbsp;14.1.1. Analyze all changes (staged and unstaged) using `get_changed_files`
+&nbsp;&nbsp;&nbsp;&nbsp;14.1.2. Create detailed commit message based on changes
+&nbsp;&nbsp;&nbsp;&nbsp;14.1.3. Stage all changes with `git add .`
+&nbsp;&nbsp;&nbsp;&nbsp;14.1.4. Commit with message using `git commit -m "message"`
 
-## 15. Modifying Features Checklist
+## 15. Adding New Pages Checklist
 
-15.1. Before changes
-&nbsp;&nbsp;&nbsp;&nbsp;15.1.1. Read relevant code files
-&nbsp;&nbsp;&nbsp;&nbsp;15.1.2. Check schema definitions
-&nbsp;&nbsp;&nbsp;&nbsp;15.1.3. Review data structure in `/assets/app-data.json`
-&nbsp;&nbsp;&nbsp;&nbsp;15.1.4. Verify design system compliance
-&nbsp;&nbsp;&nbsp;&nbsp;15.1.5. Check for reusable components
-15.2. After changes
-&nbsp;&nbsp;&nbsp;&nbsp;15.2.1. Test in Electron app
-&nbsp;&nbsp;&nbsp;&nbsp;15.2.2. Verify data persists correctly
-&nbsp;&nbsp;&nbsp;&nbsp;15.2.3. Check console for errors
-&nbsp;&nbsp;&nbsp;&nbsp;15.2.4. Update `/Documentation/TECHNICAL_DOCUMENTATION.md` if needed
-&nbsp;&nbsp;&nbsp;&nbsp;15.2.5. Update this file if new patterns emerged
+15.1. Create HTML in `/pages/[name].html` with proper structure
+15.2. Create module in `/js/[name].js` using page controller pattern
+15.3. Create schema in `/assets/[name]-grid.json`
+15.4. Add data array to `/assets/app-data.json`
+15.5. Add navigation link in `/js/navbar.js`
+15.6. Test CRUD operations
 
-## 16. Current Feature Status
+## 16. Modifying Features Checklist
 
-16.1. Completed: home, accounts, transactions pages; EditableGrid (9+ column types); Modal; schema-driven rendering; file-based persistence
-16.2. Not Implemented: financial forecast controller, forecast generation, interest calculations, recurrence processing, keyboard shortcuts, data validation, export/import
+16.1. Before changes
+&nbsp;&nbsp;&nbsp;&nbsp;16.1.1. Read relevant code files
+&nbsp;&nbsp;&nbsp;&nbsp;16.1.2. Check schema definitions
+&nbsp;&nbsp;&nbsp;&nbsp;16.1.3. Review data structure in `/assets/app-data.json`
+&nbsp;&nbsp;&nbsp;&nbsp;16.1.4. Verify design system compliance
+&nbsp;&nbsp;&nbsp;&nbsp;16.1.5. Check for reusable components
+16.2. After changes
+&nbsp;&nbsp;&nbsp;&nbsp;16.2.1. Test in Electron app
+&nbsp;&nbsp;&nbsp;&nbsp;16.2.2. Verify data persists correctly
+&nbsp;&nbsp;&nbsp;&nbsp;16.2.3. Check console for errors
+&nbsp;&nbsp;&nbsp;&nbsp;16.2.4. Update `/Documentation/TECHNICAL_DOCUMENTATION.md` if needed
+&nbsp;&nbsp;&nbsp;&nbsp;16.2.5. Update this file if new patterns emerged
+
+## 17. Current Feature Status
+
+17.1. Completed: home, accounts, transactions, forecast pages; EditableGrid (9+ column types with Excel-like navigation); Modal; schema-driven rendering; file-based persistence; keyboard shortcuts system
+17.2. Not Implemented: forecast generation, interest calculations, recurrence processing, data validation, export/import
 
 ---
 

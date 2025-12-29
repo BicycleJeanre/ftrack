@@ -120,6 +120,24 @@ html, body {
   background: #232a23;
 }
 
+/* Excel-like cell selection highlight */
+.table td.cell-selected {
+  outline: 2px solid #b6ff00;
+  outline-offset: -2px;
+  background: #232a23;
+  position: relative;
+  z-index: 1;
+}
+
+.table[tabindex] {
+  outline: none;
+}
+
+.table[tabindex]:focus {
+  outline: 2px solid #b6ff00;
+  outline-offset: 2px;
+}
+
 #main-navbar {
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
   border-bottom: 2px solid #232a23;

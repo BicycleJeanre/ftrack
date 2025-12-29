@@ -32,6 +32,11 @@ export class EditableGrid {
 
         this.showActions = this.mainGrid.actions.add || this.mainGrid.actions.edit || this.mainGrid.actions.delete || this.mainGrid.actions.save;
 
+        // Track current cell for Excel-like navigation
+        this.currentCell = { row: 0, col: 0 };
+        this.isEditing = false;
+        this.shortcutsLoaded = false;
+
         this.prepareModals();
         this.prepareSelectOptions();
     }
@@ -111,6 +116,9 @@ export class EditableGrid {
 
         //render the whole table
         window.add(this.targetElement, table)
+
+        // Setup keyboard navigation
+        this._setupKeyboardNavigation(table);
 
         // Add button below table if add action is enabled
         if (this.mainGrid.actions.add) {
@@ -572,5 +580,211 @@ export class EditableGrid {
             }
             this.render();
         }
+    }
+
+    // Excel-like keyboard navigation
+    async _setupKeyboardNavigation(table) {
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        // Load shortcuts config
+        if (!this.shortcutsLoaded) {
+            await loadConfig();
+            this.shortcutsLoaded = true;
+        }
+
+        // Make table focusable
+        table.setAttribute('tabindex', '0');
+
+        // Add click handlers to all cells for selection
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach((row, rowIndex) => {
+            const cells = row.querySelectorAll('td');
+            cells.forEach((cell, colIndex) => {
+                // Skip actions column
+                const editableCols = this.mainGrid.columns.filter(c => c.display);
+                if (colIndex >= editableCols.length) return;
+
+                cell.addEventListener('click', (e) => {
+                    // Don't intercept clicks on buttons or interactive elements
+                    if (e.target.tagName === 'SPAN' || e.target.tagName === 'BUTTON') return;
+                    this._selectCell(rowIndex, colIndex);
+                });
+
+                // Double-click to edit
+                cell.addEventListener('dblclick', (e) => {
+                    if (e.target.tagName === 'SPAN' || e.target.tagName === 'BUTTON') return;
+                    this._startEdit(rowIndex, colIndex);
+                });
+            });
+        });
+
+        // Keyboard event handler
+        table.addEventListener('keydown', (e) => this._handleKeydown(e, table));
+
+        // Highlight initial cell
+        this._highlightCell();
+    }
+
+    _handleKeydown(e, table) {
+        const editableCols = this.mainGrid.columns.filter(c => c.display);
+        const rows = table.querySelector('tbody').querySelectorAll('tr');
+        const maxRow = rows.length - 1;
+        const maxCol = editableCols.length - 1;
+
+        // If actively editing an input, allow some keys to pass through
+        if (this.isEditing && document.activeElement.tagName === 'INPUT') {
+            if (matchShortcut(e, getShortcut('EditableGrid', 'cancelEdit'))) {
+                e.preventDefault();
+                this._cancelEdit();
+                return;
+            }
+            if (matchShortcut(e, getShortcut('EditableGrid', 'moveDown'))) {
+                e.preventDefault();
+                this._moveDown();
+                return;
+            }
+            if (matchShortcut(e, getShortcut('EditableGrid', 'nextCell')) || matchShortcut(e, getShortcut('EditableGrid', 'prevCell'))) {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    this._moveLeft();
+                } else {
+                    this._moveRight();
+                }
+                return;
+            }
+            return; // Let other keys work normally in input
+        }
+
+        // Navigation shortcuts
+        if (matchShortcut(e, getShortcut('EditableGrid', 'moveUp'))) {
+            e.preventDefault();
+            this._moveUp();
+        } else if (matchShortcut(e, getShortcut('EditableGrid', 'moveDown'))) {
+            e.preventDefault();
+            this._moveDown();
+        } else if (matchShortcut(e, getShortcut('EditableGrid', 'moveLeft'))) {
+            e.preventDefault();
+            this._moveLeft();
+        } else if (matchShortcut(e, getShortcut('EditableGrid', 'moveRight'))) {
+            e.preventDefault();
+            this._moveRight();
+        } else if (matchShortcut(e, getShortcut('EditableGrid', 'nextCell')) || matchShortcut(e, getShortcut('EditableGrid', 'prevCell'))) {
+            e.preventDefault();
+            if (e.shiftKey) {
+                this._moveLeft();
+            } else {
+                this._moveRight();
+            }
+        } else if (matchShortcut(e, getShortcut('EditableGrid', 'saveRow'))) {
+            e.preventDefault();
+            if (this.isEditing) {
+                this._moveDown();
+            } else {
+                this._startEdit(this.currentCell.row, this.currentCell.col);
+            }
+        } else if (matchShortcut(e, getShortcut('EditableGrid', 'startEdit'))) {
+            e.preventDefault();
+            this._startEdit(this.currentCell.row, this.currentCell.col);
+        } else if (matchShortcut(e, getShortcut('EditableGrid', 'cancelEdit'))) {
+            e.preventDefault();
+            this._cancelEdit();
+        } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !this.isEditing) {
+            // Typing any alphanumeric key starts editing
+            this._startEdit(this.currentCell.row, this.currentCell.col, e.key);
+        }
+    }
+
+    _moveUp() {
+        if (this.currentCell.row > 0) {
+            this.currentCell.row--;
+            this._highlightCell();
+        }
+    }
+
+    _moveDown() {
+        const maxRow = this.workingData.length - 1;
+        if (this.currentCell.row < maxRow) {
+            this.currentCell.row++;
+            this._highlightCell();
+        }
+    }
+
+    _moveLeft() {
+        const editableCols = this.mainGrid.columns.filter(c => c.display);
+        if (this.currentCell.col > 0) {
+            this.currentCell.col--;
+            this._highlightCell();
+        }
+    }
+
+    _moveRight() {
+        const editableCols = this.mainGrid.columns.filter(c => c.display);
+        const maxCol = editableCols.length - 1;
+        if (this.currentCell.col < maxCol) {
+            this.currentCell.col++;
+            this._highlightCell();
+        }
+    }
+
+    _selectCell(row, col) {
+        this.currentCell.row = row;
+        this.currentCell.col = col;
+        this._highlightCell();
+    }
+
+    _highlightCell() {
+        const table = this.targetElement.querySelector('table');
+        if (!table) return;
+
+        // Remove previous highlight
+        const previous = table.querySelector('.cell-selected');
+        if (previous) previous.classList.remove('cell-selected');
+
+        // Add highlight to current cell
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+        const rows = tbody.querySelectorAll('tr');
+        if (rows[this.currentCell.row]) {
+            const cells = rows[this.currentCell.row].querySelectorAll('td');
+            if (cells[this.currentCell.col]) {
+                cells[this.currentCell.col].classList.add('cell-selected');
+                cells[this.currentCell.col].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            }
+        }
+    }
+
+    _startEdit(row, col, initialChar = null) {
+        const editableCols = this.mainGrid.columns.filter(c => c.display);
+        const column = editableCols[col];
+        
+        // Only allow editing if column is editable
+        if (!column.editable || !this.mainGrid.actions.edit) return;
+
+        const table = this.targetElement.querySelector('table');
+        const tbody = table.querySelector('tbody');
+        const rows = tbody.querySelectorAll('tr');
+        const cell = rows[row].querySelectorAll('td')[col];
+        const input = cell.querySelector('input, select');
+
+        if (input) {
+            this.isEditing = true;
+            input.focus();
+            if (input.tagName === 'INPUT') {
+                // If initial character provided, replace value
+                if (initialChar) {
+                    input.value = initialChar;
+                } else {
+                    input.select();
+                }
+            }
+        }
+    }
+
+    _cancelEdit() {
+        this.isEditing = false;
+        const table = this.targetElement.querySelector('table');
+        if (table) table.focus();
+        this._highlightCell();
     }
 }
