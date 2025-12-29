@@ -15,6 +15,14 @@
         "display": false
       },
       {
+        "field": "versionId",
+        "header": "Version",
+        "editable": false,
+        "type": "number",
+        "display": false,
+        "default": null
+      },
+      {
         "field": "movement",
         "header": "Movement",
         "editable": true,

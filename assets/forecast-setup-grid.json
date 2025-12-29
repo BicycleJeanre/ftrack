@@ -10,6 +10,16 @@
         "default": 0
       },
       {
+        "field": "versionId",
+        "header": "Version",
+        "type": "select",
+        "editable": true,
+        "display": true,
+        "optionsSource": "forecastDefinitions",
+        "optionsSourceFile": "app-data.json",
+        "default": null
+      },
+      {
         "field": "account",
         "header": "Account",
         "type": "addSelect",

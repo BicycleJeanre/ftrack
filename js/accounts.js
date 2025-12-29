@@ -3,6 +3,7 @@
 
 import { EditableGrid } from './editable-grid.js';
 import { loadGlobals } from './global-app.js';
+import { dataManager } from './data-manager.js';
 
 //Define Editable Grid Schema. 
 //Create Editable Grid. 
@@ -39,21 +40,7 @@ function buildGridContainer(){
 }
 
 async function onSave(updatedAccounts) {
-    // updatedAccounts: the new/changed accounts data to persist
-    const fs = window.require('fs').promises;
-    const dataPath = process.cwd() + '/assets/app-data.json';
-    try {
-        // Read the current data file
-        const dataFile = await fs.readFile(dataPath, 'utf8');
-        let appData = JSON.parse(dataFile);
-        // Only update the accounts property with the new data
-        appData.accounts = updatedAccounts;
-        // Write the updated data back to disk
-        await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
-        console.log('Accounts saved successfully!');
-    } catch (err) {
-        console.error('Failed to save accounts data:', err);
-    }
+    await dataManager.saveAccounts(updatedAccounts);
 }
 
 async function createGridSchema(tableElement, onSave) {

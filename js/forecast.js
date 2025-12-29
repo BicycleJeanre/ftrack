@@ -3,6 +3,7 @@
 
 import { EditableGrid } from './editable-grid.js';
 import { loadGlobals } from './global-app.js';
+import { dataManager } from './data-manager.js';
 
 //Define Editable Grid Schema. 
 //Create Editable Grid. 
@@ -75,57 +76,19 @@ function buildGridContainer(){
 }
 
 async function onVersionSave(updatedForecast) {
-    // updatedForecast: the new/changed forecast data to persist
-    const fs = window.require('fs').promises;
-    const dataPath = process.cwd() + '/assets/app-data.json';
-    try {
-        // Read the current data file
-        const dataFile = await fs.readFile(dataPath, 'utf8');
-        let appData = JSON.parse(dataFile);
-        // Only update the forecast property with the new data
-        appData.forecastDefinitions = updatedForecast;
-        // Write the updated data back to disk
-        await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
-        console.log('Forecast saved successfully!');
-    } catch (err) {
-        console.error('Failed to save forecast data:', err);
-    }
+    await dataManager.saveForecastVersions(updatedForecast);
 }
 
 async function onSetupSave(updatedSetup) {
-    // updatedSetup: the new/changed forecast setup data to persist
-    const fs = window.require('fs').promises;
-    const dataPath = process.cwd() + '/assets/app-data.json';
-    try {
-        // Read the current data file
-        const dataFile = await fs.readFile(dataPath, 'utf8');
-        let appData = JSON.parse(dataFile);
-        // Only update the forecast setup property with the new data
-        appData.forecastSetup = updatedSetup;
-        // Write the updated data back to disk
-        await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
-        console.log('Forecast setup saved successfully!');
-    } catch (err) {
-        console.error('Failed to save forecast setup data:', err);
-    }
+    // TODO: Get active versionId from UI selection
+    const versionId = null; // Will be set when version selector is implemented
+    await dataManager.saveForecastSetup(updatedSetup, versionId);
 }
 
 async function onResultsSave(updatedData) {
-    // updatedData: the new/changed forecast results data to persist
-    const fs = window.require('fs').promises;
-    const dataPath = process.cwd() + '/assets/app-data.json';
-    try {
-        // Read the current data file
-        const dataFile = await fs.readFile(dataPath, 'utf8');
-        let appData = JSON.parse(dataFile);
-        // Only update the forecast snapshots property with the new data
-        appData.forecastSnapshots = updatedData;
-        // Write the updated data back to disk
-        await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
-        console.log('Forecast results saved successfully!');
-    } catch (err) {
-        console.error('Failed to save forecast results data:', err);
-    }
+    // TODO: Get active versionId from forecast generation
+    const versionId = null; // Will be set by forecast generator
+    await dataManager.saveForecastResults(updatedData, versionId);
 }
 
 async function createForecastVersionSchema(tableElement, onVersionSave) {

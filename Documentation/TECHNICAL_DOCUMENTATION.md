@@ -681,7 +681,109 @@ gridData.schema.mainGrid.columns.forEach(col => {
 
 ## Module Documentation
 
-### 1. global-app.js
+### 1. data-manager.js
+
+**Purpose**: Centralized module for all data persistence operations
+
+**Class**: `DataManager` (singleton export as `dataManager`)
+
+**Key Properties**:
+- `fs`: Node.js filesystem module (promises)
+- `dataPath`: Path to app-data.json
+- `cachedData`: In-memory data object
+
+**Public Methods**:
+
+#### `loadData()`
+Loads app-data.json into memory cache
+```javascript
+const data = await dataManager.loadData();
+```
+
+#### `saveData()`
+Writes cached data to disk
+```javascript
+await dataManager.saveData();
+```
+
+#### `getNextId(entityType)`
+Returns next available ID for entity type
+```javascript
+const nextId = dataManager.getNextId('accounts');
+// Returns: 1 + max ID in accounts array
+```
+
+#### `saveAccounts(updatedAccounts)`
+Saves accounts data
+```javascript
+await dataManager.saveAccounts([...accountsArray]);
+```
+
+#### `saveTransactions(updatedTransactions)`
+Saves transactions with auto-account creation
+- Detects new accounts (id === null)
+- Creates accounts with schema defaults
+- Links to transactions
+- Saves both accounts and transactions
+```javascript
+await dataManager.saveTransactions([
+  {
+    id: 1,
+    debit_account: { id: null, name: "New Account" },  // Will be created
+    credit_account: { id: 2, name: "Existing" },
+    amount: 100
+  }
+]);
+```
+
+#### `saveForecastVersions(updatedVersions)`
+Saves forecast version definitions
+```javascript
+await dataManager.saveForecastVersions([...versionsArray]);
+```
+
+#### `saveForecastSetup(updatedSetup, versionId)`
+Saves forecast setup with linking
+- Links setup to forecast version via versionId
+- Auto-creates new accounts/transactions if needed
+```javascript
+await dataManager.saveForecastSetup([...setupArray], 1);
+```
+
+#### `saveForecastResults(updatedResults, versionId)`
+Saves forecast results with version linking
+```javascript
+await dataManager.saveForecastResults([...resultsArray], 1);
+```
+
+#### `validateData()`
+Validates data integrity across relationships
+- Returns array of issues
+```javascript
+const issues = await dataManager.validateData();
+// Returns: ["Transaction 5: debit_account ID 99 not found"]
+```
+
+**Auto-Linking Patterns**:
+
+When user adds new entity via `addSelect` dropdown:
+1. Grid saves with `{ id: null, name: "New Name" }`
+2. DataManager detects null ID
+3. Creates entity with schema defaults
+4. Assigns new ID
+5. Updates reference in parent entity
+6. Saves all changes atomically
+
+**Usage Example**:
+```javascript
+import { dataManager } from './data-manager.js';
+
+async function onSave(updatedTransactions) {
+  await dataManager.saveTransactions(updatedTransactions);
+}
+```
+
+### 2. global-app.js
 
 **Purpose**: Provides global helper functions for DOM manipulation
 
