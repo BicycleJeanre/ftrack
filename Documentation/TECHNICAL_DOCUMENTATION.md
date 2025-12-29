@@ -1945,6 +1945,195 @@ The Financial Forecast page ([forecast.html](../pages/forecast.html), [forecast.
 
 ---
 
+## Budget & Forecast System (NEW)
+
+### Overview
+The Budget & Forecast System is a comprehensive projection tool that enables scenario-based financial planning with double-entry bookkeeping, interest/growth calculations, and automated projection generation.
+
+### Architecture
+
+**3-Section UI**:
+1. **Scenarios**: Define budget scenarios with time periods and accounts
+2. **Planned Transactions**: Set up recurring and one-time transactions
+3. **Projections**: View generated period-by-period projections
+
+**Core Modules**:
+- **data-manager.js**: CRUD operations for scenarios, planned transactions, and projections
+- **projection-engine.js**: Calculation engine for generating projections
+- **forecast.js**: UI controller with 3-section layout
+
+### Data Schema
+
+#### Scenarios (`scenario-grid.json`)
+Defines a budget/forecast scenario with time parameters and accounts.
+
+**Key Fields**:
+- `name`: Scenario name (e.g., "2026 Monthly Budget")
+- `type`: "Budget" | "Loan Payoff" | "Investment Growth" | "General"
+- `startDate` / `endDate`: Projection date range
+- `projectionPeriod`: "Day" | "Week" | "Month" | "Quarter" | "Year"
+- `accounts`: Array of accounts (with isPrimary flag)
+- `accountOverrides`: Scenario-specific interest/growth rates
+- `transactionOverrides`: Scenario-specific transaction amounts/dates
+- `lastCalculated`: Timestamp of last projection generation
+
+#### Planned Transactions (`planned-transactions-grid.json`)
+Defines transactions that will occur during the scenario period.
+
+**Key Fields**:
+- `scenarioId`: Parent scenario
+- `transactionTemplateId`: Link to base transaction (null if scenario-specific)
+- `description`: Transaction description
+- `fromAccount`: Source account (debit)
+- `toAccount`: Destination account (credit)
+- `amount`: Transaction amount
+- `recurrence`: Recurrence pattern object
+- `enabled`: Can disable without deleting
+
+**Recurrence Pattern**:
+```json
+{
+  "type": "one-time" | "recurring",
+  "frequency": "Daily" | "Weekly" | "Biweekly" | "Monthly" | "Quarterly" | "Yearly",
+  "interval": 1,
+  "startDate": "2026-01-15",
+  "endDate": null,
+  "dayOfMonth": 15,
+  "dayOfWeek": null,
+  "monthOfYear": null
+}
+```
+
+#### Projections (`projections-grid.json`)
+Period-by-period account balance projections (read-only).
+
+**Key Fields**:
+- `scenarioId`: Parent scenario
+- `accountId` / `accountName`: Which account
+- `isPrimary`: Whether this is the primary account
+- `period` / `periodLabel`: Period end date and label
+- `openingBalance`: Balance at period start
+- `totalDebits`: Sum of all debits (outflows)
+- `totalCredits`: Sum of all credits (inflows)
+- `netTransactions`: Credits - Debits
+- `interestEarned`: Interest calculated for period
+- `growthAmount`: Growth calculated for period
+- `projectedBalance`: Ending balance
+- `transactionCount`: Number of transactions in period
+
+### Projection Engine
+
+**Algorithm**:
+1. Calculate periods based on start/end dates and period type
+2. Get planned transactions for scenario
+3. Apply transaction overrides from scenario
+4. Get all accounts (scenario accounts + all accounts in transactions)
+5. For each period:
+   - Expand recurring transactions into instances
+   - Calculate debits and credits for each account
+   - Calculate interest (if enabled)
+   - Calculate growth (if enabled)
+   - Project ending balance
+6. Validate double-entry: sum(debits) = sum(credits) for each period
+7. Save projections
+
+**Interest Calculation**:
+```javascript
+calculateInterest(principal, annualRate, compounding, days) {
+  const rate = annualRate / 100;
+  switch (compounding) {
+    case 'Monthly':
+      const months = days / 30.44;
+      return principal * Math.pow(1 + rate/12, months) - principal;
+    // ... other compounding frequencies
+  }
+}
+```
+
+**Double-Entry Bookkeeping**:
+Every planned transaction creates TWO projection entries:
+- Debit entry on fromAccount (reduces balance)
+- Credit entry on toAccount (increases balance)
+
+This ensures `totalDebits = totalCredits` for each period, maintaining accounting accuracy.
+
+### Primary Account Filtering
+
+**Purpose**: Focus on a specific account and its related transactions.
+
+**Filter Logic**:
+- User selects a primary account from dropdown
+- Planned Transactions section shows only transactions involving that account
+- Projections section shows primary account PLUS all related secondary accounts
+
+**Example**:
+- Primary: Checking Account
+- Related accounts: Salary Income, Rent Expense, Savings Account
+- Shows all transactions between Checking and these accounts
+- Shows projections for Checking (highlighted) + related accounts (indented)
+
+### Account Interest/Growth Fields
+
+Accounts can now have interest and growth settings:
+
+**Interest** (`accounts-grid.json → interestModal`):
+- `enabled`: Enable/disable interest
+- `nominalRate`: Annual interest rate (%)
+- `compoundingInterval`: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Annually"
+- `calculationMethod`: "Simple" | "Compound"
+
+**Growth** (`accounts-grid.json → growthModal`):
+- `enabled`: Enable/disable growth
+- `rate`: Annual growth rate (%)
+- `type`: "Linear" | "Compound-Annual"
+
+### DataManager Methods
+
+```javascript
+// Scenarios
+await dataManager.saveScenarios(scenarios)
+const scenario = dataManager.getScenario(scenarioId)
+const clone = await dataManager.cloneScenario(scenarioId, newName)
+
+// Planned Transactions
+await dataManager.savePlannedTransactions(plannedTransactions, scenarioId)
+const plannedTxs = dataManager.getPlannedTransactions(scenarioId)
+
+// Projections
+await dataManager.saveProjections(projections, scenarioId)
+const projections = dataManager.getProjections(scenarioId, accountId)
+await dataManager.clearProjections(scenarioId)
+```
+
+### Usage Workflow
+
+1. **Create Scenario**: Define name, type, date range, period type, and accounts
+2. **Add Planned Transactions**: Set up income, expenses, transfers with recurrence
+3. **Generate Projection**: Click button to run projection engine
+4. **View Results**: Analyze projections with primary account filtering
+5. **Clone & Compare**: Clone scenario to test different parameters
+
+### Example Test Scenario
+
+**Scenario**: "2026 Test Budget"
+- Type: Budget
+- Date Range: 2026-01-01 to 2026-12-31 (12 months)
+- Period: Month
+- Accounts: Checking (primary), Savings
+
+**Planned Transactions**:
+1. Monthly Salary: $5,000 (Income → Checking, 15th of month)
+2. Monthly Rent: $1,500 (Checking → Rent Expense, 1st of month)
+3. Monthly Savings: $500 (Checking → Savings, 16th of month)
+
+**Results**:
+- 48 projections generated (12 months × 4 accounts)
+- Checking balance: $2,000 → $38,800
+- Interest earned: $373.50 @ 2% APR
+- All periods balanced (debits = credits)
+
+---
+
 **End of Technical Documentation**
 
 For questions or clarifications, review the source code in conjunction with this documentation. All file paths are relative to the project root (`/Users/Jay/GIT-Repos-Personal/ftrack`).
