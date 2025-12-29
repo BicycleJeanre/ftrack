@@ -30,7 +30,10 @@ export class EditableGrid {
         // Internal working data - copy of original data for manipulation
         this.workingData = [...this.data];
 
-        this.showActions = this.mainGrid.actions.add || this.mainGrid.actions.edit || this.mainGrid.actions.delete || this.mainGrid.actions.save;
+        // Allow showActions to be overridden, default based on available actions
+        this.showActions = options.showActions !== undefined 
+            ? options.showActions 
+            : (this.mainGrid.actions.add || this.mainGrid.actions.edit || this.mainGrid.actions.delete || this.mainGrid.actions.save);
 
         // Track current cell for Excel-like navigation
         this.currentCell = { row: 0, col: 0 };
@@ -534,6 +537,10 @@ export class EditableGrid {
     };
 
     handleAdd() {
+        this._handleAddRow();
+    }
+
+    _handleAddRow() {
         const newRow = {};
         this.mainGrid.columns.forEach(col => {
             if (col.field) {
@@ -593,214 +600,258 @@ export class EditableGrid {
             this.shortcutsLoaded = true;
         }
 
-        // Make table focusable
-        table.setAttribute('tabindex', '0');
-
         // Add click handlers to all cells for selection
         const rows = tbody.querySelectorAll('tr');
         rows.forEach((row, rowIndex) => {
             const cells = row.querySelectorAll('td');
             cells.forEach((cell, colIndex) => {
-                // Skip actions column
-                const editableCols = this.mainGrid.columns.filter(c => c.display);
-                if (colIndex >= editableCols.length) return;
+                // Skip hidden columns and actions column
+                if (colIndex >= this.mainGrid.columns.length) return;
+                const column = this.mainGrid.columns[colIndex];
+                if (!column.display || !column.editable) return;
 
                 cell.addEventListener('click', (e) => {
-                    // Don't intercept clicks on buttons or interactive elements
-                    if (e.target.tagName === 'SPAN' || e.target.tagName === 'BUTTON') return;
+                    // Update current cell position (using schema column index)
+                    this.currentCell.row = rowIndex;
+                    this.currentCell.col = colIndex;
+                    
+                    // If clicked on interactive element, just ensure it stays focused
+                    if (e.target.tagName === 'SPAN' || e.target.tagName === 'BUTTON') {
+                        return;
+                    }
+                    
+                    // If clicked on input/select, make sure it has focus (may have clicked padding)
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+                        if (!e.target.matches(':focus')) {
+                            e.target.focus();
+                            if (e.target.tagName === 'INPUT' && (e.target.type === 'text' || e.target.type === 'number')) {
+                                e.target.select();
+                            }
+                        }
+                        return;
+                    }
+                    
+                    // Clicked on cell background - call _selectCell for full focus handling
                     this._selectCell(rowIndex, colIndex);
-                });
-
-                // Double-click to edit
-                cell.addEventListener('dblclick', (e) => {
-                    if (e.target.tagName === 'SPAN' || e.target.tagName === 'BUTTON') return;
-                    this._startEdit(rowIndex, colIndex);
                 });
             });
         });
 
         // Keyboard event handler
         table.addEventListener('keydown', (e) => this._handleKeydown(e, table));
-
-        // Highlight initial cell
-        this._highlightCell();
     }
 
     _handleKeydown(e, table) {
-        const editableCols = this.mainGrid.columns.filter(c => c.display);
         const rows = table.querySelector('tbody').querySelectorAll('tr');
         const maxRow = rows.length - 1;
-        const maxCol = editableCols.length - 1;
 
-        // If actively editing an input, allow some keys to pass through
-        if (this.isEditing && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT')) {
-            if (matchShortcut(e, getShortcut('EditableGrid', 'cancelEdit'))) {
-                e.preventDefault();
-                this._cancelEdit();
-                return;
-            }
-            // Enter when editing moves down and exits edit mode
-            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault();
-                this._exitEditMode();
-                this._moveDown();
-                return;
-            }
-            if (matchShortcut(e, getShortcut('EditableGrid', 'nextCell')) || matchShortcut(e, getShortcut('EditableGrid', 'prevCell'))) {
-                e.preventDefault();
-                this._exitEditMode();
-                if (e.shiftKey) {
-                    this._moveLeft();
-                } else {
-                    this._moveRight();
-                }
-                return;
-            }
-            return; // Let other keys work normally in input
+        // Check if currently in an input/select
+        const activeElement = document.activeElement;
+        const isInInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT');
+
+        // Cancel edit (Escape) - revert changes
+        if (matchShortcut(e, getShortcut('EditableGrid', 'cancelEdit'))) {
+            e.preventDefault();
+            this._cancelEdit();
+            return;
         }
 
-        // Navigation shortcuts (when NOT editing)
-        if (matchShortcut(e, getShortcut('EditableGrid', 'moveUp'))) {
+        // Delete row (works even when editing)
+        if (matchShortcut(e, getShortcut('EditableGrid', 'deleteRow'))) {
             e.preventDefault();
-            this._moveUp();
-        } else if (matchShortcut(e, getShortcut('EditableGrid', 'moveDown'))) {
+            const row = rows[this.currentCell.row];
+            if (row) this.handleDelete(row);
+            return;
+        }
+
+        // Add row (works even when editing)
+        if (matchShortcut(e, getShortcut('EditableGrid', 'addRow'))) {
             e.preventDefault();
-            this._moveDown();
-        } else if (matchShortcut(e, getShortcut('EditableGrid', 'moveLeft'))) {
-            e.preventDefault();
-            this._moveLeft();
-        } else if (matchShortcut(e, getShortcut('EditableGrid', 'moveRight'))) {
-            e.preventDefault();
-            this._moveRight();
-        } else if (matchShortcut(e, getShortcut('EditableGrid', 'nextCell')) || matchShortcut(e, getShortcut('EditableGrid', 'prevCell'))) {
+            this._handleAddRow();
+            return;
+        }
+
+        // Navigation: Tab = right, Shift+Tab = left, Enter = down, Shift+Enter = up
+        if (e.key === 'Tab') {
             e.preventDefault();
             if (e.shiftKey) {
                 this._moveLeft();
             } else {
                 this._moveRight();
             }
-        } else if (e.key === 'Enter' && !this.isEditing) {
-            // Enter when NOT editing starts edit mode
+        } else if (e.key === 'Enter') {
             e.preventDefault();
-            this._startEdit(this.currentCell.row, this.currentCell.col);
-        } else if (matchShortcut(e, getShortcut('EditableGrid', 'startEdit'))) {
-            // Ctrl+Enter also starts editing (alternative shortcut)
+            if (e.shiftKey) {
+                this._moveUp();
+            } else {
+                this._moveDown();
+            }
+        } else if (!isInInput && e.key === 'ArrowUp') {
+            // Arrow keys only work when NOT in an input (prevents conflict with text editing)
             e.preventDefault();
-            this._startEdit(this.currentCell.row, this.currentCell.col);
-        } else if (matchShortcut(e, getShortcut('EditableGrid', 'cancelEdit'))) {
+            this._moveUp();
+        } else if (!isInInput && e.key === 'ArrowDown') {
             e.preventDefault();
-            this._cancelEdit();
-        } else if (!this.isEditing && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-            // Typing any alphanumeric key starts editing (but not modifier combos)
+            this._moveDown();
+        } else if (!isInInput && e.key === 'ArrowLeft') {
             e.preventDefault();
-            this._startEdit(this.currentCell.row, this.currentCell.col, e.key);
+            this._moveLeft();
+        } else if (!isInInput && e.key === 'ArrowRight') {
+            e.preventDefault();
+            this._moveRight();
+        } else if (!isInInput && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            // Typing any character when NOT in input - start editing with that character
+            e.preventDefault();
+            this._startEditingWithChar(e.key);
         }
+    }
+
+    _startEditingWithChar(char) {
+        const column = this.mainGrid.columns[this.currentCell.col];
+        
+        // Only allow editing if column is editable
+        if (!column.editable || !this.mainGrid.actions.edit) return;
+
+        const table = this.targetElement.querySelector('table');
+        const tbody = table?.querySelector('tbody');
+        const rows = tbody?.querySelectorAll('tr');
+        const cell = rows?.[this.currentCell.row]?.querySelectorAll('td')[this.currentCell.col];
+        const input = cell?.querySelector('input');
+
+        if (input && input.tagName === 'INPUT') {
+            // Set value to the typed character, focus, and move cursor to end
+            input.value = char;
+            input.focus();
+            // Move cursor to end
+            if (input.setSelectionRange) {
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+        }
+    }
+
+    _saveCurrentCell() {
+        // Save the current cell's data before moving away
+        const table = this.targetElement.querySelector('table');
+        if (!table) return;
+
+        const tbody = table.querySelector('tbody');
+        const rows = tbody.querySelectorAll('tr');
+        const currentRow = rows[this.currentCell.row];
+        if (!currentRow) return;
+
+        // Call handleSave to save the entire row
+        this.handleSave(currentRow);
     }
 
     _moveUp() {
         if (this.currentCell.row > 0) {
-            this._exitEditMode();
+            this._saveCurrentCell();
             this.currentCell.row--;
-            this._highlightCell();
+            this._selectCell(this.currentCell.row, this.currentCell.col);
         }
     }
 
     _moveDown() {
         const maxRow = this.workingData.length - 1;
         if (this.currentCell.row < maxRow) {
-            this._exitEditMode();
+            this._saveCurrentCell();
             this.currentCell.row++;
-            this._highlightCell();
+            this._selectCell(this.currentCell.row, this.currentCell.col);
         }
     }
 
     _moveLeft() {
-        const editableCols = this.mainGrid.columns.filter(c => c.display);
-        if (this.currentCell.col > 0) {
-            this._exitEditMode();
-            this.currentCell.col--;
-            this._highlightCell();
-        }
-    }
-
-    _moveRight() {
-        const editableCols = this.mainGrid.columns.filter(c => c.display);
-        const maxCol = editableCols.length - 1;
-        if (this.currentCell.col < maxCol) {
-            this._exitEditMode();
-            this.currentCell.col++;
-            this._highlightCell();
-        }
-    }
-
-    _selectCell(row, col) {
-        this.currentCell.row = row;
-        this.currentCell.col = col;
-        this._highlightCell();
-    }
-
-    _highlightCell() {
-        const table = this.targetElement.querySelector('table');
-        if (!table) return;
-
-        // Remove previous highlight
-        const previous = table.querySelector('.cell-selected');
-        if (previous) previous.classList.remove('cell-selected');
-
-        // Add highlight to current cell
-        const tbody = table.querySelector('tbody');
-        if (!tbody) return;
-        const rows = tbody.querySelectorAll('tr');
-        if (rows[this.currentCell.row]) {
-            const cells = rows[this.currentCell.row].querySelectorAll('td');
-            if (cells[this.currentCell.col]) {
-                cells[this.currentCell.col].classList.add('cell-selected');
-                cells[this.currentCell.col].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        // Find previous visible and editable column
+        for (let col = this.currentCell.col - 1; col >= 0; col--) {
+            const column = this.mainGrid.columns[col];
+            if (column.display && column.editable) {
+                this._saveCurrentCell();
+                this.currentCell.col = col;
+                this._selectCell(this.currentCell.row, this.currentCell.col);
+                break;
             }
         }
     }
 
-    _startEdit(row, col, initialChar = null) {
-        const editableCols = this.mainGrid.columns.filter(c => c.display);
-        const column = editableCols[col];
+    _moveRight() {
+        // Find next visible and editable column
+        for (let col = this.currentCell.col + 1; col < this.mainGrid.columns.length; col++) {
+            const column = this.mainGrid.columns[col];
+            if (column.display && column.editable) {
+                this._saveCurrentCell();
+                this.currentCell.col = col;
+                this._selectCell(this.currentCell.row, this.currentCell.col);
+                break;
+            }
+        }
+    }
+
+    _selectCell(row, col) {
+        // Blur the currently focused element before changing cells
+        const currentFocus = document.activeElement;
+        if (currentFocus && (currentFocus.tagName === 'INPUT' || currentFocus.tagName === 'SELECT')) {
+            currentFocus.blur();
+        }
         
-        // Only allow editing if column is editable
-        if (!column.editable || !this.mainGrid.actions.edit) return;
+        this.currentCell.row = row;
+        this.currentCell.col = col;
+        
+        // Use requestAnimationFrame to ensure focus happens after blur completes
+        requestAnimationFrame(() => {
+            this._focusCell();
+        });
+    }
+
+    _focusCell() {
+        const column = this.mainGrid.columns[this.currentCell.col];
+        
+        // Only auto-focus if column is editable
+        if (!column.editable || !this.mainGrid.actions.edit) {
+            return;
+        }
 
         const table = this.targetElement.querySelector('table');
-        const tbody = table.querySelector('tbody');
-        const rows = tbody.querySelectorAll('tr');
-        const cell = rows[row].querySelectorAll('td')[col];
-        const input = cell.querySelector('input, select');
+        const tbody = table?.querySelector('tbody');
+        const rows = tbody?.querySelectorAll('tr');
+        const cell = rows?.[this.currentCell.row]?.querySelectorAll('td')[this.currentCell.col];
+        
+        // For modal type, focus the button and add Enter key handler
+        if (column.type === 'modal') {
+            const button = cell?.querySelector('span.btn');
+            if (button) {
+                button.tabIndex = 0;
+                button.focus();
+                
+                // Add keydown listener for Enter key
+                const enterHandler = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        button.click();
+                    }
+                };
+                
+                // Remove old listener if exists, add new one
+                button.removeEventListener('keydown', enterHandler);
+                button.addEventListener('keydown', enterHandler);
+            }
+            return;
+        }
+        
+        const input = cell?.querySelector('input, select');
 
         if (input) {
-            this.isEditing = true;
+            // Focus immediately - blur was handled before this call
             input.focus();
-            if (input.tagName === 'INPUT') {
-                // If initial character provided, replace value
-                if (initialChar) {
-                    input.value = initialChar;
-                } else {
-                    input.select();
-                }
+            
+            // For text and number inputs, select all content
+            if (input.tagName === 'INPUT' && (input.type === 'text' || input.type === 'number' || input.type === 'date')) {
+                input.select();
             }
         }
     }
 
     _cancelEdit() {
-        this.isEditing = false;
-        const table = this.targetElement.querySelector('table');
-        if (table) table.focus();
-        this._highlightCell();
-    }
-
-    _exitEditMode() {
-        if (this.isEditing) {
-            // Blur the currently focused element (input/select)
-            if (document.activeElement) {
-                document.activeElement.blur();
-            }
-            this.isEditing = false;
-        }
+        // Re-render to revert any unsaved changes
+        this.render();
     }
 }

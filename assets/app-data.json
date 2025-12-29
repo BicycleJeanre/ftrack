@@ -3,33 +3,23 @@
   "accounts": [
     {
       "id": 1,
-      "name": "Jeanre Credit Card",
+      "name": "Credity Card",
       "type": {
-        "id": 4,
-        "name": "Income"
+        "id": 1,
+        "name": "Asset"
       },
       "currency": {
-        "id": 1,
-        "name": "ZAR"
+        "id": 2,
+        "name": "USD"
       },
-      "balance": 10000,
+      "balance": 545,
       "current_balance": 10000,
-      "interest": [
-        {
-          "id": 0,
-          "presetOption": "Custom",
-          "nominalRate": 0,
-          "effectiveRate": 0,
-          "nominalRatePeriod": "Annually",
-          "calculationMethod": "Simple",
-          "compoundingInterval": "Monthly"
-        }
-      ],
-      "openDate": "2025-01-01"
+      "interest": null,
+      "openDate": "2025-01-21"
     },
     {
       "id": 2,
-      "name": "salary",
+      "name": "sal",
       "type": {
         "id": 1,
         "name": "Asset"
@@ -45,18 +35,28 @@
     },
     {
       "id": 3,
-      "name": "expenses",
+      "name": "have to pay",
       "type": {
-        "id": 1,
-        "name": "Asset"
+        "id": 2,
+        "name": "Liability"
       },
       "currency": {
         "id": 1,
         "name": "ZAR"
       },
-      "balance": 5000,
+      "balance": 400,
       "current_balance": 0,
-      "interest": null,
+      "interest": [
+        {
+          "id": 0,
+          "presetOption": "Custom",
+          "nominalRate": 0,
+          "effectiveRate": 0,
+          "nominalRatePeriod": "Annually",
+          "calculationMethod": "Simple",
+          "compoundingInterval": "Monthly"
+        }
+      ],
       "openDate": "2025-01-01"
     },
     {
@@ -87,28 +87,6 @@
         "name": "ZAR"
       },
       "balance": 20,
-      "current_balance": 0,
-      "interest": null,
-      "openDate": "2025-10-13"
-    },
-    {
-      "id": 6,
-      "name": "my drugs",
-      "type": {
-        "id": null,
-        "name": {
-          "id": 1,
-          "name": "Asset"
-        }
-      },
-      "currency": {
-        "id": null,
-        "name": {
-          "id": 1,
-          "name": "ZAR"
-        }
-      },
-      "balance": 0,
       "current_balance": 0,
       "interest": null,
       "openDate": "2025-10-13"

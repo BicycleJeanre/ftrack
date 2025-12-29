@@ -145,6 +145,7 @@ async function createGridSchema(tableElement, onSave, onDelete) {
 }
 
 function loadTable(tableData){
+    tableData.showActions = false; // Hide actions column - use keyboard shortcuts instead
     const grid =  new EditableGrid(tableData)
     grid.render()
 }

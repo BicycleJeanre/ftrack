@@ -1,16 +1,8 @@
 {
   "EditableGrid": {
-    "saveRow": "Enter",
+    "cancelEdit": "Escape",
     "deleteRow": "Delete",
-    "addRow": "Meta+Shift+A",
-    "moveUp": "ArrowUp",
-    "moveDown": "ArrowDown",
-    "moveLeft": "ArrowLeft",
-    "moveRight": "ArrowRight",
-    "nextCell": "Tab",
-    "prevCell": "Shift+Tab",
-    "startEdit": "Control+Enter",
-    "cancelEdit": "Escape"
+    "addRow": "Meta+Shift+A"
   },
   "Global": {
     "openSettings": "Meta+,"
