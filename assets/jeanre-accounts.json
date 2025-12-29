@@ -1,0 +1,346 @@
+[
+  {
+    "id": "ACC001",
+    "name": "Salary",
+    "type": "Income",
+    "balance": 0,
+    "description": "Employment income",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC002",
+    "name": "Bicycle Claims",
+    "type": "Income",
+    "balance": 0,
+    "description": "Reimbursements",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC003",
+    "name": "Jodine U",
+    "type": "Income",
+    "balance": 0,
+    "description": "Support from Jodine University fund",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC004",
+    "name": "Jodine Transactional",
+    "type": "Income",
+    "balance": 0,
+    "description": "Transfers from Jodine",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC005",
+    "name": "Other",
+    "type": "Income",
+    "balance": 0,
+    "description": "Miscellaneous income",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC006",
+    "name": "Personal Wealth",
+    "type": "Income",
+    "balance": 0,
+    "description": "Withdrawals from savings",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC007",
+    "name": "Retained Balance",
+    "type": "Income",
+    "balance": 0,
+    "description": "Carried forward balance",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC008",
+    "name": "Tax Refund",
+    "type": "Income",
+    "balance": 0,
+    "description": "Tax returns",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC009",
+    "name": "Bernice Transactional",
+    "type": "Income",
+    "balance": 0,
+    "description": "Transfers from Bernice",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC010",
+    "name": "Jeanre Credit Card",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Credit card payments",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC011",
+    "name": "Home Loan",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Mortgage payment",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC012",
+    "name": "Vehicle Loan",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Car financing",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC013",
+    "name": "Medical Aid",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Health insurance",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC014",
+    "name": "Netstar",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Vehicle tracking subscription",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC015",
+    "name": "Shortfall Insurance",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Gap insurance",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC016",
+    "name": "Vehicle Insurance",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Car insurance",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC017",
+    "name": "Home Insurance",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Property insurance",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC018",
+    "name": "Life Insurance",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Life cover",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC019",
+    "name": "Municipal Account",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Water, electricity, rates",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC020",
+    "name": "Internet",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Broadband service",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC021",
+    "name": "Fuel",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Petrol and diesel",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC022",
+    "name": "Running Costs",
+    "type": "Expense",
+    "balance": 0,
+    "description": "General household expenses",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC023",
+    "name": "Administration",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Bank fees and admin",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC024",
+    "name": "Jodine Transactional",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Transfers to Jodine",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC025",
+    "name": "Jodine AIE",
+    "type": "Expense",
+    "balance": 0,
+    "description": "AIE University payments",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC026",
+    "name": "Jodine U",
+    "type": "Expense",
+    "balance": 0,
+    "description": "University expenses",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC027",
+    "name": "Emergency",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Emergency fund contributions",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC028",
+    "name": "Jeanre Retirement",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Retirement savings",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC029",
+    "name": "Vehicle Licenses",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Vehicle registration",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC030",
+    "name": "Other",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Miscellaneous expenses",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC031",
+    "name": "Accounts",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Account payments",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC032",
+    "name": "Events",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Special events",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC033",
+    "name": "Medical",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Medical expenses",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC034",
+    "name": "Tax",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Tax payments",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC035",
+    "name": "Cell Phones",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Mobile phone costs",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC036",
+    "name": "Jansie",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Payments to Jansie",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC037",
+    "name": "H Smith",
+    "type": "Expense",
+    "balance": 0,
+    "description": "H Smith payments",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC038",
+    "name": "Vape",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Vaping products",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC039",
+    "name": "Easy Equities",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Investment contributions",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC040",
+    "name": "Gas",
+    "type": "Expense",
+    "balance": 0,
+    "description": "LPG gas",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC041",
+    "name": "Child Fund",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Child support fund",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC042",
+    "name": "Personal Wealth",
+    "type": "Expense",
+    "balance": 0,
+    "description": "Savings deposits",
+    "createdDate": "2024-05-01"
+  },
+  {
+    "id": "ACC999",
+    "name": "Jeanre Transactional",
+    "type": "Asset",
+    "balance": 0,
+    "description": "Primary checking account",
+    "createdDate": "2024-05-01"
+  }
+]

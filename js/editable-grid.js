@@ -633,19 +633,22 @@ export class EditableGrid {
         const maxCol = editableCols.length - 1;
 
         // If actively editing an input, allow some keys to pass through
-        if (this.isEditing && document.activeElement.tagName === 'INPUT') {
+        if (this.isEditing && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT')) {
             if (matchShortcut(e, getShortcut('EditableGrid', 'cancelEdit'))) {
                 e.preventDefault();
                 this._cancelEdit();
                 return;
             }
-            if (matchShortcut(e, getShortcut('EditableGrid', 'moveDown'))) {
+            // Enter when editing moves down and exits edit mode
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
                 e.preventDefault();
+                this._exitEditMode();
                 this._moveDown();
                 return;
             }
             if (matchShortcut(e, getShortcut('EditableGrid', 'nextCell')) || matchShortcut(e, getShortcut('EditableGrid', 'prevCell'))) {
                 e.preventDefault();
+                this._exitEditMode();
                 if (e.shiftKey) {
                     this._moveLeft();
                 } else {
@@ -656,7 +659,7 @@ export class EditableGrid {
             return; // Let other keys work normally in input
         }
 
-        // Navigation shortcuts
+        // Navigation shortcuts (when NOT editing)
         if (matchShortcut(e, getShortcut('EditableGrid', 'moveUp'))) {
             e.preventDefault();
             this._moveUp();
@@ -676,27 +679,27 @@ export class EditableGrid {
             } else {
                 this._moveRight();
             }
-        } else if (matchShortcut(e, getShortcut('EditableGrid', 'saveRow'))) {
+        } else if (e.key === 'Enter' && !this.isEditing) {
+            // Enter when NOT editing starts edit mode
             e.preventDefault();
-            if (this.isEditing) {
-                this._moveDown();
-            } else {
-                this._startEdit(this.currentCell.row, this.currentCell.col);
-            }
+            this._startEdit(this.currentCell.row, this.currentCell.col);
         } else if (matchShortcut(e, getShortcut('EditableGrid', 'startEdit'))) {
+            // Ctrl+Enter also starts editing (alternative shortcut)
             e.preventDefault();
             this._startEdit(this.currentCell.row, this.currentCell.col);
         } else if (matchShortcut(e, getShortcut('EditableGrid', 'cancelEdit'))) {
             e.preventDefault();
             this._cancelEdit();
-        } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !this.isEditing) {
-            // Typing any alphanumeric key starts editing
+        } else if (!this.isEditing && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            // Typing any alphanumeric key starts editing (but not modifier combos)
+            e.preventDefault();
             this._startEdit(this.currentCell.row, this.currentCell.col, e.key);
         }
     }
 
     _moveUp() {
         if (this.currentCell.row > 0) {
+            this._exitEditMode();
             this.currentCell.row--;
             this._highlightCell();
         }
@@ -705,6 +708,7 @@ export class EditableGrid {
     _moveDown() {
         const maxRow = this.workingData.length - 1;
         if (this.currentCell.row < maxRow) {
+            this._exitEditMode();
             this.currentCell.row++;
             this._highlightCell();
         }
@@ -713,6 +717,7 @@ export class EditableGrid {
     _moveLeft() {
         const editableCols = this.mainGrid.columns.filter(c => c.display);
         if (this.currentCell.col > 0) {
+            this._exitEditMode();
             this.currentCell.col--;
             this._highlightCell();
         }
@@ -722,6 +727,7 @@ export class EditableGrid {
         const editableCols = this.mainGrid.columns.filter(c => c.display);
         const maxCol = editableCols.length - 1;
         if (this.currentCell.col < maxCol) {
+            this._exitEditMode();
             this.currentCell.col++;
             this._highlightCell();
         }
@@ -786,5 +792,15 @@ export class EditableGrid {
         const table = this.targetElement.querySelector('table');
         if (table) table.focus();
         this._highlightCell();
+    }
+
+    _exitEditMode() {
+        if (this.isEditing) {
+            // Blur the currently focused element (input/select)
+            if (document.activeElement) {
+                document.activeElement.blur();
+            }
+            this.isEditing = false;
+        }
     }
 }
