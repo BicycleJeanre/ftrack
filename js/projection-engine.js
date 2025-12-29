@@ -35,11 +35,27 @@ export class ProjectionEngine {
 
         // 4. Get accounts for scenario
         const allAccounts = this.dataManager.cachedData.accounts;
-        const scenarioAccounts = (scenario.accounts || []).map(sa => {
-            const baseAccount = allAccounts.find(a => a.id === sa.id);
-            return baseAccount ? { ...baseAccount, isPrimary: sa.isPrimary } : null;
+        
+        // Start with scenario accounts
+        const scenarioAccountIds = new Set((scenario.accounts || []).map(a => a.id));
+        
+        // Add all accounts involved in planned transactions
+        effectivePlannedTxs.forEach(pt => {
+            if (pt.fromAccount) scenarioAccountIds.add(pt.fromAccount.id);
+            if (pt.toAccount) scenarioAccountIds.add(pt.toAccount.id);
+        });
+        
+        // Build list of accounts to project
+        const scenarioAccounts = Array.from(scenarioAccountIds).map(id => {
+            const baseAccount = allAccounts.find(a => a.id === id);
+            if (!baseAccount) return null;
+            
+            // Check if this is a primary account
+            const isPrimary = (scenario.accounts || []).some(sa => sa.id === id && sa.isPrimary);
+            return { ...baseAccount, isPrimary };
         }).filter(a => a !== null);
-        console.log(`Processing ${scenarioAccounts.length} accounts`);
+        
+        console.log(`Processing ${scenarioAccounts.length} accounts (including related accounts)`);
 
         // 5. Generate projections for each account
         const allProjections = [];
@@ -202,8 +218,8 @@ export class ProjectionEngine {
             if (effectiveParams.interest?.enabled) {
                 interest = this.calculateInterest(
                     currentBalance,
-                    effectiveParams.interest.rate,
-                    effectiveParams.interest.compounding,
+                    effectiveParams.interest.nominalRate || effectiveParams.interest.rate || 0,
+                    effectiveParams.interest.compoundingInterval || effectiveParams.interest.compounding || 'Monthly',
                     period.days
                 );
             }
