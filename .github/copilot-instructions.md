@@ -164,7 +164,7 @@
 ## 16. Current Feature Status
 
 16.1. Completed: home, accounts, transactions pages; EditableGrid (9+ column types); Modal; schema-driven rendering; file-based persistence
-16.2. Not Implemented: budget builder controller, forecast generation, interest calculations, recurrence processing, keyboard shortcuts, data validation, export/import
+16.2. Not Implemented: financial forecast controller, forecast generation, interest calculations, recurrence processing, keyboard shortcuts, data validation, export/import
 
 ---
 

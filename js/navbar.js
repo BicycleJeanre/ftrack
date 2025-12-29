@@ -4,7 +4,7 @@
     <a href="home.html" id="nav-home">Home</a>
     <a href="accounts.html" id="nav-accounts">Accounts</a>
     <a href="transactions.html" id="nav-transactions">Transactions</a>
-    <a href="budget.html" id="nav-budget">Budget Builder</a>
+    <a href="forecast.html" id="nav-forecast">Financial Forecast</a>
   `;
   function getPage() {
     var path = window.location.pathname.split('/').pop();
@@ -16,7 +16,7 @@
       'home.html': 'nav-home',
       'accounts.html': 'nav-accounts',
       'transactions.html': 'nav-transactions',
-      'budget.html': 'nav-budget',
+      'forecast.html': 'nav-forecast',
     };
     var activeId = navMap[getPage()];
     if (activeId) {

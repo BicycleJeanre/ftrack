@@ -1,5 +1,5 @@
-// This script manages the Budget page (/pages/budget.html).
-// It uses the EditableGrid module to render and manage the budget table.
+// This script manages the Financial Forecast page (/pages/forecast.html).
+// It uses the EditableGrid module to render and manage the forecast table.
 
 import { EditableGrid } from './editable-grid.js';
 import { loadGlobals } from './global-app.js';
@@ -14,14 +14,14 @@ import { generateForecast } from './forecast-generator.js';
 
 function buildGridContainer(){
 
-    const budgetEl = getEl('panel-budget');
+    const forecastEl = getEl('panel-forecast');
 
     //create header with foldable content    
     const panelHeader = document.createElement('div');
     panelHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header'
-    panelHeader.innerHTML = `<h2 class="text-main">Budget</h2><span class="accordion-arrow">&#9662;</span>`;
+    panelHeader.innerHTML = `<h2 class="text-main">Financial Forecast</h2><span class="accordion-arrow">&#9662;</span>`;
     panelHeader.addEventListener('click', () => window.toggleAccordion('content'));
-    window.add(budgetEl, panelHeader);
+    window.add(forecastEl, panelHeader);
 
     //foldable content
     const content = document.createElement('div');
@@ -29,70 +29,70 @@ function buildGridContainer(){
     content.className = 'bg-main rounded shadow-md accordion-content'
     content.style.display = 'block';
     content.style.padding = '18px 20px 20px 20px';
-    window.add(budgetEl, content)
+    window.add(forecastEl, content)
 
-    //create budget Definition table section
-    const budgetDefinitionTable = document.createElement('div');
-    budgetDefinitionTable.id = 'budgetDefinitionTable';
-    window.add(content, budgetDefinitionTable);
+    //create forecast Definition table section
+    const forecastDefinitionTable = document.createElement('div');
+    forecastDefinitionTable.id = 'forecastDefinitionTable';
+    window.add(content, forecastDefinitionTable);
 
 
-    //create budget forecast table section
-    const budgetForecastTable = document.createElement('div');
-    budgetForecastTable.id = 'budgetForecastTable';
-    window.add(content, budgetForecastTable);
+    //create forecast snapshot table section
+    const forecastSnapshotTable = document.createElement('div');
+    forecastSnapshotTable.id = 'forecastSnapshotTable';
+    window.add(content, forecastSnapshotTable);
 
-    return {budgetForecastTable, budgetDefinitionTable}
+    return {forecastSnapshotTable, forecastDefinitionTable}
 }
 
-async function onDefinitionSave(updatedBudget) {
-    // updatedBudget: the new/changed budget data to persist
+async function onDefinitionSave(updatedForecast) {
+    // updatedForecast: the new/changed forecast data to persist
     const fs = window.require('fs').promises;
     const dataPath = process.cwd() + '/assets/app-data.json';
     try {
         // Read the current data file
         const dataFile = await fs.readFile(dataPath, 'utf8');
         let appData = JSON.parse(dataFile);
-        // Only update the budget property with the new data
-        appData.budgetDefinitions = updatedBudget;
+        // Only update the forecast property with the new data
+        appData.forecastDefinitions = updatedForecast;
         // Write the updated data back to disk
         await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
-        console.log('Budget saved successfully!');
+        console.log('Forecast saved successfully!');
         // Call forecast generator directly
         await generateForecast();
         console.log('Forecast generated!');
     } catch (err) {
-        console.error('Failed to save budget data or generate forecast:', err);
+        console.error('Failed to save forecast data or generate forecast:', err);
     }
 }
 
-async function onForecastSave(updatedData) {
-    // updatedBudget: the new/changed budget data to persist
+async function onSnapshotSave(updatedData) {
+    // updatedData: the new/changed forecast snapshot data to persist
     const fs = window.require('fs').promises;
     const dataPath = process.cwd() + '/assets/app-data.json';
     try {
         // Read the current data file
         const dataFile = await fs.readFile(dataPath, 'utf8');
         let appData = JSON.parse(dataFile);
-        // Only update the budget property with the new data
-        appData.budgetForecasts = updatedData;
+        // Only update the forecast snapshots property with the new data
+        appData.forecastSnapshots = updatedData;
         // Write the updated data back to disk
         await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
-        console.log('Budget saved successfully!');
+        console.log('Forecast snapshots saved successfully!');
     } catch (err) {
-        console.error('Failed to save budget data:', err);
+        console.error('Failed to save forecast snapshot data:', err);
     }
 }
 
-async function createBudgetDefinitionSchema(tableElement, onDefinitionSave) {
+async function createForecastDefinitionSchema(tableElement, onDefinitionSave) {
     let gridData = {}
     gridData.targetElement = tableElement;
-    gridData.tableHeader = 'Budget'
+    gridData.tableHeader = 'Financial Forecast'
     gridData.onSave = onDefinitionSave;
     
     // Load the schema file from disk in an Electron app
     const fs = window.require('fs').promises; 
-    const schemaPath = process.cwd() + '/assets/budget-definition-grid.json';
+    const schemaPath = process.cwd() + '/assets/forecast-definition-grid.json';
     const dataPath = process.cwd() + '/assets/app-data.json';
 
     try {
@@ -101,7 +101,7 @@ async function createBudgetDefinitionSchema(tableElement, onDefinitionSave) {
 
         const dataFile = await fs.readFile(dataPath, 'utf8');
         const initialData = JSON.parse(dataFile);
-        gridData.data = initialData.budgetDefinitions;
+        gridData.data = initialData.forecastDefinitions;
 
         gridData.schema.mainGrid.columns.forEach(col => {
             if (col.optionsSourceFile && col.optionsSourceFile === 'app-data.json' && initialData[col.optionsSource]) {
@@ -116,15 +116,15 @@ async function createBudgetDefinitionSchema(tableElement, onDefinitionSave) {
     return gridData
 }
 
-async function createBudgetForecastSchema(tableElement, onForecastSave) {
+async function createForecastSnapshotSchema(tableElement, onSnapshotSave) {
     let gridData = {}
     gridData.targetElement = tableElement;
-    gridData.tableHeader = 'Budget'
-    gridData.onSave = onForecastSave;
+    gridData.tableHeader = 'Forecast Snapshots'
+    gridData.onSave = onSnapshotSave;
     
     // Load the schema file from disk in an Electron app
     const fs = window.require('fs').promises; 
-    const schemaPath = process.cwd() + '/assets/budget-forecast-grid.json';
+    const schemaPath = process.cwd() + '/assets/forecast-snapshot-grid.json';
     const dataPath = process.cwd() + '/assets/app-data.json';
 
     try {
@@ -133,7 +133,7 @@ async function createBudgetForecastSchema(tableElement, onForecastSave) {
 
         const dataFile = await fs.readFile(dataPath, 'utf8');
         const initialData = JSON.parse(dataFile);
-        gridData.data = initialData.budgetForecasts;
+        gridData.data = initialData.forecastSnapshots;
 
         // Inject dynamic options for columns with optionsSourceFile
         gridData.schema.mainGrid.columns.forEach(col => {
@@ -149,16 +149,16 @@ async function createBudgetForecastSchema(tableElement, onForecastSave) {
     return gridData
 }
 
-function loadTables(budgetDefinitionData, budgetForecastData){
-    const definitionGrid =  new EditableGrid(budgetDefinitionData)
+function loadTables(forecastDefinitionData, forecastSnapshotData){
+    const definitionGrid =  new EditableGrid(forecastDefinitionData)
     definitionGrid.render()
-    const forecastGrid =  new EditableGrid(budgetForecastData)
-    forecastGrid.render()
+    const snapshotGrid =  new EditableGrid(forecastSnapshotData)
+    snapshotGrid.render()
 }
 
 loadGlobals();
-const {budgetForecastTable, budgetDefinitionTable} = buildGridContainer();
-const budgetDefinitionData = await createBudgetDefinitionSchema(budgetDefinitionTable, onDefinitionSave)
-const budgetForecastData = await createBudgetForecastSchema(budgetForecastTable, onForecastSave)
+const {forecastSnapshotTable, forecastDefinitionTable} = buildGridContainer();
+const forecastDefinitionData = await createForecastDefinitionSchema(forecastDefinitionTable, onDefinitionSave)
+const forecastSnapshotData = await createForecastSnapshotSchema(forecastSnapshotTable, onSnapshotSave)
 
-loadTables(budgetDefinitionData, budgetForecastData);
+loadTables(forecastDefinitionData, forecastSnapshotData);

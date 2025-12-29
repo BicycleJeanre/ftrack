@@ -180,7 +180,7 @@
       "tags": []
     }
   ],
-  "budgetDefinitions": [
+  "forecastDefinitions": [
     {
       "id": 1,
       "name": "Sample Budget Version 1",
@@ -205,7 +205,7 @@
       ]
     }
   ],
-  "budgetForecasts": [
+  "forecastSnapshots": [
     {
       "id": 1,
       "movement": {
