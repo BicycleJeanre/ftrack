@@ -1201,6 +1201,312 @@ header.addEventListener('click', () => window.toggleAccordion('content-id'));
 
 ## Development Guidelines
 
+### Page Controller Pattern
+
+All pages follow a consistent 5-step pattern:
+
+#### Step 1: Build UI Container
+```javascript
+function buildGridContainer() {
+  const panel = window.getEl('panel-my-page');
+  panel.innerHTML = `
+    <div class="accordion-header bg-main bordered rounded shadow-lg pointer flex-between">
+      <h2>My Page Title</h2>
+      <span class="accordion-arrow">&#9662;</span>
+    </div>
+    <div class="accordion-content bg-main rounded shadow-md">
+      <div id="my-table-container"></div>
+    </div>
+  `;
+}
+```
+
+#### Step 2: Define onSave Callback
+```javascript
+async function onSave(updatedData) {
+  const fs = window.require('fs').promises;
+  const dataPath = process.cwd() + '/assets/app-data.json';
+  try {
+    const dataFile = await fs.readFile(dataPath, 'utf8');
+    const appData = JSON.parse(dataFile);
+    appData.myEntities = updatedData;
+    await fs.writeFile(dataPath, JSON.stringify(appData, null, 2), 'utf8');
+    console.log('[Save] Success');
+  } catch (err) {
+    console.error('[Save] Failed:', err);
+  }
+}
+```
+
+#### Step 3: Load Schema and Data
+```javascript
+async function createGridSchema() {
+  const fs = window.require('fs').promises;
+  try {
+    const schemaPath = process.cwd() + '/assets/my-entities-grid.json';
+    const schema = JSON.parse(await fs.readFile(schemaPath, 'utf8'));
+    
+    const dataPath = process.cwd() + '/assets/app-data.json';
+    const appData = JSON.parse(await fs.readFile(dataPath, 'utf8'));
+    
+    return {
+      schema: schema,
+      data: appData.myEntities || []
+    };
+  } catch (err) {
+    console.error('[Schema] Load failed:', err);
+    return { schema: {}, data: [] };
+  }
+}
+```
+
+#### Step 4: Render Grid
+```javascript
+async function loadTable() {
+  const { schema, data } = await createGridSchema();
+  const grid = new EditableGrid({
+    targetElement: window.getEl('my-table-container'),
+    tableHeader: 'My Entities',
+    schema: schema,
+    data: data,
+    onSave: onSave
+  });
+  grid.render();
+}
+```
+
+#### Step 5: Execute on Page Load
+```javascript
+import { loadGlobals } from './global-app.js';
+import { EditableGrid } from './editable-grid.js';
+
+loadGlobals();
+buildGridContainer();
+loadTable();
+```
+
+### EditableGrid Configuration Reference
+
+#### Required Constructor Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `targetElement` | HTMLElement | Container where grid will render |
+| `tableHeader` | string | Title displayed above grid |
+| `schema` | object | Grid configuration (columns, actions, modals) |
+| `data` | array | Array of data objects to display |
+| `onSave` | function | Callback when data is saved |
+
+#### Optional Constructor Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `onDelete` | function | Custom delete callback (default uses onSave) |
+| `parentRowId` | number | For nested grids: parent row ID |
+| `parentField` | string | For nested grids: field name in parent |
+
+#### Schema Structure
+
+```json
+{
+  "mainGrid": {
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true
+    },
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": 0
+      },
+      {
+        "field": "name",
+        "header": "Name",
+        "type": "text",
+        "editable": true,
+        "display": true,
+        "default": ""
+      }
+    ]
+  }
+}
+```
+
+#### Column Configuration Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `field` | string | Yes | Key in data object |
+| `header` | string | Yes | Column header text |
+| `type` | string | Yes | Column type (text, number, select, etc.) |
+| `editable` | boolean | Yes | Can user edit this field |
+| `display` | boolean | Yes | Show column in grid |
+| `default` | any | No | Default value for new rows |
+| `optionsSource` | string | Conditional | For select/addSelect: key in schema with options array |
+| `modal` | string | Conditional | For modal type: key in schema with modal config |
+| `modalIcon` | string | Conditional | For modal type: icon name from icons.js |
+| `modalIconTitle` | string | Conditional | For modal type: tooltip text |
+
+#### Supported Column Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `text` | Single-line text input | Names, descriptions |
+| `number` | Numeric input with step | IDs, amounts, quantities |
+| `select` | Dropdown from predefined options | Categories, types |
+| `addSelect` | Dropdown that allows adding new options | Account selection in transactions |
+| `modal` | Opens modal with nested grid | Complex related data (e.g., interest schedules) |
+| `tags` | Inline tag editor | Multiple labels/categories |
+| `checkbox` | Boolean toggle | Flags, yes/no fields |
+| `exclusive` | Checkbox with single-selection logic | Primary/default selection |
+| `date` | Date picker input | Dates, timestamps |
+
+#### Excel-Like Navigation
+
+EditableGrid includes built-in keyboard navigation:
+
+| Key | Action |
+|-----|--------|
+| Arrow Keys | Move between cells |
+| Tab | Move to next cell |
+| Shift+Tab | Move to previous cell |
+| Enter | Start editing (or move down if editing) |
+| F2 | Start editing current cell |
+| Escape | Cancel editing |
+| Any alphanumeric | Start editing and type |
+| Double-click | Edit cell |
+
+Visual feedback:
+- Selected cell: `.cell-selected` CSS class with `#b6ff00` outline
+- Focus state: Table has `tabindex="0"` and focus outline
+
+#### Adding New Column Types
+
+To extend EditableGrid with a custom column type:
+
+1. **Update `createTableRows()` in editable-grid.js**:
+```javascript
+case 'myNewType': {
+    let input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'my-new-type-input';
+    input.value = acc[col.field];
+    // Add custom behavior
+    input.addEventListener('change', () => {
+        // Handle changes
+    });
+    window.add(cellContent, input);
+    break;
+}
+```
+
+2. **Update `handleSave()` in editable-grid.js**:
+```javascript
+case 'myNewType': {
+    const input = cell.querySelector('input.my-new-type-input');
+    value = input ? input.value : '';
+    // Process value as needed
+    break;
+}
+```
+
+3. **Add CSS in app.css**:
+```css
+.my-new-type-input {
+    /* Custom styling */
+}
+```
+
+4. **Update schema documentation** in this file
+
+---
+
+### Keyboard Shortcuts System
+
+#### Configuration File: `/assets/shortcuts.json`
+
+```json
+{
+  "EditableGrid": {
+    "saveRow": "Enter",
+    "deleteRow": "Delete",
+    "addRow": "Meta+Shift+A",
+    "moveUp": "ArrowUp",
+    "moveDown": "ArrowDown",
+    "moveLeft": "ArrowLeft",
+    "moveRight": "ArrowRight",
+    "nextCell": "Tab",
+    "prevCell": "Shift+Tab",
+    "startEdit": "F2",
+    "cancelEdit": "Escape"
+  },
+  "Global": {
+    "openSettings": "Meta+,"
+  }
+}
+```
+
+#### Shortcut Format
+
+- **Modifier Keys**: `Meta`, `Shift`, `Alt`, `Control` (or `Ctrl`)
+- **Special Keys**: `Enter`, `Escape`, `Tab`, `Delete`, `F1`-`F12`
+- **Arrow Keys**: `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`
+- **Combination**: Join with `+` (e.g., `Meta+Shift+A`)
+
+#### Config Module API (`/js/config.js`)
+
+```javascript
+import { loadConfig, getShortcut, matchShortcut } from './config.js';
+
+// Load shortcuts (call once, async)
+await loadConfig();
+
+// Get shortcut string
+const shortcut = getShortcut('EditableGrid', 'saveRow'); // "Enter"
+
+// Check if event matches shortcut
+if (matchShortcut(event, getShortcut('EditableGrid', 'saveRow'))) {
+    // Handle save
+}
+```
+
+#### Usage Example in Components
+
+```javascript
+async _setupKeyboardNavigation(table) {
+    // Load shortcuts
+    if (!this.shortcutsLoaded) {
+        await loadConfig();
+        this.shortcutsLoaded = true;
+    }
+    
+    table.addEventListener('keydown', (e) => {
+        if (matchShortcut(e, getShortcut('EditableGrid', 'moveUp'))) {
+            e.preventDefault();
+            this._moveUp();
+        } else if (matchShortcut(e, getShortcut('EditableGrid', 'moveDown'))) {
+            e.preventDefault();
+            this._moveDown();
+        }
+        // ... more shortcuts
+    });
+}
+```
+
+**Rules**:
+- NEVER hardcode keyboard shortcuts in components
+- ALWAYS define shortcuts in `/assets/shortcuts.json`
+- ALWAYS use config module for matching
+- Group shortcuts by module name
+
+---
+
 ### Adding a New Page
 
 1. **Create HTML file** in `/pages`:

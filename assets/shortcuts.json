@@ -9,7 +9,7 @@
     "moveRight": "ArrowRight",
     "nextCell": "Tab",
     "prevCell": "Shift+Tab",
-    "startEdit": "F2",
+    "startEdit": "Enter",
     "cancelEdit": "Escape"
   },
   "Global": {
