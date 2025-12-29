@@ -1,0 +1,156 @@
+{
+  "mainGrid": {
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": 0
+      },
+      {
+        "field": "scenarioId",
+        "header": "Scenario ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": null
+      },
+      {
+        "field": "accountId",
+        "header": "Account ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": null
+      },
+      {
+        "field": "accountName",
+        "header": "Account",
+        "type": "text",
+        "editable": false,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "isPrimary",
+        "header": "Primary",
+        "type": "checkbox",
+        "editable": false,
+        "display": true,
+        "default": false
+      },
+      {
+        "field": "period",
+        "header": "Period End",
+        "type": "date",
+        "editable": false,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "periodLabel",
+        "header": "Period",
+        "type": "text",
+        "editable": false,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "periodType",
+        "header": "Period Type",
+        "type": "text",
+        "editable": false,
+        "display": false,
+        "default": ""
+      },
+      {
+        "field": "openingBalance",
+        "header": "Opening Balance",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "totalDebits",
+        "header": "Debits",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "totalCredits",
+        "header": "Credits",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "netTransactions",
+        "header": "Net Transactions",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "interestEarned",
+        "header": "Interest",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "growthAmount",
+        "header": "Growth",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "netChange",
+        "header": "Net Change",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "projectedBalance",
+        "header": "Projected Balance",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "transactionCount",
+        "header": "Tx Count",
+        "type": "number",
+        "editable": false,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "calculatedAt",
+        "header": "Calculated",
+        "type": "datetime",
+        "editable": false,
+        "display": false,
+        "default": null
+      }
+    ],
+    "actions": {
+      "add": false,
+      "edit": false,
+      "delete": false,
+      "save": false
+    }
+  }
+}

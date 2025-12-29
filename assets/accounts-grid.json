@@ -64,7 +64,19 @@
                 "type": "modal",
                 "modal": "interestModal",
                 "modalIcon": "interest",
-                "modalIconTitle": "Edit Interest"  
+                "modalIconTitle": "Edit Interest",
+                "default": null
+            },
+            {
+                "field": "growth",
+                "display": true,
+                "header": "Growth",
+                "editable": true,
+                "type": "modal",
+                "modal": "growthModal",
+                "modalIcon": "growth",
+                "modalIconTitle": "Edit Growth",
+                "default": null
             },
             {
                 "field": "openDate",
@@ -248,5 +260,53 @@
                 "default": 12
             }
         }
+    },
+    "growthTypes": [
+        { "id": 1, "name": "Linear" },
+        { "id": 2, "name": "Compound-Annual" }
+    ],
+    "growthModal": {
+        "title": "Edit Growth Settings",
+        "dataField": "growth",
+        "actions": {
+            "add": false,
+            "edit": true,
+            "delete": false,
+            "save": true
+        },
+        "columns": [
+            {
+                "field": "id",
+                "header": "ID",
+                "editable": false,
+                "type": "number",
+                "display": false
+            },
+            {
+                "field": "enabled",
+                "header": "Enable Growth",
+                "editable": true,
+                "type": "checkbox",
+                "default": false,
+                "display": true
+            },
+            {
+                "field": "rate",
+                "header": "Annual Rate (%)",
+                "editable": true,
+                "type": "number",
+                "default": 0,
+                "display": true
+            },
+            {
+                "field": "type",
+                "header": "Growth Type",
+                "editable": true,
+                "type": "select",
+                "optionsSource": "growthTypes",
+                "default": "Compound-Annual",
+                "display": true
+            }
+        ]
     }
 }

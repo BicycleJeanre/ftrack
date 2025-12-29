@@ -15,7 +15,8 @@
       "balance": 545,
       "current_balance": 10000,
       "interest": null,
-      "openDate": "2025-01-21"
+      "openDate": "2025-01-21",
+      "growth": null
     },
     {
       "id": 2,
@@ -31,7 +32,8 @@
       "balance": 24600,
       "current_balance": 0,
       "interest": null,
-      "openDate": "2025-01-01"
+      "openDate": "2025-01-01",
+      "growth": null
     },
     {
       "id": 3,
@@ -47,7 +49,8 @@
       "balance": 400,
       "current_balance": 0,
       "interest": null,
-      "openDate": "2025-01-01"
+      "openDate": "2025-01-01",
+      "growth": null
     },
     {
       "id": 4,
@@ -63,7 +66,8 @@
       "balance": 0,
       "current_balance": 0,
       "interest": null,
-      "openDate": "2025-10-13"
+      "openDate": "2025-10-13",
+      "growth": null
     },
     {
       "id": 5,
@@ -79,7 +83,8 @@
       "balance": 20,
       "current_balance": 0,
       "interest": null,
-      "openDate": "2025-10-13"
+      "openDate": "2025-10-13",
+      "growth": null
     },
     {
       "id": 6,
@@ -101,7 +106,8 @@
       "balance": 0,
       "current_balance": 0,
       "interest": null,
-      "openDate": ""
+      "openDate": "",
+      "growth": null
     }
   ],
   "transactions": [
@@ -170,33 +176,33 @@
       "tags": []
     }
   ],
-  "forecastDefinitions": [
+  "scenarios": [
     {
       "id": 1,
       "name": "Sample Budget Version 1",
-      "mode": {
-        "id": 2,
-        "name": "periods"
-      },
+      "type": "Budget",
+      "description": "Test budget version for demo.",
       "startDate": "2025-08-01",
       "endDate": "2025-10-01",
-      "periodType": {
-        "id": 3,
-        "name": "Month"
-      },
-      "periodCount": 24,
-      "accounts": {
-        "id": null,
-        "name": "12"
-      },
-      "notes": "Test budget version for demo.",
+      "projectionPeriod": "Month",
+      "accounts": [
+        {
+          "id": null,
+          "name": "12",
+          "isPrimary": true
+        }
+      ],
+      "accountOverrides": [],
+      "transactionOverrides": [],
+      "createdDate": "2025-12-29",
+      "lastCalculated": null,
       "tags": [
         "demo"
       ]
     }
   ],
-  "forecastSetup": [],
-  "forecastSnapshots": [
+  "plannedTransactions": [],
+  "projections": [
     {
       "id": 1,
       "movement": {

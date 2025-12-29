@@ -1,0 +1,151 @@
+{
+  "mainGrid": {
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": 0
+      },
+      {
+        "field": "scenarioId",
+        "header": "Scenario ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": null
+      },
+      {
+        "field": "transactionTemplateId",
+        "header": "Template ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": null
+      },
+      {
+        "field": "description",
+        "header": "Description",
+        "type": "text",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "fromAccount",
+        "header": "From Account (Debit)",
+        "type": "addSelect",
+        "editable": true,
+        "display": true,
+        "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
+        "default": null
+      },
+      {
+        "field": "toAccount",
+        "header": "To Account (Credit)",
+        "type": "addSelect",
+        "editable": true,
+        "display": true,
+        "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
+        "default": null
+      },
+      {
+        "field": "amount",
+        "header": "Amount",
+        "type": "number",
+        "editable": true,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "recurrence",
+        "header": "Recurrence",
+        "type": "modal",
+        "editable": true,
+        "display": true,
+        "modal": "recurrenceModal",
+        "modalIcon": "recurring",
+        "modalIconTitle": "Edit Recurrence",
+        "default": {
+          "type": "one-time",
+          "frequency": "Monthly",
+          "interval": 1,
+          "startDate": "",
+          "endDate": null,
+          "dayOfMonth": null,
+          "dayOfWeek": null,
+          "monthOfYear": null
+        }
+      },
+      {
+        "field": "enabled",
+        "header": "Enabled",
+        "type": "checkbox",
+        "editable": true,
+        "display": true,
+        "default": true
+      },
+      {
+        "field": "category",
+        "header": "Category",
+        "type": "text",
+        "editable": false,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "tags",
+        "header": "Tags",
+        "type": "tags",
+        "editable": true,
+        "display": true,
+        "default": []
+      }
+    ],
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": false
+    }
+  },
+  "recurrenceTypes": [
+    { "id": 1, "name": "one-time" },
+    { "id": 2, "name": "recurring" }
+  ],
+  "recurrenceFrequencies": [
+    { "id": 1, "name": "Daily" },
+    { "id": 2, "name": "Weekly" },
+    { "id": 3, "name": "Biweekly" },
+    { "id": 4, "name": "Monthly" },
+    { "id": 5, "name": "Quarterly" },
+    { "id": 6, "name": "Yearly" }
+  ],
+  "daysOfWeek": [
+    { "id": 1, "name": "Monday" },
+    { "id": 2, "name": "Tuesday" },
+    { "id": 3, "name": "Wednesday" },
+    { "id": 4, "name": "Thursday" },
+    { "id": 5, "name": "Friday" },
+    { "id": 6, "name": "Saturday" },
+    { "id": 7, "name": "Sunday" }
+  ],
+  "monthsOfYear": [
+    { "id": 1, "name": "January" },
+    { "id": 2, "name": "February" },
+    { "id": 3, "name": "March" },
+    { "id": 4, "name": "April" },
+    { "id": 5, "name": "May" },
+    { "id": 6, "name": "June" },
+    { "id": 7, "name": "July" },
+    { "id": 8, "name": "August" },
+    { "id": 9, "name": "September" },
+    { "id": 10, "name": "October" },
+    { "id": 11, "name": "November" },
+    { "id": 12, "name": "December" }
+  ]
+}
