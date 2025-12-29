@@ -1,0 +1,107 @@
+{
+  "mainGrid": {
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": 0
+      },
+      {
+        "field": "name",
+        "header": "Template Name",
+        "type": "text",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "mode",
+        "header": "Mode",
+        "type": "select",
+        "editable": true,
+        "display": true,
+        "optionsSource": "forecastModes",
+        "default": null
+      },
+      {
+        "field": "startDate",
+        "header": "Start Date",
+        "type": "date",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "endDate",
+        "header": "End Date",
+        "type": "date",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "periodType",
+        "header": "Period Type",
+        "type": "select",
+        "editable": true,
+        "display": true,
+        "optionsSource": "periodTypes",
+        "default": null
+      },
+      {
+        "field": "periodCount",
+        "header": "Period Count",
+        "type": "number",
+        "editable": true,
+        "display": true,
+        "default": 12
+      },
+      {
+        "field": "accounts",
+        "header": "Primary Account",
+        "type": "addSelect",
+        "editable": true,
+        "display": true,
+        "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
+        "default": null
+      },
+      {
+        "field": "notes",
+        "header": "Notes",
+        "type": "text",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "tags",
+        "header": "Tags",
+        "type": "tags",
+        "editable": true,
+        "display": true,
+        "default": []
+      }
+    ],
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": false
+    }
+  },
+  "forecastModes": [
+    { "id": 1, "name": "dateRange" },
+    { "id": 2, "name": "periods" }
+  ],
+  "periodTypes": [
+    { "id": 1, "name": "Day" },
+    { "id": 2, "name": "Week" },
+    { "id": 3, "name": "Month" },
+    { "id": 4, "name": "Quarter" },
+    { "id": 5, "name": "Year" }
+  ]
+}

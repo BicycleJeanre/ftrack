@@ -90,6 +90,28 @@
       "current_balance": 0,
       "interest": null,
       "openDate": "2025-10-13"
+    },
+    {
+      "id": 6,
+      "name": "new acc",
+      "type": {
+        "id": null,
+        "name": {
+          "id": 1,
+          "name": "Asset"
+        }
+      },
+      "currency": {
+        "id": null,
+        "name": {
+          "id": 1,
+          "name": "ZAR"
+        }
+      },
+      "balance": 0,
+      "current_balance": 0,
+      "interest": null,
+      "openDate": ""
     }
   ],
   "transactions": [
@@ -100,11 +122,11 @@
         "name": "salary2"
       },
       "credit_account": {
-        "id": 1,
-        "name": "Jeanre Credit Card"
+        "id": 3,
+        "name": "have to pay"
       },
-      "amount": 24600,
-      "isRecurring": true,
+      "amount": 488,
+      "isRecurring": false,
       "recurrence": [],
       "amountChange": [],
       "tags": []
@@ -112,15 +134,15 @@
     {
       "id": 6,
       "debit_account": {
-        "id": 1,
-        "name": "Jeanre Credit Card"
+        "id": 6,
+        "name": "new acc"
       },
       "credit_account": {
         "id": 3,
         "name": "expenses"
       },
       "amount": 5000,
-      "isRecurring": true,
+      "isRecurring": false,
       "recurrence": [],
       "amountChange": [],
       "tags": []
@@ -135,7 +157,7 @@
         "id": 4,
         "name": "salary2"
       },
-      "amount": 0,
+      "amount": 1,
       "isRecurring": false,
       "recurrence": [],
       "amountChange": [],
@@ -174,8 +196,8 @@
       },
       "periodCount": 24,
       "accounts": {
-        "id": 2,
-        "name": "tr"
+        "id": null,
+        "name": "12"
       },
       "notes": "Test budget version for demo.",
       "tags": [

@@ -1,0 +1,77 @@
+{
+  "mainGrid": {
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": 0
+      },
+      {
+        "field": "account",
+        "header": "Account",
+        "type": "addSelect",
+        "editable": true,
+        "display": true,
+        "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
+        "default": null
+      },
+      {
+        "field": "transaction",
+        "header": "Transaction",
+        "type": "addSelect",
+        "editable": true,
+        "display": true,
+        "optionsSource": "transactions",
+        "optionsSourceFile": "app-data.json",
+        "default": null
+      },
+      {
+        "field": "amount",
+        "header": "Amount",
+        "type": "number",
+        "editable": true,
+        "display": true,
+        "default": 0
+      },
+      {
+        "field": "date",
+        "header": "Date",
+        "type": "date",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "movement",
+        "header": "Movement",
+        "type": "select",
+        "editable": true,
+        "display": true,
+        "optionsSource": "movementTypes",
+        "default": null
+      },
+      {
+        "field": "notes",
+        "header": "Notes",
+        "type": "text",
+        "editable": true,
+        "display": true,
+        "default": ""
+      }
+    ],
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": false
+    }
+  },
+  "movementTypes": [
+    { "id": 1, "name": "Credit" },
+    { "id": 2, "name": "Debit" }
+  ]
+}

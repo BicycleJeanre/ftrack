@@ -50,12 +50,14 @@ ftrack/
 ├── pages/                  # HTML page templates
 │   ├── home.html          # Dashboard/overview page
 │   ├── accounts.html      # Account management page
-│   └── transactions.html  # Transaction management page
+│   ├── transactions.html  # Transaction management page
+│   └── forecast.html      # Financial forecast page (3-section layout)
 ├── js/                    # JavaScript modules
 │   ├── global-app.js      # Global helper functions
 │   ├── navbar.js          # Navigation bar component
 │   ├── accounts.js        # Account page controller
 │   ├── transactions.js    # Transaction page controller
+│   ├── forecast.js        # Forecast page controller (3 grids)
 │   ├── editable-grid.js   # Core grid component (class-based)
 │   ├── modal.js           # Modal dialog component
 │   └── config.js          # Keyboard shortcuts configuration
@@ -63,10 +65,13 @@ ftrack/
 │   ├── app.css            # Main application styles
 │   └── icons.js           # SVG icon definitions
 └── assets/                # Data and configuration files
-    ├── app-data.json              # Application data (accounts, transactions)
-    ├── accounts-grid.json         # Accounts grid schema
-    ├── transactions-grid.json     # Transactions grid schema
-    └── shortcuts.json             # Keyboard shortcut definitions
+    ├── app-data.json                  # Application data (accounts, transactions, forecasts)
+    ├── accounts-grid.json             # Accounts grid schema
+    ├── transactions-grid.json         # Transactions grid schema
+    ├── forecast-template-grid.json    # Forecast version selector schema
+    ├── forecast-setup-grid.json       # Forecast setup grid schema
+    ├── forecast-snapshot-grid.json    # Forecast results schema
+    └── shortcuts.json                 # Keyboard shortcut definitions
 ```
 
 ### 1.4. Page Architecture
@@ -1760,6 +1765,9 @@ async _setupKeyboardNavigation(table) {
 | `process.cwd() + '/assets/app-data.json'` | Main data store |
 | `process.cwd() + '/assets/accounts-grid.json'` | Accounts schema |
 | `process.cwd() + '/assets/transactions-grid.json'` | Transactions schema |
+| `process.cwd() + '/assets/forecast-template-grid.json'` | Forecast version selector schema |
+| `process.cwd() + '/assets/forecast-setup-grid.json'` | Forecast setup schema |
+| `process.cwd() + '/assets/forecast-snapshot-grid.json'` | Forecast results schema |
 | `process.cwd() + '/assets/shortcuts.json'` | Keyboard shortcuts |
 | `../styles/app.css` | Main stylesheet |
 | `../styles/icons.js` | SVG icon definitions |
@@ -1782,6 +1790,56 @@ async _setupKeyboardNavigation(table) {
 | `checkbox` | `<input type="checkbox">` | Boolean flag |
 | `exclusive` | `<input type="checkbox">` | Single selection (radio-like) |
 | `date` | `<input type="date">` | Date selection |
+
+---
+
+## Financial Forecast Page Architecture
+
+The Financial Forecast page ([forecast.html](../pages/forecast.html), [forecast.js](../js/forecast.js)) uses a **3-section layout** for complete budget/forecast management:
+
+### Section 1: Forecast Version Selector
+**Purpose**: Select and manage different forecast templates/budget versions
+**Grid Schema**: [forecast-template-grid.json](../assets/forecast-template-grid.json)
+**Data Source**: `app-data.json → forecastDefinitions`
+
+**Columns**:
+- Template Name: Identifier for the forecast version
+- Mode: "dateRange" or "periods" 
+- Start Date / End Date: Date range for forecast
+- Period Type: Day/Week/Month/Quarter/Year
+- Period Count: Number of periods to forecast
+- Primary Account: Account to forecast against
+- Notes: Description
+- Tags: Categorization
+
+### Section 2: Forecast Setup
+**Purpose**: Define transactions for the selected forecast template
+**Grid Schema**: [forecast-setup-grid.json](../assets/forecast-setup-grid.json)
+**Data Source**: `app-data.json → forecastSetup`
+
+**Columns**:
+- Account: Account for the transaction (addSelect - can create new)
+- Transaction: Transaction reference (addSelect - can create new)
+- Amount: Transaction amount
+- Date: Transaction date
+- Movement: "Credit" or "Debit"
+- Notes: Additional information
+
+**Workflow**: User selects a forecast version from Section 1, then adds/edits transactions in Section 2 that define what happens during the forecast period.
+
+### Section 3: Forecast Results
+**Purpose**: Display calculated forecast results/snapshots
+**Grid Schema**: [forecast-snapshot-grid.json](../assets/forecast-snapshot-grid.json)
+**Data Source**: `app-data.json → forecastSnapshots`
+
+**Columns**: Period, Account, Movement, Amount (calculated)
+
+**Workflow**: After defining the forecast setup, the forecast engine generates snapshots showing projected account balances over time.
+
+### Terminology
+- **Forecast Version**: A template/budget definition with time parameters
+- **Forecast Setup**: Transaction definitions that make up the template
+- **Forecast Results**: Calculated outcomes from running the forecast
 
 ---
 

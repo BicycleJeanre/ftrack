@@ -13,25 +13,39 @@
 &nbsp;&nbsp;&nbsp;&nbsp;~~1.1.3. Make transactions grid work like accounts with Excel-like navigation~~
 
 1.2. Wrap up current data snapshot overview on home page
-1.3. Allow basic named accounts to be added directly from transactions
-1.4. Build and wrap up financial planning
-1.5. Create forecast template interface for setting up accounts with transactions
-1.6. Support listing incomes and expenses in forecast template
-1.7. Enable forecast template creation for one or multiple time periods
-1.8. Support date-range-based templates between specific dates
-1.9. Use forecast template to predict account balances and forecast financial future
-1.10. Track actuals by flagging transactions as completed or not completed for current month
-1.11. Show total money still needed for month to cover remaining expenses
-1.12. Save budget/template separately from forecast
-1.13. Auto-generate forecast from budget for dynamic time frames
-1.14. Consider interest, recurring transactions, and one-off transactions in budget and forecast
-1.15. Allow quick account and transaction addition through budget interface
-1.16. Link accounts so transactions always move value from one account to another
-1.17. Support single account view or overview with all accounts for budget
-1.18. Validate transactions specific to a budget
-1.19. Classify accounts as transfers vs incomes vs expenses
-1.20. Build rollover/carryover logic for unused budget amounts into accounts
-1.21. Track account balance before time frame before applying time frame transactions
+~~1.3. Allow basic named accounts to be added directly from transactions~~
+
+1.3.1. Separate grid definitions (assets) from user data
+&nbsp;&nbsp;&nbsp;&nbsp;Grid schemas/definitions are application assets that ship with the app
+&nbsp;&nbsp;&nbsp;&nbsp;User data is specific to each user and stored separately
+&nbsp;&nbsp;&nbsp;&nbsp;Ensures clean separation between code/config and user-generated content
+
+1.4. Forecast Template Interface (Budget Input Grid)
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.1. Create forecast template interface for setting up accounts with transactions
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.2. Support listing incomes and expenses in forecast template
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.3. Enable forecast template creation for one or multiple time periods
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.4. Support date-range-based templates between specific dates
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.5. Allow quick account and transaction addition through budget interface
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.6. Support single account view or overview with all accounts for budget
+&nbsp;&nbsp;&nbsp;&nbsp;1.4.7. Save budget/template separately from forecast
+
+1.5. Forecast Generation & Calculation Engine
+&nbsp;&nbsp;&nbsp;&nbsp;1.5.1. Use forecast template to predict account balances and forecast financial future
+&nbsp;&nbsp;&nbsp;&nbsp;1.5.2. Auto-generate forecast from budget for dynamic time frames
+&nbsp;&nbsp;&nbsp;&nbsp;1.5.3. Consider interest, recurring transactions, and one-off transactions in budget and forecast
+&nbsp;&nbsp;&nbsp;&nbsp;1.5.4. Build rollover/carryover logic for unused budget amounts into accounts
+&nbsp;&nbsp;&nbsp;&nbsp;1.5.5. Track account balance before time frame before applying time frame transactions
+
+1.6. Budget Tracking & Validation
+&nbsp;&nbsp;&nbsp;&nbsp;1.6.1. Track actuals by flagging transactions as completed or not completed for current month
+&nbsp;&nbsp;&nbsp;&nbsp;1.6.2. Show total money still needed for month to cover remaining expenses
+&nbsp;&nbsp;&nbsp;&nbsp;1.6.3. Validate transactions specific to a budget
+&nbsp;&nbsp;&nbsp;&nbsp;1.6.4. Classify accounts as transfers vs incomes vs expenses
+
+1.7. Account Linking & Transaction Flow
+&nbsp;&nbsp;&nbsp;&nbsp;1.7.1. Link accounts so transactions always move value from one account to another
+
+1.8. Build and wrap up financial planning
 
 ---
 
