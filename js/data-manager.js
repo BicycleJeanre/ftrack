@@ -146,6 +146,9 @@ class DataManager {
                 case 'interest':
                     newAccount.interest = col.default || null;
                     break;
+                case 'growth':
+                    newAccount.growth = col.default || null;
+                    break;
                 case 'openDate':
                     newAccount.openDate = col.default !== undefined ? col.default : '';
                     break;
@@ -156,7 +159,7 @@ class DataManager {
     }
 
     /**
-     * Save forecast versions
+     * Save forecast versions (legacy - kept for compatibility)
      */
     async saveForecastVersions(updatedVersions) {
         await this.loadData();
@@ -165,7 +168,57 @@ class DataManager {
     }
 
     /**
-     * Save forecast setup with linking
+     * Save scenarios
+     */
+    async saveScenarios(scenarios) {
+        await this.loadData();
+        this.cachedData.scenarios = scenarios;
+        await this.saveData();
+    }
+
+    /**
+     * Get a specific scenario by ID
+     */
+    getScenario(scenarioId) {
+        return this.cachedData?.scenarios?.find(s => s.id === scenarioId);
+    }
+
+    /**
+     * Clone a scenario with all its planned transactions
+     */
+    async cloneScenario(scenarioId, newName) {
+        await this.loadData();
+        const original = this.getScenario(scenarioId);
+        if (!original) throw new Error(`Scenario ${scenarioId} not found`);
+        
+        const clone = {
+            ...original,
+            id: this.getNextId('scenarios'),
+            name: newName,
+            createdDate: new Date().toISOString().split('T')[0],
+            lastCalculated: null
+        };
+        
+        this.cachedData.scenarios.push(clone);
+        
+        // Clone planned transactions
+        const plannedTxs = (this.cachedData.plannedTransactions || []).filter(
+            pt => pt.scenarioId === scenarioId
+        );
+        for (const pt of plannedTxs) {
+            this.cachedData.plannedTransactions.push({
+                ...pt,
+                id: this.getNextId('plannedTransactions'),
+                scenarioId: clone.id
+            });
+        }
+        
+        await this.saveData();
+        return clone;
+    }
+
+    /**
+     * Save forecast setup with linking (legacy - kept for compatibility)
      * - Links to forecast version (needs versionId field)
      * - Detects new accounts/transactions
      * - Creates and links them
@@ -224,7 +277,100 @@ class DataManager {
     }
 
     /**
-     * Save forecast results with linking to version
+     * Save planned transactions with auto-linking
+     * - Auto-creates accounts from addSelect fields
+     * - Auto-creates base transactions if needed
+     * - Links planned transactions to scenario
+     */
+    async savePlannedTransactions(plannedTransactions, scenarioId) {
+        await this.loadData();
+        
+        // Ensure plannedTransactions array exists
+        if (!this.cachedData.plannedTransactions) {
+            this.cachedData.plannedTransactions = [];
+        }
+        
+        // Load accounts schema for defaults
+        const accountsSchemaPath = process.cwd() + '/assets/accounts-grid.json';
+        const schemaFile = await this.fs.readFile(accountsSchemaPath, 'utf8');
+        const accountsSchema = JSON.parse(schemaFile);
+        const acctCols = accountsSchema.mainGrid.columns;
+        
+        for (const plannedTx of plannedTransactions) {
+            // Ensure scenarioId is set
+            plannedTx.scenarioId = scenarioId;
+            
+            // Check if this is a new planned transaction (null or undefined id)
+            if (!plannedTx.id) {
+                plannedTx.id = this.getNextId('plannedTransactions');
+                
+                // If transactionTemplateId not set, create base transaction
+                if (!plannedTx.transactionTemplateId && plannedTx.description) {
+                    const newTransactionId = this.getNextId('transactions');
+                    plannedTx.transactionTemplateId = newTransactionId;
+                    
+                    // Create simple base transaction
+                    const baseTransaction = {
+                        id: newTransactionId,
+                        description: plannedTx.description,
+                        debit_account: plannedTx.fromAccount,
+                        credit_account: plannedTx.toAccount,
+                        amount: plannedTx.amount,
+                        date: plannedTx.recurrence?.startDate || new Date().toISOString().split('T')[0],
+                        isRecurring: plannedTx.recurrence?.type === 'recurring'
+                    };
+                    this.cachedData.transactions.push(baseTransaction);
+                }
+            }
+            
+            // Auto-create accounts from addSelect fields
+            if (plannedTx.fromAccount && (plannedTx.fromAccount.id === null || plannedTx.fromAccount.id === undefined)) {
+                const newAcctId = this.getNextId('accounts');
+                plannedTx.fromAccount.id = newAcctId;
+                const newAccount = this._createAccountFromSchema(
+                    newAcctId,
+                    plannedTx.fromAccount.name,
+                    acctCols,
+                    accountsSchema
+                );
+                this.cachedData.accounts.push(newAccount);
+            }
+            
+            if (plannedTx.toAccount && (plannedTx.toAccount.id === null || plannedTx.toAccount.id === undefined)) {
+                const newAcctId = this.getNextId('accounts');
+                plannedTx.toAccount.id = newAcctId;
+                const newAccount = this._createAccountFromSchema(
+                    newAcctId,
+                    plannedTx.toAccount.name,
+                    acctCols,
+                    accountsSchema
+                );
+                this.cachedData.accounts.push(newAccount);
+            }
+        }
+        
+        // Remove old planned transactions for this scenario
+        this.cachedData.plannedTransactions = this.cachedData.plannedTransactions.filter(
+            pt => pt.scenarioId !== scenarioId
+        );
+        
+        // Add updated planned transactions
+        this.cachedData.plannedTransactions.push(...plannedTransactions);
+        
+        await this.saveData();
+    }
+
+    /**
+     * Get planned transactions for a specific scenario
+     */
+    getPlannedTransactions(scenarioId) {
+        return (this.cachedData?.plannedTransactions || []).filter(
+            pt => pt.scenarioId === scenarioId
+        );
+    }
+
+    /**
+     * Save forecast results with linking to version (legacy - kept for compatibility)
      */
     async saveForecastResults(updatedResults, versionId = null) {
         await this.loadData();
@@ -237,6 +383,72 @@ class DataManager {
         }
 
         this.cachedData.forecastSnapshots = updatedResults;
+        await this.saveData();
+    }
+
+    /**
+     * Save projections for a scenario
+     * - Clears old projections for the scenario
+     * - Saves new projections
+     * - Updates scenario lastCalculated timestamp
+     */
+    async saveProjections(projections, scenarioId) {
+        await this.loadData();
+        
+        // Ensure projections array exists
+        if (!this.cachedData.projections) {
+            this.cachedData.projections = [];
+        }
+        
+        // Assign IDs to projections
+        let nextId = this.getNextId('projections');
+        projections.forEach(proj => {
+            if (!proj.id) {
+                proj.id = nextId++;
+            }
+        });
+        
+        // Remove old projections for this scenario
+        this.cachedData.projections = this.cachedData.projections.filter(
+            p => p.scenarioId !== scenarioId
+        );
+        
+        // Add new projections
+        this.cachedData.projections.push(...projections);
+        
+        // Update scenario lastCalculated timestamp
+        const scenario = this.cachedData.scenarios?.find(s => s.id === scenarioId);
+        if (scenario) {
+            scenario.lastCalculated = new Date().toISOString();
+        }
+        
+        await this.saveData();
+    }
+
+    /**
+     * Get projections for a specific scenario
+     * Optionally filter by account
+     */
+    getProjections(scenarioId, accountId = null) {
+        const projections = (this.cachedData?.projections || []).filter(
+            p => p.scenarioId === scenarioId
+        );
+        
+        if (accountId) {
+            return projections.filter(p => p.accountId === accountId);
+        }
+        
+        return projections;
+    }
+
+    /**
+     * Clear projections for a scenario
+     */
+    async clearProjections(scenarioId) {
+        await this.loadData();
+        this.cachedData.projections = (this.cachedData.projections || []).filter(
+            p => p.scenarioId !== scenarioId
+        );
         await this.saveData();
     }
 
