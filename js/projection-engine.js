@@ -125,7 +125,7 @@ export async function generateProjections(scenarioId, options = {}) {
         id: projections.length + 1,
         scenarioId: scenarioId,
         accountId: account.id,
-        account: account.name, // Changed from accountName to account
+        account: account.name, // Field name matches projections-grid.json schema
         date: formatDate(periodEnd),
         balance: Math.round(currentBalance * 100) / 100,
         income: Math.round(periodIncome * 100) / 100,
