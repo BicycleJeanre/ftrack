@@ -23,6 +23,7 @@ export class EditableGrid {
         this.onDelete = options.onDelete;
         this.parentRowId = options.parentRowId;
         this.parentField =options.parentField;
+        this.scenarioContext = options.scenarioContext || null; // NEW: Scenario context for conditional visibility
 
         // Support both {mainGrid: {...}} and {...} schema formats
         this.mainGrid = this.schema.mainGrid ? this.schema.mainGrid : this.schema;
@@ -132,9 +133,13 @@ export class EditableGrid {
 
         //add schema columns to header
         this.mainGrid.columns.forEach(col => {
-            if (col.display) {
+            // Check visibility based on visibleWhen condition
+            const isVisible = this.isColumnVisible(col, {});
+            
+            if (col.display !== false && isVisible) {
                 const colHead = document.createElement('th')
                 colHead.textContent = col.header
+                colHead.dataset.field = col.field; // Store field name for dynamic updates
                 window.add(thead, colHead)
             }
         })
@@ -158,6 +163,9 @@ export class EditableGrid {
             const row = document.createElement('tr')
             const columns = this.mainGrid.columns
             columns.forEach(col => {
+                // Check visibility based on visibleWhen condition for this specific row
+                const isVisible = this.isColumnVisible(col, acc);
+                
                 // Debug: Log each cell value
                 console.log(`[EditableGrid] Row field '${col.field}':`, acc[col.field]);
                 if (!(col.field in acc)) {
@@ -166,9 +174,12 @@ export class EditableGrid {
                 if (acc[col.field] === undefined) {
                     console.warn(`[EditableGrid] WARNING: Value for field '${col.field}' is undefined. Possible typo or missing data.`, acc);
                 }
-                // Always create the cell, but hide if not displayed
+                // Always create the cell, but hide if not displayed or not visible
                 let cellContent = document.createElement('td')
-                if (!col.display) cellContent.style.display = 'none'
+                cellContent.dataset.field = col.field; // Store field name for reference
+                if (col.display === false || !isVisible) {
+                    cellContent.style.display = 'none'
+                }
                 if (!col.editable || !this.mainGrid.actions.edit) {
                     cellContent.textContent = acc[col.field]
                 } else {
@@ -572,5 +583,119 @@ export class EditableGrid {
             }
             this.render();
         }
+    }
+
+    // ============================================================================
+    // CONDITIONAL VISIBILITY SUPPORT
+    // ============================================================================
+
+    /**
+     * Get nested value from object using dot notation (e.g., "scenario.type.name")
+     * @param {Object} obj - The object to search
+     * @param {string} path - Dot-separated path
+     * @returns {*} - The value at the path, or undefined
+     */
+    getNestedValue(obj, path) {
+        if (!path) return undefined;
+        const keys = path.split('.');
+        let value = obj;
+        for (const key of keys) {
+            if (value === null || value === undefined) return undefined;
+            value = value[key];
+        }
+        return value;
+    }
+
+    /**
+     * Set nested value in object using dot notation
+     * @param {Object} obj - The object to modify
+     * @param {string} path - Dot-separated path
+     * @param {*} value - Value to set
+     */
+    setNestedValue(obj, path, value) {
+        if (!path) return;
+        const keys = path.split('.');
+        let current = obj;
+        for (let i = 0; i < keys.length - 1; i++) {
+            const key = keys[i];
+            if (!current[key] || typeof current[key] !== 'object') {
+                current[key] = {};
+            }
+            current = current[key];
+        }
+        current[keys[keys.length - 1]] = value;
+    }
+
+    /**
+     * Evaluate a visibleWhen expression
+     * @param {string} expression - Expression like "scenario.type.name == 'Budget'"
+     * @param {Object} rowData - Current row data
+     * @returns {boolean} - True if column should be visible
+     */
+    evaluateVisibleWhen(expression, rowData) {
+        if (!expression) return true; // No condition means always visible
+        
+        // Build evaluation context
+        const context = {
+            scenario: this.scenarioContext || {},
+            row: rowData || {},
+            ...rowData // Also include row fields directly for convenience
+        };
+        
+        // Simple expression parser for common patterns
+        // Supports: ==, !=, IN, NOT IN
+        
+        // Pattern: "field == 'value'" or "field.nested == 'value'"
+        const eqMatch = expression.match(/^(.+?)\s*==\s*'(.+?)'$/);
+        if (eqMatch) {
+            const fieldPath = eqMatch[1].trim();
+            const expectedValue = eqMatch[2];
+            const actualValue = this.getNestedValue(context, fieldPath);
+            return actualValue === expectedValue;
+        }
+        
+        // Pattern: "field != 'value'"
+        const neMatch = expression.match(/^(.+?)\s*!=\s*'(.+?)'$/);
+        if (neMatch) {
+            const fieldPath = neMatch[1].trim();
+            const expectedValue = neMatch[2];
+            const actualValue = this.getNestedValue(context, fieldPath);
+            return actualValue !== expectedValue;
+        }
+        
+        // Pattern: "field IN ['value1', 'value2']"
+        const inMatch = expression.match(/^(.+?)\s+IN\s+\[(.+?)\]$/);
+        if (inMatch) {
+            const fieldPath = inMatch[1].trim();
+            const valuesStr = inMatch[2];
+            const values = valuesStr.split(',').map(v => v.trim().replace(/['"]/g, ''));
+            const actualValue = this.getNestedValue(context, fieldPath);
+            return values.includes(actualValue);
+        }
+        
+        // Pattern: "field NOT IN ['value1', 'value2']"
+        const notInMatch = expression.match(/^(.+?)\s+NOT\s+IN\s+\[(.+?)\]$/);
+        if (notInMatch) {
+            const fieldPath = notInMatch[1].trim();
+            const valuesStr = notInMatch[2];
+            const values = valuesStr.split(',').map(v => v.trim().replace(/['"]/g, ''));
+            const actualValue = this.getNestedValue(context, fieldPath);
+            return !values.includes(actualValue);
+        }
+        
+        // Default to visible if expression doesn't match known patterns
+        console.warn('[EditableGrid] Unknown visibleWhen expression:', expression);
+        return true;
+    }
+
+    /**
+     * Check if a column should be visible based on visibleWhen conditions
+     * @param {Object} col - Column definition
+     * @param {Object} rowData - Current row data
+     * @returns {boolean} - True if column should be visible
+     */
+    isColumnVisible(col, rowData) {
+        if (!col.visibleWhen) return true;
+        return this.evaluateVisibleWhen(col.visibleWhen, rowData);
     }
 }
