@@ -46,9 +46,14 @@ export function getNthWeekdayOfMonth(date, weekday, n) {
  * Get number of quarters between two dates
  * @param {Date} start - Start date
  * @param {Date} end - End date
- * @returns {number} - Number of quarters
+ * @returns {number} - Number of quarters (returns 0 if end is before start)
  */
 export function getQuartersBetween(start, end) {
+  // Handle edge case where end is before start
+  if (end < start) {
+    return 0;
+  }
+  
   const startYear = start.getFullYear();
   const startQuarter = Math.floor(start.getMonth() / 3);
   const endYear = end.getFullYear();

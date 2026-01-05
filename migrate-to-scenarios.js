@@ -1,6 +1,8 @@
 // migrate-to-scenarios.js
+// ONE-TIME MIGRATION SCRIPT - DO NOT RUN AGAIN AFTER INITIAL MIGRATION
 // Migration script to convert app-data.json to scenario-centric structure
-// Run once to migrate existing data
+// This script was used once during the Alpha Architecture Redesign
+// Kept for reference and potential rollback scenarios
 
 const fs = require('fs').promises;
 const path = require('path');

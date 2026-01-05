@@ -14,6 +14,20 @@ const ICONS = {
 
 export class EditableGrid {
 
+    /**
+     * @param {Object} options - Configuration options
+     * @param {HTMLElement} options.targetElement - Container element for the grid
+     * @param {string} options.tableHeader - Header text for the table
+     * @param {Object} options.schema - Grid schema definition
+     * @param {Array} options.data - Initial data array
+     * @param {Function} options.onSave - Save callback function
+     * @param {Function} [options.onDelete] - Delete callback function (optional)
+     * @param {number} [options.parentRowId] - Parent row ID for nested grids (optional)
+     * @param {string} [options.parentField] - Parent field name for nested grids (optional)
+     * @param {Object} [options.scenarioContext] - Scenario context for conditional visibility evaluation (optional)
+     * @param {Object} [options.scenarioContext.type] - Scenario type object with name property
+     * @param {number} [options.scenarioContext.id] - Scenario ID
+     */
     constructor(options) {
         this.targetElement = options.targetElement;
         this.tableHeader = options.tableHeader;
