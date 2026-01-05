@@ -15,3 +15,7 @@ Thumbs.db
 .next/
 # Ignore large binaries
 *.node
+# Ignore migration scripts and backup files
+migrate-to-scenarios.js
+*.backup
+test-calculations.js
