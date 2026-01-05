@@ -1,0 +1,152 @@
+{
+  "mainGrid": {
+    "columns": [
+      {
+        "field": "name",
+        "header": "Account Name",
+        "type": "text",
+        "editable": true,
+        "required": true
+      },
+      {
+        "field": "type",
+        "header": "Type",
+        "type": "select",
+        "editable": true,
+        "required": true,
+        "optionsSource": "accountTypes"
+      },
+      {
+        "field": "currency",
+        "header": "Currency",
+        "type": "select",
+        "editable": true,
+        "required": true,
+        "optionsSource": "currencies"
+      },
+      {
+        "field": "balance",
+        "header": "Opening Balance",
+        "type": "number",
+        "editable": true,
+        "default": 0
+      },
+      {
+        "field": "openDate",
+        "header": "Open Date",
+        "type": "date",
+        "editable": true,
+        "required": true
+      },
+      {
+        "field": "interestRate",
+        "header": "Interest Rate",
+        "type": "modal",
+        "editable": true,
+        "modal": "interestRateModal",
+        "visibleWhen": "scenario.type.name IN ['General', 'Funds']"
+      },
+      {
+        "field": "periodicChange",
+        "header": "Periodic Change",
+        "type": "modal",
+        "editable": true,
+        "modal": "periodicChangeModal",
+        "visibleWhen": "scenario.type.name IN ['General', 'Funds']"
+      }
+    ],
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true
+    }
+  },
+  "interestRateModal": {
+    "title": "Interest/Growth Rate",
+    "columns": [
+      {
+        "field": "changeType",
+        "header": "Change Type",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "periodicChangeTypes",
+        "default": "Nominal Annual"
+      },
+      {
+        "field": "rate",
+        "header": "Rate (%)",
+        "type": "number",
+        "editable": true,
+        "default": 0
+      },
+      {
+        "field": "frequency",
+        "header": "Frequency",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "frequencies",
+        "visibleWhen": "periodicChange.changeType == 'Custom'",
+        "default": "Monthly"
+      }
+    ]
+  },
+  "periodicChangeModal": {
+    "title": "Periodic Change",
+    "columns": [
+      {
+        "field": "changeType",
+        "header": "Change Type",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "periodicChangeTypes",
+        "default": "Nominal Annual"
+      },
+      {
+        "field": "rate",
+        "header": "Rate (%)",
+        "type": "number",
+        "editable": true,
+        "default": 0
+      },
+      {
+        "field": "frequency",
+        "header": "Frequency",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "frequencies",
+        "visibleWhen": "periodicChange.changeType == 'Custom'",
+        "default": "Monthly"
+      }
+    ]
+  },
+  "accountTypes": [
+    { "id": 1, "name": "Asset" },
+    { "id": 2, "name": "Liability" },
+    { "id": 3, "name": "Equity" },
+    { "id": 4, "name": "Income" },
+    { "id": 5, "name": "Expense" }
+  ],
+  "currencies": [
+    { "id": 1, "name": "ZAR" },
+    { "id": 2, "name": "USD" },
+    { "id": 3, "name": "EUR" },
+    { "id": 4, "name": "GBP" }
+  ],
+  "periodicChangeTypes": [
+    { "id": 1, "name": "Nominal Annual" },
+    { "id": 2, "name": "Monthly Compounded" },
+    { "id": 3, "name": "Daily Compounded" },
+    { "id": 4, "name": "Quarterly Compounded" },
+    { "id": 5, "name": "Annual Compounded" },
+    { "id": 6, "name": "Continuous" },
+    { "id": 7, "name": "Custom" }
+  ],
+  "frequencies": [
+    { "id": 1, "name": "Daily" },
+    { "id": 2, "name": "Weekly" },
+    { "id": 3, "name": "Monthly" },
+    { "id": 4, "name": "Quarterly" },
+    { "id": 5, "name": "Yearly" }
+  ]
+}

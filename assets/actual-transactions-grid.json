@@ -1,0 +1,67 @@
+{
+  "mainGrid": {
+    "columns": [
+      {
+        "field": "date",
+        "header": "Date",
+        "type": "date",
+        "editable": true,
+        "required": true
+      },
+      {
+        "field": "debitAccount",
+        "header": "From Account",
+        "type": "select",
+        "editable": true,
+        "required": true,
+        "optionsSource": "accounts"
+      },
+      {
+        "field": "creditAccount",
+        "header": "To Account",
+        "type": "select",
+        "editable": true,
+        "required": true,
+        "optionsSource": "accounts"
+      },
+      {
+        "field": "amount",
+        "header": "Amount",
+        "type": "number",
+        "editable": true,
+        "required": true
+      },
+      {
+        "field": "description",
+        "header": "Description",
+        "type": "text",
+        "editable": true
+      },
+      {
+        "field": "status",
+        "header": "Status",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "statuses",
+        "default": "Completed"
+      },
+      {
+        "field": "tags",
+        "header": "Tags",
+        "type": "tags",
+        "editable": true
+      }
+    ],
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true
+    }
+  },
+  "statuses": [
+    { "id": 1, "name": "Pending" },
+    { "id": 2, "name": "Completed" },
+    { "id": 3, "name": "Cancelled" }
+  ]
+}
