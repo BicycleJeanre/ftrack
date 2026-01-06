@@ -21,50 +21,37 @@ let activePrimaryAccountId = null; // Track selected primary account for transac
 function buildGridContainer() {
   const forecastEl = getEl('panel-forecast');
 
-  // Create header
-  const panelHeader = document.createElement('div');
-  panelHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header';
-  panelHeader.innerHTML = `<h2 class="text-main">Financial Forecast</h2><span class="accordion-arrow">&#9662;</span>`;
-  panelHeader.addEventListener('click', () => window.toggleAccordion('content'));
-  window.add(forecastEl, panelHeader);
-
-  // Foldable content
-  const content = document.createElement('div');
-  content.id = 'content';
-  content.className = 'bg-main rounded shadow-md accordion-content';
-  content.style.display = 'block';
-  content.style.padding = '18px 20px 20px 20px';
-  window.add(forecastEl, content);
-
-  // Scenario selector
+  // Scenario selector (always visible)
   const scenarioSelector = document.createElement('div');
   scenarioSelector.id = 'scenario-selector';
+  scenarioSelector.className = 'bg-main bordered rounded shadow-md';
+  scenarioSelector.style.padding = '18px 20px';
   scenarioSelector.style.marginBottom = '20px';
-  window.add(content, scenarioSelector);
+  window.add(forecastEl, scenarioSelector);
 
-  // Accounts table section
+  // Accounts section
   const accountsTable = document.createElement('div');
   accountsTable.id = 'accountsTable';
-  accountsTable.style.marginBottom = '30px';
-  window.add(content, accountsTable);
+  accountsTable.style.marginBottom = '20px';
+  window.add(forecastEl, accountsTable);
 
-  // Planned Transactions table section
+  // Planned Transactions section
   const plannedTransactionsTable = document.createElement('div');
   plannedTransactionsTable.id = 'plannedTransactionsTable';
-  plannedTransactionsTable.style.marginBottom = '30px';
-  window.add(content, plannedTransactionsTable);
+  plannedTransactionsTable.style.marginBottom = '20px';
+  window.add(forecastEl, plannedTransactionsTable);
 
-  // Actual Transactions table section
+  // Actual Transactions section
   const actualTransactionsTable = document.createElement('div');
   actualTransactionsTable.id = 'actualTransactionsTable';
-  actualTransactionsTable.style.marginBottom = '30px';
-  window.add(content, actualTransactionsTable);
+  actualTransactionsTable.style.marginBottom = '20px';
+  window.add(forecastEl, actualTransactionsTable);
 
   // Projections section
   const projectionsSection = document.createElement('div');
   projectionsSection.id = 'projectionsSection';
-  projectionsSection.style.marginBottom = '30px';
-  window.add(content, projectionsSection);
+  projectionsSection.style.marginBottom = '20px';
+  window.add(forecastEl, projectionsSection);
 
   return {
     scenarioSelector,
@@ -247,16 +234,24 @@ async function loadAccountsGrid(container) {
 
   container.innerHTML = '';
 
-  // Add section header
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main';
-  sectionHeader.textContent = 'Accounts';
-  sectionHeader.style.marginBottom = '12px';
-  sectionHeader.style.fontSize = '1.22em';
-  window.add(container, sectionHeader);
+  // Create accordion header
+  const accordionHeader = document.createElement('div');
+  accordionHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header';
+  accordionHeader.innerHTML = `<h2 class="text-main">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
+  accordionHeader.addEventListener('click', () => window.toggleAccordion('accountsContent'));
+  window.add(container, accordionHeader);
+
+  // Create accordion content
+  const accordionContent = document.createElement('div');
+  accordionContent.id = 'accountsContent';
+  accordionContent.className = 'bg-main rounded shadow-md accordion-content';
+  accordionContent.style.display = 'block';
+  accordionContent.style.padding = '18px 20px 20px 20px';
+  accordionContent.style.marginTop = '0';
+  window.add(container, accordionContent);
 
   const gridContainer = document.createElement('div');
-  window.add(container, gridContainer);
+  window.add(accordionContent, gridContainer);
 
   const fs = window.require('fs').promises;
   const schemaPath = process.cwd() + '/assets/accounts-grid-unified.json';
@@ -309,13 +304,21 @@ async function loadPlannedTransactionsGrid(container) {
 
   container.innerHTML = '';
 
-  // Add section header
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main';
-  sectionHeader.textContent = 'Planned Transactions';
-  sectionHeader.style.marginBottom = '12px';
-  sectionHeader.style.fontSize = '1.22em';
-  window.add(container, sectionHeader);
+  // Create accordion header
+  const accordionHeader = document.createElement('div');
+  accordionHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header';
+  accordionHeader.innerHTML = `<h2 class="text-main">Planned Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
+  accordionHeader.addEventListener('click', () => window.toggleAccordion('plannedTxContent'));
+  window.add(container, accordionHeader);
+
+  // Create accordion content
+  const accordionContent = document.createElement('div');
+  accordionContent.id = 'plannedTxContent';
+  accordionContent.className = 'bg-main rounded shadow-md accordion-content';
+  accordionContent.style.display = 'block';
+  accordionContent.style.padding = '18px 20px 20px 20px';
+  accordionContent.style.marginTop = '0';
+  window.add(container, accordionContent);
 
   // Add primary account selector
   const filterContainer = document.createElement('div');
@@ -326,7 +329,7 @@ async function loadPlannedTransactionsGrid(container) {
       <option value="">-- Select Account --</option>
     </select>
   `;
-  window.add(container, filterContainer);
+  window.add(accordionContent, filterContainer);
 
   const accountSelect = getEl('primaryAccountSelect');
   (currentScenario.accounts || []).forEach(account => {
@@ -340,7 +343,7 @@ async function loadPlannedTransactionsGrid(container) {
   });
 
   const gridContainer = document.createElement('div');
-  window.add(container, gridContainer);
+  window.add(accordionContent, gridContainer);
 
   const fs = window.require('fs').promises;
   const schemaPath = process.cwd() + '/assets/planned-transactions-grid.json';
@@ -408,13 +411,21 @@ async function loadActualTransactionsGrid(container) {
 
   container.innerHTML = '';
 
-  // Add section header
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main';
-  sectionHeader.textContent = 'Actual Transactions';
-  sectionHeader.style.marginBottom = '12px';
-  sectionHeader.style.fontSize = '1.22em';
-  window.add(container, sectionHeader);
+  // Create accordion header
+  const accordionHeader = document.createElement('div');
+  accordionHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header';
+  accordionHeader.innerHTML = `<h2 class="text-main">Actual Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
+  accordionHeader.addEventListener('click', () => window.toggleAccordion('actualTxContent'));
+  window.add(container, accordionHeader);
+
+  // Create accordion content
+  const accordionContent = document.createElement('div');
+  accordionContent.id = 'actualTxContent';
+  accordionContent.className = 'bg-main rounded shadow-md accordion-content';
+  accordionContent.style.display = 'block';
+  accordionContent.style.padding = '18px 20px 20px 20px';
+  accordionContent.style.marginTop = '0';
+  window.add(container, accordionContent);
 
   // Add primary account selector
   const filterContainer = document.createElement('div');
@@ -425,7 +436,7 @@ async function loadActualTransactionsGrid(container) {
       <option value="">-- Select Account --</option>
     </select>
   `;
-  window.add(container, filterContainer);
+  window.add(accordionContent, filterContainer);
 
   const accountSelect = getEl('actualAccountSelect');
   (currentScenario.accounts || []).forEach(account => {
@@ -439,7 +450,7 @@ async function loadActualTransactionsGrid(container) {
   });
 
   const gridContainer = document.createElement('div');
-  window.add(container, gridContainer);
+  window.add(accordionContent, gridContainer);
 
   const fs = window.require('fs').promises;
   const schemaPath = process.cwd() + '/assets/actual-transactions-grid.json';
@@ -507,13 +518,21 @@ async function loadProjectionsSection(container) {
 
   container.innerHTML = '';
 
-  // Add section header
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main';
-  sectionHeader.textContent = 'Projections';
-  sectionHeader.style.marginBottom = '12px';
-  sectionHeader.style.fontSize = '1.22em';
-  window.add(container, sectionHeader);
+  // Create accordion header
+  const accordionHeader = document.createElement('div');
+  accordionHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header';
+  accordionHeader.innerHTML = `<h2 class="text-main">Projections</h2><span class="accordion-arrow">&#9662;</span>`;
+  accordionHeader.addEventListener('click', () => window.toggleAccordion('projectionsContent'));
+  window.add(container, accordionHeader);
+
+  // Create accordion content
+  const accordionContent = document.createElement('div');
+  accordionContent.id = 'projectionsContent';
+  accordionContent.className = 'bg-main rounded shadow-md accordion-content';
+  accordionContent.style.display = 'block';
+  accordionContent.style.padding = '18px 20px 20px 20px';
+  accordionContent.style.marginTop = '0';
+  window.add(container, accordionContent);
 
   // Add generate button
   const generateButton = document.createElement('button');
@@ -542,7 +561,7 @@ async function loadProjectionsSection(container) {
       generateButton.disabled = false;
     }
   });
-  window.add(container, generateButton);
+  window.add(accordionContent, generateButton);
 
   // Add clear button
   const clearButton = document.createElement('button');
@@ -561,12 +580,12 @@ async function loadProjectionsSection(container) {
       console.error('[Forecast] Failed to clear projections:', err);
     }
   });
-  window.add(container, clearButton);
+  window.add(accordionContent, clearButton);
 
   // Projections grid container
   const projectionsGridContainer = document.createElement('div');
   projectionsGridContainer.id = 'projectionsGrid';
-  window.add(container, projectionsGridContainer);
+  window.add(accordionContent, projectionsGridContainer);
 
   // Load projections grid
   await loadProjectionsGrid(projectionsGridContainer);
