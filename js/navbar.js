@@ -3,7 +3,6 @@
   var navLinks = `
     <a href="home.html" id="nav-home">Home</a>
     <a href="forecast.html" id="nav-forecast">Forecast</a>
-    <a href="budget.html" id="nav-budget">Budget Builder</a>
   `;
   function getPage() {
     var path = window.location.pathname.split('/').pop();
@@ -13,8 +12,7 @@
   function highlightActive() {
     var navMap = {
       'home.html': 'nav-home',
-      'forecast.html': 'nav-forecast',
-      'budget.html': 'nav-budget',
+      'forecast.html': 'nav-forecast'
     };
     var activeId = navMap[getPage()];
     if (activeId) {

@@ -7,7 +7,7 @@
       "showAccounts": true,
       "showPlannedTransactions": true,
       "showActualTransactions": true,
-      "showProjections": false,
+      "showProjections": true,
       "accountColumns": ["name", "type", "currency", "balance", "openDate"],
       "transactionColumns": ["debitAccount", "creditAccount", "amount", "description", "tags"]
     },
