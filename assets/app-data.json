@@ -15,8 +15,8 @@
           "id": 1,
           "name": "Jeanre Credit Card",
           "type": {
-            "id": 4,
-            "name": "Income"
+            "id": 5,
+            "name": "Expense"
           },
           "currency": {
             "id": 1,
@@ -90,108 +90,35 @@
           "openDate": "2025-10-13",
           "interestRate": null,
           "periodicChange": null
-        },
-        {
-          "id": 6,
-          "name": "my drugs",
-          "type": {
-            "id": null,
-            "name": {
-              "id": 1,
-              "name": "Asset"
-            }
-          },
-          "currency": {
-            "id": null,
-            "name": {
-              "id": 1,
-              "name": "ZAR"
-            }
-          },
-          "balance": 0,
-          "openDate": "2025-10-13",
-          "interestRate": null,
-          "periodicChange": null
         }
       ],
       "plannedTransactions": [
         {
-          "id": 1,
-          "debitAccount": {
-            "id": 4,
-            "name": "salary2"
+          "amount": 10,
+          "description": null,
+          "recurrence": null,
+          "amountChange": null,
+          "tags": [],
+          "fromAccount": {
+            "id": 2,
+            "name": "salary",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 24600,
+            "openDate": "2025-01-01",
+            "interestRate": null,
+            "periodicChange": null
           },
-          "creditAccount": {
+          "toAccount": {
             "id": 1,
             "name": "Jeanre Credit Card"
-          },
-          "amount": 24600,
-          "description": "",
-          "recurrence": {
-            "recurrenceType": "Monthly - Day of Month",
-            "startDate": "2026-01-01",
-            "dayOfMonth": 1
-          },
-          "amountChange": null,
-          "tags": []
-        },
-        {
-          "id": 6,
-          "debitAccount": {
-            "id": 1,
-            "name": "Jeanre Credit Card"
-          },
-          "creditAccount": {
-            "id": 3,
-            "name": "expenses"
-          },
-          "amount": 5000,
-          "description": "",
-          "recurrence": {
-            "recurrenceType": "Monthly - Day of Month",
-            "startDate": "2026-01-01",
-            "dayOfMonth": 1
-          },
-          "amountChange": null,
-          "tags": []
-        },
-        {
-          "id": 7,
-          "debitAccount": {
-            "id": 6,
-            "name": "my drugs"
-          },
-          "creditAccount": {
-            "id": 4,
-            "name": "salary2"
-          },
-          "amount": 0,
-          "description": "",
-          "recurrence": {
-            "recurrenceType": "One Time",
-            "startDate": "2026-01-01"
-          },
-          "amountChange": null,
-          "tags": []
-        },
-        {
-          "id": 8,
-          "debitAccount": {
-            "id": 1,
-            "name": "Jeanre Credit Card"
-          },
-          "creditAccount": {
-            "id": 1,
-            "name": "Jeanre Credit Card"
-          },
-          "amount": 0,
-          "description": "",
-          "recurrence": {
-            "recurrenceType": "One Time",
-            "startDate": "2026-01-01"
-          },
-          "amountChange": null,
-          "tags": []
+          }
         }
       ],
       "actualTransactions": [],

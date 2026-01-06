@@ -89,16 +89,26 @@ export class EditableGrid {
         this.selectOptions = {};
         // Main grid columns
         this.mainGrid.columns.forEach(col => {
-            if ((col.type === 'select' || col.type === 'addSelect') && col.optionsSource && this.schema[col.optionsSource]) {
-                this.selectOptions[col.field] = this.schema[col.optionsSource];
+            if ((col.type === 'select' || col.type === 'addSelect')) {
+                // Support both optionsSource (reference to schema property) and direct options array
+                if (col.optionsSource && this.schema[col.optionsSource]) {
+                    this.selectOptions[col.field] = this.schema[col.optionsSource];
+                } else if (col.options && Array.isArray(col.options)) {
+                    this.selectOptions[col.field] = col.options;
+                }
             }
         });
         // Modal and other sub-grids
         Object.values(this.schema).forEach(val => {
             if (val && val.columns && Array.isArray(val.columns)) {
                 val.columns.forEach(col => {
-                    if (col.type === 'select' && col.optionsSource && this.schema[col.optionsSource]) {
-                        this.selectOptions[col.field] = this.schema[col.optionsSource];
+                    if (col.type === 'select' || col.type === 'addSelect') {
+                        // Support both optionsSource and direct options
+                        if (col.optionsSource && this.schema[col.optionsSource]) {
+                            this.selectOptions[col.field] = this.schema[col.optionsSource];
+                        } else if (col.options && Array.isArray(col.options)) {
+                            this.selectOptions[col.field] = col.options;
+                        }
                     }
                 });
             }

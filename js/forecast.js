@@ -190,6 +190,51 @@ function transformPlannedTxForBackend(tx, primaryAccountId) {
   };
 }
 
+/**
+ * Transform actual transactions for UI (same as planned transactions)
+ */
+function transformActualTxForUI(actualTxs, primaryAccountId) {
+  if (!primaryAccountId) return [];
+  
+  return actualTxs.map(tx => {
+    const isPrimaryFrom = tx.fromAccount?.id === primaryAccountId;
+    const isPrimaryTo = tx.toAccount?.id === primaryAccountId;
+    
+    // Only include transactions involving the primary account
+    if (!isPrimaryFrom && !isPrimaryTo) return null;
+    
+    return {
+      ...tx,
+      transactionType: isPrimaryFrom 
+        ? { id: 1, name: 'Debit' }   // Money leaving primary account
+        : { id: 2, name: 'Credit' },  // Money entering primary account
+      secondaryAccount: isPrimaryFrom ? tx.toAccount : tx.fromAccount
+    };
+  }).filter(tx => tx !== null);
+}
+
+/**
+ * Transform actual transaction from UI back to backend format (same as planned transactions)
+ */
+function transformActualTxForBackend(tx, primaryAccountId) {
+  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Debit';
+  
+  // Get primary account details
+  const primaryAccount = currentScenario.accounts?.find(a => a.id === primaryAccountId);
+  const primaryAccountObj = primaryAccount 
+    ? { id: primaryAccount.id, name: primaryAccount.name }
+    : { id: primaryAccountId, name: 'Unknown Account' };
+  
+  return {
+    ...tx,
+    fromAccount: isDebit ? primaryAccountObj : tx.secondaryAccount,
+    toAccount: isDebit ? tx.secondaryAccount : primaryAccountObj,
+    // Remove UI-only fields
+    transactionType: undefined,
+    secondaryAccount: undefined
+  };
+}
+
 // Load accounts grid
 async function loadAccountsGrid(container) {
   if (!currentScenario) return;
@@ -371,6 +416,28 @@ async function loadActualTransactionsGrid(container) {
   sectionHeader.style.fontSize = '1.22em';
   window.add(container, sectionHeader);
 
+  // Add primary account selector
+  const filterContainer = document.createElement('div');
+  filterContainer.style.marginBottom = '12px';
+  filterContainer.innerHTML = `
+    <label for="actualAccountSelect" style="color: var(--text-main); margin-right: 8px;">Filter by Account:</label>
+    <select id="actualAccountSelect" class="bg-main text-main bordered rounded" style="padding: 6px 10px; font-size: 1.04em;">
+      <option value="">-- Select Account --</option>
+    </select>
+  `;
+  window.add(container, filterContainer);
+
+  const accountSelect = getEl('actualAccountSelect');
+  (currentScenario.accounts || []).forEach(account => {
+    const option = document.createElement('option');
+    option.value = account.id;
+    option.textContent = account.name;
+    if (activePrimaryAccountId === account.id) {
+      option.selected = true;
+    }
+    window.add(accountSelect, option);
+  });
+
   const gridContainer = document.createElement('div');
   window.add(container, gridContainer);
 
@@ -384,19 +451,30 @@ async function loadActualTransactionsGrid(container) {
     // Inject accounts as options for account selectors
     schema.accounts = currentScenario.accounts || [];
 
+    // Transform transactions for UI display based on selected account
+    const transformedData = activePrimaryAccountId 
+      ? transformActualTxForUI(currentScenario.actualTransactions || [], activePrimaryAccountId)
+      : [];
+
     const grid = new EditableGrid({
       targetElement: gridContainer,
       tableHeader: 'Actual Transactions',
       schema: schema,
-      data: currentScenario.actualTransactions || [],
+      data: transformedData,
       scenarioContext: currentScenario,
       onSave: async (updatedTransactions) => {
         console.log('[Forecast] Actual Txs onSave called with:', updatedTransactions);
         try {
-          await saveActualTransactions(currentScenario.id, updatedTransactions);
+          // Transform back to backend format before saving
+          const backendTxs = updatedTransactions.map(tx => 
+            transformActualTxForBackend(tx, activePrimaryAccountId)
+          );
+          
+          await saveActualTransactions(currentScenario.id, backendTxs);
           currentScenario = await getScenario(currentScenario.id);
           console.log('[Forecast] ✓ Actual transactions saved successfully');
-          // Reload grid with fresh data from disk
+          
+          // Reload grid with fresh data
           await loadActualTransactionsGrid(container);
         } catch (err) {
           console.error('[Forecast] ✗ Failed to save actual transactions:', err);
@@ -406,6 +484,12 @@ async function loadActualTransactionsGrid(container) {
     });
 
     await grid.render();
+
+    // Add event listener to account selector to reload grid
+    accountSelect.addEventListener('change', async (e) => {
+      activePrimaryAccountId = e.target.value ? parseInt(e.target.value) : null;
+      await loadActualTransactionsGrid(container);
+    });
   } catch (err) {
     console.error('[Forecast] Failed to load actual transactions grid:', err);
   }
