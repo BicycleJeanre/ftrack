@@ -45,7 +45,12 @@ export class EditableGrid {
         // Internal working data - copy of original data for manipulation
         this.workingData = [...this.data];
 
-        this.showActions = this.mainGrid.actions.add || this.mainGrid.actions.edit || this.mainGrid.actions.delete || this.mainGrid.actions.save;
+        // Allow explicit showActions override (for hiding action column while keeping keyboard shortcuts)
+        if (options.showActions !== undefined) {
+            this.showActions = options.showActions;
+        } else {
+            this.showActions = this.mainGrid.actions.add || this.mainGrid.actions.edit || this.mainGrid.actions.delete || this.mainGrid.actions.save;
+        }
 
         this.prepareModals();
         this.prepareSelectOptions();
@@ -206,6 +211,9 @@ export class EditableGrid {
                                 style: 'currency',
                                 currency: acc.currency
                             }).format(acc[col.field])
+                            currencyIn.addEventListener('input', () => {
+                                row.classList.add('unsaved-row');
+                            });
                             window.add(cellContent, currencyIn)
                             break
                         case 'number':
@@ -213,12 +221,18 @@ export class EditableGrid {
                             numIn.type = 'number'
                             numIn.step = '1'
                             numIn.value = acc[col.field]
+                            numIn.addEventListener('input', () => {
+                                row.classList.add('unsaved-row');
+                            });
                             window.add(cellContent, numIn)
                             break
                         case 'text':
                             let texIn = document.createElement('input')
                             texIn.type = 'text'
                             texIn.value = acc[col.field]
+                            texIn.addEventListener('input', () => {
+                                row.classList.add('unsaved-row');
+                            });
                             window.add(cellContent, texIn)
                             break
                         case 'select':
@@ -241,6 +255,9 @@ export class EditableGrid {
                                 }
                                 window.add(selectIn, optionEl)
                             })
+                            selectIn.addEventListener('change', () => {
+                                row.classList.add('unsaved-row');
+                            });
                             window.add(cellContent, selectIn)
                             break
                         case 'modal':
@@ -377,10 +394,9 @@ export class EditableGrid {
                             }
                             dateIn.value = val;
                             dateIn.className = 'date-input';
-                            dateIn.onchange = () => {
-                                acc[col.field] = dateIn.value;
-                                this.render();
-                            };
+                            dateIn.addEventListener('change', () => {
+                                row.classList.add('unsaved-row');
+                            });
                             window.add(cellContent, dateIn);
                             break;
                         }
@@ -391,11 +407,15 @@ export class EditableGrid {
                             input.type = 'text';
                             input.className = 'add-select-input';
                             input.setAttribute('list', listId);
-                            // Show current selection as placeholder, keep input empty for full datalist
+                            // Set current selection as VALUE so it can be saved properly
                             if (acc[col.field] && acc[col.field].name) {
-                                input.placeholder = acc[col.field].name;
+                                input.value = acc[col.field].name;
                             }
-                            // Clear input on focus to show all options
+                            // Mark row as unsaved on input
+                            input.addEventListener('input', () => {
+                                row.classList.add('unsaved-row');
+                            });
+                            // Select all on focus to allow easy replacement
                             input.addEventListener('focus', () => {
                                 input.select();
                             });
@@ -455,13 +475,18 @@ export class EditableGrid {
     }
 
     //method to handle saving a row to disk
-    handleSave(row, rowId = this.parentRowId, field = this.parentField) {
+    async handleSave(row, rowId = this.parentRowId, field = this.parentField) {
         const rowData = {};
         const columns = this.mainGrid.columns;
         
-        // Get the original row data to reference for addSelect preservation
+        // Get the original row data to reference for id and addSelect preservation
         const rowIndex = Array.from(row.parentNode.children).indexOf(row);
         const originalRowData = this.workingData[rowIndex];
+        
+        // Preserve the id from original data
+        if (originalRowData && originalRowData.id) {
+            rowData.id = originalRowData.id;
+        }
         
         // Loop through columns and extract values from each cell/input
         columns.forEach((col, i) => {
@@ -517,8 +542,8 @@ export class EditableGrid {
                     const input = cell.querySelector('input');
                     const text = input ? input.value.trim() : '';
                     if (!text) {
-                        // If input is empty, preserve existing value or use placeholder
-                        value = originalRowData[col.field] || null;
+                        // No value entered
+                        value = null;
                     } else {
                         const opts = this.selectOptions[col.field] || [];
                         const found = opts.find(o => o.name === text);
@@ -538,15 +563,29 @@ export class EditableGrid {
             rowData[col.field] = value;
         })
 
-        const rowToUpdate = this.workingData.findIndex(row => row.id == rowData.id)
-        this.workingData[rowToUpdate] = rowData    
+        const rowToUpdate = this.workingData.findIndex(r => r.id == rowData.id);
+        console.log('[EditableGrid] handleSave - Extracted rowData:', JSON.stringify(rowData, null, 2));
+        console.log('[EditableGrid] handleSave - Updating row index:', rowToUpdate);
+        this.workingData[rowToUpdate] = rowData;    
 
         this.data.length = 0;
         this.data.push(...this.workingData);
         
+        console.log('[EditableGrid] handleSave - Calling onSave with data:', this.data);
+        
         if (this.onSave) {
-            // Pass rowId and field for modal grids, undefined for main grids
-            this.onSave(this.data, rowId, field);
+            try {
+                // Pass rowId and field for modal grids, undefined for main grids
+                await this.onSave(this.data, rowId, field);
+                // Remove unsaved indicator after successful save
+                row.classList.remove('unsaved-row');
+                console.log('[EditableGrid] handleSave - Save completed successfully');
+            } catch (err) {
+                console.error('[EditableGrid] handleSave - Save failed:', err);
+                alert('Save failed: ' + err.message);
+            }
+        } else {
+            console.warn('[EditableGrid] handleSave - No onSave callback defined');
         }
     };
 

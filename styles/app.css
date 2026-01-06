@@ -120,6 +120,16 @@ html, body {
   background: #232a23;
 }
 
+/* Unsaved row indicator */
+.unsaved-row {
+  background: #4a4a2c !important; /* Yellow tint */
+  border-left: 4px solid #b6ff00 !important;
+}
+
+.unsaved-row:hover {
+  background: #5a5a3c !important;
+}
+
 #main-navbar {
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
   border-bottom: 2px solid #232a23;

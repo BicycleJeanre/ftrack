@@ -2,17 +2,20 @@
   "mainGrid": {
     "columns": [
       {
-        "field": "debitAccount",
-        "header": "From Account",
+        "field": "transactionType",
+        "header": "Type",
         "type": "select",
         "editable": true,
         "required": true,
-        "optionsSource": "accounts"
+        "options": [
+          { "id": 1, "name": "Debit" },
+          { "id": 2, "name": "Credit" }
+        ]
       },
       {
-        "field": "creditAccount",
-        "header": "To Account",
-        "type": "select",
+        "field": "secondaryAccount",
+        "header": "Secondary Account",
+        "type": "addSelect",
         "editable": true,
         "required": true,
         "optionsSource": "accounts"

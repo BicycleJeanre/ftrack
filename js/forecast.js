@@ -15,6 +15,7 @@ import { generateProjections, clearProjections } from './projection-engine.js';
 
 let currentScenario = null;
 let scenarioTypes = null;
+let activePrimaryAccountId = null; // Track selected primary account for transaction filtering
 
 // Build the main UI container
 function buildGridContainer() {
@@ -142,6 +143,53 @@ function getScenarioTypeConfig() {
   return scenarioTypes.find(st => st.name === currentScenario.type.name);
 }
 
+/**
+ * Transform planned transactions from backend format (fromAccount/toAccount)
+ * to UI format (transactionType/secondaryAccount) based on primary account
+ */
+function transformPlannedTxForUI(plannedTxs, primaryAccountId) {
+  if (!primaryAccountId) return [];
+  
+  return plannedTxs.map(tx => {
+    const isPrimaryFrom = tx.fromAccount?.id === primaryAccountId;
+    const isPrimaryTo = tx.toAccount?.id === primaryAccountId;
+    
+    // Only include transactions involving the primary account
+    if (!isPrimaryFrom && !isPrimaryTo) return null;
+    
+    return {
+      ...tx,
+      transactionType: isPrimaryFrom 
+        ? { id: 1, name: 'Debit' }   // Money leaving primary account
+        : { id: 2, name: 'Credit' },  // Money entering primary account
+      secondaryAccount: isPrimaryFrom ? tx.toAccount : tx.fromAccount
+    };
+  }).filter(tx => tx !== null);
+}
+
+/**
+ * Transform planned transaction from UI format (transactionType/secondaryAccount)
+ * back to backend format (fromAccount/toAccount) based on primary account
+ */
+function transformPlannedTxForBackend(tx, primaryAccountId) {
+  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Debit';
+  
+  // Get primary account details
+  const primaryAccount = currentScenario.accounts?.find(a => a.id === primaryAccountId);
+  const primaryAccountObj = primaryAccount 
+    ? { id: primaryAccount.id, name: primaryAccount.name }
+    : { id: primaryAccountId, name: 'Unknown Account' };
+  
+  return {
+    ...tx,
+    fromAccount: isDebit ? primaryAccountObj : tx.secondaryAccount,
+    toAccount: isDebit ? tx.secondaryAccount : primaryAccountObj,
+    // Remove UI-only fields
+    transactionType: undefined,
+    secondaryAccount: undefined
+  };
+}
+
 // Load accounts grid
 async function loadAccountsGrid(container) {
   if (!currentScenario) return;
@@ -151,6 +199,19 @@ async function loadAccountsGrid(container) {
     container.innerHTML = '';
     return;
   }
+
+  container.innerHTML = '';
+
+  // Add section header
+  const sectionHeader = document.createElement('h3');
+  sectionHeader.className = 'text-main';
+  sectionHeader.textContent = 'Accounts';
+  sectionHeader.style.marginBottom = '12px';
+  sectionHeader.style.fontSize = '1.22em';
+  window.add(container, sectionHeader);
+
+  const gridContainer = document.createElement('div');
+  window.add(container, gridContainer);
 
   const fs = window.require('fs').promises;
   const schemaPath = process.cwd() + '/assets/accounts-grid-unified.json';
@@ -163,14 +224,25 @@ async function loadAccountsGrid(container) {
     schema.accounts = currentScenario.accounts || [];
 
     const grid = new EditableGrid({
-      targetElement: container,
+      targetElement: gridContainer,
       tableHeader: 'Accounts',
       schema: schema,
       data: currentScenario.accounts || [],
-      scenarioContext: currentScenario, // Pass scenario context for conditional visibility
+      scenarioContext: currentScenario,
       onSave: async (updatedAccounts) => {
-        await saveAccounts(currentScenario.id, updatedAccounts);
-        console.log('[Forecast] Accounts saved');
+        console.log('[Forecast] Accounts onSave called with:', updatedAccounts);
+        console.log('[Forecast] First account details:', JSON.stringify(updatedAccounts[0], null, 2));
+        try {
+          await saveAccounts(currentScenario.id, updatedAccounts);
+          currentScenario = await getScenario(currentScenario.id);
+          console.log('[Forecast] ✓ Accounts saved successfully');
+          console.log('[Forecast] After reload, first account:', JSON.stringify(currentScenario.accounts[0], null, 2));
+          // Reload grid with fresh data from disk
+          await loadAccountsGrid(container);
+        } catch (err) {
+          console.error('[Forecast] ✗ Failed to save accounts:', err);
+          alert('Failed to save accounts: ' + err.message);
+        }
       }
     });
 
@@ -190,6 +262,41 @@ async function loadPlannedTransactionsGrid(container) {
     return;
   }
 
+  container.innerHTML = '';
+
+  // Add section header
+  const sectionHeader = document.createElement('h3');
+  sectionHeader.className = 'text-main';
+  sectionHeader.textContent = 'Planned Transactions';
+  sectionHeader.style.marginBottom = '12px';
+  sectionHeader.style.fontSize = '1.22em';
+  window.add(container, sectionHeader);
+
+  // Add primary account selector
+  const filterContainer = document.createElement('div');
+  filterContainer.style.marginBottom = '12px';
+  filterContainer.innerHTML = `
+    <label for="primaryAccountSelect" style="color: var(--text-main); margin-right: 8px;">Filter by Account:</label>
+    <select id="primaryAccountSelect" class="bg-main text-main bordered rounded" style="padding: 6px 10px; font-size: 1.04em;">
+      <option value="">-- Select Account --</option>
+    </select>
+  `;
+  window.add(container, filterContainer);
+
+  const accountSelect = getEl('primaryAccountSelect');
+  (currentScenario.accounts || []).forEach(account => {
+    const option = document.createElement('option');
+    option.value = account.id;
+    option.textContent = account.name;
+    if (activePrimaryAccountId === account.id) {
+      option.selected = true;
+    }
+    window.add(accountSelect, option);
+  });
+
+  const gridContainer = document.createElement('div');
+  window.add(container, gridContainer);
+
   const fs = window.require('fs').promises;
   const schemaPath = process.cwd() + '/assets/planned-transactions-grid.json';
 
@@ -200,19 +307,45 @@ async function loadPlannedTransactionsGrid(container) {
     // Inject accounts as options for account selectors
     schema.accounts = currentScenario.accounts || [];
 
+    // Transform transactions for UI display based on selected account
+    const transformedData = activePrimaryAccountId 
+      ? transformPlannedTxForUI(currentScenario.plannedTransactions || [], activePrimaryAccountId)
+      : [];
+
     const grid = new EditableGrid({
-      targetElement: container,
+      targetElement: gridContainer,
       tableHeader: 'Planned Transactions',
       schema: schema,
-      data: currentScenario.plannedTransactions || [],
-      scenarioContext: currentScenario, // Pass scenario context for conditional visibility
+      data: transformedData,
+      scenarioContext: currentScenario,
       onSave: async (updatedTransactions) => {
-        await savePlannedTransactions(currentScenario.id, updatedTransactions);
-        console.log('[Forecast] Planned transactions saved');
+        console.log('[Forecast] Planned Txs onSave called with:', updatedTransactions);
+        try {
+          // Transform back to backend format before saving
+          const backendTxs = updatedTransactions.map(tx => 
+            transformPlannedTxForBackend(tx, activePrimaryAccountId)
+          );
+          
+          await savePlannedTransactions(currentScenario.id, backendTxs);
+          currentScenario = await getScenario(currentScenario.id);
+          console.log('[Forecast] ✓ Planned transactions saved successfully');
+          
+          // Reload grid with fresh data
+          await loadPlannedTransactionsGrid(container);
+        } catch (err) {
+          console.error('[Forecast] ✗ Failed to save planned transactions:', err);
+          alert('Failed to save planned transactions: ' + err.message);
+        }
       }
     });
 
     await grid.render();
+
+    // Add event listener to account selector to reload grid
+    accountSelect.addEventListener('change', async (e) => {
+      activePrimaryAccountId = e.target.value ? parseInt(e.target.value) : null;
+      await loadPlannedTransactionsGrid(container);
+    });
   } catch (err) {
     console.error('[Forecast] Failed to load planned transactions grid:', err);
   }
@@ -228,6 +361,19 @@ async function loadActualTransactionsGrid(container) {
     return;
   }
 
+  container.innerHTML = '';
+
+  // Add section header
+  const sectionHeader = document.createElement('h3');
+  sectionHeader.className = 'text-main';
+  sectionHeader.textContent = 'Actual Transactions';
+  sectionHeader.style.marginBottom = '12px';
+  sectionHeader.style.fontSize = '1.22em';
+  window.add(container, sectionHeader);
+
+  const gridContainer = document.createElement('div');
+  window.add(container, gridContainer);
+
   const fs = window.require('fs').promises;
   const schemaPath = process.cwd() + '/assets/actual-transactions-grid.json';
 
@@ -239,14 +385,23 @@ async function loadActualTransactionsGrid(container) {
     schema.accounts = currentScenario.accounts || [];
 
     const grid = new EditableGrid({
-      targetElement: container,
+      targetElement: gridContainer,
       tableHeader: 'Actual Transactions',
       schema: schema,
       data: currentScenario.actualTransactions || [],
-      scenarioContext: currentScenario, // Pass scenario context
+      scenarioContext: currentScenario,
       onSave: async (updatedTransactions) => {
-        await saveActualTransactions(currentScenario.id, updatedTransactions);
-        console.log('[Forecast] Actual transactions saved');
+        console.log('[Forecast] Actual Txs onSave called with:', updatedTransactions);
+        try {
+          await saveActualTransactions(currentScenario.id, updatedTransactions);
+          currentScenario = await getScenario(currentScenario.id);
+          console.log('[Forecast] ✓ Actual transactions saved successfully');
+          // Reload grid with fresh data from disk
+          await loadActualTransactionsGrid(container);
+        } catch (err) {
+          console.error('[Forecast] ✗ Failed to save actual transactions:', err);
+          alert('Failed to save actual transactions: ' + err.message);
+        }
       }
     });
 
@@ -267,6 +422,14 @@ async function loadProjectionsSection(container) {
   }
 
   container.innerHTML = '';
+
+  // Add section header
+  const sectionHeader = document.createElement('h3');
+  sectionHeader.className = 'text-main';
+  sectionHeader.textContent = 'Projections';
+  sectionHeader.style.marginBottom = '12px';
+  sectionHeader.style.fontSize = '1.22em';
+  window.add(container, sectionHeader);
 
   // Add generate button
   const generateButton = document.createElement('button');
