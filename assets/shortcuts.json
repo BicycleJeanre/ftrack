@@ -1,0 +1,10 @@
+{
+  "EditableGrid": {
+    "saveRow": "Enter",
+    "deleteRow": "Delete",
+    "addRow": "Meta+Shift+A"
+  },
+  "Global": {
+    "openSettings": "Meta+,"
+  }
+}

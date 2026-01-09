@@ -1,0 +1,134 @@
+{
+  "mainGrid": {
+    "columns": [
+      {
+        "field": "id",
+        "header": "ID",
+        "type": "number",
+        "editable": false,
+        "display": false,
+        "default": 0
+      },
+      {
+        "field": "name",
+        "header": "Scenario Name",
+        "type": "text",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "type",
+        "header": "Type",
+        "type": "select",
+        "editable": true,
+        "display": true,
+        "optionsSource": "scenarioTypes",
+        "default": {"id": 1, "name": "Budget"}
+      },
+      {
+        "field": "description",
+        "header": "Description",
+        "type": "text",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "startDate",
+        "header": "Start Date",
+        "type": "date",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "endDate",
+        "header": "End Date",
+        "type": "date",
+        "editable": true,
+        "display": true,
+        "default": ""
+      },
+      {
+        "field": "projectionPeriod",
+        "header": "Period Type",
+        "type": "select",
+        "editable": true,
+        "display": true,
+        "optionsSource": "periodTypes",
+        "default": {"id": 3, "name": "Month"}
+      },
+      {
+        "field": "accounts",
+        "header": "Accounts",
+        "type": "multiselect",
+        "editable": true,
+        "display": false,
+        "optionsSource": "accounts",
+        "optionsSourceFile": "app-data.json",
+        "default": []
+      },
+      {
+        "field": "accountOverrides",
+        "header": "Account Overrides",
+        "type": "json",
+        "editable": false,
+        "display": false,
+        "default": []
+      },
+      {
+        "field": "transactionOverrides",
+        "header": "Transaction Overrides",
+        "type": "json",
+        "editable": false,
+        "display": false,
+        "default": []
+      },
+      {
+        "field": "createdDate",
+        "header": "Created",
+        "type": "date",
+        "editable": false,
+        "display": false,
+        "default": ""
+      },
+      {
+        "field": "lastCalculated",
+        "header": "Last Calculated",
+        "type": "datetime",
+        "editable": false,
+        "display": false,
+        "default": null
+      },
+      {
+        "field": "tags",
+        "header": "Tags",
+        "type": "tags",
+        "editable": true,
+        "display": true,
+        "default": []
+      }
+    ],
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true,
+      "showSelector": true
+    }
+  },
+  "scenarioTypes": [
+    { "id": 1, "name": "Budget" },
+    { "id": 2, "name": "Loan Payoff" },
+    { "id": 3, "name": "Investment Growth" },
+    { "id": 4, "name": "General" }
+  ],
+  "periodTypes": [
+    { "id": 1, "name": "Day" },
+    { "id": 2, "name": "Week" },
+    { "id": 3, "name": "Month" },
+    { "id": 4, "name": "Quarter" },
+    { "id": 5, "name": "Year" }
+  ]
+}

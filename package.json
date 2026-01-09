@@ -1,0 +1,74 @@
+{
+  "name": "ftrack",
+  "version": "0.3.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --inspect=9229 --remote-debugging-port=9222",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "finance",
+    "budget",
+    "forecast",
+    "planning"
+  ],
+  "author": "BicycleJeanre",
+  "license": "MIT",
+  "description": "FTrack - Financial Tracking and Forecasting Application",
+  "build": {
+    "appId": "com.bicyclejeanre.ftrack",
+    "productName": "FTrack",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "pages/**/*",
+      "js/**/*",
+      "styles/**/*",
+      "assets/*.json",
+      "!assets/app-data.json",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.finance",
+      "icon": "assets/icon.icns",
+      "identity": null
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Finance",
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^37.2.1",
+    "electron-builder": "^26.4.0"
+  }
+}

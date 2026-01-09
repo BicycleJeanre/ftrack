@@ -1,0 +1,302 @@
+{
+  "mainGrid": {
+    "columns": [
+      {
+        "field": "transactionType",
+        "header": "Type",
+        "type": "select",
+        "editable": true,
+        "required": true,
+        "options": [
+          { "id": 1, "name": "Debit" },
+          { "id": 2, "name": "Credit" }
+        ]
+      },
+      {
+        "field": "secondaryAccount",
+        "header": "Secondary Account",
+        "type": "addSelect",
+        "editable": true,
+        "required": true,
+        "optionsSource": "accounts"
+      },
+      {
+        "field": "amount",
+        "header": "Amount",
+        "type": "number",
+        "editable": true,
+        "required": true,
+        "default": 0
+      },
+      {
+        "field": "description",
+        "header": "Description",
+        "type": "text",
+        "editable": true
+      },
+      {
+        "field": "recurrence",
+        "header": "Recurrence",
+        "type": "modal",
+        "editable": true,
+        "modal": "recurrenceModal",
+        "modalIcon": "refresh",
+        "modalIconTitle": "Edit Recurrence",
+        "visibleWhen": "scenario.type.name IN ['Budget', 'General', 'Funds']"
+      },
+      {
+        "field": "periodicChange",
+        "header": "Periodic Change",
+        "type": "modal",
+        "editable": true,
+        "modal": "periodicChangeModal",
+        "modalIcon": "trending",
+        "modalIconTitle": "Edit Periodic Change",
+        "visibleWhen": "scenario.type.name IN ['Budget', 'General', 'Funds']"
+      },
+      {
+        "field": "tags",
+        "header": "Tags",
+        "type": "tags",
+        "editable": true
+      }
+    ],
+    "actions": {
+      "add": true,
+      "edit": true,
+      "delete": true,
+      "save": true
+    },
+    "showTotals": true
+  },
+  "recurrenceModal": {
+    "title": "Recurrence Settings",
+    "actions": {
+      "add": false,
+      "edit": true,
+      "delete": false,
+      "save": true
+    },
+    "columns": [
+      {
+        "field": "recurrenceType",
+        "header": "Recurrence Type",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "recurrenceTypes",
+        "default": "Monthly - Day of Month"
+      },
+      {
+        "field": "startDate",
+        "header": "Start Date",
+        "type": "date",
+        "editable": true
+      },
+      {
+        "field": "endDate",
+        "header": "End Date",
+        "type": "date",
+        "editable": true
+      },
+      {
+        "field": "interval",
+        "header": "Interval",
+        "type": "number",
+        "editable": true,
+        "default": 1,
+        "visibleWhen": "recurrenceType.name IN ['Daily', 'Weekly', 'Monthly - Day of Month', 'Monthly - Week of Month', 'Quarterly', 'Yearly']"
+      },
+      {
+        "field": "dayOfWeek",
+        "header": "Day of Week",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "daysOfWeek",
+        "visibleWhen": "recurrenceType.name == 'Weekly'"
+      },
+      {
+        "field": "dayOfMonth",
+        "header": "Day of Month",
+        "type": "number",
+        "editable": true,
+        "default": 1,
+        "visibleWhen": "recurrenceType.name == 'Monthly - Day of Month'"
+      },
+      {
+        "field": "weekOfMonth",
+        "header": "Week of Month",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "weeksOfMonth",
+        "visibleWhen": "recurrenceType.name == 'Monthly - Week of Month'"
+      },
+      {
+        "field": "dayOfWeekInMonth",
+        "header": "Day of Week",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "daysOfWeek",
+        "visibleWhen": "recurrenceType.name == 'Monthly - Week of Month'"
+      },
+      {
+        "field": "dayOfQuarter",
+        "header": "Day of Quarter (1-92)",
+        "type": "number",
+        "editable": true,
+        "default": 1,
+        "visibleWhen": "recurrenceType.name == 'Quarterly'"
+      },
+      {
+        "field": "month",
+        "header": "Month",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "months",
+        "visibleWhen": "recurrenceType.name == 'Yearly'"
+      },
+      {
+        "field": "dayOfYear",
+        "header": "Day",
+        "type": "number",
+        "editable": true,
+        "default": 1,
+        "visibleWhen": "recurrenceType.name == 'Yearly'"
+      },
+      {
+        "field": "customDates",
+        "header": "Custom Dates (comma-separated)",
+        "type": "text",
+        "editable": true,
+        "visibleWhen": "recurrenceType.name == 'Custom Dates'"
+      }
+    ]
+  },
+  "periodicChangeModal": {
+    "title": "Periodic Change",
+    "actions": {
+      "add": false,
+      "edit": true,
+      "delete": false,
+      "save": true
+    },
+    "columns": [
+      {
+        "field": "changeMode",
+        "header": "Change Mode",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "changeModes",
+        "default": "Percentage Rate"
+      },
+      {
+        "field": "changeType",
+        "header": "Change Type",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "periodicChangeTypes",
+        "visibleWhen": "changeMode.name == 'Percentage Rate'",
+        "default": "Nominal Annual (No Compounding)"
+      },
+      {
+        "field": "value",
+        "header": "Value",
+        "type": "number",
+        "editable": true,
+        "default": 0
+      },
+      {
+        "field": "period",
+        "header": "Per Period",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "frequencies",
+        "visibleWhen": "changeMode.name == 'Fixed Amount'",
+        "default": "Monthly"
+      },
+      {
+        "field": "ratePeriod",
+        "header": "Rate Period",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "ratePeriods",
+        "visibleWhen": "changeType.name == 'Custom'",
+        "default": "Annual"
+      },
+      {
+        "field": "frequency",
+        "header": "Compounding Frequency",
+        "type": "select",
+        "editable": true,
+        "optionsSource": "frequencies",
+        "visibleWhen": "changeType.name == 'Custom'",
+        "default": "Monthly"
+      }
+    ]
+  },
+  "recurrenceTypes": [
+    { "id": 1, "name": "One Time" },
+    { "id": 2, "name": "Daily" },
+    { "id": 3, "name": "Weekly" },
+    { "id": 4, "name": "Monthly - Day of Month" },
+    { "id": 5, "name": "Monthly - Week of Month" },
+    { "id": 6, "name": "Quarterly" },
+    { "id": 7, "name": "Yearly" },
+    { "id": 8, "name": "Custom Dates" }
+  ],
+  "daysOfWeek": [
+    { "id": 1, "name": "Monday" },
+    { "id": 2, "name": "Tuesday" },
+    { "id": 3, "name": "Wednesday" },
+    { "id": 4, "name": "Thursday" },
+    { "id": 5, "name": "Friday" },
+    { "id": 6, "name": "Saturday" },
+    { "id": 7, "name": "Sunday" }
+  ],
+  "weeksOfMonth": [
+    { "id": 1, "name": "1st" },
+    { "id": 2, "name": "2nd" },
+    { "id": 3, "name": "3rd" },
+    { "id": 4, "name": "4th" },
+    { "id": -1, "name": "Last" }
+  ],
+  "months": [
+    { "id": 1, "name": "January" },
+    { "id": 2, "name": "February" },
+    { "id": 3, "name": "March" },
+    { "id": 4, "name": "April" },
+    { "id": 5, "name": "May" },
+    { "id": 6, "name": "June" },
+    { "id": 7, "name": "July" },
+    { "id": 8, "name": "August" },
+    { "id": 9, "name": "September" },
+    { "id": 10, "name": "October" },
+    { "id": 11, "name": "November" },
+    { "id": 12, "name": "December" }
+  ],
+  "periodicChangeTypes": [
+    { "id": 1, "name": "Nominal Annual (No Compounding)" },
+    { "id": 2, "name": "Nominal Annual, Compounded Monthly" },
+    { "id": 3, "name": "Nominal Annual, Compounded Daily" },
+    { "id": 4, "name": "Nominal Annual, Compounded Quarterly" },
+    { "id": 5, "name": "Nominal Annual, Compounded Annually" },
+    { "id": 6, "name": "Nominal Annual, Continuous Compounding" },
+    { "id": 7, "name": "Custom" }
+  ],
+  "changeModes": [
+    { "id": 1, "name": "Percentage Rate" },
+    { "id": 2, "name": "Fixed Amount" }
+  ],
+  "frequencies": [
+    { "id": 1, "name": "Daily" },
+    { "id": 2, "name": "Weekly" },
+    { "id": 3, "name": "Monthly" },
+    { "id": 4, "name": "Quarterly" },
+    { "id": 5, "name": "Yearly" }
+  ],
+  "ratePeriods": [
+    { "id": 1, "name": "Annual" },
+    { "id": 2, "name": "Monthly" },
+    { "id": 3, "name": "Quarterly" },
+    { "id": 4, "name": "Daily" }
+  ]
+}

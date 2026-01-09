@@ -1,0 +1,32 @@
+# Ignore node_modules and large build artifacts
+node_modules/
+budget/node_modules/
+*.log
+.DS_Store
+
+# Ignore OS and editor files
+.vscode/
+.idea/
+
+# Ignore build output
+/dist/
+/build/
+
+# Ignore system files
+Thumbs.db
+
+# Ignore next.js build artifacts
+.next/
+
+# Ignore large binaries
+*.node
+
+# Ignore migration scripts and backup files
+migrate-to-scenarios.js
+*.backup
+test-calculations.js
+
+# Ignore user data and sensitive files
+assets/app-data.json
+userData/
+*.json.bak
