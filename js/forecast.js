@@ -4,7 +4,6 @@
 
 import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
-import { EditableGrid } from './editable-grid.js';
 import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn } from './grid-factory.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
