@@ -879,6 +879,7 @@ async function loadActualTransactionsGrid(container) {
         createDateColumn('Date', 'date', { widthGrow: 1, editor: "date" }),
         createTextColumn('Description', 'description', { widthGrow: 2, editor: "input" })
       ],
+      cellEdited: async function(cell) {
         const row = cell.getRow();
         const rowData = row.getData();
         
