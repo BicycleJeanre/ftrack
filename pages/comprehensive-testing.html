@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Step 19 - Comprehensive Testing - FTrack</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 3px solid #4ec9b0;
+            padding-bottom: 15px;
+            font-size: 2.5em;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .test-panel {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 25px;
+        }
+        .test-panel h2 {
+            margin-top: 0;
+            color: #4ec9b0;
+            font-size: 1.5em;
+            border-bottom: 2px solid #3e3e42;
+            padding-bottom: 10px;
+        }
+        .console {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 15px 0;
+        }
+        .passed {
+            color: #4ec9b0;
+        }
+        .failed {
+            color: #f48771;
+        }
+        .info {
+            color: #d4d4d4;
+        }
+        .warning {
+            color: #ffc107;
+        }
+        button {
+            background: #4ec9b0;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #5dd9c0;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: #555;
+            color: #fff;
+        }
+        button.secondary:hover {
+            background: #666;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-box {
+            background: #2d2d30;
+            border: 2px solid #4ec9b0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #4ec9b0;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            color: #999;
+            margin-top: 5px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>📋 Step 19: Comprehensive Testing & Validation</h1>
+    
+    <div class="test-panel full-width">
+        <h2>🎯 Testing Suite</h2>
+        <p>Automated validation of all refactored features, data operations, and code quality.</p>
+        
+        <div style="margin: 20px 0;">
+            <button id="run-all-btn">▶️ Run All Tests</button>
+            <button id="run-integration-btn" class="secondary">🧪 Integration Tests Only</button>
+            <button id="run-validation-btn" class="secondary">🔍 Code Validation Only</button>
+            <button id="clear-all-btn" class="secondary">🗑️ Clear All</button>
+        </div>
+
+        <div class="stats hidden" id="overall-stats">
+            <div class="stat-box">
+                <div class="stat-value" id="total-passed">0</div>
+                <div class="stat-label">Tests Passed</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value failed" id="total-failed">0</div>
+                <div class="stat-label">Tests Failed</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value warning" id="total-warnings">0</div>
+                <div class="stat-label">Warnings</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="success-rate">0%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-grid">
+        <div class="test-panel">
+            <h2>🧪 Integration Tests</h2>
+            <p>Tests data operations, managers, and feature workflows.</p>
+            <div class="console" id="integration-console">Ready to run integration tests...</div>
+        </div>
+
+        <div class="test-panel">
+            <h2>🔍 Codebase Validation</h2>
+            <p>Validates architecture, patterns, and code quality.</p>
+            <div class="console" id="validation-console">Ready to run code validation...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import IntegrationTests from '../js/integration-tests.js';
+        import CodebaseValidator from '../js/codebase-validator.js';
+
+        const runAllBtn = document.getElementById('run-all-btn');
+        const runIntegrationBtn = document.getElementById('run-integration-btn');
+        const runValidationBtn = document.getElementById('run-validation-btn');
+        const clearAllBtn = document.getElementById('clear-all-btn');
+        
+        const integrationConsole = document.getElementById('integration-console');
+        const validationConsole = document.getElementById('validation-console');
+        const overallStats = document.getElementById('overall-stats');
+        
+        const totalPassed = document.getElementById('total-passed');
+        const totalFailed = document.getElementById('total-failed');
+        const totalWarnings = document.getElementById('total-warnings');
+        const successRate = document.getElementById('success-rate');
+
+        let integrationResults = null;
+        let validationResults = null;
+
+        // Console output capture
+        function createConsoleCapture(consoleElement) {
+            const originalLog = console.log;
+            const originalError = console.error;
+            
+            return {
+                start() {
+                    console.log = function(...args) {
+                        const text = args.map(arg => 
+                            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                        ).join(' ');
+                        
+                        let className = 'info';
+                        if (text.includes('PASSED') || text.includes('✅')) {
+                            className = 'passed';
+                        } else if (text.includes('FAILED') || text.includes('❌')) {
+                            className = 'failed';
+                        } else if (text.includes('⚠️')) {
+                            className = 'warning';
+                        }
+                        
+                        const line = document.createElement('div');
+                        line.className = className;
+                        line.textContent = text;
+                        consoleElement.appendChild(line);
+                        consoleElement.scrollTop = consoleElement.scrollHeight;
+                        
+                        originalLog.apply(console, args);
+                    };
+
+                    console.error = function(...args) {
+                        const text = args.map(arg => 
+                            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                        ).join(' ');
+                        
+                        const line = document.createElement('div');
+                        line.className = 'failed';
+                        line.textContent = text;
+                        consoleElement.appendChild(line);
+                        consoleElement.scrollTop = consoleElement.scrollHeight;
+                        
+                        originalError.apply(console, args);
+                    };
+                },
+                stop() {
+                    console.log = originalLog;
+                    console.error = originalError;
+                }
+            };
+        }
+
+        async function runIntegrationTests() {
+            integrationConsole.innerHTML = '';
+            const capture = createConsoleCapture(integrationConsole);
+            
+            try {
+                capture.start();
+                const testSuite = new IntegrationTests();
+                integrationResults = await testSuite.runAll();
+                return integrationResults;
+            } catch (error) {
+                console.error('Integration tests error:', error);
+                return null;
+            } finally {
+                capture.stop();
+            }
+        }
+
+        async function runCodeValidation() {
+            validationConsole.innerHTML = '';
+            const capture = createConsoleCapture(validationConsole);
+            
+            try {
+                capture.start();
+                const validator = new CodebaseValidator();
+                validationResults = await validator.runAll();
+                return validationResults;
+            } catch (error) {
+                console.error('Validation error:', error);
+                return null;
+            } finally {
+                capture.stop();
+            }
+        }
+
+        function updateOverallStats() {
+            if (!integrationResults && !validationResults) return;
+
+            let passed = 0;
+            let failed = 0;
+            let warnings = 0;
+
+            if (integrationResults) {
+                passed += integrationResults.passed;
+                failed += integrationResults.failed;
+            }
+
+            if (validationResults) {
+                passed += validationResults.passed;
+                failed += validationResults.failed;
+                warnings += validationResults.warnings;
+            }
+
+            const total = passed + failed;
+            const rate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+
+            totalPassed.textContent = passed;
+            totalFailed.textContent = failed;
+            totalWarnings.textContent = warnings;
+            successRate.textContent = rate + '%';
+            
+            overallStats.classList.remove('hidden');
+        }
+
+        runAllBtn.addEventListener('click', async () => {
+            runAllBtn.disabled = true;
+            runAllBtn.textContent = '⏳ Running All Tests...';
+
+            await runIntegrationTests();
+            await runCodeValidation();
+            updateOverallStats();
+
+            runAllBtn.disabled = false;
+            runAllBtn.textContent = '▶️ Run All Tests';
+        });
+
+        runIntegrationBtn.addEventListener('click', async () => {
+            runIntegrationBtn.disabled = true;
+            runIntegrationBtn.textContent = '⏳ Running...';
+
+            await runIntegrationTests();
+            updateOverallStats();
+
+            runIntegrationBtn.disabled = false;
+            runIntegrationBtn.textContent = '🧪 Integration Tests Only';
+        });
+
+        runValidationBtn.addEventListener('click', async () => {
+            runValidationBtn.disabled = true;
+            runValidationBtn.textContent = '⏳ Running...';
+
+            await runCodeValidation();
+            updateOverallStats();
+
+            runValidationBtn.disabled = false;
+            runValidationBtn.textContent = '🔍 Code Validation Only';
+        });
+
+        clearAllBtn.addEventListener('click', () => {
+            integrationConsole.innerHTML = 'Ready to run integration tests...';
+            validationConsole.innerHTML = 'Ready to run code validation...';
+            overallStats.classList.add('hidden');
+            integrationResults = null;
+            validationResults = null;
+        });
+
+        console.log('Test suite loaded and ready.');
+    </script>
+</body>
+</html>
