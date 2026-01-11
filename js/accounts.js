@@ -1,95 +1,246 @@
-// This script manages the Accounts page (/pages/accounts.html).
-// It uses the EditableGrid module to render and manage the accounts table.
+// accounts.js
+// Accounts page using Tabulator and new manager architecture
 
-import { EditableGrid } from './editable-grid.js';
+import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createMoneyColumn, createDateColumn } from './grid-factory.js';
+import * as AccountManager from './managers/account-manager.js';
 import { loadGlobals } from './global-app.js';
-import * as dataManager from './data-manager.js';
 import { getSelectedScenarioId } from './config.js';
 
-//Define Editable Grid Schema. 
-//Create Editable Grid. 
-// handle save/insert/delete
-// handle delete
+let accountsTable = null;
 
-
-
-function buildGridContainer(){
-
+/**
+ * Build the main container for the accounts grid
+ */
+function buildGridContainer() {
     const accountsEl = getEl('panel-accounts');
 
-    //create header with foldable content    
+    // Header with accordion
     const panelHeader = document.createElement('div');
-    panelHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header'
+    panelHeader.className = 'bg-main bordered rounded shadow-lg pointer flex-between accordion-header';
     panelHeader.innerHTML = `<h2 class="text-main">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
     panelHeader.addEventListener('click', () => window.toggleAccordion('content'));
     window.add(accountsEl, panelHeader);
 
-    //foldable content
+    // Foldable content
     const content = document.createElement('div');
     content.id = 'content';
-    content.className = 'bg-main rounded shadow-md accordion-content'
+    content.className = 'bg-main rounded shadow-md accordion-content';
     content.style.display = 'block';
     content.style.padding = '18px 20px 20px 20px';
-    window.add(accountsEl, content)
+    window.add(accountsEl, content);
 
-    //create accounts table section
-    const table = document.createElement('div');
-    table.id = 'accountsTable';
-    window.add(content, table);
+    // Toolbar
+    const toolbar = document.createElement('div');
+    toolbar.id = 'accounts-toolbar';
+    toolbar.style.marginBottom = '15px';
+    toolbar.style.display = 'flex';
+    toolbar.style.gap = '10px';
+    toolbar.innerHTML = `
+        <button id="add-account-btn" class="btn btn-primary">Add Account</button>
+        <button id="delete-account-btn" class="btn" disabled>Delete Selected</button>
+        <span style="flex-grow: 1;"></span>
+        <span id="selected-count" class="text-muted"></span>
+    `;
+    window.add(content, toolbar);
 
-    return table;
+    // Table container
+    const tableContainer = document.createElement('div');
+    tableContainer.id = 'accountsTable';
+    window.add(content, tableContainer);
+
+    return tableContainer;
 }
 
-async function onSave(updatedAccounts) {
-    const scenarioId = getSelectedScenarioId();
-    await dataManager.saveAccounts(scenarioId, updatedAccounts);
-}
-
-async function onDelete(accountId) {
-    const scenarioId = getSelectedScenarioId();
-    await dataManager.deleteAccount(scenarioId, accountId);
-}
-
-async function createGridSchema(tableElement, onSave, onDelete) {
-    let gridData = {}
-    gridData.targetElement = tableElement;
-    gridData.tableHeader = 'Accounts'
-    gridData.onSave = onSave;
-    gridData.onDelete = onDelete;
-    
-    // Load the schema file from disk in an Electron app
+/**
+ * Load schema options from JSON file
+ */
+async function loadSchemaOptions() {
     const fs = window.require('fs').promises;
     const path = window.require('path');
-    const schemaPath = path.join(__dirname, '..', 'assets', 'accounts-grid.json');
+    const schemaPath = path.join(__dirname, '..', 'assets', 'accounts-grid-unified.json');
 
     try {
         const schemaFile = await fs.readFile(schemaPath, 'utf8');
-        gridData.schema = JSON.parse(schemaFile);
-
-        // Load accounts data from DataManager
-        const scenarioId = getSelectedScenarioId();
-        gridData.data = await dataManager.getAccounts(scenarioId);
+        const schema = JSON.parse(schemaFile);
+        return {
+            accountTypes: schema.accountTypes || [],
+            currencies: schema.currencies || []
+        };
     } catch (err) {
-        console.error('Failed to read or parse schema file:', err);
-        console.error('Schema path:', schemaPath);
-        alert('Error: Could not load accounts configuration. Please check that all required files are present.');
-        return null; 
+        console.error('[Accounts] Failed to load schema:', err);
+        return { accountTypes: [], currencies: [] };
     }
-
-    return gridData
 }
 
-function loadTable(tableData){
-    if (!tableData) {
-        console.error('Cannot load table: tableData is null');
+/**
+ * Initialize Tabulator grid
+ */
+async function initializeGrid(tableElement) {
+    const scenarioId = getSelectedScenarioId();
+    if (!scenarioId) {
+        console.error('[Accounts] No scenario selected');
         return;
     }
-    tableData.showActions = false; // Hide actions column - use keyboard shortcuts instead
-    const grid =  new EditableGrid(tableData)
-    grid.render()
+
+    const options = await loadSchemaOptions();
+    const accountsData = await AccountManager.getAll(scenarioId);
+
+    accountsTable = createGrid(tableElement, {
+        data: accountsData,
+        columns: [
+            createSelectorColumn(),
+            createTextColumn('Account Name', 'name', { widthGrow: 3, editor: "input" }),
+            {
+                title: "Type",
+                field: "type",
+                widthGrow: 2,
+                editor: "list",
+                editorParams: {
+                    values: options.accountTypes.map(t => ({ label: t.name, value: t })),
+                    listItemFormatter: function(value, title) {
+                        return title;
+                    },
+                    elementAttributes: {
+                        maxlength: "100"
+                    }
+                },
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    return value?.name || '';
+                },
+                headerFilter: "input",
+                headerFilterFunc: "like",
+                headerFilterPlaceholder: "Filter...",
+                headerHozAlign: "left"
+            },
+            {
+                title: "Currency",
+                field: "currency",
+                width: 120,
+                editor: "list",
+                editorParams: {
+                    values: options.currencies.map(c => ({ label: c.name, value: c })),
+                    listItemFormatter: function(value, title) {
+                        return title;
+                    }
+                },
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    return value?.name || '';
+                },
+                headerFilter: "input",
+                headerFilterFunc: "like",
+                headerFilterPlaceholder: "Filter...",
+                headerHozAlign: "left"
+            },
+            createMoneyColumn('Opening Balance', 'balance', { widthGrow: 2, editor: "number", editorParams: { step: 0.01 } }),
+            createDateColumn('Open Date', 'openDate', { widthGrow: 2, editor: "date" }),
+            {
+                title: "Periodic Change",
+                field: "periodicChange",
+                formatter: function(cell) {
+                    const value = cell.getValue();
+                    if (value && value.value !== undefined) {
+                        return `${value.value}% (${value.changeType?.name || 'N/A'})`;
+                    }
+                    return '<span style="color: #999;">None</span>';
+                },
+                headerSort: false,
+                widthGrow: 2,
+                headerHozAlign: "left"
+            }
+        ],
+        rowSelectionChanged: function(data, rows) {
+            updateToolbar(rows.length);
+        },
+        cellEdited: async function(cell) {
+            const allAccounts = accountsTable.getData();
+            await AccountManager.saveAll(scenarioId, allAccounts);
+        }
+    });
+
+    wireToolbarEvents();
 }
 
+/**
+ * Update toolbar based on selection
+ */
+function updateToolbar(selectedCount) {
+    const deleteBtn = document.getElementById('delete-account-btn');
+    const countSpan = document.getElementById('selected-count');
+    
+    if (deleteBtn) {
+        deleteBtn.disabled = selectedCount === 0;
+    }
+    
+    if (countSpan) {
+        countSpan.textContent = selectedCount > 0 ? `${selectedCount} selected` : '';
+    }
+}
+
+/**
+ * Wire up toolbar button events
+ */
+function wireToolbarEvents() {
+    const addBtn = document.getElementById('add-account-btn');
+    const deleteBtn = document.getElementById('delete-account-btn');
+    
+    if (addBtn) {
+        addBtn.addEventListener('click', () => addNewAccount());
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => deleteSelectedAccounts());
+    }
+}
+
+/**
+ * Add a new account row
+ */
+async function addNewAccount() {
+    const scenarioId = getSelectedScenarioId();
+    
+    const newAccount = {
+        id: 0,
+        name: 'New Account',
+        type: { id: 1, name: 'Asset' },
+        currency: { id: 1, name: 'ZAR' },
+        balance: 0,
+        openDate: new Date().toISOString().slice(0, 10),
+        periodicChange: null
+    };
+    
+    const row = await accountsTable.addRow(newAccount, true);
+    row.getCell('name').edit();
+    
+    const allAccounts = accountsTable.getData();
+    await AccountManager.saveAll(scenarioId, allAccounts);
+}
+
+/**
+ * Delete selected accounts
+ */
+async function deleteSelectedAccounts() {
+    const selectedRows = accountsTable.getSelectedRows();
+    
+    if (selectedRows.length === 0) return;
+    
+    const confirm = window.confirm(`Delete ${selectedRows.length} account(s)?`);
+    if (!confirm) return;
+    
+    const scenarioId = getSelectedScenarioId();
+    
+    for (const row of selectedRows) {
+        row.delete();
+    }
+    
+    const allAccounts = accountsTable.getData();
+    await AccountManager.saveAll(scenarioId, allAccounts);
+    
+    updateToolbar(0);
+}
+
+// Initialize
 loadGlobals();
-const table = buildGridContainer();
-const tableData = await createGridSchema(table, onSave)
-loadTable(tableData);
+const tableElement = buildGridContainer();
+await initializeGrid(tableElement);
