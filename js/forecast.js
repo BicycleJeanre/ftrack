@@ -18,13 +18,18 @@ import {
   createAccount,
   saveAccounts,
   savePlannedTransactions,
-  saveActualTransactions
+  saveActualTransactions,
+  getScenarioPeriods,
+  getPlannedTransactionsForPeriod
 } from './data-manager.js';
 import { generateProjections, clearProjections } from './projection-engine.js';
 
 let currentScenario = null;
 let scenarioTypes = null;
 let selectedAccountId = null; // Track selected account for filtering transaction views
+let actualPeriod = null; // Selected period for actual transactions
+let periods = []; // Calculated periods for current scenario
+let periods = []; // Calculated periods for current scenario
 
 // Build the main UI container with independent accordions
 function buildGridContainer() {
@@ -120,6 +125,22 @@ function buildGridContainer() {
   actualTxContent.style.display = 'block';
   actualTxContent.style.padding = '20px';
   window.add(actualTxSection, actualTxContent);
+  
+  // Period selector for actual transactions
+  const actualPeriodSelector = document.createElement('div');
+  actualPeriodSelector.style.marginBottom = '20px';
+  actualPeriodSelector.style.display = 'flex';
+  actualPeriodSelector.style.gap = '12px';
+  actualPeriodSelector.style.alignItems = 'center';
+  actualPeriodSelector.innerHTML = `
+    <label>Period:</label>
+    <select id="actual-period-select" class="form-select" style="min-width: 200px; max-width: 250px;">
+      <option value="">-- Select Period --</option>
+    </select>
+    <button id="actual-prev-period-btn" class="btn">◀</button>
+    <button id="actual-next-period-btn" class="btn">▶</button>
+  `;
+  window.add(actualTxContent, actualPeriodSelector);
   
   const actualTransactionsTable = document.createElement('div');
   actualTransactionsTable.id = 'actualTransactionsTable';
@@ -589,8 +610,68 @@ async function loadPlannedTransactionsGrid(container) {
   
   window.add(container, sectionHeader);
 
+  // Add "Add Transaction" button
+  const addButtonContainer = document.createElement('div');
+  addButtonContainer.style.marginBottom = '12px';
+  const addButton = document.createElement('button');
+  addButton.className = 'btn btn-primary';
+  addButton.textContent = '+ Add Transaction';
+  addButton.style.fontSize = '0.9em';
+  addButton.addEventListener('click', async () => {
+    // Add a new blank row to the grid
+    if (plannedTxTable) {
+      const newTx = {
+        id: Date.now(), // Temporary ID
+        transactionType: { id: 1, name: 'Debit' },
+        secondaryAccount: currentScenario.accounts?.[0] || null,
+        amount: 0,
+        description: '',
+        recurrence: null,
+        periodicChange: null,
+        tags: []
+      };
+      
+      // Transform to backend format
+      let debitAccount, creditAccount;
+      if (newTx.transactionType?.name === 'Debit') {
+        debitAccount = selectedAccountId 
+          ? currentScenario.accounts.find(a => a.id === selectedAccountId)
+          : currentScenario.accounts?.[0];
+        creditAccount = newTx.secondaryAccount;
+      } else {
+        debitAccount = newTx.secondaryAccount;
+        creditAccount = selectedAccountId 
+          ? currentScenario.accounts.find(a => a.id === selectedAccountId)
+          : currentScenario.accounts?.[0];
+      }
+      
+      const backendTx = {
+        id: newTx.id,
+        debitAccount,
+        creditAccount,
+        amount: 0,
+        description: '',
+        recurrence: null,
+        periodicChange: null,
+        tags: []
+      };
+      
+      // Save to backend
+      const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
+      await TransactionManager.savePlanned(currentScenario.id, [...allTxs, backendTx]);
+      
+      // Add to grid
+      plannedTxTable.addRow(newTx, true); // true = add to top
+      console.log('[Forecast] ✓ New planned transaction added');
+    }
+  });
+  window.add(addButtonContainer, addButton);
+  window.add(container, addButtonContainer);
+
   const gridContainer = document.createElement('div');
   window.add(container, gridContainer);
+
+  let plannedTxTable = null;
 
   try {
     // Get planned transactions for this scenario
@@ -627,9 +708,29 @@ async function loadPlannedTransactionsGrid(container) {
       };
     });
 
-    const plannedTxTable = createGrid(gridContainer, {
+    plannedTxTable = createGrid(gridContainer, {
       data: transformedData,
       columns: [
+        {
+          formatter: "buttonCross",
+          width: 40,
+          hozAlign: "center",
+          cellClick: async function(e, cell) {
+            const row = cell.getRow();
+            const rowData = row.getData();
+            
+            if (confirm(`Delete transaction: ${rowData.description || 'Unnamed'}?`)) {
+              // Remove from backend
+              const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
+              const updatedTxs = allTxs.filter(tx => tx.id !== rowData.id);
+              await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
+              
+              // Remove from grid
+              row.delete();
+              console.log('[Forecast] ✓ Planned transaction deleted');
+            }
+          }
+        },
         {
           title: "Type",
           field: "transactionType",
@@ -795,88 +896,146 @@ async function loadActualTransactionsGrid(container) {
     return;
   }
 
-  container.innerHTML = '';
-
-  // Add section header
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main';
-  sectionHeader.style.marginBottom = '12px';
-  sectionHeader.style.fontSize = '1.22em';
-  
-  if (selectedAccountId) {
-    const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
-    sectionHeader.textContent = `Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
-  } else {
-    sectionHeader.textContent = 'All Accounts';
-  }
-  
-  window.add(container, sectionHeader);
-
-  const gridContainer = document.createElement('div');
-  window.add(container, gridContainer);
-
   try {
-    // Get actual transactions for this scenario
-    const allActual = await TransactionManager.getAllActual(currentScenario.id);
-    
-    // Filter to selected account if one is selected
-    const filteredActual = selectedAccountId
-      ? allActual.filter(tx => {
-          return tx.debitAccount?.id === selectedAccountId || tx.creditAccount?.id === selectedAccountId;
-        })
-      : allActual;
+    // Check if actualPeriod is selected
+    if (!actualPeriod) {
+      const gridContainer = document.getElementById('actualTransactionsTable');
+      if (gridContainer) {
+        const message = document.createElement('div');
+        message.style.padding = '20px';
+        message.style.textAlign = 'center';
+        message.style.color = 'var(--text-secondary)';
+        message.textContent = 'Select a period to view actual transactions';
+        gridContainer.innerHTML = '';
+        window.add(gridContainer, message);
+      }
+      return;
+    }
 
-    // Transform for UI
-    const transformedData = filteredActual.map(tx => {
-      let transactionType, secondaryAccount;
+    // Get planned transactions for the selected period
+    const plannedTransactions = await getPlannedTransactionsForPeriod(currentScenario.id, actualPeriod);
+    
+    // Get all actual transactions
+    const allActual = await TransactionManager.getAllActual(currentScenario.id);
+
+    // Create combined view data
+    const combinedData = plannedTransactions.map(planned => {
+      // Find matching actual transaction
+      const actualTx = allActual.find(a => a.plannedId === planned.id);
       
-      if (tx.debitAccount?.id === selectedAccountId) {
-        transactionType = { id: 1, name: 'Debit' };
-        secondaryAccount = tx.creditAccount;
+      // Determine type and secondary account based on selected account
+      let transactionType, secondaryAccount;
+      if (selectedAccountId) {
+        if (planned.debitAccount?.id === selectedAccountId) {
+          transactionType = { id: 1, name: 'Debit' };
+          secondaryAccount = planned.creditAccount;
+        } else {
+          transactionType = { id: 2, name: 'Credit' };
+          secondaryAccount = planned.debitAccount;
+        }
       } else {
-        transactionType = { id: 2, name: 'Credit' };
-        secondaryAccount = tx.debitAccount;
+        // Default view
+        transactionType = { id: 1, name: 'Debit' };
+        secondaryAccount = planned.creditAccount;
       }
 
       return {
-        id: tx.id,
+        plannedId: planned.id,
+        actualId: actualTx?.id,
+        executed: !!actualTx,
         transactionType,
         secondaryAccount,
-        amount: tx.amount,
-        date: tx.actualDate,
-        description: tx.description,
-        tags: tx.tags
+        plannedAmount: planned.amount,
+        actualAmount: actualTx?.amount || 0,
+        variance: actualTx ? (actualTx.amount - planned.amount) : 0,
+        plannedDate: planned.effectiveDate,
+        actualDate: actualTx?.actualDate || planned.effectiveDate,
+        description: planned.description,
+        debitAccount: planned.debitAccount,
+        creditAccount: planned.creditAccount
       };
     });
 
+    // Get the grid container
+    const gridContainer = document.getElementById('actualTransactionsTable');
+    if (!gridContainer) return;
+    
+    gridContainer.innerHTML = '';
+
+    // Create the grid
     const actualTxTable = createGrid(gridContainer, {
-      data: transformedData,
+      data: combinedData,
       columns: [
+        {
+          title: "✓",
+          field: "executed",
+          width: 50,
+          hozAlign: "center",
+          formatter: "tickCross",
+          cellClick: async function(e, cell) {
+            const row = cell.getRow();
+            const rowData = row.getData();
+            
+            if (!rowData.executed) {
+              // Mark as executed - create actual transaction
+              const newActual = {
+                id: window.generateUUID(),
+                plannedId: rowData.plannedId,
+                debitAccount: rowData.debitAccount,
+                creditAccount: rowData.creditAccount,
+                amount: rowData.plannedAmount,
+                actualDate: rowData.plannedDate,
+                description: rowData.description,
+                tags: []
+              };
+              
+              const allActual = await TransactionManager.getAllActual(currentScenario.id);
+              await TransactionManager.saveActual(currentScenario.id, [...allActual, newActual]);
+              
+              // Update row data
+              row.update({
+                executed: true,
+                actualId: newActual.id,
+                actualAmount: newActual.amount,
+                actualDate: newActual.actualDate,
+                variance: newActual.amount - rowData.plannedAmount
+              });
+              
+              console.log('[Forecast] ✓ Actual transaction created');
+            } else {
+              // Unmark - delete actual transaction
+              const allActual = await TransactionManager.getAllActual(currentScenario.id);
+              const filtered = allActual.filter(tx => tx.id !== rowData.actualId);
+              await TransactionManager.saveActual(currentScenario.id, filtered);
+              
+              // Update row data
+              row.update({
+                executed: false,
+                actualId: null,
+                actualAmount: 0,
+                actualDate: rowData.plannedDate,
+                variance: 0
+              });
+              
+              console.log('[Forecast] ✓ Actual transaction deleted');
+            }
+          }
+        },
         {
           title: "Type",
           field: "transactionType",
           widthGrow: 1,
-          editor: "list",
-          editorParams: {
-            values: [
-              { label: 'Debit', value: { id: 1, name: 'Debit' } },
-              { label: 'Credit', value: { id: 2, name: 'Credit' } }
-            ],
-            listItemFormatter: function(value, title) {
-              return title;
-            }
-          },
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
           },
-          sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+          sorter: function(a, b) {
             const aVal = a?.name || '';
             const bVal = b?.name || '';
             return aVal.localeCompare(bVal);
           },
           headerFilter: "input",
-          headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+          headerFilterFunc: function(headerValue, rowValue) {
             const name = rowValue?.name || '';
             return name.toLowerCase().includes(headerValue.toLowerCase());
           },
@@ -887,68 +1046,99 @@ async function loadActualTransactionsGrid(container) {
           title: "Secondary Account",
           field: "secondaryAccount",
           widthGrow: 2,
-          editor: "list",
-          editorParams: {
-            values: (currentScenario.accounts || []).map(a => ({ 
-              label: a.name, 
-              value: a 
-            })),
-            listItemFormatter: function(value, title) {
-              return title;
-            }
-          },
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
           },
-          sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+          sorter: function(a, b) {
             const aVal = a?.name || '';
             const bVal = b?.name || '';
             return aVal.localeCompare(bVal);
           },
           headerFilter: "input",
-          headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+          headerFilterFunc: function(headerValue, rowValue) {
             const name = rowValue?.name || '';
             return name.toLowerCase().includes(headerValue.toLowerCase());
           },
           headerFilterPlaceholder: "Filter account...",
           headerHozAlign: "left"
         },
-        createMoneyColumn('Amount', 'amount', { widthGrow: 1, editor: "number", editorParams: { step: 0.01 } }),
-        createDateColumn('Date', 'date', { widthGrow: 1, editor: "date" }),
-        createTextColumn('Description', 'description', { widthGrow: 2, editor: "input" })
+        createMoneyColumn('Planned Amount', 'plannedAmount', { widthGrow: 1 }),
+        createMoneyColumn('Actual Amount', 'actualAmount', { 
+          widthGrow: 1, 
+          editor: "number", 
+          editorParams: { step: 0.01 } 
+        }),
+        {
+          title: "Variance",
+          field: "variance",
+          widthGrow: 1,
+          formatter: function(cell) {
+            const value = cell.getValue() || 0;
+            const formatted = new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD'
+            }).format(value);
+            
+            // Color-code variance
+            if (value > 0) {
+              cell.getElement().style.color = 'var(--success)';
+            } else if (value < 0) {
+              cell.getElement().style.color = 'var(--danger)';
+            } else {
+              cell.getElement().style.color = 'var(--text-main)';
+            }
+            
+            return formatted;
+          },
+          hozAlign: "right",
+          headerHozAlign: "right"
+        },
+        createDateColumn('Planned Date', 'plannedDate', { widthGrow: 1 }),
+        createDateColumn('Actual Date', 'actualDate', { 
+          widthGrow: 1, 
+          editor: "date" 
+        }),
+        createTextColumn('Description', 'description', { widthGrow: 2 })
       ],
       cellEdited: async function(cell) {
         const row = cell.getRow();
         const rowData = row.getData();
+        const field = cell.getField();
         
-        // Transform back to backend format for saving
-        const primaryAccountId = selectedAccountId;
-        const secondaryAccountId = rowData.secondaryAccount?.id;
-        
-        let debitAccount, creditAccount;
-        if (rowData.transactionType?.name === 'Debit') {
-          debitAccount = currentScenario.accounts.find(a => a.id === primaryAccountId);
-          creditAccount = currentScenario.accounts.find(a => a.id === secondaryAccountId);
-        } else {
-          creditAccount = currentScenario.accounts.find(a => a.id === primaryAccountId);
-          debitAccount = currentScenario.accounts.find(a => a.id === secondaryAccountId);
+        // Only allow editing actual amount and actual date when marked as executed
+        if (!rowData.executed) {
+          console.log('[Forecast] Cannot edit - transaction not marked as executed');
+          return;
         }
-
-        const backendTx = {
-          id: rowData.id,
-          debitAccount,
-          creditAccount,
-          amount: parseFloat(rowData.amount) || 0,
-          actualDate: rowData.date,
-          description: rowData.description || '',
-          tags: rowData.tags || []
-        };
-
-        // Save updated transaction
+        
+        if (field !== 'actualAmount' && field !== 'actualDate') {
+          return;
+        }
+        
+        // Update actual transaction
         const allActual = await TransactionManager.getAllActual(currentScenario.id);
-        const otherTxs = allActual.filter(tx => tx.id !== rowData.id);
-        await TransactionManager.saveActual(currentScenario.id, [...otherTxs, backendTx]);
+        const actualTx = allActual.find(tx => tx.id === rowData.actualId);
+        
+        if (!actualTx) {
+          console.error('[Forecast] Actual transaction not found');
+          return;
+        }
+        
+        // Update the transaction
+        actualTx.amount = parseFloat(rowData.actualAmount) || 0;
+        actualTx.actualDate = rowData.actualDate;
+        
+        // Calculate new variance
+        const newVariance = actualTx.amount - rowData.plannedAmount;
+        
+        // Save
+        const otherTxs = allActual.filter(tx => tx.id !== rowData.actualId);
+        await TransactionManager.saveActual(currentScenario.id, [...otherTxs, actualTx]);
+        
+        // Update variance in row
+        row.update({ variance: newVariance });
+        
         console.log('[Forecast] ✓ Actual transaction updated');
       }
     });
@@ -1151,8 +1341,67 @@ async function loadScenarioData() {
 
   await loadAccountsGrid(containers.accountsTable);
   await loadPlannedTransactionsGrid(containers.plannedTransactionsTable);
+  
+  // Initialize period selector for actual transactions
+  await initializePeriodSelector();
+  
   await loadActualTransactionsGrid(containers.actualTransactionsTable);
   await loadProjectionsSection(containers.projectionsContent);
+}
+
+// Initialize period selector dropdown and navigation
+async function initializePeriodSelector() {
+  if (!currentScenario) return;
+  
+  try {
+    // Calculate periods for current scenario
+    periods = await getScenarioPeriods(currentScenario.id);
+    
+    // Populate period dropdown
+    const periodSelect = document.getElementById('actual-period-select');
+    if (!periodSelect) return;
+    
+    periodSelect.innerHTML = '<option value="">-- Select Period --</option>';
+    periods.forEach((period, index) => {
+      const option = document.createElement('option');
+      option.value = period.id;
+      option.textContent = `${period.start} to ${period.end}`;
+      periodSelect.appendChild(option);
+    });
+    
+    // Set first period as default if available
+    if (periods.length > 0) {
+      actualPeriod = periods[0].id;
+      periodSelect.value = actualPeriod;
+    }
+    
+    // Attach event listeners
+    periodSelect.addEventListener('change', async (e) => {
+      actualPeriod = e.target.value;
+      await loadActualTransactionsGrid(document.getElementById('actualTxContent'));
+    });
+    
+    document.getElementById('actual-prev-period-btn')?.addEventListener('click', async () => {
+      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
+      if (currentIndex > 0) {
+        actualPeriod = periods[currentIndex - 1].id;
+        periodSelect.value = actualPeriod;
+        await loadActualTransactionsGrid(document.getElementById('actualTxContent'));
+      }
+    });
+    
+    document.getElementById('actual-next-period-btn')?.addEventListener('click', async () => {
+      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
+      if (currentIndex < periods.length - 1) {
+        actualPeriod = periods[currentIndex + 1].id;
+        periodSelect.value = actualPeriod;
+        await loadActualTransactionsGrid(document.getElementById('actualTxContent'));
+      }
+    });
+    
+  } catch (err) {
+    console.error('[Forecast] Failed to initialize period selector:', err);
+  }
 }
 
 // Initialize the page
