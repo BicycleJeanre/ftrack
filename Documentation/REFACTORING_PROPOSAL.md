@@ -213,28 +213,99 @@ If full migration seems too risky:
 8.3 **Refactor data-manager** to centralized managers + CRUD  
 8.4 **Gradual migration** to Tabulator for new features only
 
-## 9.0 Next Steps
+## 9.0 Storage Layer Improvements
+
+### 9.1 Current Issues
+
+**Path Handling Inconsistencies**:
+- app-paths.js manually calculates userData path
+- main.js uses app.getPath('userData')
+- Different logic in dev vs production
+- Hard to test or swap storage backends
+
+**Future Extensibility**:
+- Need to support server storage later
+- Need to support mobile storage later
+- Currently tightly coupled to filesystem
+
+### 9.2 Proposed Storage Abstraction
+
+Create a clean storage interface that works now and extends later:
+
+```javascript
+// core/storage-adapter.js
+export class StorageAdapter {
+  async read(key) { /* abstract */ }
+  async write(key, data) { /* abstract */ }
+  async exists(key) { /* abstract */ }
+}
+
+// core/electron-storage.js
+export class ElectronStorage extends StorageAdapter {
+  constructor() {
+    // Uses Electron's app.getPath('userData') - reliable cross-platform
+    // Renderer process gets path from main via IPC or preload
+  }
+  
+  async read(key) {
+    // Always reads from correct userData location
+    // Works on Windows, Mac, Linux consistently
+  }
+  
+  async write(key, data) {
+    // Atomic writes, creates directories automatically
+  }
+}
+
+// Future: core/server-storage.js
+export class ServerStorage extends StorageAdapter {
+  async read(key) { /* fetch from API */ }
+  async write(key, data) { /* POST to API */ }
+}
+```
+
+**Benefits**:
+- Single source of truth for paths (main.js app.getPath)
+- Renderer gets path via preload API (no manual calculation)
+- Easy to swap localStorage, IndexedDB, or server later
+- Testable (mock storage adapter)
+
+### 9.3 Recommended Approach for Now
+
+**Keep it simple**:
+1. Use Electron's built-in `app.getPath('userData')` in main.js (already doing this)
+2. Expose path to renderer via preload.js context bridge
+3. Keep single JSON file storage (simple, portable, works offline)
+4. Add storage adapter layer when/if server storage is needed
+
+**Don't over-engineer**:
+- No need for complex database now
+- File system is fine for single-user app
+- Abstract later when requirements are clear
+
+## 10.0 Next Steps
 
 ### Option A: Full Refactor (Recommended)
-9.1 Create new branch: `refactor/simplify-architecture`  
-9.2 Install Tabulator.js and financejs  
-9.3 Build proof-of-concept for Accounts grid  
-9.4 Review and decide on full migration
+10.1 ~~Create new branch: `refactor/simplify-architecture`~~ ✓ Done  
+10.2 Fix storage path handling (5.3 above)  
+10.3 Install Tabulator.js and financejs  
+10.4 Build proof-of-concept for Accounts grid  
+10.5 Review and decide on full migration
 
 ### Option B: Targeted Improvements
-9.1 Refactor data-manager.js into managers pattern  
-9.2 Add financejs for calculations  
-9.3 Simplify EditableGrid by removing unused features  
-9.4 Continue with current architecture
+10.1 Refactor data-manager.js into managers pattern  
+10.2 Add financejs for calculations  
+10.3 Simplify EditableGrid by removing unused features  
+10.4 Continue with current architecture
 
 ### Option C: Research & Design
-9.1 Create detailed technical design document  
-9.2 Prototype multiple approaches  
-9.3 Benchmark performance  
-9.4 Make data-driven decision
+10.1 Create detailed technical design document  
+10.2 Prototype multiple approaches  
+10.3 Benchmark performance  
+10.4 Make data-driven decision
 
 ---
 
-**Recommendation**: Start with **Option A** proof-of-concept. If successful after testing one grid, proceed with full migration. The 60% code reduction and improved maintainability justify the effort.
+**Recommendation**: Start with **Option A** proof-of-concept. Fix storage paths first (quick win), then tackle grid refactoring. The 60% code reduction and improved maintainability justify the effort.
 
 **Applied Rules**: 1.0, 1.1, 2.0, 5.5, 6.1, 6.4

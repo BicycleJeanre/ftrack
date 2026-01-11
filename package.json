@@ -70,5 +70,8 @@
   "devDependencies": {
     "electron": "^37.2.1",
     "electron-builder": "^26.4.0"
+  },
+  "dependencies": {
+    "tabulator-tables": "^6.3.1"
   }
 }
