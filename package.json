@@ -72,6 +72,7 @@
     "electron-builder": "^26.4.0"
   },
   "dependencies": {
+    "financejs": "^4.1.0",
     "tabulator-tables": "^6.3.1"
   }
 }
