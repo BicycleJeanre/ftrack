@@ -3,8 +3,7 @@
   var navLinks = `
     <a href="home.html" id="nav-home">Home</a>
     <a href="forecast.html" id="nav-forecast">Forecast</a>
-    <a href="accounts-poc.html" id="nav-accounts-poc">Accounts POC</a>
-    <a href="library-test.html" id="nav-library-test">Library Test</a>
+    <a href="accounts.html" id="nav-accounts">Accounts</a>
   `;
   function getPage() {
     var path = window.location.pathname.split('/').pop();
@@ -15,8 +14,7 @@
     var navMap = {
       'home.html': 'nav-home',
       'forecast.html': 'nav-forecast',
-      'accounts-poc.html': 'nav-accounts-poc',
-      'library-test.html': 'nav-library-test'
+      'accounts.html': 'nav-accounts'
     };
     var activeId = navMap[getPage()];
     if (activeId) {
