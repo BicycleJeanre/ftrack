@@ -3,6 +3,7 @@
 
 import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createMoneyColumn, createDateColumn } from './grid-factory.js';
 import * as AccountManager from './managers/account-manager.js';
+import { openPeriodicChangeModal } from './modal-periodic-change.js';
 import { loadGlobals } from './global-app.js';
 import { getSelectedScenarioId } from './config.js';
 
@@ -120,9 +121,22 @@ async function initializeGrid(tableElement) {
                 formatter: (cell) => {
                     const value = cell.getValue();
                     if (value?.value !== undefined) {
-                        return `${value.value}% (${value.changeType?.name || 'N/A'})`;
+                        const mode = value.changeMode?.name === 'Fixed Amount' ? '$' : '%';
+                        return `<span style="cursor: pointer; color: #4ec9b0;">${value.value}${mode} (${value.changeType?.name || 'N/A'}) ✏️</span>`;
                     }
-                    return '<span style="color: #999;">None</span>';
+                    return '<span style="cursor: pointer; color: #999;">Click to add ✏️</span>';
+                },
+                cellClick: function(e, cell) {
+                    const currentValue = cell.getValue();
+                    openPeriodicChangeModal(currentValue, async (newPeriodicChange) => {
+                        cell.setValue(newPeriodicChange);
+                        try {
+                            await AccountManager.saveAll(scenarioId, accountsTable.getData());
+                        } catch (err) {
+                            console.error('Failed to save periodic change:', err);
+                            alert('Failed to save periodic change: ' + err.message);
+                        }
+                    });
                 },
                 headerSort: false,
                 widthGrow: 2,

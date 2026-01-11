@@ -8,6 +8,8 @@ import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn,
 import * as ScenarioManager from './managers/scenario-manager.js';
 import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
+import { openRecurrenceModal } from './modal-recurrence.js';
+import { openPeriodicChangeModal } from './modal-periodic-change.js';
 import { loadGlobals } from './global-app.js';
 import {
   getScenarios,
@@ -708,9 +710,22 @@ async function loadPlannedTransactionsGrid(container) {
           formatter: function(cell) {
             const value = cell.getValue();
             if (value && value.recurrenceType) {
-              return `${value.recurrenceType.name || 'N/A'}`;
+              return `<span style="cursor: pointer; color: #4ec9b0;">${value.recurrenceType.name || 'N/A'} ✏️</span>`;
             }
-            return '<span style="color: #999;">None</span>';
+            return '<span style="cursor: pointer; color: #999;">Click to add ✏️</span>';
+          },
+          cellClick: function(e, cell) {
+            const currentValue = cell.getValue();
+            openRecurrenceModal(currentValue, (newRecurrence) => {
+              cell.setValue(newRecurrence);
+              // Trigger save
+              plannedTransactionsTable.getRows().forEach(row => {
+                if (row.getCell('recurrence') === cell) {
+                  const uiTx = row.getData();
+                  savePlannedTransaction(uiTx);
+                }
+              });
+            });
           },
           headerSort: false,
           headerHozAlign: "left"
