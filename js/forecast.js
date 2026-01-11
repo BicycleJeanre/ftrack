@@ -5,8 +5,9 @@
 import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
 import { EditableGrid } from './editable-grid.js';
-import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn } from './grid-factory.js';
+import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn } from './grid-factory.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
+import * as TransactionManager from './managers/transaction-manager.js';
 import { loadGlobals } from './global-app.js';
 import {
   getScenarios,
@@ -625,141 +626,143 @@ async function loadPlannedTransactionsGrid(container) {
   
   window.add(container, sectionHeader);
 
+  if (!selectedAccountId) {
+    return; // Exit early if no account selected
+  }
+
   const gridContainer = document.createElement('div');
   window.add(container, gridContainer);
 
-  const fs = window.require('fs').promises;
-  const schemaPath = getSchemaPath('planned-transactions-grid.json');
-
   try {
-    const schemaFile = await fs.readFile(schemaPath, 'utf8');
-    const schema = JSON.parse(schemaFile);
+    // Get planned transactions for this scenario
+    const allTransactions = await TransactionManager.getAllPlanned(currentScenario.id);
+    
+    // Filter to show only transactions involving the selected account
+    const filteredTransactions = allTransactions.filter(tx => {
+      return tx.debitAccount?.id === selectedAccountId || tx.creditAccount?.id === selectedAccountId;
+    });
 
-    // Inject accounts as options for account selectors
-    schema.accounts = currentScenario.accounts || [];
-    console.log('[Forecast] Injecting accounts into planned tx schema:', schema.accounts.length, 'accounts');
+    // Transform for UI: show "Type" and "Secondary Account"
+    const transformedData = filteredTransactions.map(tx => {
+      let transactionType, secondaryAccount;
+      
+      if (tx.debitAccount?.id === selectedAccountId) {
+        transactionType = { id: 1, name: 'Debit' };
+        secondaryAccount = tx.creditAccount;
+      } else {
+        transactionType = { id: 2, name: 'Credit' };
+        secondaryAccount = tx.debitAccount;
+      }
 
-    // Transform transactions for UI display based on selected account
-    const transformedData = selectedAccountId 
-      ? transformPlannedTxForUI(currentScenario.plannedTransactions || [], selectedAccountId)
-      : [];
+      return {
+        id: tx.id,
+        transactionType,
+        secondaryAccount,
+        amount: tx.amount,
+        description: tx.description,
+        recurrence: tx.recurrence,
+        periodicChange: tx.periodicChange,
+        tags: tx.tags
+      };
+    });
 
-    const grid = new EditableGrid({
-      targetElement: gridContainer,
-      tableHeader: 'Planned Transactions',
-      schema: schema,
+    const plannedTxTable = createGrid(gridContainer, {
       data: transformedData,
-      scenarioContext: currentScenario,
-      onSave: async (updatedTransactions, rowId, field) => {
-        console.log('[Forecast] Planned Txs onSave called with:', updatedTransactions);
-        console.log('[Forecast] Parameters: rowId=', rowId, 'field=', field);
-        console.log('[Forecast] Selected account ID:', selectedAccountId);
-        
-        // Log each transaction in detail
-        updatedTransactions.forEach((tx, i) => {
-          console.log(`[Forecast] Transaction ${i}:`, {
-            id: tx.id,
-            transactionType: tx.transactionType,
-            secondaryAccount: tx.secondaryAccount,
-            amount: tx.amount,
-            description: tx.description,
-            recurrence: tx.recurrence
-          });
-        });
-        
-        try {
-          let backendTxs;
-          
-          // Both modal saves and normal saves should transform transactions
-          // This ensures new accounts are created when needed
-          if (field !== undefined) {
-            console.log('[Forecast] Modal save - transforming with partial validation');
-            // For modal saves, transform but allow partial data
-            backendTxs = await Promise.all(
-              updatedTransactions.map(async tx => {
-                // Skip completely empty rows
-                if (!tx.transactionType && !tx.secondaryAccount && !tx.amount && !tx.description) {
-                  return null;
-                }
-                
-                // Transform the transaction (this will create new accounts if needed)
-                return await transformPlannedTxForBackend(tx, selectedAccountId);
-              })
-            );
-            backendTxs = backendTxs.filter(tx => tx !== null);
-          } else {
-            // Normal save - validate and transform
-            console.log('[Forecast] Normal save - validating and transforming');
-            const backendTxsRaw = await Promise.all(
-              updatedTransactions.map(tx => transformPlannedTxForBackend(tx, selectedAccountId))
-            );
-            // Filter out null results (transactions with missing data)
-            backendTxs = backendTxsRaw.filter(tx => tx !== null);
-          }
-          
-          console.log('[Forecast] Transformed to backend:', backendTxs);
-          backendTxs.forEach((tx, i) => {
-            console.log(`[Forecast] Backend TX ${i}:`, {
-              debitAccount: tx.debitAccount ? `${tx.debitAccount.name} (id:${tx.debitAccount.id})` : 'NULL',
-              creditAccount: tx.creditAccount ? `${tx.creditAccount.name} (id:${tx.creditAccount.id})` : 'NULL',
-              amount: tx.amount,
-              description: tx.description
-            });
-          });
-          
-          // Merge with existing transactions
-          // Get all transactions from scenario
-          const allTransactions = currentScenario.plannedTransactions || [];
-          
-          console.log('[Forecast] All existing transactions:', allTransactions);
-          
-          // Keep transactions that DON'T involve the selected account
-          const otherAccountTxs = allTransactions.filter(tx => {
-            const involvesAccount = 
-              tx.debitAccount?.id === selectedAccountId || 
-              tx.creditAccount?.id === selectedAccountId;
-            return !involvesAccount;
-          });
-          
-          console.log('[Forecast] Transactions for other accounts:', otherAccountTxs);
-          
-          // Combine: other account transactions + ALL transactions from grid (for selected account)
-          const mergedTransactions = [...otherAccountTxs, ...backendTxs];
-          
-          console.log('[Forecast] Merged transactions to save:', mergedTransactions);
-          mergedTransactions.forEach((tx, i) => {
-            console.log(`[Forecast] Merged TX ${i}:`, {
-              debitAccount: tx.debitAccount ? `${tx.debitAccount.name} (id:${tx.debitAccount.id})` : 'NULL',
-              creditAccount: tx.creditAccount ? `${tx.creditAccount.name} (id:${tx.creditAccount.id})` : 'NULL',
-              amount: tx.amount,
-              description: tx.description
-            });
-          });
-          
-          // Track accounts count before save to detect if new accounts were created
-          const accountsCountBefore = currentScenario.accounts?.length || 0;
-          
-          await savePlannedTransactions(currentScenario.id, mergedTransactions);
-          currentScenario = await getScenario(currentScenario.id);
-          console.log('[Forecast] ✓ Planned transactions saved successfully');
-          
-          // Only reload accounts grid if new accounts were created
-          const accountsCountAfter = currentScenario.accounts?.length || 0;
-          if (accountsCountAfter > accountsCountBefore) {
-            const accountsContainer = getEl('accountsTable');
-            await loadAccountsGrid(accountsContainer);
-          }
-          
-          // Reload planned transactions grid with updated data
-          await loadPlannedTransactionsGrid(container);
-        } catch (err) {
-          console.error('[Forecast] ✗ Failed to save planned transactions:', err);
-          alert('Failed to save planned transactions: ' + err.message);
+      columns: [
+        {
+          title: "Type",
+          field: "transactionType",
+          widthGrow: 1,
+          editor: "list",
+          editorParams: {
+            values: [
+              { label: 'Debit', value: { id: 1, name: 'Debit' } },
+              { label: 'Credit', value: { id: 2, name: 'Credit' } }
+            ],
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          headerHozAlign: "left"
+        },
+        {
+          title: "Secondary Account",
+          field: "secondaryAccount",
+          widthGrow: 2,
+          editor: "list",
+          editorParams: {
+            values: (currentScenario.accounts || []).map(a => ({ 
+              label: a.name, 
+              value: a 
+            })),
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          headerFilter: "input",
+          headerFilterFunc: "like",
+          headerFilterPlaceholder: "Filter...",
+          headerHozAlign: "left"
+        },
+        createMoneyColumn('Amount', 'amount', { widthGrow: 1, editor: "number", editorParams: { step: 0.01 } }),
+        createTextColumn('Description', 'description', { widthGrow: 2, editor: "input" }),
+        {
+          title: "Recurrence",
+          field: "recurrence",
+          widthGrow: 2,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            if (value && value.recurrenceType) {
+              return `${value.recurrenceType.name || 'N/A'}`;
+            }
+            return '<span style="color: #999;">None</span>';
+          },
+          headerSort: false,
+          headerHozAlign: "left"
         }
+      ],
+      cellEdited: async function(cell) {
+        const row = cell.getRow();
+        const uiTx = row.getData();
+        
+        // Transform back to backend format
+        let debitAccount, creditAccount;
+        if (uiTx.transactionType?.name === 'Debit') {
+          debitAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+          creditAccount = uiTx.secondaryAccount;
+        } else {
+          debitAccount = uiTx.secondaryAccount;
+          creditAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+        }
+
+        const backendTx = {
+          id: uiTx.id,
+          debitAccount,
+          creditAccount,
+          amount: parseFloat(uiTx.amount) || 0,
+          description: uiTx.description || '',
+          recurrence: uiTx.recurrence || null,
+          periodicChange: uiTx.periodicChange || null,
+          tags: uiTx.tags || []
+        };
+
+        // Get all transactions, update this one, save all
+        const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
+        const updatedTxs = allTxs.map(tx => tx.id === backendTx.id ? backendTx : tx);
+        
+        await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
+        console.log('[Forecast] ✓ Planned transaction updated');
       }
     });
 
-    await grid.render();
   } catch (err) {
     console.error('[Forecast] Failed to load planned transactions grid:', err);
   }
