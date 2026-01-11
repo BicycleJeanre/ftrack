@@ -716,15 +716,39 @@ async function loadPlannedTransactionsGrid(container) {
           },
           cellClick: function(e, cell) {
             const currentValue = cell.getValue();
-            openRecurrenceModal(currentValue, (newRecurrence) => {
+            openRecurrenceModal(currentValue, async (newRecurrence) => {
               cell.setValue(newRecurrence);
-              // Trigger save
-              plannedTransactionsTable.getRows().forEach(row => {
-                if (row.getCell('recurrence') === cell) {
-                  const uiTx = row.getData();
-                  savePlannedTransaction(uiTx);
-                }
-              });
+              // Trigger save by calling the cellEdited callback manually
+              const row = cell.getRow();
+              const uiTx = row.getData();
+              
+              // Transform back to backend format
+              let debitAccount, creditAccount;
+              if (uiTx.transactionType?.name === 'Debit') {
+                debitAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+                creditAccount = uiTx.secondaryAccount;
+              } else {
+                debitAccount = uiTx.secondaryAccount;
+                creditAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+              }
+
+              const backendTx = {
+                id: uiTx.id,
+                debitAccount,
+                creditAccount,
+                amount: parseFloat(uiTx.amount) || 0,
+                description: uiTx.description || '',
+                recurrence: uiTx.recurrence || null,
+                periodicChange: uiTx.periodicChange || null,
+                tags: uiTx.tags || []
+              };
+
+              // Get all transactions, update this one, save all
+              const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
+              const updatedTxs = allTxs.map(tx => tx.id === backendTx.id ? backendTx : tx);
+              
+              await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
+              console.log('[Forecast] ✓ Recurrence updated');
             });
           },
           headerSort: false,
