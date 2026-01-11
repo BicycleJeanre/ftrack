@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projection Test - FTrack</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        #console {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .pass {
+            color: #4ec9b0;
+        }
+        .fail {
+            color: #f48771;
+        }
+    </style>
+</head>
+<body>
+    <h1>Projection Calculation Tests</h1>
+    <p>Testing financial-utils integration with projection engine</p>
+    <div id="console">Running tests...</div>
+
+    <script type="module">
+        // Capture console output
+        const consoleDiv = document.getElementById('console');
+        const originalLog = console.log;
+        
+        console.log = function(...args) {
+            const text = args.join(' ');
+            consoleDiv.innerHTML += text + '\n';
+            
+            // Color coding
+            if (text.includes('PASS')) {
+                consoleDiv.innerHTML = consoleDiv.innerHTML.replace(/✓ PASS/, '<span class="pass">✓ PASS</span>');
+            } else if (text.includes('FAIL')) {
+                consoleDiv.innerHTML = consoleDiv.innerHTML.replace(/✓ FAIL/, '<span class="fail">✗ FAIL</span>');
+            }
+            
+            originalLog.apply(console, args);
+        };
+
+        // Import and run test
+        import './projection-test.js';
+    </script>
+</body>
+</html>

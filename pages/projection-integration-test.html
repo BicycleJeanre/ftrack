@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integration Test - FTrack</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+        .description {
+            background: #252526;
+            border-left: 4px solid #4ec9b0;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        #console {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .pass {
+            color: #4ec9b0;
+        }
+        .fail {
+            color: #f48771;
+        }
+    </style>
+</head>
+<body>
+    <h1>Projection Engine Integration Test</h1>
+    
+    <div class="description">
+        <h3>What This Tests:</h3>
+        <ul>
+            <li>Account balance growth with compounded monthly interest</li>
+            <li>Transaction amount escalation over time</li>
+            <li>Net cash flow projections</li>
+            <li>Financial-utils integration with projection-engine</li>
+        </ul>
+        <p><strong>Purpose:</strong> Verify Step 16 changes work correctly</p>
+    </div>
+    
+    <div id="console">Running integration tests...</div>
+
+    <script type="module">
+        // Capture console output
+        const consoleDiv = document.getElementById('console');
+        const originalLog = console.log;
+        
+        console.log = function(...args) {
+            const text = args.join(' ');
+            consoleDiv.innerHTML += text + '\n';
+            
+            // Color coding
+            if (text.includes('✓')) {
+                consoleDiv.innerHTML = consoleDiv.innerHTML.replace(/✓([^\n]+)/, '<span class="pass">✓$1</span>');
+            } else if (text.includes('✗') || text.includes('FAIL')) {
+                consoleDiv.innerHTML = consoleDiv.innerHTML.replace(/✗([^\n]+)/, '<span class="fail">✗$1</span>');
+            }
+            
+            originalLog.apply(console, args);
+        };
+
+        // Import and run test
+        import './projection-integration-test.js';
+    </script>
+</body>
+</html>
