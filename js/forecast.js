@@ -5,6 +5,8 @@
 import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
 import { EditableGrid } from './editable-grid.js';
+import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn } from './grid-factory.js';
+import * as ScenarioManager from './managers/scenario-manager.js';
 import { loadGlobals } from './global-app.js';
 import {
   getScenarios,
@@ -191,100 +193,100 @@ async function buildScenarioGrid(container) {
     const schema = JSON.parse(schemaFile);
 
     // Load all scenarios
-    const scenarios = await getScenarios();
+    const scenarios = await ScenarioManager.getAll();
 
-    const grid = new EditableGrid({
-      targetElement: container,
-      tableHeader: 'Scenarios',
-      schema: schema,
+    const scenariosTable = createGrid(container, {
       data: scenarios,
-      onSave: async (updatedScenarios) => {
-        console.log('[Forecast] Scenarios onSave called with:', updatedScenarios);
-        try {
-          // Read current app data
-          const appData = await window.require('fs').promises.readFile(
-            getAppDataPath(), 
-            'utf8'
-          );
-          const data = JSON.parse(appData);
-          
-          // Merge updated scenarios with existing data to preserve accounts, transactions, projections
-          const mergedScenarios = updatedScenarios.map(updatedScenario => {
-            // Find existing scenario with same ID
-            const existing = data.scenarios.find(s => s.id === updatedScenario.id);
-            if (existing) {
-              // Merge: keep existing nested arrays, update only grid-editable fields
-              return {
-                ...existing,
-                ...updatedScenario,
-                // Preserve nested arrays that aren't in the grid
-                accounts: existing.accounts || [],
-                plannedTransactions: existing.plannedTransactions || [],
-                actualTransactions: existing.actualTransactions || [],
-                projections: existing.projections || [],
-                accountOverrides: existing.accountOverrides || [],
-                transactionOverrides: existing.transactionOverrides || []
-              };
-            } else {
-              // New scenario - initialize with empty arrays
-              return {
-                ...updatedScenario,
-                accounts: [],
-                plannedTransactions: [],
-                actualTransactions: [],
-                projections: [],
-                accountOverrides: [],
-                transactionOverrides: [],
-                createdDate: new Date().toISOString(),
-                lastCalculated: null,
-                tags: []
-              };
+      selectable: 1, // Single selection (radio button behavior)
+      columns: [
+        {
+          title: "",
+          field: "selected",
+          width: 40,
+          hozAlign: "center",
+          headerSort: false,
+          formatter: "rowSelection",
+          titleFormatter: "rowSelection",
+          cellClick: function(e, cell) {
+            cell.getRow().toggleSelect();
+          }
+        },
+        createTextColumn('Scenario Name', 'name', { widthGrow: 3, editor: "input" }),
+        {
+          title: "Type",
+          field: "type",
+          widthGrow: 2,
+          editor: "list",
+          editorParams: {
+            values: schema.scenarioTypes.map(t => ({ label: t.name, value: t })),
+            listItemFormatter: function(value, title) {
+              return title;
             }
-          });
-          
-          data.scenarios = mergedScenarios;
-          
-          await window.require('fs').promises.writeFile(
-            getAppDataPath(),
-            JSON.stringify(data, null, 2),
-            'utf8'
-          );
-          
-          console.log('[Forecast] ✓ Scenarios saved successfully');
-          
-          // Reload grid
-          await buildScenarioGrid(container);
-        } catch (err) {
-          console.error('[Forecast] ✗ Failed to save scenarios:', err);
-          alert('Failed to save scenarios: ' + err.message);
+          },
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          headerFilter: "input",
+          headerFilterFunc: "like",
+          headerFilterPlaceholder: "Filter...",
+          headerHozAlign: "left"
+        },
+        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input" }),
+        createDateColumn('Start Date', 'startDate', { widthGrow: 2, editor: "date" }),
+        createDateColumn('End Date', 'endDate', { widthGrow: 2, editor: "date" }),
+        {
+          title: "Period Type",
+          field: "projectionPeriod",
+          widthGrow: 2,
+          editor: "list",
+          editorParams: {
+            values: schema.periodTypes.map(p => ({ label: p.name, value: p })),
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          headerHozAlign: "left"
+        }
+      ],
+      rowSelectionChanged: async function(data, rows) {
+        if (rows.length > 0) {
+          const scenario = rows[0].getData();
+          console.log('[Forecast] Scenario selected:', scenario);
+          currentScenario = await getScenario(scenario.id);
+          selectedAccountId = null; // Clear selected account when switching scenarios
+          await loadScenarioData();
         }
       },
-      onRowClick: async (scenario) => {
-        console.log('[Forecast] Scenario selected:', scenario);
-        currentScenario = await getScenario(scenario.id);
-        // Clear selected account when switching scenarios
-        selectedAccountId = null;
-        await loadScenarioData();
+      cellEdited: async function(cell) {
+        const row = cell.getRow();
+        const scenario = row.getData();
+        
+        try {
+          // Update just the edited scenario
+          await ScenarioManager.update(scenario.id, scenario);
+          console.log('[Forecast] ✓ Scenario updated successfully');
+        } catch (err) {
+          console.error('[Forecast] ✗ Failed to save scenario:', err);
+          alert('Failed to save scenario: ' + err.message);
+        }
       }
     });
-
-    await grid.render();
 
     // Set initial scenario if not set and load its data
     if (!currentScenario && scenarios.length > 0) {
       currentScenario = await getScenario(scenarios[0].id);
       await loadScenarioData();
       
-      // Select the first row's radio button
+      // Select the first row
       setTimeout(() => {
-        const firstRadio = container.querySelector('tbody tr:first-child input[type="radio"]');
-        if (firstRadio) {
-          firstRadio.checked = true;
-          // Trigger the row selection visually
-          const firstRow = container.querySelector('tbody tr:first-child');
-          if (firstRow) {
-            firstRow.classList.add('selected-row');
-          }
+        const firstRow = scenariosTable.getRowFromPosition(0, true);
+        if (firstRow) {
+          firstRow.select();
         }
       }, 100);
     }
