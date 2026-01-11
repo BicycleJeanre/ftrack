@@ -2,7 +2,8 @@
 // Generates financial projections for a scenario based on accounts and planned transactions
 // Uses scenario-scoped data and calculation utilities
 
-import { generateRecurrenceDates, calculatePeriodicChange } from './calculation-utils.js';
+import { generateRecurrenceDates } from './calculation-utils.js';
+import { applyPeriodicChange } from './financial-utils.js';
 import { getScenario, saveProjections } from './data-manager.js';
 
 /**
@@ -52,11 +53,11 @@ export async function generateProjections(scenarioId, options = {}) {
       // Calculate amount for this occurrence (considering amount changes)
       let amount = txn.amount || 0;
       
-      if (txn.periodicChange && txn.periodicChange.rate && txn.periodicChange.rate !== 0) {
+      if (txn.periodicChange) {
         // Calculate periods from transaction start to this occurrence
         const txnStartDate = new Date(txn.recurrence.startDate);
         const yearsDiff = (date - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
-        amount = calculatePeriodicChange(txn.amount, txn.periodicChange, yearsDiff);
+        amount = applyPeriodicChange(txn.amount, txn.periodicChange, yearsDiff);
       }
       
       transactionOccurrences.push({
@@ -94,10 +95,9 @@ export async function generateProjections(scenarioId, options = {}) {
       const periodEnd = period.end;
       
       // Apply interest/growth for the period if configured
-      if (account.periodicChange && account.periodicChange.rate && account.periodicChange.rate !== 0) {
+      if (account.periodicChange) {
         const yearsDiff = (periodEnd - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
-        const newBalance = calculatePeriodicChange(currentBalance, account.periodicChange, yearsDiff);
-        currentBalance = newBalance;
+        currentBalance = applyPeriodicChange(currentBalance, account.periodicChange, yearsDiff);
       }
       
       // Apply transactions in this period
