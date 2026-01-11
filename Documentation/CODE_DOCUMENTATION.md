@@ -774,4 +774,230 @@ Methods:
 
 ---
 
+## 15. Data Flow Architecture
+
+### Overview
+
+FTrack follows a unidirectional data flow pattern from persistent storage through the application and back. All data operations are centralized through the data-manager module, ensuring consistency and preventing data corruption.
+
+### Complete Data Flow Diagram
+
+```mermaid
+flowchart TB
+    subgraph Storage["Persistent Storage"]
+        AppData[("app-data.json<br/>userData/assets/")]
+        Schemas[("Schema Files<br/>*.json")]
+    end
+    
+    subgraph Main["Main Process - main.js"]
+        Init["Initialize App"]
+        FirstRun{"First Run?"}
+        CopySample["Copy app-data.sample.json<br/>to app-data.json"]
+        CreateWindow["Create Browser Window"]
+    end
+    
+    subgraph Renderer["Renderer Process"]
+        subgraph PathResolution["Path Resolution - app-paths.js"]
+            GetAppPath["getAppDataPath"]
+            GetSchemaPath["getSchemaPath"]
+        end
+        
+        subgraph DataLayer["Data Manager - data-manager.js"]
+            ReadData["readAppData"]
+            WriteData["writeAppData"]
+            ScenarioOps["Scenario CRUD"]
+            AccountOps["Account CRUD"]
+            TxnOps["Transaction CRUD"]
+            ProjectionOps["Projection Ops"]
+        end
+        
+        subgraph Pages["Page Controllers"]
+            ForecastPage["forecast.js"]
+            AccountsPage["accounts.js"]
+            TxnsPage["transactions.js"]
+        end
+        
+        subgraph UI["UI Components"]
+            EditableGrid["EditableGrid"]
+            Modal["Modal"]
+            Inputs["User Inputs"]
+        end
+        
+        subgraph Calc["Calculation Engine"]
+            CalcUtils["calculation-utils.js"]
+            ProjEngine["projection-engine.js"]
+        end
+    end
+    
+    subgraph UserActions["User Interactions"]
+        ViewData["View Data"]
+        EditData["Edit in Grid"]
+        OpenModal["Open Modal"]
+        SaveAction["Click Save"]
+        DeleteAction["Click Delete"]
+        GenProj["Generate Projections"]
+        SelectScen["Select Scenario"]
+    end
+    
+    %% Initial Flow
+    Init --> FirstRun
+    FirstRun -->|Yes| CopySample
+    FirstRun -->|No| CreateWindow
+    CopySample --> CreateWindow
+    CreateWindow --> ForecastPage
+    
+    %% Data Loading Flow
+    ForecastPage --> GetAppPath
+    AccountsPage --> GetAppPath
+    TxnsPage --> GetAppPath
+    GetAppPath --> ReadData
+    Schemas --> GetSchemaPath
+    GetSchemaPath --> EditableGrid
+    
+    AppData --> ReadData
+    ReadData --> ScenarioOps
+    ReadData --> AccountOps
+    ReadData --> TxnOps
+    ReadData --> ProjectionOps
+    
+    ScenarioOps --> ForecastPage
+    AccountOps --> ForecastPage
+    AccountOps --> AccountsPage
+    TxnOps --> ForecastPage
+    TxnOps --> TxnsPage
+    ProjectionOps --> ForecastPage
+    
+    ForecastPage --> EditableGrid
+    AccountsPage --> EditableGrid
+    TxnsPage --> EditableGrid
+    
+    EditableGrid --> ViewData
+    
+    %% User Interaction Flow
+    ViewData --> SelectScen
+    ViewData --> EditData
+    ViewData --> OpenModal
+    ViewData --> GenProj
+    
+    SelectScen --> ForecastPage
+    EditData --> Inputs
+    OpenModal --> Modal
+    Modal --> EditableGrid
+    
+    Inputs --> SaveAction
+    Inputs --> DeleteAction
+    SaveAction --> EditableGrid
+    DeleteAction --> EditableGrid
+    
+    %% Save Flow
+    EditableGrid -->|onSave callback| ForecastPage
+    EditableGrid -->|onSave callback| AccountsPage
+    EditableGrid -->|onSave callback| TxnsPage
+    
+    ForecastPage -->|saveAccounts| AccountOps
+    ForecastPage -->|savePlannedTxns| TxnOps
+    ForecastPage -->|saveActualTxns| TxnOps
+    AccountsPage -->|saveAccounts| AccountOps
+    TxnsPage -->|savePlannedTxns| TxnOps
+    
+    %% Delete Flow
+    EditableGrid -->|onDelete callback| AccountsPage
+    AccountsPage -->|deleteAccount| AccountOps
+    
+    %% Projection Generation Flow
+    GenProj --> ProjEngine
+    ProjEngine --> CalcUtils
+    CalcUtils -->|generateRecurrenceDates| ProjEngine
+    CalcUtils -->|calculatePeriodicChange| ProjEngine
+    ProjEngine -->|saveProjections| ProjectionOps
+    
+    %% Write to Disk
+    ScenarioOps --> WriteData
+    AccountOps --> WriteData
+    TxnOps --> WriteData
+    ProjectionOps --> WriteData
+    WriteData --> AppData
+    
+    %% Refresh after save
+    WriteData -.->|Data Updated| ReadData
+    
+    style AppData fill:#e1f5ff,stroke:#0066cc,stroke-width:3px
+    style Schemas fill:#fff3cd,stroke:#856404,stroke-width:2px
+    style EditableGrid fill:#d4edda,stroke:#155724,stroke-width:2px
+    style WriteData fill:#f8d7da,stroke:#721c24,stroke-width:2px
+    style ReadData fill:#d1ecf1,stroke:#0c5460,stroke-width:2px
+    style Inputs fill:#fff3cd,stroke:#856404,stroke-width:2px
+    style ProjEngine fill:#e7e7ff,stroke:#4a4a9e,stroke-width:2px
+```
+
+### Data Flow Stages
+
+#### 1. Application Initialization
+- Main process checks if userData directory exists
+- If first run: copies `app-data.sample.json` → `app-data.json`
+- Creates browser window and loads forecast page
+
+#### 2. Data Loading
+- Page controllers request data paths from `app-paths.js`
+- `data-manager.js` reads `app-data.json` via `readAppData()`
+- Data parsed into JavaScript objects
+- Page controllers request specific data (scenarios, accounts, transactions)
+- EditableGrid receives data and schema for rendering
+
+#### 3. User Interaction
+- User views data in grids
+- User can:
+  - Select scenarios (updates entire page view)
+  - Edit data directly in grid cells
+  - Open modals for complex nested data
+  - Click generate to create projections
+  - Click delete to remove records
+
+#### 4. Data Modification
+- User edits trigger input updates in EditableGrid
+- Changes stored in `workingData` array
+- Save button or auto-save triggers `handleSave()`
+- EditableGrid calls `onSave` callback with updated data
+
+#### 5. Data Persistence
+- Page controllers receive updated data from callbacks
+- Controllers call appropriate data-manager functions:
+  - `saveAccounts(scenarioId, accounts)`
+  - `savePlannedTransactions(scenarioId, transactions)`
+  - `saveActualTransactions(scenarioId, transactions)`
+  - `saveProjections(scenarioId, projections)`
+- Data-manager calls `writeAppData()` to persist to disk
+- `app-data.json` updated with formatted JSON
+
+#### 6. Projection Generation
+- User clicks "Generate Projections"
+- `projection-engine.js` loads scenario data
+- Uses `calculation-utils.js` to:
+  - Generate recurrence dates
+  - Calculate periodic changes (interest/growth)
+- Creates projection records for each account/period
+- Saves projections via data-manager
+- Grid refreshes to show new projections
+
+#### 7. Data Synchronization
+- After write operations, data automatically refreshes
+- EditableGrid re-renders with updated data
+- UI reflects changes immediately
+- No manual refresh required
+
+### Key Principles
+
+1. **Single Source of Truth**: All data flows through `data-manager.js`
+2. **Unidirectional Flow**: Data flows one way - never backwards through the chain
+3. **Separation of Concerns**: 
+   - Path resolution: `app-paths.js`
+   - Data operations: `data-manager.js`
+   - UI rendering: `editable-grid.js`
+   - Business logic: Page controllers
+4. **Callback Pattern**: UI components use callbacks to trigger data operations
+5. **Immutability**: EditableGrid works with copies (`workingData`) not original data
+6. **Schema-Driven**: All grids configured via JSON schemas loaded from bundled assets
+
+---
+
 **Applied Rules**: 1.0, 1.1, 1.2, 1.3, 1.4, 2.1, 5.5, 6.1, 6.2
