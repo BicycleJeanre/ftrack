@@ -6,6 +6,7 @@ import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
 import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn } from './grid-factory.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
+import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
 import { loadGlobals } from './global-app.js';
 import {
@@ -533,66 +534,53 @@ async function loadAccountsGrid(container) {
 
   container.innerHTML = '';
 
-  // Add section header
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main';
-  sectionHeader.textContent = 'Accounts';
-  sectionHeader.style.marginBottom = '12px';
-  sectionHeader.style.fontSize = '1.22em';
-  window.add(container, sectionHeader);
-
-  const gridContainer = document.createElement('div');
-  window.add(container, gridContainer);
-
-  const fs = window.require('fs').promises;
-  const schemaPath = getSchemaPath('accounts-grid-unified.json');
-
   try {
+    const accounts = await AccountManager.getAll(currentScenario.id);
+    const fs = window.require('fs').promises;
+    const path = window.require('path');
+    const schemaPath = path.join(__dirname, '..', 'assets', 'accounts-grid-unified.json');
     const schemaFile = await fs.readFile(schemaPath, 'utf8');
     const schema = JSON.parse(schemaFile);
 
-    // Inject accounts as options for account selectors
-    schema.accounts = currentScenario.accounts || [];
-
-    const grid = new EditableGrid({
-      targetElement: gridContainer,
-      tableHeader: 'Accounts',
-      schema: schema,
-      data: currentScenario.accounts || [],
-      scenarioContext: currentScenario,
-      onSave: async (updatedAccounts) => {
-        console.log('[Forecast] Accounts onSave called with:', updatedAccounts);
-        console.log('[Forecast] First account details:', JSON.stringify(updatedAccounts[0], null, 2));
-        try {
-          await saveAccounts(currentScenario.id, updatedAccounts);
-          currentScenario = await getScenario(currentScenario.id);
-          console.log('[Forecast] ✓ Accounts saved successfully');
-          console.log('[Forecast] After reload, first account:', JSON.stringify(currentScenario.accounts[0], null, 2));
-          // Reload grid with fresh data from disk
-          await loadAccountsGrid(container);
-        } catch (err) {
-          console.error('[Forecast] ✗ Failed to save accounts:', err);
-          alert('Failed to save accounts: ' + err.message);
+    const accountsTable = createGrid(container, {
+      data: accounts,
+      selectable: 1, // Single selection
+      columns: [
+        {
+          title: "",
+          field: "selected",
+          width: 40,
+          hozAlign: "center",
+          headerSort: false,
+          formatter: "rowSelection",
+          titleFormatter: "rowSelection",
+          cellClick: function(e, cell) {
+            cell.getRow().toggleSelect();
+          }
+        },
+        createTextColumn('Account Name', 'name', { widthGrow: 2 }),
+        createObjectColumn('Type', 'type', 'name', { widthGrow: 1 }),
+        createObjectColumn('Currency', 'currency', 'name', { width: 100 }),
+        createMoneyColumn('Balance', 'balance', { widthGrow: 1 })
+      ],
+      rowSelectionChanged: async function(data, rows) {
+        if (rows.length > 0) {
+          const account = rows[0].getData();
+          console.log('[Forecast] Account selected:', account);
+          selectedAccountId = account.id;
+          
+          // Reload transaction and projection grids to filter by this account
+          const plannedTxContainer = getEl('plannedTransactionsTable');
+          const actualTxContainer = getEl('actualTransactionsTable');
+          const projectionsContainer = getEl('projectionsContent');
+          
+          await loadPlannedTransactionsGrid(plannedTxContainer);
+          await loadActualTransactionsGrid(actualTxContainer);
+          await loadProjectionsSection(projectionsContainer);
         }
-      },
-      onRowClick: async (account) => {
-        console.log('[Forecast] Account selected:', account);
-        selectedAccountId = account.id;
-        console.log('[Forecast] selectedAccountId set to:', selectedAccountId);
-        // Reload transaction and projection grids to filter by this account
-        const plannedTxContainer = getEl('plannedTransactionsTable');
-        const actualTxContainer = getEl('actualTransactionsTable');
-        const projectionsContainer = getEl('projectionsContent');
-        console.log('[Forecast] Containers:', { plannedTxContainer, actualTxContainer, projectionsContainer });
-        await loadPlannedTransactionsGrid(plannedTxContainer);
-        await loadActualTransactionsGrid(actualTxContainer);
-        console.log('[Forecast] About to call loadProjectionsSection with selectedAccountId:', selectedAccountId);
-        await loadProjectionsSection(projectionsContainer);
-        console.log('[Forecast] loadProjectionsSection completed');
       }
     });
 
-    await grid.render();
   } catch (err) {
     console.error('[Forecast] Failed to load accounts grid:', err);
   }
