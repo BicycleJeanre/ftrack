@@ -648,6 +648,17 @@ async function loadPlannedTransactionsGrid(container) {
             const value = cell.getValue();
             return value?.name || '';
           },
+          sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          },
+          headerFilter: "input",
+          headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+            const name = rowValue?.name || '';
+            return name.toLowerCase().includes(headerValue.toLowerCase());
+          },
+          headerFilterPlaceholder: "Filter...",
           headerHozAlign: "left"
         },
         {
@@ -668,8 +679,16 @@ async function loadPlannedTransactionsGrid(container) {
             const value = cell.getValue();
             return value?.name || '';
           },
+          sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          },
           headerFilter: "input",
-          headerFilterFunc: "like",
+          headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+            const name = rowValue?.name || '';
+            return name.toLowerCase().includes(headerValue.toLowerCase());
+          },
           headerFilterPlaceholder: "Filter...",
           headerHozAlign: "left"
         },
@@ -851,6 +870,17 @@ async function loadActualTransactionsGrid(container) {
             const value = cell.getValue();
             return value?.name || '';
           },
+          sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          },
+          headerFilter: "input",
+          headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+            const name = rowValue?.name || '';
+            return name.toLowerCase().includes(headerValue.toLowerCase());
+          },
+          headerFilterPlaceholder: "Filter...",
           headerHozAlign: "left"
         },
         {
@@ -871,7 +901,16 @@ async function loadActualTransactionsGrid(container) {
             const value = cell.getValue();
             return value?.name || '';
           },
+          sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          },
           headerFilter: "input",
+          headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+            const name = rowValue?.name || '';
+            return name.toLowerCase().includes(headerValue.toLowerCase());
+          },
           headerFilterPlaceholder: "Filter account...",
           headerHozAlign: "left"
         },
