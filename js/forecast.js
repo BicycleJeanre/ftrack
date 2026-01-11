@@ -1444,13 +1444,9 @@ async function loadProjectionsSection(container) {
 async function loadProjectionsGrid(container) {
   if (!currentScenario) return;
 
-  const fs = window.require('fs').promises;
-  const schemaPath = getSchemaPath('projections-grid.json');
+  container.innerHTML = '';
 
   try {
-    const schemaFile = await fs.readFile(schemaPath, 'utf8');
-    const schema = JSON.parse(schemaFile);
-
     // Filter projections by selected account
     const filteredProjections = selectedAccountId
       ? (currentScenario.projections || []).filter(p => p.accountId === selectedAccountId)
@@ -1458,16 +1454,56 @@ async function loadProjectionsGrid(container) {
 
     console.log(`[Forecast] Projections filtered: ${filteredProjections.length} of ${currentScenario.projections?.length || 0} for account ${selectedAccountId}`);
 
-    const grid = new EditableGrid({
-      targetElement: container,
-      tableHeader: 'Projections',
-      schema: schema,
-      data: filteredProjections,
-      scenarioContext: currentScenario,
-      onSave: null // Read-only grid
+    if (filteredProjections.length === 0) {
+      const emptyMsg = document.createElement('p');
+      emptyMsg.className = 'text-muted';
+      emptyMsg.textContent = 'No projections available. Click "Generate Projections" to calculate.';
+      window.add(container, emptyMsg);
+      return;
+    }
+
+    // Transform projections for display
+    const transformedData = filteredProjections.map(p => ({
+      date: p.date,
+      account: currentScenario.accounts?.find(a => a.id === p.accountId)?.name || '',
+      balance: p.balance || 0,
+      income: p.income || 0,
+      expenses: p.expenses || 0,
+      netChange: p.netChange || 0
+    }));
+
+    const projectionsTable = createGrid(container, {
+      data: transformedData,
+      layout: "fitColumns",
+      columns: [
+        createDateColumn('Date', 'date', { widthGrow: 1 }),
+        createTextColumn('Account', 'account', { widthGrow: 2 }),
+        createMoneyColumn('Projected Balance', 'balance', { widthGrow: 2 }),
+        createMoneyColumn('Projected Income', 'income', { widthGrow: 2 }),
+        createMoneyColumn('Projected Expenses', 'expenses', { widthGrow: 2 }),
+        {
+          title: "Net Change",
+          field: "netChange",
+          widthGrow: 2,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            const formatted = new Intl.NumberFormat('en-ZA', {
+              style: 'currency',
+              currency: 'ZAR',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }).format(value);
+            
+            // Color code: green for positive, red for negative
+            const color = value >= 0 ? '#4ade80' : '#f87171';
+            return `<span style="color: ${color};">${formatted}</span>`;
+          },
+          headerHozAlign: "right",
+          hozAlign: "right"
+        }
+      ]
     });
 
-    await grid.render();
   } catch (err) {
     console.error('[Forecast] Failed to load projections grid:', err);
   }
