@@ -18,38 +18,39 @@ import {
   createAccount,
   saveAccounts,
   savePlannedTransactions,
-  saveActualTransactions,
-  getScenarioPeriods,
-  getPlannedTransactionsForPeriod,
-  getActualTransactionsForPeriod,
-  saveActualTransaction,
-  deleteActualTransaction
+  saveActualTransactions
 } from './data-manager.js';
 import { generateProjections, clearProjections } from './projection-engine.js';
 
 let currentScenario = null;
 let scenarioTypes = null;
 let selectedAccountId = null; // Track selected account for filtering transaction views
-let plannedView = 'master'; // 'master' or period ID for planned transactions
-let actualPeriod = null; // Selected period for actual transactions
-let periods = []; // Calculated periods for current scenario
 
 // Build the main UI container with independent accordions
 function buildGridContainer() {
   const forecastEl = getEl('panel-forecast');
 
+  // Top row: Scenarios and Accounts side-by-side
+  const topRow = document.createElement('div');
+  topRow.style.display = 'grid';
+  topRow.style.gridTemplateColumns = '1fr 1fr';
+  topRow.style.gap = '20px';
+  topRow.style.marginBottom = '20px';
+  window.add(forecastEl, topRow);
+
   // Scenario selector (always visible, no accordion)
+  const scenarioSection = document.createElement('div');
+  scenarioSection.className = 'bg-main bordered rounded shadow-lg';
+  scenarioSection.style.padding = '18px 20px';
+  
   const scenarioSelector = document.createElement('div');
   scenarioSelector.id = 'scenario-selector';
-  scenarioSelector.className = 'bg-main bordered rounded shadow-lg';
-  scenarioSelector.style.padding = '18px 20px';
-  scenarioSelector.style.marginBottom = '20px';
-  window.add(forecastEl, scenarioSelector);
+  window.add(scenarioSection, scenarioSelector);
+  window.add(topRow, scenarioSection);
 
   // Accounts section with accordion
   const accountsSection = document.createElement('div');
   accountsSection.className = 'bg-main bordered rounded shadow-lg';
-  accountsSection.style.marginBottom = '20px';
   
   const accountsHeader = document.createElement('div');
   accountsHeader.className = 'pointer flex-between accordion-header';
@@ -61,19 +62,26 @@ function buildGridContainer() {
   const accountsContent = document.createElement('div');
   accountsContent.id = 'accountsContent';
   accountsContent.className = 'accordion-content';
-  accountsContent.style.display = 'none';
+  accountsContent.style.display = 'block';
   accountsContent.style.padding = '0 20px 20px 20px';
   window.add(accountsSection, accountsContent);
   
   const accountsTable = document.createElement('div');
   accountsTable.id = 'accountsTable';
   window.add(accountsContent, accountsTable);
-  window.add(forecastEl, accountsSection);
+  window.add(topRow, accountsSection);
+
+  // Middle row: Planned and Actual Transactions side-by-side
+  const middleRow = document.createElement('div');
+  middleRow.style.display = 'grid';
+  middleRow.style.gridTemplateColumns = '1fr 1fr';
+  middleRow.style.gap = '20px';
+  middleRow.style.marginBottom = '20px';
+  window.add(forecastEl, middleRow);
 
   // Planned Transactions section with accordion
   const plannedTxSection = document.createElement('div');
   plannedTxSection.className = 'bg-main bordered rounded shadow-lg';
-  plannedTxSection.style.marginBottom = '20px';
   
   const plannedTxHeader = document.createElement('div');
   plannedTxHeader.className = 'pointer flex-between accordion-header';
@@ -85,37 +93,19 @@ function buildGridContainer() {
   const plannedTxContent = document.createElement('div');
   plannedTxContent.id = 'plannedTxContent';
   plannedTxContent.className = 'accordion-content';
-  plannedTxContent.style.display = 'none';
+  plannedTxContent.style.display = 'block';
   plannedTxContent.style.padding = '20px';
   window.add(plannedTxSection, plannedTxContent);
-  
-  // View selector for Master vs Period
-  const plannedViewSelector = document.createElement('div');
-  plannedViewSelector.style.marginBottom = '20px';
-  plannedViewSelector.style.display = 'flex';
-  plannedViewSelector.style.gap = '12px';
-  plannedViewSelector.style.alignItems = 'center';
-  plannedViewSelector.style.justifyContent = 'flex-end';
-  plannedViewSelector.innerHTML = `
-    <button id="planned-view-master-btn" class="btn btn-primary" style="width: auto; min-width: auto; max-width: none; padding: 10px 24px;">Master List</button>
-    <select id="planned-period-select" class="form-select" style="min-width: 200px; max-width: 250px;">
-      <option value="">-- Select Period --</option>
-    </select>
-    <button id="planned-prev-period-btn" class="btn">◀</button>
-    <button id="planned-next-period-btn" class="btn">▶</button>
-  `;
-  window.add(plannedTxContent, plannedViewSelector);
   
   const plannedTransactionsTable = document.createElement('div');
   plannedTransactionsTable.id = 'plannedTransactionsTable';
   window.add(plannedTxContent, plannedTransactionsTable);
   
-  window.add(forecastEl, plannedTxSection);
+  window.add(middleRow, plannedTxSection);
 
   // Actual Transactions section with accordion
   const actualTxSection = document.createElement('div');
   actualTxSection.className = 'bg-main bordered rounded shadow-lg';
-  actualTxSection.style.marginBottom = '20px';
   
   const actualTxHeader = document.createElement('div');
   actualTxHeader.className = 'pointer flex-between accordion-header';
@@ -127,34 +117,17 @@ function buildGridContainer() {
   const actualTxContent = document.createElement('div');
   actualTxContent.id = 'actualTxContent';
   actualTxContent.className = 'accordion-content';
-  actualTxContent.style.display = 'none';
+  actualTxContent.style.display = 'block';
   actualTxContent.style.padding = '20px';
   window.add(actualTxSection, actualTxContent);
-  
-  // Period selector for actual transactions
-  const actualPeriodSelector = document.createElement('div');
-  actualPeriodSelector.style.marginBottom = '20px';
-  actualPeriodSelector.style.display = 'flex';
-  actualPeriodSelector.style.gap = '12px';
-  actualPeriodSelector.style.alignItems = 'center';
-  actualPeriodSelector.style.justifyContent = 'flex-end';
-  actualPeriodSelector.innerHTML = `
-    <label>Period:</label>
-    <select id="actual-period-select" class="form-select" style="min-width: 200px; max-width: 250px;">
-      <option value="">-- Select Period --</option>
-    </select>
-    <button id="actual-prev-period-btn" class="btn">◀</button>
-    <button id="actual-next-period-btn" class="btn">▶</button>
-  `;
-  window.add(actualTxContent, actualPeriodSelector);
   
   const actualTransactionsTable = document.createElement('div');
   actualTransactionsTable.id = 'actualTransactionsTable';
   window.add(actualTxContent, actualTransactionsTable);
   
-  window.add(forecastEl, actualTxSection);
+  window.add(middleRow, actualTxSection);
 
-  // Projections section with accordion
+  // Bottom row: Projections (full width)
   const projectionsSection = document.createElement('div');
   projectionsSection.id = 'projectionsSection';
   projectionsSection.className = 'bg-main bordered rounded shadow-lg';
@@ -171,7 +144,7 @@ function buildGridContainer() {
   const projectionsContent = document.createElement('div');
   projectionsContent.id = 'projectionsContent';
   projectionsContent.className = 'accordion-content';
-  projectionsContent.style.display = 'none';
+  projectionsContent.style.display = 'block';
   projectionsContent.style.padding = '0 20px 20px 20px';
   window.add(projectionsSection, projectionsContent);
   window.add(forecastEl, projectionsSection);
@@ -601,7 +574,7 @@ async function loadPlannedTransactionsGrid(container) {
 
   container.innerHTML = '';
 
-  // Add section header with selected account info
+  // Add section header
   const sectionHeader = document.createElement('h3');
   sectionHeader.className = 'text-main';
   sectionHeader.style.marginBottom = '12px';
@@ -609,16 +582,12 @@ async function loadPlannedTransactionsGrid(container) {
   
   if (selectedAccountId) {
     const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
-    sectionHeader.textContent = `Planned Transactions - ${selectedAccount?.name || 'Unknown Account'}`;
+    sectionHeader.textContent = `Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
   } else {
-    sectionHeader.textContent = 'Planned Transactions - Select an account to view';
+    sectionHeader.textContent = 'All Accounts';
   }
   
   window.add(container, sectionHeader);
-
-  if (!selectedAccountId) {
-    return; // Exit early if no account selected
-  }
 
   const gridContainer = document.createElement('div');
   window.add(container, gridContainer);
@@ -627,10 +596,12 @@ async function loadPlannedTransactionsGrid(container) {
     // Get planned transactions for this scenario
     const allTransactions = await TransactionManager.getAllPlanned(currentScenario.id);
     
-    // Filter to show only transactions involving the selected account
-    const filteredTransactions = allTransactions.filter(tx => {
-      return tx.debitAccount?.id === selectedAccountId || tx.creditAccount?.id === selectedAccountId;
-    });
+    // Filter to show only transactions involving the selected account (if one is selected)
+    const filteredTransactions = selectedAccountId
+      ? allTransactions.filter(tx => {
+          return tx.debitAccount?.id === selectedAccountId || tx.creditAccount?.id === selectedAccountId;
+        })
+      : allTransactions;
 
     // Transform for UI: show "Type" and "Secondary Account"
     const transformedData = filteredTransactions.map(tx => {
@@ -807,7 +778,7 @@ async function loadActualTransactionsGrid(container) {
 
   container.innerHTML = '';
 
-  // Add section header with selected account info
+  // Add section header
   const sectionHeader = document.createElement('h3');
   sectionHeader.className = 'text-main';
   sectionHeader.style.marginBottom = '12px';
@@ -815,71 +786,47 @@ async function loadActualTransactionsGrid(container) {
   
   if (selectedAccountId) {
     const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
-    sectionHeader.textContent = `Actual Transactions - ${selectedAccount?.name || 'Unknown Account'}`;
+    sectionHeader.textContent = `Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
   } else {
-    sectionHeader.textContent = 'Actual Transactions - Select an account to view';
+    sectionHeader.textContent = 'All Accounts';
   }
   
   window.add(container, sectionHeader);
-
-  if (!selectedAccountId || !actualPeriod) {
-    const info = document.createElement('p');
-    info.className = 'text-muted';
-    info.textContent = 'Select an account and period to view actual transactions';
-    window.add(container, info);
-    return;
-  }
 
   const gridContainer = document.createElement('div');
   window.add(container, gridContainer);
 
   try {
-    // Get actual transactions for this scenario and period
+    // Get actual transactions for this scenario
     const allActual = await TransactionManager.getAllActual(currentScenario.id);
-    const periodActual = allActual.filter(tx => tx.periodId === actualPeriod);
     
-    // Get planned transactions to compare
-    const allPlanned = await TransactionManager.getAllPlanned(currentScenario.id);
-    
-    // Filter both to selected account
-    const filteredActual = periodActual.filter(tx => {
-      return tx.debitAccount?.id === selectedAccountId || tx.creditAccount?.id === selectedAccountId;
-    });
-    
-    const filteredPlanned = allPlanned.filter(tx => {
-      return tx.debitAccount?.id === selectedAccountId || tx.creditAccount?.id === selectedAccountId;
-    });
+    // Filter to selected account if one is selected
+    const filteredActual = selectedAccountId
+      ? allActual.filter(tx => {
+          return tx.debitAccount?.id === selectedAccountId || tx.creditAccount?.id === selectedAccountId;
+        })
+      : allActual;
 
-    // Transform for UI - show comparison between planned and actual
-    const transformedData = filteredPlanned.map(plannedTx => {
-      // Find matching actual transaction
-      const actualTx = filteredActual.find(a => a.plannedTransactionId === plannedTx.id);
+    // Transform for UI
+    const transformedData = filteredActual.map(tx => {
+      let transactionType, secondaryAccount;
       
-      // Determine secondary account and planned amount
-      let secondaryAccount, plannedAmount;
-      if (plannedTx.debitAccount?.id === selectedAccountId) {
-        secondaryAccount = plannedTx.creditAccount;
-        plannedAmount = plannedTx.amount;
+      if (tx.debitAccount?.id === selectedAccountId) {
+        transactionType = { id: 1, name: 'Debit' };
+        secondaryAccount = tx.creditAccount;
       } else {
-        secondaryAccount = plannedTx.debitAccount;
-        plannedAmount = -plannedTx.amount; // Credit is negative
+        transactionType = { id: 2, name: 'Credit' };
+        secondaryAccount = tx.debitAccount;
       }
 
-      const actualAmount = actualTx?.amount || 0;
-      const variance = actualAmount - plannedAmount;
-
       return {
-        id: actualTx?.id || 0, // 0 means not executed yet
-        plannedTransactionId: plannedTx.id,
-        executed: !!actualTx,
-        secondaryAccount: secondaryAccount?.name || '',
-        description: plannedTx.description || '',
-        plannedAmount,
-        plannedDate: plannedTx.recurrence?.startDate || '',
-        actualAmount,
-        actualDate: actualTx?.actualDate || '',
-        variance,
-        periodId: actualPeriod
+        id: tx.id,
+        transactionType,
+        secondaryAccount,
+        amount: tx.amount,
+        date: tx.actualDate,
+        description: tx.description,
+        tags: tx.tags
       };
     });
 
@@ -887,97 +834,82 @@ async function loadActualTransactionsGrid(container) {
       data: transformedData,
       columns: [
         {
-          title: "✓",
-          field: "executed",
-          width: 50,
-          hozAlign: "center",
-          formatter: "tickCross",
-          editor: true,
-          headerSort: false
-        },
-        createTextColumn('Account', 'secondaryAccount', { widthGrow: 2 }),
-        createTextColumn('Description', 'description', { widthGrow: 2 }),
-        createMoneyColumn('Planned', 'plannedAmount', { widthGrow: 1 }),
-        createDateColumn('Planned Date', 'plannedDate', { widthGrow: 1 }),
-        createMoneyColumn('Actual', 'actualAmount', { widthGrow: 1, editor: "number", editorParams: { step: 0.01 } }),
-        createDateColumn('Actual Date', 'actualDate', { widthGrow: 1, editor: "date" }),
-        {
-          title: "Variance",
-          field: "variance",
+          title: "Type",
+          field: "transactionType",
           widthGrow: 1,
+          editor: "list",
+          editorParams: {
+            values: [
+              { label: 'Debit', value: { id: 1, name: 'Debit' } },
+              { label: 'Credit', value: { id: 2, name: 'Credit' } }
+            ],
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
           formatter: function(cell) {
             const value = cell.getValue();
-            const formatted = new Intl.NumberFormat('en-ZA', {
-              style: 'currency',
-              currency: 'ZAR',
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            }).format(value);
-            
-            // Color code: green for positive, red for negative
-            const color = value >= 0 ? '#4ade80' : '#f87171';
-            return `<span style="color: ${color};">${formatted}</span>`;
+            return value?.name || '';
           },
-          headerHozAlign: "right",
-          hozAlign: "right"
-        }
+          headerHozAlign: "left"
+        },
+        {
+          title: "Secondary Account",
+          field: "secondaryAccount",
+          widthGrow: 2,
+          editor: "list",
+          editorParams: {
+            values: (currentScenario.accounts || []).map(a => ({ 
+              label: a.name, 
+              value: a 
+            })),
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          headerFilter: "input",
+          headerFilterPlaceholder: "Filter account...",
+          headerHozAlign: "left"
+        },
+        createMoneyColumn('Amount', 'amount', { widthGrow: 1, editor: "number", editorParams: { step: 0.01 } }),
+        createDateColumn('Date', 'date', { widthGrow: 1, editor: "date" }),
+        createTextColumn('Description', 'description', { widthGrow: 2, editor: "input" })
       ],
-      cellEdited: async function(cell) {
-        const field = cell.getField();
         const row = cell.getRow();
         const rowData = row.getData();
         
-        // Only handle executed checkbox, actualAmount, and actualDate changes
-        if (field === 'executed') {
-          if (rowData.executed && !rowData.id) {
-            // Create new actual transaction
-            const actualTx = {
-              id: 0,
-              plannedTransactionId: rowData.plannedTransactionId,
-              periodId: rowData.periodId,
-              debitAccount: currentScenario.accounts.find(a => a.id === selectedAccountId),
-              creditAccount: currentScenario.accounts.find(a => a.name === rowData.secondaryAccount),
-              amount: rowData.actualAmount || rowData.plannedAmount,
-              actualDate: rowData.actualDate || new Date().toISOString().slice(0, 10),
-              description: rowData.description
-            };
-            
-            const allActual = await TransactionManager.getAllActual(currentScenario.id);
-            await TransactionManager.saveActual(currentScenario.id, [...allActual, actualTx]);
-            console.log('[Forecast] ✓ Actual transaction created');
-            
-            // Reload grid to show new ID
-            await loadActualTransactionsGrid(container);
-          } else if (!rowData.executed && rowData.id) {
-            // Delete actual transaction
-            await TransactionManager.deleteActual(currentScenario.id, rowData.id);
-            console.log('[Forecast] ✓ Actual transaction deleted');
-            
-            // Reload grid
-            await loadActualTransactionsGrid(container);
-          }
-        } else if (field === 'actualAmount' || field === 'actualDate') {
-          // Update existing actual transaction
-          if (rowData.id) {
-            const allActual = await TransactionManager.getAllActual(currentScenario.id);
-            const updatedActual = allActual.map(tx => {
-              if (tx.id === rowData.id) {
-                return {
-                  ...tx,
-                  amount: parseFloat(rowData.actualAmount) || 0,
-                  actualDate: rowData.actualDate
-                };
-              }
-              return tx;
-            });
-            
-            await TransactionManager.saveActual(currentScenario.id, updatedActual);
-            console.log('[Forecast] ✓ Actual transaction updated');
-            
-            // Reload to recalculate variance
-            await loadActualTransactionsGrid(container);
-          }
+        // Transform back to backend format for saving
+        const primaryAccountId = selectedAccountId;
+        const secondaryAccountId = rowData.secondaryAccount?.id;
+        
+        let debitAccount, creditAccount;
+        if (rowData.transactionType?.name === 'Debit') {
+          debitAccount = currentScenario.accounts.find(a => a.id === primaryAccountId);
+          creditAccount = currentScenario.accounts.find(a => a.id === secondaryAccountId);
+        } else {
+          creditAccount = currentScenario.accounts.find(a => a.id === primaryAccountId);
+          debitAccount = currentScenario.accounts.find(a => a.id === secondaryAccountId);
         }
+
+        const backendTx = {
+          id: rowData.id,
+          debitAccount,
+          creditAccount,
+          amount: parseFloat(rowData.amount) || 0,
+          actualDate: rowData.date,
+          description: rowData.description || '',
+          tags: rowData.tags || []
+        };
+
+        // Save updated transaction
+        const allActual = await TransactionManager.getAllActual(currentScenario.id);
+        const otherTxs = allActual.filter(tx => tx.id !== rowData.id);
+        await TransactionManager.saveActual(currentScenario.id, [...otherTxs, backendTx]);
+        console.log('[Forecast] ✓ Actual transaction updated');
       }
     });
 
@@ -987,387 +919,6 @@ async function loadActualTransactionsGrid(container) {
 }
 
 // Initialize period selector and attach event listeners
-async function initializePeriodSelector() {
-  if (!currentScenario) return;
-  
-  // Calculate periods for the scenario
-  periods = await getScenarioPeriods(currentScenario.id);
-  
-  // Populate PLANNED period select dropdown
-  const plannedPeriodSelect = getEl('planned-period-select');
-  if (plannedPeriodSelect) {
-    plannedPeriodSelect.innerHTML = '<option value="">-- Select Period --</option>';
-    periods.forEach(period => {
-      const option = document.createElement('option');
-      option.value = period.id;
-      option.textContent = period.label;
-      plannedPeriodSelect.appendChild(option);
-    });
-    
-    plannedPeriodSelect.addEventListener('change', (e) => {
-      if (e.target.value) {
-        switchPlannedView(e.target.value);
-      } else {
-        switchPlannedView('master');
-      }
-    });
-  }
-  
-  // Populate ACTUAL period select dropdown
-  const actualPeriodSelect = getEl('actual-period-select');
-  if (actualPeriodSelect) {
-    actualPeriodSelect.innerHTML = '<option value="">-- Select Period --</option>';
-    periods.forEach(period => {
-      const option = document.createElement('option');
-      option.value = period.id;
-      option.textContent = period.label;
-      actualPeriodSelect.appendChild(option);
-    });
-    
-    actualPeriodSelect.addEventListener('change', (e) => {
-      if (e.target.value) {
-        loadActualTransactionsForPeriod(e.target.value);
-      }
-    });
-  }
-  
-  // Planned view master button
-  const masterBtn = getEl('planned-view-master-btn');
-  if (masterBtn) {
-    masterBtn.addEventListener('click', () => switchPlannedView('master'));
-  }
-  
-  // Planned period navigation
-  const plannedPrevBtn = getEl('planned-prev-period-btn');
-  const plannedNextBtn = getEl('planned-next-period-btn');
-  if (plannedPrevBtn) {
-    plannedPrevBtn.addEventListener('click', () => navigatePlannedPeriod(-1));
-  }
-  if (plannedNextBtn) {
-    plannedNextBtn.addEventListener('click', () => navigatePlannedPeriod(1));
-  }
-  
-  // Actual period navigation
-  const actualPrevBtn = getEl('actual-prev-period-btn');
-  const actualNextBtn = getEl('actual-next-period-btn');
-  if (actualPrevBtn) {
-    actualPrevBtn.addEventListener('click', () => navigateActualPeriod(-1));
-  }
-  if (actualNextBtn) {
-    actualNextBtn.addEventListener('click', () => navigateActualPeriod(1));
-  }
-  
-  // Default to master view for planned transactions
-  switchPlannedView('master');
-}
-
-// Switch planned transactions view between master and period
-async function switchPlannedView(view) {
-  plannedView = view;
-  
-  const container = getEl('plannedTransactionsTable');
-  const masterBtn = getEl('planned-view-master-btn');
-  const periodSelect = getEl('planned-period-select');
-  
-  if (view === 'master') {
-    // Show all planned transactions with recurrence rules
-    if (masterBtn) {
-      masterBtn.classList.add('btn-primary');
-      masterBtn.classList.remove('btn-secondary');
-    }
-    if (periodSelect) periodSelect.value = '';
-    await loadPlannedTransactionsGrid(container);
-  } else {
-    // Show planned transactions for specific period
-    if (masterBtn) {
-      masterBtn.classList.remove('btn-primary');
-      masterBtn.classList.add('btn-secondary');
-    }
-    if (periodSelect) periodSelect.value = view;
-    await loadPlannedTransactionsForPeriodView(container, view);
-  }
-}
-
-// Navigate planned transactions period
-function navigatePlannedPeriod(direction) {
-  if (plannedView === 'master' || !periods.length) return;
-  
-  const currentIndex = periods.findIndex(p => p.id === plannedView);
-  const newIndex = currentIndex + direction;
-  
-  if (newIndex >= 0 && newIndex < periods.length) {
-    switchPlannedView(periods[newIndex].id);
-  }
-}
-
-// Navigate actual transactions period
-function navigateActualPeriod(direction) {
-  if (!actualPeriod || !periods.length) return;
-  
-  const currentIndex = periods.findIndex(p => p.id === actualPeriod);
-  const newIndex = currentIndex + direction;
-  
-  if (newIndex >= 0 && newIndex < periods.length) {
-    const newPeriod = periods[newIndex].id;
-    const periodSelect = getEl('actual-period-select');
-    if (periodSelect) periodSelect.value = newPeriod;
-    loadActualTransactionsForPeriod(newPeriod);
-  }
-}
-
-// Load planned transactions for a specific period (calculated instances)
-async function loadPlannedTransactionsForPeriodView(container, periodId) {
-  if (!currentScenario || !periodId) return;
-  
-  container.innerHTML = '';
-  
-  // Add section header with selected account info
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main';
-  sectionHeader.style.marginBottom = '12px';
-  sectionHeader.style.fontSize = '1.22em';
-  
-  const period = periods.find(p => p.id === periodId);
-  const periodLabel = period ? period.label : periodId;
-  
-  if (selectedAccountId) {
-    const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
-    sectionHeader.textContent = `${selectedAccount?.name || 'Unknown Account'} - ${periodLabel}`;
-  } else {
-    sectionHeader.textContent = `${periodLabel} - Select an account to view`;
-  }
-  
-  window.add(container, sectionHeader);
-  
-  const gridContainer = document.createElement('div');
-  window.add(container, gridContainer);
-  
-  try {
-    // Get planned transactions for this period (calculated instances)
-    const plannedForPeriod = await getPlannedTransactionsForPeriod(currentScenario.id, periodId);
-    
-    // Update calculated dates in the original transactions
-    const transactionsWithDates = plannedForPeriod.map(tx => ({
-      ...tx,
-      date: tx.calculatedDate
-    }));
-    
-    // Transform transactions for UI display based on selected account
-    const transformedData = selectedAccountId 
-      ? transformPlannedTxForUI(transactionsWithDates, selectedAccountId)
-      : [];
-    
-    // Load using existing planned transactions grid config
-    const fs = window.require('fs').promises;
-    const schemaPath = getSchemaPath('planned-transactions-grid.json');
-    const schemaFile = await fs.readFile(schemaPath, 'utf8');
-    const schema = JSON.parse(schemaFile);
-    
-    // Inject accounts as options for account selectors
-    schema.accounts = currentScenario.accounts || [];
-    
-    const grid = new EditableGrid({
-      targetElement: gridContainer,
-      tableHeader: '',
-      schema: schema,
-      data: transformedData,
-      scenarioContext: currentScenario,
-      onSave: async (updatedRows) => {
-        // Transform back to backend format
-        const backendTxsRaw = await Promise.all(
-          updatedRows.map(tx => transformPlannedTxForBackend(tx, selectedAccountId))
-        );
-        const backendTxs = backendTxsRaw.filter(tx => tx !== null);
-        
-        // Merge with existing transactions (keep transactions for other accounts)
-        const allTransactions = currentScenario.plannedTransactions || [];
-        const otherAccountTxs = allTransactions.filter(tx => {
-          const involvesAccount = 
-            tx.debitAccount?.id === selectedAccountId || 
-            tx.creditAccount?.id === selectedAccountId;
-          return !involvesAccount;
-        });
-        
-        const mergedTransactions = [...otherAccountTxs, ...backendTxs];
-        
-        await savePlannedTransactions(currentScenario.id, mergedTransactions);
-        currentScenario = await getScenario(currentScenario.id);
-        await loadPlannedTransactionsForPeriodView(container, periodId);
-      },
-      onDelete: async (id) => {
-        // Delete from master planned transactions
-        const updated = currentScenario.plannedTransactions.filter(tx => tx.id !== id);
-        await savePlannedTransactions(currentScenario.id, updated);
-        currentScenario = await getScenario(currentScenario.id);
-        await loadPlannedTransactionsForPeriodView(container, periodId);
-      }
-    });
-    
-    await grid.render();
-  } catch (err) {
-    console.error('[Forecast] Failed to load planned period view:', err);
-    container.innerHTML = `<p>Error loading period data: ${err.message}</p>`;
-  }
-}
-
-// Load actual transactions for a specific period
-async function loadActualTransactionsForPeriod(periodId) {
-  actualPeriod = periodId;
-  
-  const container = getEl('actualTransactionsTable');
-  if (!currentScenario || !periodId || !container) return;
-  
-  container.innerHTML = '';
-  
-  try {
-    // Get planned transactions for this period
-    const plannedForPeriod = await getPlannedTransactionsForPeriod(currentScenario.id, periodId);
-    
-    // Transform to UI format (adds secondaryAccount field)
-    const transformedPlanned = selectedAccountId 
-      ? transformPlannedTxForUI(plannedForPeriod, selectedAccountId)
-      : [];
-    
-    // Get actual transactions for this period
-    const actualsForPeriod = await getActualTransactionsForPeriod(currentScenario.id, periodId);
-    
-    // Build combined grid data
-    const gridData = buildPeriodGridData(transformedPlanned, actualsForPeriod);
-    
-    // Load grid config
-    const fs = window.require('fs').promises;
-    const schemaPath = getSchemaPath('actual-transactions-grid.json');
-    const schemaFile = await fs.readFile(schemaPath, 'utf8');
-    const schema = JSON.parse(schemaFile);
-    
-    const grid = new EditableGrid({
-      targetElement: container,
-      tableHeader: `Actual Transactions - ${periodId}`,
-      schema: schema,
-      data: gridData,
-      onSave: async (updatedRows) => {
-        await savePeriodActuals(periodId, updatedRows);
-        // Don't reload - grid already has the updated data in workingData
-      },
-      onDelete: async (deletedRow) => {
-        // Only delete if it's a saved actual transaction (has numeric ID)
-        if (deletedRow.id && !String(deletedRow.id).startsWith('planned-')) {
-          await deleteActualTransaction(currentScenario.id, deletedRow.id);
-          await loadActualTransactionsForPeriod(periodId);
-        }
-      }
-    });
-    
-    await grid.render();
-  } catch (err) {
-    console.error('[Forecast] Failed to load actual transactions:', err);
-    container.innerHTML = `<p>Error loading period data: ${err.message}</p>`;
-  }
-}
-
-// Build grid data combining planned and actual for a period
-function buildPeriodGridData(plannedTransactions, actualTransactions) {
-  const rows = [];
-  
-  // Add rows for each planned transaction instance
-  plannedTransactions.forEach(planned => {
-    // Match actual to this specific instance by plannedTransactionId AND the calculated date
-    // This allows multiple instances of the same planned transaction to have separate actuals
-    const plannedDateISO = new Date(planned.calculatedDate).toISOString().slice(0, 10);
-    const actual = actualTransactions.find(a => 
-      a.plannedTransactionId === planned.id && 
-      a.date === plannedDateISO
-    );
-    
-    // Use instanceId as the row ID if no actual exists yet
-    // instanceId format: "plannedId-YYYY-MM-DD" which uniquely identifies this occurrence
-    const rowId = actual?.id || planned.instanceId || `planned-${planned.id}-${plannedDateISO}`;
-    
-    rows.push({
-      id: rowId,
-      plannedTransactionId: planned.id,
-      instanceDate: plannedDateISO,  // Store the instance date for saving
-      executed: actual?.executed || false,
-      transactionType: planned.transactionType,  // Pass through for totals calculation
-      secondaryAccount: planned.secondaryAccount?.name || '',
-      description: planned.description,
-      plannedAmount: planned.amount,
-      plannedDate: formatDate(planned.calculatedDate),
-      actualAmount: actual?.amount || planned.amount,
-      actualDate: actual?.date || plannedDateISO,  // Default to planned date
-      variance: actual ? (actual.amount - planned.amount) : 0,
-      debitAccount: planned.debitAccount,
-      creditAccount: planned.creditAccount
-    });
-  });
-  
-  // Add unplanned actuals
-  actualTransactions
-    .filter(a => !a.plannedTransactionId)
-    .forEach(actual => {
-      // For unplanned, show credit account (typically the expense category)
-      const secondaryAccountName = actual.creditAccount?.name || actual.debitAccount?.name || '';
-      
-      rows.push({
-        id: actual.id,
-        plannedTransactionId: null,
-        executed: true,
-        secondaryAccount: secondaryAccountName,
-        description: actual.description || 'Unplanned',
-        plannedAmount: null,
-        plannedDate: null,
-        actualAmount: actual.amount,
-        actualDate: actual.date,  // Keep as ISO date for date input
-        variance: null,
-        debitAccount: actual.debitAccount,
-        creditAccount: actual.creditAccount
-      });
-    });
-  
-  return rows;
-}
-
-// Save period actuals
-async function savePeriodActuals(periodId, rows) {
-  try {
-    for (const row of rows) {
-      const hasRealId = row.id && !String(row.id).startsWith('planned-');
-      
-      if (row.executed) {
-        // Save or update actual transaction (minimal schema - only what changed from planned)
-        // The combination of plannedTransactionId + date makes each instance unique
-        const actualTx = {
-          id: hasRealId ? row.id : null,
-          period: periodId,
-          plannedTransactionId: row.plannedTransactionId,
-          executed: row.executed,
-          amount: row.actualAmount,
-          date: row.actualDate  // This is the instance date - makes this occurrence unique
-        };
-        
-        await saveActualTransaction(currentScenario.id, actualTx);
-      } else if (hasRealId) {
-        // Executed flag was unchecked - delete the actual transaction
-        await deleteActualTransaction(currentScenario.id, row.id);
-      }
-    }
-    
-    // Reload scenario
-    currentScenario = await getScenario(currentScenario.id);
-  } catch (err) {
-    console.error('[Forecast] Failed to save period actuals:', err);
-    throw err;
-  }
-}
-
-// Format date for display
-function formatDate(date) {
-  if (!date) return '';
-  const d = new Date(date);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[d.getMonth()]} ${d.getDate()}`;
-}
-
 // Load projections section
 async function loadProjectionsSection(container) {
   console.log('[Forecast] ➤ loadProjectionsSection called, selectedAccountId:', selectedAccountId);
@@ -1559,7 +1110,8 @@ async function loadScenarioData() {
   }
 
   await loadAccountsGrid(containers.accountsTable);
-  await initializePeriodSelector(); // Initialize period selector and load default view
+  await loadPlannedTransactionsGrid(containers.plannedTransactionsTable);
+  await loadActualTransactionsGrid(containers.actualTransactionsTable);
   await loadProjectionsSection(containers.projectionsContent);
 }
 
