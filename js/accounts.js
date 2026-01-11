@@ -52,27 +52,6 @@ function buildGridContainer() {
 }
 
 /**
- * Load schema options from JSON file
- */
-async function loadSchemaOptions() {
-    const fs = window.require('fs').promises;
-    const path = window.require('path');
-    const schemaPath = path.join(__dirname, '..', 'assets', 'accounts-grid-unified.json');
-
-    try {
-        const schemaFile = await fs.readFile(schemaPath, 'utf8');
-        const schema = JSON.parse(schemaFile);
-        return {
-            accountTypes: schema.accountTypes || [],
-            currencies: schema.currencies || []
-        };
-    } catch (err) {
-        console.error('[Accounts] Failed to load schema:', err);
-        return { accountTypes: [], currencies: [] };
-    }
-}
-
-/**
  * Initialize Tabulator grid
  */
 async function initializeGrid(tableElement) {
@@ -82,7 +61,22 @@ async function initializeGrid(tableElement) {
         return;
     }
 
-    const options = await loadSchemaOptions();
+    // Define options inline instead of loading from schema file
+    const accountTypes = [
+        { id: 1, name: 'Asset' },
+        { id: 2, name: 'Liability' },
+        { id: 3, name: 'Equity' },
+        { id: 4, name: 'Income' },
+        { id: 5, name: 'Expense' }
+    ];
+
+    const currencies = [
+        { id: 1, name: 'ZAR' },
+        { id: 2, name: 'USD' },
+        { id: 3, name: 'EUR' },
+        { id: 4, name: 'GBP' }
+    ];
+
     const accountsData = await AccountManager.getAll(scenarioId);
 
     accountsTable = createGrid(tableElement, {
@@ -96,18 +90,9 @@ async function initializeGrid(tableElement) {
                 widthGrow: 2,
                 editor: "list",
                 editorParams: {
-                    values: options.accountTypes.map(t => ({ label: t.name, value: t })),
-                    listItemFormatter: function(value, title) {
-                        return title;
-                    },
-                    elementAttributes: {
-                        maxlength: "100"
-                    }
+                    values: accountTypes.map(t => ({ label: t.name, value: t }))
                 },
-                formatter: function(cell) {
-                    const value = cell.getValue();
-                    return value?.name || '';
-                },
+                formatter: (cell) => cell.getValue()?.name || '',
                 headerFilter: "input",
                 headerFilterFunc: "like",
                 headerFilterPlaceholder: "Filter...",
@@ -119,15 +104,9 @@ async function initializeGrid(tableElement) {
                 width: 120,
                 editor: "list",
                 editorParams: {
-                    values: options.currencies.map(c => ({ label: c.name, value: c })),
-                    listItemFormatter: function(value, title) {
-                        return title;
-                    }
+                    values: currencies.map(c => ({ label: c.name, value: c }))
                 },
-                formatter: function(cell) {
-                    const value = cell.getValue();
-                    return value?.name || '';
-                },
+                formatter: (cell) => cell.getValue()?.name || '',
                 headerFilter: "input",
                 headerFilterFunc: "like",
                 headerFilterPlaceholder: "Filter...",
@@ -138,9 +117,9 @@ async function initializeGrid(tableElement) {
             {
                 title: "Periodic Change",
                 field: "periodicChange",
-                formatter: function(cell) {
+                formatter: (cell) => {
                     const value = cell.getValue();
-                    if (value && value.value !== undefined) {
+                    if (value?.value !== undefined) {
                         return `${value.value}% (${value.changeType?.name || 'N/A'})`;
                     }
                     return '<span style="color: #999;">None</span>';
@@ -150,12 +129,15 @@ async function initializeGrid(tableElement) {
                 headerHozAlign: "left"
             }
         ],
-        rowSelectionChanged: function(data, rows) {
-            updateToolbar(rows.length);
-        },
-        cellEdited: async function(cell) {
-            const allAccounts = accountsTable.getData();
-            await AccountManager.saveAll(scenarioId, allAccounts);
+        rowSelectionChanged: (data, rows) => updateToolbar(rows.length),
+        cellEdited: async () => {
+            try {
+                await AccountManager.saveAll(scenarioId, accountsTable.getData());
+                console.log('[Accounts] Saved successfully');
+            } catch (err) {
+                console.error('[Accounts] Save failed:', err);
+                alert('Failed to save account: ' + err.message);
+            }
         }
     });
 
@@ -210,11 +192,14 @@ async function addNewAccount() {
         periodicChange: null
     };
     
-    const row = await accountsTable.addRow(newAccount, true);
-    row.getCell('name').edit();
-    
-    const allAccounts = accountsTable.getData();
-    await AccountManager.saveAll(scenarioId, allAccounts);
+    try {
+        const row = await accountsTable.addRow(newAccount, true);
+        row.getCell('name').edit();
+        await AccountManager.saveAll(scenarioId, accountsTable.getData());
+    } catch (err) {
+        console.error('[Accounts] Failed to add account:', err);
+        alert('Failed to add account: ' + err.message);
+    }
 }
 
 /**
@@ -222,22 +207,19 @@ async function addNewAccount() {
  */
 async function deleteSelectedAccounts() {
     const selectedRows = accountsTable.getSelectedRows();
-    
     if (selectedRows.length === 0) return;
     
-    const confirm = window.confirm(`Delete ${selectedRows.length} account(s)?`);
-    if (!confirm) return;
+    if (!window.confirm(`Delete ${selectedRows.length} account(s)?`)) return;
     
-    const scenarioId = getSelectedScenarioId();
-    
-    for (const row of selectedRows) {
-        row.delete();
+    try {
+        const scenarioId = getSelectedScenarioId();
+        selectedRows.forEach(row => row.delete());
+        await AccountManager.saveAll(scenarioId, accountsTable.getData());
+        updateToolbar(0);
+    } catch (err) {
+        console.error('[Accounts] Failed to delete accounts:', err);
+        alert('Failed to delete accounts: ' + err.message);
     }
-    
-    const allAccounts = accountsTable.getData();
-    await AccountManager.saveAll(scenarioId, allAccounts);
-    
-    updateToolbar(0);
 }
 
 // Initialize
