@@ -4,6 +4,7 @@
 import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createMoneyColumn, createDateColumn } from './grid-factory.js';
 import * as AccountManager from './managers/account-manager.js';
 import { openPeriodicChangeModal } from './modal-periodic-change.js';
+import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
 import { getSelectedScenarioId } from './config.js';
 
@@ -240,3 +241,18 @@ async function deleteSelectedAccounts() {
 loadGlobals();
 const tableElement = buildGridContainer();
 await initializeGrid(tableElement);
+
+// Initialize keyboard shortcuts for accounts page
+document.addEventListener('shortcut:addRow', () => addAccount());
+document.addEventListener('shortcut:deleteRow', () => deleteSelectedAccounts());
+
+// Add shortcuts help button
+const shortcutsBtn = document.createElement('button');
+shortcutsBtn.className = 'btn btn-secondary';
+shortcutsBtn.innerHTML = '⌨️ Shortcuts';
+shortcutsBtn.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 100; padding: 10px 16px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);';
+shortcutsBtn.title = 'View keyboard shortcuts (or press ?)';
+shortcutsBtn.addEventListener('click', () => {
+    keyboardShortcuts.showHelp();
+});
+document.body.appendChild(shortcutsBtn);

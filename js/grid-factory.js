@@ -14,7 +14,27 @@ const defaultConfig = {
     maxHeight: "600px",
     rowHeight: 42,
     headerVisible: true,
-    headerFilterPlaceholder: "Filter..."
+    headerFilterPlaceholder: "Filter...",
+    
+    // Keyboard navigation enabled
+    keybindings: {
+        "navPrev": "shift + 9",      // Shift + Tab - previous cell
+        "navNext": 9,                 // Tab - next cell
+        "navUp": 38,                  // Up arrow
+        "navDown": 40,                // Down arrow  
+        "navLeft": 37,                // Left arrow
+        "navRight": 39,               // Right arrow
+        "scrollPageUp": 33,           // Page Up
+        "scrollPageDown": 34,         // Page Down
+        "scrollToStart": 36,          // Home
+        "scrollToEnd": 35,            // End
+        "undo": false,                // Disable Ctrl+Z (conflicts with browser)
+        "redo": false,                // Disable Ctrl+Y
+        "copyToClipboard": "ctrl + 67", // Ctrl+C for copy
+    },
+    
+    // Enable tabbing through cells for editing
+    tabEndNewRow: false  // Don't create new row when tabbing from last cell
 };
 
 /**

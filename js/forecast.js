@@ -10,6 +10,7 @@ import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
 import { openRecurrenceModal } from './modal-recurrence.js';
 import { openPeriodicChangeModal } from './modal-periodic-change.js';
+import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
 import {
   getScenarios,
@@ -1572,6 +1573,40 @@ async function init() {
   await buildScenarioGrid(containers.scenarioSelector);
   
   // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
+  
+  // Initialize keyboard shortcuts
+  initializeKeyboardShortcuts();
+}
+
+/**
+ * Initialize keyboard shortcut event listeners
+ */
+function initializeKeyboardShortcuts() {
+  // Listen for shortcut events
+  document.addEventListener('shortcut:generateProjections', async () => {
+    if (currentScenario) {
+      const projectionsContainer = document.getElementById('projectionsContent');
+      if (projectionsContainer) {
+        await loadProjectionsSection(projectionsContainer);
+      }
+    }
+  });
+
+  document.addEventListener('shortcut:save', async () => {
+    // Save is automatic on cell edit, so just show feedback
+    console.log('[Shortcuts] Changes are auto-saved on edit');
+  });
+
+  // Add visual indicator for keyboard shortcuts
+  const shortcutsBtn = document.createElement('button');
+  shortcutsBtn.className = 'btn btn-secondary';
+  shortcutsBtn.innerHTML = '⌨️ Shortcuts';
+  shortcutsBtn.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 100; padding: 10px 16px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);';
+  shortcutsBtn.title = 'View keyboard shortcuts (or press ?)';
+  shortcutsBtn.addEventListener('click', () => {
+    keyboardShortcuts.showHelp();
+  });
+  document.body.appendChild(shortcutsBtn);
 }
 
 init();

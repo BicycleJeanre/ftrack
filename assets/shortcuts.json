@@ -1,10 +1,29 @@
 {
-  "EditableGrid": {
-    "saveRow": "Enter",
-    "deleteRow": "Delete",
-    "addRow": "Meta+Shift+A"
+  "Grid Navigation (Tabulator)": {
+    "navigateUp": "Arrow Up",
+    "navigateDown": "Arrow Down",
+    "navigateLeft": "Arrow Left",
+    "navigateRight": "Arrow Right",
+    "nextCell": "Tab",
+    "previousCell": "Shift+Tab",
+    "editCell": "Enter",
+    "cancelEdit": "Esc",
+    "pageUp": "Page Up",
+    "pageDown": "Page Down",
+    "jumpToStart": "Home",
+    "jumpToEnd": "End",
+    "copyCell": "Ctrl+C"
   },
-  "Global": {
-    "openSettings": "Meta+,"
+  "Application": {
+    "addRow": "Ctrl+N",
+    "deleteRow": "Delete",
+    "save": "Ctrl+S",
+    "generateProjections": "Ctrl+G",
+    "focusScenarios": "Ctrl+1",
+    "focusAccounts": "Ctrl+2",
+    "focusPlannedTransactions": "Ctrl+3",
+    "focusActualTransactions": "Ctrl+4",
+    "focusProjections": "Ctrl+5",
+    "showShortcuts": "?"
   }
 }
