@@ -2,7 +2,7 @@
 // Business logic for scenario operations
 // Uses data-store for persistence
 
-import * as DataStore from './data-store.js';
+import * as DataStore from '../core/data-store.js';
 
 /**
  * Get all scenarios
