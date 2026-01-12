@@ -29,7 +29,6 @@ let scenarioTypes = null;
 let selectedAccountId = null; // Track selected account for filtering transaction views
 let actualPeriod = null; // Selected period for actual transactions
 let periods = []; // Calculated periods for current scenario
-let periods = []; // Calculated periods for current scenario
 
 // Build the main UI container with independent accordions
 function buildGridContainer() {
@@ -190,6 +189,24 @@ async function buildScenarioGrid(container) {
     const schemaFile = await fs.readFile(schemaPath, 'utf8');
     const schema = JSON.parse(schemaFile);
 
+    // Add "Add Scenario" button
+    const addScenarioBtn = document.createElement('button');
+    addScenarioBtn.className = 'btn btn-primary';
+    addScenarioBtn.textContent = '+ Add Scenario';
+    addScenarioBtn.style.marginBottom = '10px';
+    addScenarioBtn.addEventListener('click', async () => {
+      const newScenario = await ScenarioManager.create({
+        name: 'New Scenario',
+        type: null,
+        description: '',
+        startDate: new Date().toISOString().slice(0,10),
+        endDate: new Date().toISOString().slice(0,10),
+        projectionPeriod: null
+      });
+      await buildScenarioGrid(container);
+    });
+    container.prepend(addScenarioBtn);
+
     // Load all scenarios
     const scenarios = await ScenarioManager.getAll();
 
@@ -197,6 +214,19 @@ async function buildScenarioGrid(container) {
       data: scenarios,
       selectable: 1, // Single selection (radio button behavior)
       columns: [
+        {
+          formatter: "buttonCross",
+          width: 40,
+          hozAlign: "center",
+          cellClick: async function(e, cell) {
+            const row = cell.getRow();
+            const rowData = row.getData();
+            if (confirm(`Delete scenario: ${rowData.name}?`)) {
+              await ScenarioManager.delete(rowData.id);
+              await buildScenarioGrid(container);
+            }
+          }
+        },
         {
           title: "",
           field: "selected",
@@ -539,10 +569,39 @@ async function loadAccountsGrid(container) {
     const schemaFile = await fs.readFile(schemaPath, 'utf8');
     const schema = JSON.parse(schemaFile);
 
-    const accountsTable = createGrid(container, {
+    // Add "Add Account" button
+    const addButton = document.createElement('button');
+    addButton.className = 'btn btn-primary';
+    addButton.textContent = '+ Add Account';
+    addButton.style.marginBottom = '10px';
+    addButton.addEventListener('click', async () => {
+      const newAccount = await AccountManager.create(currentScenario.id, {
+        name: 'New Account',
+        type: null,
+        currency: null,
+        balance: 0
+      });
+      await loadAccountsGrid(container);
+    });
+    container.prepend(addButton);
+
+    createGrid(container, {
       data: accounts,
       selectable: 1, // Single selection
       columns: [
+        {
+          formatter: "buttonCross",
+          width: 40,
+          hozAlign: "center",
+          cellClick: async function(e, cell) {
+            const row = cell.getRow();
+            const rowData = row.getData();
+            if (confirm(`Delete account: ${rowData.name}?`)) {
+              await AccountManager.delete(currentScenario.id, rowData.id);
+              await loadAccountsGrid(container);
+            }
+          }
+        },
         {
           title: "",
           field: "selected",
@@ -565,12 +624,10 @@ async function loadAccountsGrid(container) {
           const account = rows[0].getData();
           console.log('[Forecast] Account selected:', account);
           selectedAccountId = account.id;
-          
           // Reload transaction and projection grids to filter by this account
           const plannedTxContainer = getEl('plannedTransactionsTable');
           const actualTxContainer = getEl('actualTransactionsTable');
           const projectionsContainer = getEl('projectionsContent');
-          
           await loadPlannedTransactionsGrid(plannedTxContainer);
           await loadActualTransactionsGrid(actualTxContainer);
           await loadProjectionsSection(projectionsContainer);
@@ -962,10 +1019,50 @@ async function loadActualTransactionsGrid(container) {
     
     gridContainer.innerHTML = '';
 
-    // Create the grid
-    const actualTxTable = createGrid(gridContainer, {
+    // Add "Add Actual" button
+    const addButton = document.createElement('button');
+    addButton.className = 'btn btn-primary';
+    addButton.textContent = '+ Add Actual';
+    addButton.style.marginBottom = '10px';
+    addButton.addEventListener('click', async () => {
+      // Add a new manual actual transaction (not linked to planned)
+      const newActual = {
+        id: window.generateUUID(),
+        plannedId: null,
+        debitAccount: null,
+        creditAccount: null,
+        amount: 0,
+        actualDate: new Date().toISOString().slice(0,10),
+        description: '',
+        tags: []
+      };
+      const allActual = await TransactionManager.getAllActual(currentScenario.id);
+      await TransactionManager.saveActual(currentScenario.id, [...allActual, newActual]);
+      await loadActualTransactionsGrid(container);
+    });
+    gridContainer.prepend(addButton);
+
+    createGrid(gridContainer, {
       data: combinedData,
       columns: [
+        {
+          formatter: "buttonCross",
+          width: 40,
+          hozAlign: "center",
+          cellClick: async function(e, cell) {
+            const row = cell.getRow();
+            const rowData = row.getData();
+            // Only allow delete for manual actuals (plannedId == null) or executed actuals
+            if (rowData.actualId && (rowData.plannedId == null || rowData.executed)) {
+              if (confirm('Delete this actual transaction?')) {
+                const allActual = await TransactionManager.getAllActual(currentScenario.id);
+                const filtered = allActual.filter(tx => tx.id !== rowData.actualId);
+                await TransactionManager.saveActual(currentScenario.id, filtered);
+                await loadActualTransactionsGrid(container);
+              }
+            }
+          }
+        },
         {
           title: "✓",
           field: "executed",
@@ -988,11 +1085,8 @@ async function loadActualTransactionsGrid(container) {
                 description: rowData.description,
                 tags: []
               };
-              
               const allActual = await TransactionManager.getAllActual(currentScenario.id);
               await TransactionManager.saveActual(currentScenario.id, [...allActual, newActual]);
-              
-              // Update row data
               row.update({
                 executed: true,
                 actualId: newActual.id,
@@ -1000,24 +1094,12 @@ async function loadActualTransactionsGrid(container) {
                 actualDate: newActual.actualDate,
                 variance: newActual.amount - rowData.plannedAmount
               });
-              
               console.log('[Forecast] ✓ Actual transaction created');
             } else {
               // Unmark - delete actual transaction
               const allActual = await TransactionManager.getAllActual(currentScenario.id);
               const filtered = allActual.filter(tx => tx.id !== rowData.actualId);
               await TransactionManager.saveActual(currentScenario.id, filtered);
-              
-              // Update row data
-              row.update({
-                executed: false,
-                actualId: null,
-                actualAmount: 0,
-                actualDate: rowData.plannedDate,
-                variance: 0
-              });
-              
-              console.log('[Forecast] ✓ Actual transaction deleted');
             }
           }
         },
@@ -1100,91 +1182,7 @@ async function loadActualTransactionsGrid(container) {
           editor: "date" 
         }),
         createTextColumn('Description', 'description', { widthGrow: 2 })
-      ],
-      cellEdited: async function(cell) {
-        const row = cell.getRow();
-        const rowData = row.getData();
-        const field = cell.getField();
-        
-        // Only allow editing actual amount and actual date when marked as executed
-        if (!rowData.executed) {
-          console.log('[Forecast] Cannot edit - transaction not marked as executed');
-          return;
-        }
-        
-        if (field !== 'actualAmount' && field !== 'actualDate') {
-          return;
-        }
-        
-        // Update actual transaction
-        const allActual = await TransactionManager.getAllActual(currentScenario.id);
-        const actualTx = allActual.find(tx => tx.id === rowData.actualId);
-        
-        if (!actualTx) {
-          console.error('[Forecast] Actual transaction not found');
-          return;
-        }
-        
-        // Update the transaction
-        actualTx.amount = parseFloat(rowData.actualAmount) || 0;
-        actualTx.actualDate = rowData.actualDate;
-        
-        // Calculate new variance
-        const newVariance = actualTx.amount - rowData.plannedAmount;
-        
-        // Save
-        const otherTxs = allActual.filter(tx => tx.id !== rowData.actualId);
-        await TransactionManager.saveActual(currentScenario.id, [...otherTxs, actualTx]);
-        
-        // Update variance in row
-        row.update({ variance: newVariance });
-        
-        console.log('[Forecast] ✓ Actual transaction updated');
-      }
-    });
 
-  } catch (err) {
-    console.error('[Forecast] Failed to load actual transactions grid:', err);
-  }
-}
-
-// Initialize period selector and attach event listeners
-// Load projections section
-async function loadProjectionsSection(container) {
-  console.log('[Forecast] ➤ loadProjectionsSection called, selectedAccountId:', selectedAccountId);
-  if (!currentScenario) return;
-
-  const typeConfig = getScenarioTypeConfig();
-  if (!typeConfig || !typeConfig.showProjections) {
-    container.innerHTML = '';
-    return;
-  }
-  
-  // Clear and rebuild entire section
-  container.innerHTML = '';
-  console.log('[Forecast] ➤ Projections section cleared, rebuilding with selectedAccountId:', selectedAccountId);
-
-  // Add generate and clear buttons
-  const buttonContainer = document.createElement('div');
-  buttonContainer.style.marginBottom = '20px';
-  buttonContainer.style.display = 'flex';
-  buttonContainer.style.flexDirection = 'row';
-  buttonContainer.style.gap = '12px';
-  buttonContainer.style.alignItems = 'center';
-  
-  const generateButton = document.createElement('button');
-  generateButton.className = 'btn';
-  generateButton.textContent = 'Generate Projections';
-  generateButton.style.padding = '12px 24px';
-  generateButton.style.fontSize = '1.04em';
-  generateButton.style.whiteSpace = 'nowrap';
-  generateButton.style.minWidth = 'fit-content';
-  generateButton.style.width = 'auto';
-  generateButton.style.display = 'inline-block';
-  generateButton.addEventListener('click', async () => {
-    try {
-      generateButton.disabled = true;
-      generateButton.textContent = 'Generating...';
       
       await generateProjections(currentScenario.id, { periodicity: 'monthly' });
       
@@ -1365,7 +1363,7 @@ async function initializePeriodSelector() {
     periods.forEach((period, index) => {
       const option = document.createElement('option');
       option.value = period.id;
-      option.textContent = `${period.start} to ${period.end}`;
+      option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
       periodSelect.appendChild(option);
     });
     
