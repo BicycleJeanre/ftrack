@@ -241,7 +241,9 @@ async function buildScenarioGrid(container) {
 
     const scenariosTable = createGrid(gridContainer, {
       data: scenarios,
-      selectable: 1, // Single selection (radio button behavior)
+      selectable: false, // Disable row selection to allow cell editing
+      editTriggerEvent: "click", // Single click to edit
+      selectableRangeMode: false, // Disable range selection
       columns: [
         {
           formatter: "buttonCross",
@@ -268,7 +270,7 @@ async function buildScenarioGrid(container) {
             cell.getRow().toggleSelect();
           }
         },
-        createTextColumn('Scenario Name', 'name', { widthGrow: 3, editor: "input" }),
+        createTextColumn('Scenario Name', 'name', { widthGrow: 3, editor: "input", editable: true }),
         {
           title: "Type",
           field: "type",
@@ -289,7 +291,7 @@ async function buildScenarioGrid(container) {
           headerFilterPlaceholder: "Filter...",
           headerHozAlign: "left"
         },
-        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input" }),
+        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true }),
         createDateColumn('Start Date', 'startDate', { widthGrow: 2, editor: "date" }),
         createDateColumn('End Date', 'endDate', { widthGrow: 2, editor: "date" }),
         {
@@ -318,19 +320,35 @@ async function buildScenarioGrid(container) {
           selectedAccountId = null; // Clear selected account when switching scenarios
           await loadScenarioData();
         }
-      },
-      cellEdited: async function(cell) {
-        const row = cell.getRow();
-        const scenario = row.getData();
+      }
+    });
+    
+    // Manually attach cellEdited event handler (Tabulator event system)
+    scenariosTable.on("cellEdited", async function(cell) {
+      const row = cell.getRow();
+      const scenario = row.getData();
+      
+      console.log('[Forecast] Cell edited in scenario:', scenario);
+      
+      try {
+        // Extract only the fields that should be saved (exclude Tabulator-specific fields)
+        const updates = {
+          name: scenario.name,
+          type: scenario.type,
+          description: scenario.description,
+          startDate: scenario.startDate,
+          endDate: scenario.endDate,
+          projectionPeriod: scenario.projectionPeriod
+        };
         
-        try {
-          // Update just the edited scenario
-          await ScenarioManager.update(scenario.id, scenario);
-          console.log('[Forecast] ✓ Scenario updated successfully');
-        } catch (err) {
-          console.error('[Forecast] ✗ Failed to save scenario:', err);
-          alert('Failed to save scenario: ' + err.message);
-        }
+        console.log('[Forecast] Sending updates:', updates);
+        
+        // Update just the edited scenario
+        await ScenarioManager.update(scenario.id, updates);
+        console.log('[Forecast] ✓ Scenario updated successfully');
+      } catch (err) {
+        console.error('[Forecast] ✗ Failed to save scenario:', err);
+        alert('Failed to save scenario: ' + err.message);
       }
     });
 
