@@ -1050,7 +1050,11 @@ async function loadActualTransactionsGrid(container) {
     });
     window.add(gridContainer, addButton);
 
-    createGrid(gridContainer, {
+    // Create separate container for the actual grid
+    const tableContainer = document.createElement('div');
+    window.add(gridContainer, tableContainer);
+
+    createGrid(tableContainer, {
       data: combinedData,
       columns: [
         {
