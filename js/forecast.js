@@ -45,7 +45,9 @@ function buildGridContainer() {
   // Scenario selector (always visible, no accordion)
   const scenarioSection = document.createElement('div');
   scenarioSection.className = 'bg-main bordered rounded shadow-lg';
-  scenarioSection.style.padding = '18px 20px';
+  scenarioSection.style.padding = '12px 16px';
+  scenarioSection.style.maxHeight = '400px';
+  scenarioSection.style.overflowY = 'auto';
   
   const scenarioSelector = document.createElement('div');
   scenarioSelector.id = 'scenario-selector';
@@ -58,8 +60,8 @@ function buildGridContainer() {
   
   const accountsHeader = document.createElement('div');
   accountsHeader.className = 'pointer flex-between accordion-header';
-  accountsHeader.style.padding = '18px 20px';
-  accountsHeader.innerHTML = `<h2 class="text-main">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
+  accountsHeader.style.padding = '12px 16px';
+  accountsHeader.innerHTML = `<h2 class="text-main" style="font-size: 1.1em;">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
   accountsHeader.addEventListener('click', () => window.toggleAccordion('accountsContent'));
   window.add(accountsSection, accountsHeader);
   
@@ -67,7 +69,9 @@ function buildGridContainer() {
   accountsContent.id = 'accountsContent';
   accountsContent.className = 'accordion-content';
   accountsContent.style.display = 'block';
-  accountsContent.style.padding = '0 20px 20px 20px';
+  accountsContent.style.padding = '0 16px 16px 16px';
+  accountsContent.style.maxHeight = '350px';
+  accountsContent.style.overflowY = 'auto';
   window.add(accountsSection, accountsContent);
   
   const accountsTable = document.createElement('div');
@@ -89,8 +93,8 @@ function buildGridContainer() {
   
   const plannedTxHeader = document.createElement('div');
   plannedTxHeader.className = 'pointer flex-between accordion-header';
-  plannedTxHeader.style.padding = '18px 20px';
-  plannedTxHeader.innerHTML = `<h2 class="text-main">Planned Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
+  plannedTxHeader.style.padding = '12px 16px';
+  plannedTxHeader.innerHTML = `<h2 class="text-main" style="font-size: 1.1em;">Planned Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
   plannedTxHeader.addEventListener('click', () => window.toggleAccordion('plannedTxContent'));
   window.add(plannedTxSection, plannedTxHeader);
   
@@ -98,7 +102,9 @@ function buildGridContainer() {
   plannedTxContent.id = 'plannedTxContent';
   plannedTxContent.className = 'accordion-content';
   plannedTxContent.style.display = 'block';
-  plannedTxContent.style.padding = '20px';
+  plannedTxContent.style.padding = '16px';
+  plannedTxContent.style.maxHeight = '450px';
+  plannedTxContent.style.overflowY = 'auto';
   window.add(plannedTxSection, plannedTxContent);
   
   const plannedTransactionsTable = document.createElement('div');
@@ -113,8 +119,8 @@ function buildGridContainer() {
   
   const actualTxHeader = document.createElement('div');
   actualTxHeader.className = 'pointer flex-between accordion-header';
-  actualTxHeader.style.padding = '18px 20px';
-  actualTxHeader.innerHTML = `<h2 class="text-main">Actual Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
+  actualTxHeader.style.padding = '12px 16px';
+  actualTxHeader.innerHTML = `<h2 class="text-main" style="font-size: 1.1em;">Actual Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
   actualTxHeader.addEventListener('click', () => window.toggleAccordion('actualTxContent'));
   window.add(actualTxSection, actualTxHeader);
   
@@ -122,7 +128,9 @@ function buildGridContainer() {
   actualTxContent.id = 'actualTxContent';
   actualTxContent.className = 'accordion-content';
   actualTxContent.style.display = 'block';
-  actualTxContent.style.padding = '20px';
+  actualTxContent.style.padding = '16px';
+  actualTxContent.style.maxHeight = '450px';
+  actualTxContent.style.overflowY = 'auto';
   window.add(actualTxSection, actualTxContent);
   
   // Period selector for actual transactions
@@ -156,8 +164,8 @@ function buildGridContainer() {
   const projectionsHeader = document.createElement('div');
   projectionsHeader.id = 'projectionsAccordionHeader';
   projectionsHeader.className = 'pointer flex-between accordion-header';
-  projectionsHeader.style.padding = '18px 20px';
-  projectionsHeader.innerHTML = `<h2 class="text-main">Projections</h2><span class="accordion-arrow">&#9662;</span>`;
+  projectionsHeader.style.padding = '12px 16px';
+  projectionsHeader.innerHTML = `<h2 class="text-main" style="font-size: 1.1em;">Projections</h2><span class="accordion-arrow">&#9662;</span>`;
   projectionsHeader.addEventListener('click', () => window.toggleAccordion('projectionsContent'));
   window.add(projectionsSection, projectionsHeader);
   
@@ -165,7 +173,9 @@ function buildGridContainer() {
   projectionsContent.id = 'projectionsContent';
   projectionsContent.className = 'accordion-content';
   projectionsContent.style.display = 'block';
-  projectionsContent.style.padding = '0 20px 20px 20px';
+  projectionsContent.style.padding = '0 16px 16px 16px';
+  projectionsContent.style.maxHeight = '450px';
+  projectionsContent.style.overflowY = 'auto';
   window.add(projectionsSection, projectionsContent);
   window.add(forecastEl, projectionsSection);
 
