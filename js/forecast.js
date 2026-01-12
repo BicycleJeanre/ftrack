@@ -193,7 +193,10 @@ async function buildScenarioGrid(container) {
     const addScenarioBtn = document.createElement('button');
     addScenarioBtn.className = 'btn btn-primary';
     addScenarioBtn.textContent = '+ Add New';
-    addScenarioBtn.style.marginBottom = '10px';
+    addScenarioBtn.style.marginBottom = '12px';
+    addScenarioBtn.style.padding = '8px 16px';
+    addScenarioBtn.style.fontSize = '0.95em';
+    addScenarioBtn.style.fontWeight = '500';
     addScenarioBtn.addEventListener('click', async () => {
       const newScenario = await ScenarioManager.create({
         name: 'New Scenario',
@@ -577,7 +580,10 @@ async function loadAccountsGrid(container) {
     const addButton = document.createElement('button');
     addButton.className = 'btn btn-primary';
     addButton.textContent = '+ Add New';
-    addButton.style.marginBottom = '10px';
+    addButton.style.marginBottom = '12px';
+    addButton.style.padding = '8px 16px';
+    addButton.style.fontSize = '0.95em';
+    addButton.style.fontWeight = '500';
     addButton.addEventListener('click', async () => {
       const newAccount = await AccountManager.create(currentScenario.id, {
         name: 'New Account',
@@ -681,7 +687,10 @@ async function loadPlannedTransactionsGrid(container) {
   const addButton = document.createElement('button');
   addButton.className = 'btn btn-primary';
   addButton.textContent = '+ Add New';
-  addButton.style.fontSize = '0.9em';
+  addButton.style.marginBottom = '12px';
+  addButton.style.padding = '8px 16px';
+  addButton.style.fontSize = '0.95em';
+  addButton.style.fontWeight = '500';
   addButton.addEventListener('click', async () => {
     // Add a new blank row to the grid
     if (plannedTxTable) {
@@ -1031,7 +1040,10 @@ async function loadActualTransactionsGrid(container) {
     const addButton = document.createElement('button');
     addButton.className = 'btn btn-primary';
     addButton.textContent = '+ Add New';
-    addButton.style.marginBottom = '10px';
+    addButton.style.marginBottom = '12px';
+    addButton.style.padding = '8px 16px';
+    addButton.style.fontSize = '0.95em';
+    addButton.style.fontWeight = '500';
     addButton.addEventListener('click', async () => {
       // Add a new manual actual transaction (not linked to planned)
       const newActual = {
