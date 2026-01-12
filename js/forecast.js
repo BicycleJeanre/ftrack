@@ -205,12 +205,16 @@ async function buildScenarioGrid(container) {
       });
       await buildScenarioGrid(container);
     });
-    container.prepend(addScenarioBtn);
+    window.add(container, addScenarioBtn);
+
+    // Create grid container
+    const gridContainer = document.createElement('div');
+    window.add(container, gridContainer);
 
     // Load all scenarios
     const scenarios = await ScenarioManager.getAll();
 
-    const scenariosTable = createGrid(container, {
+    const scenariosTable = createGrid(gridContainer, {
       data: scenarios,
       selectable: 1, // Single selection (radio button behavior)
       columns: [
@@ -583,9 +587,13 @@ async function loadAccountsGrid(container) {
       });
       await loadAccountsGrid(container);
     });
-    container.prepend(addButton);
+    window.add(container, addButton);
 
-    createGrid(container, {
+    // Create grid container
+    const gridContainer = document.createElement('div');
+    window.add(container, gridContainer);
+
+    createGrid(gridContainer, {
       data: accounts,
       selectable: 1, // Single selection
       columns: [
@@ -1040,7 +1048,7 @@ async function loadActualTransactionsGrid(container) {
       await TransactionManager.saveActual(currentScenario.id, [...allActual, newActual]);
       await loadActualTransactionsGrid(container);
     });
-    gridContainer.prepend(addButton);
+    window.add(gridContainer, addButton);
 
     createGrid(gridContainer, {
       data: combinedData,
