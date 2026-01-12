@@ -194,9 +194,28 @@ async function buildScenarioGrid(container) {
     addScenarioBtn.className = 'btn btn-primary';
     addScenarioBtn.textContent = '+ Add New';
     addScenarioBtn.style.marginBottom = '12px';
-    addScenarioBtn.style.padding = '8px 16px';
+    addScenarioBtn.style.padding = '10px 20px';
     addScenarioBtn.style.fontSize = '0.95em';
-    addScenarioBtn.style.fontWeight = '500';
+    addScenarioBtn.style.fontWeight = '600';
+    addScenarioBtn.style.minWidth = '140px';
+    addScenarioBtn.style.border = '2px solid var(--primary)';
+    addScenarioBtn.style.borderRadius = '6px';
+    addScenarioBtn.style.cursor = 'pointer';
+    addScenarioBtn.style.transition = 'all 0.2s ease';
+    addScenarioBtn.addEventListener('mouseenter', () => {
+      addScenarioBtn.style.transform = 'translateY(-1px)';
+      addScenarioBtn.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+    });
+    addScenarioBtn.addEventListener('mouseleave', () => {
+      addScenarioBtn.style.transform = 'translateY(0)';
+      addScenarioBtn.style.boxShadow = 'none';
+    });
+    addScenarioBtn.addEventListener('mousedown', () => {
+      addScenarioBtn.style.transform = 'translateY(1px)';
+    });
+    addScenarioBtn.addEventListener('mouseup', () => {
+      addScenarioBtn.style.transform = 'translateY(-1px)';
+    });
     addScenarioBtn.addEventListener('click', async () => {
       const newScenario = await ScenarioManager.create({
         name: 'New Scenario',
@@ -581,9 +600,28 @@ async function loadAccountsGrid(container) {
     addButton.className = 'btn btn-primary';
     addButton.textContent = '+ Add New';
     addButton.style.marginBottom = '12px';
-    addButton.style.padding = '8px 16px';
+    addButton.style.padding = '10px 20px';
     addButton.style.fontSize = '0.95em';
-    addButton.style.fontWeight = '500';
+    addButton.style.fontWeight = '600';
+    addButton.style.minWidth = '140px';
+    addButton.style.border = '2px solid var(--primary)';
+    addButton.style.borderRadius = '6px';
+    addButton.style.cursor = 'pointer';
+    addButton.style.transition = 'all 0.2s ease';
+    addButton.addEventListener('mouseenter', () => {
+      addButton.style.transform = 'translateY(-1px)';
+      addButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+    });
+    addButton.addEventListener('mouseleave', () => {
+      addButton.style.transform = 'translateY(0)';
+      addButton.style.boxShadow = 'none';
+    });
+    addButton.addEventListener('mousedown', () => {
+      addButton.style.transform = 'translateY(1px)';
+    });
+    addButton.addEventListener('mouseup', () => {
+      addButton.style.transform = 'translateY(-1px)';
+    });
     addButton.addEventListener('click', async () => {
       const newAccount = await AccountManager.create(currentScenario.id, {
         name: 'New Account',
@@ -688,9 +726,28 @@ async function loadPlannedTransactionsGrid(container) {
   addButton.className = 'btn btn-primary';
   addButton.textContent = '+ Add New';
   addButton.style.marginBottom = '12px';
-  addButton.style.padding = '8px 16px';
+  addButton.style.padding = '10px 20px';
   addButton.style.fontSize = '0.95em';
-  addButton.style.fontWeight = '500';
+  addButton.style.fontWeight = '600';
+  addButton.style.minWidth = '140px';
+  addButton.style.border = '2px solid var(--primary)';
+  addButton.style.borderRadius = '6px';
+  addButton.style.cursor = 'pointer';
+  addButton.style.transition = 'all 0.2s ease';
+  addButton.addEventListener('mouseenter', () => {
+    addButton.style.transform = 'translateY(-1px)';
+    addButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+  });
+  addButton.addEventListener('mouseleave', () => {
+    addButton.style.transform = 'translateY(0)';
+    addButton.style.boxShadow = 'none';
+  });
+  addButton.addEventListener('mousedown', () => {
+    addButton.style.transform = 'translateY(1px)';
+  });
+  addButton.addEventListener('mouseup', () => {
+    addButton.style.transform = 'translateY(-1px)';
+  });
   addButton.addEventListener('click', async () => {
     // Add a new blank row to the grid
     if (plannedTxTable) {
@@ -1041,9 +1098,28 @@ async function loadActualTransactionsGrid(container) {
     addButton.className = 'btn btn-primary';
     addButton.textContent = '+ Add New';
     addButton.style.marginBottom = '12px';
-    addButton.style.padding = '8px 16px';
+    addButton.style.padding = '10px 20px';
     addButton.style.fontSize = '0.95em';
-    addButton.style.fontWeight = '500';
+    addButton.style.fontWeight = '600';
+    addButton.style.minWidth = '140px';
+    addButton.style.border = '2px solid var(--primary)';
+    addButton.style.borderRadius = '6px';
+    addButton.style.cursor = 'pointer';
+    addButton.style.transition = 'all 0.2s ease';
+    addButton.addEventListener('mouseenter', () => {
+      addButton.style.transform = 'translateY(-1px)';
+      addButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+    });
+    addButton.addEventListener('mouseleave', () => {
+      addButton.style.transform = 'translateY(0)';
+      addButton.style.boxShadow = 'none';
+    });
+    addButton.addEventListener('mousedown', () => {
+      addButton.style.transform = 'translateY(1px)';
+    });
+    addButton.addEventListener('mouseup', () => {
+      addButton.style.transform = 'translateY(-1px)';
+    });
     addButton.addEventListener('click', async () => {
       // Add a new manual actual transaction (not linked to planned)
       const newActual = {
