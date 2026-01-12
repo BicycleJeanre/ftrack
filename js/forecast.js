@@ -1182,23 +1182,82 @@ async function loadActualTransactionsGrid(container) {
           editor: "date" 
         }),
         createTextColumn('Description', 'description', { widthGrow: 2 })
+      ],
+      cellEdited: async function(cell) {
+        const row = cell.getRow();
+        const rowData = row.getData();
 
-      
+        // Only save if transaction is marked as executed and has an actual id
+        if (!rowData.executed || !rowData.actualId) {
+          console.log('[Forecast] Cannot edit non-executed transaction');
+          return;
+        }
+
+        // Determine debit/credit accounts
+        let debitAccount, creditAccount;
+        if (rowData.transactionType?.name === 'Debit') {
+          debitAccount = selectedAccountId ? currentScenario.accounts.find(a => a.id === selectedAccountId) : currentScenario.accounts?.[0];
+          creditAccount = rowData.secondaryAccount;
+        } else {
+          debitAccount = rowData.secondaryAccount;
+          creditAccount = selectedAccountId ? currentScenario.accounts.find(a => a.id === selectedAccountId) : currentScenario.accounts?.[0];
+        }
+
+        const updatedActual = {
+          id: rowData.actualId,
+          plannedId: rowData.plannedId,
+          debitAccount,
+          creditAccount,
+          amount: parseFloat(rowData.actualAmount) || 0,
+          actualDate: rowData.actualDate,
+          description: rowData.description
+        };
+
+        const allActual = await TransactionManager.getAllActual(currentScenario.id);
+        const updatedList = allActual.map(tx => tx.id === updatedActual.id ? updatedActual : tx);
+        await TransactionManager.saveActual(currentScenario.id, updatedList);
+
+        // Recalculate variance
+        const variance = updatedActual.amount - rowData.plannedAmount;
+        row.update({ variance });
+
+        console.log('[Forecast] ✓ Actual transaction updated');
+      }
+    });
+
+  // Button container and Generate button
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.display = 'flex';
+  buttonContainer.style.gap = '12px';
+  buttonContainer.style.marginBottom = '20px';
+
+  const generateButton = document.createElement('button');
+  generateButton.className = 'btn';
+  generateButton.textContent = 'Generate Projections';
+  generateButton.style.padding = '12px 24px';
+  generateButton.style.fontSize = '1.04em';
+  generateButton.style.whiteSpace = 'nowrap';
+  generateButton.style.minWidth = 'fit-content';
+  generateButton.style.width = 'auto';
+  generateButton.style.display = 'inline-block';
+
+  generateButton.addEventListener('click', async () => {
+    try {
+      generateButton.textContent = 'Generating...';
+      generateButton.disabled = true;
       await generateProjections(currentScenario.id, { periodicity: 'monthly' });
-      
       // Reload scenario to get updated projections
       currentScenario = await getScenario(currentScenario.id);
       await loadProjectionsGrid(projectionsGridContainer);
-      
-      generateButton.textContent = 'Generate Projections';
-      generateButton.disabled = false;
     } catch (err) {
       console.error('[Forecast] Failed to generate projections:', err);
       alert('Failed to generate projections: ' + err.message);
+    } finally {
       generateButton.textContent = 'Generate Projections';
       generateButton.disabled = false;
     }
   });
+
   window.add(buttonContainer, generateButton);
 
   // Add clear button
