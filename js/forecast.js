@@ -192,7 +192,7 @@ async function buildScenarioGrid(container) {
     // Add "Add Scenario" button
     const addScenarioBtn = document.createElement('button');
     addScenarioBtn.className = 'btn btn-primary';
-    addScenarioBtn.textContent = '+ Add Scenario';
+    addScenarioBtn.textContent = '+ Add New';
     addScenarioBtn.style.marginBottom = '10px';
     addScenarioBtn.addEventListener('click', async () => {
       const newScenario = await ScenarioManager.create({
@@ -576,7 +576,7 @@ async function loadAccountsGrid(container) {
     // Add "Add Account" button
     const addButton = document.createElement('button');
     addButton.className = 'btn btn-primary';
-    addButton.textContent = '+ Add Account';
+    addButton.textContent = '+ Add New';
     addButton.style.marginBottom = '10px';
     addButton.addEventListener('click', async () => {
       const newAccount = await AccountManager.create(currentScenario.id, {
@@ -680,7 +680,7 @@ async function loadPlannedTransactionsGrid(container) {
   addButtonContainer.style.marginBottom = '12px';
   const addButton = document.createElement('button');
   addButton.className = 'btn btn-primary';
-  addButton.textContent = '+ Add Transaction';
+  addButton.textContent = '+ Add New';
   addButton.style.fontSize = '0.9em';
   addButton.addEventListener('click', async () => {
     // Add a new blank row to the grid
@@ -1030,7 +1030,7 @@ async function loadActualTransactionsGrid(container) {
     // Add "Add Actual" button
     const addButton = document.createElement('button');
     addButton.className = 'btn btn-primary';
-    addButton.textContent = '+ Add Actual';
+    addButton.textContent = '+ Add New';
     addButton.style.marginBottom = '10px';
     addButton.addEventListener('click', async () => {
       // Add a new manual actual transaction (not linked to planned)
