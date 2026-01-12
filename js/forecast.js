@@ -1225,6 +1225,17 @@ async function loadActualTransactionsGrid(container) {
       }
     });
 
+  } catch (err) {
+    console.error('[Forecast] Failed to load actual transactions grid:', err);
+  }
+}
+
+// Load projections section (buttons and grid)
+async function loadProjectionsSection(container) {
+  if (!currentScenario) return;
+
+  container.innerHTML = '';
+
   // Button container and Generate button
   const buttonContainer = document.createElement('div');
   buttonContainer.style.display = 'flex';
