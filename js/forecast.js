@@ -46,8 +46,6 @@ function buildGridContainer() {
   const scenarioSection = document.createElement('div');
   scenarioSection.className = 'bg-main bordered rounded shadow-lg';
   scenarioSection.style.padding = '12px 16px';
-  scenarioSection.style.maxHeight = '400px';
-  scenarioSection.style.overflowY = 'auto';
   
   const scenarioSelector = document.createElement('div');
   scenarioSelector.id = 'scenario-selector';
@@ -70,8 +68,6 @@ function buildGridContainer() {
   accountsContent.className = 'accordion-content';
   accountsContent.style.display = 'block';
   accountsContent.style.padding = '0 16px 16px 16px';
-  accountsContent.style.maxHeight = '350px';
-  accountsContent.style.overflowY = 'auto';
   window.add(accountsSection, accountsContent);
   
   const accountsTable = document.createElement('div');
@@ -103,8 +99,6 @@ function buildGridContainer() {
   plannedTxContent.className = 'accordion-content';
   plannedTxContent.style.display = 'block';
   plannedTxContent.style.padding = '16px';
-  plannedTxContent.style.maxHeight = '450px';
-  plannedTxContent.style.overflowY = 'auto';
   window.add(plannedTxSection, plannedTxContent);
   
   const plannedTransactionsTable = document.createElement('div');
@@ -129,8 +123,6 @@ function buildGridContainer() {
   actualTxContent.className = 'accordion-content';
   actualTxContent.style.display = 'block';
   actualTxContent.style.padding = '16px';
-  actualTxContent.style.maxHeight = '450px';
-  actualTxContent.style.overflowY = 'auto';
   window.add(actualTxSection, actualTxContent);
   
   // Period selector for actual transactions
@@ -174,8 +166,6 @@ function buildGridContainer() {
   projectionsContent.className = 'accordion-content';
   projectionsContent.style.display = 'block';
   projectionsContent.style.padding = '0 16px 16px 16px';
-  projectionsContent.style.maxHeight = '450px';
-  projectionsContent.style.overflowY = 'auto';
   window.add(projectionsSection, projectionsContent);
   window.add(forecastEl, projectionsSection);
 
@@ -241,6 +231,8 @@ async function buildScenarioGrid(container) {
 
     // Create grid container
     const gridContainer = document.createElement('div');
+    gridContainer.style.maxHeight = '300px';
+    gridContainer.style.overflowY = 'auto';
     window.add(container, gridContainer);
 
     // Load all scenarios
@@ -645,6 +637,8 @@ async function loadAccountsGrid(container) {
 
     // Create grid container
     const gridContainer = document.createElement('div');
+    gridContainer.style.maxHeight = '280px';
+    gridContainer.style.overflowY = 'auto';
     window.add(container, gridContainer);
 
     createGrid(gridContainer, {
@@ -810,6 +804,8 @@ async function loadPlannedTransactionsGrid(container) {
   window.add(container, addButtonContainer);
 
   const gridContainer = document.createElement('div');
+  gridContainer.style.maxHeight = '350px';
+  gridContainer.style.overflowY = 'auto';
   window.add(container, gridContainer);
 
   let plannedTxTable = null;
@@ -1150,6 +1146,8 @@ async function loadActualTransactionsGrid(container) {
 
     // Create separate container for the actual grid
     const tableContainer = document.createElement('div');
+    tableContainer.style.maxHeight = '300px';
+    tableContainer.style.overflowY = 'auto';
     window.add(gridContainer, tableContainer);
 
     createGrid(tableContainer, {
@@ -1420,6 +1418,8 @@ async function loadProjectionsSection(container) {
   // Projections grid container
   const projectionsGridContainer = document.createElement('div');
   projectionsGridContainer.id = 'projectionsGrid';
+  projectionsGridContainer.style.maxHeight = '350px';
+  projectionsGridContainer.style.overflowY = 'auto';
   window.add(container, projectionsGridContainer);
 
   // Load projections grid
