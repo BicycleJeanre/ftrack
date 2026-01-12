@@ -233,6 +233,7 @@ async function buildScenarioGrid(container) {
     const gridContainer = document.createElement('div');
     gridContainer.style.maxHeight = '300px';
     gridContainer.style.overflowY = 'auto';
+    gridContainer.style.width = '100%';
     window.add(container, gridContainer);
 
     // Load all scenarios
@@ -639,6 +640,7 @@ async function loadAccountsGrid(container) {
     const gridContainer = document.createElement('div');
     gridContainer.style.maxHeight = '280px';
     gridContainer.style.overflowY = 'auto';
+    gridContainer.style.width = '100%';
     window.add(container, gridContainer);
 
     createGrid(gridContainer, {
@@ -806,6 +808,7 @@ async function loadPlannedTransactionsGrid(container) {
   const gridContainer = document.createElement('div');
   gridContainer.style.maxHeight = '350px';
   gridContainer.style.overflowY = 'auto';
+  gridContainer.style.width = '100%';
   window.add(container, gridContainer);
 
   let plannedTxTable = null;
@@ -1148,6 +1151,7 @@ async function loadActualTransactionsGrid(container) {
     const tableContainer = document.createElement('div');
     tableContainer.style.maxHeight = '300px';
     tableContainer.style.overflowY = 'auto';
+    tableContainer.style.width = '100%';
     window.add(gridContainer, tableContainer);
 
     createGrid(tableContainer, {
@@ -1420,6 +1424,7 @@ async function loadProjectionsSection(container) {
   projectionsGridContainer.id = 'projectionsGrid';
   projectionsGridContainer.style.maxHeight = '350px';
   projectionsGridContainer.style.overflowY = 'auto';
+  projectionsGridContainer.style.width = '100%';
   window.add(container, projectionsGridContainer);
 
   // Load projections grid

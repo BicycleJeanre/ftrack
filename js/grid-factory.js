@@ -7,11 +7,11 @@ import { TabulatorFull as Tabulator } from '../node_modules/tabulator-tables/dis
  * Default Tabulator configuration for FTrack
  */
 const defaultConfig = {
-    layout: "fitDataStretch",
+    layout: "fitColumns",
     responsiveLayout: "hide",
     selectable: true,
     selectableRangeMode: "click",
-    maxHeight: "600px",
+    maxHeight: "100%",
     rowHeight: 42,
     headerVisible: true,
     headerFilterPlaceholder: "Filter...",
