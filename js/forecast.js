@@ -1468,21 +1468,16 @@ async function loadActualTransactionsGrid(container) {
           widthGrow: 1,
           formatter: function(cell) {
             const value = cell.getValue() || 0;
-            const formatted = new Intl.NumberFormat('en-US', {
+            const formatted = new Intl.NumberFormat('en-ZA', {
               style: 'currency',
-              currency: 'USD'
+              currency: 'ZAR',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
             }).format(value);
             
-            // Color-code variance
-            if (value > 0) {
-              const el = cell.getElement(); el.classList.remove('status-danger','status-neutral'); el.classList.add('status-success');
-            } else if (value < 0) {
-              const el = cell.getElement(); el.classList.remove('status-success','status-neutral'); el.classList.add('status-danger');
-            } else {
-              const el = cell.getElement(); el.classList.remove('status-success','status-danger'); el.classList.add('status-neutral');
-            }
-            
-            return formatted;
+            // Color code: green for positive, red for negative
+            const cls = value >= 0 ? 'status-netchange positive' : 'status-netchange negative';
+            return `<span class="${cls}">${formatted}</span>`;
           },
           hozAlign: "right",
           headerHozAlign: "right"

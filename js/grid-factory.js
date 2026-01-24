@@ -240,7 +240,19 @@ export function createMoneyColumn(title, field, options = {}) {
         field,
         editor: options.editor || "number",
         editorParams: options.editorParams || { step: 0.01 },
-        formatter: "money",
+        formatter: function(cell) {
+            const value = cell.getValue();
+            const formatted = new Intl.NumberFormat('en-ZA', {
+                style: 'currency',
+                currency: 'ZAR',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value);
+            
+            // Color code: green for positive, red for negative
+            const cls = value >= 0 ? 'status-netchange positive' : 'status-netchange negative';
+            return `<span class="${cls}">${formatted}</span>`;
+        },
         formatterParams,
         hozAlign: "right",
         headerHozAlign: "right",
