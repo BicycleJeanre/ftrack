@@ -12,6 +12,10 @@ import { openRecurrenceModal } from './modal-recurrence.js';
 import { openPeriodicChangeModal } from './modal-periodic-change.js';
 import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('ForecastController');
+
 import {
   getScenarios,
   getScenario,
@@ -36,16 +40,12 @@ function buildGridContainer() {
 
   // Top row: Scenarios and Accounts side-by-side
   const topRow = document.createElement('div');
-  topRow.style.display = 'grid';
-  topRow.style.gridTemplateColumns = '1fr 1fr';
-  topRow.style.gap = '20px';
-  topRow.style.marginBottom = '20px';
+  topRow.classList.add('layout-two-column', 'mb-lg');
   window.add(forecastEl, topRow);
 
   // Scenario selector (always visible, no accordion)
   const scenarioSection = document.createElement('div');
-  scenarioSection.className = 'bg-main bordered rounded shadow-lg';
-  scenarioSection.style.padding = '12px 16px';
+  scenarioSection.className = 'bg-main bordered rounded shadow-lg section-padding';
   
   const scenarioSelector = document.createElement('div');
   scenarioSelector.id = 'scenario-selector';
@@ -57,17 +57,14 @@ function buildGridContainer() {
   accountsSection.className = 'bg-main bordered rounded shadow-lg';
   
   const accountsHeader = document.createElement('div');
-  accountsHeader.className = 'pointer flex-between accordion-header';
-  accountsHeader.style.padding = '12px 16px';
-  accountsHeader.innerHTML = `<h2 class="text-main" style="font-size: 1.1em;">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
+  accountsHeader.className = 'pointer flex-between accordion-header section-padding';
+  accountsHeader.innerHTML = `<h2 class="text-main section-title">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;  
   accountsHeader.addEventListener('click', () => window.toggleAccordion('accountsContent'));
   window.add(accountsSection, accountsHeader);
   
   const accountsContent = document.createElement('div');
   accountsContent.id = 'accountsContent';
-  accountsContent.className = 'accordion-content';
-  accountsContent.style.display = 'block';
-  accountsContent.style.padding = '0 16px 16px 16px';
+  accountsContent.className = 'accordion-content open';
   window.add(accountsSection, accountsContent);
   
   const accountsTable = document.createElement('div');
@@ -77,10 +74,7 @@ function buildGridContainer() {
 
   // Middle row: Planned and Actual Transactions side-by-side
   const middleRow = document.createElement('div');
-  middleRow.style.display = 'grid';
-  middleRow.style.gridTemplateColumns = '1fr 1fr';
-  middleRow.style.gap = '20px';
-  middleRow.style.marginBottom = '20px';
+  middleRow.classList.add('layout-two-column', 'mb-lg');
   window.add(forecastEl, middleRow);
 
   // Planned Transactions section with accordion
@@ -88,17 +82,14 @@ function buildGridContainer() {
   plannedTxSection.className = 'bg-main bordered rounded shadow-lg';
   
   const plannedTxHeader = document.createElement('div');
-  plannedTxHeader.className = 'pointer flex-between accordion-header';
-  plannedTxHeader.style.padding = '12px 16px';
-  plannedTxHeader.innerHTML = `<h2 class="text-main" style="font-size: 1.1em;">Planned Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
+  plannedTxHeader.className = 'pointer flex-between accordion-header section-padding';
+  plannedTxHeader.innerHTML = `<h2 class="text-main section-title">Planned Transactions</h2><span class="accordion-arrow">&#9662;</span>`;  
   plannedTxHeader.addEventListener('click', () => window.toggleAccordion('plannedTxContent'));
   window.add(plannedTxSection, plannedTxHeader);
   
   const plannedTxContent = document.createElement('div');
   plannedTxContent.id = 'plannedTxContent';
-  plannedTxContent.className = 'accordion-content';
-  plannedTxContent.style.display = 'block';
-  plannedTxContent.style.padding = '16px';
+  plannedTxContent.className = 'accordion-content open section-content';
   window.add(plannedTxSection, plannedTxContent);
   
   const plannedTransactionsTable = document.createElement('div');
@@ -112,28 +103,22 @@ function buildGridContainer() {
   actualTxSection.className = 'bg-main bordered rounded shadow-lg';
   
   const actualTxHeader = document.createElement('div');
-  actualTxHeader.className = 'pointer flex-between accordion-header';
-  actualTxHeader.style.padding = '12px 16px';
-  actualTxHeader.innerHTML = `<h2 class="text-main" style="font-size: 1.1em;">Actual Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
+  actualTxHeader.className = 'pointer flex-between accordion-header section-padding';
+  actualTxHeader.innerHTML = `<h2 class="text-main section-title">Actual Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
   actualTxHeader.addEventListener('click', () => window.toggleAccordion('actualTxContent'));
   window.add(actualTxSection, actualTxHeader);
   
   const actualTxContent = document.createElement('div');
   actualTxContent.id = 'actualTxContent';
-  actualTxContent.className = 'accordion-content';
-  actualTxContent.style.display = 'block';
-  actualTxContent.style.padding = '16px';
+  actualTxContent.className = 'accordion-content open section-content';
   window.add(actualTxSection, actualTxContent);
   
   // Period selector for actual transactions
   const actualPeriodSelector = document.createElement('div');
-  actualPeriodSelector.style.marginBottom = '20px';
-  actualPeriodSelector.style.display = 'flex';
-  actualPeriodSelector.style.gap = '12px';
-  actualPeriodSelector.style.alignItems = 'center';
+  actualPeriodSelector.className = 'period-selector';
   actualPeriodSelector.innerHTML = `
     <label>Period:</label>
-    <select id="actual-period-select" class="form-select" style="min-width: 200px; max-width: 250px;">
+    <select id="actual-period-select" class="form-select period-select">
       <option value="">-- Select Period --</option>
     </select>
     <button id="actual-prev-period-btn" class="btn">◀</button>
@@ -151,21 +136,18 @@ function buildGridContainer() {
   const projectionsSection = document.createElement('div');
   projectionsSection.id = 'projectionsSection';
   projectionsSection.className = 'bg-main bordered rounded shadow-lg';
-  projectionsSection.style.marginBottom = '20px';
+  projectionsSection.classList.add('mb-lg');
   
   const projectionsHeader = document.createElement('div');
   projectionsHeader.id = 'projectionsAccordionHeader';
-  projectionsHeader.className = 'pointer flex-between accordion-header';
-  projectionsHeader.style.padding = '12px 16px';
-  projectionsHeader.innerHTML = `<h2 class="text-main" style="font-size: 1.1em;">Projections</h2><span class="accordion-arrow">&#9662;</span>`;
+  projectionsHeader.className = 'pointer flex-between accordion-header section-padding';
+  projectionsHeader.innerHTML = `<h2 class="text-main section-title">Projections</h2><span class="accordion-arrow">&#9662;</span>`;
   projectionsHeader.addEventListener('click', () => window.toggleAccordion('projectionsContent'));
   window.add(projectionsSection, projectionsHeader);
   
   const projectionsContent = document.createElement('div');
   projectionsContent.id = 'projectionsContent';
-  projectionsContent.className = 'accordion-content';
-  projectionsContent.style.display = 'block';
-  projectionsContent.style.padding = '0 16px 16px 16px';
+  projectionsContent.className = 'accordion-content open';
   window.add(projectionsSection, projectionsContent);
   window.add(forecastEl, projectionsSection);
 
@@ -191,31 +173,8 @@ async function buildScenarioGrid(container) {
 
     // Add "Add Scenario" button
     const addScenarioBtn = document.createElement('button');
-    addScenarioBtn.className = 'btn btn-primary';
+    addScenarioBtn.className = 'btn btn-primary btn-add';
     addScenarioBtn.textContent = '+ Add New';
-    addScenarioBtn.style.marginBottom = '12px';
-    addScenarioBtn.style.padding = '10px 20px';
-    addScenarioBtn.style.fontSize = '0.95em';
-    addScenarioBtn.style.fontWeight = '600';
-    addScenarioBtn.style.minWidth = '140px';
-    addScenarioBtn.style.border = '2px solid var(--primary)';
-    addScenarioBtn.style.borderRadius = '6px';
-    addScenarioBtn.style.cursor = 'pointer';
-    addScenarioBtn.style.transition = 'all 0.2s ease';
-    addScenarioBtn.addEventListener('mouseenter', () => {
-      addScenarioBtn.style.transform = 'translateY(-1px)';
-      addScenarioBtn.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-    });
-    addScenarioBtn.addEventListener('mouseleave', () => {
-      addScenarioBtn.style.transform = 'translateY(0)';
-      addScenarioBtn.style.boxShadow = 'none';
-    });
-    addScenarioBtn.addEventListener('mousedown', () => {
-      addScenarioBtn.style.transform = 'translateY(1px)';
-    });
-    addScenarioBtn.addEventListener('mouseup', () => {
-      addScenarioBtn.style.transform = 'translateY(-1px)';
-    });
     addScenarioBtn.addEventListener('click', async () => {
       const newScenario = await ScenarioManager.create({
         name: 'New Scenario',
@@ -231,9 +190,8 @@ async function buildScenarioGrid(container) {
 
     // Create grid container
     const gridContainer = document.createElement('div');
-    gridContainer.style.maxHeight = '300px';
-    gridContainer.style.overflowY = 'auto';
-    gridContainer.style.width = '100%';
+    gridContainer.id = 'scenariosTable'; // explicit ID for logging and testing
+    gridContainer.className = 'grid-container scenarios-grid';
     window.add(container, gridContainer);
 
     // Load all scenarios
@@ -253,29 +211,6 @@ async function buildScenarioGrid(container) {
             if (confirm(`Delete scenario: ${rowData.name}?`)) {
               await ScenarioManager.remove(rowData.id);
               await buildScenarioGrid(container);
-            }
-          }
-        },
-        {
-          title: "",
-          field: "_radio",
-          width: 40,
-          hozAlign: "center",
-          headerSort: false,
-          formatter: function(cell) {
-            const isSelected = cell.getRow().isSelected();
-            return `<input type="radio" name="scenario" ${isSelected ? 'checked' : ''} style="cursor: pointer; pointer-events: none;">`;
-          },
-          cellClick: function(e, cell) {
-            const table = cell.getTable();
-            const thisRow = cell.getRow();
-            
-            // Only proceed if this row isn't already selected
-            if (!thisRow.isSelected()) {
-              // Deselect all rows
-              table.getSelectedRows().forEach(row => row.deselect());
-              // Select this row
-              thisRow.select();
             }
           }
         },
@@ -322,34 +257,103 @@ async function buildScenarioGrid(container) {
         }
       ],
       rowSelectionChanged: async function(data, rows) {
-        // Redraw all radio button cells to update their checked state
-        scenariosTable.getRows().forEach(row => {
-          row.getCells().forEach(cell => {
-            if (cell.getField() === '_radio') {
-              cell.getElement().innerHTML = cell.getColumn().getDefinition().formatter(cell);
-            }
-          });
-        });
-        
+        logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
         if (rows.length > 0) {
           const scenario = rows[0].getData();
-          console.log('[Forecast] Scenario selected:', scenario);
+          logger.info('Scenario selected:', scenario.id, scenario.name);
           currentScenario = await getScenario(scenario.id);
           selectedAccountId = null; // Clear selected account when switching scenarios
-          console.log('[Forecast] Current scenario set to:', currentScenario);
-          console.log('[Forecast] Loading scenario data...');
+          logger.info('Current scenario set to:', currentScenario.id);
+          logger.info('Loading scenario data...');
           await loadScenarioData();
-          console.log('[Forecast] Scenario data loaded');
+          logger.info('Scenario data loaded');
         }
       }
     });
-    
+
+    // Also attach handler to Tabulator's rowSelected event to follow recommended pattern
+    scenariosTable.on('rowSelected', async function(row){
+      try {
+        const scenario = row.getData();
+        logger.info('[ScenarioGrid] rowSelected handler executing:', scenario.id, scenario.name);
+        currentScenario = await getScenario(scenario.id);
+        selectedAccountId = null;
+        logger.info('[ScenarioGrid] Loading scenario data via rowSelected');
+        await loadScenarioData();
+        logger.info('[ScenarioGrid] Scenario data loaded via rowSelected');
+      } catch (err) {
+        logger.error('[ScenarioGrid] rowSelected handler failed:', err);
+      }
+    });
+
+    // Attach direct event listeners to help debug selection behavior
+    scenariosTable.on('rowClick', function(e, row) {
+      logger.info('[ScenarioGrid] rowClick:', row.getData().id, 'target=', e.target && e.target.tagName);
+      // Ensure single-selection by deselecting others then selecting this row
+      try {
+        const table = row.getTable();
+        // If clicking an already selected row, toggle it off
+        if (row.isSelected()) {
+          table.deselectRow(row);
+          return;
+        }
+        table.deselectRow();
+        row.select();
+        // Safety check after a tiny delay
+        setTimeout(() => {
+          const selected = table.getSelectedRows();
+          if (!row.isSelected()) {
+            table.deselectRow();
+            row.select();
+          } else if (selected.length > 1) {
+            // enforce single selection
+            selected.forEach(r => { if (r.getData().id !== row.getData().id) r.deselect(); });
+          }
+        }, 20);
+      } catch (err) {
+        logger.error('[ScenarioGrid] rowClick fallback failed:', err);
+      }
+    });
+
+    scenariosTable.on('rowSelected', function(row) {
+      logger.info('[ScenarioGrid] rowSelected:', row.getData().id);
+      try {
+        const table = row.getTable();
+        const selected = table.getSelectedRows();
+        if (selected.length > 1) {
+          // Deselect others, keep this one
+          selected.forEach(r => { if (r.getData().id !== row.getData().id) r.deselect(); });
+        }
+      } catch (err) {
+        logger.error('[ScenarioGrid] rowSelected enforcement failed:', err);
+      }
+      // Debounce reload to avoid re-render races
+      setTimeout(async () => {
+        try {
+          const scenario = row.getData();
+          if (currentScenario && currentScenario.id === scenario.id) return; // already set
+          logger.info('[ScenarioGrid] rowSelected handler executing:', scenario.id, scenario.name);
+          currentScenario = await getScenario(scenario.id);
+          selectedAccountId = null;
+          logger.info('[ScenarioGrid] Loading scenario data via rowSelected');
+          await loadScenarioData();
+          logger.info('[ScenarioGrid] Scenario data loaded via rowSelected');
+        } catch (err) {
+          logger.error('[ScenarioGrid] rowSelected handler failed (delayed):', err);
+        }
+      }, 40);
+    });
+
+    scenariosTable.on('rowDeselected', function(row) {
+      logger.info('[ScenarioGrid] rowDeselected:', row.getData().id);
+    });
+
     // Attach cellEdited event handler
     scenariosTable.on("cellEdited", async function(cell) {
       const row = cell.getRow();
       const scenario = row.getData();
       
-      console.log('[Forecast] Cell edited in scenario:', scenario);
+      logger.info('Cell edited in scenario:', scenario.id);
       
       try {
         // Extract only the fields that should be saved (exclude Tabulator-specific fields)
@@ -620,15 +624,15 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
 // Load accounts grid
 async function loadAccountsGrid(container) {
   if (!currentScenario) {
-    console.log('[Forecast] loadAccountsGrid: No current scenario');
+    logger.warn('[Forecast] loadAccountsGrid: No current scenario');
     return;
   }
 
-  console.log('[Forecast] loadAccountsGrid: Loading for scenario', currentScenario.id, currentScenario.name);
+  logger.info('[Forecast] loadAccountsGrid: Loading for scenario', currentScenario.id, currentScenario.name);
 
   const typeConfig = getScenarioTypeConfig();
   if (!typeConfig || !typeConfig.showAccounts) {
-    console.log('[Forecast] loadAccountsGrid: Type config does not show accounts');
+    logger.info('[Forecast] loadAccountsGrid: Type config does not show accounts');
     container.innerHTML = '';
     return;
   }
@@ -637,7 +641,7 @@ async function loadAccountsGrid(container) {
 
   try {
     const accounts = await AccountManager.getAll(currentScenario.id);
-    console.log('[Forecast] loadAccountsGrid: Loaded', accounts.length, 'accounts');
+    logger.info('[Forecast] loadAccountsGrid: Loaded', accounts.length, 'accounts');
     const fs = window.require('fs').promises;
     const lookupPath = getSchemaPath('lookup-data.json');
     const lookupFile = await fs.readFile(lookupPath, 'utf8');
@@ -645,31 +649,8 @@ async function loadAccountsGrid(container) {
 
     // Add "Add Account" button
     const addButton = document.createElement('button');
-    addButton.className = 'btn btn-primary';
+    addButton.className = 'btn btn-primary btn-add';
     addButton.textContent = '+ Add New';
-    addButton.style.marginBottom = '12px';
-    addButton.style.padding = '10px 20px';
-    addButton.style.fontSize = '0.95em';
-    addButton.style.fontWeight = '600';
-    addButton.style.minWidth = '140px';
-    addButton.style.border = '2px solid var(--primary)';
-    addButton.style.borderRadius = '6px';
-    addButton.style.cursor = 'pointer';
-    addButton.style.transition = 'all 0.2s ease';
-    addButton.addEventListener('mouseenter', () => {
-      addButton.style.transform = 'translateY(-1px)';
-      addButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-    });
-    addButton.addEventListener('mouseleave', () => {
-      addButton.style.transform = 'translateY(0)';
-      addButton.style.boxShadow = 'none';
-    });
-    addButton.addEventListener('mousedown', () => {
-      addButton.style.transform = 'translateY(1px)';
-    });
-    addButton.addEventListener('mouseup', () => {
-      addButton.style.transform = 'translateY(-1px)';
-    });
     addButton.addEventListener('click', async () => {
       const newAccount = await AccountManager.create(currentScenario.id, {
         name: 'New Account',
@@ -683,14 +664,13 @@ async function loadAccountsGrid(container) {
 
     // Create grid container
     const gridContainer = document.createElement('div');
-    gridContainer.style.maxHeight = '280px';
-    gridContainer.style.overflowY = 'auto';
-    gridContainer.style.width = '100%';
+    gridContainer.id = 'accountsTable'; // explicit ID for logging
+    gridContainer.className = 'grid-container accounts-grid';
     window.add(container, gridContainer);
 
     const accountsTable = createGrid(gridContainer, {
       data: accounts,
-      selectable: 1, // Only allow single row selection
+      selectable: 1, // Enable built-in single selection
       columns: [
         {
           formatter: "buttonCross",
@@ -702,28 +682,6 @@ async function loadAccountsGrid(container) {
             if (confirm(`Delete account: ${rowData.name}?`)) {
               await AccountManager.remove(currentScenario.id, rowData.id);
               await loadAccountsGrid(container);
-            }
-          }
-        },
-        {
-          field: "_radio",
-          width: 40,
-          hozAlign: "center",
-          headerSort: false,
-          formatter: function(cell) {
-            const isSelected = cell.getRow().isSelected();
-            return `<input type="radio" name="account" ${isSelected ? 'checked' : ''} style="cursor: pointer; pointer-events: none;">`;
-          },
-          cellClick: function(e, cell) {
-            const table = cell.getTable();
-            const thisRow = cell.getRow();
-            
-            // Only proceed if this row isn't already selected
-            if (!thisRow.isSelected()) {
-              // Deselect all rows
-              table.getSelectedRows().forEach(row => row.deselect());
-              // Select this row
-              thisRow.select();
             }
           }
         },
@@ -759,50 +717,88 @@ async function loadAccountsGrid(container) {
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
         await AccountManager.update(currentScenario.id, account.id, account);
-        console.log('[Forecast] ✓ Account updated:', account.name);
+        logger.info('[Forecast] ✓ Account updated:', account.name);
       },
       rowSelectionChanged: async function(data, rows) {
-        // Redraw all radio button cells to update their checked state
-        accountsTable.getRows().forEach(row => {
-          row.getCells().forEach(cell => {
-            if (cell.getField() === '_radio') {
-              cell.getElement().innerHTML = cell.getColumn().getDefinition().formatter(cell);
-            }
-          });
-        });
+        // Log raw event
+        logger.debug('[Forecast] rowSelectionChanged fired. Length:', rows.length);
+        try {
+          const table = this;
+          const selected = table.getSelectedRows();
+          if (selected.length > 1) {
+            // Keep the first selected row and deselect the rest
+            selected.forEach((r, i) => { if (i > 0) r.deselect(); });
+            // Recompute rows array
+            rows = table.getSelectedRows();
+          }
+        } catch (err) {
+          logger.error('[Forecast] rowSelectionChanged enforcement failed:', err);
+        }
         
         if (rows.length > 0) {
           const account = rows[0].getData();
-          console.log('[Forecast] Account selected:', account);
-          selectedAccountId = account.id;
-          
-          // Reload transaction grids to filter by selected account
-          await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
-          await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
+          logger.info('[Forecast] Account selected:', account.name, account.id);
+          if (selectedAccountId !== account.id) {
+             selectedAccountId = account.id;
+             // Debounce reloads slightly to avoid re-render conflicts
+             setTimeout(async () => {
+               await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
+               await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
+               // Also refresh Projections as they might depend on the account filter (future proofing)
+               await loadProjectionsSection(document.getElementById('projectionsContent'));
+             }, 40);
+          }
         } else {
-          // No account selected - show all transactions
-          console.log('[Forecast] Account deselected');
+          // No account selected
+          logger.info('[Forecast] Account deselected');
           selectedAccountId = null;
-          
-          // Reload transaction grids to show all transactions
-          await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
-          await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
+          // Clear downstream grids
+          document.getElementById('plannedTransactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
+          document.getElementById('actualTransactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
         }
+      }
+    });
+
+    // Enforce single selection and provide fallback selection on click for accounts
+    accountsTable.on('rowClick', function(e, row) {
+      logger.info('[AccountsGrid] rowClick:', row.getData().id, 'target=', e.target && e.target.tagName);
+      try {
+        const table = row.getTable();
+        if (row.isSelected()) {
+          table.deselectRow(row);
+          return;
+        }
+        table.deselectRow();
+        row.select();
+        setTimeout(() => {
+          const selected = table.getSelectedRows();
+          if (!row.isSelected()) {
+            table.deselectRow();
+            row.select();
+          } else if (selected.length > 1) {
+            selected.forEach(r => { if (r.getData().id !== row.getData().id) r.deselect(); });
+          }
+        }, 20);
+      } catch (err) {
+        logger.error('[AccountsGrid] rowClick fallback failed:', err);
       }
     });
     
     // Auto-select first account if accounts exist
-    if (accounts && accounts.length > 0) {
-      setTimeout(() => {
-        const rows = accountsTable.getRows();
-        if (rows && rows.length > 0) {
-          rows[0].select();
-        }
-      }, 100);
-    }
+    // Use tableBuilt event to ensure rows are rendered before selection
+    accountsTable.on("tableBuilt", function() {
+      const rows = accountsTable.getRows();
+      if (rows && rows.length > 0) {
+        rows[0].select();
+      } else {
+        // If no accounts, clear the "Loading..." message from downstream grids
+        const plannedContainer = document.getElementById('plannedTransactionsTable');
+        if (plannedContainer) plannedContainer.innerHTML = '<div class="empty-message">No accounts found. Create an account to get started.</div>';
+      }
+    });
 
   } catch (err) {
-    console.error('[Forecast] Failed to load accounts grid:', err);
+    logger.error('[Forecast] Failed to load accounts grid:', err);
   }
 }
 
@@ -820,9 +816,7 @@ async function loadPlannedTransactionsGrid(container) {
 
   // Add section header
   const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main';
-  sectionHeader.style.marginBottom = '12px';
-  sectionHeader.style.fontSize = '1.22em';
+  sectionHeader.className = 'text-main section-header';
   
   if (selectedAccountId) {
     const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
@@ -835,33 +829,10 @@ async function loadPlannedTransactionsGrid(container) {
 
   // Add "Add Transaction" button
   const addButtonContainer = document.createElement('div');
-  addButtonContainer.style.marginBottom = '12px';
+  addButtonContainer.className = 'mb-sm';
   const addButton = document.createElement('button');
-  addButton.className = 'btn btn-primary';
+  addButton.className = 'btn btn-primary btn-add';
   addButton.textContent = '+ Add New';
-  addButton.style.marginBottom = '12px';
-  addButton.style.padding = '10px 20px';
-  addButton.style.fontSize = '0.95em';
-  addButton.style.fontWeight = '600';
-  addButton.style.minWidth = '140px';
-  addButton.style.border = '2px solid var(--primary)';
-  addButton.style.borderRadius = '6px';
-  addButton.style.cursor = 'pointer';
-  addButton.style.transition = 'all 0.2s ease';
-  addButton.addEventListener('mouseenter', () => {
-    addButton.style.transform = 'translateY(-1px)';
-    addButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-  });
-  addButton.addEventListener('mouseleave', () => {
-    addButton.style.transform = 'translateY(0)';
-    addButton.style.boxShadow = 'none';
-  });
-  addButton.addEventListener('mousedown', () => {
-    addButton.style.transform = 'translateY(1px)';
-  });
-  addButton.addEventListener('mouseup', () => {
-    addButton.style.transform = 'translateY(-1px)';
-  });
   addButton.addEventListener('click', async () => {
     // Add a new blank row to the grid
     if (plannedTxTable) {
@@ -914,9 +885,7 @@ async function loadPlannedTransactionsGrid(container) {
   window.add(container, addButtonContainer);
 
   const gridContainer = document.createElement('div');
-  gridContainer.style.maxHeight = '350px';
-  gridContainer.style.overflowY = 'auto';
-  gridContainer.style.width = '100%';
+  gridContainer.className = 'grid-container planned-grid';
   window.add(container, gridContainer);
 
   let plannedTxTable = null;
@@ -1050,9 +1019,9 @@ async function loadPlannedTransactionsGrid(container) {
           formatter: function(cell) {
             const value = cell.getValue();
             if (value && value.recurrenceType) {
-              return `<span style="cursor: pointer; color: #4ec9b0;">${value.recurrenceType.name || 'N/A'} ✏️</span>`;
+              return `<span class="clickable-recurrence">${value.recurrenceType.name || 'N/A'} ✏️</span>`;
             }
-            return '<span style="cursor: pointer; color: #999;">Click to add ✏️</span>';
+            return '<span class="click-to-add">Click to add ✏️</span>'; 
           },
           cellClick: function(e, cell) {
             const currentValue = cell.getValue();
@@ -1152,9 +1121,7 @@ async function loadActualTransactionsGrid(container) {
       const gridContainer = document.getElementById('actualTransactionsTable');
       if (gridContainer) {
         const message = document.createElement('div');
-        message.style.padding = '20px';
-        message.style.textAlign = 'center';
-        message.style.color = 'var(--text-secondary)';
+        message.className = 'empty-message';
         message.textContent = 'Select a period to view actual transactions';
         gridContainer.innerHTML = '';
         window.add(gridContainer, message);
@@ -1214,31 +1181,8 @@ async function loadActualTransactionsGrid(container) {
 
     // Add "Add Actual" button
     const addButton = document.createElement('button');
-    addButton.className = 'btn btn-primary';
+    addButton.className = 'btn btn-primary btn-add';
     addButton.textContent = '+ Add New';
-    addButton.style.marginBottom = '12px';
-    addButton.style.padding = '10px 20px';
-    addButton.style.fontSize = '0.95em';
-    addButton.style.fontWeight = '600';
-    addButton.style.minWidth = '140px';
-    addButton.style.border = '2px solid var(--primary)';
-    addButton.style.borderRadius = '6px';
-    addButton.style.cursor = 'pointer';
-    addButton.style.transition = 'all 0.2s ease';
-    addButton.addEventListener('mouseenter', () => {
-      addButton.style.transform = 'translateY(-1px)';
-      addButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-    });
-    addButton.addEventListener('mouseleave', () => {
-      addButton.style.transform = 'translateY(0)';
-      addButton.style.boxShadow = 'none';
-    });
-    addButton.addEventListener('mousedown', () => {
-      addButton.style.transform = 'translateY(1px)';
-    });
-    addButton.addEventListener('mouseup', () => {
-      addButton.style.transform = 'translateY(-1px)';
-    });
     addButton.addEventListener('click', async () => {
       // Add a new manual actual transaction (not linked to planned)
       const newActual = {
@@ -1259,9 +1203,7 @@ async function loadActualTransactionsGrid(container) {
 
     // Create separate container for the actual grid
     const tableContainer = document.createElement('div');
-    tableContainer.style.maxHeight = '300px';
-    tableContainer.style.overflowY = 'auto';
-    tableContainer.style.width = '100%';
+    tableContainer.classList.add('grid-container', 'projections-grid');
     window.add(gridContainer, tableContainer);
 
     const actualTxTable = createGrid(tableContainer, {
@@ -1386,11 +1328,11 @@ async function loadActualTransactionsGrid(container) {
             
             // Color-code variance
             if (value > 0) {
-              cell.getElement().style.color = 'var(--success)';
+              const el = cell.getElement(); el.classList.remove('status-danger','status-neutral'); el.classList.add('status-success');
             } else if (value < 0) {
-              cell.getElement().style.color = 'var(--danger)';
+              const el = cell.getElement(); el.classList.remove('status-success','status-neutral'); el.classList.add('status-danger');
             } else {
-              cell.getElement().style.color = 'var(--text-main)';
+              const el = cell.getElement(); el.classList.remove('status-success','status-danger'); el.classList.add('status-neutral');
             }
             
             return formatted;
@@ -1460,19 +1402,11 @@ async function loadProjectionsSection(container) {
 
   // Button container and Generate button
   const buttonContainer = document.createElement('div');
-  buttonContainer.style.display = 'flex';
-  buttonContainer.style.gap = '12px';
-  buttonContainer.style.marginBottom = '20px';
+  buttonContainer.className = 'button-container';
 
   const generateButton = document.createElement('button');
-  generateButton.className = 'btn';
+  generateButton.className = 'btn btn-generate';
   generateButton.textContent = 'Generate Projections';
-  generateButton.style.padding = '12px 24px';
-  generateButton.style.fontSize = '1.04em';
-  generateButton.style.whiteSpace = 'nowrap';
-  generateButton.style.minWidth = 'fit-content';
-  generateButton.style.width = 'auto';
-  generateButton.style.display = 'inline-block';
 
   generateButton.addEventListener('click', async () => {
     try {
@@ -1532,9 +1466,7 @@ async function loadProjectionsSection(container) {
   // Projections grid container
   const projectionsGridContainer = document.createElement('div');
   projectionsGridContainer.id = 'projectionsGrid';
-  projectionsGridContainer.style.maxHeight = '350px';
-  projectionsGridContainer.style.overflowY = 'auto';
-  projectionsGridContainer.style.width = '100%';
+  projectionsGridContainer.className = 'grid-container projections-grid';
   window.add(container, projectionsGridContainer);
 
   // Load projections grid
@@ -1596,8 +1528,8 @@ async function loadProjectionsGrid(container) {
             }).format(value);
             
             // Color code: green for positive, red for negative
-            const color = value >= 0 ? '#4ade80' : '#f87171';
-            return `<span style="color: ${color};">${formatted}</span>`;
+            const cls = value >= 0 ? 'status-netchange positive' : 'status-netchange negative';
+            return `<span class="${cls}">${formatted}</span>`; 
           },
           headerHozAlign: "right",
           hozAlign: "right"
@@ -1627,18 +1559,22 @@ async function loadScenarioData() {
   const projectionsSection = getEl('projectionsSection');
   
   if (typeConfig) {
-    accountsSection.style.display = typeConfig.showAccounts ? 'block' : 'none';
-    txSection.style.display = (typeConfig.showPlannedTransactions || typeConfig.showActualTransactions) ? 'block' : 'none';
-    projectionsSection.style.display = typeConfig.showProjections ? 'block' : 'none';
+    if (typeConfig.showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
+    if (typeConfig.showPlannedTransactions || typeConfig.showActualTransactions) txSection.classList.remove('hidden'); else txSection.classList.add('hidden');
+    if (typeConfig.showProjections) projectionsSection.classList.remove('hidden'); else projectionsSection.classList.add('hidden');
   }
 
+  // Clear downstream grids to prevent ghost data
+  containers.plannedTransactionsTable.innerHTML = '<div class="empty-message">Loading...</div>';
+  containers.actualTransactionsTable.innerHTML = '';
+
   await loadAccountsGrid(containers.accountsTable);
-  await loadPlannedTransactionsGrid(containers.plannedTransactionsTable);
+  // Note: loadPlannedTransactionsGrid and loadActualTransactionsGrid 
+  // are triggered by the auto-selection in loadAccountsGrid
   
   // Initialize period selector for actual transactions
   await initializePeriodSelector();
   
-  await loadActualTransactionsGrid(containers.actualTransactionsTable);
   await loadProjectionsSection(containers.projectionsContent);
 }
 

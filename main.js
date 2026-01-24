@@ -1,7 +1,7 @@
 // main.js
 // Main process for Electron app
 
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -16,6 +16,34 @@ if (isDev) {
   // Production: use Electron's userData path
   userDataPath = app.getPath('userData');
 }
+
+// Ensure logs directory exists
+const logsPath = path.join(userDataPath, 'logs');
+if (!fs.existsSync(logsPath)) {
+  fs.mkdirSync(logsPath, { recursive: true });
+}
+
+// Setup debug logging
+const debugLogPath = path.join(logsPath, 'debug.log');
+// Clear log on startup
+fs.writeFileSync(debugLogPath, `[${new Date().toISOString()}] App Started\n`);
+
+function writeToLog(source, level, message) {
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] [${source}] [${level}] ${message}\n`;
+  try {
+    fs.appendFileSync(debugLogPath, logLine);
+    // Also echo to console for terminal visibility
+    console.log(logLine.trim());
+  } catch (err) {
+    console.error('Failed to write to log:', err);
+  }
+}
+
+// IPC Handlers for logging
+ipcMain.on('log-message', (event, { source, level, message }) => {
+  writeToLog(source, level, message);
+});
 
 const userAssetsPath = path.join(userDataPath, 'assets');
 

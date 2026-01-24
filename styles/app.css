@@ -258,6 +258,46 @@ p {
   pointer-events: none;
 }
 
+/* Layout utilities moved from inline JS */
+.layout-two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.mb-lg { margin-bottom: 20px; }
+.section-padding { padding: 12px 16px; }
+.section-title { font-size: 1.1em; }
+.accordion-content.open { display: block; padding: 0 16px 16px 16px; }
+.section-content { padding: 16px; }
+
+/* Grid containers */
+.grid-container { width: 100%; overflow-y: auto; }
+.scenarios-grid { max-height: 300px; }
+.accounts-grid { max-height: 280px; }
+.planned-grid { max-height: 350px; }
+
+/* Add button styles moved from inline */
+.btn-add { margin-bottom: 12px; padding: 10px 20px; font-size: 0.95em; font-weight: 600; min-width: 140px; border: 2px solid var(--primary); border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
+.btn-add:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+.btn-add:active { transform: translateY(1px); }
+
+/* Period selector */
+.period-selector { margin-bottom: 20px; display: flex; gap: 12px; align-items: center; }
+.period-select { min-width: 200px; max-width: 250px; }
+
+/* Small margin utility */
+.mb-sm { margin-bottom: 12px; }
+
+.section-header { margin-bottom: 12px; font-size: 1.22em; }
+.empty-message { padding: 20px; text-align: center; color: var(--text-secondary); }
+.button-container { display: flex; gap: 12px; margin-bottom: 20px; }
+.btn-generate { padding: 12px 24px; font-size: 1.04em; white-space: nowrap; min-width: fit-content; }
+
+.status-success { color: var(--success) !important; }
+.status-danger { color: var(--danger) !important; }
+.status-netchange.positive { color: #4ade80 !important; }
+.status-netchange.negative { color: #f87171 !important; }
+.clickable-recurrence { cursor: pointer; color: #4ec9b0; }
+.click-to-add { cursor: pointer; color: #999; }
+.hidden { display: none !important; }
+.status-neutral { color: var(--text-main) !important; }
+
 /* ==================================== Forms & Inputs ====================================*/
 
 input[type="text"],
@@ -476,6 +516,32 @@ input[type="checkbox"] {
 
 .tabulator .tabulator-row.tabulator-selected {
   background: var(--bg-hover);
+}
+
+/* Ensure selected rows are visually prominent even when other styles conflict */
+.tabulator .tabulator-row.custom-selected {
+  background-color: rgba(0,212,255,0.08) !important; /* soft accent */
+  color: var(--tabulator-text) !important;
+  position: relative;
+}
+
+/* Left accent bar */
+.tabulator .tabulator-row.custom-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: var(--accent-primary);
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
+/* Ensure child cells also inherit the forced background */
+.tabulator .tabulator-row.custom-selected .tabulator-cell {
+  background-color: rgba(0,212,255,0.08) !important;
+  color: var(--tabulator-text) !important;
 }
 
 .tabulator .tabulator-row .tabulator-cell {

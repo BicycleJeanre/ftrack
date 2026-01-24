@@ -2,6 +2,9 @@
 // Utility wrapper for creating Tabulator grids with consistent configuration
 
 import { TabulatorFull as Tabulator } from '../node_modules/tabulator-tables/dist/js/tabulator_esm.min.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger('GridFactory');
 
 /**
  * Default Tabulator configuration for FTrack
@@ -11,7 +14,12 @@ const defaultConfig = {
     responsiveLayout: "hide",
     selectable: false, // Disable by default - grids can override if needed
     selectableRangeMode: false, // Disable to allow cell editing
-    editTriggerEvent: "click", // Click to edit cells
+    // Allow grids to decide if a row is selectable. Log calls for debugging.
+    selectableCheck: function(row) {
+        try { logger.debug('selectableCheck: row id', row.getData() && row.getData().id); } catch (e) { /* noop */ }
+        return true; // Default to selectable
+    },
+    editTriggerEvent: "dblclick", // Double-click to edit cells (allows single-click for row selection)
     maxHeight: "100%",
     rowHeight: 42,
     headerVisible: true,
@@ -45,20 +53,70 @@ const defaultConfig = {
  * @returns {Tabulator} - Tabulator instance
  */
 export function createGrid(element, options = {}) {
-    // Extract cellEdited before merging to prevent passing it to Tabulator config
+    // Extract cellEdited before merging
     const { cellEdited, ...tabulatorOptions } = options;
     
+    // Merge options - specific options override defaults
     const config = {
         ...defaultConfig,
         ...tabulatorOptions
     };
     
-    const table = new Tabulator(element, config);
+    // Explicitly validate selectable option
+    if (config.selectable === 1 || config.selectable === true) {
+        // Ensure dependent options are set for robust single selection
+        // For Tabulator 6, we prefer integer 1 for single row
+        if (config.selectable === true) config.selectable = 1;
+        
+        config.selectableRangeMode = false;
+        // selectableRollingSelection: true allows re-selecting the same row (triggers event) or different row
+        config.selectableRollingSelection = true; 
+        config.selectablePersistence = false; // Important: Clear selection on reload
+    }
     
-    // If cellEdited callback is provided, attach it using .on() method
-    // This is more reliable than passing it in config
+    logger.info(`Creating grid on element ID: ${element.id || 'N/A'}`, { 
+        selectable: config.selectable, 
+        selector: element.id || element 
+    });
+    
+    const table = new Tabulator(element, config);
+
+    // Instrument selection events for debugging
+    table.on("rowSelected", function(row){
+        logger.info(`Row Selected in ${element.id||'Grid'}:`, row.getData().id);
+        try {
+            const el = row.getElement();
+            if (el && el.classList) el.classList.add('custom-selected');
+            logger.debug(`Row element classes: ${el ? el.className : 'no-el'}`);
+        } catch (e) { logger.error('rowSelected diagnostics failed', e); }
+    });
+    
+    table.on("rowDeselected", function(row){
+        logger.debug(`Row Deselected in ${element.id||'Grid'}:`, row.getData().id);
+        try {
+            const el = row.getElement();
+            if (el && el.classList) el.classList.remove('custom-selected');
+        } catch (e) { logger.error('rowDeselected diagnostics failed', e); }
+    });
+
+    // Additional instrumentation: clicks and table lifecycle
+    table.on("rowClick", function(e, row){
+        try { logger.info(`Row Click in ${element.id||'Grid'}:`, row.getData().id, 'target=', e.target && e.target.tagName); } catch (err) { logger.info('Row Click in Grid (no id)'); }
+    });
+
+    table.on("cellClick", function(e, cell){
+        try { logger.debug(`Cell Click in ${element.id||'Grid'}:`, cell.getField(), 'target=', e.target && e.target.tagName); } catch (err) { logger.debug('Cell Click in Grid'); }
+    });
+
+    table.on("tableBuilt", function(){
+        logger.info(`Table built: ${element.id||'Grid'}`);
+    });
+    
     if (cellEdited) {
-        table.on("cellEdited", cellEdited);
+        table.on("cellEdited", (cell) => {
+            logger.info(`Cell Edited in ${element.id||'Grid'}:`, cell.getField(), cell.getValue());
+            cellEdited(cell);
+        });
     }
     
     return table;
