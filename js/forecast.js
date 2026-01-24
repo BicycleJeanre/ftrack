@@ -701,11 +701,8 @@ async function loadAccountsGrid(container) {
           widthGrow: 1,
           editor: "list",
           editorParams: {
-            values: lookupData.accountTypes,
-            listItemFormatter: function(value, title) {
-              return value.name;
-            },
-            valueLookup: true,
+            // Tabulator list expects {label, value} entries when using lookup
+            values: lookupData.accountTypes.map(t => ({ label: t.name, value: t })),
             autocomplete: true,
             clearable: false
           }
@@ -714,11 +711,7 @@ async function loadAccountsGrid(container) {
           width: 100,
           editor: "list",
           editorParams: {
-            values: lookupData.currencies,
-            listItemFormatter: function(value, title) {
-              return value.name;
-            },
-            valueLookup: true,
+            values: lookupData.currencies.map(c => ({ label: c.name, value: c })),
             autocomplete: true,
             clearable: false
           }
