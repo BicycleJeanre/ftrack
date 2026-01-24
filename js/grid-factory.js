@@ -223,19 +223,30 @@ export function createListEditor(values = [], options = {}) {
  * @returns {Object} - Tabulator column config
  */
 export function createMoneyColumn(title, field, options = {}) {
+    const formatterParams = {
+        decimal: ".",
+        thousand: ",",
+        precision: 2,
+        ...(options.formatterParams || {})
+    };
+
+    // Allow overriding or disabling bottomCalc via options
+    const bottomCalc = options.hasOwnProperty('bottomCalc') ? options.bottomCalc : 'sum';
+    const bottomCalcFormatter = options.hasOwnProperty('bottomCalcFormatter') ? options.bottomCalcFormatter : 'money';
+    const bottomCalcFormatterParams = options.hasOwnProperty('bottomCalcFormatterParams') ? options.bottomCalcFormatterParams : formatterParams;
+
     return {
         title,
         field,
-        editor: "number",
-        editorParams: { step: 0.01 },
+        editor: options.editor || "number",
+        editorParams: options.editorParams || { step: 0.01 },
         formatter: "money",
-        formatterParams: {
-            decimal: ".",
-            thousand: ",",
-            precision: 2
-        },
+        formatterParams,
         hozAlign: "right",
         headerHozAlign: "right",
+        bottomCalc,
+        bottomCalcFormatter,
+        bottomCalcFormatterParams,
         ...options
     };
 }
@@ -254,6 +265,31 @@ export function createDateColumn(title, field, options = {}) {
         editor: "date",
         headerSort: true,
         headerHozAlign: "left",
+        ...options
+    };
+}
+
+/**
+ * Create column definition for generic numeric values (not money)
+ * @param {string} title
+ * @param {string} field
+ * @param {Object} options
+ */
+export function createNumberColumn(title, field, options = {}) {
+    const bottomCalc = options.hasOwnProperty('bottomCalc') ? options.bottomCalc : 'sum';
+    const bottomCalcFormatter = options.hasOwnProperty('bottomCalcFormatter') ? options.bottomCalcFormatter : (options.formatter === 'money' ? 'money' : 'number');
+    const bottomCalcFormatterParams = options.hasOwnProperty('bottomCalcFormatterParams') ? options.bottomCalcFormatterParams : (options.formatterParams || {});
+
+    return {
+        title,
+        field,
+        editor: options.editor || 'number',
+        editorParams: options.editorParams || { step: 1 },
+        hozAlign: options.hozAlign || 'right',
+        headerHozAlign: options.headerHozAlign || 'right',
+        bottomCalc,
+        bottomCalcFormatter,
+        bottomCalcFormatterParams,
         ...options
     };
 }

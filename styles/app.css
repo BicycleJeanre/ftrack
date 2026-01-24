@@ -248,6 +248,7 @@ p {
   transition: max-height var(--transition-normal) ease, opacity var(--transition-normal);
   overflow: hidden;
   opacity: 1;
+  max-width: 100%;
 }
 
 .accordion-content.collapsed {
@@ -267,7 +268,7 @@ p {
 .section-content { padding: 16px; }
 
 /* Grid containers */
-.grid-container { width: 100%; overflow-y: auto; }
+.grid-container { width: 100%; overflow-y: auto; max-width: 100%; overflow-x: auto; }
 .scenarios-grid { max-height: 300px; }
 .accounts-grid { max-height: 280px; }
 .planned-grid { max-height: 350px; }
@@ -399,12 +400,187 @@ input[type="checkbox"] {
   transition: all var(--transition-fast);
 }
 
+/* Tabulator totals / calculation rows styling */
+.tabulator-calcs, .tabulator-calcs-holder {
+  background: var(--bg-elevated) !important;
+  border-top: 1px solid var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.tabulator-calcs .tabulator-calcs-row {
+  background: transparent !important;
+}
+
+.tabulator-calcs .tabulator-cell {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+  font-weight: 600;
+}
+
+/* Make money totals align and stand out slightly */
+.tabulator-calcs .tabulator-cell[role="gridcell"] { /* generic selector */
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+/* Ensure footer row text visible when default theme uses white-on-white */
+.tabulator-calcs .tabulator-col { color: var(--text-primary) !important; }
+
+/* Strong overrides for Tabulator header and calc/footer rows to prevent theme conflicts */
+.tabulator .tabulator-header,
+.tabulator .tabulator-header .tabulator-col,
+.tabulator .tabulator-header .tabulator-col .tabulator-col-title {
+  background: var(--tabulator-header-bg) !important;
+  color: var(--tabulator-text) !important;
+  border-color: var(--tabulator-border) !important;
+}
+
+.tabulator .tabulator-calcs,
+.tabulator .tabulator-calcs-holder,
+.tabulator .tabulator-footer,
+.tabulator .tabulator-calcs .tabulator-calcs-row,
+.tabulator .tabulator-calcs .tabulator-cell {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-top: 1px solid var(--border-secondary) !important;
+}
+
+/* Ensure the calc/footer cells show their text and don't inherit invisible colors */
+.tabulator .tabulator-calcs .tabulator-cell,
+.tabulator .tabulator-footer .tabulator-cell {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+/* If any Tabulator theme sets inline styles or uses stronger selectors, use body-scoped high-specificity fallback */
+body .tabulator .tabulator-header .tabulator-col,
+body .tabulator .tabulator-calcs .tabulator-cell {
+  color: var(--text-primary) !important;
+}
+
+/* Tabulator token/list styling
+   Follow Tabulator docs: use `itemFormatter` / `elementAttributes` to add classes
+   and style the built-in list/token elements via CSS selectors below.
+   See: https://tabulator.info/docs/5.4/edit#list
+*/
+.tabulator .tabulator-list .tabulator-list-item,
+.tabulator .tabulator-list .tabulator-list-item *,
+.tabulator .tabulator-chip,
+.tabulator .tabulator-tag,
+.tabulator .tabulator-badge,
+.tabulator .tabulator-value {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-secondary) !important;
+  box-shadow: none !important;
+}
+
+/* Selected/focused state for list items / chips */
+.tabulator .tabulator-list .tabulator-list-item.is-selected,
+.tabulator .tabulator-chip.is-selected,
+.tabulator .tabulator-tag.is-selected,
+.tabulator .tabulator-list .tabulator-list-item:focus {
+  background: var(--tabulator-row-selected) !important;
+  color: var(--text-primary) !important;
+}
+/* Make selected rows clearly visible in dark theme */
+.tabulator .tabulator-row.tabulator-selected,
+.tabulator .tabulator-row.tabulator-selected .tabulator-cell {
+  background: var(--tabulator-row-selected) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Ensure total/footer rows have consistent dark background and visible text */
+.tabulator .tabulator-calcs,
+.tabulator .tabulator-calcs-holder,
+.tabulator .tabulator-footer,
+.tabulator .tabulator-calcs .tabulator-calcs-row {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-top: 1px solid var(--border-secondary) !important;
+}
+
+.tabulator .tabulator-calcs .tabulator-cell,
+.tabulator .tabulator-footer .tabulator-cell {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+/* Some Tabulator themes set inline colors on .tabulator-col; override with high specificity */
+body .tabulator .tabulator-calcs .tabulator-col,
+body .tabulator .tabulator-footer .tabulator-col {
+  color: var(--text-primary) !important;
+}
+
 .modal-close-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
 
 /* ==================================== Tags ====================================*/
+
+/* Styles moved from pages/forecast.html inline <style> to central app.css
+   These control Tabulator row/header/footer colors and editor inputs for the Forecast page
+*/
+:root {
+  --tabulator-bg: #181a1b;
+  --tabulator-header-bg: var(--bg-tertiary);
+  --tabulator-row-bg: #1e1e1e;
+  --tabulator-row-hover: #2a2a2a;
+  --tabulator-row-selected: #3a3f3a;
+  --tabulator-border: #333;
+  --tabulator-text: #ededed;
+  --tabulator-accent: #b6ff00;
+}
+
+.tabulator .tabulator-row {
+  background-color: var(--tabulator-row-bg);
+  border-bottom: 1px solid var(--tabulator-border);
+}
+        
+.tabulator .tabulator-row:hover {
+  background-color: var(--tabulator-row-hover);
+}
+        
+.tabulator .tabulator-row.tabulator-selected {
+  background-color: var(--tabulator-row-selected);
+}
+        
+.tabulator .tabulator-row .tabulator-cell {
+  border-right: 1px solid var(--tabulator-border);
+  color: var(--tabulator-text);
+}
+        
+.tabulator .tabulator-footer {
+  background-color: var(--tabulator-header-bg);
+  color: var(--tabulator-text);
+  border-top: 2px solid var(--tabulator-border);
+}
+        
+/* Input fields when editing */
+.tabulator .tabulator-row .tabulator-cell input,
+.tabulator .tabulator-row .tabulator-cell select {
+  background-color: #2a2a2a;
+  color: var(--tabulator-text);
+  border: 1px solid var(--tabulator-accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+        
+/* Header filter inputs */
+.tabulator .tabulator-header-filter input {
+  background-color: #2a2a2a;
+  color: var(--tabulator-text);
+  border: 1px solid var(--tabulator-border);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+        
+.tabulator .tabulator-header-filter input:focus {
+  border-color: var(--tabulator-accent);
+  outline: none;
+}
 
 .tags-container {
   display: flex;
@@ -482,6 +658,8 @@ input[type="checkbox"] {
   border-radius: var(--radius-md);
   overflow: hidden;
   font-size: 0.9em;
+  max-width: 100% !important;
+  overflow-x: auto;
 }
 
 .tabulator .tabulator-header {
@@ -503,6 +681,9 @@ input[type="checkbox"] {
 .tabulator .tabulator-tableholder .tabulator-table {
   background: var(--bg-secondary);
   color: var(--text-primary);
+  table-layout: fixed;
+  max-width: 100% !important;
+  width: 100%;
 }
 
 .tabulator .tabulator-row {
@@ -547,13 +728,72 @@ input[type="checkbox"] {
 .tabulator .tabulator-row .tabulator-cell {
   border-right: 1px solid var(--border-primary);
   color: var(--text-primary);
-  padding: 10px 12px;
+  padding: 12px 16px;
+}
+
+.tabulator .tabulator-header .tabulator-col {
+  align-items: center;
+  box-sizing: border-box;
+  padding: 12px 16px;
+}
+
+/* Override Tabulator base CSS light backgrounds with dark theme */
+.tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row {
+    background: var(--bg-elevated) !important;
+}
+
+.tabulator-row {
+    background-color: var(--bg-secondary) !important;
+}
+
+.tabulator {
+    background-color: var(--bg-secondary) !important;
+}
+
+.tabulator .tabulator-footer {
+    background-color: var(--bg-tertiary) !important;
 }
 
 .tabulator .tabulator-footer {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   border-top: 1px solid var(--border-primary);
+}
+
+/* Tabulator layout & spacing — restore spacing usually provided by tabulator.min.css */
+.tabulator .tabulator-tableholder {
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+
+.tabulator .tabulator-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.tabulator .tabulator-header {
+  min-height: 48px;
+}
+
+.tabulator .tabulator-header .tabulator-col .tabulator-col-title {
+  padding: 12px 16px;
+  display: inline-block;
+}
+
+.tabulator .tabulator-row {
+  min-height: 44px;
+}
+
+.tabulator .tabulator-footer .tabulator-cell,
+.tabulator .tabulator-calcs .tabulator-cell {
+  padding: 10px 14px;
+}
+
+.tabulator .tabulator-col-resize-handle {
+  width: 6px;
+  cursor: col-resize;
 }
 
 .tabulator .tabulator-row .tabulator-cell input,

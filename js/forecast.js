@@ -208,15 +208,27 @@ async function buildScenarioGrid(container) {
       selectable: 1, // Only allow single row selection
       columns: [
         {
-          formatter: "buttonCross",
           width: 40,
           hozAlign: "center",
+          formatter: function(cell){
+            try {
+              const rowEl = cell.getRow().getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
+            } catch(e){}
+            return '<button class="btn-icon btn-delete">✖</button>';
+          },
           cellClick: async function(e, cell) {
-            const row = cell.getRow();
-            const rowData = row.getData();
-            if (confirm(`Delete scenario: ${rowData.name}?`)) {
-              await ScenarioManager.remove(rowData.id);
-              await buildScenarioGrid(container);
+            try {
+              const row = cell.getRow();
+              const rowEl = row.getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return; // ignore calc row
+              const rowData = row.getData();
+              if (confirm(`Delete scenario: ${rowData.name}?`)) {
+                await ScenarioManager.remove(rowData.id);
+                await buildScenarioGrid(container);
+              }
+            } catch (err) {
+              console.error('Delete scenario cellClick failed', err);
             }
           }
         },
@@ -673,18 +685,25 @@ async function loadAccountsGrid(container) {
       selectable: 1, // Enable built-in single selection
       columns: [
         {
-          formatter: "buttonCross",
           width: 40,
           hozAlign: "center",
+          formatter: function(cell){
+            try { const rowEl = cell.getRow().getElement(); if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return ''; } catch(e){}
+            return '<button class="btn-icon btn-delete">✖</button>';
+          },
           cellClick: async function(e, cell) {
-            const row = cell.getRow();
-            const rowData = row.getData();
-            if (confirm(`Delete account: ${rowData.name}?`)) {
-              await AccountManager.remove(currentScenario.id, rowData.id);
-              await loadAccountsGrid(container);
-              await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
-              await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
-            }
+            try {
+              const row = cell.getRow();
+              const rowEl = row.getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return; // ignore calc row
+              const rowData = row.getData();
+              if (confirm(`Delete account: ${rowData.name}?`)) {
+                await AccountManager.remove(currentScenario.id, rowData.id);
+                await loadAccountsGrid(container);
+                await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
+                await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
+              }
+            } catch (err) { console.error('Delete account failed', err); }
           }
         },
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
@@ -948,22 +967,25 @@ async function loadPlannedTransactionsGrid(container) {
 
 
         {
-          formatter: "buttonCross",
           width: 40,
           hozAlign: "center",
+          formatter: function(cell){
+            try { const rowEl = cell.getRow().getElement(); if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return ''; } catch(e){}
+            return '<button class="btn-icon btn-delete">✖</button>';
+          },
           cellClick: async function(e, cell) {
-            const row = cell.getRow();
-            const rowData = row.getData();
-            
-            if (confirm(`Delete transaction: ${rowData.description || 'Unnamed'}?`)) {
-              // Remove from backend
-              const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
-              const updatedTxs = allTxs.filter(tx => tx.id !== rowData.id);
-              await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
-              
-              // Remove from grid
-              row.delete();
-            }
+            try {
+              const row = cell.getRow();
+              const rowEl = row.getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return; // ignore calc row
+              const rowData = row.getData();
+              if (confirm(`Delete transaction: ${rowData.description || 'Unnamed'}?`)) {
+                const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
+                const updatedTxs = allTxs.filter(tx => tx.id !== rowData.id);
+                await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
+                row.delete();
+              }
+            } catch (err) { console.error('Delete planned tx failed', err); }
           }
         },
         {
@@ -1259,21 +1281,27 @@ async function loadActualTransactionsGrid(container) {
       data: combinedData,
       columns: [
         {
-          formatter: "buttonCross",
           width: 40,
           hozAlign: "center",
+          formatter: function(cell){
+            try { const rowEl = cell.getRow().getElement(); if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return ''; } catch(e){}
+            return '<button class="btn-icon btn-delete">✖</button>';
+          },
           cellClick: async function(e, cell) {
-            const row = cell.getRow();
-            const rowData = row.getData();
-            // Only allow delete for manual actuals (plannedId == null) or executed actuals
-            if (rowData.actualId && (rowData.plannedId == null || rowData.executed)) {
-              if (confirm('Delete this actual transaction?')) {
-                const allActual = await TransactionManager.getAllActual(currentScenario.id);
-                const filtered = allActual.filter(tx => tx.id !== rowData.actualId);
-                await TransactionManager.saveActual(currentScenario.id, filtered);
-                await loadActualTransactionsGrid(container);
+            try {
+              const row = cell.getRow();
+              const rowEl = row.getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return; // ignore calc row
+              const rowData = row.getData();
+              if (rowData.actualId && (rowData.plannedId == null || rowData.executed)) {
+                if (confirm('Delete this actual transaction?')) {
+                  const allActual = await TransactionManager.getAllActual(currentScenario.id);
+                  const filtered = allActual.filter(tx => tx.id !== rowData.actualId);
+                  await TransactionManager.saveActual(currentScenario.id, filtered);
+                  await loadActualTransactionsGrid(container);
+                }
               }
-            }
+            } catch (err) { console.error('Delete actual tx failed', err); }
           }
         },
         {
