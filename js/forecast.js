@@ -172,6 +172,10 @@ async function buildScenarioGrid(container) {
     const lookupData = JSON.parse(lookupFile);
 
     // Add "Add Scenario" button
+    // Remove any existing add buttons (defensive)
+    const existingScenarioAdds = container.querySelectorAll('.btn-add');
+    existingScenarioAdds.forEach(el => el.remove());
+
     const addScenarioBtn = document.createElement('button');
     addScenarioBtn.className = 'btn btn-primary btn-add';
     addScenarioBtn.textContent = '+ Add New';
@@ -648,6 +652,10 @@ async function loadAccountsGrid(container) {
     const lookupData = JSON.parse(lookupFile);
 
     // Add "Add Account" button
+    // Remove any existing add buttons for accounts (defensive)
+    const existingAccountAdds = container.querySelectorAll('.btn-add');
+    existingAccountAdds.forEach(el => el.remove());
+
     const addButton = document.createElement('button');
     addButton.className = 'btn btn-primary btn-add';
     addButton.textContent = '+ Add New';
@@ -831,6 +839,10 @@ async function loadPlannedTransactionsGrid(container) {
   window.add(container, sectionHeader);
 
   // Add "Add Transaction" button
+  // Remove existing add buttons (defensive)
+  const existingPlannedAdds = container.querySelectorAll('.btn-add');
+  existingPlannedAdds.forEach(el => el.remove());
+
   const addButtonContainer = document.createElement('div');
   addButtonContainer.className = 'mb-sm';
   const addButton = document.createElement('button');
