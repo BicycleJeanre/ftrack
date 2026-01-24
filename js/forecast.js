@@ -4,7 +4,7 @@
 
 import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
-import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn } from './grid-factory.js';
+import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor } from './grid-factory.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
 import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
@@ -697,29 +697,28 @@ async function loadAccountsGrid(container) {
           }
         },
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
-        createObjectColumn('Type', 'type', 'name', { 
-          widthGrow: 1,
-          editor: "list",
-          editorParams: {
-            // Tabulator list expects {label, value} entries when using lookup
-            values: lookupData.accountTypes.map(t => ({ label: t.name, value: t })),
-            autocomplete: true,
-            clearable: false
-          }
-        }),
-        createObjectColumn('Currency', 'currency', 'name', { 
-          width: 100,
-          editor: "list",
-          editorParams: {
-            values: lookupData.currencies.map(c => ({ label: c.name, value: c })),
-            autocomplete: true,
-            clearable: false
-          }
-        }),
+        createObjectColumn('Type', 'type', 'name', Object.assign({ widthGrow: 1 }, createListEditor(lookupData.accountTypes))),
+
+        createObjectColumn('Currency', 'currency', 'name', Object.assign({ width: 100 }, createListEditor(lookupData.currencies))),
+
         createMoneyColumn('Balance', 'balance', { widthGrow: 1 })
       ],
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
+        // Normalize primitive ids back to objects for storage
+        try {
+          if (account.type && typeof account.type !== 'object') {
+            const foundType = lookupData.accountTypes.find(t => t.id == account.type);
+            if (foundType) account.type = foundType;
+          }
+          if (account.currency && typeof account.currency !== 'object') {
+            const foundCurrency = lookupData.currencies.find(c => c.id == account.currency);
+            if (foundCurrency) account.currency = foundCurrency;
+          }
+        } catch (e) {
+          logger.error('[Forecast] Failed to normalize account object before save', e);
+        }
+
         await AccountManager.update(currentScenario.id, account.id, account);
         logger.info('[Forecast] ✓ Account updated:', account.name);
       },

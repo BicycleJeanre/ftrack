@@ -188,6 +188,26 @@ export function createObjectColumn(title, field, subField = 'name', options = {}
 }
 
 /**
+ * Create a minimal list editor config for Tabulator
+ * Accepts an array of objects and maps them to {label, value} pairs
+ * Keeps the underlying value as the original object so it can be stored directly
+ */
+export function createListEditor(values = []) {
+    const mapValues = values.map(v => {
+        if (typeof v === 'string') return { label: v, value: v };
+        if (v && (v.label || v.name)) return { label: v.label || v.name, value: v };
+        return { label: String(v), value: v };
+    });
+
+    return {
+        editor: 'list',
+        editorParams: {
+            values: mapValues
+        }
+    };
+}
+
+/**
  * Create column definition for monetary values
  * @param {string} title - Column title
  * @param {string} field - Data field name
@@ -229,6 +249,12 @@ export function createDateColumn(title, field, options = {}) {
         ...options
     };
 }
+
+// Consolidated list editor helper: use the single `createListEditor(values)`
+// defined earlier which returns editorParams with array of {label, value} entries
+// (value is the full object) and includes autocomplete/clearable settings.
+// This avoids duplicated helpers and keeps behavior consistent across grids.
+
 
 /**
  * Standard event handlers
