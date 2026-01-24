@@ -737,6 +737,33 @@ body .tabulator .tabulator-footer .tabulator-col {
   padding: 12px 16px;
 }
 
+/* Delete button styling - red cross icon */
+.btn-delete {
+  color: var(--danger) !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 1.2em;
+  line-height: 1;
+  min-width: auto;
+  min-height: auto;
+  border-radius: 0;
+}
+
+.btn-delete:hover {
+  color: #ff6666 !important;
+  background: rgba(255, 68, 68, 0.1) !important;
+}
+
+/* Delete cell styling to match example */
+.delete-cell {
+}
+
+.delete-cell svg path {
+  fill: #CE1515 !important;
+}
+
 /* Override Tabulator base CSS light backgrounds with dark theme */
 .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row {
     background: var(--bg-elevated) !important;
