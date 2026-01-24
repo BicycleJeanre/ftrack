@@ -426,37 +426,32 @@ function getScenarioTypeConfig() {
  * to UI format (transactionType/secondaryAccount) filtered by selected account
  */
 function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
-  if (!selectedAccountId) return [];
-  
-  console.log(`[Transform] transformPlannedTxForUI - Processing ${plannedTxs.length} total transactions for account ${selectedAccountId}`);
-  
+  const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+
+  logger.debug(`[Transform] transformPlannedTxForUI - Processing ${plannedTxs.length} total transactions for account ${selIdNum}`);
+
   const result = plannedTxs.map((tx, index) => {
-    const isSelectedDebit = tx.debitAccount?.id === selectedAccountId;
-    const isSelectedCredit = tx.creditAccount?.id === selectedAccountId;
-    
-    // Only include transactions involving the selected account
-    if (!isSelectedDebit && !isSelectedCredit) return null;
-    
-    // Get the secondary account (the one that's not the selected account)
-    const secondaryAccountRef = isSelectedDebit ? tx.creditAccount : tx.debitAccount;
-    
-    // Resolve secondary account from current scenario accounts by ID
-    // This ensures we use the current account object reference, not stale ones
-    const secondaryAccount = secondaryAccountRef 
-      ? currentScenario.accounts?.find(a => a.id === secondaryAccountRef.id) || secondaryAccountRef
-      : null;
-    
-    console.log(`[Transform] TX ${index} (ID: ${tx.id}): ${isSelectedDebit ? 'Debit' : 'Credit'}, Secondary: ${secondaryAccount?.name || 'NULL'}`);
-    
+    if (!selIdNum) {
+      // Default view when no account is selected: show all transactions
+      return {
+        ...tx,
+        transactionType: { id: 1, name: 'Debit' },
+        secondaryAccount: tx.creditAccount
+      };
+    }
+
+    const mapped = mapTxToUI(tx, selIdNum);
+    if (!mapped) return null;
+
+    console.log(`[Transform] TX ${index} (ID: ${tx.id}): ${mapped.transactionType.name}, Secondary: ${mapped.secondaryAccount?.name || 'NULL'}`);
+
     return {
       ...tx,
-      transactionType: isSelectedDebit 
-        ? { id: 1, name: 'Debit' }   // Money leaving selected account
-        : { id: 2, name: 'Credit' },  // Money entering selected account
-      secondaryAccount: secondaryAccount
+      transactionType: mapped.transactionType,
+      secondaryAccount: mapped.secondaryAccount
     };
   }).filter(tx => tx !== null);
-  
+
   console.log(`[Transform] transformPlannedTxForUI - Output: ${result.length} filtered txs with IDs:`, result.map(tx => tx.id));
   return result;
 }
@@ -536,32 +531,41 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
  * Transform actual transactions for UI (same as planned transactions)
  */
 function transformActualTxForUI(actualTxs, selectedAccountId) {
-  if (!selectedAccountId) return [];
-  
+  const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+
+  // When no account selected, show all actual transactions (default view)
+  if (!selIdNum) return actualTxs.map(tx => ({
+    ...tx,
+    transactionType: { id: 1, name: 'Debit' },
+    secondaryAccount: tx.creditAccount
+  }));
+
   return actualTxs.map(tx => {
-    const isSelectedDebit = tx.debitAccount?.id === selectedAccountId;
-    const isSelectedCredit = tx.creditAccount?.id === selectedAccountId;
-    
-    // Only include transactions involving the selected account
-    if (!isSelectedDebit && !isSelectedCredit) return null;
-    
-    // Get the secondary account (the one that's not the selected account)
-    const secondaryAccountRef = isSelectedDebit ? tx.creditAccount : tx.debitAccount;
-    
-    // Resolve secondary account from current scenario accounts by ID
-    // This ensures we use the current account object reference, not stale ones
-    const secondaryAccount = secondaryAccountRef 
-      ? currentScenario.accounts?.find(a => a.id === secondaryAccountRef.id) || secondaryAccountRef
-      : null;
-    
-    return {
-      ...tx,
-      transactionType: isSelectedDebit 
-        ? { id: 1, name: 'Debit' }   // Money leaving selected account
-        : { id: 2, name: 'Credit' },  // Money entering selected account
-      secondaryAccount: secondaryAccount
-    };
+    const mapped = mapTxToUI(tx, selIdNum);
+    if (!mapped) return null;
+    return { ...tx, transactionType: mapped.transactionType, secondaryAccount: mapped.secondaryAccount };
   }).filter(tx => tx !== null);
+}
+
+/**
+ * Map a backend transaction to UI representation for a selected account.
+ * Returns null if the transaction does not involve the selected account.
+ */
+function mapTxToUI(tx, selectedAccountId) {
+  const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+  if (!selIdNum) return null;
+
+  const isSelectedDebit = tx.debitAccount?.id === selIdNum;
+  const isSelectedCredit = tx.creditAccount?.id === selIdNum;
+  if (!isSelectedDebit && !isSelectedCredit) return null;
+
+  const secondaryAccountRef = isSelectedDebit ? tx.creditAccount : tx.debitAccount;
+  const secondaryAccount = secondaryAccountRef
+    ? currentScenario.accounts?.find(a => a.id === secondaryAccountRef.id) || secondaryAccountRef
+    : null;
+
+  const transactionType = isSelectedDebit ? { id: 1, name: 'Debit' } : { id: 2, name: 'Credit' };
+  return { transactionType, secondaryAccount };
 }
 
 /**
@@ -571,7 +575,7 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
   const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Debit';
   
   // Get selected account details
-  const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
+  const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
   const selectedAccountObj = selectedAccount 
     ? { id: selectedAccount.id, name: selectedAccount.name }
     : { id: selectedAccountId, name: 'Unknown Account' };
@@ -581,7 +585,7 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
   
   // If secondary account is missing, default to first available account (excluding selected)
   if (!tx.secondaryAccount || !tx.secondaryAccount.name) {
-    const otherAccounts = currentScenario.accounts?.filter(a => a.id !== selectedAccountId) || [];
+    const otherAccounts = currentScenario.accounts?.filter(a => a.id !== Number(selectedAccountId)) || [];
     if (otherAccounts.length > 0) {
       secondaryAccountObj = { id: otherAccounts[0].id, name: otherAccounts[0].name };
     } else {
@@ -750,6 +754,7 @@ async function loadAccountsGrid(container) {
                // Also refresh Projections as they might depend on the account filter (future proofing)
                await loadProjectionsSection(document.getElementById('projectionsContent'));
              }, 40);
+             logger.info('[Forecast] loadPlannedTransactionsGrid scheduled for account', selectedAccountId);
           }
         } else {
           // No account selected
@@ -800,6 +805,36 @@ async function loadAccountsGrid(container) {
       }
     });
 
+    // Robust fallback: ensure selection changes trigger transaction loads
+    accountsTable.on("rowSelected", function(row) {
+      try {
+        const account = row.getData();
+        logger.info('[AccountsGrid] fallback rowSelected handler:', account.id);
+        if (selectedAccountId !== account.id) {
+          selectedAccountId = account.id;
+          setTimeout(async () => {
+            await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
+            await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
+            await loadProjectionsSection(document.getElementById('projectionsContent'));
+          }, 40);
+          logger.info('[Forecast] loadPlannedTransactionsGrid scheduled (fallback) for account', selectedAccountId);
+        }
+      } catch (e) { logger.error('[AccountsGrid] fallback rowSelected handler error:', e); }
+    });
+
+    accountsTable.on("rowDeselected", async function(row) {
+      try {
+        const remaining = accountsTable.getSelectedRows();
+        if (!remaining || remaining.length === 0) {
+          logger.info('[AccountsGrid] fallback rowDeselected: clearing selection');
+          selectedAccountId = null;
+          document.getElementById('plannedTransactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
+          document.getElementById('actualTransactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
+          await loadProjectionsSection(document.getElementById('projectionsContent'));
+        }
+      } catch (e) { logger.error('[AccountsGrid] fallback rowDeselected handler error:', e); }
+    });
+
   } catch (err) {
     logger.error('[Forecast] Failed to load accounts grid:', err);
   }
@@ -808,6 +843,8 @@ async function loadAccountsGrid(container) {
 // Load planned transactions grid
 async function loadPlannedTransactionsGrid(container) {
   if (!currentScenario) return;
+
+  logger.info('[Forecast] loadPlannedTransactionsGrid: selectedAccountId=', selectedAccountId, 'type=', typeof selectedAccountId);
 
   const typeConfig = getScenarioTypeConfig();
   if (!typeConfig || !typeConfig.showPlannedTransactions) {
@@ -821,8 +858,10 @@ async function loadPlannedTransactionsGrid(container) {
   const sectionHeader = document.createElement('h3');
   sectionHeader.className = 'text-main section-header';
   
-  if (selectedAccountId) {
-    const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
+  const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+
+  if (selIdNum) {
+    const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
     sectionHeader.textContent = `Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
   } else {
     sectionHeader.textContent = 'All Accounts';
@@ -856,15 +895,16 @@ async function loadPlannedTransactionsGrid(container) {
       
       // Transform to backend format
       let debitAccount, creditAccount;
+      const selIdNumLocal = selectedAccountId != null ? Number(selectedAccountId) : null;
       if (newTx.transactionType?.name === 'Debit') {
-        debitAccount = selectedAccountId 
-          ? currentScenario.accounts.find(a => a.id === selectedAccountId)
+        debitAccount = selIdNumLocal 
+          ? currentScenario.accounts.find(a => a.id === selIdNumLocal)
           : currentScenario.accounts?.[0];
         creditAccount = newTx.secondaryAccount;
       } else {
         debitAccount = newTx.secondaryAccount;
-        creditAccount = selectedAccountId 
-          ? currentScenario.accounts.find(a => a.id === selectedAccountId)
+        creditAccount = selIdNumLocal 
+          ? currentScenario.accounts.find(a => a.id === selIdNumLocal)
           : currentScenario.accounts?.[0];
       }
       
@@ -900,41 +940,17 @@ async function loadPlannedTransactionsGrid(container) {
   try {
     // Get planned transactions for this scenario
     const allTransactions = await TransactionManager.getAllPlanned(currentScenario.id);
+    logger.info('[Forecast] loadPlannedTransactionsGrid: got planned transactions', allTransactions.length);
     
-    // Filter to show only transactions involving the selected account (if one is selected)
-    const filteredTransactions = selectedAccountId
-      ? allTransactions.filter(tx => {
-          return tx.debitAccount?.id === selectedAccountId || tx.creditAccount?.id === selectedAccountId;
-        })
-      : allTransactions;
-
-    // Transform for UI: show "Type" and "Secondary Account"
-    const transformedData = filteredTransactions.map(tx => {
-      let transactionType, secondaryAccount;
-      
-      if (tx.debitAccount?.id === selectedAccountId) {
-        transactionType = { id: 1, name: 'Debit' };
-        secondaryAccount = tx.creditAccount;
-      } else {
-        transactionType = { id: 2, name: 'Credit' };
-        secondaryAccount = tx.debitAccount;
-      }
-
-      return {
-        id: tx.id,
-        transactionType,
-        secondaryAccount,
-        amount: tx.amount,
-        description: tx.description,
-        recurrence: tx.recurrence,
-        periodicChange: tx.periodicChange,
-        tags: tx.tags
-      };
-    });
+    // Use centralized transformer to filter and map transactions consistently
+    const transformedData = transformPlannedTxForUI(allTransactions, selectedAccountId);
+    logger.info('[Forecast] loadPlannedTransactionsGrid: transformed transactions count', transformedData.length);
 
     plannedTxTable = createGrid(gridContainer, {
       data: transformedData,
       columns: [
+
+
         {
           formatter: "buttonCross",
           width: 40,
@@ -1041,11 +1057,11 @@ async function loadPlannedTransactionsGrid(container) {
               // Transform back to backend format
               let debitAccount, creditAccount;
               if (uiTx.transactionType?.name === 'Debit') {
-                debitAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+                debitAccount = currentScenario.accounts.find(a => a.id === Number(selectedAccountId));
                 creditAccount = uiTx.secondaryAccount;
               } else {
                 debitAccount = uiTx.secondaryAccount;
-                creditAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+                creditAccount = currentScenario.accounts.find(a => a.id === Number(selectedAccountId));
               }
 
               const backendTx = {
@@ -1073,6 +1089,23 @@ async function loadPlannedTransactionsGrid(container) {
       ]
     });
     
+    // Log when table finishes building and how many rows it has
+    plannedTxTable.on('tableBuilt', function(){
+      logger.info('[Forecast] plannedTxTable built. Rows:', plannedTxTable.getData().length);
+    });
+
+    // Also attach rowClick/selection handlers similar to other grids
+    plannedTxTable.on('rowClick', function(e, row){
+      logger.info('[PlannedTx] rowClick:', row.getData().id);
+    });
+
+    plannedTxTable.on('rowSelected', function(row){
+      logger.info('[PlannedTx] rowSelected:', row.getData().id);
+    });
+
+    // Re-apply data now that table exists (in case of deferred load)
+    plannedTxTable.setData(transformedData);
+
     // Attach cellEdited event handler
     plannedTxTable.on("cellEdited", async function(cell) {
       const row = cell.getRow();
@@ -1081,11 +1114,11 @@ async function loadPlannedTransactionsGrid(container) {
       // Transform back to backend format
       let debitAccount, creditAccount;
       if (uiTx.transactionType?.name === 'Debit') {
-        debitAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+        debitAccount = currentScenario.accounts.find(a => a.id === selIdNum);
         creditAccount = uiTx.secondaryAccount;
       } else {
         debitAccount = uiTx.secondaryAccount;
-        creditAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+        creditAccount = currentScenario.accounts.find(a => a.id === selIdNum);
       }
 
       const backendTx = {
@@ -1142,26 +1175,18 @@ async function loadActualTransactionsGrid(container) {
     // Get all actual transactions
     const allActual = await TransactionManager.getAllActual(currentScenario.id);
 
-    // Create combined view data
+    const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+    // Create combined view data (use centralized mapping)
     const combinedData = plannedTransactions.map(planned => {
       // Find matching actual transaction
       const actualTx = allActual.find(a => a.plannedId === planned.id);
-      
-      // Determine type and secondary account based on selected account
-      let transactionType, secondaryAccount;
-      if (selectedAccountId) {
-        if (planned.debitAccount?.id === selectedAccountId) {
-          transactionType = { id: 1, name: 'Debit' };
-          secondaryAccount = planned.creditAccount;
-        } else {
-          transactionType = { id: 2, name: 'Credit' };
-          secondaryAccount = planned.debitAccount;
-        }
-      } else {
-        // Default view
-        transactionType = { id: 1, name: 'Debit' };
-        secondaryAccount = planned.creditAccount;
-      }
+
+      // Use centralized mapping helper to determine transactionType/secondaryAccount
+      const mapped = mapTxToUI(planned, selectedAccountId);
+      if (selectedAccountId && !mapped) return null; // filtered out
+
+      const transactionType = mapped ? mapped.transactionType : { id: 1, name: 'Debit' };
+      const secondaryAccount = mapped ? mapped.secondaryAccount : planned.creditAccount;
 
       return {
         plannedId: planned.id,
@@ -1178,7 +1203,7 @@ async function loadActualTransactionsGrid(container) {
         debitAccount: planned.debitAccount,
         creditAccount: planned.creditAccount
       };
-    });
+    }).filter(row => row !== null);
 
     // Get the grid container
     const gridContainer = document.getElementById('actualTransactionsTable');
@@ -1461,7 +1486,7 @@ async function loadProjectionsSection(container) {
   if (accordionHeader) {
     let headerText = 'Projections';
     if (selectedAccountId) {
-      const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
+      const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
       headerText = `Projections - ${selectedAccount?.name || 'Unknown Account'}`;
       console.log('[Forecast] Setting accordion header:', headerText);
     } else {
