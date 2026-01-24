@@ -2,6 +2,8 @@
 // Manages the Forecast page with scenario-centric model
 // Displays accounts, planned transactions, actual transactions, and projections based on scenario type
 
+console.log('forecast.js loaded at', new Date().toISOString());
+
 import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
 import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor } from './grid-factory.js';
@@ -1189,7 +1191,11 @@ async function loadPlannedTransactionsGrid(container) {
 
 // Load actual transactions grid
 async function loadActualTransactionsGrid(container) {
-  if (!currentScenario) return;
+  console.log('loadActualTransactionsGrid called');
+  if (!currentScenario) {
+    console.log('No current scenario');
+    return;
+  }
 
   const typeConfig = getScenarioTypeConfig();
   if (!typeConfig || !typeConfig.showActualTransactions) {
@@ -1219,7 +1225,7 @@ async function loadActualTransactionsGrid(container) {
 
     const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
     // Create combined view data (use centralized mapping)
-    const combinedData = plannedTransactions.map(planned => {
+    let combinedData = plannedTransactions.map(planned => {
       // Find matching actual transaction
       const actualTx = allActual.find(a => a.plannedId === planned.id);
 
@@ -1247,6 +1253,38 @@ async function loadActualTransactionsGrid(container) {
       };
     }).filter(row => row !== null);
 
+    // Add standalone actual transactions (not linked to planned)
+    const standaloneActual = allActual.filter(actual => !actual.plannedId).map(actual => {
+      // For standalone actual transactions, we need to map them to UI format
+      // This is more complex as we need to determine transaction type from debit/credit accounts
+      const mapped = mapTxToUI({
+        debitAccount: actual.debitAccount,
+        creditAccount: actual.creditAccount,
+        amount: actual.amount,
+        description: actual.description
+      }, selectedAccountId);
+      
+      if (selectedAccountId && !mapped) return null; // filtered out
+
+      return {
+        plannedId: null,
+        actualId: actual.id,
+        executed: true, // standalone actuals are always "executed"
+        transactionType: mapped ? mapped.transactionType : { id: 1, name: 'Debit' },
+        secondaryAccount: mapped ? mapped.secondaryAccount : actual.creditAccount,
+        plannedAmount: 0, // no planned amount
+        actualAmount: actual.amount,
+        variance: actual.amount, // variance is the actual amount since no planned
+        plannedDate: actual.actualDate,
+        actualDate: actual.actualDate,
+        description: actual.description,
+        debitAccount: actual.debitAccount,
+        creditAccount: actual.creditAccount
+      };
+    }).filter(row => row !== null);
+
+    combinedData = [...combinedData, ...standaloneActual];
+
     // Get the grid container
     const gridContainer = document.getElementById('actualTransactionsTable');
     if (!gridContainer) return;
@@ -1257,23 +1295,53 @@ async function loadActualTransactionsGrid(container) {
     const addButton = document.createElement('button');
     addButton.className = 'btn btn-primary btn-add';
     addButton.textContent = '+ Add New';
+    console.log('Add button created:', addButton);
     addButton.addEventListener('click', async () => {
-      // Add a new manual actual transaction (not linked to planned)
-      const newActual = {
-        id: window.generateUUID(),
-        plannedId: null,
-        debitAccount: null,
-        creditAccount: null,
-        amount: 0,
-        actualDate: formatDateOnly(new Date()),
-        description: '',
-        tags: []
-      };
-      const allActual = await TransactionManager.getAllActual(currentScenario.id);
-      await TransactionManager.saveActual(currentScenario.id, [...allActual, newActual]);
-      await loadActualTransactionsGrid(container);
+      console.log('Add New button clicked');
+      try {
+        // Determine accounts for the new transaction
+        let debitAccount = null;
+        let creditAccount = null;
+        if (selectedAccountId) {
+          // If account selected, debit from selected, credit to first other account
+          debitAccount = { id: Number(selectedAccountId) };
+          const otherAccounts = currentScenario.accounts?.filter(a => a.id !== Number(selectedAccountId)) || [];
+          if (otherAccounts.length > 0) {
+            creditAccount = { id: otherAccounts[0].id };
+          }
+        } else {
+          // If no account selected, use first two accounts
+          if (currentScenario.accounts && currentScenario.accounts.length >= 2) {
+            debitAccount = { id: currentScenario.accounts[0].id };
+            creditAccount = { id: currentScenario.accounts[1].id };
+          }
+        }
+
+        // Add a new manual actual transaction (not linked to planned)
+        const newActual = {
+          plannedId: null,
+          debitAccount: debitAccount,
+          creditAccount: creditAccount,
+          amount: 0,
+          actualDate: formatDateOnly(new Date()),
+          description: '',
+          tags: []
+        };
+        console.log('Created new transaction:', newActual);
+        const allActual = await TransactionManager.getAllActual(currentScenario.id);
+        console.log('Existing transactions:', allActual.length);
+        await TransactionManager.saveActual(currentScenario.id, [...allActual, newActual]);
+        console.log('Transaction saved, reloading grid...');
+        
+        // Reload the grid to show the new transaction
+        await loadActualTransactionsGrid(container);
+        console.log('Grid reloaded');
+      } catch (error) {
+        console.error('Error adding new transaction:', error);
+      }
     });
     window.add(gridContainer, addButton);
+    console.log('Add button added to container');
 
     // Create separate container for the actual grid
     const tableContainer = document.createElement('div');
@@ -1321,7 +1389,6 @@ async function loadActualTransactionsGrid(container) {
             if (!rowData.executed) {
               // Mark as executed - create actual transaction
               const newActual = {
-                id: window.generateUUID(),
                 plannedId: rowData.plannedId,
                 debitAccount: rowData.debitAccount,
                 creditAccount: rowData.creditAccount,

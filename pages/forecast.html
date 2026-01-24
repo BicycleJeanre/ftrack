@@ -11,7 +11,14 @@
     <link rel="stylesheet" href="../styles/app.css">
 
     <script src="../js/navbar.js"></script>
-    <script src="../js/forecast.js" type="module"></script>
+    <script>
+      // Dynamic cache busting
+      console.log('Loading forecast.js with timestamp:', Date.now());
+      const script = document.createElement('script');
+      script.src = '../js/forecast.js?v=' + Date.now();
+      script.type = 'module';
+      document.head.appendChild(script);
+    </script>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
     <!-- Forecast page Tabulator theme moved to styles/app.css -->
 </head>
