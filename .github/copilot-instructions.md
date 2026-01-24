@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions
 
-**Version**: 4.0.0  
+**Version**: 4.1.0  
 **Last Updated**: January 24, 2026  
 **Purpose**: General interaction and workflow standards
 
@@ -51,6 +51,12 @@ Changed files:
 3.6 In Mermaid diagrams, do not use brackets "()" in names/descriptions - use brackets ONLY for circular nodes
 3.7 ALL documentation files MUST use legal numbering format (1.0, 1.1, 1.1.1, etc.)
 3.8 Keep All documentation short, simple and concise. Avoid replication of information across sections.
+3.9 Maintain modular documentation structure:
+    - `TECHNICAL_OVERVIEW.md`: Entry point and index
+    - `TECH_ARCHITECTURE.md`: High-level design and patterns
+    - `TECH_DATA_MODEL.md`: Schemas and data flow
+    - `TECH_UI_LAYER.md`: Interface and component logic
+3.10 Do not create monolithic documentation files
 
 ## 4.0 Response Format
 
@@ -67,4 +73,4 @@ Changed files:
 
 ---
 
-When making any updates to this repo, always review `/Documentation/TECHNICAL_DOCUMENTATION.md` first to ensure the appropriate design standards are ALWAYS followed for this repository. Update this documentation with any relevant changes to the technical design. 
+When making any updates to this repo, always review `/Documentation/TECHNICAL_OVERVIEW.md` first to ensure the appropriate design standards are ALWAYS followed for this repository. Update the technical documentation with any relevant changes to the technical design. 
