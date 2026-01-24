@@ -49,8 +49,8 @@ graph TD
 ## 3.0 Calculation Engine
 
 ### 3.1 Financial Strategy
-The application currently uses a **Custom Vanilla JS Implementation** for financial mathematics rather than an external library (like `finance.js` or `math.js`).
-- **Core Logic**: `js/financial-utils.js` contains the mathematical implementations (FV, PV, Compound Interest).
+The application uses the **financejs** library for core financial mathematics to ensure accuracy and reduce maintenance control.
+- **Core Logic**: `js/financial-utils.js` acts as a wrapper around the `financejs` library (FV, PV, Compound Interest).
 - **Recurrence Logic**: `js/calculation-utils.js` handles date generation (e.g., "3rd Friday of Month").
 
 ### 3.2 Projection Engine

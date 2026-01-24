@@ -1,6 +1,10 @@
 // financial-utils.js
 // Utility wrapper for financial calculations
-// Provides consistent, tested financial math functions
+// Uses 'financejs' library for core math to ensure accuracy
+
+// Import external library via Electron's node integration
+const Finance = window.require('financejs');
+const finance = new Finance();
 
 /**
  * Calculate Future Value (FV)
@@ -11,14 +15,8 @@
  * @returns {number} - Future value
  */
 export function calculateFutureValue(rate, nper, pmt, pv) {
-    const ratePerPeriod = rate / 100;
-    
-    if (ratePerPeriod === 0) {
-        return -(pv + (pmt * nper));
-    }
-    
-    const factor = Math.pow(1 + ratePerPeriod, nper);
-    return -(pv * factor + pmt * ((factor - 1) / ratePerPeriod));
+    // financejs usage: FV(rate, nper, pmt, pv, type)
+    return finance.FV(rate, nper, pmt, pv, 0);
 }
 
 /**
@@ -30,28 +28,28 @@ export function calculateFutureValue(rate, nper, pmt, pv) {
  * @returns {number} - Present value
  */
 export function calculatePresentValue(rate, nper, pmt, fv = 0) {
-    const ratePerPeriod = rate / 100;
-    
-    if (ratePerPeriod === 0) {
-        return -(fv + (pmt * nper));
-    }
-    
-    const factor = Math.pow(1 + ratePerPeriod, nper);
-    return -(fv / factor + pmt * ((1 - (1 / factor)) / ratePerPeriod));
+    return finance.PV(rate, nper, pmt, fv, 0);
 }
 
 /**
  * Calculate compound interest
  * @param {number} principal - Initial amount
  * @param {number} rate - Annual interest rate (as percentage)
- * @param {number} periods - Number of compounding periods
+ * @param {number} periods - Number of compounding periods (Years)
  * @param {number} frequency - Compounding frequency per year (default: 1)
  * @returns {number} - Final amount after compound interest
  */
 export function calculateCompoundInterest(principal, rate, periods, frequency = 1) {
-    const ratePerPeriod = (rate / 100) / frequency;
+    // Compound interest is simply FV of a lump sum
+    // Rate per period
+    const ratePerPeriod = rate / frequency;
+    // Total periods (e.g. 5 years * 12 months = 60)
     const totalPeriods = periods * frequency;
-    return principal * Math.pow(1 + ratePerPeriod, totalPeriods);
+    
+    // finance.FV(rate, nper, pmt, pv)
+    // Excel: FV(5%, 12, 0, -1000) = +1795.
+    // We pass -principal to get positive result if principal was positive.
+    return finance.FV(ratePerPeriod, totalPeriods, 0, -principal, 0);
 }
 
 /**
@@ -61,6 +59,7 @@ export function calculateCompoundInterest(principal, rate, periods, frequency = 
  * @returns {number} - Effective annual rate (as percentage)
  */
 export function calculateEffectiveRate(nominalRate, frequency) {
+    // FinanceJS does not have EFF, using manual formula
     const ratePerPeriod = (nominalRate / 100) / frequency;
     return (Math.pow(1 + ratePerPeriod, frequency) - 1) * 100;
 }
@@ -74,14 +73,7 @@ export function calculateEffectiveRate(nominalRate, frequency) {
  * @returns {number} - Payment amount per period
  */
 export function calculatePayment(rate, nper, pv, fv = 0) {
-    const ratePerPeriod = rate / 100;
-    
-    if (ratePerPeriod === 0) {
-        return -(pv + fv) / nper;
-    }
-    
-    const factor = Math.pow(1 + ratePerPeriod, nper);
-    return -(pv * factor * ratePerPeriod + fv * ratePerPeriod) / (factor - 1);
+    return finance.PMT(rate, nper, pv, fv, 0);
 }
 
 /**
@@ -116,8 +108,10 @@ export function applyPeriodicChange(value, periodicChange, periods) {
             
             return calculateCompoundInterest(value, changeValue, periods / frequency, frequency);
         } else {
-            // Simple interest / nominal rate
-            return value * Math.pow(1 + (changeValue / 100), periods);
+            // Simple interest / nominal rate (Exponential growth without intra-year compounding steps)
+            // Equivalent to FV with periods, rate, 0 pmt
+            // finance.FV(rate, nper, pmt, pv)
+            return finance.FV(changeValue, periods, 0, -value, 0);
         }
     }
 }
