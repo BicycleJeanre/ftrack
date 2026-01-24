@@ -1,0 +1,83 @@
+{
+  "scenarioTypes": [
+    {
+      "id": 1,
+      "name": "Budget",
+      "description": "Budget tracking scenario",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": true,
+      "showProjections": true,
+      "accountColumns": ["name", "type", "currency", "balance", "openDate"],
+      "transactionColumns": ["debitAccount", "creditAccount", "amount", "description", "tags"]
+    },
+    {
+      "id": 2,
+      "name": "General",
+      "description": "General financial planning scenario",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": false,
+      "showProjections": true,
+      "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange"],
+      "transactionColumns": ["debitAccount", "creditAccount", "amount", "description", "recurrence", "periodicChange", "tags"]
+    },
+    {
+      "id": 3,
+      "name": "Funds",
+      "description": "Investment funds tracking scenario",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": false,
+      "showProjections": true,
+      "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange"],
+      "transactionColumns": ["debitAccount", "creditAccount", "amount", "description", "recurrence", "periodicChange", "tags"]
+    }
+  ],
+  "periodTypes": [
+    { "id": 1, "name": "Day" },
+    { "id": 2, "name": "Week" },
+    { "id": 3, "name": "Month" },
+    { "id": 4, "name": "Quarter" },
+    { "id": 5, "name": "Year" }
+  ],
+  "accountTypes": [
+    { "id": 1, "name": "Asset" },
+    { "id": 2, "name": "Liability" },
+    { "id": 3, "name": "Equity" },
+    { "id": 4, "name": "Income" },
+    { "id": 5, "name": "Expense" }
+  ],
+  "currencies": [
+    { "id": 1, "name": "ZAR" },
+    { "id": 2, "name": "USD" },
+    { "id": 3, "name": "EUR" },
+    { "id": 4, "name": "GBP" }
+  ],
+  "periodicChangeTypes": [
+    { "id": 1, "name": "Nominal Annual (No Compounding)" },
+    { "id": 2, "name": "Nominal Annual, Compounded Monthly" },
+    { "id": 3, "name": "Nominal Annual, Compounded Daily" },
+    { "id": 4, "name": "Nominal Annual, Compounded Quarterly" },
+    { "id": 5, "name": "Nominal Annual, Compounded Annually" },
+    { "id": 6, "name": "Nominal Annual, Continuous Compounding" },
+    { "id": 7, "name": "Custom" }
+  ],
+  "changeModes": [
+    { "id": 1, "name": "Percentage Rate" },
+    { "id": 2, "name": "Fixed Amount" }
+  ],
+  "ratePeriods": [
+    { "id": 1, "name": "Annual" },
+    { "id": 2, "name": "Monthly" },
+    { "id": 3, "name": "Quarterly" },
+    { "id": 4, "name": "Daily" }
+  ],
+  "frequencies": [
+    { "id": 1, "name": "Daily" },
+    { "id": 2, "name": "Weekly" },
+    { "id": 3, "name": "Monthly" },
+    { "id": 4, "name": "Quarterly" },
+    { "id": 5, "name": "Yearly" }
+  ]
+}

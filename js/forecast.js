@@ -183,11 +183,11 @@ async function buildScenarioGrid(container) {
   container.innerHTML = '';
 
   const fs = window.require('fs').promises;
-  const schemaPath = getSchemaPath('scenario-grid.json');
+  const lookupPath = getSchemaPath('lookup-data.json');
 
   try {
-    const schemaFile = await fs.readFile(schemaPath, 'utf8');
-    const schema = JSON.parse(schemaFile);
+    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    const lookupData = JSON.parse(lookupFile);
 
     // Add "Add Scenario" button
     const addScenarioBtn = document.createElement('button');
@@ -241,6 +241,7 @@ async function buildScenarioGrid(container) {
 
     const scenariosTable = createGrid(gridContainer, {
       data: scenarios,
+      selectable: 1, // Only allow single row selection
       columns: [
         {
           formatter: "buttonCross",
@@ -257,14 +258,25 @@ async function buildScenarioGrid(container) {
         },
         {
           title: "",
-          field: "selected",
+          field: "_radio",
           width: 40,
           hozAlign: "center",
           headerSort: false,
-          formatter: "rowSelection",
-          titleFormatter: "rowSelection",
+          formatter: function(cell) {
+            const isSelected = cell.getRow().isSelected();
+            return `<input type="radio" name="scenario" ${isSelected ? 'checked' : ''} style="cursor: pointer; pointer-events: none;">`;
+          },
           cellClick: function(e, cell) {
-            cell.getRow().toggleSelect();
+            const table = cell.getTable();
+            const thisRow = cell.getRow();
+            
+            // Only proceed if this row isn't already selected
+            if (!thisRow.isSelected()) {
+              // Deselect all rows
+              table.getSelectedRows().forEach(row => row.deselect());
+              // Select this row
+              thisRow.select();
+            }
           }
         },
         createTextColumn('Scenario Name', 'name', { widthGrow: 3, editor: "input", editable: true }),
@@ -274,7 +286,7 @@ async function buildScenarioGrid(container) {
           widthGrow: 2,
           editor: "list",
           editorParams: {
-            values: schema.scenarioTypes.map(t => ({ label: t.name, value: t })),
+            values: lookupData.scenarioTypes.map(t => ({ label: t.name, value: t })),
             listItemFormatter: function(value, title) {
               return title;
             }
@@ -297,7 +309,7 @@ async function buildScenarioGrid(container) {
           widthGrow: 2,
           editor: "list",
           editorParams: {
-            values: schema.periodTypes.map(p => ({ label: p.name, value: p })),
+            values: lookupData.periodTypes.map(p => ({ label: p.name, value: p })),
             listItemFormatter: function(value, title) {
               return title;
             }
@@ -310,12 +322,24 @@ async function buildScenarioGrid(container) {
         }
       ],
       rowSelectionChanged: async function(data, rows) {
+        // Redraw all radio button cells to update their checked state
+        scenariosTable.getRows().forEach(row => {
+          row.getCells().forEach(cell => {
+            if (cell.getField() === '_radio') {
+              cell.getElement().innerHTML = cell.getColumn().getDefinition().formatter(cell);
+            }
+          });
+        });
+        
         if (rows.length > 0) {
           const scenario = rows[0].getData();
           console.log('[Forecast] Scenario selected:', scenario);
           currentScenario = await getScenario(scenario.id);
           selectedAccountId = null; // Clear selected account when switching scenarios
+          console.log('[Forecast] Current scenario set to:', currentScenario);
+          console.log('[Forecast] Loading scenario data...');
           await loadScenarioData();
+          console.log('[Forecast] Scenario data loaded');
         }
       }
     });
@@ -356,9 +380,9 @@ async function buildScenarioGrid(container) {
       
       // Select the first row
       setTimeout(() => {
-        const firstRow = scenariosTable.getRowFromPosition(0, true);
-        if (firstRow) {
-          firstRow.select();
+        const rows = scenariosTable.getRows();
+        if (rows && rows.length > 0) {
+          rows[0].select();
         }
       }, 100);
     }
@@ -370,11 +394,11 @@ async function buildScenarioGrid(container) {
 // Load scenario type configuration
 async function loadScenarioTypes() {
   const fs = window.require('fs').promises;
-  const typesPath = getSchemaPath('scenario-types.json');
+  const lookupPath = getSchemaPath('lookup-data.json');
 
   try {
-    const typesFile = await fs.readFile(typesPath, 'utf8');
-    const data = JSON.parse(typesFile);
+    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    const data = JSON.parse(lookupFile);
     scenarioTypes = data.scenarioTypes;
   } catch (err) {
     console.error('[Forecast] Failed to load scenario types:', err);
@@ -595,10 +619,16 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
 
 // Load accounts grid
 async function loadAccountsGrid(container) {
-  if (!currentScenario) return;
+  if (!currentScenario) {
+    console.log('[Forecast] loadAccountsGrid: No current scenario');
+    return;
+  }
+
+  console.log('[Forecast] loadAccountsGrid: Loading for scenario', currentScenario.id, currentScenario.name);
 
   const typeConfig = getScenarioTypeConfig();
   if (!typeConfig || !typeConfig.showAccounts) {
+    console.log('[Forecast] loadAccountsGrid: Type config does not show accounts');
     container.innerHTML = '';
     return;
   }
@@ -607,11 +637,11 @@ async function loadAccountsGrid(container) {
 
   try {
     const accounts = await AccountManager.getAll(currentScenario.id);
+    console.log('[Forecast] loadAccountsGrid: Loaded', accounts.length, 'accounts');
     const fs = window.require('fs').promises;
-    const path = window.require('path');
-    const schemaPath = path.join(__dirname, '..', 'assets', 'accounts-grid-unified.json');
-    const schemaFile = await fs.readFile(schemaPath, 'utf8');
-    const schema = JSON.parse(schemaFile);
+    const lookupPath = getSchemaPath('lookup-data.json');
+    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    const lookupData = JSON.parse(lookupFile);
 
     // Add "Add Account" button
     const addButton = document.createElement('button');
@@ -660,6 +690,7 @@ async function loadAccountsGrid(container) {
 
     const accountsTable = createGrid(gridContainer, {
       data: accounts,
+      selectable: 1, // Only allow single row selection
       columns: [
         {
           formatter: "buttonCross",
@@ -674,12 +705,34 @@ async function loadAccountsGrid(container) {
             }
           }
         },
+        {
+          field: "_radio",
+          width: 40,
+          hozAlign: "center",
+          headerSort: false,
+          formatter: function(cell) {
+            const isSelected = cell.getRow().isSelected();
+            return `<input type="radio" name="account" ${isSelected ? 'checked' : ''} style="cursor: pointer; pointer-events: none;">`;
+          },
+          cellClick: function(e, cell) {
+            const table = cell.getTable();
+            const thisRow = cell.getRow();
+            
+            // Only proceed if this row isn't already selected
+            if (!thisRow.isSelected()) {
+              // Deselect all rows
+              table.getSelectedRows().forEach(row => row.deselect());
+              // Select this row
+              thisRow.select();
+            }
+          }
+        },
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
         createObjectColumn('Type', 'type', 'name', { 
           widthGrow: 1,
           editor: "list",
           editorParams: {
-            values: schema.accountTypes,
+            values: lookupData.accountTypes,
             listItemFormatter: function(value, title) {
               return value.name;
             },
@@ -692,7 +745,7 @@ async function loadAccountsGrid(container) {
           width: 100,
           editor: "list",
           editorParams: {
-            values: schema.currencies,
+            values: lookupData.currencies,
             listItemFormatter: function(value, title) {
               return value.name;
             },
@@ -707,8 +760,46 @@ async function loadAccountsGrid(container) {
         const account = cell.getRow().getData();
         await AccountManager.update(currentScenario.id, account.id, account);
         console.log('[Forecast] ✓ Account updated:', account.name);
+      },
+      rowSelectionChanged: async function(data, rows) {
+        // Redraw all radio button cells to update their checked state
+        accountsTable.getRows().forEach(row => {
+          row.getCells().forEach(cell => {
+            if (cell.getField() === '_radio') {
+              cell.getElement().innerHTML = cell.getColumn().getDefinition().formatter(cell);
+            }
+          });
+        });
+        
+        if (rows.length > 0) {
+          const account = rows[0].getData();
+          console.log('[Forecast] Account selected:', account);
+          selectedAccountId = account.id;
+          
+          // Reload transaction grids to filter by selected account
+          await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
+          await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
+        } else {
+          // No account selected - show all transactions
+          console.log('[Forecast] Account deselected');
+          selectedAccountId = null;
+          
+          // Reload transaction grids to show all transactions
+          await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
+          await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
+        }
       }
     });
+    
+    // Auto-select first account if accounts exist
+    if (accounts && accounts.length > 0) {
+      setTimeout(() => {
+        const rows = accountsTable.getRows();
+        if (rows && rows.length > 0) {
+          rows[0].select();
+        }
+      }, 100);
+    }
 
   } catch (err) {
     console.error('[Forecast] Failed to load accounts grid:', err);
