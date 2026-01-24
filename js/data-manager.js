@@ -3,6 +3,7 @@
 // All operations read/write from assets/app-data.json
 
 import { generateRecurrenceDates } from './calculation-utils.js';
+import { formatDateOnly } from './date-utils.js';
 import { getAppDataPath } from './app-paths.js';
 
 const fs = window.require('fs').promises;
@@ -84,7 +85,7 @@ export async function createScenario(scenarioData) {
     id: maxId + 1,
     name: scenarioData.name || 'New Scenario',
     type: scenarioData.type || { id: 1, name: 'Budget' },
-    startDate: scenarioData.startDate || new Date().toISOString().slice(0, 10),
+    startDate: scenarioData.startDate || formatDateOnly(new Date()),
     endDate: scenarioData.endDate || null,
     accounts: [],
     plannedTransactions: [],
@@ -351,7 +352,7 @@ export async function createPlannedTransaction(scenarioId, transactionData) {
     description: transactionData.description || '',
     recurrence: transactionData.recurrence || {
       recurrenceType: 'Monthly - Day of Month',
-      startDate: new Date().toISOString().slice(0, 10),
+      startDate: formatDateOnly(new Date()),
       dayOfMonth: 1
     },
     periodicChange: transactionData.periodicChange || null,
@@ -487,7 +488,7 @@ export async function createActualTransaction(scenarioId, transactionData) {
   
   const newTransaction = {
     id: maxId + 1,
-    date: transactionData.date || new Date().toISOString().slice(0, 10),
+    date: transactionData.date || formatDateOnly(new Date()),
     debitAccount: transactionData.debitAccount || null,
     creditAccount: transactionData.creditAccount || null,
     amount: transactionData.amount || 0,
@@ -635,6 +636,8 @@ export async function clearProjections(scenarioId) {
  * @param {number} scenarioId - The scenario ID
  * @returns {Promise<Array>} - Array of period objects
  */
+import { parseDateOnly } from './date-utils.js';
+
 export async function getScenarioPeriods(scenarioId) {
   const scenario = await getScenario(scenarioId);
   
@@ -643,8 +646,8 @@ export async function getScenarioPeriods(scenarioId) {
   }
   
   const periods = [];
-  const start = new Date(scenario.startDate);
-  const end = new Date(scenario.endDate);
+  const start = typeof scenario.startDate === 'string' ? parseDateOnly(scenario.startDate) : new Date(scenario.startDate);
+  const end = typeof scenario.endDate === 'string' ? parseDateOnly(scenario.endDate) : new Date(scenario.endDate);
   const periodType = scenario.projectionPeriod?.name || 'Month';
   
   let current = new Date(start);
@@ -711,7 +714,7 @@ export async function getPlannedTransactionsForPeriod(scenarioId, periodId) {
       periodTransactions.push({
         ...pt,
         calculatedDate: date,
-        instanceId: `${pt.id}-${date.toISOString().slice(0, 10)}`,
+        instanceId: `${pt.id}-${formatDateOnly(date)}`,
         sourceTransactionId: pt.id
       });
     });

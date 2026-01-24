@@ -6,6 +6,8 @@
 const Finance = window.require('financejs');
 const finance = new Finance();
 
+import { parseDateOnly } from './date-utils.js';
+
 /**
  * Calculate Future Value (FV)
  * @param {number} rate - Interest rate per period (as percentage, e.g., 5 for 5%)
@@ -136,8 +138,9 @@ export function formatCurrency(value, currency = 'ZAR', decimals = 2) {
  * @returns {number} - Number of periods
  */
 export function calculatePeriods(startDate, endDate, frequency) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Ensure date-only strings are parsed as local-midnight Dates
+    const start = typeof startDate === 'string' ? parseDateOnly(startDate) : new Date(startDate);
+    const end = typeof endDate === 'string' ? parseDateOnly(endDate) : new Date(endDate);
     
     const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
     

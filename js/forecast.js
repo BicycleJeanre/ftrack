@@ -17,6 +17,8 @@ import { createLogger } from './logger.js';
 
 const logger = createLogger('ForecastController');
 
+import { formatDateOnly } from './date-utils.js';
+
 import {
   getScenarios,
   getScenario,
@@ -184,8 +186,8 @@ async function buildScenarioGrid(container) {
         name: 'New Scenario',
         type: null,
         description: '',
-        startDate: new Date().toISOString().slice(0,10),
-        endDate: new Date().toISOString().slice(0,10),
+        startDate: formatDateOnly(new Date()),
+          endDate: formatDateOnly(new Date()),
         projectionPeriod: null
       });
       await buildScenarioGrid(container);
@@ -471,7 +473,7 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
         type: { id: 1, name: 'Asset' },
         currency: { id: 1, name: 'ZAR' },
         balance: 0,
-        openDate: new Date().toISOString().slice(0, 10),
+        openDate: formatDateOnly(new Date()),
         periodicChange: null
       });
       currentScenario = await getScenario(currentScenario.id);
@@ -488,7 +490,7 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
         type: { id: 1, name: 'Asset' }, // Default to Asset type
         currency: { id: 1, name: 'ZAR' }, // Default currency
         balance: 0,
-        openDate: new Date().toISOString().slice(0, 10),
+        openDate: formatDateOnly(new Date()),
         periodicChange: null
       });
       
@@ -593,7 +595,7 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
         type: { id: 1, name: 'Asset' }, // Default to Asset type
         currency: { id: 1, name: 'ZAR' }, // Default currency
         balance: 0,
-        openDate: new Date().toISOString().slice(0, 10),
+        openDate: formatDateOnly(new Date()),
         periodicChange: null
       });
       
@@ -864,7 +866,7 @@ async function loadPlannedTransactionsGrid(container) {
         type: { id: 1, name: 'Asset' },
         currency: { id: 1, name: 'ZAR' },
         balance: 0,
-        openDate: new Date().toISOString().slice(0, 10),
+        openDate: formatDateOnly(new Date()),
         periodicChange: null
       });
       // Reload scenario to include the new account
@@ -1238,7 +1240,7 @@ async function loadActualTransactionsGrid(container) {
         debitAccount: null,
         creditAccount: null,
         amount: 0,
-        actualDate: new Date().toISOString().slice(0,10),
+        actualDate: formatDateOnly(new Date()),
         description: '',
         tags: []
       };

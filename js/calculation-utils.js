@@ -97,14 +97,16 @@ export function getPeriodsBetween(start, end, frequency) {
  * @param {Date} projectionEnd - End date for projections
  * @returns {Date[]} - Array of dates when transaction should occur
  */
+import { parseDateOnly } from './date-utils.js';
+
 export function generateRecurrenceDates(recurrence, projectionStart, projectionEnd) {
   if (!recurrence || !recurrence.recurrenceType) {
     return [];
   }
   
   const dates = [];
-  const startDate = new Date(recurrence.startDate || projectionStart);
-  const endDate = recurrence.endDate ? new Date(recurrence.endDate) : projectionEnd;
+  const startDate = recurrence.startDate ? parseDateOnly(recurrence.startDate) : new Date(projectionStart);
+  const endDate = recurrence.endDate ? parseDateOnly(recurrence.endDate) : new Date(projectionEnd);
   
   // Ensure we're working with the projection window
   const effectiveStart = startDate > projectionStart ? startDate : projectionStart;
@@ -146,6 +148,20 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
           dates.push(new Date(weekDate));
         }
         weekDate.setDate(weekDate.getDate() + (7 * weekInterval));
+      }
+      break;
+      
+    case 'Monthly':
+      // Default to 1st of month
+      let monthlyDate = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), 1);
+      
+      while (monthlyDate <= effectiveEnd) {
+        const occurrenceDate = new Date(monthlyDate);
+        if (occurrenceDate >= effectiveStart && occurrenceDate <= effectiveEnd) {
+          dates.push(occurrenceDate);
+        }
+        
+        monthlyDate.setMonth(monthlyDate.getMonth() + 1);
       }
       break;
       
@@ -224,7 +240,7 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       if (recurrence.customDates) {
         const customDateStrings = recurrence.customDates.split(',').map(d => d.trim());
         customDateStrings.forEach(dateStr => {
-          const customDate = new Date(dateStr);
+          const customDate = parseDateOnly(dateStr);
           if (customDate >= effectiveStart && customDate <= effectiveEnd) {
             dates.push(customDate);
           }
@@ -233,7 +249,10 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       break;
   }
   
+  // Ensure all generated dates are Date objects at local midnight
   return dates.sort((a, b) => a - b);
+  // Ensure all generated dates are normalized to local midnight (ignore timestamps)
+  // Note: sorting above used Date values; normalize now before returning in caller if needed
 }
 
 /**

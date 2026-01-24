@@ -3,6 +3,7 @@
 // Uses data-store for persistence
 
 import * as DataStore from '../core/data-store.js';
+import { formatDateOnly } from '../date-utils.js';
 
 /**
  * Get all scenarios
@@ -43,7 +44,7 @@ export async function create(scenarioData) {
             name: scenarioData.name || 'New Scenario',
             type: scenarioData.type || { id: 1, name: 'Budget' },
             description: scenarioData.description || '',
-            startDate: scenarioData.startDate || new Date().toISOString().slice(0, 10),
+            startDate: scenarioData.startDate || formatDateOnly(new Date()),
             endDate: scenarioData.endDate || null,
             projectionPeriod: scenarioData.projectionPeriod || { id: 3, name: 'Month' },
             accounts: [],

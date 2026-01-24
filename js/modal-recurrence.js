@@ -1,6 +1,8 @@
 // modal-recurrence.js
 // Modal for editing transaction recurrence patterns
 
+import { formatDateOnly } from './date-utils.js';
+
 /**
  * Open a modal to edit recurrence data
  * @param {Object} currentValue - Current recurrence object
@@ -36,7 +38,7 @@ export function openRecurrenceModal(currentValue, onSave) {
 
     // Extract current values or use defaults
     const pattern = currentValue?.pattern || 'Monthly';
-    const startDate = currentValue?.startDate || new Date().toISOString().split('T')[0];
+    const startDate = currentValue?.startDate || formatDateOnly(new Date());
     const endDate = currentValue?.endDate || '';
     const frequency = currentValue?.frequency || 1;
     const interval = currentValue?.interval || 1;

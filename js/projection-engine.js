@@ -5,6 +5,7 @@
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { applyPeriodicChange } from './financial-utils.js';
 import { getScenario, saveProjections } from './data-manager.js';
+import { parseDateOnly, formatDateOnly } from './date-utils.js';
 
 /**
  * Generate projections for a scenario
@@ -25,8 +26,8 @@ export async function generateProjections(scenarioId, options = {}) {
   const plannedTransactions = scenario.plannedTransactions || [];
   
   // Parse projection window
-  const startDate = new Date(scenario.startDate);
-  const endDate = new Date(scenario.endDate);
+  const startDate = parseDateOnly(scenario.startDate);
+  const endDate = parseDateOnly(scenario.endDate);
   
   console.log('[ProjectionEngine] Projection window:', startDate, 'to', endDate);
   console.log('[ProjectionEngine] Accounts:', accounts.length);
@@ -54,14 +55,19 @@ export async function generateProjections(scenarioId, options = {}) {
       let amount = txn.amount || 0;
       
       if (txn.periodicChange) {
-        // Calculate periods from transaction start to this occurrence
-        const txnStartDate = new Date(txn.recurrence.startDate);
+        // Calculate periods from transaction start to this occurrence (use local date-only parsing)
+        const txnStartDate = txn.recurrence && txn.recurrence.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
         const yearsDiff = (date - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
         amount = applyPeriodicChange(txn.amount, txn.periodicChange, yearsDiff);
       }
       
+      // Ensure occurrence date is a local date-only (date may already be a Date at local midnight)
+      const occDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const occKey = occDate.getFullYear() * 10000 + (occDate.getMonth() + 1) * 100 + occDate.getDate();
+
       transactionOccurrences.push({
-        date: date,
+        date: occDate,
+        dateKey: occKey,
         debitAccountId: txn.debitAccount?.id,
         creditAccountId: txn.creditAccount?.id,
         amount: amount,
@@ -71,8 +77,8 @@ export async function generateProjections(scenarioId, options = {}) {
     });
   });
   
-  // Sort occurrences by date
-  transactionOccurrences.sort((a, b) => a.date - b.date);
+  // Sort occurrences by dateKey (date-only)
+  transactionOccurrences.sort((a, b) => a.dateKey - b.dateKey);
   
   console.log('[ProjectionEngine] Generated', transactionOccurrences.length, 'transaction occurrences');
   
@@ -93,25 +99,29 @@ export async function generateProjections(scenarioId, options = {}) {
     periods.forEach((period, periodIndex) => {
       const periodStart = period.start;
       const periodEnd = period.end;
+      const periodStartKey = periodStart.getFullYear() * 10000 + (periodStart.getMonth() + 1) * 100 + periodStart.getDate();
+      const periodEndKey = periodEnd.getFullYear() * 10000 + (periodEnd.getMonth() + 1) * 100 + periodEnd.getDate();
       
-      // Apply interest/growth for the period if configured
+      // Apply interest/growth up to the period START so snapshot is at period start
       if (account.periodicChange) {
-        const yearsDiff = (periodEnd - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
-        currentBalance = applyPeriodicChange(currentBalance, account.periodicChange, yearsDiff);
+        const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
+        if (yearsDiffToStart !== 0) {
+          currentBalance = applyPeriodicChange(currentBalance, account.periodicChange, yearsDiffToStart);
+        }
       }
-      
-      // Apply transactions in this period
+
+      // Apply transactions in this period to compute income/expenses and update running balance
       let periodIncome = 0;
       let periodExpenses = 0;
-      
+
       transactionOccurrences.forEach(txn => {
-        if (txn.date >= periodStart && txn.date <= periodEnd) {
+        if (txn.dateKey >= periodStartKey && txn.dateKey <= periodEndKey) {
           // Debit from this account (money out)
           if (txn.debitAccountId === account.id) {
             currentBalance -= txn.amount;
             periodExpenses += txn.amount;
           }
-          
+
           // Credit to this account (money in)
           if (txn.creditAccountId === account.id) {
             currentBalance += txn.amount;
@@ -119,21 +129,30 @@ export async function generateProjections(scenarioId, options = {}) {
           }
         }
       });
-      
-      // Create projection record
+
+      // After applying transactions for the period, apply periodicChange across the period
+      if (account.periodicChange) {
+        const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
+        if (yearsDiffPeriod !== 0) {
+          currentBalance = applyPeriodicChange(currentBalance, account.periodicChange, yearsDiffPeriod);
+        }
+      }
+
+      // Create projection record (date remains period start, balance reflects end-of-period)
       projections.push({
         id: projections.length + 1,
         scenarioId: scenarioId,
         accountId: account.id,
-        account: account.name, // Field name matches projections-grid.json schema
-        date: formatDate(periodEnd),
+        account: account.name,
+        date: formatDateOnly(periodStart),
         balance: Math.round(currentBalance * 100) / 100,
         income: Math.round(periodIncome * 100) / 100,
         expenses: Math.round(periodExpenses * 100) / 100,
         netChange: Math.round((periodIncome - periodExpenses) * 100) / 100,
         period: periodIndex + 1
       });
-      
+
+      // Advance lastPeriodEnd to the period end for next iteration
       lastPeriodEnd = periodEnd;
     });
   });
@@ -155,45 +174,94 @@ export async function generateProjections(scenarioId, options = {}) {
  */
 function generatePeriods(start, end, periodicity) {
   const periods = [];
+  // Align initial start to period boundary depending on periodicity
   let currentStart = new Date(start);
-  
-  while (currentStart < end) {
-    let currentEnd = new Date(currentStart);
-    
+
+  switch (periodicity) {
+    case 'monthly':
+      currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth(), 1);
+      break;
+    case 'quarterly':
+      currentStart = new Date(currentStart.getFullYear(), Math.floor(currentStart.getMonth() / 3) * 3, 1);
+      break;
+    case 'yearly':
+      currentStart = new Date(currentStart.getFullYear(), 0, 1);
+      break;
+    case 'weekly':
+      // Align to Monday as week start (ISO-like); if you prefer Sunday change getDay logic
+      const day = currentStart.getDay();
+      const diff = (day + 6) % 7; // days since Monday
+      currentStart.setDate(currentStart.getDate() - diff);
+      currentStart.setHours(0, 0, 0, 0);
+      break;
+    default:
+      // daily and other types: keep provided start
+      currentStart.setHours(0, 0, 0, 0);
+  }
+
+  // Iterate by stepping to next period start; include periods where the start is <= end
+  while (currentStart <= end) {
+    let periodStart = new Date(currentStart);
+    let periodEnd;
+
     switch (periodicity) {
       case 'daily':
-        currentEnd.setDate(currentEnd.getDate() + 1);
+        periodEnd = new Date(periodStart);
+        periodEnd.setDate(periodEnd.getDate());
         break;
       case 'weekly':
-        currentEnd.setDate(currentEnd.getDate() + 7);
+        periodEnd = new Date(periodStart);
+        periodEnd.setDate(periodEnd.getDate() + 6); // week = 7 days starting at periodStart
         break;
       case 'monthly':
-        currentEnd.setMonth(currentEnd.getMonth() + 1);
+        periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0); // last day of month
         break;
       case 'quarterly':
-        currentEnd.setMonth(currentEnd.getMonth() + 3);
+        periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 3, 0);
         break;
       case 'yearly':
-        currentEnd.setFullYear(currentEnd.getFullYear() + 1);
+        periodEnd = new Date(periodStart.getFullYear(), 11, 31);
         break;
       default:
-        currentEnd.setMonth(currentEnd.getMonth() + 1);
+        periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
     }
-    
-    // Don't exceed end date
-    if (currentEnd > end) {
-      currentEnd = new Date(end);
+
+    // Clip to scenario end
+    if (periodEnd > end) periodEnd = new Date(end);
+
+    // Normalize times to local boundaries to avoid UTC formatting shifts
+    const ps = new Date(periodStart);
+    ps.setHours(0, 0, 0, 0);
+    const pe = new Date(periodEnd);
+    pe.setHours(23, 59, 59, 999);
+
+    // Only include if periodStart is within the scenario window
+    if (ps <= end) {
+      periods.push({ start: ps, end: pe });
     }
-    
-    periods.push({
-      start: new Date(currentStart),
-      end: new Date(currentEnd)
-    });
-    
-    currentStart = new Date(currentEnd);
-    currentStart.setDate(currentStart.getDate() + 1);
+
+    // Advance currentStart to the next period's start
+    switch (periodicity) {
+      case 'daily':
+        currentStart.setDate(currentStart.getDate() + 1);
+        break;
+      case 'weekly':
+        currentStart.setDate(currentStart.getDate() + 7);
+        break;
+      case 'monthly':
+        currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 1, 1);
+        break;
+      case 'quarterly':
+        currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 3, 1);
+        break;
+      case 'yearly':
+        currentStart = new Date(currentStart.getFullYear() + 1, 0, 1);
+        break;
+      default:
+        currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 1, 1);
+    }
   }
-  
+
   return periods;
 }
 
@@ -203,7 +271,11 @@ function generatePeriods(start, end, periodicity) {
  * @returns {string} - Formatted date string
  */
 function formatDate(date) {
-  return date.toISOString().slice(0, 10);
+  // Use local date components to avoid UTC offset causing previous-day dates
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 /**

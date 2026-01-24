@@ -3,6 +3,7 @@
 
 import * as DataStore from '../core/data-store.js';
 import { deleteAccount } from '../data-manager.js';
+import { formatDateOnly } from '../date-utils.js';
 
 /**
  * Get all accounts for a scenario
@@ -88,7 +89,7 @@ export async function create(scenarioId, accountData) {
             type: accountData.type || { id: 1, name: 'Asset' },
             currency: accountData.currency || { id: 1, name: 'ZAR' },
             balance: accountData.balance || 0,
-            openDate: accountData.openDate || new Date().toISOString().slice(0, 10),
+            openDate: accountData.openDate || formatDateOnly(new Date()),
             periodicChange: accountData.periodicChange || null,
             ...accountData
         };
