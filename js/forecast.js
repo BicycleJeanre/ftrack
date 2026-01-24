@@ -664,8 +664,11 @@ async function loadAccountsGrid(container) {
 
     // Create grid container
     const gridContainer = document.createElement('div');
-    gridContainer.id = 'accountsTable'; // explicit ID for logging
+    gridContainer.id = 'accountsGrid'; // explicit ID for inner accounts grid
     gridContainer.className = 'grid-container accounts-grid';
+    // Remove any previous inner accountsGrid if present (defensive)
+    const existingInner = container.querySelector('#accountsGrid');
+    if (existingInner) existingInner.remove();
     window.add(container, gridContainer);
 
     const accountsTable = createGrid(gridContainer, {
