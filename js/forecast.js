@@ -241,9 +241,6 @@ async function buildScenarioGrid(container) {
 
     const scenariosTable = createGrid(gridContainer, {
       data: scenarios,
-      selectable: false, // Disable row selection to allow cell editing
-      editTriggerEvent: "click", // Single click to edit
-      selectableRangeMode: false, // Disable range selection
       columns: [
         {
           formatter: "buttonCross",
@@ -253,7 +250,7 @@ async function buildScenarioGrid(container) {
             const row = cell.getRow();
             const rowData = row.getData();
             if (confirm(`Delete scenario: ${rowData.name}?`)) {
-              await ScenarioManager.delete(rowData.id);
+              await ScenarioManager.remove(rowData.id);
               await buildScenarioGrid(container);
             }
           }
@@ -323,7 +320,7 @@ async function buildScenarioGrid(container) {
       }
     });
     
-    // Manually attach cellEdited event handler (Tabulator event system)
+    // Attach cellEdited event handler
     scenariosTable.on("cellEdited", async function(cell) {
       const row = cell.getRow();
       const scenario = row.getData();
@@ -661,9 +658,8 @@ async function loadAccountsGrid(container) {
     gridContainer.style.width = '100%';
     window.add(container, gridContainer);
 
-    createGrid(gridContainer, {
+    const accountsTable = createGrid(gridContainer, {
       data: accounts,
-      selectable: 1, // Single selection
       columns: [
         {
           formatter: "buttonCross",
@@ -673,41 +669,44 @@ async function loadAccountsGrid(container) {
             const row = cell.getRow();
             const rowData = row.getData();
             if (confirm(`Delete account: ${rowData.name}?`)) {
-              await AccountManager.delete(currentScenario.id, rowData.id);
+              await AccountManager.remove(currentScenario.id, rowData.id);
               await loadAccountsGrid(container);
             }
           }
         },
-        {
-          title: "",
-          field: "selected",
-          width: 40,
-          hozAlign: "center",
-          headerSort: false,
-          formatter: "rowSelection",
-          titleFormatter: "rowSelection",
-          cellClick: function(e, cell) {
-            cell.getRow().toggleSelect();
-          }
-        },
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
-        createObjectColumn('Type', 'type', 'name', { widthGrow: 1 }),
-        createObjectColumn('Currency', 'currency', 'name', { width: 100 }),
+        createObjectColumn('Type', 'type', 'name', { 
+          widthGrow: 1,
+          editor: "list",
+          editorParams: {
+            values: schema.accountTypes,
+            listItemFormatter: function(value, title) {
+              return value.name;
+            },
+            valueLookup: true,
+            autocomplete: true,
+            clearable: false
+          }
+        }),
+        createObjectColumn('Currency', 'currency', 'name', { 
+          width: 100,
+          editor: "list",
+          editorParams: {
+            values: schema.currencies,
+            listItemFormatter: function(value, title) {
+              return value.name;
+            },
+            valueLookup: true,
+            autocomplete: true,
+            clearable: false
+          }
+        }),
         createMoneyColumn('Balance', 'balance', { widthGrow: 1 })
       ],
-      rowSelectionChanged: async function(data, rows) {
-        if (rows.length > 0) {
-          const account = rows[0].getData();
-          console.log('[Forecast] Account selected:', account);
-          selectedAccountId = account.id;
-          // Reload transaction and projection grids to filter by this account
-          const plannedTxContainer = getEl('plannedTransactionsTable');
-          const actualTxContainer = getEl('actualTransactionsTable');
-          const projectionsContainer = getEl('projectionsContent');
-          await loadPlannedTransactionsGrid(plannedTxContainer);
-          await loadActualTransactionsGrid(actualTxContainer);
-          await loadProjectionsSection(projectionsContainer);
-        }
+      cellEdited: async function(cell) {
+        const account = cell.getRow().getData();
+        await AccountManager.update(currentScenario.id, account.id, account);
+        console.log('[Forecast] ✓ Account updated:', account.name);
       }
     });
 
@@ -1004,39 +1003,41 @@ async function loadPlannedTransactionsGrid(container) {
           headerSort: false,
           headerHozAlign: "left"
         }
-      ],
-      cellEdited: async function(cell) {
-        const row = cell.getRow();
-        const uiTx = row.getData();
-        
-        // Transform back to backend format
-        let debitAccount, creditAccount;
-        if (uiTx.transactionType?.name === 'Debit') {
-          debitAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
-          creditAccount = uiTx.secondaryAccount;
-        } else {
-          debitAccount = uiTx.secondaryAccount;
-          creditAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
-        }
-
-        const backendTx = {
-          id: uiTx.id,
-          debitAccount,
-          creditAccount,
-          amount: parseFloat(uiTx.amount) || 0,
-          description: uiTx.description || '',
-          recurrence: uiTx.recurrence || null,
-          periodicChange: uiTx.periodicChange || null,
-          tags: uiTx.tags || []
-        };
-
-        // Get all transactions, update this one, save all
-        const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
-        const updatedTxs = allTxs.map(tx => tx.id === backendTx.id ? backendTx : tx);
-        
-        await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
-        console.log('[Forecast] ✓ Planned transaction updated');
+      ]
+    });
+    
+    // Attach cellEdited event handler
+    plannedTxTable.on("cellEdited", async function(cell) {
+      const row = cell.getRow();
+      const uiTx = row.getData();
+      
+      // Transform back to backend format
+      let debitAccount, creditAccount;
+      if (uiTx.transactionType?.name === 'Debit') {
+        debitAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
+        creditAccount = uiTx.secondaryAccount;
+      } else {
+        debitAccount = uiTx.secondaryAccount;
+        creditAccount = currentScenario.accounts.find(a => a.id === selectedAccountId);
       }
+
+      const backendTx = {
+        id: uiTx.id,
+        debitAccount,
+        creditAccount,
+        amount: parseFloat(uiTx.amount) || 0,
+        description: uiTx.description || '',
+        recurrence: uiTx.recurrence || null,
+        periodicChange: uiTx.periodicChange || null,
+        tags: uiTx.tags || []
+      };
+
+      // Get all transactions, update this one, save all
+      const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
+      const updatedTxs = allTxs.map(tx => tx.id === backendTx.id ? backendTx : tx);
+      
+      await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
+      console.log('[Forecast] ✓ Planned transaction updated');
     });
 
   } catch (err) {
@@ -1172,7 +1173,7 @@ async function loadActualTransactionsGrid(container) {
     tableContainer.style.width = '100%';
     window.add(gridContainer, tableContainer);
 
-    createGrid(tableContainer, {
+    const actualTxTable = createGrid(tableContainer, {
       data: combinedData,
       columns: [
         {

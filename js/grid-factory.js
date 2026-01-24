@@ -9,8 +9,9 @@ import { TabulatorFull as Tabulator } from '../node_modules/tabulator-tables/dis
 const defaultConfig = {
     layout: "fitColumns",
     responsiveLayout: "hide",
-    selectable: true,
-    selectableRangeMode: "click",
+    selectable: false, // Disable by default - grids can override if needed
+    selectableRangeMode: false, // Disable to allow cell editing
+    editTriggerEvent: "click", // Click to edit cells
     maxHeight: "100%",
     rowHeight: 42,
     headerVisible: true,
@@ -22,7 +23,7 @@ const defaultConfig = {
         "navNext": 9,                 // Tab - next cell
         "navUp": 38,                  // Up arrow
         "navDown": 40,                // Down arrow  
-        "navLeft": 37,                // Left arrow
+        "navLeft": 37,               // Left arrow
         "navRight": 39,               // Right arrow
         "scrollPageUp": 33,           // Page Up
         "scrollPageDown": 34,         // Page Down
@@ -44,12 +45,23 @@ const defaultConfig = {
  * @returns {Tabulator} - Tabulator instance
  */
 export function createGrid(element, options = {}) {
+    // Extract cellEdited before merging to prevent passing it to Tabulator config
+    const { cellEdited, ...tabulatorOptions } = options;
+    
     const config = {
         ...defaultConfig,
-        ...options
+        ...tabulatorOptions
     };
     
-    return new Tabulator(element, config);
+    const table = new Tabulator(element, config);
+    
+    // If cellEdited callback is provided, attach it using .on() method
+    // This is more reliable than passing it in config
+    if (cellEdited) {
+        table.on("cellEdited", cellEdited);
+    }
+    
+    return table;
 }
 
 /**
@@ -81,6 +93,7 @@ export function createTextColumn(title, field, options = {}) {
     return {
         title,
         field,
+        editor: "input",
         headerSort: true,
         headerFilter: "input",
         headerHozAlign: "left",
@@ -127,6 +140,8 @@ export function createMoneyColumn(title, field, options = {}) {
     return {
         title,
         field,
+        editor: "number",
+        editorParams: { step: 0.01 },
         formatter: "money",
         formatterParams: {
             decimal: ".",
@@ -150,6 +165,7 @@ export function createDateColumn(title, field, options = {}) {
     return {
         title,
         field,
+        editor: "date",
         headerSort: true,
         headerHozAlign: "left",
         ...options
