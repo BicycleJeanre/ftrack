@@ -16,7 +16,7 @@ const defaultConfig = {
     selectableRangeMode: false, // Disable to allow cell editing
     // Allow grids to decide if a row is selectable. Log calls for debugging.
     selectableCheck: function(row) {
-        try { logger.debug('selectableCheck: row id', row.getData() && row.getData().id); } catch (e) { /* noop */ }
+        // try { logger.debug('selectableCheck: row id', row.getData() && row.getData().id); } catch (e) { /* noop */ }
         return true; // Default to selectable
     },
     editTriggerEvent: "dblclick", // Double-click to edit cells (allows single-click for row selection)
@@ -74,25 +74,25 @@ export function createGrid(element, options = {}) {
         config.selectablePersistence = false; // Important: Clear selection on reload
     }
     
-    logger.info(`Creating grid on element ID: ${element.id || 'N/A'}`, { 
-        selectable: config.selectable, 
-        selector: element.id || element 
-    });
+    // logger.info(`Creating grid on element ID: ${element.id || 'N/A'}`, { 
+    //     selectable: config.selectable, 
+    //     selector: element.id || element 
+    // });
     
     const table = new Tabulator(element, config);
 
     // Instrument selection events for debugging
     table.on("rowSelected", function(row){
-        logger.info(`Row Selected in ${element.id||'Grid'}:`, row.getData().id);
+        // logger.info(`Row Selected in ${element.id||'Grid'}:`, row.getData().id);
         try {
             const el = row.getElement();
             if (el && el.classList) el.classList.add('custom-selected');
-            logger.debug(`Row element classes: ${el ? el.className : 'no-el'}`);
+            // logger.debug(`Row element classes: ${el ? el.className : 'no-el'}`);
         } catch (e) { logger.error('rowSelected diagnostics failed', e); }
     });
     
     table.on("rowDeselected", function(row){
-        logger.debug(`Row Deselected in ${element.id||'Grid'}:`, row.getData().id);
+        // logger.debug(`Row Deselected in ${element.id||'Grid'}:`, row.getData().id);
         try {
             const el = row.getElement();
             if (el && el.classList) el.classList.remove('custom-selected');
@@ -101,20 +101,20 @@ export function createGrid(element, options = {}) {
 
     // Additional instrumentation: clicks and table lifecycle
     table.on("rowClick", function(e, row){
-        try { logger.info(`Row Click in ${element.id||'Grid'}:`, row.getData().id, 'target=', e.target && e.target.tagName); } catch (err) { logger.info('Row Click in Grid (no id)'); }
+        // try { logger.info(`Row Click in ${element.id||'Grid'}:`, row.getData().id, 'target=', e.target && e.target.tagName); } catch (err) { logger.info('Row Click in Grid (no id)'); }
     });
 
     table.on("cellClick", function(e, cell){
-        try { logger.debug(`Cell Click in ${element.id||'Grid'}:`, cell.getField(), 'target=', e.target && e.target.tagName); } catch (err) { logger.debug('Cell Click in Grid'); }
+        // try { logger.debug(`Cell Click in ${element.id||'Grid'}:`, cell.getField(), 'target=', e.target && e.target.tagName); } catch (err) { logger.debug('Cell Click in Grid'); }
     });
 
     table.on("tableBuilt", function(){
-        logger.info(`Table built: ${element.id||'Grid'}`);
+        // logger.info(`Table built: ${element.id||'Grid'}`);
     });
     
     if (cellEdited) {
         table.on("cellEdited", (cell) => {
-            logger.info(`Cell Edited in ${element.id||'Grid'}:`, cell.getField(), cell.getValue());
+            // logger.info(`Cell Edited in ${element.id||'Grid'}:`, cell.getField(), cell.getValue());
             cellEdited(cell);
         });
     }
@@ -192,17 +192,25 @@ export function createObjectColumn(title, field, subField = 'name', options = {}
  * Accepts an array of objects and maps them to {label, value} pairs
  * Keeps the underlying value as the original object so it can be stored directly
  */
-export function createListEditor(values = []) {
+export function createListEditor(values = [], options = {}) {
+    const { creatable = false, createLabel = 'Insert New...' } = options;
+
     const mapValues = values.map(v => {
         if (typeof v === 'string') return { label: v, value: v };
         if (v && (v.label || v.name)) return { label: v.label || v.name, value: v };
         return { label: String(v), value: v };
     });
 
+    // Add a sentinel option to allow creation of new entries
+    if (creatable) {
+        mapValues.push({ label: createLabel, value: { __create__: true } });
+    }
+
     return {
         editor: 'list',
         editorParams: {
-            values: mapValues
+            values: mapValues,
+            listItemFormatter: function(value, title) { return title; }
         }
     };
 }

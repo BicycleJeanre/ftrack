@@ -44,11 +44,6 @@ if (isDev) {
 // User assets path (app-data.json, writable)
 const userAssetsPath = path.join(userDataPath, 'assets');
 
-console.log('[AppPaths] isDev:', isDev);
-console.log('[AppPaths] User data path:', userDataPath);
-console.log('[AppPaths] User assets path:', userAssetsPath);
-console.log('[AppPaths] Bundled assets path:', bundledAssetsPath);
-
 /**
  * Get path to user's app-data.json (writable)
  * @returns {string} - Full path to user data file

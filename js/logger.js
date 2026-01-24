@@ -28,7 +28,7 @@ class Logger {
         // Log to browser console (for human debugging)
         if (level === 'ERROR') console.error(`[${this.source}]`, ...args);
         else if (level === 'WARN') console.warn(`[${this.source}]`, ...args);
-        else console.log(`[${this.source}]`, ...args);
+        // else console.log(`[${this.source}]`, ...args); // Disabled for performance
 
         // Send to Main process (for File logging/AI visibility)
         if (ipcRenderer) {

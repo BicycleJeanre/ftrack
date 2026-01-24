@@ -34,7 +34,6 @@ async function readAppData() {
 async function writeAppData(data) {
   try {
     await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
-    console.log('[DataManager] Data saved successfully');
   } catch (err) {
     console.error('[DataManager] Failed to write app-data.json:', err);
     throw err;
@@ -185,40 +184,13 @@ export async function getAccounts(scenarioId) {
  * @param {Object} accountData - The account data
  * @returns {Promise<Object>} - The created account
  */
+import { transaction } from './core/data-store.js';
+
+import * as AccountManager from './managers/account-manager.js';
+
 export async function createAccount(scenarioId, accountData) {
-  const appData = await readAppData();
-  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-  
-  if (scenarioIndex === -1) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
-  
-  const scenario = appData.scenarios[scenarioIndex];
-  if (!scenario.accounts) {
-    scenario.accounts = [];
-  }
-  
-  // Generate new ID - filter out null IDs first
-  const validIds = scenario.accounts
-    .map(a => a.id)
-    .filter(id => id !== null && id !== undefined && typeof id === 'number');
-  const maxId = validIds.length > 0 ? Math.max(...validIds) : 0;
-  
-  const newAccount = {
-    id: maxId + 1,
-    name: accountData.name || 'New Account',
-    type: accountData.type || { id: 1, name: 'Asset' },
-    currency: accountData.currency || { id: 1, name: 'ZAR' },
-    balance: accountData.balance || 0,
-    openDate: accountData.openDate || new Date().toISOString().slice(0, 10),
-    periodicChange: accountData.periodicChange || null,
-    ...accountData
-  };
-  
-  scenario.accounts.push(newAccount);
-  await writeAppData(appData);
-  
-  return newAccount;
+  // Delegate to the single canonical AccountManager implementation
+  return await AccountManager.create(scenarioId, accountData);
 }
 
 /**
@@ -254,42 +226,53 @@ export async function updateAccount(scenarioId, accountId, updates) {
 
 /**
  * Delete an account from a scenario
- * Cascades delete to all planned transactions that reference this account
+ * Cascades delete to all planned and actual transactions that reference this account
  * @param {number} scenarioId - The scenario ID
  * @param {number} accountId - The account ID
  * @returns {Promise<void>}
  */
 export async function deleteAccount(scenarioId, accountId) {
-  const appData = await readAppData();
-  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-  
-  if (scenarioIndex === -1) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
-  
-  const scenario = appData.scenarios[scenarioIndex];
-  
-  // Cascade delete: Remove all planned transactions that reference this account
-  if (scenario.plannedTransactions) {
-    const transactionsToDelete = scenario.plannedTransactions.filter(tx => 
-      (tx.debitAccount && tx.debitAccount.id === accountId) ||
-      (tx.creditAccount && tx.creditAccount.id === accountId)
-    );
-    
-    if (transactionsToDelete.length > 0) {
-      console.log(`[DataManager] Cascade deleting ${transactionsToDelete.length} planned transaction(s) referencing account ${accountId}`);
-      scenario.plannedTransactions = scenario.plannedTransactions.filter(tx => 
-        !(tx.debitAccount && tx.debitAccount.id === accountId) &&
-        !(tx.creditAccount && tx.creditAccount.id === accountId)
+  // Run as a transaction to avoid race conditions
+  await transaction(async (appData) => {
+    const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
+    if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
+
+    const scenario = appData.scenarios[scenarioIndex];
+
+    // Cascade delete: Remove all planned transactions that reference this account
+    if (scenario.plannedTransactions) {
+      const accountIdNum = Number(accountId);
+      const transactionsToDelete = scenario.plannedTransactions.filter(tx => 
+        (tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) ||
+        (tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
       );
+      if (transactionsToDelete.length > 0) {
+        scenario.plannedTransactions = scenario.plannedTransactions.filter(tx => 
+          !(tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) &&
+          !(tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
+        );
+      }
     }
-  }
-  
-  // Delete the account
-  scenario.accounts = scenario.accounts.filter(a => a.id !== accountId);
-  console.log(`[DataManager] Deleted account ${accountId}`);
-  
-  await writeAppData(appData);
+
+    // Cascade delete: Remove all actual transactions that reference this account
+    if (scenario.actualTransactions) {
+      const accountIdNum = Number(accountId);
+      const transactionsToDelete = scenario.actualTransactions.filter(tx => 
+        (tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) ||
+        (tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
+      );
+      if (transactionsToDelete.length > 0) {
+        scenario.actualTransactions = scenario.actualTransactions.filter(tx => 
+          !(tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) &&
+          !(tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
+        );
+      }
+    }
+
+    // Delete the account
+    scenario.accounts = scenario.accounts.filter(a => a.id !== accountId);
+    return appData;
+  });
 }
 
 /**
@@ -299,28 +282,27 @@ export async function deleteAccount(scenarioId, accountId) {
  * @returns {Promise<void>}
  */
 export async function saveAccounts(scenarioId, accounts) {
-  const appData = await readAppData();
-  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-  
-  if (scenarioIndex === -1) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
-  
-  // Assign IDs to any accounts that don't have them
-  const validIds = accounts
-    .map(a => a.id)
-    .filter(id => id !== null && id !== undefined && typeof id === 'number');
-  let nextId = validIds.length > 0 ? Math.max(...validIds) + 1 : 1;
-  
-  const accountsWithIds = accounts.map(account => {
-    if (account.id === null || account.id === undefined || isNaN(account.id)) {
-      return { ...account, id: nextId++ };
-    }
-    return account;
+  // Serialize this through a transaction to ensure consistent ID generation
+  await transaction(async (appData) => {
+    const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
+    if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
+
+    // Assign IDs to any accounts that don't have them
+    const validIds = accounts
+      .map(a => a.id)
+      .filter(id => id !== null && id !== undefined && typeof id === 'number');
+    let nextId = validIds.length > 0 ? Math.max(...validIds) + 1 : 1;
+
+    const accountsWithIds = accounts.map(account => {
+      if (account.id === null || account.id === undefined || isNaN(account.id)) {
+        return { ...account, id: nextId++ };
+      }
+      return account;
+    });
+
+    appData.scenarios[scenarioIndex].accounts = accountsWithIds;
+    return appData;
   });
-  
-  appData.scenarios[scenarioIndex].accounts = accountsWithIds;
-  await writeAppData(appData);
 }
 
 // ============================================================================

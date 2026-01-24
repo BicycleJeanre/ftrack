@@ -10,6 +10,7 @@ import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
 import { openRecurrenceModal } from './modal-recurrence.js';
 import { openPeriodicChangeModal } from './modal-periodic-change.js';
+import { openTextInputModal } from './modal-text-input.js';
 import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
 import { createLogger } from './logger.js';
@@ -19,7 +20,6 @@ const logger = createLogger('ForecastController');
 import {
   getScenarios,
   getScenario,
-  createAccount,
   saveAccounts,
   savePlannedTransactions,
   saveActualTransactions,
@@ -261,16 +261,12 @@ async function buildScenarioGrid(container) {
         }
       ],
       rowSelectionChanged: async function(data, rows) {
-        logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
+        // logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
         if (rows.length > 0) {
           const scenario = rows[0].getData();
-          logger.info('Scenario selected:', scenario.id, scenario.name);
           currentScenario = await getScenario(scenario.id);
           selectedAccountId = null; // Clear selected account when switching scenarios
-          logger.info('Current scenario set to:', currentScenario.id);
-          logger.info('Loading scenario data...');
           await loadScenarioData();
-          logger.info('Scenario data loaded');
         }
       }
     });
@@ -279,12 +275,9 @@ async function buildScenarioGrid(container) {
     scenariosTable.on('rowSelected', async function(row){
       try {
         const scenario = row.getData();
-        logger.info('[ScenarioGrid] rowSelected handler executing:', scenario.id, scenario.name);
         currentScenario = await getScenario(scenario.id);
         selectedAccountId = null;
-        logger.info('[ScenarioGrid] Loading scenario data via rowSelected');
         await loadScenarioData();
-        logger.info('[ScenarioGrid] Scenario data loaded via rowSelected');
       } catch (err) {
         logger.error('[ScenarioGrid] rowSelected handler failed:', err);
       }
@@ -292,7 +285,6 @@ async function buildScenarioGrid(container) {
 
     // Attach direct event listeners to help debug selection behavior
     scenariosTable.on('rowClick', function(e, row) {
-      logger.info('[ScenarioGrid] rowClick:', row.getData().id, 'target=', e.target && e.target.tagName);
       // Ensure single-selection by deselecting others then selecting this row
       try {
         const table = row.getTable();
@@ -320,7 +312,6 @@ async function buildScenarioGrid(container) {
     });
 
     scenariosTable.on('rowSelected', function(row) {
-      logger.info('[ScenarioGrid] rowSelected:', row.getData().id);
       try {
         const table = row.getTable();
         const selected = table.getSelectedRows();
@@ -336,12 +327,9 @@ async function buildScenarioGrid(container) {
         try {
           const scenario = row.getData();
           if (currentScenario && currentScenario.id === scenario.id) return; // already set
-          logger.info('[ScenarioGrid] rowSelected handler executing:', scenario.id, scenario.name);
           currentScenario = await getScenario(scenario.id);
           selectedAccountId = null;
-          logger.info('[ScenarioGrid] Loading scenario data via rowSelected');
           await loadScenarioData();
-          logger.info('[ScenarioGrid] Scenario data loaded via rowSelected');
         } catch (err) {
           logger.error('[ScenarioGrid] rowSelected handler failed (delayed):', err);
         }
@@ -349,7 +337,6 @@ async function buildScenarioGrid(container) {
     });
 
     scenariosTable.on('rowDeselected', function(row) {
-      logger.info('[ScenarioGrid] rowDeselected:', row.getData().id);
     });
 
     // Attach cellEdited event handler
@@ -357,7 +344,6 @@ async function buildScenarioGrid(container) {
       const row = cell.getRow();
       const scenario = row.getData();
       
-      logger.info('Cell edited in scenario:', scenario.id);
       
       try {
         // Extract only the fields that should be saved (exclude Tabulator-specific fields)
@@ -370,11 +356,9 @@ async function buildScenarioGrid(container) {
           projectionPeriod: scenario.projectionPeriod
         };
         
-        console.log('[Forecast] Sending updates:', updates);
         
         // Update just the edited scenario
         await ScenarioManager.update(scenario.id, updates);
-        console.log('[Forecast] ✓ Scenario updated successfully');
       } catch (err) {
         console.error('[Forecast] ✗ Failed to save scenario:', err);
         alert('Failed to save scenario: ' + err.message);
@@ -428,7 +412,7 @@ function getScenarioTypeConfig() {
 function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
 
-  logger.debug(`[Transform] transformPlannedTxForUI - Processing ${plannedTxs.length} total transactions for account ${selIdNum}`);
+  // logger.debug(`[Transform] transformPlannedTxForUI - Processing ${plannedTxs.length} total transactions for account ${selIdNum}`);
 
   const result = plannedTxs.map((tx, index) => {
     if (!selIdNum) {
@@ -443,7 +427,6 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
     const mapped = mapTxToUI(tx, selIdNum);
     if (!mapped) return null;
 
-    console.log(`[Transform] TX ${index} (ID: ${tx.id}): ${mapped.transactionType.name}, Secondary: ${mapped.secondaryAccount?.name || 'NULL'}`);
 
     return {
       ...tx,
@@ -452,7 +435,6 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
     };
   }).filter(tx => tx !== null);
 
-  console.log(`[Transform] transformPlannedTxForUI - Output: ${result.length} filtered txs with IDs:`, result.map(tx => tx.id));
   return result;
 }
 
@@ -461,14 +443,8 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
  * back to backend format (debitAccount/creditAccount) relative to selected account
  */
 async function transformPlannedTxForBackend(tx, selectedAccountId) {
-  console.log(`[Transform] transformPlannedTxForBackend - Input TX (ID: ${tx.id}):`, { 
-    transactionType: tx.transactionType?.name, 
-    secondaryAccount: tx.secondaryAccount?.name,
-    amount: tx.amount
-  });
-  
-  // Skip transactions with missing required fields
-  if (!tx.transactionType || !tx.secondaryAccount || tx.amount == null || tx.amount === 0) {
+  // Skip transactions with missing required fields (allow zero amount)
+  if (!tx.transactionType || !tx.secondaryAccount || tx.amount == null) {
     console.warn('[Forecast] Skipping transaction with missing required fields');
     return null;
   }
@@ -476,21 +452,37 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
   const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Debit';
   
   // Get selected account details
-  const selectedAccount = currentScenario.accounts?.find(a => a.id === selectedAccountId);
+  const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
   const selectedAccountObj = selectedAccount 
-    ? { id: selectedAccount.id, name: selectedAccount.name }
-    : { id: selectedAccountId, name: 'Unknown Account' };
+    ? { id: selectedAccount.id }
+    : { id: selectedAccountId };
   
-  // Resolve secondary account - if id is null, look up by name or create new account
+  // Resolve secondary account - accept object, id=null placeholder, or string name
   let secondaryAccountObj = tx.secondaryAccount;
   
-  if (secondaryAccountObj && secondaryAccountObj.id === null && secondaryAccountObj.name) {
+  if (typeof secondaryAccountObj === 'string') {
+    // lookup or create if string provided
+    const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj);
+    if (foundAccount) {
+      secondaryAccountObj = { id: foundAccount.id };
+    } else {
+      const newAccount = await AccountManager.create(currentScenario.id, {
+        name: secondaryAccountObj,
+        type: { id: 1, name: 'Asset' },
+        currency: { id: 1, name: 'ZAR' },
+        balance: 0,
+        openDate: new Date().toISOString().slice(0, 10),
+        periodicChange: null
+      });
+      currentScenario = await getScenario(currentScenario.id);
+      secondaryAccountObj = { id: newAccount.id };
+    }
+  } else if (secondaryAccountObj && secondaryAccountObj.id === null && secondaryAccountObj.name) {
     const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj.name);
     if (foundAccount) {
-      secondaryAccountObj = { id: foundAccount.id, name: foundAccount.name };
+      secondaryAccountObj = { id: foundAccount.id };
     } else {
       // Account doesn't exist - create it
-      console.log(`[Forecast] Creating new account: ${secondaryAccountObj.name}`);
       const newAccount = await createAccount(currentScenario.id, {
         name: secondaryAccountObj.name,
         type: { id: 1, name: 'Asset' }, // Default to Asset type
@@ -503,7 +495,7 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
       // Reload scenario to get the updated accounts list
       currentScenario = await getScenario(currentScenario.id);
       
-      secondaryAccountObj = { id: newAccount.id, name: newAccount.name };
+      secondaryAccountObj = { id: newAccount.id };
     }
   }
   
@@ -517,12 +509,6 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
     fromAccount: undefined,
     toAccount: undefined
   };
-  
-  console.log(`[Transform] transformPlannedTxForBackend - Output TX (ID: ${result.id}):`, {
-    debitAccount: result.debitAccount?.name,
-    creditAccount: result.creditAccount?.name,
-    amount: result.amount
-  });
   
   return result;
 }
@@ -577,8 +563,8 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
   // Get selected account details
   const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
   const selectedAccountObj = selectedAccount 
-    ? { id: selectedAccount.id, name: selectedAccount.name }
-    : { id: selectedAccountId, name: 'Unknown Account' };
+    ? { id: selectedAccount.id }
+    : { id: selectedAccountId };
   
   // Resolve secondary account - if id is null, look up by name or create new account
   let secondaryAccountObj = null;
@@ -587,7 +573,7 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
   if (!tx.secondaryAccount || !tx.secondaryAccount.name) {
     const otherAccounts = currentScenario.accounts?.filter(a => a.id !== Number(selectedAccountId)) || [];
     if (otherAccounts.length > 0) {
-      secondaryAccountObj = { id: otherAccounts[0].id, name: otherAccounts[0].name };
+      secondaryAccountObj = { id: otherAccounts[0].id };
     } else {
       console.warn('[Forecast] No available secondary account, skipping transaction');
       return null;
@@ -599,10 +585,9 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
   if (secondaryAccountObj && secondaryAccountObj.id === null && secondaryAccountObj.name) {
     const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj.name);
     if (foundAccount) {
-      secondaryAccountObj = { id: foundAccount.id, name: foundAccount.name };
+      secondaryAccountObj = { id: foundAccount.id };
     } else {
       // Account doesn't exist - create it
-      console.log(`[Forecast] Creating new account: ${secondaryAccountObj.name}`);
       const newAccount = await createAccount(currentScenario.id, {
         name: secondaryAccountObj.name,
         type: { id: 1, name: 'Asset' }, // Default to Asset type
@@ -615,7 +600,7 @@ async function transformActualTxForBackend(tx, selectedAccountId) {
       // Reload scenario to get the updated accounts list
       currentScenario = await getScenario(currentScenario.id);
       
-      secondaryAccountObj = { id: newAccount.id, name: newAccount.name };
+      secondaryAccountObj = { id: newAccount.id };
     }
   }
   
@@ -636,11 +621,9 @@ async function loadAccountsGrid(container) {
     return;
   }
 
-  logger.info('[Forecast] loadAccountsGrid: Loading for scenario', currentScenario.id, currentScenario.name);
 
   const typeConfig = getScenarioTypeConfig();
   if (!typeConfig || !typeConfig.showAccounts) {
-    logger.info('[Forecast] loadAccountsGrid: Type config does not show accounts');
     container.innerHTML = '';
     return;
   }
@@ -649,7 +632,7 @@ async function loadAccountsGrid(container) {
 
   try {
     const accounts = await AccountManager.getAll(currentScenario.id);
-    logger.info('[Forecast] loadAccountsGrid: Loaded', accounts.length, 'accounts');
+    const displayAccounts = accounts.filter(a => a.name !== 'Select Account');
     const fs = window.require('fs').promises;
     const lookupPath = getSchemaPath('lookup-data.json');
     const lookupFile = await fs.readFile(lookupPath, 'utf8');
@@ -684,7 +667,7 @@ async function loadAccountsGrid(container) {
     window.add(container, gridContainer);
 
     const accountsTable = createGrid(gridContainer, {
-      data: accounts,
+      data: displayAccounts,
       selectable: 1, // Enable built-in single selection
       columns: [
         {
@@ -697,6 +680,8 @@ async function loadAccountsGrid(container) {
             if (confirm(`Delete account: ${rowData.name}?`)) {
               await AccountManager.remove(currentScenario.id, rowData.id);
               await loadAccountsGrid(container);
+              await loadPlannedTransactionsGrid(document.getElementById('plannedTransactionsTable'));
+              await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
             }
           }
         },
@@ -724,11 +709,10 @@ async function loadAccountsGrid(container) {
         }
 
         await AccountManager.update(currentScenario.id, account.id, account);
-        logger.info('[Forecast] ✓ Account updated:', account.name);
       },
       rowSelectionChanged: async function(data, rows) {
         // Log raw event
-        logger.debug('[Forecast] rowSelectionChanged fired. Length:', rows.length);
+        // logger.debug('[Forecast] rowSelectionChanged fired. Length:', rows.length);
         try {
           const table = this;
           const selected = table.getSelectedRows();
@@ -744,7 +728,6 @@ async function loadAccountsGrid(container) {
         
         if (rows.length > 0) {
           const account = rows[0].getData();
-          logger.info('[Forecast] Account selected:', account.name, account.id);
           if (selectedAccountId !== account.id) {
              selectedAccountId = account.id;
              // Debounce reloads slightly to avoid re-render conflicts
@@ -754,11 +737,9 @@ async function loadAccountsGrid(container) {
                // Also refresh Projections as they might depend on the account filter (future proofing)
                await loadProjectionsSection(document.getElementById('projectionsContent'));
              }, 40);
-             logger.info('[Forecast] loadPlannedTransactionsGrid scheduled for account', selectedAccountId);
           }
         } else {
           // No account selected
-          logger.info('[Forecast] Account deselected');
           selectedAccountId = null;
           // Clear downstream grids
           document.getElementById('plannedTransactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
@@ -769,7 +750,6 @@ async function loadAccountsGrid(container) {
 
     // Enforce single selection and provide fallback selection on click for accounts
     accountsTable.on('rowClick', function(e, row) {
-      logger.info('[AccountsGrid] rowClick:', row.getData().id, 'target=', e.target && e.target.tagName);
       try {
         const table = row.getTable();
         if (row.isSelected()) {
@@ -809,7 +789,6 @@ async function loadAccountsGrid(container) {
     accountsTable.on("rowSelected", function(row) {
       try {
         const account = row.getData();
-        logger.info('[AccountsGrid] fallback rowSelected handler:', account.id);
         if (selectedAccountId !== account.id) {
           selectedAccountId = account.id;
           setTimeout(async () => {
@@ -817,7 +796,6 @@ async function loadAccountsGrid(container) {
             await loadActualTransactionsGrid(document.getElementById('actualTransactionsTable'));
             await loadProjectionsSection(document.getElementById('projectionsContent'));
           }, 40);
-          logger.info('[Forecast] loadPlannedTransactionsGrid scheduled (fallback) for account', selectedAccountId);
         }
       } catch (e) { logger.error('[AccountsGrid] fallback rowSelected handler error:', e); }
     });
@@ -826,7 +804,6 @@ async function loadAccountsGrid(container) {
       try {
         const remaining = accountsTable.getSelectedRows();
         if (!remaining || remaining.length === 0) {
-          logger.info('[AccountsGrid] fallback rowDeselected: clearing selection');
           selectedAccountId = null;
           document.getElementById('plannedTransactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
           document.getElementById('actualTransactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
@@ -844,7 +821,6 @@ async function loadAccountsGrid(container) {
 async function loadPlannedTransactionsGrid(container) {
   if (!currentScenario) return;
 
-  logger.info('[Forecast] loadPlannedTransactionsGrid: selectedAccountId=', selectedAccountId, 'type=', typeof selectedAccountId);
 
   const typeConfig = getScenarioTypeConfig();
   if (!typeConfig || !typeConfig.showPlannedTransactions) {
@@ -880,12 +856,27 @@ async function loadPlannedTransactionsGrid(container) {
   addButton.className = 'btn btn-primary btn-add';
   addButton.textContent = '+ Add New';
   addButton.addEventListener('click', async () => {
+    // Ensure "Select Account" placeholder exists
+    let selectAccount = currentScenario.accounts?.find(a => a.name === 'Select Account');
+    if (!selectAccount) {
+      selectAccount = await AccountManager.create(currentScenario.id, {
+        name: 'Select Account',
+        type: { id: 1, name: 'Asset' },
+        currency: { id: 1, name: 'ZAR' },
+        balance: 0,
+        openDate: new Date().toISOString().slice(0, 10),
+        periodicChange: null
+      });
+      // Reload scenario to include the new account
+      currentScenario = await getScenario(currentScenario.id);
+    }
+
     // Add a new blank row to the grid
     if (plannedTxTable) {
       const newTx = {
         id: Date.now(), // Temporary ID
         transactionType: { id: 1, name: 'Debit' },
-        secondaryAccount: currentScenario.accounts?.[0] || null,
+        secondaryAccount: selectAccount,
         amount: 0,
         description: '',
         recurrence: null,
@@ -899,19 +890,25 @@ async function loadPlannedTransactionsGrid(container) {
       if (newTx.transactionType?.name === 'Debit') {
         debitAccount = selIdNumLocal 
           ? currentScenario.accounts.find(a => a.id === selIdNumLocal)
-          : currentScenario.accounts?.[0];
+          : currentScenario.accounts?.find(a => a.name !== 'Select Account') || currentScenario.accounts?.[0];
         creditAccount = newTx.secondaryAccount;
       } else {
         debitAccount = newTx.secondaryAccount;
         creditAccount = selIdNumLocal 
           ? currentScenario.accounts.find(a => a.id === selIdNumLocal)
-          : currentScenario.accounts?.[0];
+          : currentScenario.accounts?.find(a => a.name !== 'Select Account') || currentScenario.accounts?.[0];
       }
-      
+
+      // Validate: debit and credit accounts must be different
+      if (!debitAccount || !creditAccount || debitAccount.id === creditAccount.id) {
+        alert('Invalid transaction: Debit and credit accounts must be different.');
+        return;
+      }
+
       const backendTx = {
         id: newTx.id,
-        debitAccount,
-        creditAccount,
+        debitAccount: { id: debitAccount.id },
+        creditAccount: { id: creditAccount.id },
         amount: 0,
         description: '',
         recurrence: null,
@@ -925,7 +922,6 @@ async function loadPlannedTransactionsGrid(container) {
       
       // Add to grid
       plannedTxTable.addRow(newTx, true); // true = add to top
-      console.log('[Forecast] ✓ New planned transaction added');
     }
   });
   window.add(addButtonContainer, addButton);
@@ -940,11 +936,9 @@ async function loadPlannedTransactionsGrid(container) {
   try {
     // Get planned transactions for this scenario
     const allTransactions = await TransactionManager.getAllPlanned(currentScenario.id);
-    logger.info('[Forecast] loadPlannedTransactionsGrid: got planned transactions', allTransactions.length);
     
     // Use centralized transformer to filter and map transactions consistently
     const transformedData = transformPlannedTxForUI(allTransactions, selectedAccountId);
-    logger.info('[Forecast] loadPlannedTransactionsGrid: transformed transactions count', transformedData.length);
 
     plannedTxTable = createGrid(gridContainer, {
       data: transformedData,
@@ -967,7 +961,6 @@ async function loadPlannedTransactionsGrid(container) {
               
               // Remove from grid
               row.delete();
-              console.log('[Forecast] ✓ Planned transaction deleted');
             }
           }
         },
@@ -1006,16 +999,7 @@ async function loadPlannedTransactionsGrid(container) {
           title: "Secondary Account",
           field: "secondaryAccount",
           widthGrow: 2,
-          editor: "list",
-          editorParams: {
-            values: (currentScenario.accounts || []).map(a => ({ 
-              label: a.name, 
-              value: a 
-            })),
-            listItemFormatter: function(value, title) {
-              return title;
-            }
-          },
+          ...createListEditor((currentScenario.accounts || []).filter(a => a.name !== 'Select Account'), { creatable: true, createLabel: 'Insert New Account...' }),
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -1033,6 +1017,7 @@ async function loadPlannedTransactionsGrid(container) {
           headerFilterPlaceholder: "Filter...",
           headerHozAlign: "left"
         },
+
         createMoneyColumn('Amount', 'amount', { widthGrow: 1, editor: "number", editorParams: { step: 0.01 } }),
         createTextColumn('Description', 'description', { widthGrow: 2, editor: "input" }),
         {
@@ -1080,7 +1065,6 @@ async function loadPlannedTransactionsGrid(container) {
               const updatedTxs = allTxs.map(tx => tx.id === backendTx.id ? backendTx : tx);
               
               await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
-              console.log('[Forecast] ✓ Recurrence updated');
             });
           },
           headerSort: false,
@@ -1091,53 +1075,84 @@ async function loadPlannedTransactionsGrid(container) {
     
     // Log when table finishes building and how many rows it has
     plannedTxTable.on('tableBuilt', function(){
-      logger.info('[Forecast] plannedTxTable built. Rows:', plannedTxTable.getData().length);
     });
 
     // Also attach rowClick/selection handlers similar to other grids
     plannedTxTable.on('rowClick', function(e, row){
-      logger.info('[PlannedTx] rowClick:', row.getData().id);
     });
 
     plannedTxTable.on('rowSelected', function(row){
-      logger.info('[PlannedTx] rowSelected:', row.getData().id);
     });
 
-    // Re-apply data now that table exists (in case of deferred load)
-    plannedTxTable.setData(transformedData);
 
     // Attach cellEdited event handler
     plannedTxTable.on("cellEdited", async function(cell) {
       const row = cell.getRow();
-      const uiTx = row.getData();
-      
-      // Transform back to backend format
-      let debitAccount, creditAccount;
-      if (uiTx.transactionType?.name === 'Debit') {
-        debitAccount = currentScenario.accounts.find(a => a.id === selIdNum);
-        creditAccount = uiTx.secondaryAccount;
-      } else {
-        debitAccount = uiTx.secondaryAccount;
-        creditAccount = currentScenario.accounts.find(a => a.id === selIdNum);
+
+      // Handle sentinel 'create new' selection for secondaryAccount
+      if (cell.getField() === 'secondaryAccount') {
+        const val = cell.getValue();
+        if (val && val.__create__) {
+          // Use modal input (prompt is unsupported in electron renderer)
+          openTextInputModal('Create New Account', '', 'Account name', async (name) => {
+            try {
+                const newAccount = await AccountManager.create(currentScenario.id, {
+                name: name,
+                type: null,
+                currency: null,
+                balance: 0
+              });
+
+              // Reload scenario and accounts grid so data is consistent everywhere
+              currentScenario = await getScenario(currentScenario.id);
+              try { await loadAccountsGrid(document.getElementById('accountsTable')); } catch (e) { logger.error('[PlannedTx] Failed to reload accounts grid after create', e); }
+
+              // Update the row with the real account object
+              row.update({ secondaryAccount: newAccount });
+
+              // Persist the transaction immediately using the backend transformer to ensure both sides exist
+              try {
+                const updatedUiTx = row.getData();
+                const backendTx = await transformPlannedTxForBackend(updatedUiTx, selectedAccountId);
+                if (backendTx) {
+                  const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
+                  let updatedTxs = allTxs.map(tx => tx.id === backendTx.id ? backendTx : tx);
+                  // If the transaction is new and not in the list, add it
+                  if (!updatedTxs.some(tx => tx.id === backendTx.id)) {
+                    updatedTxs.push(backendTx);
+                  }
+                  await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
+                }
+              } catch (err) {
+                logger.error('[PlannedTx] Failed to save planned transaction after creating account:', err);
+              }
+
+            } catch (err) {
+              logger.error('[PlannedTx] Failed to create new account from sentinel (modal):', err);
+              row.update({ secondaryAccount: null });
+            }
+          });
+
+          return; // Wait for the next cellEdited invocation to continue save flow
+        }
       }
 
-      const backendTx = {
-        id: uiTx.id,
-        debitAccount,
-        creditAccount,
-        amount: parseFloat(uiTx.amount) || 0,
-        description: uiTx.description || '',
-        recurrence: uiTx.recurrence || null,
-        periodicChange: uiTx.periodicChange || null,
-        tags: uiTx.tags || []
-      };
+      try {
+        const uiTx = row.getData();
 
-      // Get all transactions, update this one, save all
-      const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
-      const updatedTxs = allTxs.map(tx => tx.id === backendTx.id ? backendTx : tx);
-      
-      await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
-      console.log('[Forecast] ✓ Planned transaction updated');
+        // Reuse centralized transform which handles creating secondary accounts or resolving strings
+        const backendTx = await transformPlannedTxForBackend(uiTx, selectedAccountId);
+        if (!backendTx) {
+          logger.warn('[PlannedTx] Skipping save: transformPlannedTxForBackend returned null');
+          return;
+        }
+
+        const allTxs = await TransactionManager.getAllPlanned(currentScenario.id);
+        const updatedTxs = allTxs.map(tx => tx.id === backendTx.id ? backendTx : tx);
+        await TransactionManager.savePlanned(currentScenario.id, updatedTxs);
+      } catch (err) {
+        logger.error('[PlannedTx] Failed to persist planned transaction after edit:', err);
+      }
     });
 
   } catch (err) {
@@ -1290,7 +1305,6 @@ async function loadActualTransactionsGrid(container) {
                 actualDate: newActual.actualDate,
                 variance: newActual.amount - rowData.plannedAmount
               });
-              console.log('[Forecast] ✓ Actual transaction created');
             } else {
               // Unmark - delete actual transaction
               const allActual = await TransactionManager.getAllActual(currentScenario.id);
@@ -1385,7 +1399,6 @@ async function loadActualTransactionsGrid(container) {
 
         // Only save if transaction is marked as executed and has an actual id
         if (!rowData.executed || !rowData.actualId) {
-          console.log('[Forecast] Cannot edit non-executed transaction');
           return;
         }
 
@@ -1417,7 +1430,6 @@ async function loadActualTransactionsGrid(container) {
         const variance = updatedActual.amount - rowData.plannedAmount;
         row.update({ variance });
 
-        console.log('[Forecast] ✓ Actual transaction updated');
       }
     });
 
@@ -1488,9 +1500,7 @@ async function loadProjectionsSection(container) {
     if (selectedAccountId) {
       const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
       headerText = `Projections - ${selectedAccount?.name || 'Unknown Account'}`;
-      console.log('[Forecast] Setting accordion header:', headerText);
     } else {
-      console.log('[Forecast] No selectedAccountId, showing default header');
     }
     accordionHeader.innerHTML = `<h2 class="text-main">${headerText}</h2><span class="accordion-arrow">&#9662;</span>`;
   }
@@ -1517,7 +1527,6 @@ async function loadProjectionsGrid(container) {
       ? (currentScenario.projections || []).filter(p => p.accountId === selectedAccountId)
       : currentScenario.projections || [];
 
-    console.log(`[Forecast] Projections filtered: ${filteredProjections.length} of ${currentScenario.projections?.length || 0} for account ${selectedAccountId}`);
 
     if (filteredProjections.length === 0) {
       const emptyMsg = document.createElement('p');
@@ -1696,7 +1705,6 @@ function initializeKeyboardShortcuts() {
 
   document.addEventListener('shortcut:save', async () => {
     // Save is automatic on cell edit, so just show feedback
-    console.log('[Shortcuts] Changes are auto-saved on edit');
   });
 
   // Add visual indicator for keyboard shortcuts

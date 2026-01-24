@@ -2,6 +2,7 @@
 // Business logic for account operations within scenarios
 
 import * as DataStore from '../core/data-store.js';
+import { deleteAccount } from '../data-manager.js';
 
 /**
  * Get all accounts for a scenario
@@ -134,14 +135,5 @@ export async function update(scenarioId, accountId, updates) {
  * @returns {Promise<void>}
  */
 export async function remove(scenarioId, accountId) {
-    return await DataStore.transaction(async (data) => {
-        const scenario = data.scenarios.find(s => s.id === scenarioId);
-        
-        if (!scenario) {
-            throw new Error(`Scenario ${scenarioId} not found`);
-        }
-        
-        scenario.accounts = scenario.accounts.filter(a => a.id !== accountId);
-        return data;
-    });
+    return await deleteAccount(scenarioId, accountId);
 }

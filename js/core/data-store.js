@@ -5,7 +5,10 @@
 import { getAppDataPath } from '../app-paths.js';
 
 const fs = window.require('fs').promises;
+const path = window.require('path');
 const dataPath = getAppDataPath();
+let writeQueue = Promise.resolve(); // serialize writes to avoid concurrent truncation
+let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
 
 /**
  * Read the entire app-data.json file
@@ -14,6 +17,7 @@ const dataPath = getAppDataPath();
 export async function read() {
     try {
         const dataFile = await fs.readFile(dataPath, 'utf8');
+        if (!dataFile || dataFile.trim() === '') return { scenarios: [] };
         return JSON.parse(dataFile);
     } catch (err) {
         console.error('[DataStore] Failed to read app-data.json:', err);
@@ -27,13 +31,21 @@ export async function read() {
  * @returns {Promise<void>}
  */
 export async function write(data) {
-    try {
-        await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
-        console.log('[DataStore] Data saved successfully');
-    } catch (err) {
-        console.error('[DataStore] Failed to write app-data.json:', err);
-        throw err;
-    }
+    // Serialize writes through a promise chain and use atomic write (temp file + rename)
+    writeQueue = writeQueue.then(async () => {
+        const tmpPath = dataPath + '.tmp';
+        try {
+            await fs.writeFile(tmpPath, JSON.stringify(data, null, 2), 'utf8');
+            await fs.rename(tmpPath, dataPath);
+            // console.log('[DataStore] Data saved successfully');
+        } catch (err) {
+            console.error('[DataStore] Failed to write app-data.json atomically:', err);
+            // try to cleanup temp file
+            try { await fs.unlink(tmpPath); } catch (e) { /* ignore */ }
+            throw err;
+        }
+    });
+    return writeQueue;
 }
 
 /**
@@ -85,8 +97,12 @@ export async function update(path, value) {
  * @returns {Promise<Object>} - The modified data
  */
 export async function transaction(modifyFn) {
-    const data = await read();
-    const modified = await modifyFn(data);
-    await write(modified);
-    return modified;
+    // Ensure transactions happen sequentially to avoid race conditions when generating new IDs
+    transactionQueue = transactionQueue.then(async () => {
+        const data = await read();
+        const modified = await modifyFn(data);
+        await write(modified);
+        return modified;
+    });
+    return transactionQueue;
 }
