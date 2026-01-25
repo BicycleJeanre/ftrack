@@ -1,9 +1,9 @@
-# Budget / Projection Requirements (Budget-first snapshot flow)
+# Budget / Projection snapshot Requirements 
 
-1. When a projection is created, the user is offered an option to "Save snapshot".
-   - The snapshot is tied to the scenario type and for now should be created as a `Budget` when the scenario type is Budget.
+1. When a projection is created, the user is offered an option to "Save as `budget` (or whatever scenario type is selected)".
+   - The snapshot is tied to the scenario type and should be created as a `Budget` when the scenario type is Budget.
 
-2. The saved snapshot (`Budget`) becomes the editable, working dataset for planning.
+2. The saved snapshot (`Budget`) becomes an editable, working dataset for planning.
    - Users may edit occurrences (amount, date adjustments, secondary account, description) directly on the `Budget`.
    - The `Budget` stores occurrence-level overrides and optional actuals per occurrence.
 
