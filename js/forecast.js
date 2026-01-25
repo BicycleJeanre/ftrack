@@ -130,6 +130,26 @@ function buildGridContainer() {
   `;
   window.add(actualTxContent, actualPeriodSelector);
   
+  // Summary totals for actual transactions (moved above grid)
+  const actualSummary = document.createElement('div');
+  actualSummary.id = 'actualTransactionsSummary';
+  actualSummary.className = 'transaction-summary';
+  actualSummary.innerHTML = `
+    <div class="summary-row">
+      <span class="summary-label">Planned Totals:</span>
+      <span class="summary-value" id="planned-credits">Credits: R0.00</span>
+      <span class="summary-value" id="planned-debits">Debits: R0.00</span>
+      <span class="summary-value" id="planned-balance">Balance: R0.00</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Actual Totals:</span>
+      <span class="summary-value" id="actual-credits">Credits: R0.00</span>
+      <span class="summary-value" id="actual-debits">Debits: R0.00</span>
+      <span class="summary-value" id="actual-balance">Balance: R0.00</span>
+    </div>
+  `;
+  window.add(actualTxContent, actualSummary);
+  
   const actualTransactionsTable = document.createElement('div');
   actualTransactionsTable.id = 'actualTransactionsTable';
   window.add(actualTxContent, actualTransactionsTable);
@@ -1528,6 +1548,48 @@ async function loadActualTransactionsGrid(container) {
 
       }
     });
+
+    // Calculate and display totals
+    const plannedCredits = combinedData.reduce((sum, row) => {
+      if (row.transactionType?.name === 'Credit') {
+        return sum + (parseFloat(row.plannedAmount) || 0);
+      }
+      return sum;
+    }, 0);
+    const plannedDebits = combinedData.reduce((sum, row) => {
+      if (row.transactionType?.name === 'Debit') {
+        return sum + (parseFloat(row.plannedAmount) || 0);
+      }
+      return sum;
+    }, 0);
+    const plannedBalance = plannedCredits - plannedDebits;
+
+    const actualCredits = combinedData.reduce((sum, row) => {
+      if (row.transactionType?.name === 'Credit') {
+        return sum + (parseFloat(row.actualAmount) || 0);
+      }
+      return sum;
+    }, 0);
+    const actualDebits = combinedData.reduce((sum, row) => {
+      if (row.transactionType?.name === 'Debit') {
+        return sum + (parseFloat(row.actualAmount) || 0);
+      }
+      return sum;
+    }, 0);
+    const actualBalance = actualCredits - actualDebits;
+
+    // Update summary elements
+    const formatCurrency = (value) => {
+      const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(value);
+      const cls = value >= 0 ? 'status-netchange positive' : 'status-netchange negative';
+      return `<span class="${cls}">${formatted}</span>`;
+    };
+    document.getElementById('planned-credits').innerHTML = `Credits: ${formatCurrency(plannedCredits)}`;
+    document.getElementById('planned-debits').innerHTML = `Debits: ${formatCurrency(-plannedDebits)}`;
+    document.getElementById('planned-balance').innerHTML = `Balance: ${formatCurrency(plannedBalance)}`;
+    document.getElementById('actual-credits').innerHTML = `Credits: ${formatCurrency(actualCredits)}`;
+    document.getElementById('actual-debits').innerHTML = `Debits: ${formatCurrency(-actualDebits)}`;
+    document.getElementById('actual-balance').innerHTML = `Balance: ${formatCurrency(actualBalance)}`;
 
   } catch (err) {
     console.error('[Forecast] Failed to load actual transactions grid:', err);

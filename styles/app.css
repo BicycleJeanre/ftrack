@@ -287,6 +287,39 @@ p {
 .accounts-grid { max-height: 280px; }
 .planned-grid { max-height: 350px; }
 
+/* Transaction summary styles */
+.transaction-summary {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary);
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.summary-label {
+  font-weight: bold;
+  color: var(--text-main);
+  flex: 1;
+}
+
+.summary-value {
+  color: var(--text-main);
+  margin-left: 16px;
+  min-width: 120px;
+  text-align: right;
+}
+
 /* Add button styles moved from inline */
 .btn-add { margin-bottom: 12px; padding: 10px 20px; font-size: 0.95em; font-weight: 600; min-width: 140px; border: 2px solid var(--primary); border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
 .btn-add:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
