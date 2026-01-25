@@ -27,6 +27,5 @@ migrate-to-scenarios.js
 test-calculations.js
 
 # Ignore user data and sensitive files
-assets/app-data.json
-userData/
+
 *.json.bak
