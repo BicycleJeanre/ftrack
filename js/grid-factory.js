@@ -24,6 +24,7 @@ const defaultConfig = {
     rowHeight: 42,
     headerVisible: true,
     headerFilterPlaceholder: "Filter...",
+    headerWordWrap: true,
     
     // Keyboard navigation enabled
     keybindings: {

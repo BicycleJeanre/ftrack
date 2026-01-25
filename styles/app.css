@@ -527,6 +527,8 @@ input[type="checkbox"] {
   background: var(--tabulator-header-bg) !important;
   color: var(--tabulator-text) !important;
   border-color: var(--tabulator-border) !important;
+  white-space: normal !important; /* Enable word wrapping in headers */
+  word-wrap: break-word !important;
 }
 
 .tabulator .tabulator-calcs,
@@ -761,15 +763,22 @@ body .tabulator .tabulator-footer .tabulator-col {
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-primary);
   font-weight: 600;
+  padding: 0; /* Remove any default padding from header */
 }
 
 .tabulator .tabulator-header .tabulator-col {
   border-right: 1px solid var(--border-primary);
   background: var(--bg-tertiary);
+  padding: 2px 4px; /* Minimal padding */
+  height: auto; /* Allow height to adjust to content */
+  white-space: normal; /* Enable word wrapping */
+  word-wrap: break-word;
+  box-sizing: border-box;
 }
 
-.tabulator .tabulator-header .tabulator-col:hover {
-  background: var(--bg-hover);
+.tabulator .tabulator-header .tabulator-col .tabulator-col-content {
+  padding: 0; /* Minimal padding for tight layout */
+  box-sizing: border-box;
 }
 
 .tabulator .tabulator-tableholder .tabulator-table {
