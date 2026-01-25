@@ -88,8 +88,7 @@ export async function createScenario(scenarioData) {
     startDate: scenarioData.startDate || formatDateOnly(new Date()),
     endDate: scenarioData.endDate || null,
     accounts: [],
-    plannedTransactions: [],
-    actualTransactions: [],
+    transactions: [],
     projections: [],
     ...scenarioData
   };
@@ -311,58 +310,56 @@ export async function saveAccounts(scenarioId, accounts) {
 // ============================================================================
 
 /**
- * Get all planned transactions for a scenario
+ * Get all transactions for a scenario
  * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of planned transactions
+ * @returns {Promise<Array>} - Array of transactions
  */
-export async function getPlannedTransactions(scenarioId) {
+export async function getTransactions(scenarioId) {
   const scenario = await getScenario(scenarioId);
-  return scenario ? scenario.plannedTransactions || [] : [];
+  return scenario ? scenario.transactions || [] : [];
 }
 
 /**
- * Create a new planned transaction in a scenario
+ * Create a new transaction in a scenario
  * @param {number} scenarioId - The scenario ID
  * @param {Object} transactionData - The transaction data
  * @returns {Promise<Object>} - The created transaction
  */
-export async function createPlannedTransaction(scenarioId, transactionData) {
+export async function createTransaction(scenarioId, transactionData) {
   const appData = await readAppData();
   const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-  
+
   if (scenarioIndex === -1) {
     throw new Error(`Scenario ${scenarioId} not found`);
   }
-  
+
   const scenario = appData.scenarios[scenarioIndex];
-  if (!scenario.plannedTransactions) {
-    scenario.plannedTransactions = [];
+  if (!scenario.transactions) {
+    scenario.transactions = [];
   }
-  
+
   // Generate new ID
-  const maxId = scenario.plannedTransactions.length > 0 
-    ? Math.max(...scenario.plannedTransactions.map(t => t.id)) 
+  const maxId = scenario.transactions.length > 0
+    ? Math.max(...scenario.transactions.map(t => t.id))
     : 0;
-  
+
   const newTransaction = {
     id: maxId + 1,
+    status: 'planned', // Default to planned
     debitAccount: transactionData.debitAccount || null,
     creditAccount: transactionData.creditAccount || null,
     amount: transactionData.amount || 0,
     description: transactionData.description || '',
-    recurrence: transactionData.recurrence || {
-      recurrenceType: 'Monthly - Day of Month',
-      startDate: formatDateOnly(new Date()),
-      dayOfMonth: 1
-    },
+    effectiveDate: transactionData.effectiveDate || formatDateOnly(new Date()),
+    recurrence: transactionData.recurrence || null,
     periodicChange: transactionData.periodicChange || null,
     tags: transactionData.tags || [],
     ...transactionData
   };
-  
-  scenario.plannedTransactions.push(newTransaction);
+
+  scenario.transactions.push(newTransaction);
   await writeAppData(appData);
-  
+
   return newTransaction;
 }
 

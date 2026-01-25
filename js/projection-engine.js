@@ -23,7 +23,7 @@ export async function generateProjections(scenarioId, options = {}) {
   }
   
   const accounts = scenario.accounts || [];
-  const plannedTransactions = scenario.plannedTransactions || [];
+  const plannedTransactions = (scenario.transactions || []).filter(tx => tx.status === 'planned');
   
   // Parse projection window
   const startDate = parseDateOnly(scenario.startDate);

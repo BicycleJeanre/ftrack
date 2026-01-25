@@ -48,8 +48,7 @@ export async function create(scenarioData) {
             endDate: scenarioData.endDate || null,
             projectionPeriod: scenarioData.projectionPeriod || { id: 3, name: 'Month' },
             accounts: [],
-            plannedTransactions: [],
-            actualTransactions: [],
+            transactions: [],
             projections: [],
             ...scenarioData
         };
@@ -122,8 +121,7 @@ export async function duplicate(scenarioId, newName) {
             id: maxId + 1,
             name: newName || `${sourceScenario.name} (Copy)`,
             accounts: [...sourceScenario.accounts],
-            plannedTransactions: [...sourceScenario.plannedTransactions],
-            actualTransactions: [],
+            transactions: [...(sourceScenario.transactions || [])],
             projections: []
         };
         

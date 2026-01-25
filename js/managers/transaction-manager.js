@@ -1,103 +1,65 @@
 // transaction-manager.js
-// Business logic for transaction operations (planned and actual)
+// Unified business logic for transaction operations
 
 import * as DataStore from '../core/data-store.js';
 
 /**
- * Get all planned transactions for a scenario
+ * Get all transactions for a scenario
  * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of planned transactions
+ * @returns {Promise<Array>} - Array of transactions
  */
-export async function getAllPlanned(scenarioId) {
+export async function getAll(scenarioId) {
     const data = await DataStore.read();
     const scenario = data.scenarios?.find(s => s.id === scenarioId);
-    return scenario?.plannedTransactions || [];
+    return scenario?.transactions || [];
 }
 
 /**
- * Save all planned transactions for a scenario
+ * Save all transactions for a scenario
  * @param {number} scenarioId - The scenario ID
- * @param {Array} transactions - Array of planned transaction objects
+ * @param {Array} transactions - Array of transaction objects
  * @returns {Promise<void>}
  */
-export async function savePlanned(scenarioId, transactions) {
+export async function saveAll(scenarioId, transactions) {
     return await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
-        
+
         if (scenarioIndex === -1) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
-        
+
         // Assign IDs to new transactions
         const maxId = transactions.length > 0 && transactions.some(t => t.id)
             ? Math.max(...transactions.filter(t => t.id).map(t => t.id))
             : 0;
-        
+
         let nextId = maxId + 1;
-        
-        data.scenarios[scenarioIndex].plannedTransactions = transactions.map(txn => {
+
+        data.scenarios[scenarioIndex].transactions = transactions.map(txn => {
             if (!txn.id || txn.id === 0) {
                 return { ...txn, id: nextId++ };
             }
             return txn;
         });
-        
+
         return data;
     });
 }
 
 /**
- * Get all actual transactions for a scenario
+ * Get transactions for a specific period
  * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of actual transactions
+ * @param {string} periodId - The period ID (or 'all' for all transactions)
+ * @returns {Promise<Array>} - Array of transactions
  */
-export async function getAllActual(scenarioId) {
-    const data = await DataStore.read();
-    const scenario = data.scenarios?.find(s => s.id === scenarioId);
-    return scenario?.actualTransactions || [];
-}
-
-/**
- * Get actual transactions for a specific period
- * @param {number} scenarioId - The scenario ID
- * @param {string} periodId - The period ID
- * @returns {Promise<Array>} - Array of actual transactions
- */
-export async function getActualByPeriod(scenarioId, periodId) {
-    const transactions = await getAllActual(scenarioId);
-    return transactions.filter(t => t.periodId === periodId);
-}
-
-/**
- * Save all actual transactions for a scenario
- * @param {number} scenarioId - The scenario ID
- * @param {Array} transactions - Array of actual transaction objects
- * @returns {Promise<void>}
- */
-export async function saveActual(scenarioId, transactions) {
-    return await DataStore.transaction(async (data) => {
-        const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
-        
-        if (scenarioIndex === -1) {
-            throw new Error(`Scenario ${scenarioId} not found`);
-        }
-        
-        // Assign IDs to new transactions
-        const maxId = transactions.length > 0 && transactions.some(t => t.id)
-            ? Math.max(...transactions.filter(t => t.id).map(t => t.id))
-            : 0;
-        
-        let nextId = maxId + 1;
-        
-        data.scenarios[scenarioIndex].actualTransactions = transactions.map(txn => {
-            if (!txn.id || txn.id === 0) {
-                return { ...txn, id: nextId++ };
-            }
-            return txn;
-        });
-        
-        return data;
-    });
+export async function getByPeriod(scenarioId, periodId) {
+    const transactions = await getAll(scenarioId);
+    if (periodId === 'all') {
+        return transactions;
+    }
+    // Filter by period - this would need to be implemented based on effectiveDate
+    // For now, return all transactions
+    return transactions;
 }
 
 /**

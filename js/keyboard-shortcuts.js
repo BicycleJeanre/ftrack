@@ -47,15 +47,11 @@ class KeyboardShortcuts {
             this.focusSection('accounts');
         });
 
-        this.register('ctrl+3', 'Focus Planned Transactions', () => {
-            this.focusSection('plannedTransactions');
+        this.register('ctrl+3', 'Focus Transactions', () => {
+            this.focusSection('transactions');
         });
 
-        this.register('ctrl+4', 'Focus Actual Transactions', () => {
-            this.focusSection('actualTransactions');
-        });
-
-        this.register('ctrl+5', 'Focus Projections', () => {
+        this.register('ctrl+4', 'Focus Projections', () => {
             this.focusSection('projections');
         });
 
@@ -148,8 +144,7 @@ class KeyboardShortcuts {
         const sectionMap = {
             'scenarios': 'scenariosTable',
             'accounts': 'accountsTable',
-            'plannedTransactions': 'plannedTransactionsTable',
-            'actualTransactions': 'actualTransactionsTable',
+            'transactions': 'transactionsTable',
             'projections': 'projectionsTable'
         };
 

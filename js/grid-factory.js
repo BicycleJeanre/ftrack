@@ -192,13 +192,16 @@ export function createObjectColumn(title, field, subField = 'name', options = {}
 
 /**
  * Create a minimal list editor config for Tabulator
- * Accepts an array of objects and maps them to {label, value} pairs
+ * Accepts an array of objects or a function that returns an array, and maps them to {label, value} pairs
  * Keeps the underlying value as the original object so it can be stored directly
  */
 export function createListEditor(values = [], options = {}) {
     const { creatable = false, createLabel = 'Insert New...' } = options;
 
-    const mapValues = values.map(v => {
+    // If values is a function, call it to get the actual values
+    const actualValues = typeof values === 'function' ? values() : values;
+
+    const mapValues = actualValues.map(v => {
         if (typeof v === 'string') return { label: v, value: v };
         if (v && (v.label || v.name)) return { label: v.label || v.name, value: v };
         return { label: String(v), value: v };
