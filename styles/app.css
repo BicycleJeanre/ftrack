@@ -260,7 +260,11 @@ p {
 }
 
 /* Layout utilities moved from inline JS */
-.layout-two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.layout-two-column { 
+  display: grid; 
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr); 
+  gap: 20px; 
+}
 .mb-lg { margin-bottom: 20px; }
 .section-padding { padding: 12px 16px; }
 .section-title { font-size: 1.1em; }
@@ -273,11 +277,54 @@ p {
 .section-content { padding: 16px; }
 
 /* Responsive layout */
-@media (max-width: 1000px) {
+@media (max-width: 768px) {
   .layout-two-column {
     display: flex;
     flex-direction: column;
     gap: 20px;
+  }
+  
+  /* Tablet and mobile: ensure proper scrolling and spacing */
+  .accordion-content.open {
+    padding: 0 8px 16px 8px;
+  }
+  
+  .section-content {
+    padding: 8px;
+  }
+  
+  /* Reduce grid heights on smaller screens */
+  .scenarios-grid { max-height: 250px; }
+  .accounts-grid { max-height: 220px; }
+  .planned-grid { max-height: 280px; }
+  .actual-grid { max-height: 280px; }
+}
+
+@media (max-width: 480px) {
+  /* Mobile: further optimizations */
+  .accordion-content.open {
+    padding: 0 4px 12px 4px;
+    max-height: 400px;
+  }
+  
+  .section-padding {
+    padding: 8px 12px;
+  }
+  
+  /* Even smaller grid heights */
+  .scenarios-grid { max-height: 200px; }
+  .accounts-grid { max-height: 180px; }
+  .planned-grid { max-height: 220px; }
+  .actual-grid { max-height: 220px; }
+  
+  /* Adjust summary layout for mobile */
+  .summary-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .summary-value {
+    font-size: 0.9em;
   }
 }
 

@@ -276,9 +276,9 @@ async function buildScenarioGrid(container) {
           headerFilterPlaceholder: "Filter...",
           headerHozAlign: "left"
         },
-        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true }),
-        createDateColumn('Start Date', 'startDate', { widthGrow: 2, editor: "date" }),
-        createDateColumn('End Date', 'endDate', { widthGrow: 2, editor: "date" }),
+        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true, responsive: 2 }),
+        createDateColumn('Start Date', 'startDate', { widthGrow: 2, editor: "date", responsive: 3 }),
+        createDateColumn('End Date', 'endDate', { widthGrow: 2, editor: "date", responsive: 3 }),
         {
           title: "Period Type",
           field: "projectionPeriod",
@@ -733,7 +733,7 @@ async function loadAccountsGrid(container) {
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
         createObjectColumn('Type', 'type', 'name', Object.assign({ widthGrow: 1 }, createListEditor(lookupData.accountTypes))),
 
-        createObjectColumn('Currency', 'currency', 'name', Object.assign({ width: 100 }, createListEditor(lookupData.currencies))),
+        createObjectColumn('Currency', 'currency', 'name', Object.assign({ width: 100, responsive: 2 }, createListEditor(lookupData.currencies))),
 
         createMoneyColumn('Balance', 'balance', { widthGrow: 1 })
       ],
@@ -1068,11 +1068,12 @@ async function loadPlannedTransactionsGrid(container) {
         },
 
         createMoneyColumn('Amount', 'amount', { widthGrow: 1, editor: "number", editorParams: { step: 0.01 } }),
-        createTextColumn('Description', 'description', { widthGrow: 2, editor: "input" }),
+        createTextColumn('Description', 'description', { widthGrow: 2, editor: "input", responsive: 2 }),
         {
           title: "Recurrence",
           field: "recurrence",
           widthGrow: 2,
+          responsive: 3, // Hide on smaller screens
           formatter: function(cell) {
             const value = cell.getValue();
             if (value && value.recurrenceType) {
@@ -1486,6 +1487,7 @@ async function loadActualTransactionsGrid(container) {
           title: "Variance",
           field: "variance",
           widthGrow: 1,
+          responsive: 2, // Hide on smaller screens
           formatter: function(cell) {
             const value = cell.getValue() || 0;
             const formatted = new Intl.NumberFormat('en-ZA', {
@@ -1502,12 +1504,13 @@ async function loadActualTransactionsGrid(container) {
           hozAlign: "right",
           headerHozAlign: "right"
         },
-        createDateColumn('Planned Date', 'plannedDate', { widthGrow: 1 }),
+        createDateColumn('Planned Date', 'plannedDate', { widthGrow: 1, responsive: 3 }),
         createDateColumn('Actual Date', 'actualDate', { 
           widthGrow: 1, 
-          editor: "date" 
+          editor: "date",
+          responsive: 3
         }),
-        createTextColumn('Description', 'description', { widthGrow: 2 })
+        createTextColumn('Description', 'description', { widthGrow: 2, responsive: 2 })
       ],
       cellEdited: async function(cell) {
         const row = cell.getRow();

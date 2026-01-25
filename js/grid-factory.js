@@ -155,6 +155,7 @@ export function createTextColumn(title, field, options = {}) {
         headerSort: true,
         headerFilter: "input",
         headerHozAlign: "left",
+        responsive: options.responsive || 1, // Default responsive priority
         ...options
     };
 }
@@ -183,6 +184,7 @@ export function createObjectColumn(title, field, subField = 'name', options = {}
             return displayValue.toLowerCase().includes(headerValue.toLowerCase());
         },
         headerHozAlign: "left",
+        responsive: options.responsive || 1, // Default responsive priority
         ...options
     };
 }
@@ -259,6 +261,7 @@ export function createMoneyColumn(title, field, options = {}) {
         bottomCalc,
         bottomCalcFormatter,
         bottomCalcFormatterParams,
+        responsive: options.responsive || 1, // Default responsive priority
         ...options
     };
 }
@@ -277,6 +280,7 @@ export function createDateColumn(title, field, options = {}) {
         editor: "date",
         headerSort: true,
         headerHozAlign: "left",
+        responsive: options.responsive || 1, // Default responsive priority
         ...options
     };
 }
