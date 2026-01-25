@@ -30,7 +30,7 @@
 3.1 Create planned transactions (income/expenses)  
 3.2 Edit planned transaction details  
 3.3 Delete planned transactions  
-3.4 Set transaction type: Debit or Credit  
+3.4 Set transaction type: Money Out or Money In  
 3.5 Assign secondary account for double-entry bookkeeping  
 3.6 Set transaction amount and description  
 3.7 Configure recurrence patterns:  

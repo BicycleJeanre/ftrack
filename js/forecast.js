@@ -137,14 +137,14 @@ function buildGridContainer() {
   actualSummary.innerHTML = `
     <div class="summary-row">
       <span class="summary-label">Planned Totals:</span>
-      <span class="summary-value" id="planned-credits">Credits: R0.00</span>
-      <span class="summary-value" id="planned-debits">Debits: R0.00</span>
+      <span class="summary-value" id="planned-credits">Money In: R0.00</span>
+      <span class="summary-value" id="planned-debits">Money Out: R0.00</span>
       <span class="summary-value" id="planned-balance">Balance: R0.00</span>
     </div>
     <div class="summary-row">
       <span class="summary-label">Actual Totals:</span>
-      <span class="summary-value" id="actual-credits">Credits: R0.00</span>
-      <span class="summary-value" id="actual-debits">Debits: R0.00</span>
+      <span class="summary-value" id="actual-credits">Money In: R0.00</span>
+      <span class="summary-value" id="actual-debits">Money Out: R0.00</span>
       <span class="summary-value" id="actual-balance">Balance: R0.00</span>
     </div>
   `;
@@ -456,7 +456,7 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
       // Default view when no account is selected: show all transactions
       return {
         ...tx,
-        transactionType: { id: 1, name: 'Debit' },
+        transactionType: { id: 1, name: 'Money Out' },
         secondaryAccount: tx.creditAccount
       };
     }
@@ -486,7 +486,7 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
     return null;
   }
   
-  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Debit';
+  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Money Out';
   
   // Get selected account details
   const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
@@ -587,7 +587,7 @@ function mapTxToUI(tx, selectedAccountId) {
     ? currentScenario.accounts?.find(a => a.id === secondaryAccountRef.id) || secondaryAccountRef
     : null;
 
-  const transactionType = isSelectedDebit ? { id: 1, name: 'Debit' } : { id: 2, name: 'Credit' };
+  const transactionType = isSelectedDebit ? { id: 1, name: 'Money Out' } : { id: 2, name: 'Money In' };
   return { transactionType, secondaryAccount };
 }
 
@@ -595,7 +595,7 @@ function mapTxToUI(tx, selectedAccountId) {
  * Transform actual transaction from UI back to backend format (same as planned transactions)
  */
 async function transformActualTxForBackend(tx, selectedAccountId) {
-  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Debit';
+  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Money Out';
   
   // Get selected account details
   const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
@@ -920,7 +920,7 @@ async function loadPlannedTransactionsGrid(container) {
     if (plannedTxTable) {
       const newTx = {
         id: Date.now(), // Temporary ID
-        transactionType: { id: 1, name: 'Debit' },
+        transactionType: { id: 1, name: 'Money Out' },
         secondaryAccount: selectAccount,
         amount: 0,
         description: '',
@@ -932,7 +932,7 @@ async function loadPlannedTransactionsGrid(container) {
       // Transform to backend format
       let debitAccount, creditAccount;
       const selIdNumLocal = selectedAccountId != null ? Number(selectedAccountId) : null;
-      if (newTx.transactionType?.name === 'Debit') {
+      if (newTx.transactionType?.name === 'Money Out') {
         debitAccount = selIdNumLocal 
           ? currentScenario.accounts.find(a => a.id === selIdNumLocal)
           : currentScenario.accounts?.find(a => a.name !== 'Select Account') || currentScenario.accounts?.[0];
@@ -946,7 +946,7 @@ async function loadPlannedTransactionsGrid(container) {
 
       // Validate: debit and credit accounts must be different
       if (!debitAccount || !creditAccount || debitAccount.id === creditAccount.id) {
-        alert('Invalid transaction: Debit and credit accounts must be different.');
+        alert('Invalid transaction: Money out and money in accounts must be different.');
         return;
       }
 
@@ -1020,8 +1020,8 @@ async function loadPlannedTransactionsGrid(container) {
           editor: "list",
           editorParams: {
             values: [
-              { label: 'Debit', value: { id: 1, name: 'Debit' } },
-              { label: 'Credit', value: { id: 2, name: 'Credit' } }
+              { label: 'Money Out', value: { id: 1, name: 'Money Out' } },
+              { label: 'Money In', value: { id: 2, name: 'Money In' } }
             ],
             listItemFormatter: function(value, title) {
               return title;
@@ -1520,7 +1520,7 @@ async function loadActualTransactionsGrid(container) {
 
         // Determine debit/credit accounts
         let debitAccount, creditAccount;
-        if (rowData.transactionType?.name === 'Debit') {
+        if (rowData.transactionType?.name === 'Money Out') {
           debitAccount = selectedAccountId ? currentScenario.accounts.find(a => a.id === selectedAccountId) : currentScenario.accounts?.[0];
           creditAccount = rowData.secondaryAccount;
         } else {
@@ -1551,13 +1551,13 @@ async function loadActualTransactionsGrid(container) {
 
     // Calculate and display totals
     const plannedCredits = combinedData.reduce((sum, row) => {
-      if (row.transactionType?.name === 'Credit') {
+      if (row.transactionType?.name === 'Money In') {
         return sum + (parseFloat(row.plannedAmount) || 0);
       }
       return sum;
     }, 0);
     const plannedDebits = combinedData.reduce((sum, row) => {
-      if (row.transactionType?.name === 'Debit') {
+      if (row.transactionType?.name === 'Money Out') {
         return sum + (parseFloat(row.plannedAmount) || 0);
       }
       return sum;
@@ -1565,13 +1565,13 @@ async function loadActualTransactionsGrid(container) {
     const plannedBalance = plannedCredits - plannedDebits;
 
     const actualCredits = combinedData.reduce((sum, row) => {
-      if (row.transactionType?.name === 'Credit') {
+      if (row.transactionType?.name === 'Money In') {
         return sum + (parseFloat(row.actualAmount) || 0);
       }
       return sum;
     }, 0);
     const actualDebits = combinedData.reduce((sum, row) => {
-      if (row.transactionType?.name === 'Debit') {
+      if (row.transactionType?.name === 'Money Out') {
         return sum + (parseFloat(row.actualAmount) || 0);
       }
       return sum;
@@ -1584,11 +1584,11 @@ async function loadActualTransactionsGrid(container) {
       const cls = value >= 0 ? 'status-netchange positive' : 'status-netchange negative';
       return `<span class="${cls}">${formatted}</span>`;
     };
-    document.getElementById('planned-credits').innerHTML = `Credits: ${formatCurrency(plannedCredits)}`;
-    document.getElementById('planned-debits').innerHTML = `Debits: ${formatCurrency(-plannedDebits)}`;
+    document.getElementById('planned-credits').innerHTML = `Money In: ${formatCurrency(plannedCredits)}`;
+    document.getElementById('planned-debits').innerHTML = `Money Out: ${formatCurrency(-plannedDebits)}`;
     document.getElementById('planned-balance').innerHTML = `Balance: ${formatCurrency(plannedBalance)}`;
-    document.getElementById('actual-credits').innerHTML = `Credits: ${formatCurrency(actualCredits)}`;
-    document.getElementById('actual-debits').innerHTML = `Debits: ${formatCurrency(-actualDebits)}`;
+    document.getElementById('actual-credits').innerHTML = `Money In: ${formatCurrency(actualCredits)}`;
+    document.getElementById('actual-debits').innerHTML = `Money Out: ${formatCurrency(-actualDebits)}`;
     document.getElementById('actual-balance').innerHTML = `Balance: ${formatCurrency(actualBalance)}`;
 
   } catch (err) {

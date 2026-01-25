@@ -266,12 +266,12 @@ Columns explained:
 
 #### 3.4.4 Transaction Type Guide
 
-**Credit (Money IN)**:
+**Money In**:
 - Paycheck: Checking Account ← Salary Income
 - Interest earned: Savings Account ← Interest Income
 - Refund: Checking Account ← Refund Income
 
-**Debit (Money OUT)**:
+**Money Out**:
 - Rent payment: Checking Account → Rent Expense
 - Groceries: Checking Account → Groceries Expense
 - Credit card payment: Checking Account → Credit Card Account
@@ -677,15 +677,15 @@ This gives better insight into how you're using money.
 
 ### 7.2 Transaction Type Cheat Sheet
 
-| Situation                | Primary Account | Secondary Account | Type   |
-|--------------------------|-----------------|-------------------|--------|
-| Get paid                 | Checking        | Salary Income     | Credit |
-| Pay rent                 | Checking        | Rent Expense      | Debit  |
-| Buy groceries            | Checking        | Groceries         | Debit  |
-| Transfer to savings      | Checking        | Savings           | Debit  |
-| Pay credit card          | Checking        | Credit Card       | Debit  |
-| Buy with credit card     | Credit Card     | Shopping Expense  | Debit  |
-| Receive interest         | Savings         | Interest Income   | Credit |
+| Situation                | Primary Account | Secondary Account | Type      |
+|--------------------------|-----------------|-------------------|-----------|
+| Get paid                 | Checking        | Salary Income     | Money In  |
+| Pay rent                 | Checking        | Rent Expense      | Money Out |
+| Buy groceries            | Checking        | Groceries         | Money Out |
+| Transfer to savings      | Checking        | Savings           | Money Out |
+| Pay credit card          | Checking        | Credit Card       | Money Out |
+| Buy with credit card     | Credit Card     | Shopping Expense  | Money Out |
+| Receive interest         | Savings         | Interest Income   | Money In  |
 
 ### 7.3 Keyboard Shortcuts
 
