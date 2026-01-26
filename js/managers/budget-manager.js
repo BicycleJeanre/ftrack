@@ -71,7 +71,8 @@ export async function createFromProjections(scenarioId, projectionData) {
         let nextId = 1;
         
         // Generate budget occurrences from planned transactions with amounts from projections
-        const plannedTransactions = (scenario.transactions || []).filter(tx => tx.status === 'planned');
+        const statusName = tx => typeof tx.status === 'object' ? tx.status.name : tx.status;
+        const plannedTransactions = (scenario.transactions || []).filter(tx => statusName(tx) === 'planned');
         
         plannedTransactions.forEach(tx => {
             // Create a budget occurrence for each planned transaction
@@ -79,15 +80,19 @@ export async function createFromProjections(scenarioId, projectionData) {
             budgetOccurrences.push({
                 id: nextId++,
                 sourceTransactionId: tx.id,
-                date: tx.effectiveDate,
+                primaryAccountId: tx.primaryAccountId,
+                secondaryAccountId: tx.secondaryAccountId,
+                transactionTypeId: tx.transactionTypeId,
                 amount: tx.amount,
-                plannedAmount: tx.amount,
-                actualAmount: null, // Will be filled in when actuals are entered
                 description: tx.description,
-                debitAccount: tx.debitAccount,
-                creditAccount: tx.creditAccount,
                 recurrence: tx.recurrence,
-                status: 'planned' // Can be 'planned' or 'actual'
+                periodicChange: tx.periodicChange,
+                status: {
+                    name: 'planned',
+                    actualAmount: null,
+                    actualDate: null
+                },
+                tags: tx.tags || []
             });
         });
         

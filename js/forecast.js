@@ -1453,22 +1453,30 @@ async function loadBudgetGrid(container) {
     
     window.add(container, buttonContainer);
 
-    // Transform budget occurrences for UI (same pattern as transactions)
+    // Transform budget occurrences for UI (resolve IDs to full objects)
     const transformedData = budgetOccurrences.map(budget => {
-      const mapped = mapTxToUI(budget, selectedAccountId);
+      const primaryAccount = currentScenario.accounts?.find(a => a.id === budget.primaryAccountId);
+      const secondaryAccount = currentScenario.accounts?.find(a => a.id === budget.secondaryAccountId);
+      
+      // Map to UI format based on transaction type
+      // transactionTypeId: 1 = Money In (secondary -> primary), 2 = Money Out (primary -> secondary)
+      const debitAccount = budget.transactionTypeId === 1 ? secondaryAccount : primaryAccount;
+      const creditAccount = budget.transactionTypeId === 1 ? primaryAccount : secondaryAccount;
+      const statusName = typeof budget.status === 'object' ? budget.status.name : budget.status;
+      const actualAmount = typeof budget.status === 'object' ? budget.status.actualAmount : null;
+      
       return {
         id: budget.id,
         sourceTransactionId: budget.sourceTransactionId,
-        date: budget.date,
-        amount: budget.actualAmount !== null && budget.actualAmount !== undefined ? budget.actualAmount : budget.amount,
+        amount: actualAmount !== null && actualAmount !== undefined ? actualAmount : budget.amount,
         plannedAmount: budget.amount,
-        actualAmount: budget.actualAmount,
+        actualAmount: actualAmount,
         description: budget.description,
-        debitAccount: budget.debitAccount,
-        creditAccount: budget.creditAccount,
-        transactionType: mapped ? mapped.transactionType : { id: 1, name: 'Money Out' },
-        secondaryAccount: mapped ? mapped.secondaryAccount : budget.creditAccount,
-        status: budget.status || 'planned'
+        debitAccount: debitAccount || null,
+        creditAccount: creditAccount || null,
+        transactionType: { id: budget.transactionTypeId, name: budget.transactionTypeId === 1 ? 'Money In' : 'Money Out' },
+        secondaryAccount: secondaryAccount || null,
+        status: statusName || 'planned'
       };
     }).filter(budget => !selectedAccountId ||
       budget.debitAccount?.id === selectedAccountId ||
@@ -1561,37 +1569,87 @@ async function loadBudgetGrid(container) {
         const budgetIndex = allBudgets.findIndex(b => b.id === rowData.id);
 
         if (budgetIndex >= 0) {
-          const updatedBudget = { ...allBudgets[budgetIndex], [field]: newValue };
+          const updatedBudget = { ...allBudgets[budgetIndex] };
 
-          // If transaction type changed, update debit/credit accounts
-          if (field === 'transactionType' && selectedAccountId) {
-            const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-            const secondaryAccount = updatedBudget.secondaryAccount;
+          // Normalize budget for save (convert UI format to storage format)
+          const normalizeBudgetForSave = (budget) => {
+            const typeName = budget.transactionType?.name || 'Money Out';
+            const typeId = budget.transactionType?.id ?? (typeName === 'Money In' ? 1 : 2);
 
-            if (newValue?.name === 'Money Out') {
-              updatedBudget.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
-              updatedBudget.creditAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
-            } else if (newValue?.name === 'Money In') {
-              updatedBudget.debitAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
-              updatedBudget.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
+            let primaryAccountId = null;
+            let secondaryAccountId = null;
+
+            if (typeId === 1) {
+              // Money In: secondary -> primary
+              secondaryAccountId = budget.debitAccount?.id ?? budget.secondaryAccountId ?? null;
+              primaryAccountId = budget.creditAccount?.id ?? budget.primaryAccountId ?? null;
+            } else {
+              // Money Out: primary -> secondary
+              primaryAccountId = budget.debitAccount?.id ?? budget.primaryAccountId ?? null;
+              secondaryAccountId = budget.creditAccount?.id ?? budget.secondaryAccountId ?? null;
             }
+
+            return {
+              ...budget,
+              transactionTypeId: typeId,
+              primaryAccountId,
+              secondaryAccountId,
+              status: typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null }
+            };
+          };
+
+          // Handle field update
+          if (field === 'transactionType') {
+            updatedBudget.transactionType = newValue;
+            
+            // Update debit/credit based on type change
+            if (selectedAccountId) {
+              const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
+              const secondaryAccount = updatedBudget.secondaryAccount;
+
+              if (newValue?.name === 'Money Out') {
+                updatedBudget.debitAccount = selectedAccount || null;
+                updatedBudget.creditAccount = secondaryAccount || null;
+              } else if (newValue?.name === 'Money In') {
+                updatedBudget.debitAccount = secondaryAccount || null;
+                updatedBudget.creditAccount = selectedAccount || null;
+              }
+            }
+          } else if (field === 'secondaryAccount') {
+            updatedBudget.secondaryAccount = newValue;
+            
+            // Update debit/credit based on account change
+            if (selectedAccountId) {
+              const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
+              const transactionType = updatedBudget.transactionType;
+
+              if (transactionType?.name === 'Money Out') {
+                updatedBudget.debitAccount = selectedAccount || null;
+                updatedBudget.creditAccount = newValue || null;
+              } else if (transactionType?.name === 'Money In') {
+                updatedBudget.debitAccount = newValue || null;
+                updatedBudget.creditAccount = selectedAccount || null;
+              }
+            }
+          } else if (field === 'actualAmount') {
+            // Update actual amount in status object
+            if (!updatedBudget.status || typeof updatedBudget.status !== 'object') {
+              updatedBudget.status = { name: 'planned', actualAmount: null, actualDate: null };
+            }
+            if (newValue !== null && newValue !== undefined && newValue !== '') {
+              updatedBudget.status.actualAmount = newValue;
+              if (!updatedBudget.status.actualDate) {
+                updatedBudget.status.actualDate = formatDateOnly(new Date());
+              }
+              updatedBudget.status.name = 'actual';
+            }
+          } else {
+            // Update other fields normally
+            updatedBudget[field] = newValue;
           }
 
-          // If secondary account changed, update debit/credit accounts
-          if (field === 'secondaryAccount' && selectedAccountId) {
-            const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-            const transactionType = updatedBudget.transactionType;
-
-            if (transactionType?.name === 'Money Out') {
-              updatedBudget.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
-              updatedBudget.creditAccount = newValue ? { id: newValue.id } : null;
-            } else if (transactionType?.name === 'Money In') {
-              updatedBudget.debitAccount = newValue ? { id: newValue.id } : null;
-              updatedBudget.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
-            }
-          }
-
-          allBudgets[budgetIndex] = updatedBudget;
+          // Normalize and save
+          allBudgets[budgetIndex] = normalizeBudgetForSave(updatedBudget);
           await BudgetManager.saveAll(currentScenario.id, allBudgets);
         }
       }
