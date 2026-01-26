@@ -1295,6 +1295,28 @@ async function loadMasterTransactionsGrid(container) {
         if (txIndex >= 0) {
           const updatedTx = { ...allTxs[txIndex], [field]: newValue };
 
+          // Normalize amount sign based on transaction type
+          if (field === 'amount') {
+            const txType = updatedTx.transactionType?.name || rowData.transactionType?.name;
+            const absAmount = Math.abs(newValue);
+            if (txType === 'Money Out') {
+              updatedTx.amount = -absAmount; // Money Out is always negative
+            } else if (txType === 'Money In') {
+              updatedTx.amount = absAmount; // Money In is always positive
+            }
+          }
+
+          // If transaction type changed, normalize amount sign
+          if (field === 'transactionType') {
+            const currentAmount = updatedTx.amount || allTxs[txIndex].amount || 0;
+            const absAmount = Math.abs(currentAmount);
+            if (newValue?.name === 'Money Out') {
+              updatedTx.amount = -absAmount;
+            } else if (newValue?.name === 'Money In') {
+              updatedTx.amount = absAmount;
+            }
+          }
+
           // Determine current primary/secondary to preserve intent in unfiltered mode
           const currentPrimary = rowData.primaryAccount
             || (rowData.transactionType?.name === 'Money Out' ? rowData.debitAccount || updatedTx.debitAccount : rowData.creditAccount || updatedTx.creditAccount);
