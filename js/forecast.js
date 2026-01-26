@@ -822,7 +822,7 @@ async function loadAccountsGrid(container) {
         const remaining = accountsTable.getSelectedRows();
         if (!remaining || remaining.length === 0) {
           selectedAccountId = null;
-          document.getElementById('transactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
+          await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
           await loadProjectionsSection(document.getElementById('projectionsContent'));
         }
       } catch (e) { logger.error('[AccountsGrid] fallback rowDeselected handler error:', e); }
