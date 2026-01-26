@@ -940,8 +940,10 @@ async function loadMasterTransactionsGrid(container) {
       columns: [
         {
           width: 50,
+          minWidth: 50,
           hozAlign: "center",
           cssClass: "delete-cell",
+          resizable: false,
           formatter: function(cell){
             return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
           },
@@ -959,7 +961,8 @@ async function loadMasterTransactionsGrid(container) {
         {
           title: "Status",
           field: "status",
-          width: 80,
+          minWidth: 80,
+          widthGrow: 0.5,
           formatter: function(cell) {
             const status = cell.getValue();
             return status === 'actual' ? 'Actual' : 'Planned';
@@ -969,12 +972,13 @@ async function loadMasterTransactionsGrid(container) {
             openActualTransactionModal(cell.getRow().getData(), container);
           }
         },
-        createDateColumn('Date', 'effectiveDate', { width: 120 }),
-        createMoneyColumn('Amount', 'amount', { width: 120 }),
+        createDateColumn('Date', 'effectiveDate', { minWidth: 110, widthGrow: 1 }),
+        createMoneyColumn('Amount', 'amount', { minWidth: 100, widthGrow: 1 }),
         {
           title: "Type",
           field: "transactionType",
-          width: 100,
+          minWidth: 100,
+          widthGrow: 1,
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -998,7 +1002,8 @@ async function loadMasterTransactionsGrid(container) {
         {
           title: "Secondary Account",
           field: "secondaryAccount",
-          width: 150,
+          minWidth: 150,
+          widthGrow: 1.5,
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -1022,7 +1027,8 @@ async function loadMasterTransactionsGrid(container) {
         {
           title: "Recurrence",
           field: "recurrence",
-          width: 100,
+          minWidth: 100,
+          widthGrow: 1,
           formatter: function(cell) {
             const value = cell.getValue();
             if (!value) return '';
@@ -1043,7 +1049,7 @@ async function loadMasterTransactionsGrid(container) {
             });
           }
         },
-        createTextColumn('Description', 'description', { widthGrow: 2 }),
+        createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 }),
       ],
       cellEdited: async function(cell) {
         const rowData = cell.getRow().getData();
