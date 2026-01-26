@@ -1576,38 +1576,6 @@ async function loadBudgetGrid(container) {
     });
     window.add(buttonContainer, clearButton);
     
-    // Add Reproject from Budget button
-    const reprojectButton = document.createElement('button');
-    reprojectButton.className = 'btn btn-primary';
-    reprojectButton.textContent = 'Project from Budget';
-    reprojectButton.addEventListener('click', async () => {
-      try {
-        const confirmed = confirm('Generate new projections using budget as the source?');
-        if (!confirmed) return;
-        
-        reprojectButton.textContent = 'Projecting...';
-        reprojectButton.disabled = true;
-        
-        await generateProjections(currentScenario.id, { 
-          periodicity: 'monthly',
-          source: 'budget' 
-        });
-        
-        // Reload scenario and projections
-        currentScenario = await getScenario(currentScenario.id);
-        await loadProjectionsSection(getEl('projectionsContent'));
-        
-        alert('Projections generated from budget successfully!');
-      } catch (err) {
-        console.error('[Forecast] Failed to project from budget:', err);
-        alert('Failed to project from budget: ' + err.message);
-      } finally {
-        reprojectButton.textContent = 'Project from Budget';
-        reprojectButton.disabled = false;
-      }
-    });
-    window.add(buttonContainer, reprojectButton);
-    
     window.add(container, buttonContainer);
 
     // Add period filter controls (similar to transactions)
