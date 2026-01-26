@@ -27,12 +27,73 @@ import { expandTransactions } from './transaction-expander.js';
 // Generate human-readable recurrence description from recurrence object
 function getRecurrenceDescription(recurrence) {
   if (!recurrence || !recurrence.recurrenceType) return '';
-  const pattern = recurrence.recurrenceType.name || '';
-  
-  if (recurrence.dayOfMonth) return `${pattern} (Day ${recurrence.dayOfMonth})`;
-  if (recurrence.dayOfWeek?.name) return `${pattern} (${recurrence.dayOfWeek.name})`;
-  if (recurrence.customDates) return `Custom: ${recurrence.customDates.split(',').length} dates`;
-  return pattern;
+
+  const typeId = recurrence.recurrenceType.id;
+  const interval = recurrence.interval && recurrence.interval > 1 ? recurrence.interval : 1;
+  const end = recurrence.endDate ? ` until ${recurrence.endDate}` : '';
+
+  const getWeekday = () => {
+    if (recurrence.dayOfWeek?.name) return recurrence.dayOfWeek.name;
+    if (recurrence.startDate) {
+      const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const d = new Date(recurrence.startDate);
+      return weekdayNames[d.getUTCDay()];
+    }
+    return null;
+  };
+
+  const getDayOfMonth = () => {
+    if (recurrence.dayOfMonth) return recurrence.dayOfMonth;
+    if (recurrence.startDate) return new Date(recurrence.startDate).getUTCDate();
+    return null;
+  };
+
+  const formatYearlyAnchor = () => {
+    if (!recurrence.startDate) return null;
+    const d = new Date(recurrence.startDate);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[d.getUTCMonth()]} ${String(d.getUTCDate()).padStart(2, '0')}`;
+  };
+
+  // Descriptions per recurrence type
+  switch (typeId) {
+    case 1: // One Time
+      return recurrence.startDate ? `One time on ${recurrence.startDate}` : 'One time';
+    case 2: // Daily
+      return interval === 1 ? `Every day${end}` : `Every ${interval} days${end}`;
+    case 3: { // Weekly
+      const dow = getWeekday();
+      const dayPart = dow ? ` on ${dow}` : '';
+      return interval === 1 ? `Every week${dayPart}${end}` : `Every ${interval} weeks${dayPart}${end}`;
+    }
+    case 4: { // Monthly - Day of Month
+      const dom = getDayOfMonth();
+      const dayPart = dom ? ` on day ${dom}` : '';
+      return interval === 1 ? `Every month${dayPart}${end}` : `Every ${interval} months${dayPart}${end}`;
+    }
+    case 5: { // Monthly - Week of Month (fallback wording)
+      const dow = getWeekday();
+      const week = recurrence.weekOfMonth ? `${recurrence.weekOfMonth} week` : 'week';
+      const dayPart = dow ? ` on ${dow}` : '';
+      return interval === 1 ? `Every month (${week}${dayPart})${end}` : `Every ${interval} months (${week}${dayPart})${end}`;
+    }
+    case 6: { // Quarterly
+      const dom = getDayOfMonth();
+      const dayPart = dom ? ` on day ${dom}` : '';
+      return interval === 1 ? `Every quarter${dayPart}${end}` : `Every ${interval} quarters${dayPart}${end}`;
+    }
+    case 7: { // Yearly
+      const anchor = formatYearlyAnchor();
+      const dayPart = anchor ? ` on ${anchor}` : '';
+      return interval === 1 ? `Every year${dayPart}${end}` : `Every ${interval} years${dayPart}${end}`;
+    }
+    case 11: { // Custom Dates
+      const count = recurrence.customDates ? recurrence.customDates.split(',').filter(Boolean).length : 0;
+      return count > 0 ? `Custom: ${count} dates` : 'Custom dates';
+    }
+    default:
+      return recurrence.recurrenceType.name || 'Recurring';
+  }
 }
 
 import {
@@ -983,6 +1044,8 @@ async function loadMasterTransactionsGrid(container) {
         ? (statusName === 'actual' && actualDate ? actualDate : tx.effectiveDate)
         : '';
 
+      const recurrenceSummary = getRecurrenceDescription(tx.recurrence);
+
       return {
         id: tx.id,
         transactionTypeId: txTypeId,
@@ -1001,7 +1064,8 @@ async function loadMasterTransactionsGrid(container) {
         transactionType,
         secondaryAccount,
         recurrence: tx.recurrence,
-        recurrenceDescription: tx.recurrenceDescription || getRecurrenceDescription(tx.recurrence),
+        recurrenceDescription: recurrenceSummary,
+        recurrenceSummary,
         tags: tx.tags || []
       };
     }).filter(tx => {
@@ -1121,13 +1185,13 @@ async function loadMasterTransactionsGrid(container) {
         createMoneyColumn('Amount', 'amount', { minWidth: 100, widthGrow: 1 }),
         {
           title: "Recurrence",
-          field: "recurrence",
-          minWidth: 100,
-          widthGrow: 1,
+          field: "recurrenceSummary",
+          minWidth: 170,
+          widthGrow: 1.2,
           formatter: function(cell) {
-            const value = cell.getValue();
-            if (!value) return '';
-            return value.type || 'Recurring';
+            const summary = cell.getValue() || 'One time';
+            const icon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="#4ec9b0" aria-hidden="true" style="vertical-align: middle;"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
+            return `<span class="recurrence-cell" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">${icon}<span class="recurrence-text">${summary}</span></span>`;
           },
           cellClick: function(e, cell) {
             const rowData = cell.getRow().getData();
@@ -1145,15 +1209,6 @@ async function loadMasterTransactionsGrid(container) {
           }
         },
         ...(showDateColumn ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })] : []),
-        {
-          title: "Recurrence",
-          field: "recurrenceDescription",
-          minWidth: 150,
-          widthGrow: 1,
-          formatter: function(cell) {
-            return cell.getValue() || '';
-          }
-        },
         createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 })
       ],
       cellEdited: async function(cell) {
@@ -1553,6 +1608,14 @@ async function loadBudgetGrid(container) {
       const creditAccount = budget.transactionTypeId === 1 ? primaryAccount : secondaryAccount;
       const statusObj = typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null };
       
+      // Get source transaction to extract recurrence for description
+      const sourceTransaction = budget.sourceTransactionId 
+        ? currentScenario.transactions?.find(tx => tx.id === budget.sourceTransactionId)
+        : null;
+      const recurrenceSummary = sourceTransaction?.recurrence 
+        ? getRecurrenceDescription(sourceTransaction.recurrence)
+        : (budget.recurrenceDescription || 'One time');
+      
       return {
         id: budget.id,
         sourceTransactionId: budget.sourceTransactionId,
@@ -1566,7 +1629,7 @@ async function loadBudgetGrid(container) {
         secondaryAccount: secondaryAccount || null,
         transactionType: { id: budget.transactionTypeId, name: budget.transactionTypeId === 1 ? 'Money In' : 'Money Out' },
         occurrenceDate: budget.occurrenceDate,
-        recurrenceDescription: budget.recurrenceDescription,
+        recurrenceDescription: recurrenceSummary,
         status: statusObj,
         actualDateOverride: statusObj.actualDate
       };
@@ -1716,10 +1779,10 @@ async function loadBudgetGrid(container) {
         {
           title: "Schedule",
           field: "recurrenceDescription",
-          minWidth: 150,
-          widthGrow: 1,
+          minWidth: 170,
+          widthGrow: 1.2,
           formatter: function(cell) {
-            return cell.getValue() || '';
+            return cell.getValue() || 'One time';
           }
         },
         createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 }),
