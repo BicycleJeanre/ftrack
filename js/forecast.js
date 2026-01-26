@@ -52,7 +52,9 @@ let currentScenario = null;
 let scenarioTypes = null;
 let selectedAccountId = null; // Track selected account for filtering transaction views
 let actualPeriod = null; // Selected period for actual transactions
+let budgetPeriod = null; // Selected period for budget view
 let periods = []; // Calculated periods for current scenario
+let budgetGridLoadToken = 0; // Prevent stale budget renders
 
 // Build the main UI container with independent accordions
 function buildGridContainer() {
@@ -187,8 +189,6 @@ function buildGridContainer() {
     projectionsContent
   };
 }
-
-// Build scenario grid for creation and selection
 async function buildScenarioGrid(container) {
   container.innerHTML = '';
 
@@ -582,8 +582,8 @@ function mapTxToUI(tx, selectedAccountId) {
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
   if (!selIdNum) return null;
 
-  const isSelectedDebit = tx.debitAccount?.id === selIdNum;
-  const isSelectedCredit = tx.creditAccount?.id === selIdNum;
+  const isSelectedDebit = Number(tx.debitAccount?.id) === selIdNum;
+  const isSelectedCredit = Number(tx.creditAccount?.id) === selIdNum;
   if (!isSelectedDebit && !isSelectedCredit) return null;
 
   const secondaryAccountRef = isSelectedDebit ? tx.creditAccount : tx.debitAccount;
@@ -776,21 +776,22 @@ async function loadAccountsGrid(container) {
         
         if (rows.length > 0) {
           const account = rows[0].getData();
-          if (selectedAccountId !== account.id) {
-             selectedAccountId = account.id;
-             // Debounce reloads slightly to avoid re-render conflicts
-             setTimeout(async () => {
-               await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
-               // Also refresh Projections as they might depend on the account filter (future proofing)
-               await loadProjectionsSection(document.getElementById('projectionsContent'));
-             }, 40);
-          }
+          console.log('[Accounts] Account selected:', account.id, account.name);
+          selectedAccountId = Number(account.id);
+          console.log('[Accounts] Updated selectedAccountId to:', selectedAccountId);
+          // Reload immediately to ensure budget grid updates
+          await loadMasterTransactionsGrid(getEl('transactionsTable'));
+          await loadBudgetGrid(getEl('budgetTable'));
+          // Also refresh Projections as they might depend on the account filter (future proofing)
+          await loadProjectionsSection(getEl('projectionsContent'));
         } else {
           // No account selected
+          console.log('[Accounts] Clearing account selection');
           selectedAccountId = null;
           // Reload downstream grids in unfiltered mode
-          await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
-          await loadProjectionsSection(document.getElementById('projectionsContent'));
+          await loadMasterTransactionsGrid(getEl('transactionsTable'));
+          await loadBudgetGrid(getEl('budgetTable'));
+          await loadProjectionsSection(getEl('projectionsContent'));
         }
       }
     });
@@ -836,10 +837,12 @@ async function loadAccountsGrid(container) {
     accountsTable.on("rowSelected", function(row) {
       try {
         const account = row.getData();
-        if (selectedAccountId !== account.id) {
-          selectedAccountId = account.id;
+        const accountIdNum = Number(account.id);
+        if (selectedAccountId !== accountIdNum) {
+          selectedAccountId = accountIdNum;
           setTimeout(async () => {
             await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+            await loadBudgetGrid(getEl('budgetTable'));
             await loadProjectionsSection(document.getElementById('projectionsContent'));
           }, 40);
         }
@@ -852,6 +855,7 @@ async function loadAccountsGrid(container) {
         if (!remaining || remaining.length === 0) {
           selectedAccountId = null;
           await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+          await loadBudgetGrid(getEl('budgetTable'));
           await loadProjectionsSection(document.getElementById('projectionsContent'));
         }
       } catch (e) { logger.error('[AccountsGrid] fallback rowDeselected handler error:', e); }
@@ -931,7 +935,7 @@ async function loadMasterTransactionsGrid(container) {
   window.add(container, gridContainer);
 
   // Show primary account column only when not filtered by a single account
-  const showPrimaryColumn = !selectedAccountId;
+  const showPrimaryColumn = !selIdNum;
   // Show date column only when a specific period is selected
   const showDateColumn = !!actualPeriod;
 
@@ -1006,12 +1010,12 @@ async function loadMasterTransactionsGrid(container) {
         return true;
       }
       // If no account filter selected, show all
-      if (!selectedAccountId) {
+      if (!selIdNum) {
         return true;
       }
       // Otherwise filter by selected account
-      return tx.debitAccount?.id === selectedAccountId ||
-             tx.creditAccount?.id === selectedAccountId;
+      return Number(tx.debitAccount?.id) === selIdNum ||
+             Number(tx.creditAccount?.id) === selIdNum;
     });
 
     const masterTxTable = createGrid(gridContainer, {
@@ -1393,11 +1397,24 @@ function openActualTransactionModal(transaction, container) {
 async function loadBudgetGrid(container) {
   if (!currentScenario) return;
 
+  const loadToken = ++budgetGridLoadToken;
+  const selectedAccountIdSnapshot = selectedAccountId;
+  const budgetPeriodSnapshot = budgetPeriod;
+  const selIdNum = selectedAccountIdSnapshot != null ? Number(selectedAccountIdSnapshot) : null;
+
+  console.log('[Budget] loadBudgetGrid start', { loadToken, selectedAccountId: selectedAccountIdSnapshot, budgetPeriod: budgetPeriodSnapshot });
+
   container.innerHTML = '';
 
   try {
     // Get budget occurrences
     let budgetOccurrences = await getBudget(currentScenario.id);
+
+    // Abort if a newer load kicked off while we were waiting
+    if (loadToken !== budgetGridLoadToken) {
+      console.log('[Budget] loadBudgetGrid stale run skipped', { loadToken, latest: budgetGridLoadToken });
+      return;
+    }
     
     if (budgetOccurrences.length === 0) {
       const emptyMsg = document.createElement('p');
@@ -1410,7 +1427,6 @@ async function loadBudgetGrid(container) {
     // Add section header
     const sectionHeader = document.createElement('h3');
     sectionHeader.className = 'text-main section-header';
-    const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
     if (selIdNum) {
       const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
       sectionHeader.textContent = `Budget - Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
@@ -1474,6 +1490,58 @@ async function loadBudgetGrid(container) {
     
     window.add(container, buttonContainer);
 
+    // Add period filter controls (similar to transactions)
+    const periodFilter = document.createElement('div');
+    periodFilter.className = 'mb-sm period-filter';
+    periodFilter.style.display = 'flex';
+    periodFilter.style.alignItems = 'center';
+    periodFilter.style.gap = '8px';
+    periodFilter.style.flexWrap = 'nowrap';
+    periodFilter.innerHTML = `
+      <label for="budget-period-select" class="text-muted" style="white-space: nowrap;">Period:</label>
+      <select id="budget-period-select" class="input-select"></select>
+      <button id="budget-prev-period-btn" class="btn btn-ghost" title="Previous Period" style="padding: 6px 10px; white-space: nowrap;">&#9664;</button>
+      <button id="budget-next-period-btn" class="btn btn-ghost" title="Next Period" style="padding: 6px 10px; white-space: nowrap;">&#9654;</button>
+    `;
+    window.add(container, periodFilter);
+
+    // Populate budget period dropdown
+    const budgetPeriodSelect = document.getElementById('budget-period-select');
+    budgetPeriodSelect.innerHTML = '<option value="">-- All Periods --</option>';
+    periods.forEach((period) => {
+      const option = document.createElement('option');
+      option.value = period.id;
+      option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
+      budgetPeriodSelect.appendChild(option);
+    });
+    
+    // Set current selection if any
+    budgetPeriodSelect.value = budgetPeriodSnapshot || '';
+    
+    // Attach period selector event listeners
+    budgetPeriodSelect.addEventListener('change', async (e) => {
+      budgetPeriod = e.target.value;
+      await loadBudgetGrid(container);
+    });
+    
+    document.getElementById('budget-prev-period-btn').addEventListener('click', async () => {
+      const currentIndex = periods.findIndex(p => p.id === budgetPeriod);
+      if (currentIndex > 0) {
+        budgetPeriod = periods[currentIndex - 1].id;
+        budgetPeriodSelect.value = budgetPeriod;
+        await loadBudgetGrid(container);
+      }
+    });
+    
+    document.getElementById('budget-next-period-btn').addEventListener('click', async () => {
+      const currentIndex = periods.findIndex(p => p.id === budgetPeriod);
+      if (currentIndex < periods.length - 1) {
+        budgetPeriod = periods[currentIndex + 1].id;
+        budgetPeriodSelect.value = budgetPeriod;
+        await loadBudgetGrid(container);
+      }
+    });
+
     // Transform budgets for UI (resolve IDs to full objects) - mirror transactions grid
     const transformedData = budgetOccurrences.map(budget => {
       const primaryAccount = currentScenario.accounts?.find(a => a.id === budget.primaryAccountId);
@@ -1502,13 +1570,48 @@ async function loadBudgetGrid(container) {
         status: statusObj,
         actualDateOverride: statusObj.actualDate
       };
-    }).filter(budget => !selectedAccountId ||
-      budget.debitAccount?.id === selectedAccountId ||
-      budget.creditAccount?.id === selectedAccountId
-    );
+    }).filter(budget => {
+      console.log('[Budget] Filter:', { selectedAccountId: selectedAccountIdSnapshot, budgetPeriod: budgetPeriodSnapshot, loadToken });
+      // Filter by account if selected
+      if (selIdNum) {
+        const matches = [
+          budget.debitAccount?.id,
+          budget.creditAccount?.id,
+          budget.primaryAccountId,
+          budget.secondaryAccountId
+        ].some(id => Number(id) === selIdNum);
+        console.log('[Budget] Filtering budget', budget.id, '- debit:', budget.debitAccount?.id, 'credit:', budget.creditAccount?.id, 'primaryId:', budget.primaryAccountId, 'secondaryId:', budget.secondaryAccountId, 'selected:', selIdNum, 'matches:', matches, 'loadToken:', loadToken);
+        if (!matches) return false;
+      }
+      
+      // Filter by period if selected
+      if (budgetPeriodSnapshot) {
+        const selectedPeriod = periods.find(p => p.id === budgetPeriodSnapshot);
+        if (selectedPeriod) {
+          const budgetDate = new Date(budget.occurrenceDate);
+          const periodStart = new Date(selectedPeriod.startDate);
+          const periodEnd = new Date(selectedPeriod.endDate);
+          // Adjust end date to be inclusive (end of day)
+          periodEnd.setHours(23, 59, 59, 999);
+          if (budgetDate < periodStart || budgetDate > periodEnd) {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+
+    // Skip render if this run is no longer the latest
+    if (loadToken !== budgetGridLoadToken) {
+      console.log('[Budget] loadBudgetGrid skipped render for stale run', { loadToken, latest: budgetGridLoadToken });
+      return;
+    }
 
     // Show/hide primary account column (only when not filtered by account)
-    const showPrimaryColumnBudget = !selectedAccountId;
+    const showPrimaryColumnBudget = !selIdNum;
+    
+    // Always show date column - it's essential for budget tracking and planning
+    const showBudgetDateColumn = true;
 
     // Create grid container
     const gridContainer = document.createElement('div');
@@ -1609,7 +1712,7 @@ async function loadBudgetGrid(container) {
           }
         },
         createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
-        createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 }),
+        ...(showBudgetDateColumn ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 })] : []),
         {
           title: "Schedule",
           field: "recurrenceDescription",
