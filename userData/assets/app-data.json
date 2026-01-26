@@ -2776,7 +2776,9 @@
           "debitAccount": {
             "id": 1
           },
-          "creditAccount": null,
+          "creditAccount": {
+            "id": 4
+          },
           "amount": 3200,
           "description": null,
           "recurrence": {
@@ -2805,6 +2807,21 @@
           "transactionType": {
             "id": 1,
             "name": "Money Out"
+          },
+          "secondaryAccount": {
+            "name": "Checking Account",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 5000,
+            "openDate": "2026-01-08",
+            "periodicChange": "",
+            "id": 4
           }
         },
         {
@@ -4293,6 +4310,590 @@
           "status": "planned"
         }
       ]
+    },
+    {
+      "id": 1,
+      "name": "Basic QC",
+      "type": {
+        "id": 1,
+        "name": "Budget",
+        "description": "Budget tracking scenario",
+        "showAccounts": true,
+        "showPlannedTransactions": true,
+        "showActualTransactions": true,
+        "showProjections": true,
+        "accountColumns": [
+          "name",
+          "type",
+          "currency",
+          "balance",
+          "openDate"
+        ],
+        "transactionColumns": [
+          "debitAccount",
+          "creditAccount",
+          "amount",
+          "description",
+          "tags"
+        ]
+      },
+      "description": "",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "projectionPeriod": {
+        "id": 3,
+        "name": "Month"
+      },
+      "accounts": [
+        {
+          "id": 1,
+          "name": "bank",
+          "type": null,
+          "currency": null,
+          "balance": 10000,
+          "openDate": "2026-01-26",
+          "periodicChange": null
+        },
+        {
+          "id": 2,
+          "name": "salary",
+          "type": null,
+          "currency": null,
+          "balance": 0,
+          "openDate": "2026-01-26",
+          "periodicChange": null
+        },
+        {
+          "id": 3,
+          "name": "Groceries",
+          "type": null,
+          "currency": null,
+          "balance": 0,
+          "openDate": "2026-01-26",
+          "periodicChange": null
+        }
+      ],
+      "transactions": [
+        {
+          "id": 1,
+          "status": "planned",
+          "debitAccount": null,
+          "creditAccount": null,
+          "amount": 0,
+          "description": "",
+          "effectiveDate": "2026-01-26",
+          "recurrence": null,
+          "periodicChange": null,
+          "tags": []
+        },
+        {
+          "id": 2,
+          "status": "planned",
+          "debitAccount": null,
+          "creditAccount": null,
+          "amount": 0,
+          "description": "",
+          "effectiveDate": "2026-01-26",
+          "recurrence": null,
+          "periodicChange": null,
+          "tags": []
+        },
+        {
+          "id": 3,
+          "status": "planned",
+          "debitAccount": null,
+          "creditAccount": null,
+          "amount": 0,
+          "description": "",
+          "effectiveDate": "2026-01-26",
+          "recurrence": null,
+          "periodicChange": null,
+          "tags": []
+        },
+        {
+          "id": 4,
+          "status": "planned",
+          "debitAccount": null,
+          "creditAccount": null,
+          "amount": 0,
+          "description": "",
+          "effectiveDate": "2026-01-26",
+          "recurrence": null,
+          "periodicChange": null,
+          "tags": []
+        },
+        {
+          "id": 5,
+          "status": "planned",
+          "debitAccount": null,
+          "creditAccount": null,
+          "amount": 0,
+          "description": "",
+          "effectiveDate": "2026-01-26",
+          "recurrence": null,
+          "periodicChange": null,
+          "tags": []
+        },
+        {
+          "id": 6,
+          "status": "planned",
+          "debitAccount": null,
+          "creditAccount": null,
+          "amount": 0,
+          "description": "",
+          "effectiveDate": "2026-01-26",
+          "recurrence": null,
+          "periodicChange": null,
+          "tags": []
+        },
+        {
+          "id": 7,
+          "status": "planned",
+          "debitAccount": null,
+          "creditAccount": null,
+          "amount": 0,
+          "description": "",
+          "effectiveDate": "2026-01-26",
+          "recurrence": null,
+          "periodicChange": null,
+          "tags": []
+        }
+      ],
+      "projections": [
+        {
+          "id": 1,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-01-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 1
+        },
+        {
+          "id": 2,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-02-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 2
+        },
+        {
+          "id": 3,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-03-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 3
+        },
+        {
+          "id": 4,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-04-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 4
+        },
+        {
+          "id": 5,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-05-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 5
+        },
+        {
+          "id": 6,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-06-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 6
+        },
+        {
+          "id": 7,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-07-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 7
+        },
+        {
+          "id": 8,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-08-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 8
+        },
+        {
+          "id": 9,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-09-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 9
+        },
+        {
+          "id": 10,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-10-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 10
+        },
+        {
+          "id": 11,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-11-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 11
+        },
+        {
+          "id": 12,
+          "scenarioId": 1,
+          "accountId": 1,
+          "account": "bank",
+          "date": "2026-12-01",
+          "balance": 10000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 12
+        },
+        {
+          "id": 13,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-01-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 1
+        },
+        {
+          "id": 14,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-02-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 2
+        },
+        {
+          "id": 15,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-03-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 3
+        },
+        {
+          "id": 16,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-04-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 4
+        },
+        {
+          "id": 17,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-05-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 5
+        },
+        {
+          "id": 18,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-06-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 6
+        },
+        {
+          "id": 19,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-07-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 7
+        },
+        {
+          "id": 20,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-08-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 8
+        },
+        {
+          "id": 21,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-09-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 9
+        },
+        {
+          "id": 22,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-10-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 10
+        },
+        {
+          "id": 23,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-11-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 11
+        },
+        {
+          "id": 24,
+          "scenarioId": 1,
+          "accountId": 2,
+          "account": "salary",
+          "date": "2026-12-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 12
+        },
+        {
+          "id": 25,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-01-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 1
+        },
+        {
+          "id": 26,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-02-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 2
+        },
+        {
+          "id": 27,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-03-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 3
+        },
+        {
+          "id": 28,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-04-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 4
+        },
+        {
+          "id": 29,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-05-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 5
+        },
+        {
+          "id": 30,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-06-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 6
+        },
+        {
+          "id": 31,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-07-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 7
+        },
+        {
+          "id": 32,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-08-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 8
+        },
+        {
+          "id": 33,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-09-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 9
+        },
+        {
+          "id": 34,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-10-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 10
+        },
+        {
+          "id": 35,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-11-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 11
+        },
+        {
+          "id": 36,
+          "scenarioId": 1,
+          "accountId": 3,
+          "account": "Groceries",
+          "date": "2026-12-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 12
+        }
+      ],
+      "budgets": []
     }
   ],
   "migrationVersion": 2

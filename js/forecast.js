@@ -21,6 +21,7 @@ import { createLogger } from './logger.js';
 const logger = createLogger('ForecastController');
 
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
+import { generateRecurrenceDates } from './calculation-utils.js';
 
 import {
   getScenarios,
@@ -98,6 +99,21 @@ function buildGridContainer() {
   transactionsContent.id = 'transactionsContent';
   transactionsContent.className = 'accordion-content open section-content';
   window.add(transactionsSection, transactionsContent);
+
+  // Period filter controls
+  const periodFilter = document.createElement('div');
+  periodFilter.className = 'mb-sm period-filter';
+  periodFilter.style.display = 'flex';
+  periodFilter.style.alignItems = 'center';
+  periodFilter.style.gap = '8px';
+  periodFilter.style.flexWrap = 'nowrap';
+  periodFilter.innerHTML = `
+    <label for="actual-period-select" class="text-muted" style="white-space: nowrap;">Period:</label>
+    <select id="actual-period-select" class="input-select"></select>
+    <button id="actual-prev-period-btn" class="btn btn-ghost" title="Previous Period" style="padding: 6px 10px; white-space: nowrap;">&#9664;</button>
+    <button id="actual-next-period-btn" class="btn btn-ghost" title="Next Period" style="padding: 6px 10px; white-space: nowrap;">&#9654;</button>
+  `;
+  window.add(transactionsContent, periodFilter);
 
   const transactionsTable = document.createElement('div');
   transactionsTable.id = 'transactionsTable';
@@ -896,15 +912,41 @@ async function loadMasterTransactionsGrid(container) {
   try {
     // Get all transactions
     let allTransactions = await getTransactions(currentScenario.id);
+    let expandedTransactions = [];
 
-    // Filter by period if selected
+    // If a period is selected, expand transactions by their recurrence within that period
     if (actualPeriod) {
       const selectedPeriod = periods.find(p => p.id === actualPeriod);
       if (selectedPeriod) {
-        allTransactions = allTransactions.filter(tx => {
-          const txDate = tx.status === 'actual' && tx.actualDate ? parseDateOnly(tx.actualDate) : parseDateOnly(tx.effectiveDate);
-          return txDate >= selectedPeriod.startDate && txDate <= selectedPeriod.endDate;
+        // Expand planned transactions by recurrence within the period
+        allTransactions.forEach(tx => {
+          if (tx.status === 'planned' && tx.recurrence) {
+            // Generate occurrences for this transaction within the period
+            const occurrenceDates = generateRecurrenceDates(tx.recurrence, selectedPeriod.startDate, selectedPeriod.endDate);
+            
+            occurrenceDates.forEach(date => {
+              expandedTransactions.push({
+                ...tx,
+                effectiveDate: formatDateOnly(date),
+                _occurrenceDate: date,
+                _isExpanded: true
+              });
+            });
+          } else if (tx.status === 'actual') {
+            // For actual transactions, check if they fall within the period
+            const txDate = tx.actualDate ? parseDateOnly(tx.actualDate) : parseDateOnly(tx.effectiveDate);
+            if (txDate >= selectedPeriod.startDate && txDate <= selectedPeriod.endDate) {
+              expandedTransactions.push(tx);
+            }
+          } else {
+            // Non-recurring planned transactions - check their effective date
+            const txDate = parseDateOnly(tx.effectiveDate);
+            if (txDate >= selectedPeriod.startDate && txDate <= selectedPeriod.endDate) {
+              expandedTransactions.push(tx);
+            }
+          }
         });
+        allTransactions = expandedTransactions;
       }
     }
 
@@ -1707,7 +1749,7 @@ async function initializePeriodSelector() {
     // Attach event listeners
     periodSelect.addEventListener('change', async (e) => {
       actualPeriod = e.target.value;
-      await loadMasterTransactionsGrid(document.getElementById('transactionsContent'));
+      await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
     });
     
     document.getElementById('actual-prev-period-btn')?.addEventListener('click', async () => {
@@ -1715,7 +1757,7 @@ async function initializePeriodSelector() {
       if (currentIndex > 0) {
         actualPeriod = periods[currentIndex - 1].id;
         periodSelect.value = actualPeriod;
-        await loadMasterTransactionsGrid(document.getElementById('transactionsContent'));
+        await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
       }
     });
     
@@ -1724,7 +1766,7 @@ async function initializePeriodSelector() {
       if (currentIndex < periods.length - 1) {
         actualPeriod = periods[currentIndex + 1].id;
         periodSelect.value = actualPeriod;
-        await loadMasterTransactionsGrid(document.getElementById('transactionsContent'));
+        await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
       }
     });
     
