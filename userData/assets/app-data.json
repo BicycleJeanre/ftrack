@@ -2774,24 +2774,9 @@
           "id": 2,
           "status": "planned",
           "debitAccount": {
-            "name": "Primary Salary",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": "",
             "id": 1
           },
-          "creditAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
+          "creditAccount": null,
           "amount": 3200,
           "description": null,
           "recurrence": {
@@ -2817,7 +2802,10 @@
           },
           "periodicChange": "",
           "tags": [],
-          "transactionType": ""
+          "transactionType": {
+            "id": 1,
+            "name": "Money Out"
+          }
         },
         {
           "id": 3,

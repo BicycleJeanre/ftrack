@@ -937,6 +937,8 @@ async function loadMasterTransactionsGrid(container) {
 
     const masterTxTable = createGrid(gridContainer, {
       data: transformedData,
+      headerWordWrap: false, // Prevent header text wrapping
+      autoResize: true, // Enable auto-resize on window changes
       columns: [
         {
           width: 50,
@@ -958,22 +960,6 @@ async function loadMasterTransactionsGrid(container) {
             }
           }
         },
-        {
-          title: "Status",
-          field: "status",
-          minWidth: 80,
-          widthGrow: 0.5,
-          formatter: function(cell) {
-            const status = cell.getValue();
-            return status === 'actual' ? 'Actual' : 'Planned';
-          },
-          cellClick: function(e, cell) {
-            // Open modal for actual transaction details
-            openActualTransactionModal(cell.getRow().getData(), container);
-          }
-        },
-        createDateColumn('Date', 'effectiveDate', { minWidth: 110, widthGrow: 1 }),
-        createMoneyColumn('Amount', 'amount', { minWidth: 100, widthGrow: 1 }),
         {
           title: "Type",
           field: "transactionType",
@@ -1024,6 +1010,7 @@ async function loadMasterTransactionsGrid(container) {
             return aVal.localeCompare(bVal);
           }
         },
+        createMoneyColumn('Amount', 'amount', { minWidth: 100, widthGrow: 1 }),
         {
           title: "Recurrence",
           field: "recurrence",
@@ -1049,7 +1036,22 @@ async function loadMasterTransactionsGrid(container) {
             });
           }
         },
+        createDateColumn('Date', 'effectiveDate', { minWidth: 110, widthGrow: 1 }),
         createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 }),
+        {
+          title: "Status",
+          field: "status",
+          minWidth: 80,
+          widthGrow: 0.5,
+          formatter: function(cell) {
+            const status = cell.getValue();
+            return status === 'actual' ? 'Actual' : 'Planned';
+          },
+          cellClick: function(e, cell) {
+            // Open modal for actual transaction details
+            openActualTransactionModal(cell.getRow().getData(), container);
+          }
+        },
       ],
       cellEdited: async function(cell) {
         const rowData = cell.getRow().getData();
@@ -1130,6 +1132,13 @@ async function loadMasterTransactionsGrid(container) {
           }
 
           allTxs[txIndex] = updatedTx;
+
+              // Redraw after table is built to fix any layout issues
+              masterTxTable.on("tableBuilt", function() {
+                setTimeout(() => {
+                  masterTxTable.redraw(true);
+                }, 50);
+              });
           await TransactionManager.saveAll(currentScenario.id, allTxs);
         }
       }
