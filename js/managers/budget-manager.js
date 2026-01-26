@@ -2,7 +2,23 @@
 // Unified business logic for budget operations
 // Budgets are snapshots of projections that become editable working datasets
 
+/**
+ * Generate human-readable recurrence description from recurrence object
+ * @param {Object} recurrence - Recurrence pattern object
+ * @returns {string} - Description like "Monthly - Day 1", "Weekly (Friday)", etc.
+ */
+function getRecurrenceDescription(recurrence) {
+  if (!recurrence || !recurrence.recurrenceType) return '';
+  const pattern = recurrence.recurrenceType.name || '';
+  
+  if (recurrence.dayOfMonth) return `${pattern} (Day ${recurrence.dayOfMonth})`;
+  if (recurrence.dayOfWeek?.name) return `${pattern} (${recurrence.dayOfWeek.name})`;
+  if (recurrence.customDates) return `Custom: ${recurrence.customDates.split(',').length} dates`;
+  return pattern;
+}
+
 import * as DataStore from '../core/data-store.js';
+import { generateRecurrenceDates } from '../calculation-utils.js';
 
 /**
  * Get all budget occurrences for a scenario
@@ -48,12 +64,12 @@ export async function saveAll(scenarioId, budgets) {
 }
 
 /**
- * Create a budget snapshot from projection data
+ * Create budgets from planned transactions with recurrence expansion
+ * Expands each transaction's recurrence into individual dated budget occurrences
  * @param {number} scenarioId - The scenario ID
- * @param {Array} projectionData - Array of projection objects to convert to budget
- * @returns {Promise<Array>} - The created budget occurrences
+ * @returns {Promise<Array>} - The created budgets (expanded occurrences)
  */
-export async function createFromProjections(scenarioId, projectionData) {
+export async function createFromProjections(scenarioId) {
     return await DataStore.transaction(async (data) => {
         const scenario = data.scenarios.find(s => s.id === scenarioId);
         
@@ -65,38 +81,47 @@ export async function createFromProjections(scenarioId, projectionData) {
             scenario.budgets = [];
         }
         
-        // Convert projection data to budget occurrences
-        // Each projection period becomes budget occurrences for that period's transactions
-        const budgetOccurrences = [];
-        let nextId = 1;
+        // Get scenario date range
+        const startDate = new Date(scenario.startDate);
+        const endDate = new Date(scenario.endDate);
         
-        // Generate budget occurrences from planned transactions with amounts from projections
+        // Copy planned transactions to budgets and expand by recurrence
         const statusName = tx => typeof tx.status === 'object' ? tx.status.name : tx.status;
-        const plannedTransactions = (scenario.transactions || []).filter(tx => statusName(tx) === 'planned');
+        const plannedTransactions = (scenario.transactions || [])
+            .filter(tx => statusName(tx) === 'planned' && tx.primaryAccountId && tx.secondaryAccountId);
         
+        // Expand each transaction into dated budget occurrences
+        const budgets = [];
         plannedTransactions.forEach(tx => {
-            // Create a budget occurrence for each planned transaction
-            // Store reference to source transaction for traceability
-            budgetOccurrences.push({
-                id: nextId++,
-                sourceTransactionId: tx.id,
-                primaryAccountId: tx.primaryAccountId,
-                secondaryAccountId: tx.secondaryAccountId,
-                transactionTypeId: tx.transactionTypeId,
-                amount: tx.amount,
-                description: tx.description,
-                recurrence: tx.recurrence,
-                periodicChange: tx.periodicChange,
-                status: {
-                    name: 'planned',
-                    actualAmount: null,
-                    actualDate: null
-                },
-                tags: tx.tags || []
+            const recurrenceDescription = getRecurrenceDescription(tx.recurrence);
+            
+            // Generate all occurrence dates within scenario range
+            const occurrenceDates = generateRecurrenceDates(tx.recurrence, startDate, endDate);
+            
+            // Create a budget occurrence for each date
+            occurrenceDates.forEach(date => {
+                budgets.push({
+                    id: 0, // Will be auto-assigned by saveAll
+                    sourceTransactionId: tx.id,
+                    primaryAccountId: tx.primaryAccountId,
+                    secondaryAccountId: tx.secondaryAccountId,
+                    transactionTypeId: tx.transactionTypeId,
+                    amount: tx.amount,
+                    description: tx.description,
+                    recurrenceDescription: recurrenceDescription,
+                    occurrenceDate: date.toISOString().split('T')[0], // YYYY-MM-DD
+                    periodicChange: tx.periodicChange,
+                    status: {
+                        name: 'planned',
+                        actualAmount: null,
+                        actualDate: null
+                    },
+                    tags: tx.tags || []
+                });
             });
         });
         
-        scenario.budgets = budgetOccurrences;
+        scenario.budgets = budgets;
         return data;
     });
 }

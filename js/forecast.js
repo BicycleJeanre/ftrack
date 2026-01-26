@@ -24,6 +24,17 @@ import { formatDateOnly, parseDateOnly } from './date-utils.js';
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { expandTransactions } from './transaction-expander.js';
 
+// Generate human-readable recurrence description from recurrence object
+function getRecurrenceDescription(recurrence) {
+  if (!recurrence || !recurrence.recurrenceType) return '';
+  const pattern = recurrence.recurrenceType.name || '';
+  
+  if (recurrence.dayOfMonth) return `${pattern} (Day ${recurrence.dayOfMonth})`;
+  if (recurrence.dayOfWeek?.name) return `${pattern} (${recurrence.dayOfWeek.name})`;
+  if (recurrence.customDates) return `Custom: ${recurrence.customDates.split(',').length} dates`;
+  return pattern;
+}
+
 import {
   getScenarios,
   getScenario,
@@ -986,6 +997,7 @@ async function loadMasterTransactionsGrid(container) {
         transactionType,
         secondaryAccount,
         recurrence: tx.recurrence,
+        recurrenceDescription: tx.recurrenceDescription || getRecurrenceDescription(tx.recurrence),
         tags: tx.tags || []
       };
     }).filter(tx => {
@@ -1129,6 +1141,15 @@ async function loadMasterTransactionsGrid(container) {
           }
         },
         ...(showDateColumn ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })] : []),
+        {
+          title: "Recurrence",
+          field: "recurrenceDescription",
+          minWidth: 150,
+          widthGrow: 1,
+          formatter: function(cell) {
+            return cell.getValue() || '';
+          }
+        },
         createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 })
       ],
       cellEdited: async function(cell) {
@@ -1453,7 +1474,7 @@ async function loadBudgetGrid(container) {
     
     window.add(container, buttonContainer);
 
-    // Transform budget occurrences for UI (resolve IDs to full objects)
+    // Transform budgets for UI (resolve IDs to full objects) - mirror transactions grid
     const transformedData = budgetOccurrences.map(budget => {
       const primaryAccount = currentScenario.accounts?.find(a => a.id === budget.primaryAccountId);
       const secondaryAccount = currentScenario.accounts?.find(a => a.id === budget.secondaryAccountId);
@@ -1462,26 +1483,32 @@ async function loadBudgetGrid(container) {
       // transactionTypeId: 1 = Money In (secondary -> primary), 2 = Money Out (primary -> secondary)
       const debitAccount = budget.transactionTypeId === 1 ? secondaryAccount : primaryAccount;
       const creditAccount = budget.transactionTypeId === 1 ? primaryAccount : secondaryAccount;
-      const statusName = typeof budget.status === 'object' ? budget.status.name : budget.status;
-      const actualAmount = typeof budget.status === 'object' ? budget.status.actualAmount : null;
+      const statusObj = typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null };
       
       return {
         id: budget.id,
         sourceTransactionId: budget.sourceTransactionId,
-        amount: actualAmount !== null && actualAmount !== undefined ? actualAmount : budget.amount,
         plannedAmount: budget.amount,
-        actualAmount: actualAmount,
+        actualAmount: statusObj.actualAmount,
+        amount: statusObj.actualAmount !== null && statusObj.actualAmount !== undefined ? statusObj.actualAmount : budget.amount,
         description: budget.description,
         debitAccount: debitAccount || null,
         creditAccount: creditAccount || null,
-        transactionType: { id: budget.transactionTypeId, name: budget.transactionTypeId === 1 ? 'Money In' : 'Money Out' },
+        primaryAccount: debitAccount?.id === primaryAccount?.id ? primaryAccount : creditAccount,
         secondaryAccount: secondaryAccount || null,
-        status: statusName || 'planned'
+        transactionType: { id: budget.transactionTypeId, name: budget.transactionTypeId === 1 ? 'Money In' : 'Money Out' },
+        occurrenceDate: budget.occurrenceDate,
+        recurrenceDescription: budget.recurrenceDescription,
+        status: statusObj,
+        actualDateOverride: statusObj.actualDate
       };
     }).filter(budget => !selectedAccountId ||
       budget.debitAccount?.id === selectedAccountId ||
       budget.creditAccount?.id === selectedAccountId
     );
+
+    // Show/hide primary account column (only when not filtered by account)
+    const showPrimaryColumnBudget = !selectedAccountId;
 
     // Create grid container
     const gridContainer = document.createElement('div');
@@ -1493,8 +1520,10 @@ async function loadBudgetGrid(container) {
       columns: [
         {
           width: 50,
+          minWidth: 50,
           hozAlign: "center",
           cssClass: "delete-cell",
+          resizable: false,
           formatter: function(cell){
             return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
           },
@@ -1510,22 +1539,33 @@ async function loadBudgetGrid(container) {
             }
           }
         },
-        {
-          title: "Status",
-          field: "status",
-          width: 80,
+        ...(showPrimaryColumnBudget ? [{
+          title: "Primary Account",
+          field: "primaryAccount",
+          minWidth: 150,
+          widthGrow: 1.5,
           formatter: function(cell) {
-            const status = cell.getValue();
-            return status === 'actual' ? 'Actual' : 'Planned';
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: (currentScenario.accounts || []).map(acc => ({ label: acc.name, value: acc })),
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          sorter: function(a, b) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
           }
-        },
-        createDateColumn('Date', 'date', { width: 120 }),
-        createMoneyColumn('Planned Amount', 'plannedAmount', { width: 120 }),
-        createMoneyColumn('Actual Amount', 'actualAmount', { width: 120 }),
+        }] : []),
         {
           title: "Type",
           field: "transactionType",
-          width: 100,
+          minWidth: 100,
+          widthGrow: 1,
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -1539,12 +1579,18 @@ async function loadBudgetGrid(container) {
             listItemFormatter: function(value, title) {
               return title;
             }
+          },
+          sorter: function(a, b) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
           }
         },
         {
           title: "Secondary Account",
           field: "secondaryAccount",
-          width: 150,
+          minWidth: 150,
+          widthGrow: 1.5,
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -1555,9 +1601,84 @@ async function loadBudgetGrid(container) {
             listItemFormatter: function(value, title) {
               return title;
             }
+          },
+          sorter: function(a, b) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
           }
         },
-        createTextColumn('Description', 'description', { widthGrow: 2 }),
+        createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
+        createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 }),
+        {
+          title: "Schedule",
+          field: "recurrenceDescription",
+          minWidth: 150,
+          widthGrow: 1,
+          formatter: function(cell) {
+            return cell.getValue() || '';
+          }
+        },
+        createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 }),
+        {
+          title: "Status",
+          field: "status",
+          minWidth: 100,
+          widthGrow: 1,
+          formatter: function(cell) {
+            const rowData = cell.getRow().getData();
+            const status = rowData.status;
+            const statusName = typeof status === 'object' ? status?.name : status;
+            return statusName === 'actual' ? 'Actual' : 'Planned';
+          },
+          cellClick: async function(e, cell) {
+            const rowData = cell.getRow().getData();
+            openStatusModal(rowData, async (updates) => {
+              // Update budget occurrence with actual amount and date
+              const allBudgets = await getBudget(currentScenario.id);
+              const budgetIndex = allBudgets.findIndex(b => b.id === rowData.id);
+              if (budgetIndex >= 0) {
+                const updatedBudget = { ...allBudgets[budgetIndex] };
+                
+                // Normalize budget for save
+                const normalizeBudgetForSave = (budget) => {
+                  const typeName = budget.transactionType?.name || 'Money Out';
+                  const typeId = budget.transactionType?.id ?? (typeName === 'Money In' ? 1 : 2);
+
+                  let primaryAccountId = null;
+                  let secondaryAccountId = null;
+
+                  if (typeId === 1) {
+                    secondaryAccountId = budget.debitAccount?.id ?? budget.secondaryAccountId ?? null;
+                    primaryAccountId = budget.creditAccount?.id ?? budget.primaryAccountId ?? null;
+                  } else {
+                    primaryAccountId = budget.debitAccount?.id ?? budget.primaryAccountId ?? null;
+                    secondaryAccountId = budget.creditAccount?.id ?? budget.secondaryAccountId ?? null;
+                  }
+
+                  return {
+                    ...budget,
+                    transactionTypeId: typeId,
+                    primaryAccountId,
+                    secondaryAccountId,
+                    status: typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null }
+                  };
+                };
+                
+                updatedBudget.status = {
+                  name: updates.actualAmount !== null && updates.actualAmount !== undefined ? 'actual' : 'planned',
+                  actualAmount: updates.actualAmount || null,
+                  actualDate: updates.actualDate || null
+                };
+                
+                allBudgets[budgetIndex] = normalizeBudgetForSave(updatedBudget);
+                await BudgetManager.saveAll(currentScenario.id, allBudgets);
+                currentScenario = await getScenario(currentScenario.id);
+                await loadBudgetGrid(container);
+              }
+            });
+          }
+        }
       ],
       cellEdited: async function(cell) {
         const rowData = cell.getRow().getData();
@@ -1658,6 +1779,64 @@ async function loadBudgetGrid(container) {
   } catch (err) {
     console.error('[Forecast] Failed to load budget grid:', err);
   }
+}
+
+// Open status modal for editing actual amount and date
+function openStatusModal(rowData, onConfirm) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+
+  const content = document.createElement('div');
+  content.className = 'modal-content';
+  content.innerHTML = `
+    <h3>Edit Status</h3>
+    <form>
+      <div class="form-group">
+        <label for="actualAmount">Actual Amount:</label>
+        <input type="number" id="actualAmount" step="0.01" value="${rowData.status?.actualAmount || ''}" placeholder="Enter actual amount">
+      </div>
+      <div class="form-group">
+        <label for="actualDate">Actual Date:</label>
+        <input type="date" id="actualDate" value="${rowData.status?.actualDate ? formatDateOnly(new Date(rowData.status.actualDate)) : ''}">
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-confirm">Confirm</button>
+        <button type="button" class="btn btn-cancel">Cancel</button>
+      </div>
+    </form>
+  `;
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  const confirmBtn = content.querySelector('.btn-confirm');
+  const cancelBtn = content.querySelector('.btn-cancel');
+  const actualAmountInput = content.querySelector('#actualAmount');
+  const actualDateInput = content.querySelector('#actualDate');
+
+  confirmBtn.addEventListener('click', () => {
+    const actualAmount = actualAmountInput.value ? parseFloat(actualAmountInput.value) : null;
+    const actualDate = actualDateInput.value ? new Date(actualDateInput.value).toISOString().split('T')[0] : null;
+
+    onConfirm({
+      actualAmount,
+      actualDate,
+      name: actualAmount !== null ? 'actual' : 'planned'
+    });
+
+    modal.remove();
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    modal.remove();
+  });
+
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
 }
 
 

@@ -484,7 +484,7 @@ Scenarios are self-contained planning environments with their own accounts, tran
 
 ### 3.4 Budgets
 Stored within each scenario under `budgets` array.
-Budgets are expanded snapshots of recurring transactions, representing specific occurrences for planning and tracking.
+Each budget represents a single dated occurrence expanded from a recurring transaction pattern, and can be edited independently.
 
 **Schema**:
 ```json
@@ -496,36 +496,8 @@ Budgets are expanded snapshots of recurring transactions, representing specific 
   "transactionTypeId": "number (ref: lookup:transactionTypes)",
   "amount": "number",
   "description": "string (nullable)",
-  "recurrence": {
-    "recurrenceType": {
-      "id": "number (1-11, see recurrenceTypes)",
-      "name": "string"
-    },
-    "startDate": "string (ISO-8601 YYYY-MM-DD, nullable)",
-    "endDate": "string (ISO-8601 YYYY-MM-DD, nullable)",
-    "interval": "number",
-    "dayOfWeek": {
-      "id": "number (0=Sunday, 1=Monday, ..., 6=Saturday, nullable)",
-      "name": "string (nullable)"
-    },
-    "dayOfMonth": "number (1-31, or -1 for last day, nullable)",
-    "weekOfMonth": {
-      "id": "number (1-5, nullable)",
-      "name": "string (nullable)"
-    },
-    "dayOfWeekInMonth": {
-      "id": "number (0=Sunday, 1=Monday, ..., 6=Saturday, nullable)",
-      "name": "string (nullable)"
-    },
-    "dayOfQuarter": "number (1-92, nullable)",
-    "month": {
-      "id": "number (1-12, nullable)",
-      "name": "string (nullable)"
-    },
-    "dayOfYear": "number (1-365, nullable)",
-    "customDates": "string (comma-separated dates, nullable)",
-    "id": "null"
-  },
+  "occurrenceDate": "string (ISO-8601 YYYY-MM-DD)",
+  "recurrenceDescription": "string (e.g., 'Monthly - Day of Month (Day 1)', 'Weekly (Friday)')",
   "periodicChange": {
     "value": "number",
     "changeMode": "object",
@@ -555,14 +527,15 @@ Budgets are expanded snapshots of recurring transactions, representing specific 
 **Field Descriptions**:
 
 - `id`: Auto-generated unique identifier for this budget occurrence
-- `sourceTransactionId`: References the original transaction that generated this occurrence
+- `sourceTransactionId`: References the original transaction that generated this budget
 - `primaryAccountId`: ID reference to primary account (resolved at runtime)
 - `secondaryAccountId`: ID reference to secondary account (resolved at runtime)
 - `transactionTypeId`: ID reference to transaction type (1=Money In, 2=Money Out)
-- `amount`: Current working amount for this occurrence (editable, represents both planned and working amount)
+- `amount`: Editable amount for this specific occurrence
 - `description`: Transaction description, inherited from source transaction
-- `recurrence`: Full recurrence object copied from source transaction (same structure as transaction.recurrence)
-- `periodicChange`: Full periodic change object copied from source transaction (same structure as transaction.periodicChange)
+- `occurrenceDate`: Specific date this budget occurrence is scheduled (YYYY-MM-DD)
+- `recurrenceDescription`: Human-readable recurrence pattern (e.g., "Monthly - Day 1") for reference
+- `periodicChange`: Full periodic change object copied from source transaction
 - `status`: Object containing execution status
   - `name`: "planned" or "actual"
   - `actualAmount`: Actual executed amount when name="actual" (nullable)
@@ -571,22 +544,23 @@ Budgets are expanded snapshots of recurring transactions, representing specific 
 
 **Budget Generation Process**:
 1. User creates recurring transactions with recurrence patterns
-2. Projection engine expands recurrence into specific dated occurrences
-3. Each occurrence becomes a budget entry when "Save as Budget" is clicked
-4. Budget entries reference original transaction via `sourceTransactionId`
-5. Each occurrence is independent and can be edited without affecting others
+2. User saves transaction as a budget
+3. Budget creation expands the recurrence pattern into individual dated occurrences
+4. Each occurrence becomes a standalone budget record within the scenario date range
+5. Each budget occurrence is independent and can be edited without affecting the source transaction or other occurrences
 
 **Budget vs Transaction**:
 
 | Aspect | Transaction | Budget |
 |--------|-------------|---------|
-| Purpose | Define recurring pattern | Track specific occurrence |
-| Recurrence | Pattern definition | Copy for reference |
+| Purpose | Define recurring pattern | Track specific dated occurrence |
+| Storage | Single record with recurrence pattern | Expanded: one per occurrence date |
 | Amount | Base amount | Editable per occurrence |
-| Date | Start/end dates | Specific occurrence date |
-| Editing | Changes affect all future | Changes only this occurrence |
+| Date | Start/end dates for pattern | Specific occurrence date |
+| Editing | Changes affect source and all future | Changes only this occurrence |
 | Actuals | Not tracked | `actualAmount` when executed |
 | Status | planned/actual | planned/actual |
+| Independence | Linked to future occurrences | Standalone, independent record |
 
 **Money Flow**:
 - Budget inherits `primaryAccount` and `secondaryAccount` from source transaction
@@ -596,39 +570,27 @@ Budgets are expanded snapshots of recurring transactions, representing specific 
 - Same double-entry accounting model as transactions
 
 **Workflow**:
-1. **Generate**: User clicks "Save as Budget" to expand transactions into occurrences
-2. **Plan**: User edits `amount` for specific occurrences (e.g., expecting higher grocery cost in December)
-3. **Execute**: When transaction occurs, user enters `status.actualAmount` and sets `status.name = "actual"`
-4. **Track**: Compare `amount` (planned) vs `status.actualAmount` (actual) for variance analysis
-5. **Regenerate**: User can regenerate from source transactions to reset to original projections
+1. **Create**: User creates recurring transactions with recurrence patterns
+2. **Generate**: User clicks "Save as Budget" to expand transactions into dated occurrences
+3. **Plan**: User edits `amount` for specific occurrences (e.g., expecting higher grocery cost in December)
+4. **Execute**: When transaction occurs, user enters `status.actualAmount` and `status.actualDate`
+5. **Track**: Compare `amount` (planned) vs `status.actualAmount` (actual) for variance analysis
+6. **Regenerate**: User can regenerate from source transactions to reset to original projections
 
 **Example Budget Occurrence**:
 
 *Stored Data (ID references only)*:
 ```json
 {
-  "id": 5,
+  "id": 15,
   "sourceTransactionId": 3,
   "primaryAccountId": 4,
   "secondaryAccountId": 11,
   "transactionTypeId": 2,
   "amount": 2200,
   "description": "Monthly rent payment",
-  "recurrence": {
-    "recurrenceType": {"id": 4, "name": "Monthly - Day of Month"},
-    "startDate": null,
-    "endDate": null,
-    "interval": 1,
-    "dayOfWeek": null,
-    "dayOfMonth": 1,
-    "weekOfMonth": null,
-    "dayOfWeekInMonth": null,
-    "dayOfQuarter": 1,
-    "month": null,
-    "dayOfYear": 1,
-    "customDates": null,
-    "id": null
-  },
+  "occurrenceDate": "2026-02-01",
+  "recurrenceDescription": "Monthly - Day of Month (Day 1)",
   "periodicChange": null,
   "status": {
     "name": "planned",
@@ -650,15 +612,15 @@ This ensures:
 - Single source of truth for account data
 - Account updates automatically reflect in all transactions/budgets
 - Smaller file size (no duplicated account objects)
-- Easier data migration and updates
-- Transaction-specific execution data (actualAmount, actualDate) stays with the transaction
+- Each budget occurrence is completely independent
+- Transaction-specific execution data (actualAmount, actualDate) stays with each budget
 
 **Use Cases**:
-- **Budget Planning**: Edit individual occurrence amounts for seasonal variations
+- **Budget Planning**: Edit individual occurrence amounts for seasonal variations (holiday spending, quarterly bonuses)
 - **Actual Tracking**: Record actual amounts as transactions execute
 - **Variance Analysis**: Compare planned vs actual for budget performance
 - **What-if Analysis**: Test different spending scenarios without changing source transactions
-- **Historical Reference**: Maintain connection to source transaction via `sourceTransactionId`
+- **Historical Reference**: Each budget maintains link to source transaction via `sourceTransactionId`
 
 ### 3.5 Projections
 Stored within each scenario under `projections` array.
