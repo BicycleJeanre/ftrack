@@ -11,10 +11,14 @@ import { parseDateOnly, formatDateOnly } from './date-utils.js';
  * Generate projections for a scenario
  * @param {number} scenarioId - The scenario ID to generate projections for
  * @param {Object} options - Generation options
+ * @param {string} options.source - 'transactions' (default) or 'budget'
+ * @param {string} options.periodicity - 'daily', 'weekly', 'monthly' (default), 'quarterly', 'yearly'
  * @returns {Promise<Array>} - Array of projection records
  */
 export async function generateProjections(scenarioId, options = {}) {
   console.log('[ProjectionEngine] Generating projections for scenario:', scenarioId);
+  
+  const source = options.source || 'transactions';
   
   // Load scenario data
   const scenario = await getScenario(scenarioId);
@@ -23,7 +27,27 @@ export async function generateProjections(scenarioId, options = {}) {
   }
   
   const accounts = scenario.accounts || [];
-  const plannedTransactions = (scenario.transactions || []).filter(tx => tx.status === 'planned');
+  let plannedTransactions;
+  
+  if (source === 'budget') {
+    // Use budget occurrences as source instead of transactions
+    console.log('[ProjectionEngine] Using budget as projection source');
+    plannedTransactions = (scenario.budgets || [])
+      .filter(budget => budget.status === 'planned')
+      .map(budget => ({
+        id: budget.id,
+        debitAccount: budget.debitAccount,
+        creditAccount: budget.creditAccount,
+        amount: budget.amount,
+        description: budget.description,
+        recurrence: budget.recurrence,
+        periodicChange: null, // Budget occurrences don't typically have periodic changes
+        effectiveDate: budget.date
+      }));
+  } else {
+    // Use planned transactions (default)
+    plannedTransactions = (scenario.transactions || []).filter(tx => tx.status === 'planned');
+  }
   
   // Parse projection window
   const startDate = parseDateOnly(scenario.startDate);
@@ -31,7 +55,7 @@ export async function generateProjections(scenarioId, options = {}) {
   
   console.log('[ProjectionEngine] Projection window:', startDate, 'to', endDate);
   console.log('[ProjectionEngine] Accounts:', accounts.length);
-  console.log('[ProjectionEngine] Planned transactions:', plannedTransactions.length);
+  console.log('[ProjectionEngine] Planned transactions/budget items:', plannedTransactions.length);
   
   // Initialize account balances
   const accountBalances = new Map();

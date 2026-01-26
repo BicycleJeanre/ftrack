@@ -3513,8 +3513,798 @@
           "periodicChange": null,
           "tags": []
         }
+      ],
+      "budgets": [
+        {
+          "id": 1,
+          "sourceTransactionId": 1,
+          "amount": 150,
+          "plannedAmount": 150,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 10,
+            "name": "Groceries",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": ""
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 3,
+              "name": "Weekly"
+            },
+            "startDate": "2026-01-06",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": {
+              "id": 1,
+              "name": "Monday"
+            },
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 2,
+          "sourceTransactionId": 2,
+          "amount": 3200,
+          "plannedAmount": 3200,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "name": "Primary Salary",
+            "type": {
+              "id": 4,
+              "name": "Income"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": "",
+            "id": 1
+          },
+          "creditAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 3,
+              "name": "Weekly"
+            },
+            "startDate": null,
+            "endDate": null,
+            "interval": 2,
+            "dayOfWeek": {
+              "id": 1,
+              "name": "Monday"
+            },
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 3,
+          "sourceTransactionId": 3,
+          "amount": 1500,
+          "plannedAmount": 1500,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "name": "Side business",
+            "type": {
+              "id": 4,
+              "name": "Income"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": "",
+            "id": 2
+          },
+          "creditAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 4,
+              "name": "Monthly - Day of Month"
+            },
+            "startDate": null,
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 15,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 4,
+          "sourceTransactionId": 4,
+          "amount": 1500,
+          "plannedAmount": 1500,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "name": "Side business",
+            "type": {
+              "id": 4,
+              "name": "Income"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": "",
+            "id": 2
+          },
+          "creditAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 4,
+              "name": "Monthly - Day of Month"
+            },
+            "startDate": null,
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 30,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 5,
+          "sourceTransactionId": 5,
+          "amount": 2200,
+          "plannedAmount": 2200,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 11,
+            "name": "Rent",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 4,
+              "name": "Monthly - Day of Month"
+            },
+            "startDate": null,
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 6,
+          "sourceTransactionId": 6,
+          "amount": 250,
+          "plannedAmount": 250,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 12,
+            "name": "Utilities",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 4,
+              "name": "Monthly - Day of Month"
+            },
+            "startDate": null,
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 7,
+          "sourceTransactionId": 7,
+          "amount": 425,
+          "plannedAmount": 425,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "name": "Car Loan",
+            "type": {
+              "id": 2,
+              "name": "Liability"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 18000,
+            "openDate": "2026-01-08",
+            "periodicChange": "",
+            "id": 8
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 4,
+              "name": "Monthly - Day of Month"
+            },
+            "startDate": null,
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 8,
+          "sourceTransactionId": 8,
+          "amount": 350,
+          "plannedAmount": 350,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 13,
+            "name": "Insurance",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 4,
+              "name": "Monthly - Day of Month"
+            },
+            "startDate": null,
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 9,
+          "sourceTransactionId": 9,
+          "amount": 500,
+          "plannedAmount": 500,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "name": "Savings Account",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 15000,
+            "openDate": "2026-01-08",
+            "periodicChange": "",
+            "id": 5
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 4,
+              "name": "Monthly - Day of Month"
+            },
+            "startDate": null,
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 10,
+          "sourceTransactionId": 10,
+          "amount": 425,
+          "plannedAmount": 425,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "name": "Investment Returns",
+            "type": {
+              "id": 4,
+              "name": "Income"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": "",
+            "id": 3
+          },
+          "creditAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 6,
+              "name": "Quarterly"
+            },
+            "startDate": "2026-03-01",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 11,
+          "sourceTransactionId": 11,
+          "amount": 200,
+          "plannedAmount": 200,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 14,
+            "name": "Transportation",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 6,
+              "name": "Quarterly"
+            },
+            "startDate": "2026-03-01",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 12,
+          "sourceTransactionId": 12,
+          "amount": 1800,
+          "plannedAmount": 1800,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 11,
+            "name": "Rent",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 7,
+              "name": "Yearly"
+            },
+            "startDate": "2026-01-15",
+            "endDate": null,
+            "interval": 2,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 13,
+          "sourceTransactionId": 13,
+          "amount": 650,
+          "plannedAmount": 650,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 14,
+            "name": "Transportation",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 7,
+              "name": "Yearly"
+            },
+            "startDate": "2026-01-15",
+            "endDate": null,
+            "interval": 2,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 14,
+          "sourceTransactionId": 14,
+          "amount": 2500,
+          "plannedAmount": 2500,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 15,
+            "name": "Tax Refund",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "creditAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 7,
+              "name": "Yearly"
+            },
+            "startDate": "2026-04-15",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 15,
+          "sourceTransactionId": 15,
+          "amount": 120,
+          "plannedAmount": 120,
+          "actualAmount": null,
+          "description": null,
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 16,
+            "name": "Entertainment",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 7,
+              "name": "Yearly"
+            },
+            "startDate": "2026-02-01",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 16,
+          "sourceTransactionId": 16,
+          "amount": 3500,
+          "plannedAmount": 3500,
+          "actualAmount": null,
+          "description": "Vacation!",
+          "debitAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "creditAccount": {
+            "id": 16,
+            "name": "Entertainment",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": null
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 1,
+              "name": "One Time"
+            },
+            "startDate": "2026-07-03",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        },
+        {
+          "id": 17,
+          "sourceTransactionId": 17,
+          "amount": 5000,
+          "plannedAmount": 5000,
+          "actualAmount": null,
+          "description": "Bonus!",
+          "debitAccount": {
+            "name": "Primary Salary",
+            "type": {
+              "id": 4,
+              "name": "Income"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "balance": 0,
+            "openDate": "2026-01-08",
+            "periodicChange": "",
+            "id": 1
+          },
+          "creditAccount": {
+            "id": 4,
+            "name": "Checking Account"
+          },
+          "recurrence": {
+            "recurrenceType": {
+              "id": 1,
+              "name": "One Time"
+            },
+            "startDate": "2026-12-15",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": 1,
+            "month": null,
+            "dayOfYear": 1,
+            "customDates": null,
+            "id": null
+          },
+          "status": "planned"
+        }
       ]
     }
   ],
-  "migrationVersion": 1
+  "migrationVersion": 2
 }

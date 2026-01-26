@@ -625,6 +625,47 @@ export async function clearProjections(scenarioId) {
 }
 
 // ============================================================================
+// BUDGET OPERATIONS
+// ============================================================================
+
+/**
+ * Save budget for a scenario (replaces all existing budget occurrences)
+ * @param {number} scenarioId - The scenario ID
+ * @param {Array} budgets - Array of budget occurrence records
+ * @returns {Promise<void>}
+ */
+export async function saveBudget(scenarioId, budgets) {
+  const appData = await readAppData();
+  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
+  
+  if (scenarioIndex === -1) {
+    throw new Error(`Scenario ${scenarioId} not found`);
+  }
+  
+  appData.scenarios[scenarioIndex].budgets = budgets;
+  await writeAppData(appData);
+}
+
+/**
+ * Get budget for a scenario
+ * @param {number} scenarioId - The scenario ID
+ * @returns {Promise<Array>} - Array of budget occurrences
+ */
+export async function getBudget(scenarioId) {
+  const scenario = await getScenario(scenarioId);
+  return scenario?.budgets || [];
+}
+
+/**
+ * Clear all budget occurrences for a scenario
+ * @param {number} scenarioId - The scenario ID
+ * @returns {Promise<void>}
+ */
+export async function clearBudget(scenarioId) {
+  await saveBudget(scenarioId, []);
+}
+
+// ============================================================================
 // PERIOD OPERATIONS
 // ============================================================================
 

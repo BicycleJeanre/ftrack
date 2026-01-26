@@ -10,6 +10,7 @@ import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn,
 import * as ScenarioManager from './managers/scenario-manager.js';
 import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
+import * as BudgetManager from './managers/budget-manager.js';
 import { openRecurrenceModal } from './modal-recurrence.js';
 import { openPeriodicChangeModal } from './modal-periodic-change.js';
 import { openTextInputModal } from './modal-text-input.js';
@@ -28,7 +29,9 @@ import {
   getTransactions,
   createTransaction,
   createAccount,
-  getScenarioPeriods
+  getScenarioPeriods,
+  getBudget,
+  saveBudget
 } from './data-manager.js';
 import { generateProjections, clearProjections } from './projection-engine.js';
 
@@ -101,6 +104,34 @@ function buildGridContainer() {
   window.add(transactionsContent, transactionsTable);
 
   window.add(middleRow, transactionsSection);
+  
+  // Budget section (between Transactions and Projections)
+  const budgetRow = document.createElement('div');
+  budgetRow.classList.add('mb-lg');
+  window.add(forecastEl, budgetRow);
+
+  const budgetSection = document.createElement('div');
+  budgetSection.id = 'budgetSection';
+  budgetSection.className = 'bg-main bordered rounded shadow-lg';
+
+  const budgetHeader = document.createElement('div');
+  budgetHeader.id = 'budgetAccordionHeader';
+  budgetHeader.className = 'pointer flex-between accordion-header section-padding';
+  budgetHeader.innerHTML = `<h2 class="text-main section-title">Budget</h2><span class="accordion-arrow">&#9662;</span>`;
+  budgetHeader.addEventListener('click', () => window.toggleAccordion('budgetContent'));
+  window.add(budgetSection, budgetHeader);
+
+  const budgetContent = document.createElement('div');
+  budgetContent.id = 'budgetContent';
+  budgetContent.className = 'accordion-content open section-content';
+  window.add(budgetSection, budgetContent);
+
+  const budgetTable = document.createElement('div');
+  budgetTable.id = 'budgetTable';
+  window.add(budgetContent, budgetTable);
+
+  window.add(budgetRow, budgetSection);
+
   // Bottom row: Projections (full width)
   const projectionsSection = document.createElement('div');
   projectionsSection.id = 'projectionsSection';
@@ -124,6 +155,7 @@ function buildGridContainer() {
     scenarioSelector,
     accountsTable,
     transactionsTable,
+    budgetTable,
     projectionsContent
   };
 }
@@ -1168,6 +1200,241 @@ function openActualTransactionModal(transaction, container) {
 }
 
 
+// Load budget grid
+async function loadBudgetGrid(container) {
+  if (!currentScenario) return;
+
+  container.innerHTML = '';
+
+  try {
+    // Get budget occurrences
+    let budgetOccurrences = await getBudget(currentScenario.id);
+    
+    if (budgetOccurrences.length === 0) {
+      const emptyMsg = document.createElement('p');
+      emptyMsg.className = 'text-muted';
+      emptyMsg.textContent = 'No budget saved. Generate projections and click "Save as Budget".';
+      window.add(container, emptyMsg);
+      return;
+    }
+
+    // Add section header
+    const sectionHeader = document.createElement('h3');
+    sectionHeader.className = 'text-main section-header';
+    const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+    if (selIdNum) {
+      const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
+      sectionHeader.textContent = `Budget - Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
+    } else {
+      sectionHeader.textContent = 'Budget - All Accounts';
+    }
+    window.add(container, sectionHeader);
+
+    // Add Clear Budget button
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'mb-sm';
+    const clearButton = document.createElement('button');
+    clearButton.className = 'btn';
+    clearButton.textContent = 'Clear Budget';
+    clearButton.addEventListener('click', async () => {
+      const confirmed = confirm('Clear all budget occurrences? This cannot be undone.');
+      if (!confirmed) return;
+      
+      try {
+        await BudgetManager.clearAll(currentScenario.id);
+        currentScenario = await getScenario(currentScenario.id);
+        await loadBudgetGrid(container);
+      } catch (err) {
+        console.error('[Forecast] Failed to clear budget:', err);
+        alert('Failed to clear budget: ' + err.message);
+      }
+    });
+    window.add(buttonContainer, clearButton);
+    
+    // Add Reproject from Budget button
+    const reprojectButton = document.createElement('button');
+    reprojectButton.className = 'btn btn-primary';
+    reprojectButton.textContent = 'Project from Budget';
+    reprojectButton.addEventListener('click', async () => {
+      try {
+        const confirmed = confirm('Generate new projections using budget as the source?');
+        if (!confirmed) return;
+        
+        reprojectButton.textContent = 'Projecting...';
+        reprojectButton.disabled = true;
+        
+        await generateProjections(currentScenario.id, { 
+          periodicity: 'monthly',
+          source: 'budget' 
+        });
+        
+        // Reload scenario and projections
+        currentScenario = await getScenario(currentScenario.id);
+        await loadProjectionsSection(getEl('projectionsContent'));
+        
+        alert('Projections generated from budget successfully!');
+      } catch (err) {
+        console.error('[Forecast] Failed to project from budget:', err);
+        alert('Failed to project from budget: ' + err.message);
+      } finally {
+        reprojectButton.textContent = 'Project from Budget';
+        reprojectButton.disabled = false;
+      }
+    });
+    window.add(buttonContainer, reprojectButton);
+    
+    window.add(container, buttonContainer);
+
+    // Transform budget occurrences for UI (same pattern as transactions)
+    const transformedData = budgetOccurrences.map(budget => {
+      const mapped = mapTxToUI(budget, selectedAccountId);
+      return {
+        id: budget.id,
+        sourceTransactionId: budget.sourceTransactionId,
+        date: budget.date,
+        amount: budget.actualAmount !== null && budget.actualAmount !== undefined ? budget.actualAmount : budget.amount,
+        plannedAmount: budget.amount,
+        actualAmount: budget.actualAmount,
+        description: budget.description,
+        debitAccount: budget.debitAccount,
+        creditAccount: budget.creditAccount,
+        transactionType: mapped ? mapped.transactionType : { id: 1, name: 'Money Out' },
+        secondaryAccount: mapped ? mapped.secondaryAccount : budget.creditAccount,
+        status: budget.status || 'planned'
+      };
+    }).filter(budget => !selectedAccountId ||
+      budget.debitAccount?.id === selectedAccountId ||
+      budget.creditAccount?.id === selectedAccountId
+    );
+
+    // Create grid container
+    const gridContainer = document.createElement('div');
+    gridContainer.className = 'grid-container budget-grid';
+    window.add(container, gridContainer);
+
+    const budgetTable = createGrid(gridContainer, {
+      data: transformedData,
+      columns: [
+        {
+          width: 50,
+          hozAlign: "center",
+          cssClass: "delete-cell",
+          formatter: function(cell){
+            return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
+          },
+          cellClick: async function(e, cell) {
+            if (confirm('Delete this budget occurrence?')) {
+              try {
+                await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
+                currentScenario = await getScenario(currentScenario.id);
+                await loadBudgetGrid(container);
+              } catch (err) {
+                console.error('[Forecast] Failed to delete budget occurrence:', err);
+              }
+            }
+          }
+        },
+        {
+          title: "Status",
+          field: "status",
+          width: 80,
+          formatter: function(cell) {
+            const status = cell.getValue();
+            return status === 'actual' ? 'Actual' : 'Planned';
+          }
+        },
+        createDateColumn('Date', 'date', { width: 120 }),
+        createMoneyColumn('Planned Amount', 'plannedAmount', { width: 120 }),
+        createMoneyColumn('Actual Amount', 'actualAmount', { width: 120 }),
+        {
+          title: "Type",
+          field: "transactionType",
+          width: 100,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: [
+              { label: 'Money Out', value: { id: 1, name: 'Money Out' } },
+              { label: 'Money In', value: { id: 2, name: 'Money In' } }
+            ],
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          }
+        },
+        {
+          title: "Secondary Account",
+          field: "secondaryAccount",
+          width: 150,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: (currentScenario.accounts || []).map(acc => ({ label: acc.name, value: acc })),
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          }
+        },
+        createTextColumn('Description', 'description', { widthGrow: 2 }),
+      ],
+      cellEdited: async function(cell) {
+        const rowData = cell.getRow().getData();
+        const field = cell.getColumn().getField();
+        const newValue = cell.getValue();
+
+        // Update budget occurrence
+        const allBudgets = await getBudget(currentScenario.id);
+        const budgetIndex = allBudgets.findIndex(b => b.id === rowData.id);
+
+        if (budgetIndex >= 0) {
+          const updatedBudget = { ...allBudgets[budgetIndex], [field]: newValue };
+
+          // If transaction type changed, update debit/credit accounts
+          if (field === 'transactionType' && selectedAccountId) {
+            const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
+            const secondaryAccount = updatedBudget.secondaryAccount;
+
+            if (newValue?.name === 'Money Out') {
+              updatedBudget.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
+              updatedBudget.creditAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
+            } else if (newValue?.name === 'Money In') {
+              updatedBudget.debitAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
+              updatedBudget.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
+            }
+          }
+
+          // If secondary account changed, update debit/credit accounts
+          if (field === 'secondaryAccount' && selectedAccountId) {
+            const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
+            const transactionType = updatedBudget.transactionType;
+
+            if (transactionType?.name === 'Money Out') {
+              updatedBudget.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
+              updatedBudget.creditAccount = newValue ? { id: newValue.id } : null;
+            } else if (transactionType?.name === 'Money In') {
+              updatedBudget.debitAccount = newValue ? { id: newValue.id } : null;
+              updatedBudget.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
+            }
+          }
+
+          allBudgets[budgetIndex] = updatedBudget;
+          await BudgetManager.saveAll(currentScenario.id, allBudgets);
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('[Forecast] Failed to load budget grid:', err);
+  }
+}
+
+
 // Load projections section (buttons and grid)
 async function loadProjectionsSection(container) {
   if (!currentScenario) return;
@@ -1186,7 +1453,10 @@ async function loadProjectionsSection(container) {
     try {
       generateButton.textContent = 'Generating...';
       generateButton.disabled = true;
-      await generateProjections(currentScenario.id, { periodicity: 'monthly' });
+      await generateProjections(currentScenario.id, { 
+        periodicity: 'monthly',
+        source: 'transactions' // Explicitly use transactions as source
+      });
       // Reload scenario to get updated projections
       currentScenario = await getScenario(currentScenario.id);
       await loadProjectionsGrid(projectionsGridContainer);
@@ -1221,6 +1491,48 @@ async function loadProjectionsSection(container) {
     }
   });
   window.add(buttonContainer, clearButton);
+  
+  // Add Save as Budget button
+  const saveBudgetButton = document.createElement('button');
+  saveBudgetButton.className = 'btn btn-primary';
+  saveBudgetButton.textContent = 'Save as Budget';
+  saveBudgetButton.style.padding = '12px 24px';
+  saveBudgetButton.style.fontSize = '1.04em';
+  saveBudgetButton.style.whiteSpace = 'nowrap';
+  saveBudgetButton.style.minWidth = 'fit-content';
+  saveBudgetButton.style.width = 'auto';
+  saveBudgetButton.style.display = 'inline-block';
+  saveBudgetButton.addEventListener('click', async () => {
+    try {
+      if (!currentScenario.projections || currentScenario.projections.length === 0) {
+        alert('No projections to save as budget. Generate projections first.');
+        return;
+      }
+      
+      const confirmed = confirm('Save current projection as Budget? This will replace any existing budget.');
+      if (!confirmed) return;
+      
+      saveBudgetButton.textContent = 'Saving...';
+      saveBudgetButton.disabled = true;
+      
+      // Create budget from current projections
+      await BudgetManager.createFromProjections(currentScenario.id, currentScenario.projections);
+      
+      // Reload scenario and budget grid
+      currentScenario = await getScenario(currentScenario.id);
+      await loadBudgetGrid(getEl('budgetTable'));
+      
+      alert('Budget saved successfully!');
+    } catch (err) {
+      console.error('[Forecast] Failed to save budget:', err);
+      alert('Failed to save budget: ' + err.message);
+    } finally {
+      saveBudgetButton.textContent = 'Save as Budget';
+      saveBudgetButton.disabled = false;
+    }
+  });
+  window.add(buttonContainer, saveBudgetButton);
+  
   window.add(container, buttonContainer);
 
   // Update accordion header with selected account
@@ -1318,6 +1630,7 @@ async function loadScenarioData() {
   const containers = {
     accountsTable: getEl('accountsTable'),
     transactionsTable: getEl('transactionsTable'),
+    budgetTable: getEl('budgetTable'),
     projectionsContent: getEl('projectionsContent')
   };
 
@@ -1326,16 +1639,20 @@ async function loadScenarioData() {
   // Show/hide sections based on scenario type
   const accountsSection = getEl('accountsTable').closest('.bg-main');
   const txSection = getEl('transactionsTable').closest('.bg-main');
+  const budgetSection = getEl('budgetSection');
   const projectionsSection = getEl('projectionsSection');
   
   if (typeConfig) {
     if (typeConfig.showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
     if (typeConfig.showPlannedTransactions || typeConfig.showActualTransactions) txSection.classList.remove('hidden'); else txSection.classList.add('hidden');
     if (typeConfig.showProjections) projectionsSection.classList.remove('hidden'); else projectionsSection.classList.add('hidden');
+    // Budget section is always visible (can be hidden manually by user via accordion)
+    budgetSection.classList.remove('hidden');
   }
 
   // Clear downstream grids to prevent ghost data
   containers.transactionsTable.innerHTML = '<div class="empty-message">Loading...</div>';
+  containers.budgetTable.innerHTML = '<div class="empty-message">Loading...</div>';
 
   await loadAccountsGrid(containers.accountsTable);
   // Note: loadPlannedTransactionsGrid and loadMasterTransactionsGrid
@@ -1344,6 +1661,7 @@ async function loadScenarioData() {
   // Initialize period selector for transactions
   await initializePeriodSelector();
   
+  await loadBudgetGrid(containers.budgetTable);
   await loadProjectionsSection(containers.projectionsContent);
 }
 

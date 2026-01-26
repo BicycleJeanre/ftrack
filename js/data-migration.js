@@ -81,6 +81,18 @@ export function migrateScenarioTransactions(scenario) {
 }
 
 /**
+ * Ensure scenario has budgets array (migration to v2)
+ * @param {Object} scenario - The scenario object to migrate
+ * @returns {Object} - The migrated scenario
+ */
+export function ensureBudgetsArray(scenario) {
+    if (!scenario.budgets) {
+        scenario.budgets = [];
+    }
+    return scenario;
+}
+
+/**
  * Run migration on all scenarios in the data store
  * @returns {Promise<void>}
  */
@@ -89,11 +101,16 @@ export async function migrateAllScenarios() {
     const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
     
     if (data.scenarios) {
-        data.scenarios = data.scenarios.map(migrateScenarioTransactions);
+        data.scenarios = data.scenarios.map(scenario => {
+            // Apply all migrations in sequence
+            scenario = migrateScenarioTransactions(scenario);
+            scenario = ensureBudgetsArray(scenario);
+            return scenario;
+        });
     }
     
-    // Mark migration as complete
-    data.migrationVersion = data.migrationVersion || 1;
+    // Mark migration as complete (v2 adds budgets)
+    data.migrationVersion = 2;
     
     // Write back
     await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
@@ -105,5 +122,5 @@ export async function migrateAllScenarios() {
  */
 export async function needsMigration() {
     const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-    return !data.migrationVersion || data.migrationVersion < 1;
+    return !data.migrationVersion || data.migrationVersion < 2;
 }
