@@ -316,7 +316,33 @@ export async function saveAccounts(scenarioId, accounts) {
  */
 export async function getTransactions(scenarioId) {
   const scenario = await getScenario(scenarioId);
-  return scenario ? scenario.transactions || [] : [];
+  if (!scenario) return [];
+  
+  const transactions = scenario.transactions || [];
+  const accounts = scenario.accounts || [];
+
+  console.log('[DataManager.getTransactions] scenario', { scenarioId, count: transactions.length });
+  
+  // Resolve account IDs to full account objects for UI display
+  return transactions.map(tx => {
+    const primaryAccount = accounts.find(a => a.id === tx.primaryAccountId);
+    const secondaryAccount = accounts.find(a => a.id === tx.secondaryAccountId);
+    const transactionType = tx.transactionTypeId === 1
+      ? { id: 1, name: 'Money In' }
+      : { id: 2, name: 'Money Out' };
+    
+    // Map to legacy debitAccount/creditAccount based on transaction type
+    // transactionTypeId: 1 = Money In (secondary → primary), 2 = Money Out (primary → secondary)
+    const debitAccount = tx.transactionTypeId === 1 ? secondaryAccount : primaryAccount;
+    const creditAccount = tx.transactionTypeId === 1 ? primaryAccount : secondaryAccount;
+    
+    return {
+      ...tx,
+      debitAccount: debitAccount || null,
+      creditAccount: creditAccount || null,
+      transactionType
+    };
+  });
 }
 
 /**
@@ -343,18 +369,38 @@ export async function createTransaction(scenarioId, transactionData) {
     ? Math.max(...scenario.transactions.map(t => t.id))
     : 0;
 
+  // Convert debitAccount/creditAccount to primaryAccountId/secondaryAccountId based on transactionType
+  // Default to Money Out (type 2) if not specified
+  const transactionTypeId = transactionData.transactionTypeId || 2;
+  
+  let primaryAccountId = null;
+  let secondaryAccountId = null;
+  
+  if (transactionTypeId === 1) {
+    // Money In: secondary → primary (debit=secondary, credit=primary)
+    primaryAccountId = transactionData.creditAccount?.id || null;
+    secondaryAccountId = transactionData.debitAccount?.id || null;
+  } else {
+    // Money Out: primary → secondary (debit=primary, credit=secondary)
+    primaryAccountId = transactionData.debitAccount?.id || null;
+    secondaryAccountId = transactionData.creditAccount?.id || null;
+  }
+
   const newTransaction = {
     id: maxId + 1,
-    status: 'planned', // Default to planned
-    debitAccount: transactionData.debitAccount || null,
-    creditAccount: transactionData.creditAccount || null,
+    primaryAccountId,
+    secondaryAccountId,
+    transactionTypeId,
     amount: transactionData.amount || 0,
     description: transactionData.description || '',
-    effectiveDate: transactionData.effectiveDate || formatDateOnly(new Date()),
     recurrence: transactionData.recurrence || null,
     periodicChange: transactionData.periodicChange || null,
-    tags: transactionData.tags || [],
-    ...transactionData
+    status: {
+      name: transactionData.status || 'planned',
+      actualAmount: transactionData.actualAmount || null,
+      actualDate: transactionData.actualDate || null
+    },
+    tags: transactionData.tags || []
   };
 
   scenario.transactions.push(newTransaction);

@@ -22,6 +22,7 @@ const logger = createLogger('ForecastController');
 
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
 import { generateRecurrenceDates } from './calculation-utils.js';
+import { expandTransactions } from './transaction-expander.js';
 
 import {
   getScenarios,
@@ -680,7 +681,7 @@ async function loadAccountsGrid(container) {
         name: 'New Account',
         type: null,
         currency: null,
-        balance: 0
+        startingBalance: 0
       });
       await loadAccountsGrid(container);
     });
@@ -726,7 +727,7 @@ async function loadAccountsGrid(container) {
 
         createObjectColumn('Currency', 'currency', 'name', Object.assign({ width: 100, responsive: 2 }, createListEditor(lookupData.currencies))),
 
-        createMoneyColumn('Balance', 'balance', { widthGrow: 1 })
+        createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 })
       ],
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
@@ -776,8 +777,9 @@ async function loadAccountsGrid(container) {
         } else {
           // No account selected
           selectedAccountId = null;
-          // Clear downstream grids
-          document.getElementById('transactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
+          // Reload downstream grids in unfiltered mode
+          await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+          await loadProjectionsSection(document.getElementById('projectionsContent'));
         }
       }
     });
@@ -886,21 +888,29 @@ async function loadMasterTransactionsGrid(container) {
   addButton.className = 'btn btn-primary btn-add';
   addButton.textContent = '+ Add New Transaction';
   addButton.addEventListener('click', async () => {
-    // Create new planned transaction
-    const newTx = await createTransaction(currentScenario.id, {
-      status: 'planned',
-      debitAccount: null,
-      creditAccount: null,
-      amount: 0,
-      description: '',
-      effectiveDate: formatDateOnly(new Date()),
-      recurrence: null,
-      periodicChange: null,
-      tags: []
-    });
+    try {
+      // Create new planned transaction
+      const newTx = await createTransaction(currentScenario.id, {
+        status: 'planned',
+        debitAccount: null,
+        creditAccount: null,
+        amount: 0,
+        description: '',
+        effectiveDate: formatDateOnly(new Date()),
+        recurrence: null,
+        periodicChange: null,
+        tags: []
+      });
 
-    // Reload grid
-    await loadMasterTransactionsGrid(container);
+      // Refresh currentScenario to ensure grid reflects new transaction
+      currentScenario = await getScenario(currentScenario.id);
+
+      // Reload grid
+      await loadMasterTransactionsGrid(container);
+    } catch (err) {
+      console.error('[Forecast] Failed to create transaction:', err);
+      alert('Failed to create transaction. Please try again.');
+    }
   });
   window.add(addButtonContainer, addButton);
   window.add(container, addButtonContainer);
@@ -909,73 +919,88 @@ async function loadMasterTransactionsGrid(container) {
   gridContainer.className = 'grid-container master-transactions-grid';
   window.add(container, gridContainer);
 
+  // Show primary account column only when not filtered by a single account
+  const showPrimaryColumn = !selectedAccountId;
+  // Show date column only when a specific period is selected
+  const showDateColumn = !!actualPeriod;
+
   try {
     // Get all transactions
     let allTransactions = await getTransactions(currentScenario.id);
-    let expandedTransactions = [];
 
     // If a period is selected, expand transactions by their recurrence within that period
     if (actualPeriod) {
       const selectedPeriod = periods.find(p => p.id === actualPeriod);
       if (selectedPeriod) {
-        // Expand planned transactions by recurrence within the period
-        allTransactions.forEach(tx => {
-          if (tx.status === 'planned' && tx.recurrence) {
-            // Generate occurrences for this transaction within the period
-            const occurrenceDates = generateRecurrenceDates(tx.recurrence, selectedPeriod.startDate, selectedPeriod.endDate);
-            
-            occurrenceDates.forEach(date => {
-              expandedTransactions.push({
-                ...tx,
-                effectiveDate: formatDateOnly(date),
-                _occurrenceDate: date,
-                _isExpanded: true
-              });
-            });
-          } else if (tx.status === 'actual') {
-            // For actual transactions, check if they fall within the period
-            const txDate = tx.actualDate ? parseDateOnly(tx.actualDate) : parseDateOnly(tx.effectiveDate);
-            if (txDate >= selectedPeriod.startDate && txDate <= selectedPeriod.endDate) {
-              expandedTransactions.push(tx);
-            }
-          } else {
-            // Non-recurring planned transactions - check their effective date
-            const txDate = parseDateOnly(tx.effectiveDate);
-            if (txDate >= selectedPeriod.startDate && txDate <= selectedPeriod.endDate) {
-              expandedTransactions.push(tx);
-            }
-          }
-        });
-        allTransactions = expandedTransactions;
+        // Use shared transaction expander utility
+        allTransactions = expandTransactions(allTransactions, selectedPeriod.startDate, selectedPeriod.endDate, currentScenario.accounts);
       }
     }
 
     // Transform for UI
     const transformedData = allTransactions.map(tx => {
-      // Use centralized mapping helper to determine transactionType/secondaryAccount
+      // Use centralized mapping helper to determine transactionType/secondaryAccount when filtered
       const mapped = mapTxToUI(tx, selectedAccountId);
       
+      // Derive transaction type from explicit id/name when not filtered
+      const txTypeId = mapped?.transactionType?.id
+        || tx.transactionTypeId
+        || tx.transactionType?.id
+        || (tx.transactionType?.name === 'Money In' ? 1 : (tx.transactionType?.name === 'Money Out' ? 2 : null));
+      const transactionType = mapped?.transactionType
+        || (txTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' });
+
+      // Secondary account resolution when not filtered: Money In -> debitAccount (secondary), Money Out -> creditAccount (secondary)
+      const secondaryAccount = mapped?.secondaryAccount
+        || (transactionType.id === 1 ? tx.debitAccount : tx.creditAccount);
+
+      // Primary account resolution when not filtered: Money Out -> debitAccount (primary), Money In -> creditAccount (primary)
+      const primaryAccount = mapped?.primaryAccount
+        || (transactionType.name === 'Money Out' ? tx.debitAccount : tx.creditAccount);
+
+      // Handle status as object or string
+      const statusName = typeof tx.status === 'object' ? tx.status.name : tx.status;
+      const actualAmount = typeof tx.status === 'object' ? tx.status.actualAmount : tx.actualAmount;
+      const actualDate = typeof tx.status === 'object' ? tx.status.actualDate : tx.actualDate;
+      
+      // Display date: only show occurrence date when a specific period is selected; blank for all-period view
+      const displayDate = actualPeriod
+        ? (statusName === 'actual' && actualDate ? actualDate : tx.effectiveDate)
+        : '';
+
       return {
         id: tx.id,
-        status: tx.status || 'planned',
-        amount: tx.status === 'actual' && tx.actualAmount !== undefined ? tx.actualAmount : tx.amount,
+        transactionTypeId: txTypeId,
+        status: statusName || 'planned',
+        amount: statusName === 'actual' && actualAmount !== undefined ? actualAmount : tx.amount,
         plannedAmount: tx.amount,
-        actualAmount: tx.actualAmount,
-        effectiveDate: tx.status === 'actual' && tx.actualDate ? tx.actualDate : tx.effectiveDate,
+        actualAmount: actualAmount,
+        effectiveDate: tx.effectiveDate,
         plannedDate: tx.effectiveDate,
-        actualDate: tx.actualDate,
+        actualDate: actualDate,
+        displayDate,
         description: tx.description,
         debitAccount: tx.debitAccount,
         creditAccount: tx.creditAccount,
-        transactionType: mapped ? mapped.transactionType : { id: 1, name: 'Money Out' },
-        secondaryAccount: mapped ? mapped.secondaryAccount : tx.creditAccount,
+        primaryAccount,
+        transactionType,
+        secondaryAccount,
         recurrence: tx.recurrence,
         tags: tx.tags || []
       };
-    }).filter(tx => !selectedAccountId ||
-      tx.debitAccount?.id === selectedAccountId ||
-      tx.creditAccount?.id === selectedAccountId
-    );
+    }).filter(tx => {
+      // Always show transactions with no accounts (incomplete/newly created)
+      if (!tx.debitAccount && !tx.creditAccount) {
+        return true;
+      }
+      // If no account filter selected, show all
+      if (!selectedAccountId) {
+        return true;
+      }
+      // Otherwise filter by selected account
+      return tx.debitAccount?.id === selectedAccountId ||
+             tx.creditAccount?.id === selectedAccountId;
+    });
 
     const masterTxTable = createGrid(gridContainer, {
       data: transformedData,
@@ -1002,6 +1027,31 @@ async function loadMasterTransactionsGrid(container) {
             }
           }
         },
+        ...(showPrimaryColumn ? [{
+          title: "Primary Account",
+          field: "primaryAccount",
+          minWidth: 150,
+          widthGrow: 1.5,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: [
+              ...((currentScenario.accounts || []).map(acc => ({ label: acc.name, value: acc }))),
+              { label: 'Insert New Account...', value: { __create__: true } }
+            ],
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          sorter: function(a, b) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          }
+        }] : []),
         {
           title: "Type",
           field: "transactionType",
@@ -1078,30 +1128,50 @@ async function loadMasterTransactionsGrid(container) {
             });
           }
         },
-        createDateColumn('Date', 'effectiveDate', { minWidth: 110, widthGrow: 1 }),
-        createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 }),
-        {
-          title: "Status",
-          field: "status",
-          minWidth: 80,
-          widthGrow: 0.5,
-          formatter: function(cell) {
-            const status = cell.getValue();
-            return status === 'actual' ? 'Actual' : 'Planned';
-          },
-          cellClick: function(e, cell) {
-            // Open modal for actual transaction details
-            openActualTransactionModal(cell.getRow().getData(), container);
-          }
-        },
+        ...(showDateColumn ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })] : []),
+        createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 })
       ],
       cellEdited: async function(cell) {
         const rowData = cell.getRow().getData();
         const field = cell.getColumn().getField();
         const newValue = cell.getValue();
+        console.log('[TransactionsGrid] cellEdited start', { field, newValue, rowId: rowData.id });
+
+        const normalizeForSave = (tx) => {
+          const typeName = tx.transactionType?.name
+            || (tx.transactionTypeId === 1 ? 'Money In' : 'Money Out');
+          const transactionTypeId = tx.transactionType?.id
+            ?? tx.transactionTypeId
+            ?? (typeName === 'Money In' ? 1 : 2);
+
+          let primaryAccountId = null;
+          let secondaryAccountId = null;
+
+          if (transactionTypeId === 1) {
+            // Money In: secondary -> primary
+            secondaryAccountId = tx.debitAccount?.id ?? tx.secondaryAccountId ?? null;
+            primaryAccountId = tx.creditAccount?.id ?? tx.primaryAccountId ?? null;
+            if (!tx.debitAccount && secondaryAccountId) tx.debitAccount = { id: secondaryAccountId };
+            if (!tx.creditAccount && primaryAccountId) tx.creditAccount = { id: primaryAccountId };
+          } else {
+            // Money Out: primary -> secondary
+            primaryAccountId = tx.debitAccount?.id ?? tx.primaryAccountId ?? null;
+            secondaryAccountId = tx.creditAccount?.id ?? tx.secondaryAccountId ?? null;
+            if (!tx.debitAccount && primaryAccountId) tx.debitAccount = { id: primaryAccountId };
+            if (!tx.creditAccount && secondaryAccountId) tx.creditAccount = { id: secondaryAccountId };
+          }
+
+          return {
+            ...tx,
+            transactionType: { id: transactionTypeId, name: transactionTypeId === 1 ? 'Money In' : 'Money Out' },
+            transactionTypeId,
+            primaryAccountId,
+            secondaryAccountId,
+          };
+        };
 
         // Handle new account creation
-        if (field === 'secondaryAccount' && newValue && newValue.__create__) {
+        if ((field === 'secondaryAccount' || field === 'primaryAccount') && newValue && newValue.__create__) {
           // Open text input modal to get account name
           openTextInputModal('Create New Account', 'Enter account name:', '', async (accountName) => {
             if (accountName && accountName.trim()) {
@@ -1120,7 +1190,11 @@ async function loadMasterTransactionsGrid(container) {
                 const allTxs = await getTransactions(currentScenario.id);
                 const txIndex = allTxs.findIndex(tx => tx.id === rowData.id);
                 if (txIndex >= 0) {
-                  allTxs[txIndex].secondaryAccount = { id: newAccount.id, name: newAccount.name };
+                  if (field === 'primaryAccount') {
+                    allTxs[txIndex].debitAccount = newAccount;
+                  } else {
+                    allTxs[txIndex].secondaryAccount = { id: newAccount.id, name: newAccount.name };
+                  }
                   await TransactionManager.saveAll(currentScenario.id, allTxs);
                   // Reload grid to show updated accounts
                   await loadMasterTransactionsGrid(container);
@@ -1141,47 +1215,84 @@ async function loadMasterTransactionsGrid(container) {
         if (txIndex >= 0) {
           const updatedTx = { ...allTxs[txIndex], [field]: newValue };
 
-          // If transaction type changed, update debit/credit accounts accordingly
-          if (field === 'transactionType' && selectedAccountId) {
-            const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-            const secondaryAccount = updatedTx.secondaryAccount;
+          // Determine current primary/secondary to preserve intent in unfiltered mode
+          const currentPrimary = rowData.primaryAccount
+            || (rowData.transactionType?.name === 'Money Out' ? rowData.debitAccount || updatedTx.debitAccount : rowData.creditAccount || updatedTx.creditAccount);
+          const currentSecondary = rowData.secondaryAccount
+            || (rowData.transactionType?.name === 'Money Out' ? rowData.creditAccount || updatedTx.creditAccount : rowData.debitAccount || updatedTx.debitAccount);
 
-            if (newValue?.name === 'Money Out') {
-              // Money Out: selected account is debit, secondary is credit
-              updatedTx.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
-              updatedTx.creditAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
-            } else if (newValue?.name === 'Money In') {
-              // Money In: selected account is credit, secondary is debit
-              updatedTx.debitAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
-              updatedTx.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
+          // If transaction type changed, update debit/credit accounts accordingly
+          if (field === 'transactionType') {
+            const secondaryAccount = rowData.secondaryAccount || updatedTx.secondaryAccount;
+
+            if (selectedAccountId) {
+              const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
+              if (newValue?.name === 'Money Out') {
+                // Money Out: selected account is debit, secondary is credit
+                updatedTx.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
+                updatedTx.creditAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
+              } else if (newValue?.name === 'Money In') {
+                // Money In: selected account is credit, secondary is debit
+                updatedTx.debitAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
+                updatedTx.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
+              }
+            } else {
+              // Unfiltered view: preserve current primary/secondary by mapping type
+              if (newValue?.name === 'Money Out') {
+                updatedTx.debitAccount = currentPrimary ? { id: currentPrimary.id } : null;
+                updatedTx.creditAccount = currentSecondary ? { id: currentSecondary.id } : null;
+              } else if (newValue?.name === 'Money In') {
+                updatedTx.debitAccount = currentSecondary ? { id: currentSecondary.id } : null;
+                updatedTx.creditAccount = currentPrimary ? { id: currentPrimary.id } : null;
+              }
             }
           }
 
           // If secondary account changed, update debit/credit accounts accordingly
-          if (field === 'secondaryAccount' && selectedAccountId) {
-            const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
+          if (field === 'secondaryAccount') {
             const transactionType = updatedTx.transactionType;
 
-            if (transactionType?.name === 'Money Out') {
-              // Money Out: selected account is debit, secondary is credit
-              updatedTx.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
-              updatedTx.creditAccount = newValue ? { id: newValue.id } : null;
-            } else if (transactionType?.name === 'Money In') {
-              // Money In: selected account is credit, secondary is debit
-              updatedTx.debitAccount = newValue ? { id: newValue.id } : null;
-              updatedTx.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
+            if (selectedAccountId) {
+              const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
+              if (transactionType?.name === 'Money Out') {
+                // Money Out: selected account is debit, secondary is credit
+                updatedTx.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
+                updatedTx.creditAccount = newValue ? { id: newValue.id } : null;
+              } else if (transactionType?.name === 'Money In') {
+                // Money In: selected account is credit, secondary is debit
+                updatedTx.debitAccount = newValue ? { id: newValue.id } : null;
+                updatedTx.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
+              }
+            } else {
+              // Unfiltered view: update based on transaction type
+              if (transactionType?.name === 'Money Out') {
+                updatedTx.debitAccount = currentPrimary ? { id: currentPrimary.id } : null;
+                updatedTx.creditAccount = newValue ? { id: newValue.id } : null;
+              } else if (transactionType?.name === 'Money In') {
+                updatedTx.creditAccount = currentPrimary ? { id: currentPrimary.id } : null;
+                updatedTx.debitAccount = newValue ? { id: newValue.id } : null;
+              }
             }
           }
 
-          allTxs[txIndex] = updatedTx;
+          // If primary account changed (only shown in unfiltered mode), update debit/credit based on type
+          if (field === 'primaryAccount' && !selectedAccountId) {
+            const transactionType = updatedTx.transactionType;
+            const secondaryAccount = rowData.secondaryAccount || updatedTx.secondaryAccount;
 
-              // Redraw after table is built to fix any layout issues
-              masterTxTable.on("tableBuilt", function() {
-                setTimeout(() => {
-                  masterTxTable.redraw(true);
-                }, 50);
-              });
+            if (transactionType?.name === 'Money Out') {
+              updatedTx.debitAccount = newValue ? { id: newValue.id } : null;
+              updatedTx.creditAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
+            } else if (transactionType?.name === 'Money In') {
+              updatedTx.creditAccount = newValue ? { id: newValue.id } : null;
+              updatedTx.debitAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
+            }
+          }
+
+          allTxs[txIndex] = normalizeForSave(updatedTx);
+          console.log('[TransactionsGrid] saveAll ->', { txId: updatedTx.id, field, updatedTx: allTxs[txIndex] });
           await TransactionManager.saveAll(currentScenario.id, allTxs);
+          console.log('[TransactionsGrid] saveAll complete', { txId: updatedTx.id });
         }
       }
     });

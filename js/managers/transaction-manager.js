@@ -21,6 +21,7 @@ export async function getAll(scenarioId) {
  * @returns {Promise<void>}
  */
 export async function saveAll(scenarioId, transactions) {
+    console.log('[TransactionManager.saveAll] start', { scenarioId, count: transactions?.length });
     return await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
 
@@ -35,11 +36,76 @@ export async function saveAll(scenarioId, transactions) {
 
         let nextId = maxId + 1;
 
+        // Convert UI format (debitAccount/creditAccount) to storage format (primaryAccountId/secondaryAccountId/transactionTypeId)
         data.scenarios[scenarioIndex].transactions = transactions.map(txn => {
-            if (!txn.id || txn.id === 0) {
-                return { ...txn, id: nextId++ };
+            const id = (!txn.id || txn.id === 0) ? nextId++ : txn.id;
+            
+            // Determine transaction type and account IDs
+            let transactionTypeId, primaryAccountId, secondaryAccountId;
+            
+            // If already has the new format, preserve it
+            if (txn.primaryAccountId !== undefined && txn.secondaryAccountId !== undefined && txn.transactionTypeId !== undefined) {
+                transactionTypeId = txn.transactionTypeId;
+                primaryAccountId = txn.primaryAccountId;
+                secondaryAccountId = txn.secondaryAccountId;
+            } else {
+                // Convert from debitAccount/creditAccount format
+                // Infer transaction type from transactionType field or default to Money Out (2)
+                const transactionTypeName = txn.transactionType?.name;
+                
+                if (transactionTypeName === 'Money In') {
+                    // Money In: secondary → primary (debit=secondary, credit=primary)
+                    transactionTypeId = 1;
+                    primaryAccountId = txn.creditAccount?.id || null;
+                    secondaryAccountId = txn.debitAccount?.id || null;
+                } else {
+                    // Money Out: primary → secondary (debit=primary, credit=secondary)
+                    transactionTypeId = 2;
+                    primaryAccountId = txn.debitAccount?.id || null;
+                    secondaryAccountId = txn.creditAccount?.id || null;
+                }
             }
-            return txn;
+            
+            // Normalize status to object format, preserving actual fields when provided
+            let status;
+            if (txn.status && typeof txn.status === 'object' && txn.status.name) {
+                status = {
+                    name: txn.status.name,
+                    actualAmount: txn.status.actualAmount ?? txn.actualAmount ?? null,
+                    actualDate: txn.status.actualDate ?? txn.actualDate ?? null
+                };
+            } else {
+                status = {
+                    name: txn.status === 'actual' ? 'actual' : 'planned',
+                    actualAmount: txn.actualAmount || null,
+                    actualDate: txn.actualDate || null
+                };
+            }
+            
+            const mapped = {
+                id,
+                primaryAccountId,
+                secondaryAccountId,
+                transactionTypeId,
+                amount: txn.amount || 0,
+                effectiveDate: txn.effectiveDate || txn.plannedDate || txn.recurrence?.startDate || null,
+                description: txn.description || '',
+                recurrence: txn.recurrence || null,
+                periodicChange: txn.periodicChange || null,
+                status,
+                tags: txn.tags || []
+            };
+
+            if (txn.__logOnce !== false) {
+                console.log('[TransactionManager.saveAll] mapped txn', { id, primaryAccountId, secondaryAccountId, transactionTypeId, effectiveDate: mapped.effectiveDate });
+            }
+
+            return mapped;
+        });
+
+        console.log('[TransactionManager.saveAll] mapped for write', {
+            scenarioId,
+            count: data.scenarios[scenarioIndex].transactions.length
         });
 
         return data;

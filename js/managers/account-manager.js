@@ -88,7 +88,7 @@ export async function create(scenarioId, accountData) {
             name: accountData.name || 'New Account',
             type: accountData.type || { id: 1, name: 'Asset' },
             currency: accountData.currency || { id: 1, name: 'ZAR' },
-            balance: accountData.balance || 0,
+            startingBalance: accountData.startingBalance || 0,
             openDate: accountData.openDate || formatDateOnly(new Date()),
             periodicChange: accountData.periodicChange || null,
             ...accountData
