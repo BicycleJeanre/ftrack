@@ -232,10 +232,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-01-01",
-          "balance": 53500,
-          "income": 25000,
-          "expenses": -13500,
-          "netChange": 38500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 1
         },
         {
@@ -244,10 +244,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-02-01",
-          "balance": 87000,
-          "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 2
         },
         {
@@ -256,10 +256,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-03-01",
-          "balance": 120500,
-          "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 3
         },
         {
@@ -268,10 +268,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-04-01",
-          "balance": 159000,
-          "income": 25000,
-          "expenses": -13500,
-          "netChange": 38500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 4
         },
         {
@@ -280,10 +280,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-05-01",
-          "balance": 192500,
-          "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 5
         },
         {
@@ -292,10 +292,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-06-01",
-          "balance": 226000,
-          "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 6
         },
         {
@@ -304,10 +304,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-07-01",
-          "balance": 264500,
-          "income": 25000,
-          "expenses": -13500,
-          "netChange": 38500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 7
         },
         {
@@ -316,10 +316,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-08-01",
-          "balance": 298000,
-          "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 8
         },
         {
@@ -328,10 +328,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-09-01",
-          "balance": 331500,
-          "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 9
         },
         {
@@ -340,10 +340,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-10-01",
-          "balance": 370000,
-          "income": 25000,
-          "expenses": -13500,
-          "netChange": 38500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 10
         },
         {
@@ -352,10 +352,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-11-01",
-          "balance": 403500,
-          "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 11
         },
         {
@@ -364,10 +364,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-12-01",
-          "balance": 437000,
-          "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "balance": 15000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 12
         },
         {
@@ -376,10 +376,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-01-01",
-          "balance": -30000,
-          "income": -5000,
-          "expenses": 25000,
-          "netChange": -30000,
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 1
         },
         {
@@ -388,10 +388,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-02-01",
-          "balance": -55000,
+          "balance": 0,
           "income": 0,
-          "expenses": 25000,
-          "netChange": -25000,
+          "expenses": 0,
+          "netChange": 0,
           "period": 2
         },
         {
@@ -400,10 +400,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-03-01",
-          "balance": -80000,
+          "balance": 0,
           "income": 0,
-          "expenses": 25000,
-          "netChange": -25000,
+          "expenses": 0,
+          "netChange": 0,
           "period": 3
         },
         {
@@ -412,10 +412,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-04-01",
-          "balance": -110000,
-          "income": -5000,
-          "expenses": 25000,
-          "netChange": -30000,
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 4
         },
         {
@@ -424,10 +424,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-05-01",
-          "balance": -135000,
+          "balance": 0,
           "income": 0,
-          "expenses": 25000,
-          "netChange": -25000,
+          "expenses": 0,
+          "netChange": 0,
           "period": 5
         },
         {
@@ -436,10 +436,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-06-01",
-          "balance": -160000,
+          "balance": 0,
           "income": 0,
-          "expenses": 25000,
-          "netChange": -25000,
+          "expenses": 0,
+          "netChange": 0,
           "period": 6
         },
         {
@@ -448,10 +448,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-07-01",
-          "balance": -190000,
-          "income": -5000,
-          "expenses": 25000,
-          "netChange": -30000,
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 7
         },
         {
@@ -460,10 +460,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-08-01",
-          "balance": -215000,
+          "balance": 0,
           "income": 0,
-          "expenses": 25000,
-          "netChange": -25000,
+          "expenses": 0,
+          "netChange": 0,
           "period": 8
         },
         {
@@ -472,10 +472,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-09-01",
-          "balance": -240000,
+          "balance": 0,
           "income": 0,
-          "expenses": 25000,
-          "netChange": -25000,
+          "expenses": 0,
+          "netChange": 0,
           "period": 9
         },
         {
@@ -484,10 +484,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-10-01",
-          "balance": -270000,
-          "income": -5000,
-          "expenses": 25000,
-          "netChange": -30000,
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 10
         },
         {
@@ -496,10 +496,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-11-01",
-          "balance": -295000,
+          "balance": 0,
           "income": 0,
-          "expenses": 25000,
-          "netChange": -25000,
+          "expenses": 0,
+          "netChange": 0,
           "period": 11
         },
         {
@@ -508,10 +508,10 @@
           "accountId": 2,
           "account": "Salary",
           "date": "2026-12-01",
-          "balance": -320000,
+          "balance": 0,
           "income": 0,
-          "expenses": 25000,
-          "netChange": -25000,
+          "expenses": 0,
+          "netChange": 0,
           "period": 12
         },
         {
@@ -520,10 +520,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-01-01",
-          "balance": -8500,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 1
         },
         {
@@ -532,10 +532,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-02-01",
-          "balance": -17000,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 2
         },
         {
@@ -544,10 +544,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-03-01",
-          "balance": -25500,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 3
         },
         {
@@ -556,10 +556,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-04-01",
-          "balance": -34000,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 4
         },
         {
@@ -568,10 +568,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-05-01",
-          "balance": -42500,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 5
         },
         {
@@ -580,10 +580,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-06-01",
-          "balance": -51000,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 6
         },
         {
@@ -592,10 +592,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-07-01",
-          "balance": -59500,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 7
         },
         {
@@ -604,10 +604,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-08-01",
-          "balance": -68000,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 8
         },
         {
@@ -616,10 +616,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-09-01",
-          "balance": -76500,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 9
         },
         {
@@ -628,10 +628,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-10-01",
-          "balance": -85000,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 10
         },
         {
@@ -640,10 +640,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-11-01",
-          "balance": -93500,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 11
         },
         {
@@ -652,16 +652,16 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-12-01",
-          "balance": -102000,
-          "income": -8500,
+          "balance": 0,
+          "income": 0,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 0,
           "period": 12
         }
       ],
       "budgets": [
         {
-          "id": 0,
+          "id": 1,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -681,7 +681,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 2,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -701,7 +701,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 3,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -721,7 +721,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 4,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -741,7 +741,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 5,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -761,7 +761,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 6,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -781,7 +781,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 7,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -801,7 +801,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 8,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -821,7 +821,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 9,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -841,7 +841,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 10,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -861,7 +861,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 11,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -881,7 +881,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 12,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -901,7 +901,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 13,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -921,7 +921,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 14,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -941,7 +941,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 15,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -961,7 +961,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 16,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -981,7 +981,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 17,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1001,7 +1001,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 18,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1021,7 +1021,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 19,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1041,7 +1041,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 20,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1061,7 +1061,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 21,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1081,7 +1081,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 22,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1101,7 +1101,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 23,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1121,7 +1121,7 @@
           ]
         },
         {
-          "id": 0,
+          "id": 24,
           "sourceTransactionId": 4,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -1139,7 +1139,7 @@
           "tags": []
         },
         {
-          "id": 0,
+          "id": 25,
           "sourceTransactionId": 4,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -1157,7 +1157,7 @@
           "tags": []
         },
         {
-          "id": 0,
+          "id": 26,
           "sourceTransactionId": 4,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -1173,6 +1173,102 @@
             "actualDate": null
           },
           "tags": []
+        },
+        {
+          "id": 27,
+          "sourceTransactionId": null,
+          "primaryAccountId": null,
+          "secondaryAccountId": null,
+          "transactionTypeId": 2,
+          "amount": 0,
+          "description": "",
+          "occurrenceDate": "2026-01-26",
+          "recurrenceDescription": "One time",
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          }
+        },
+        {
+          "id": 28,
+          "sourceTransactionId": null,
+          "primaryAccountId": null,
+          "secondaryAccountId": null,
+          "transactionTypeId": 2,
+          "amount": 0,
+          "description": "",
+          "occurrenceDate": "2026-01-26",
+          "recurrenceDescription": "One time",
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          }
+        },
+        {
+          "id": 29,
+          "sourceTransactionId": null,
+          "primaryAccountId": null,
+          "secondaryAccountId": null,
+          "transactionTypeId": 2,
+          "amount": 0,
+          "description": "",
+          "occurrenceDate": "2026-01-01",
+          "recurrenceDescription": "One time",
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          }
+        },
+        {
+          "id": 30,
+          "sourceTransactionId": null,
+          "primaryAccountId": null,
+          "secondaryAccountId": null,
+          "transactionTypeId": 2,
+          "amount": 0,
+          "description": "",
+          "occurrenceDate": "2026-01-01",
+          "recurrenceDescription": "One time",
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          }
+        },
+        {
+          "id": 31,
+          "sourceTransactionId": null,
+          "primaryAccountId": 1,
+          "secondaryAccountId": null,
+          "transactionTypeId": 2,
+          "amount": 0,
+          "description": "super duper binus!",
+          "occurrenceDate": "2026-01-05",
+          "recurrenceDescription": "One time",
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "secondaryAccount": {
+            "id": 2,
+            "name": "Salary",
+            "type": {
+              "id": 4,
+              "name": "Income"
+            },
+            "currency": {
+              "id": 1,
+              "name": "ZAR"
+            },
+            "startingBalance": 0,
+            "openDate": "2026-01-01",
+            "periodicChange": null
+          },
+          "plannedAmount": 10000
         }
       ]
     }

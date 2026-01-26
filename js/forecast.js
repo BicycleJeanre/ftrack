@@ -1492,14 +1492,6 @@ async function loadBudgetGrid(container) {
       console.log('[Budget] loadBudgetGrid stale run skipped', { loadToken, latest: budgetGridLoadToken });
       return;
     }
-    
-    if (budgetOccurrences.length === 0) {
-      const emptyMsg = document.createElement('p');
-      emptyMsg.className = 'text-muted';
-      emptyMsg.textContent = 'No budget saved. Generate projections and click "Save as Budget".';
-      window.add(container, emptyMsg);
-      return;
-    }
 
     // Add section header
     const sectionHeader = document.createElement('h3');
@@ -1512,9 +1504,60 @@ async function loadBudgetGrid(container) {
     }
     window.add(container, sectionHeader);
 
-    // Add Clear Budget button
+    // Add budget action buttons
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'mb-sm';
+    
+    // Add New Budget Entry button
+    const addButton = document.createElement('button');
+    addButton.className = 'btn btn-primary';
+    addButton.textContent = '+ Add New Entry';
+    addButton.addEventListener('click', async () => {
+      try {
+        // Get current budgets and add a new occurrence
+        const currentBudgets = await getBudget(currentScenario.id);
+        
+        // Determine default date based on selected period or use today
+        let defaultDate = formatDateOnly(new Date());
+        if (budgetPeriodSnapshot) {
+          const selectedPeriod = periods.find(p => p.id === budgetPeriodSnapshot);
+          if (selectedPeriod && selectedPeriod.startDate) {
+            defaultDate = formatDateOnly(new Date(selectedPeriod.startDate));
+          }
+        }
+        
+        // Create new budget occurrence with default values
+        const newBudget = {
+          id: null, // Will be assigned by saveAll
+          sourceTransactionId: null,
+          primaryAccountId: selIdNum || null, // Use selected account as primary
+          secondaryAccountId: null,
+          transactionTypeId: 2, // Default to Money Out
+          amount: 0,
+          description: '',
+          occurrenceDate: defaultDate, // Use period-aware default date
+          recurrenceDescription: 'One time',
+          status: {
+            name: 'planned',
+            actualAmount: null,
+            actualDate: null
+          }
+        };
+        
+        currentBudgets.push(newBudget);
+        await BudgetManager.saveAll(currentScenario.id, currentBudgets);
+        
+        // Refresh scenario and reload budget grid
+        currentScenario = await getScenario(currentScenario.id);
+        await loadBudgetGrid(container);
+      } catch (err) {
+        console.error('[Forecast] Failed to create budget entry:', err);
+        alert('Failed to create budget entry. Please try again.');
+      }
+    });
+    window.add(buttonContainer, addButton);
+    
+    // Add Clear Budget button
     const clearButton = document.createElement('button');
     clearButton.className = 'btn';
     clearButton.textContent = 'Clear Budget';
@@ -1697,6 +1740,15 @@ async function loadBudgetGrid(container) {
     
     // Always show date column - it's essential for budget tracking and planning
     const showBudgetDateColumn = true;
+
+    // Show empty message if no budget data to display
+    if (transformedData.length === 0) {
+      const emptyMsg = document.createElement('p');
+      emptyMsg.className = 'text-muted';
+      emptyMsg.textContent = 'No budget entries found. Click "Add New Entry" to create one.';
+      window.add(container, emptyMsg);
+      return;
+    }
 
     // Create grid container
     const gridContainer = document.createElement('div');
