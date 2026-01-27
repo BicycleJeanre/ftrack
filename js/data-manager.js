@@ -226,7 +226,7 @@ export async function updateAccount(scenarioId, accountId, updates) {
 
 /**
  * Delete an account from a scenario
- * Cascades delete to all planned and actual transactions that reference this account
+ * Cascades delete to all transactions that reference this account
  * @param {number} scenarioId - The scenario ID
  * @param {number} accountId - The account ID
  * @returns {Promise<void>}
@@ -238,34 +238,22 @@ export async function deleteAccount(scenarioId, accountId) {
     if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
 
     const scenario = appData.scenarios[scenarioIndex];
+    const accountIdNum = Number(accountId);
 
-    // Cascade delete: Remove all planned transactions that reference this account
-    if (scenario.plannedTransactions) {
-      const accountIdNum = Number(accountId);
-      const transactionsToDelete = scenario.plannedTransactions.filter(tx => 
-        (tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) ||
-        (tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
-      );
-      if (transactionsToDelete.length > 0) {
-        scenario.plannedTransactions = scenario.plannedTransactions.filter(tx => 
-          !(tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) &&
-          !(tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
-        );
-      }
-    }
-
-    // Cascade delete: Remove all actual transactions that reference this account
-    if (scenario.actualTransactions) {
-      const accountIdNum = Number(accountId);
-      const transactionsToDelete = scenario.actualTransactions.filter(tx => 
-        (tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) ||
-        (tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
-      );
-      if (transactionsToDelete.length > 0) {
-        scenario.actualTransactions = scenario.actualTransactions.filter(tx => 
-          !(tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) &&
-          !(tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
-        );
+    // Cascade delete: Remove all transactions that reference this account (primary or secondary)
+    if (scenario.transactions) {
+      const beforeCount = scenario.transactions.length;
+      scenario.transactions = scenario.transactions.filter(tx => {
+        const hasPrimary = tx.primaryAccountId && Number(tx.primaryAccountId) === accountIdNum;
+        const hasSecondary = tx.secondaryAccountId && Number(tx.secondaryAccountId) === accountIdNum;
+        
+        // Keep transaction only if it doesn't reference the deleted account
+        return !hasPrimary && !hasSecondary;
+      });
+      const afterCount = scenario.transactions.length;
+      const deletedCount = beforeCount - afterCount;
+      if (deletedCount > 0) {
+        console.log(`[DataManager] Cascade deleted ${deletedCount} transaction(s) referencing account ${accountId}`);
       }
     }
 

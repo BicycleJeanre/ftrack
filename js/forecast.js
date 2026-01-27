@@ -116,6 +116,35 @@ let actualPeriod = null; // Selected period for actual transactions
 let budgetPeriod = null; // Selected period for budget view
 let periods = []; // Calculated periods for current scenario
 let budgetGridLoadToken = 0; // Prevent stale budget renders
+let masterTransactionsTable = null; // Store transactions table instance for filtering
+
+// Update transaction totals in toolbar based on current filtered data
+function updateTransactionTotals() {
+  if (!masterTransactionsTable) return;
+  
+  const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  
+  // Get currently visible (filtered) data
+  const visibleData = masterTransactionsTable.getData('active');
+  
+  // Compute totals from visible data
+  const txTotals = computeMoneyTotals(visibleData, {
+    amountField: 'amount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId'
+  });
+  
+  // Update toolbar totals
+  const toolbarTotals = document.querySelector('.toolbar-totals');
+  if (toolbarTotals) {
+    toolbarTotals.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(txTotals.moneyIn)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(txTotals.moneyOut)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${txTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(txTotals.net)}</span></span>
+    `;
+  }
+}
 
 // Shared helper: compute Money In / Money Out totals and net using signed amounts
 function computeMoneyTotals(rows, opts = {}) {
@@ -129,17 +158,21 @@ function computeMoneyTotals(rows, opts = {}) {
     const typeObj = row?.[typeField];
     const name = typeObj?.name || row?.[typeNameField] || '';
     const id = typeObj?.id ?? row?.[typeIdField];
-    const isMoneyOut = name === 'Money Out' || id === 2 || amount < 0;
+    
+    // Determine if it's Money In or Money Out based on transaction type
+    const isMoneyIn = name === 'Money In' || id === 1;
+    const isMoneyOut = name === 'Money Out' || id === 2;
+    
     const absAmount = Math.abs(amount);
 
-    if (isMoneyOut) {
-      acc.moneyOut += absAmount;
-    } else {
+    if (isMoneyIn) {
       acc.moneyIn += absAmount;
+      acc.net += absAmount; // Money In adds to net
+    } else if (isMoneyOut) {
+      acc.moneyOut += absAmount;
+      acc.net -= absAmount; // Money Out subtracts from net
     }
-
-    // Net uses the signed amount (Money Out should already be negative)
-    acc.net += amount;
+    
     return acc;
   }, { moneyIn: 0, moneyOut: 0, net: 0 });
 }
@@ -655,17 +688,35 @@ function mapTxToUI(tx, selectedAccountId) {
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
   if (!selIdNum) return null;
 
-  const isSelectedDebit = Number(tx.debitAccount?.id) === selIdNum;
-  const isSelectedCredit = Number(tx.creditAccount?.id) === selIdNum;
-  if (!isSelectedDebit && !isSelectedCredit) return null;
+  // Check if selected account matches the stored primary or secondary account ID
+  const storedPrimaryId = tx.primaryAccountId;
+  const storedSecondaryId = tx.secondaryAccountId;
+  const storedTypeId = tx.transactionTypeId || tx.transactionType?.id;
+  
+  const isStoredPrimary = Number(storedPrimaryId) === selIdNum;
+  const isStoredSecondary = Number(storedSecondaryId) === selIdNum;
+  
+  // Only show transactions where the selected account is involved
+  if (!isStoredPrimary && !isStoredSecondary) return null;
 
-  const secondaryAccountRef = isSelectedDebit ? tx.creditAccount : tx.debitAccount;
-  const secondaryAccount = secondaryAccountRef
-    ? currentScenario.accounts?.find(a => a.id === secondaryAccountRef.id) || secondaryAccountRef
-    : null;
-
-  const transactionType = isSelectedDebit ? { id: 2, name: 'Money Out' } : { id: 1, name: 'Money In' };
-  return { transactionType, secondaryAccount };
+  if (isStoredPrimary) {
+    // Selected account IS the stored primary - show as-is
+    const primaryAccount = currentScenario.accounts?.find(a => a.id === selIdNum) || { id: selIdNum };
+    const secondaryAccount = storedSecondaryId 
+      ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
+      : null;
+    const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+    return { transactionType, secondaryAccount, primaryAccount };
+  } else {
+    // Selected account IS the stored secondary - FLIP the perspective
+    const primaryAccount = currentScenario.accounts?.find(a => a.id === selIdNum) || { id: selIdNum };
+    const secondaryAccount = storedPrimaryId
+      ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
+      : null;
+    // Flip the transaction type: Money In becomes Money Out and vice versa
+    const transactionType = storedTypeId === 1 ? { id: 2, name: 'Money Out' } : { id: 1, name: 'Money In' };
+    return { transactionType, secondaryAccount, primaryAccount };
+  }
 }
 
 /**
@@ -883,17 +934,45 @@ async function loadAccountsGrid(container) {
           console.log('[Accounts] Account selected:', account.id, account.name);
           selectedAccountId = Number(account.id);
           console.log('[Accounts] Updated selectedAccountId to:', selectedAccountId);
-          // Reload immediately to ensure budget grid updates
-          await loadMasterTransactionsGrid(getEl('transactionsTable'));
+          
+          // Update accordion header
+          const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
+          if (accordionHeader) {
+            accordionHeader.textContent = `Transactions - ${account.name}`;
+          }
+          
+          // Apply filter to show transactions from selected account's perspective
+          if (masterTransactionsTable) {
+            masterTransactionsTable.setFilter((data) => {
+              if (!data.perspectiveAccountId) return true;
+              return Number(data.perspectiveAccountId) === selectedAccountId;
+            });
+            // Manually update totals after filter
+            updateTransactionTotals();
+          }
+          
+          // Reload budget and projections grids
           await loadBudgetGrid(getEl('budgetTable'));
-          // Also refresh Projections as they might depend on the account filter (future proofing)
           await loadProjectionsSection(getEl('projectionsContent'));
         } else {
           // No account selected
           console.log('[Accounts] Clearing account selection');
           selectedAccountId = null;
-          // Reload downstream grids in unfiltered mode
-          await loadMasterTransactionsGrid(getEl('transactionsTable'));
+          
+          // Update accordion header
+          const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
+          if (accordionHeader) {
+            accordionHeader.textContent = 'Transactions';
+          }
+          
+          // Show only primary perspectives (not flipped)
+          if (masterTransactionsTable) {
+            masterTransactionsTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+          }
+          
+          // Reload budget and projections grids
           await loadBudgetGrid(getEl('budgetTable'));
           await loadProjectionsSection(getEl('projectionsContent'));
         }
@@ -937,7 +1016,7 @@ async function loadAccountsGrid(container) {
       }
     });
 
-    // Robust fallback: ensure selection changes trigger transaction loads
+    // Robust fallback: ensure selection changes trigger transaction filter
     accountsTable.on("rowSelected", function(row) {
       try {
         const account = row.getData();
@@ -945,7 +1024,15 @@ async function loadAccountsGrid(container) {
         if (selectedAccountId !== accountIdNum) {
           selectedAccountId = accountIdNum;
           setTimeout(async () => {
-            await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+            // Filter transactions to show selected account's perspective
+            if (masterTransactionsTable) {
+              masterTransactionsTable.setFilter((data) => {
+                if (!data.perspectiveAccountId) return true;
+                return Number(data.perspectiveAccountId) === selectedAccountId;
+              });
+              // Manually update totals after filter
+              updateTransactionTotals();
+            }
             await loadBudgetGrid(getEl('budgetTable'));
             await loadProjectionsSection(document.getElementById('projectionsContent'));
           }, 40);
@@ -958,7 +1045,14 @@ async function loadAccountsGrid(container) {
         const remaining = accountsTable.getSelectedRows();
         if (!remaining || remaining.length === 0) {
           selectedAccountId = null;
-          await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+          // Show only primary perspectives (not flipped)
+          if (masterTransactionsTable) {
+            masterTransactionsTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+            // Manually update totals after filter
+            updateTransactionTotals();
+          }
           await loadBudgetGrid(getEl('budgetTable'));
           await loadProjectionsSection(document.getElementById('projectionsContent'));
         }
@@ -1101,27 +1195,12 @@ async function loadMasterTransactionsGrid(container) {
       }
     }
 
-    // Transform for UI
-    const transformedData = allTransactions.map(tx => {
-      // Use centralized mapping helper to determine transactionType/secondaryAccount when filtered
-      const mapped = mapTxToUI(tx, selectedAccountId);
+    // Transform for UI - create dual-perspective rows
+    const transformedData = allTransactions.flatMap(tx => {
+      const storedPrimaryId = tx.primaryAccountId;
+      const storedSecondaryId = tx.secondaryAccountId;
+      const storedTypeId = tx.transactionTypeId || tx.transactionType?.id;
       
-      // Derive transaction type from explicit id/name when not filtered
-      const txTypeId = mapped?.transactionType?.id
-        || tx.transactionTypeId
-        || tx.transactionType?.id
-        || (tx.transactionType?.name === 'Money In' ? 1 : (tx.transactionType?.name === 'Money Out' ? 2 : null));
-      const transactionType = mapped?.transactionType
-        || (txTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' });
-
-      // Secondary account resolution when not filtered: Money In -> debitAccount (secondary), Money Out -> creditAccount (secondary)
-      const secondaryAccount = mapped?.secondaryAccount
-        || (transactionType.id === 1 ? tx.debitAccount : tx.creditAccount);
-
-      // Primary account resolution when not filtered: Money Out -> debitAccount (primary), Money In -> creditAccount (primary)
-      const primaryAccount = mapped?.primaryAccount
-        || (transactionType.name === 'Money Out' ? tx.debitAccount : tx.creditAccount);
-
       // Handle status as object or string
       const statusName = typeof tx.status === 'object' ? tx.status.name : tx.status;
       const actualAmount = typeof tx.status === 'object' ? tx.status.actualAmount : tx.actualAmount;
@@ -1133,10 +1212,12 @@ async function loadMasterTransactionsGrid(container) {
         : '';
 
       const recurrenceSummary = getRecurrenceDescription(tx.recurrence);
-
-      return {
+      
+      const baseData = {
         id: tx.id,
-        transactionTypeId: txTypeId,
+        originalTransactionId: tx.id,
+        primaryAccountId: storedPrimaryId,
+        secondaryAccountId: storedSecondaryId,
         status: statusName || 'planned',
         amount: statusName === 'actual' && actualAmount !== undefined ? actualAmount : tx.amount,
         plannedAmount: tx.amount,
@@ -1146,31 +1227,70 @@ async function loadMasterTransactionsGrid(container) {
         actualDate: actualDate,
         displayDate,
         description: tx.description,
-        debitAccount: tx.debitAccount,
-        creditAccount: tx.creditAccount,
-        primaryAccount,
-        primaryAccountName: primaryAccount?.name || '',
-        transactionType,
-        transactionTypeName: transactionType?.name || '',
-        secondaryAccount,
         recurrence: tx.recurrence,
         recurrenceDescription: recurrenceSummary,
         recurrenceSummary,
         tags: tx.tags || []
       };
-    }).filter(tx => {
-      // Always show transactions with no accounts (incomplete/newly created)
-      if (!tx.debitAccount && !tx.creditAccount) {
-        return true;
+      
+      const rows = [];
+      
+      // Perspective 1: From the stored primary account's view (as-is)
+      if (storedPrimaryId) {
+        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId };
+        const secondaryAccount = storedSecondaryId 
+          ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
+          : null;
+        const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+        
+        rows.push({
+          ...baseData,
+          perspectiveAccountId: storedPrimaryId, // Used for filtering
+          transactionTypeId: storedTypeId,
+          primaryAccount,
+          primaryAccountName: primaryAccount?.name || '',
+          transactionType,
+          transactionTypeName: transactionType?.name || '',
+          secondaryAccount
+        });
       }
-      // If no account filter selected, show all
-      if (!selIdNum) {
-        return true;
+      
+      // Perspective 2: From the stored secondary account's view (flipped)
+      if (storedSecondaryId) {
+        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId };
+        const secondaryAccount = storedPrimaryId
+          ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
+          : null;
+        // Flip the transaction type
+        const flippedTypeId = storedTypeId === 1 ? 2 : 1;
+        const transactionType = flippedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+        
+        // Flip the amount sign when flipping perspective
+        const flippedAmount = -(baseData.amount);
+        const flippedPlannedAmount = -(baseData.plannedAmount);
+        const flippedActualAmount = baseData.actualAmount !== undefined && baseData.actualAmount !== null 
+          ? -(baseData.actualAmount) 
+          : baseData.actualAmount;
+        
+        rows.push({
+          ...baseData,
+          id: `${tx.id}_flipped`, // Unique ID for flipped perspective
+          perspectiveAccountId: storedSecondaryId, // Used for filtering
+          transactionTypeId: flippedTypeId,
+          amount: flippedAmount,
+          plannedAmount: flippedPlannedAmount,
+          actualAmount: flippedActualAmount,
+          primaryAccount,
+          primaryAccountName: primaryAccount?.name || '',
+          transactionType,
+          transactionTypeName: transactionType?.name || '',
+          secondaryAccount
+        });
       }
-      // Otherwise filter by selected account
-      return Number(tx.debitAccount?.id) === selIdNum ||
-             Number(tx.creditAccount?.id) === selIdNum;
+      
+      return rows;
     });
+    // Note: Filtering is now handled by Tabulator's setFilter() - see account selection handler
 
     // Compute filtered totals for current transactions view
     const txTotals = computeMoneyTotals(transformedData, {
@@ -1191,7 +1311,7 @@ async function loadMasterTransactionsGrid(container) {
     `;
     toolbar.appendChild(totalsInline);
 
-    const masterTxTable = createGrid(gridContainer, {
+    masterTransactionsTable = createGrid(gridContainer, {
       data: transformedData,
       headerWordWrap: false, // Prevent header text wrapping
       autoResize: true, // Enable auto-resize on window changes
@@ -1520,19 +1640,42 @@ async function loadMasterTransactionsGrid(container) {
       groupingSelect.addEventListener('change', (e) => {
         const groupField = e.target.value;
         if (groupField) {
-          masterTxTable.setGroupBy(groupField);
+          masterTransactionsTable.setGroupBy(groupField);
           // Add groupHeader with sum for grouped field
-          masterTxTable.setGroupHeader((value, count, data, group) => {
+          masterTransactionsTable.setGroupHeader((value, count, data, group) => {
             const totalAmount = data.reduce((sum, row) => sum + Number(row.amount || 0), 0);
             const label = formatGroupLabel(value);
             const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalAmount);
             return `${label} (${count} items, Total: ${formatted})`;
           });
         } else {
-          masterTxTable.clearGroupBy();
+          masterTransactionsTable.clearGroupBy();
         }
       });
     }
+    
+    // Apply initial filter
+    if (selIdNum) {
+      // If account is selected, show only that account's perspective
+      masterTransactionsTable.setFilter((data) => {
+        if (!data.perspectiveAccountId) return true;
+        return Number(data.perspectiveAccountId) === selIdNum;
+      });
+    } else {
+      // If no account selected, show only primary perspectives (not flipped ones)
+      masterTransactionsTable.setFilter((data) => {
+        // Show rows that are NOT flipped perspectives (no "_flipped" in ID)
+        return !String(data.id).includes('_flipped');
+      });
+    }
+    
+    // Update totals when filter changes
+    masterTransactionsTable.on('dataFiltered', function(filters, rows) {
+      updateTransactionTotals();
+    });
+    
+    // Initial totals calculation
+    updateTransactionTotals();
 
   } catch (err) {
     console.error('[Forecast] Failed to load master transactions grid:', err);
@@ -2541,8 +2684,9 @@ async function loadScenarioData() {
   containers.budgetTable.innerHTML = '<div class="empty-message">Loading...</div>';
 
   await loadAccountsGrid(containers.accountsTable);
-  // Note: loadPlannedTransactionsGrid and loadMasterTransactionsGrid
-  // are triggered by the auto-selection in loadAccountsGrid
+  
+  // Load transactions grid initially (filtering will be applied by account selection)
+  await loadMasterTransactionsGrid(containers.transactionsTable);
   
   // Initialize period selector for transactions
   await initializePeriodSelector();
