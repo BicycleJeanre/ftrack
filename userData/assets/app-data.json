@@ -192,8 +192,8 @@
         },
         {
           "id": 4,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
+          "primaryAccountId": 2,
+          "secondaryAccountId": 1,
           "transactionTypeId": 2,
           "amount": -5000,
           "effectiveDate": "2026-01-01",

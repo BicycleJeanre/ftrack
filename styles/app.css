@@ -380,6 +380,40 @@ p {
   text-align: right;
 }
 
+/* Grid totals bar for filtered views */
+.grid-totals {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+}
+
+.grid-total-item {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.grid-total-item .label {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 6px;
+}
+
+.grid-total-item .value {
+  font-weight: 600;
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.grid-total-item .value.positive { color: var(--success); }
+.grid-total-item .value.negative { color: var(--danger); }
+
 /* Add button styles moved from inline */
 .btn-add { margin-bottom: 12px; padding: 10px 20px; font-size: 0.95em; font-weight: 600; min-width: 140px; border: 2px solid var(--primary); border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
 .btn-add:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }

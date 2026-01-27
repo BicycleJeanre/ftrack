@@ -117,6 +117,33 @@ let budgetPeriod = null; // Selected period for budget view
 let periods = []; // Calculated periods for current scenario
 let budgetGridLoadToken = 0; // Prevent stale budget renders
 
+// Shared helper: compute Money In / Money Out totals and net using signed amounts
+function computeMoneyTotals(rows, opts = {}) {
+  const amountField = opts.amountField || 'amount';
+  const typeField = opts.typeField || 'transactionType';
+  const typeNameField = opts.typeNameField || 'transactionTypeName';
+  const typeIdField = opts.typeIdField || 'transactionTypeId';
+
+  return rows.reduce((acc, row) => {
+    const amount = Number(row?.[amountField] || 0);
+    const typeObj = row?.[typeField];
+    const name = typeObj?.name || row?.[typeNameField] || '';
+    const id = typeObj?.id ?? row?.[typeIdField];
+    const isMoneyOut = name === 'Money Out' || id === 2 || amount < 0;
+    const absAmount = Math.abs(amount);
+
+    if (isMoneyOut) {
+      acc.moneyOut += absAmount;
+    } else {
+      acc.moneyIn += absAmount;
+    }
+
+    // Net uses the signed amount (Money Out should already be negative)
+    acc.net += amount;
+    return acc;
+  }, { moneyIn: 0, moneyOut: 0, net: 0 });
+}
+
 // Build the main UI container with independent accordions
 function buildGridContainer() {
   const forecastEl = getEl('panel-forecast');
@@ -620,7 +647,7 @@ function transformActualTxForUI(actualTxs, selectedAccountId) {
   // When no account selected, show all actual transactions (default view)
   if (!selIdNum) return actualTxs.map(tx => ({
     ...tx,
-    transactionType: { id: 1, name: 'Debit' },
+    transactionType: tx.transactionType || (tx.transactionTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' }),
     secondaryAccount: tx.creditAccount
   }));
 
@@ -648,7 +675,7 @@ function mapTxToUI(tx, selectedAccountId) {
     ? currentScenario.accounts?.find(a => a.id === secondaryAccountRef.id) || secondaryAccountRef
     : null;
 
-  const transactionType = isSelectedDebit ? { id: 1, name: 'Money Out' } : { id: 2, name: 'Money In' };
+  const transactionType = isSelectedDebit ? { id: 2, name: 'Money Out' } : { id: 1, name: 'Money In' };
   return { transactionType, secondaryAccount };
 }
 
@@ -656,7 +683,7 @@ function mapTxToUI(tx, selectedAccountId) {
  * Transform actual transaction from UI back to backend format (same as planned transactions)
  */
 async function transformActualTxForBackend(tx, selectedAccountId) {
-  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Money Out';
+  const isDebit = tx.transactionType?.id === 2 || tx.transactionType?.name === 'Money Out';
   
   // Get selected account details
   const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
@@ -1132,6 +1159,33 @@ async function loadMasterTransactionsGrid(container) {
              Number(tx.creditAccount?.id) === selIdNum;
     });
 
+    // Compute filtered totals for current transactions view
+    const txTotals = computeMoneyTotals(transformedData, {
+      amountField: 'amount',
+      typeField: 'transactionType',
+      typeNameField: 'transactionTypeName',
+      typeIdField: 'transactionTypeId'
+    });
+
+    const txTotalsBar = document.createElement('div');
+    txTotalsBar.className = 'grid-totals';
+    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    txTotalsBar.innerHTML = `
+      <div class="grid-total-item">
+        <div class="label">Money In</div>
+        <div class="value positive">${formatCurrency(txTotals.moneyIn)}</div>
+      </div>
+      <div class="grid-total-item">
+        <div class="label">Money Out</div>
+        <div class="value negative">${formatCurrency(txTotals.moneyOut)}</div>
+      </div>
+      <div class="grid-total-item">
+        <div class="label">Net</div>
+        <div class="value ${txTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(txTotals.net)}</div>
+      </div>
+    `;
+    container.insertBefore(txTotalsBar, gridContainer);
+
     const masterTxTable = createGrid(gridContainer, {
       data: transformedData,
       headerWordWrap: false, // Prevent header text wrapping
@@ -1194,8 +1248,8 @@ async function loadMasterTransactionsGrid(container) {
           editor: "list",
           editorParams: {
             values: [
-              { label: 'Money Out', value: { id: 1, name: 'Money Out' } },
-              { label: 'Money In', value: { id: 2, name: 'Money In' } }
+              { label: 'Money In', value: { id: 1, name: 'Money In' } },
+              { label: 'Money Out', value: { id: 2, name: 'Money Out' } }
             ],
             listItemFormatter: function(value, title) {
               return title;
@@ -1795,6 +1849,34 @@ async function loadBudgetGrid(container) {
       return;
     }
 
+    // Compute filtered totals (money in/out) for the current view
+      const budgetTotals = computeMoneyTotals(transformedData, {
+        amountField: 'amount',
+        typeField: 'transactionType',
+        typeNameField: 'transactionTypeName',
+        typeIdField: 'transactionTypeId'
+      });
+
+    // Render totals summary above the grid
+    const budgetTotalsBar = document.createElement('div');
+    budgetTotalsBar.className = 'grid-totals';
+    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    budgetTotalsBar.innerHTML = `
+      <div class="grid-total-item">
+        <div class="label">Money In</div>
+        <div class="value positive">${formatCurrency(budgetTotals.moneyIn)}</div>
+      </div>
+      <div class="grid-total-item">
+        <div class="label">Money Out</div>
+        <div class="value negative">${formatCurrency(budgetTotals.moneyOut)}</div>
+      </div>
+      <div class="grid-total-item">
+        <div class="label">Net</div>
+        <div class="value ${budgetTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(budgetTotals.net)}</div>
+      </div>
+    `;
+    window.add(container, budgetTotalsBar);
+
     // Add grouping control
     const groupingControl = document.createElement('div');
     groupingControl.className = 'mb-sm grouping-control';
@@ -2320,6 +2402,40 @@ async function loadProjectionsGrid(container) {
       expenses: p.expenses || 0,
       netChange: p.netChange || 0
     }));
+
+    // Compute filtered totals for the current projection view
+    const projectionTotals = transformedData.reduce((acc, row) => {
+      const income = Number(row.income || 0);
+      const expenses = Number(row.expenses || 0);
+      const netChange = row.netChange !== undefined && row.netChange !== null
+        ? Number(row.netChange)
+        : (income - expenses);
+
+      acc.income += income;
+      acc.expenses += expenses;
+      acc.net += netChange;
+      return acc;
+    }, { income: 0, expenses: 0, net: 0 });
+
+    // Render totals summary above the grid
+    const projectionsTotalsBar = document.createElement('div');
+    projectionsTotalsBar.className = 'grid-totals';
+    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    projectionsTotalsBar.innerHTML = `
+      <div class="grid-total-item">
+        <div class="label">Income</div>
+        <div class="value positive">${formatCurrency(projectionTotals.income)}</div>
+      </div>
+      <div class="grid-total-item">
+        <div class="label">Expenses</div>
+        <div class="value negative">${formatCurrency(projectionTotals.expenses)}</div>
+      </div>
+      <div class="grid-total-item">
+        <div class="label">Net Change</div>
+        <div class="value ${projectionTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(projectionTotals.net)}</div>
+      </div>
+    `;
+    window.add(container, projectionsTotalsBar);
 
     // Add grouping control
     const projectionsGroupingControl = document.createElement('div');
