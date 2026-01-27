@@ -228,6 +228,19 @@ export function createListEditor(values = [], options = {}) {
  * @param {Object} options - Additional options
  * @returns {Object} - Tabulator column config
  */
+export function formatMoneyDisplay(value) {
+    const numeric = Number(value) || 0;
+    const formatted = new Intl.NumberFormat('en-ZA', {
+        style: 'currency',
+        currency: 'ZAR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(numeric);
+
+    const cls = numeric >= 0 ? 'status-netchange positive' : 'status-netchange negative';
+    return `<span class="${cls}">${formatted}</span>`;
+}
+
 export function createMoneyColumn(title, field, options = {}) {
     const formatterParams = {
         decimal: ".",
@@ -238,7 +251,7 @@ export function createMoneyColumn(title, field, options = {}) {
 
     // Allow overriding or disabling bottomCalc via options
     const bottomCalc = options.hasOwnProperty('bottomCalc') ? options.bottomCalc : 'sum';
-    const bottomCalcFormatter = options.hasOwnProperty('bottomCalcFormatter') ? options.bottomCalcFormatter : 'money';
+    const bottomCalcFormatter = options.hasOwnProperty('bottomCalcFormatter') ? options.bottomCalcFormatter : ((cell) => formatMoneyDisplay(cell.getValue()));
     const bottomCalcFormatterParams = options.hasOwnProperty('bottomCalcFormatterParams') ? options.bottomCalcFormatterParams : formatterParams;
 
     return {
@@ -246,19 +259,7 @@ export function createMoneyColumn(title, field, options = {}) {
         field,
         editor: options.editor || "number",
         editorParams: options.editorParams || { step: 0.01 },
-        formatter: function(cell) {
-            const value = cell.getValue();
-            const formatted = new Intl.NumberFormat('en-ZA', {
-                style: 'currency',
-                currency: 'ZAR',
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(value);
-            
-            // Color code: green for positive, red for negative
-            const cls = value >= 0 ? 'status-netchange positive' : 'status-netchange negative';
-            return `<span class="${cls}">${formatted}</span>`;
-        },
+        formatter: (cell) => formatMoneyDisplay(cell.getValue()),
         formatterParams,
         hozAlign: "right",
         headerHozAlign: "right",

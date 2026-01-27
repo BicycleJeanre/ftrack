@@ -603,6 +603,50 @@ body .tabulator .tabulator-calcs .tabulator-cell {
   font-weight: 600;
 }
 
+/* Group subtotal rows (Tabulator group headers) — mirror totals/footer row styling */
+/* Apply same elevated background and styling as calc/footer rows */
+/* Use full selector path to override Tabulator theme defaults */
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-group,
+body .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-group,
+body .tabulator .tabulator-row.tabulator-group,
+body .tabulator .tabulator-row.tabulator-group.tabulator-selected,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-0,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-1,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-2 {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-top: 1px solid var(--border-secondary) !important;
+  border-bottom: 1px solid var(--border-secondary) !important;
+}
+
+/* Group header cells — match footer/calc cell styling with padding */
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-group .tabulator-cell,
+body .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-group .tabulator-cell,
+body .tabulator .tabulator-row.tabulator-group .tabulator-cell,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-0 .tabulator-cell,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-1 .tabulator-cell,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-2 .tabulator-cell {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  border-color: var(--border-secondary) !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+/* Group header elements — ensure text visible */
+body .tabulator .tabulator-row.tabulator-group .tabulator-group-toggle,
+body .tabulator .tabulator-row.tabulator-group .tabulator-group-title,
+body .tabulator .tabulator-row.tabulator-group .tabulator-group-title span {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure arrow/chevron icons inherit text color */
+body .tabulator .tabulator-row.tabulator-group .tabulator-arrow {
+  border-top-color: var(--text-primary) !important;
+  border-left-color: var(--text-primary) !important;
+}
+
 /* Some Tabulator themes set inline colors on .tabulator-col; override with high specificity */
 body .tabulator .tabulator-calcs .tabulator-col,
 body .tabulator .tabulator-footer .tabulator-col {

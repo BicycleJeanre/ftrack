@@ -6,7 +6,7 @@ console.log('forecast.js loaded at', new Date().toISOString());
 
 import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
-import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor } from './grid-factory.js';
+import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
 import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
@@ -766,10 +766,34 @@ async function loadAccountsGrid(container) {
     // Remove any previous inner accountsGrid if present (defensive)
     const existingInner = container.querySelector('#accountsGrid');
     if (existingInner) existingInner.remove();
+
+        // Add grouping control
+        const accountGroupingControl = document.createElement('div');
+        accountGroupingControl.className = 'mb-sm grouping-control';
+        accountGroupingControl.style.display = 'flex';
+        accountGroupingControl.style.alignItems = 'center';
+        accountGroupingControl.style.gap = '8px';
+        accountGroupingControl.innerHTML = `
+          <label for="account-grouping-select" class="text-muted" style="white-space: nowrap;">Group By:</label>
+          <select id="account-grouping-select" class="input-select" style="min-width: 150px;">
+            <option value="">None</option>
+            <option value="accountType">Type</option>
+          </select>
+        `;
+        window.add(container, accountGroupingControl);
+
+
+    // Add accountType field for grouping
+    const enrichedAccounts = displayAccounts.map(a => ({
+      ...a,
+      accountType: a.type?.name || 'Unknown'
+    }));
+
+    // Mount grid container before initializing Tabulator so layout can measure dimensions
     window.add(container, gridContainer);
 
     const accountsTable = createGrid(gridContainer, {
-      data: displayAccounts,
+      data: enrichedAccounts,
       selectable: 1, // Enable built-in single selection
       columns: [
         {
@@ -922,6 +946,23 @@ async function loadAccountsGrid(container) {
       } catch (e) { logger.error('[AccountsGrid] fallback rowDeselected handler error:', e); }
     });
 
+    // Attach grouping control handler
+    const accountGroupingSelect = document.getElementById('account-grouping-select');
+    if (accountGroupingSelect) {
+      accountGroupingSelect.addEventListener('change', (e) => {
+        const groupField = e.target.value;
+        if (groupField) {
+          accountsTable.setGroupBy(groupField);
+          // Add groupHeader with count (no sum for accounts)
+          accountsTable.setGroupHeader((value, count, data, group) => {
+            return `${value} (${count} items)`;
+          });
+        } else {
+          accountsTable.clearGroupBy();
+        }
+      });
+    }
+
   } catch (err) {
     logger.error('[Forecast] Failed to load accounts grid:', err);
   }
@@ -990,6 +1031,23 @@ async function loadMasterTransactionsGrid(container) {
   });
   window.add(addButtonContainer, addButton);
   window.add(container, addButtonContainer);
+
+  // Add grouping control
+  const groupingControl = document.createElement('div');
+  groupingControl.className = 'mb-sm grouping-control';
+  groupingControl.style.display = 'flex';
+  groupingControl.style.alignItems = 'center';
+  groupingControl.style.gap = '8px';
+  groupingControl.innerHTML = `
+    <label for="tx-grouping-select" class="text-muted" style="white-space: nowrap;">Group By:</label>
+      <select id="tx-grouping-select" class="input-select" style="min-width: 150px;">
+      <option value="">None</option>
+      <option value="transactionTypeName">Type (Money In/Out)</option>
+      <option value="recurrenceSummary">Recurrence Period</option>
+      <option value="primaryAccountName">Account</option>
+    </select>
+  `;
+  window.add(container, groupingControl);
 
   const gridContainer = document.createElement('div');
   gridContainer.className = 'grid-container master-transactions-grid';
@@ -1061,7 +1119,9 @@ async function loadMasterTransactionsGrid(container) {
         debitAccount: tx.debitAccount,
         creditAccount: tx.creditAccount,
         primaryAccount,
+        primaryAccountName: primaryAccount?.name || '',
         transactionType,
+        transactionTypeName: transactionType?.name || '',
         secondaryAccount,
         recurrence: tx.recurrence,
         recurrenceDescription: recurrenceSummary,
@@ -1399,6 +1459,32 @@ async function loadMasterTransactionsGrid(container) {
       }
     });
 
+    // Attach grouping control handler
+    const groupingSelect = document.getElementById('tx-grouping-select');
+    if (groupingSelect) {
+      const formatGroupLabel = (val) => {
+        if (val === null || val === undefined || val === '') return 'Unspecified';
+        if (typeof val === 'object') return val.name || val.label || val.description || 'Unspecified';
+        return String(val);
+      };
+
+      groupingSelect.addEventListener('change', (e) => {
+        const groupField = e.target.value;
+        if (groupField) {
+          masterTxTable.setGroupBy(groupField);
+          // Add groupHeader with sum for grouped field
+          masterTxTable.setGroupHeader((value, count, data, group) => {
+            const totalAmount = data.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+            const label = formatGroupLabel(value);
+            const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalAmount);
+            return `${label} (${count} items, Total: ${formatted})`;
+          });
+        } else {
+          masterTxTable.clearGroupBy();
+        }
+      });
+    }
+
   } catch (err) {
     console.error('[Forecast] Failed to load master transactions grid:', err);
   }
@@ -1649,6 +1735,9 @@ async function loadBudgetGrid(container) {
         ? getRecurrenceDescription(sourceTransaction.recurrence)
         : (budget.recurrenceDescription || 'One time');
       
+      const transactionTypeName = budget.transactionTypeId === 1 ? 'Money In' : 'Money Out';
+      const primaryAccountResolved = debitAccount?.id === primaryAccount?.id ? primaryAccount : creditAccount;
+
       return {
         id: budget.id,
         sourceTransactionId: budget.sourceTransactionId,
@@ -1658,9 +1747,11 @@ async function loadBudgetGrid(container) {
         description: budget.description,
         debitAccount: debitAccount || null,
         creditAccount: creditAccount || null,
-        primaryAccount: debitAccount?.id === primaryAccount?.id ? primaryAccount : creditAccount,
+        primaryAccount: primaryAccountResolved,
+        primaryAccountName: primaryAccountResolved?.name || '',
         secondaryAccount: secondaryAccount || null,
-        transactionType: { id: budget.transactionTypeId, name: budget.transactionTypeId === 1 ? 'Money In' : 'Money Out' },
+        transactionType: { id: budget.transactionTypeId, name: transactionTypeName },
+        transactionTypeName,
         occurrenceDate: budget.occurrenceDate,
         recurrenceDescription: recurrenceSummary,
         status: statusObj,
@@ -1717,6 +1808,23 @@ async function loadBudgetGrid(container) {
       window.add(container, emptyMsg);
       return;
     }
+
+    // Add grouping control
+    const groupingControl = document.createElement('div');
+    groupingControl.className = 'mb-sm grouping-control';
+    groupingControl.style.display = 'flex';
+    groupingControl.style.alignItems = 'center';
+    groupingControl.style.gap = '8px';
+    groupingControl.innerHTML = `
+      <label for="budget-grouping-select" class="text-muted" style="white-space: nowrap;">Group By:</label>
+      <select id="budget-grouping-select" class="input-select" style="min-width: 150px;">
+        <option value="">None</option>
+        <option value="transactionTypeName">Type (Money In/Out)</option>
+        <option value="recurrenceDescription">Recurrence Period</option>
+        <option value="primaryAccountName">Account</option>
+      </select>
+    `;
+    window.add(container, groupingControl);
 
     // Create grid container
     const gridContainer = document.createElement('div');
@@ -1984,6 +2092,32 @@ async function loadBudgetGrid(container) {
       }
     });
 
+    // Attach grouping control handler
+    const budgetGroupingSelect = document.getElementById('budget-grouping-select');
+    if (budgetGroupingSelect) {
+      const formatGroupLabel = (val) => {
+        if (val === null || val === undefined || val === '') return 'Unspecified';
+        if (typeof val === 'object') return val.name || val.label || val.description || 'Unspecified';
+        return String(val);
+      };
+
+      budgetGroupingSelect.addEventListener('change', (e) => {
+        const groupField = e.target.value;
+        if (groupField) {
+          budgetTable.setGroupBy(groupField);
+          // Add groupHeader with sum for grouped field
+          budgetTable.setGroupHeader((value, count, data, group) => {
+            const totalAmount = data.reduce((sum, row) => sum + Number(row.plannedAmount || 0), 0);
+            const label = formatGroupLabel(value);
+            const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalAmount);
+            return `${label} (${count} items, Total: ${formatted})`;
+          });
+        } else {
+          budgetTable.clearGroupBy();
+        }
+      });
+    }
+
   } catch (err) {
     console.error('[Forecast] Failed to load budget grid:', err);
   }
@@ -2201,6 +2335,20 @@ async function loadProjectionsGrid(container) {
       netChange: p.netChange || 0
     }));
 
+    // Add grouping control
+    const projectionsGroupingControl = document.createElement('div');
+    projectionsGroupingControl.className = 'mb-sm grouping-control';
+    projectionsGroupingControl.style.display = 'flex';
+    projectionsGroupingControl.style.alignItems = 'center';
+    projectionsGroupingControl.style.gap = '8px';
+    projectionsGroupingControl.innerHTML = `
+      <label for="projections-grouping-select" class="text-muted" style="white-space: nowrap;">Group By:</label>
+      <select id="projections-grouping-select" class="input-select" style="min-width: 150px;">
+        <option value="">None</option>
+        <option value="account">Account</option>
+      </select>
+    `;
+    window.add(container, projectionsGroupingControl);
     const projectionsTable = createGrid(container, {
       data: transformedData,
       layout: "fitColumns",
@@ -2232,6 +2380,32 @@ async function loadProjectionsGrid(container) {
         }
       ]
     });
+
+    // Attach grouping control handler
+    const projectionsGroupingSelect = document.getElementById('projections-grouping-select');
+    if (projectionsGroupingSelect) {
+      const formatGroupLabel = (val) => {
+        if (val === null || val === undefined || val === '') return 'Unspecified';
+        if (typeof val === 'object') return val.name || val.label || val.description || 'Unspecified';
+        return String(val);
+      };
+
+      projectionsGroupingSelect.addEventListener('change', (e) => {
+        const groupField = e.target.value;
+        if (groupField) {
+          projectionsTable.setGroupBy(groupField);
+          // Add groupHeader with sum of balance
+          projectionsTable.setGroupHeader((value, count, data, group) => {
+            const totalBalance = data.reduce((sum, row) => sum + Number(row.balance || 0), 0);
+            const label = formatGroupLabel(value);
+            const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalBalance);
+            return `${label} (${count} periods, Total Balance: ${formatted})`;
+          });
+        } else {
+          projectionsTable.clearGroupBy();
+        }
+      });
+    }
 
   } catch (err) {
     console.error('[Forecast] Failed to load projections grid:', err);
