@@ -202,17 +202,6 @@ function buildGridContainer() {
   transactionsContent.className = 'accordion-content open section-content';
   window.add(transactionsSection, transactionsContent);
 
-  // Period filter controls
-  const periodFilter = document.createElement('div');
-  periodFilter.className = 'mb-sm period-filter control-layout-wrap';
-  periodFilter.innerHTML = `
-     <label for="actual-period-select" class="text-muted control-label">Period:</label>
-     <select id="actual-period-select" class="input-select control-select"></select>
-     <button id="actual-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
-     <button id="actual-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
-  `;
-  window.add(transactionsContent, periodFilter);
-
   const transactionsTable = document.createElement('div');
   transactionsTable.id = 'transactionsTable';
   window.add(transactionsContent, transactionsTable);
@@ -768,8 +757,16 @@ async function loadAccountsGrid(container) {
     const existingAccountAdds = container.querySelectorAll('.btn-add');
     existingAccountAdds.forEach(el => el.remove());
 
+    // Create toolbar for controls
+    const toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar';
+
+    // Add button
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'toolbar-item';
+    
     const addButton = document.createElement('button');
-    addButton.className = 'btn btn-primary btn-add';
+    addButton.className = 'btn btn-primary';
     addButton.textContent = '+ Add New';
     addButton.addEventListener('click', async () => {
       const newAccount = await AccountManager.create(currentScenario.id, {
@@ -780,7 +777,21 @@ async function loadAccountsGrid(container) {
       });
       await loadAccountsGrid(container);
     });
-    window.add(container, addButton);
+    window.add(buttonContainer, addButton);
+    window.add(toolbar, buttonContainer);
+
+    // Add grouping control
+    const accountGroupingControl = document.createElement('div');
+    accountGroupingControl.className = 'toolbar-item grouping-control';
+    accountGroupingControl.innerHTML = `
+      <label for="account-grouping-select" class="text-muted control-label">Group By:</label>
+      <select id="account-grouping-select" class="input-select control-select">
+        <option value="">None</option>
+        <option value="accountType">Type</option>
+      </select>
+    `;
+    window.add(toolbar, accountGroupingControl);
+    window.add(container, toolbar);
 
     // Create grid container
     const gridContainer = document.createElement('div');
@@ -789,18 +800,6 @@ async function loadAccountsGrid(container) {
     // Remove any previous inner accountsGrid if present (defensive)
     const existingInner = container.querySelector('#accountsGrid');
     if (existingInner) existingInner.remove();
-
-        // Add grouping control
-        const accountGroupingControl = document.createElement('div');
-        accountGroupingControl.className = 'mb-sm grouping-control';
-        accountGroupingControl.innerHTML = `
-            <label for="account-grouping-select" class="text-muted control-label">Group By:</label>
-            <select id="account-grouping-select" class="input-select control-select">
-            <option value="">None</option>
-            <option value="accountType">Type</option>
-          </select>
-        `;
-        window.add(container, accountGroupingControl);
 
 
     // Add accountType field for grouping
@@ -1000,27 +999,29 @@ async function loadMasterTransactionsGrid(container) {
 
   container.innerHTML = '';
 
-  // Add section header
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main section-header';
-
+  // Update accordion header with filter info
+  const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
-
-  if (selIdNum) {
-    const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
-    sectionHeader.textContent = `Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
-  } else {
-    sectionHeader.textContent = 'All Transactions';
+  
+  if (accordionHeader) {
+    if (selIdNum) {
+      const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
+      accordionHeader.textContent = `Transactions - ${selectedAccount?.name || 'Unknown Account'}`;
+    } else {
+      accordionHeader.textContent = 'Transactions';
+    }
   }
 
-  window.add(container, sectionHeader);
+  // Create toolbar for controls
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar';
 
   // Add "Add Transaction" button
   const existingAdds = container.querySelectorAll('.btn-add');
   existingAdds.forEach(el => el.remove());
 
   const addButtonContainer = document.createElement('div');
-  addButtonContainer.className = 'mb-sm';
+  addButtonContainer.className = 'toolbar-item';
   const addButton = document.createElement('button');
   addButton.className = 'btn btn-primary btn-add';
   addButton.textContent = '+ Add New Transaction';
@@ -1050,21 +1051,33 @@ async function loadMasterTransactionsGrid(container) {
     }
   });
   window.add(addButtonContainer, addButton);
-  window.add(container, addButtonContainer);
+  window.add(toolbar, addButtonContainer);
 
-  // Add grouping control
+  // Add grouping control (left side)
   const groupingControl = document.createElement('div');
-  groupingControl.className = 'mb-sm grouping-control';
+  groupingControl.className = 'toolbar-item grouping-control';
   groupingControl.innerHTML = `
-      <label for="tx-grouping-select" class="text-muted control-label">Group By:</label>
-        <select id="tx-grouping-select" class="input-select control-select">
+    <label for="tx-grouping-select" class="text-muted control-label">Group By:</label>
+    <select id="tx-grouping-select" class="input-select control-select">
       <option value="">None</option>
       <option value="transactionTypeName">Type (Money In/Out)</option>
       <option value="recurrenceSummary">Recurrence Period</option>
       <option value="primaryAccountName">Account</option>
     </select>
   `;
-  window.add(container, groupingControl);
+  window.add(toolbar, groupingControl);
+
+  // Add period filter
+  const periodFilter = document.createElement('div');
+  periodFilter.className = 'toolbar-item period-filter';
+  periodFilter.innerHTML = `
+    <label for="actual-period-select" class="text-muted control-label">Period:</label>
+    <select id="actual-period-select" class="input-select control-select"></select>
+    <button id="actual-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
+    <button id="actual-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
+  `;
+  window.add(toolbar, periodFilter);
+  window.add(container, toolbar);
 
   const gridContainer = document.createElement('div');
   gridContainer.className = 'grid-container master-transactions-grid';
@@ -1167,24 +1180,16 @@ async function loadMasterTransactionsGrid(container) {
       typeIdField: 'transactionTypeId'
     });
 
-    const txTotalsBar = document.createElement('div');
-    txTotalsBar.className = 'grid-totals';
+    // Add inline totals to toolbar (right side)
     const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-    txTotalsBar.innerHTML = `
-      <div class="grid-total-item">
-        <div class="label">Money In</div>
-        <div class="value positive">${formatCurrency(txTotals.moneyIn)}</div>
-      </div>
-      <div class="grid-total-item">
-        <div class="label">Money Out</div>
-        <div class="value negative">${formatCurrency(txTotals.moneyOut)}</div>
-      </div>
-      <div class="grid-total-item">
-        <div class="label">Net</div>
-        <div class="value ${txTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(txTotals.net)}</div>
-      </div>
+    const totalsInline = document.createElement('div');
+    totalsInline.className = 'toolbar-item toolbar-totals';
+    totalsInline.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(txTotals.moneyIn)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(txTotals.moneyOut)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${txTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(txTotals.net)}</span></span>
     `;
-    container.insertBefore(txTotalsBar, gridContainer);
+    toolbar.appendChild(totalsInline);
 
     const masterTxTable = createGrid(gridContainer, {
       data: transformedData,
@@ -1623,20 +1628,24 @@ async function loadBudgetGrid(container) {
       return;
     }
 
-    // Add section header
-    const sectionHeader = document.createElement('h3');
-    sectionHeader.className = 'text-main section-header';
-    if (selIdNum) {
-      const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
-      sectionHeader.textContent = `Budget - Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
-    } else {
-      sectionHeader.textContent = 'Budget - All Accounts';
+    // Update accordion header with filter info
+    const accordionHeader = document.getElementById('budgetAccordionHeader')?.querySelector('h2');
+    if (accordionHeader) {
+      if (selIdNum) {
+        const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
+        accordionHeader.textContent = `Budget - ${selectedAccount?.name || 'Unknown Account'}`;
+      } else {
+        accordionHeader.textContent = 'Budget';
+      }
     }
-    window.add(container, sectionHeader);
+
+    // Create toolbar for controls
+    const toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar';
 
     // Add budget action buttons
     const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'mb-sm';
+    buttonContainer.className = 'toolbar-item';
     
     // Add New Budget Entry button
     const addButton = document.createElement('button');
@@ -1706,11 +1715,11 @@ async function loadBudgetGrid(container) {
     });
     window.add(buttonContainer, clearButton);
     
-    window.add(container, buttonContainer);
+    window.add(toolbar, buttonContainer);
 
     // Add period filter controls (similar to transactions)
     const periodFilter = document.createElement('div');
-    periodFilter.className = 'mb-sm period-filter control-layout-wrap';
+    periodFilter.className = 'toolbar-item period-filter control-layout-wrap';
     periodFilter.innerHTML = `
         <label for="budget-period-select" class="text-muted control-label">Period:</label>
       <select id="budget-period-select" class="input-select control-select"></select>
@@ -1755,6 +1764,8 @@ async function loadBudgetGrid(container) {
         await loadBudgetGrid(container);
       }
     });
+
+    window.add(toolbar, periodFilter);
 
     // Transform budgets for UI (resolve IDs to full objects) - mirror transactions grid
     const transformedData = budgetOccurrences.map(budget => {
@@ -1850,36 +1861,16 @@ async function loadBudgetGrid(container) {
     }
 
     // Compute filtered totals (money in/out) for the current view
-      const budgetTotals = computeMoneyTotals(transformedData, {
-        amountField: 'amount',
-        typeField: 'transactionType',
-        typeNameField: 'transactionTypeName',
-        typeIdField: 'transactionTypeId'
-      });
-
-    // Render totals summary above the grid
-    const budgetTotalsBar = document.createElement('div');
-    budgetTotalsBar.className = 'grid-totals';
-    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-    budgetTotalsBar.innerHTML = `
-      <div class="grid-total-item">
-        <div class="label">Money In</div>
-        <div class="value positive">${formatCurrency(budgetTotals.moneyIn)}</div>
-      </div>
-      <div class="grid-total-item">
-        <div class="label">Money Out</div>
-        <div class="value negative">${formatCurrency(budgetTotals.moneyOut)}</div>
-      </div>
-      <div class="grid-total-item">
-        <div class="label">Net</div>
-        <div class="value ${budgetTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(budgetTotals.net)}</div>
-      </div>
-    `;
-    window.add(container, budgetTotalsBar);
+    const budgetTotals = computeMoneyTotals(transformedData, {
+      amountField: 'amount',
+      typeField: 'transactionType',
+      typeNameField: 'transactionTypeName',
+      typeIdField: 'transactionTypeId'
+    });
 
     // Add grouping control
     const groupingControl = document.createElement('div');
-    groupingControl.className = 'mb-sm grouping-control';
+    groupingControl.className = 'toolbar-item grouping-control';
     groupingControl.innerHTML = `
       <label for="budget-grouping-select" class="text-muted control-label">Group By:</label>
       <select id="budget-grouping-select" class="input-select control-select">
@@ -1889,7 +1880,19 @@ async function loadBudgetGrid(container) {
         <option value="primaryAccountName">Account</option>
       </select>
     `;
-    window.add(container, groupingControl);
+    window.add(toolbar, groupingControl);
+
+    // Add inline totals to toolbar
+    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    const totalsInline = document.createElement('div');
+    totalsInline.className = 'toolbar-item toolbar-totals';
+    totalsInline.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(budgetTotals.moneyIn)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(budgetTotals.moneyOut)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${budgetTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(budgetTotals.net)}</span></span>
+    `;
+    window.add(toolbar, totalsInline);
+    window.add(container, toolbar);
 
     // Create grid container
     const gridContainer = document.createElement('div');
@@ -2403,6 +2406,22 @@ async function loadProjectionsGrid(container) {
       netChange: p.netChange || 0
     }));
 
+    // Create toolbar for controls
+    const toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar';
+
+    // Add grouping control
+    const projectionsGroupingControl = document.createElement('div');
+    projectionsGroupingControl.className = 'toolbar-item grouping-control';
+    projectionsGroupingControl.innerHTML = `
+      <label for="projections-grouping-select" class="text-muted control-label">Group By:</label>
+      <select id="projections-grouping-select" class="input-select control-select">
+        <option value="">None</option>
+        <option value="account">Account</option>
+      </select>
+    `;
+    window.add(toolbar, projectionsGroupingControl);
+
     // Compute filtered totals for the current projection view
     const projectionTotals = transformedData.reduce((acc, row) => {
       const income = Number(row.income || 0);
@@ -2417,37 +2436,18 @@ async function loadProjectionsGrid(container) {
       return acc;
     }, { income: 0, expenses: 0, net: 0 });
 
-    // Render totals summary above the grid
-    const projectionsTotalsBar = document.createElement('div');
-    projectionsTotalsBar.className = 'grid-totals';
+    // Add inline totals to toolbar
     const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-    projectionsTotalsBar.innerHTML = `
-      <div class="grid-total-item">
-        <div class="label">Income</div>
-        <div class="value positive">${formatCurrency(projectionTotals.income)}</div>
-      </div>
-      <div class="grid-total-item">
-        <div class="label">Expenses</div>
-        <div class="value negative">${formatCurrency(projectionTotals.expenses)}</div>
-      </div>
-      <div class="grid-total-item">
-        <div class="label">Net Change</div>
-        <div class="value ${projectionTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(projectionTotals.net)}</div>
-      </div>
+    const totalsInline = document.createElement('div');
+    totalsInline.className = 'toolbar-item toolbar-totals';
+    totalsInline.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Income:</span> <span class="value positive">${formatCurrency(projectionTotals.income)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Expenses:</span> <span class="value negative">${formatCurrency(projectionTotals.expenses)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net Change:</span> <span class="value ${projectionTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(projectionTotals.net)}</span></span>
     `;
-    window.add(container, projectionsTotalsBar);
+    window.add(toolbar, totalsInline);
+    window.add(container, toolbar);
 
-    // Add grouping control
-    const projectionsGroupingControl = document.createElement('div');
-    projectionsGroupingControl.className = 'mb-sm grouping-control';
-    projectionsGroupingControl.innerHTML = `
-      <label for="projections-grouping-select" class="text-muted control-label">Group By:</label>
-      <select id="projections-grouping-select" class="input-select control-select">
-        <option value="">None</option>
-        <option value="account">Account</option>
-      </select>
-    `;
-    window.add(container, projectionsGroupingControl);
     const projectionsTable = createGrid(container, {
       data: transformedData,
       layout: "fitColumns",
