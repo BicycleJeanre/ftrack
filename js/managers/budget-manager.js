@@ -3,6 +3,34 @@
 // Budgets are snapshots of projections that become editable working datasets
 
 /**
+ * Budget Data Model (Storage Format)
+ * 
+ * Budgets are stored with only ID references (no embedded objects):
+ * {
+ *   id: number,                           // Unique budget occurrence ID
+ *   sourceTransactionId: number | null,   // Reference to planned transaction (ID only)
+ *   primaryAccountId: number | null,      // Reference to primary account (ID only)
+ *   secondaryAccountId: number | null,    // Reference to secondary account (ID only)
+ *   transactionTypeId: number | null,     // Transaction type ID (1=Money In, 2=Money Out)
+ *   amount: number,                       // Planned amount
+ *   description: string,                  // Transaction description
+ *   recurrenceDescription: string,        // Human-readable recurrence pattern
+ *   occurrenceDate: string,               // YYYY-MM-DD format
+ *   periodicChange: object | null,        // Periodic change/escalation data
+ *   status: {
+ *     name: string,                       // 'planned' or 'actual'
+ *     actualAmount: number | null,        // Actual amount if status is actual
+ *     actualDate: string | null           // Actual date if status is actual
+ *   },
+ *   tags: string[]                        // Associated tags
+ * }
+ * 
+ * UI transforms budgets to include resolved objects (debitAccount, creditAccount, etc.)
+ * but these are NEVER persisted to disk—only IDs are stored.
+ */
+
+
+/**
  * Generate human-readable recurrence description from recurrence object
  * @param {Object} recurrence - Recurrence pattern object
  * @returns {string} - Description like "Monthly - Day 1", "Weekly (Friday)", etc.
@@ -53,10 +81,40 @@ export async function saveAll(scenarioId, budgets) {
         let nextId = maxId + 1;
 
         data.scenarios[scenarioIndex].budgets = budgets.map(budget => {
-            if (!budget.id || budget.id === 0) {
-                return { ...budget, id: nextId++ };
-            }
-            return budget;
+            // Normalize budget to storage format: only store IDs, not objects
+            const normalized = {
+                id: budget.id || nextId++,
+                sourceTransactionId: budget.sourceTransactionId || null,
+                primaryAccountId: budget.primaryAccountId || null,
+                secondaryAccountId: budget.secondaryAccountId || null,
+                transactionTypeId: budget.transactionTypeId || null,
+                amount: budget.amount || 0,
+                description: budget.description || '',
+                recurrenceDescription: budget.recurrenceDescription || '',
+                occurrenceDate: budget.occurrenceDate || '',
+                periodicChange: budget.periodicChange || null,
+                status: typeof budget.status === 'object' ? budget.status : { 
+                    name: budget.status || 'planned',
+                    actualAmount: null,
+                    actualDate: null 
+                },
+                tags: budget.tags || []
+            };
+            
+            // Explicitly exclude UI-only fields (objects that should never be stored)
+            // These may exist in memory for rendering but should never be persisted
+            delete normalized.debitAccount;
+            delete normalized.creditAccount;
+            delete normalized.primaryAccount;
+            delete normalized.secondaryAccount;
+            delete normalized.transactionType;
+            delete normalized.primaryAccountName;
+            delete normalized.transactionTypeName;
+            delete normalized.plannedAmount;
+            delete normalized.actualAmount;
+            delete normalized.actualDateOverride;
+
+            return normalized;
         });
 
         return data;

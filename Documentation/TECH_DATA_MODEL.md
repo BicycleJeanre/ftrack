@@ -519,10 +519,16 @@ Each budget represents a single dated occurrence expanded from a recurring trans
 - **Account References**: Stored as `primaryAccountId` and `secondaryAccountId` (ID only)
   - Full account objects resolved at runtime from scenario's `accounts` array
   - Prevents data duplication and ensures account updates propagate correctly
+  - UI may create temporary `primaryAccount` and `secondaryAccount` objects for rendering, but these are **never persisted**
 - **Transaction Type**: Stored as `transactionTypeId` (ID only)
   - Resolved from lookup data at runtime
+  - UI may create temporary `transactionType` object for rendering, but this is **never persisted**
+- **Debit/Credit Accounts**: Computed at runtime based on transaction type direction
+  - Not stored; derived from `primaryAccountId`, `secondaryAccountId`, and `transactionTypeId`
+  - UI may use temporary `debitAccount` and `creditAccount` objects for display, but these are **never persisted**
 - **Status**: Stored as object with `name`, `actualAmount`, and `actualDate`
   - Not a lookup - contains transaction-specific execution data
+
 
 **Field Descriptions**:
 

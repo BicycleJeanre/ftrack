@@ -2051,6 +2051,9 @@ async function loadBudgetGrid(container) {
                 updatedBudget.creditAccount = selectedAccount || null;
               }
             }
+          } else if (field === 'plannedAmount') {
+            // Map UI field 'plannedAmount' back to storage field 'amount'
+            updatedBudget.amount = newValue;
           } else if (field === 'actualAmount') {
             // Update actual amount in status object
             if (!updatedBudget.status || typeof updatedBudget.status !== 'object') {

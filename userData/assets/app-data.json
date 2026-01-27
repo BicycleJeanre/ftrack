@@ -1177,69 +1177,20 @@
         {
           "id": 27,
           "sourceTransactionId": null,
-          "primaryAccountId": 2,
+          "primaryAccountId": 1,
           "secondaryAccountId": 1,
           "transactionTypeId": 2,
-          "amount": 0,
-          "description": "Super DUper Bonus!",
-          "occurrenceDate": "2026-01-26",
+          "amount": 1000,
+          "description": "more bonus",
           "recurrenceDescription": "One time",
+          "occurrenceDate": "2026-01-01",
+          "periodicChange": null,
           "status": {
             "name": "planned",
             "actualAmount": null,
             "actualDate": null
           },
-          "transactionType": {
-            "id": 2,
-            "name": "Money In"
-          },
-          "debitAccount": {
-            "id": 2,
-            "name": "Salary",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "startingBalance": 0,
-            "openDate": "2026-01-01",
-            "periodicChange": null
-          },
-          "creditAccount": {
-            "id": 1,
-            "name": "Checking Account",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "startingBalance": 15000,
-            "openDate": "2026-01-01",
-            "periodicChange": null,
-            "balance": ""
-          },
-          "secondaryAccount": {
-            "id": 2,
-            "name": "Salary",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "startingBalance": 0,
-            "openDate": "2026-01-01",
-            "periodicChange": null
-          },
-          "plannedAmount": 100000
+          "tags": []
         }
       ]
     }
