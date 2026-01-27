@@ -36,3 +36,10 @@ The technical documentation is modularized. Read the specific section required f
 1. **No External Databases**: Keep `DataStore` logic.
 2. **Tabulator Only**: Do not introduce new UI libraries for tables.
 3. **Manager Pattern**: Do not write file I/O code in UI files. Use a Manager.
+
+## 6.0 Styling System
+- **Single Source**: All UI theming lives in `styles/app.css`; inline styles are forbidden.
+- **Layout Tokens**: Use `control-layout*`, `grouping-control`, and `period-filter` classes for filter bars and toolbars.
+- **Modals**: Reuse `modal-overlay` + `modal-content` with size helpers (`modal-text-input`, `modal-periodic`, `modal-recurrence`, `modal-shortcuts`). Buttons use the `modal-periodic-*` and `shortcuts-*` utility classes.
+- **Tables & Grids**: Recurrence badges and Tabulator overrides rely on `.recurrence-cell` and Tabulator theme variables—do not embed style attributes in formatters.
+- **Buttons**: Prefer semantic button variants (`btn`, `btn-primary`, `btn-ghost`) instead of per-element padding or colors.

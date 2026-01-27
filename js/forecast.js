@@ -177,16 +177,12 @@ function buildGridContainer() {
 
   // Period filter controls
   const periodFilter = document.createElement('div');
-  periodFilter.className = 'mb-sm period-filter';
-  periodFilter.style.display = 'flex';
-  periodFilter.style.alignItems = 'center';
-  periodFilter.style.gap = '8px';
-  periodFilter.style.flexWrap = 'nowrap';
+  periodFilter.className = 'mb-sm period-filter control-layout-wrap';
   periodFilter.innerHTML = `
-    <label for="actual-period-select" class="text-muted" style="white-space: nowrap;">Period:</label>
-    <select id="actual-period-select" class="input-select"></select>
-    <button id="actual-prev-period-btn" class="btn btn-ghost" title="Previous Period" style="padding: 6px 10px; white-space: nowrap;">&#9664;</button>
-    <button id="actual-next-period-btn" class="btn btn-ghost" title="Next Period" style="padding: 6px 10px; white-space: nowrap;">&#9654;</button>
+     <label for="actual-period-select" class="text-muted control-label">Period:</label>
+     <select id="actual-period-select" class="input-select control-select"></select>
+     <button id="actual-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
+     <button id="actual-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
   `;
   window.add(transactionsContent, periodFilter);
 
@@ -770,12 +766,9 @@ async function loadAccountsGrid(container) {
         // Add grouping control
         const accountGroupingControl = document.createElement('div');
         accountGroupingControl.className = 'mb-sm grouping-control';
-        accountGroupingControl.style.display = 'flex';
-        accountGroupingControl.style.alignItems = 'center';
-        accountGroupingControl.style.gap = '8px';
         accountGroupingControl.innerHTML = `
-          <label for="account-grouping-select" class="text-muted" style="white-space: nowrap;">Group By:</label>
-          <select id="account-grouping-select" class="input-select" style="min-width: 150px;">
+            <label for="account-grouping-select" class="text-muted control-label">Group By:</label>
+            <select id="account-grouping-select" class="input-select control-select">
             <option value="">None</option>
             <option value="accountType">Type</option>
           </select>
@@ -1035,12 +1028,9 @@ async function loadMasterTransactionsGrid(container) {
   // Add grouping control
   const groupingControl = document.createElement('div');
   groupingControl.className = 'mb-sm grouping-control';
-  groupingControl.style.display = 'flex';
-  groupingControl.style.alignItems = 'center';
-  groupingControl.style.gap = '8px';
   groupingControl.innerHTML = `
-    <label for="tx-grouping-select" class="text-muted" style="white-space: nowrap;">Group By:</label>
-      <select id="tx-grouping-select" class="input-select" style="min-width: 150px;">
+      <label for="tx-grouping-select" class="text-muted control-label">Group By:</label>
+        <select id="tx-grouping-select" class="input-select control-select">
       <option value="">None</option>
       <option value="transactionTypeName">Type (Money In/Out)</option>
       <option value="recurrenceSummary">Recurrence Period</option>
@@ -1250,8 +1240,8 @@ async function loadMasterTransactionsGrid(container) {
           widthGrow: 1.2,
           formatter: function(cell) {
             const summary = cell.getValue() || 'One time';
-            const icon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="#4ec9b0" aria-hidden="true" style="vertical-align: middle;"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
-            return `<span class="recurrence-cell" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">${icon}<span class="recurrence-text">${summary}</span></span>`;
+            const icon = '<svg class="recurrence-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
+            return `<span class="recurrence-cell">${icon}<span class="recurrence-text">${summary}</span></span>`;
           },
           cellClick: function(e, cell) {
             const rowData = cell.getRow().getData();
@@ -1666,16 +1656,12 @@ async function loadBudgetGrid(container) {
 
     // Add period filter controls (similar to transactions)
     const periodFilter = document.createElement('div');
-    periodFilter.className = 'mb-sm period-filter';
-    periodFilter.style.display = 'flex';
-    periodFilter.style.alignItems = 'center';
-    periodFilter.style.gap = '8px';
-    periodFilter.style.flexWrap = 'nowrap';
+    periodFilter.className = 'mb-sm period-filter control-layout-wrap';
     periodFilter.innerHTML = `
-      <label for="budget-period-select" class="text-muted" style="white-space: nowrap;">Period:</label>
-      <select id="budget-period-select" class="input-select"></select>
-      <button id="budget-prev-period-btn" class="btn btn-ghost" title="Previous Period" style="padding: 6px 10px; white-space: nowrap;">&#9664;</button>
-      <button id="budget-next-period-btn" class="btn btn-ghost" title="Next Period" style="padding: 6px 10px; white-space: nowrap;">&#9654;</button>
+        <label for="budget-period-select" class="text-muted control-label">Period:</label>
+      <select id="budget-period-select" class="input-select control-select"></select>
+        <button id="budget-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
+        <button id="budget-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
     `;
     window.add(container, periodFilter);
 
@@ -1812,12 +1798,9 @@ async function loadBudgetGrid(container) {
     // Add grouping control
     const groupingControl = document.createElement('div');
     groupingControl.className = 'mb-sm grouping-control';
-    groupingControl.style.display = 'flex';
-    groupingControl.style.alignItems = 'center';
-    groupingControl.style.gap = '8px';
     groupingControl.innerHTML = `
-      <label for="budget-grouping-select" class="text-muted" style="white-space: nowrap;">Group By:</label>
-      <select id="budget-grouping-select" class="input-select" style="min-width: 150px;">
+      <label for="budget-grouping-select" class="text-muted control-label">Group By:</label>
+      <select id="budget-grouping-select" class="input-select control-select">
         <option value="">None</option>
         <option value="transactionTypeName">Type (Money In/Out)</option>
         <option value="recurrenceDescription">Recurrence Period</option>
@@ -2338,12 +2321,9 @@ async function loadProjectionsGrid(container) {
     // Add grouping control
     const projectionsGroupingControl = document.createElement('div');
     projectionsGroupingControl.className = 'mb-sm grouping-control';
-    projectionsGroupingControl.style.display = 'flex';
-    projectionsGroupingControl.style.alignItems = 'center';
-    projectionsGroupingControl.style.gap = '8px';
     projectionsGroupingControl.innerHTML = `
-      <label for="projections-grouping-select" class="text-muted" style="white-space: nowrap;">Group By:</label>
-      <select id="projections-grouping-select" class="input-select" style="min-width: 150px;">
+      <label for="projections-grouping-select" class="text-muted control-label">Group By:</label>
+      <select id="projections-grouping-select" class="input-select control-select">
         <option value="">None</option>
         <option value="account">Account</option>
       </select>
