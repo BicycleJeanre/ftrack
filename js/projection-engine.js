@@ -6,7 +6,7 @@ import { generateRecurrenceDates } from './calculation-utils.js';
 import { applyPeriodicChange } from './financial-utils.js';
 import { getScenario, saveProjections } from './data-manager.js';
 import { parseDateOnly, formatDateOnly } from './date-utils.js';
-import { expandTransactions, resolveTransactionAccounts } from './transaction-expander.js';
+import { expandTransactions } from './transaction-expander.js';
 
 /**
  * Generate projections for a scenario
@@ -68,11 +68,8 @@ export async function generateProjections(scenarioId, options = {}) {
     accountBalances.set(acc.id, acc.startingBalance || 0);
   });
   
-  // Resolve account IDs to account objects for transaction occurrences
-  const resolvedTransactions = resolveTransactionAccounts(plannedTransactions, accounts);
-  
   // Use shared transaction expander to generate all occurrences within the projection window
-  const expandedTransactions = expandTransactions(resolvedTransactions, startDate, endDate, accounts);
+  const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
   
   console.log('[ProjectionEngine] Expanded to', expandedTransactions.length, 'transaction occurrences');
   
@@ -109,7 +106,20 @@ export async function generateProjections(scenarioId, options = {}) {
   
   // Generate projections - one record per account per period
   const projections = [];
-  const periodicity = options.periodicity || 'monthly'; // daily, weekly, monthly, quarterly, yearly
+  // Use scenario's projectionPeriod if available, otherwise fall back to options or default
+  const scenarioPeriodType = scenario.projectionPeriod?.name || 'Month';
+  
+  // Map capitalized period names to lowercase periodicity strings
+  const periodMap = {
+    'Day': 'daily',
+    'Week': 'weekly', 
+    'Month': 'monthly',
+    'Quarter': 'quarterly',
+    'Year': 'yearly'
+  };
+  const periodicity = options.periodicity || periodMap[scenarioPeriodType] || 'monthly';
+  
+  console.log('[ProjectionEngine] Using periodicity:', periodicity, 'from scenario period type:', scenarioPeriodType);
   
   // Generate period dates
   const periods = generatePeriods(startDate, endDate, periodicity);

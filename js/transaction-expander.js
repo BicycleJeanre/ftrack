@@ -17,7 +17,7 @@ export function expandTransactions(transactions, startDate, endDate, accounts = 
 
   transactions.forEach(tx => {
     // Ignore transactions that are not fully linked to accounts
-    if (!tx.debitAccount || !tx.creditAccount) return;
+    if (!tx.primaryAccountId || !tx.secondaryAccountId) return;
 
     const statusName = typeof tx.status === 'object' ? tx.status.name : tx.status;
     
@@ -36,50 +36,24 @@ export function expandTransactions(transactions, startDate, endDate, accounts = 
     } else if (statusName === 'actual') {
       // For actual transactions, check if they fall within the period
       const actualDate = typeof tx.status === 'object' ? tx.status.actualDate : tx.actualDate;
-      const txDate = actualDate ? parseDateOnly(actualDate) : (tx.recurrence?.startDate ? parseDateOnly(tx.recurrence.startDate) : null);
+      const txDate = actualDate ? parseDateOnly(actualDate) : (tx.effectiveDate ? parseDateOnly(tx.effectiveDate) : null);
       if (txDate && txDate >= startDate && txDate <= endDate) {
         expandedTransactions.push({
           ...tx,
-          effectiveDate: actualDate || tx.recurrence?.startDate
+          effectiveDate: actualDate || tx.effectiveDate
         });
       }
-    } else {
-      // Non-recurring planned transactions - check their recurrence start date
-      const txDate = tx.recurrence?.startDate ? parseDateOnly(tx.recurrence.startDate) : null;
+    } else if (statusName === 'planned' && !tx.recurrence) {
+      // Non-recurring planned transactions - check their effective date
+      const txDate = tx.effectiveDate ? parseDateOnly(tx.effectiveDate) : null;
       if (txDate && txDate >= startDate && txDate <= endDate) {
         expandedTransactions.push({
           ...tx,
-          effectiveDate: tx.recurrence.startDate
+          effectiveDate: tx.effectiveDate
         });
       }
     }
   });
 
   return expandedTransactions;
-}
-
-/**
- * Resolve account IDs to full account objects for UI display
- * This transforms primaryAccountId/secondaryAccountId to debitAccount/creditAccount
- * based on transactionTypeId
- * @param {Array} transactions - Array of transactions with account IDs
- * @param {Array} accounts - Array of account objects
- * @returns {Array} - Transactions with resolved account objects
- */
-export function resolveTransactionAccounts(transactions, accounts) {
-  return transactions.map(tx => {
-    const primaryAccount = accounts.find(a => a.id === tx.primaryAccountId);
-    const secondaryAccount = accounts.find(a => a.id === tx.secondaryAccountId);
-    
-    // Map to legacy debitAccount/creditAccount based on transaction type
-    // transactionTypeId: 1 = Money In (secondary → primary), 2 = Money Out (primary → secondary)
-    const debitAccount = tx.transactionTypeId === 1 ? secondaryAccount : primaryAccount;
-    const creditAccount = tx.transactionTypeId === 1 ? primaryAccount : secondaryAccount;
-    
-    return {
-      ...tx,
-      debitAccount: debitAccount || null,
-      creditAccount: creditAccount || null
-    };
-  });
 }

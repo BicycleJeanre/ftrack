@@ -1291,8 +1291,8 @@
       "startDate": "2026-01-01",
       "endDate": "2026-06-01",
       "projectionPeriod": {
-        "id": 5,
-        "name": "Year"
+        "id": 2,
+        "name": "Week"
       },
       "accounts": [
         {
@@ -1336,7 +1336,7 @@
               "id": 3,
               "name": "Weekly"
             },
-            "startDate": "2026-01-28",
+            "startDate": "2026-01-01",
             "endDate": null,
             "interval": 2,
             "dayOfWeek": null,
@@ -1358,8 +1358,334 @@
           "tags": []
         }
       ],
-      "projections": [],
-      "budgets": []
+      "projections": [
+        {
+          "id": 1,
+          "scenarioId": 2,
+          "accountId": 1,
+          "account": "Primary",
+          "date": "2026-01-01",
+          "balance": -15000,
+          "income": 0,
+          "expenses": 15000,
+          "netChange": -15000,
+          "period": 1
+        },
+        {
+          "id": 2,
+          "scenarioId": 2,
+          "accountId": 1,
+          "account": "Primary",
+          "date": "2026-02-01",
+          "balance": -25000,
+          "income": 0,
+          "expenses": 10000,
+          "netChange": -10000,
+          "period": 2
+        },
+        {
+          "id": 3,
+          "scenarioId": 2,
+          "accountId": 1,
+          "account": "Primary",
+          "date": "2026-03-01",
+          "balance": -35000,
+          "income": 0,
+          "expenses": 10000,
+          "netChange": -10000,
+          "period": 3
+        },
+        {
+          "id": 4,
+          "scenarioId": 2,
+          "accountId": 1,
+          "account": "Primary",
+          "date": "2026-04-01",
+          "balance": -45000,
+          "income": 0,
+          "expenses": 10000,
+          "netChange": -10000,
+          "period": 4
+        },
+        {
+          "id": 5,
+          "scenarioId": 2,
+          "accountId": 1,
+          "account": "Primary",
+          "date": "2026-05-01",
+          "balance": -55000,
+          "income": 0,
+          "expenses": 10000,
+          "netChange": -10000,
+          "period": 5
+        },
+        {
+          "id": 6,
+          "scenarioId": 2,
+          "accountId": 1,
+          "account": "Primary",
+          "date": "2026-06-01",
+          "balance": -55000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 6
+        },
+        {
+          "id": 7,
+          "scenarioId": 2,
+          "accountId": 2,
+          "account": "rent",
+          "date": "2026-01-01",
+          "balance": 15000,
+          "income": 15000,
+          "expenses": 0,
+          "netChange": 15000,
+          "period": 1
+        },
+        {
+          "id": 8,
+          "scenarioId": 2,
+          "accountId": 2,
+          "account": "rent",
+          "date": "2026-02-01",
+          "balance": 25000,
+          "income": 10000,
+          "expenses": 0,
+          "netChange": 10000,
+          "period": 2
+        },
+        {
+          "id": 9,
+          "scenarioId": 2,
+          "accountId": 2,
+          "account": "rent",
+          "date": "2026-03-01",
+          "balance": 35000,
+          "income": 10000,
+          "expenses": 0,
+          "netChange": 10000,
+          "period": 3
+        },
+        {
+          "id": 10,
+          "scenarioId": 2,
+          "accountId": 2,
+          "account": "rent",
+          "date": "2026-04-01",
+          "balance": 45000,
+          "income": 10000,
+          "expenses": 0,
+          "netChange": 10000,
+          "period": 4
+        },
+        {
+          "id": 11,
+          "scenarioId": 2,
+          "accountId": 2,
+          "account": "rent",
+          "date": "2026-05-01",
+          "balance": 55000,
+          "income": 10000,
+          "expenses": 0,
+          "netChange": 10000,
+          "period": 5
+        },
+        {
+          "id": 12,
+          "scenarioId": 2,
+          "accountId": 2,
+          "account": "rent",
+          "date": "2026-06-01",
+          "balance": 55000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 6
+        }
+      ],
+      "budgets": [
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-01-15",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-01-29",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-02-12",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-02-26",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-03-12",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-03-26",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-04-09",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-04-23",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-05-07",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "description": "",
+          "recurrenceDescription": "Weekly",
+          "occurrenceDate": "2026-05-21",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        }
+      ]
     }
   ],
   "migrationVersion": 2

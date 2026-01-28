@@ -715,7 +715,22 @@ export async function getScenarioPeriods(scenarioId) {
   let current = new Date(start);
   
   while (current <= end) {
-    if (periodType === 'Month') {
+    if (periodType === 'Day') {
+      const periodId = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+      const dayName = current.toLocaleString('default', { weekday: 'long' });
+      const monthName = current.toLocaleString('default', { month: 'short' });
+      const day = current.getDate();
+      const year = current.getFullYear();
+      
+      periods.push({
+        id: periodId,
+        label: `${dayName}, ${monthName} ${day}, ${year}`,
+        startDate: new Date(current),
+        endDate: new Date(current)
+      });
+      
+      current.setDate(current.getDate() + 1);
+    } else if (periodType === 'Month') {
       const periodId = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
       const monthName = current.toLocaleString('default', { month: 'long' });
       const year = current.getFullYear();
@@ -729,13 +744,77 @@ export async function getScenarioPeriods(scenarioId) {
       
       current.setMonth(current.getMonth() + 1);
     } else if (periodType === 'Week') {
-      // TODO: Implement weekly period calculation
+      // Align to Monday as week start (ISO week)
+      const weekStart = new Date(current);
+      const day = weekStart.getDay();
+      const diff = (day + 6) % 7; // days since Monday
+      weekStart.setDate(weekStart.getDate() - diff);
+      
+      // Skip if week starts after end date
+      if (weekStart > end) break;
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      // Clip to scenario end
+      const clippedEnd = weekEnd > end ? new Date(end) : weekEnd;
+      
+      const weekNum = Math.ceil(((weekStart - start) / 86400000 + 1) / 7);
+      const periodId = `${weekStart.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+      const startMonth = weekStart.toLocaleString('default', { month: 'short' });
+      const endMonth = clippedEnd.toLocaleString('default', { month: 'short' });
+      const label = startMonth === endMonth 
+        ? `Week ${weekNum}: ${startMonth} ${weekStart.getDate()}-${clippedEnd.getDate()}, ${weekStart.getFullYear()}`
+        : `Week ${weekNum}: ${startMonth} ${weekStart.getDate()} - ${endMonth} ${clippedEnd.getDate()}, ${weekStart.getFullYear()}`;
+      
+      periods.push({
+        id: periodId,
+        label: label,
+        startDate: weekStart,
+        endDate: clippedEnd
+      });
+      
       current.setDate(current.getDate() + 7);
     } else if (periodType === 'Quarter') {
-      // TODO: Implement quarterly period calculation
+      const quarter = Math.floor(current.getMonth() / 3) + 1;
+      const quarterStart = new Date(current.getFullYear(), (quarter - 1) * 3, 1);
+      
+      // Skip if quarter starts after end date
+      if (quarterStart > end) break;
+      
+      let quarterEnd = new Date(current.getFullYear(), quarter * 3, 0);
+      // Clip to scenario end
+      quarterEnd = quarterEnd > end ? new Date(end) : quarterEnd;
+      
+      const periodId = `${current.getFullYear()}-Q${quarter}`;
+      
+      periods.push({
+        id: periodId,
+        label: `Q${quarter} ${current.getFullYear()}`,
+        startDate: quarterStart,
+        endDate: quarterEnd
+      });
+      
       current.setMonth(current.getMonth() + 3);
     } else if (periodType === 'Year') {
-      // TODO: Implement yearly period calculation
+      const yearStart = new Date(current.getFullYear(), 0, 1);
+      
+      // Skip if year starts after end date
+      if (yearStart > end) break;
+      
+      let yearEnd = new Date(current.getFullYear(), 11, 31);
+      // Clip to scenario end
+      yearEnd = yearEnd > end ? new Date(end) : yearEnd;
+      
+      const periodId = `${current.getFullYear()}`;
+      
+      periods.push({
+        id: periodId,
+        label: `${current.getFullYear()}`,
+        startDate: yearStart,
+        endDate: yearEnd
+      });
+      
       current.setFullYear(current.getFullYear() + 1);
     } else {
       // Default to month
