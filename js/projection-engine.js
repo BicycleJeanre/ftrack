@@ -93,8 +93,9 @@ export async function generateProjections(scenarioId, options = {}) {
     return {
       date: occDate,
       dateKey: occKey,
-      debitAccountId: txn.debitAccount?.id,
-      creditAccountId: txn.creditAccount?.id,
+      primaryAccountId: txn.primaryAccountId,
+      secondaryAccountId: txn.secondaryAccountId,
+      transactionTypeId: txn.transactionTypeId,
       amount: amount,
       description: txn.description || '',
       sourceTransactionId: txn.id
@@ -140,16 +141,33 @@ export async function generateProjections(scenarioId, options = {}) {
 
       transactionOccurrences.forEach(txn => {
         if (txn.dateKey >= periodStartKey && txn.dateKey <= periodEndKey) {
-          // Debit from this account (money out)
-          if (txn.debitAccountId === account.id) {
-            currentBalance -= txn.amount;
-            periodExpenses += txn.amount;
+          // Check if this account is primary or secondary
+          const absAmount = Math.abs(txn.amount);
+          
+          if (txn.primaryAccountId === account.id) {
+            // Primary account: Money In adds, Money Out subtracts
+            if (txn.transactionTypeId === 1) {
+              // Money In
+              currentBalance += absAmount;
+              periodIncome += absAmount;
+            } else {
+              // Money Out
+              currentBalance -= absAmount;
+              periodExpenses += absAmount;
+            }
           }
-
-          // Credit to this account (money in)
-          if (txn.creditAccountId === account.id) {
-            currentBalance += txn.amount;
-            periodIncome += txn.amount;
+          
+          if (txn.secondaryAccountId === account.id) {
+            // Secondary account: opposite of primary
+            if (txn.transactionTypeId === 1) {
+              // Money In (from primary perspective) = Money Out from secondary
+              currentBalance -= absAmount;
+              periodExpenses += absAmount;
+            } else {
+              // Money Out (from primary perspective) = Money In from secondary
+              currentBalance += absAmount;
+              periodIncome += absAmount;
+            }
           }
         }
       });

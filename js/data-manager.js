@@ -322,15 +322,10 @@ export async function getTransactions(scenarioId) {
       ? { id: 1, name: 'Money In' }
       : { id: 2, name: 'Money Out' };
     
-    // Map to legacy debitAccount/creditAccount based on transaction type
-    // transactionTypeId: 1 = Money In (secondary → primary), 2 = Money Out (primary → secondary)
-    const debitAccount = tx.transactionTypeId === 1 ? secondaryAccount : primaryAccount;
-    const creditAccount = tx.transactionTypeId === 1 ? primaryAccount : secondaryAccount;
-    
     return {
       ...tx,
-      debitAccount: debitAccount || null,
-      creditAccount: creditAccount || null,
+      primaryAccount: primaryAccount || null,
+      secondaryAccount: secondaryAccount || null,
       transactionType
     };
   });
@@ -514,8 +509,9 @@ export async function createActualTransaction(scenarioId, transactionData) {
   const newTransaction = {
     id: maxId + 1,
     date: transactionData.date || formatDateOnly(new Date()),
-    debitAccount: transactionData.debitAccount || null,
-    creditAccount: transactionData.creditAccount || null,
+    primaryAccountId: transactionData.primaryAccountId || null,
+    secondaryAccountId: transactionData.secondaryAccountId || null,
+    transactionTypeId: transactionData.transactionTypeId || 2,
     amount: transactionData.amount || 0,
     description: transactionData.description || '',
     status: transactionData.status || { id: 2, name: 'Completed' },

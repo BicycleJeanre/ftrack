@@ -78,6 +78,32 @@
           "startingBalance": 0,
           "openDate": "2026-01-01",
           "periodicChange": null
+        },
+        {
+          "id": 4,
+          "name": "gob",
+          "type": null,
+          "currency": null,
+          "startingBalance": 0,
+          "openDate": "2026-01-28",
+          "periodicChange": null,
+          "accountType": "Unknown"
+        },
+        {
+          "id": 5,
+          "name": "your gob",
+          "type": {
+            "id": 1,
+            "name": "Asset"
+          },
+          "currency": {
+            "id": 1,
+            "name": "ZAR"
+          },
+          "startingBalance": 0,
+          "openDate": "2026-01-28",
+          "periodicChange": null,
+          "balance": 0
         }
       ],
       "transactions": [
@@ -188,6 +214,23 @@
           "tags": [
             "housing"
           ]
+        },
+        {
+          "id": 4,
+          "primaryAccountId": 4,
+          "secondaryAccountId": 5,
+          "transactionTypeId": 2,
+          "amount": -600,
+          "effectiveDate": null,
+          "description": "",
+          "recurrence": null,
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
         }
       ],
       "projections": [

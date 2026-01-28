@@ -603,8 +603,7 @@ function getScenarioTypeConfig() {
 }
 
 /**
- * Transform planned transactions from backend format (debitAccount/creditAccount)
- * to UI format (transactionType/secondaryAccount) filtered by selected account
+ * Transform planned transactions to UI format (transactionType/secondaryAccount) filtered by selected account
  */
 function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
@@ -614,10 +613,13 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
   const result = plannedTxs.map((tx, index) => {
     if (!selIdNum) {
       // Default view when no account is selected: show all transactions
+      const secondaryAccount = tx.secondaryAccountId 
+        ? currentScenario.accounts?.find(a => a.id === tx.secondaryAccountId) || { id: tx.secondaryAccountId }
+        : null;
       return {
         ...tx,
         transactionType: { id: 1, name: 'Money Out' },
-        secondaryAccount: tx.creditAccount
+        secondaryAccount
       };
     }
 
@@ -635,82 +637,7 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
   return result;
 }
 
-/**
- * Transform planned transaction from UI format (transactionType/secondaryAccount)
- * back to backend format (debitAccount/creditAccount) relative to selected account
- */
-async function transformPlannedTxForBackend(tx, selectedAccountId) {
-  // Skip transactions with missing required fields (allow zero amount)
-  if (!tx.transactionType || !tx.secondaryAccount || tx.amount == null) {
-    console.warn('[Forecast] Skipping transaction with missing required fields');
-    return null;
-  }
-  
-  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Money Out';
-  
-  // Get selected account details
-  const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-  const selectedAccountObj = selectedAccount 
-    ? { id: selectedAccount.id }
-    : { id: selectedAccountId };
-  
-  // Resolve secondary account - accept object, id=null placeholder, or string name
-  let secondaryAccountObj = tx.secondaryAccount;
-  
-  if (typeof secondaryAccountObj === 'string') {
-    // lookup or create if string provided
-    const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj);
-    if (foundAccount) {
-      secondaryAccountObj = { id: foundAccount.id };
-    } else {
-      const data = await AccountManager.create(currentScenario.id, {
-        name: secondaryAccountObj,
-        type: { id: 1, name: 'Asset' },
-        currency: { id: 1, name: 'ZAR' },
-        balance: 0,
-        openDate: formatDateOnly(new Date()),
-        periodicChange: null
-      });
-      const scenario = data.scenarios.find(s => s.id === currentScenario.id);
-      const newAccount = scenario.accounts[scenario.accounts.length - 1];
-      currentScenario = await getScenario(currentScenario.id);
-      secondaryAccountObj = { id: newAccount.id };
-    }
-  } else if (secondaryAccountObj && secondaryAccountObj.id === null && secondaryAccountObj.name) {
-    const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj.name);
-    if (foundAccount) {
-      secondaryAccountObj = { id: foundAccount.id };
-    } else {
-      // Account doesn't exist - create it
-      const newAccount = await createAccount(currentScenario.id, {
-        name: secondaryAccountObj.name,
-        type: { id: 1, name: 'Asset' }, // Default to Asset type
-        currency: { id: 1, name: 'ZAR' }, // Default currency
-        balance: 0,
-        openDate: formatDateOnly(new Date()),
-        periodicChange: null
-      });
-      
-      // Reload scenario to get the updated accounts list
-      currentScenario = await getScenario(currentScenario.id);
-      
-      secondaryAccountObj = { id: newAccount.id };
-    }
-  }
-  
-  const result = {
-    ...tx,
-    debitAccount: isDebit ? selectedAccountObj : secondaryAccountObj,
-    creditAccount: isDebit ? secondaryAccountObj : selectedAccountObj,
-    // Remove UI-only fields
-    transactionType: undefined,
-    secondaryAccount: undefined,
-    fromAccount: undefined,
-    toAccount: undefined
-  };
-  
-  return result;
-}
+
 
 /**
  * Transform actual transactions for UI (same as planned transactions)
@@ -719,11 +646,16 @@ function transformActualTxForUI(actualTxs, selectedAccountId) {
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
 
   // When no account selected, show all actual transactions (default view)
-  if (!selIdNum) return actualTxs.map(tx => ({
-    ...tx,
-    transactionType: tx.transactionType || (tx.transactionTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' }),
-    secondaryAccount: tx.creditAccount
-  }));
+  if (!selIdNum) return actualTxs.map(tx => {
+    const secondaryAccount = tx.secondaryAccountId 
+      ? currentScenario.accounts?.find(a => a.id === tx.secondaryAccountId) || { id: tx.secondaryAccountId }
+      : null;
+    return {
+      ...tx,
+      transactionType: tx.transactionType || (tx.transactionTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' }),
+      secondaryAccount
+    };
+  });
 
   return actualTxs.map(tx => {
     const mapped = mapTxToUI(tx, selIdNum);
@@ -783,65 +715,7 @@ function mapTxToUI(tx, selectedAccountId) {
   }
 }
 
-/**
- * Transform actual transaction from UI back to backend format (same as planned transactions)
- */
-async function transformActualTxForBackend(tx, selectedAccountId) {
-  const isDebit = tx.transactionType?.id === 2 || tx.transactionType?.name === 'Money Out';
-  
-  // Get selected account details
-  const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-  const selectedAccountObj = selectedAccount 
-    ? { id: selectedAccount.id }
-    : { id: selectedAccountId };
-  
-  // Resolve secondary account - if id is null, look up by name or create new account
-  let secondaryAccountObj = null;
-  
-  // If secondary account is missing, default to first available account (excluding selected)
-  if (!tx.secondaryAccount || !tx.secondaryAccount.name) {
-    const otherAccounts = currentScenario.accounts?.filter(a => a.id !== Number(selectedAccountId)) || [];
-    if (otherAccounts.length > 0) {
-      secondaryAccountObj = { id: otherAccounts[0].id };
-    } else {
-      console.warn('[Forecast] No available secondary account, skipping transaction');
-      return null;
-    }
-  } else {
-    secondaryAccountObj = tx.secondaryAccount;
-  }
-  
-  if (secondaryAccountObj && secondaryAccountObj.id === null && secondaryAccountObj.name) {
-    const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj.name);
-    if (foundAccount) {
-      secondaryAccountObj = { id: foundAccount.id };
-    } else {
-      // Account doesn't exist - create it
-      const newAccount = await createAccount(currentScenario.id, {
-        name: secondaryAccountObj.name,
-        type: { id: 1, name: 'Asset' }, // Default to Asset type
-        currency: { id: 1, name: 'ZAR' }, // Default currency
-        balance: 0,
-        openDate: formatDateOnly(new Date()),
-        periodicChange: null
-      });
-      
-      // Reload scenario to get the updated accounts list
-      currentScenario = await getScenario(currentScenario.id);
-      
-      secondaryAccountObj = { id: newAccount.id };
-    }
-  }
-  
-  return {
-    ...tx,
-    debitAccount: isDebit ? selectedAccountObj : secondaryAccountObj,
-    creditAccount: isDebit ? secondaryAccountObj : selectedAccountObj,
-    // Remove UI-only fields
-    transactionType: undefined,
-    secondaryAccount: undefined
-  };
-}
+
 
 // Load accounts grid
 async function loadAccountsGrid(container) {
@@ -866,9 +740,6 @@ async function loadAccountsGrid(container) {
     const lookupPath = getSchemaPath('lookup-data.json');
     const lookupFile = await fs.readFile(lookupPath, 'utf8');
     const lookupData = JSON.parse(lookupFile);
-
-    // Declare accountsTable variable for use in button handlers
-    let accountsTable;
 
     // Add "Add Account" button
     // Remove any existing add buttons for accounts (defensive)
@@ -942,7 +813,7 @@ async function loadAccountsGrid(container) {
     // Mount grid container before initializing Tabulator so layout can measure dimensions
     window.add(container, gridContainer);
 
-    accountsTable = createGrid(gridContainer, {
+    const accountsTable = createGrid(gridContainer, {
       data: enrichedAccounts,
       selectable: 1, // Enable built-in single selection
       columns: [
@@ -1210,6 +1081,9 @@ async function loadAccountsGrid(container) {
         }
       });
     }
+    
+    // Store globally for access from transaction grid
+    window.accountsTableInstance = accountsTable;
 
   } catch (err) {
     logger.error('[Forecast] Failed to load accounts grid:', err);
@@ -1641,29 +1515,12 @@ async function loadMasterTransactionsGrid(container) {
             ?? tx.transactionTypeId
             ?? (typeName === 'Money In' ? 1 : 2);
 
-          let primaryAccountId = null;
-          let secondaryAccountId = null;
-
-          if (transactionTypeId === 1) {
-            // Money In: secondary -> primary
-            secondaryAccountId = tx.debitAccount?.id ?? tx.secondaryAccountId ?? null;
-            primaryAccountId = tx.creditAccount?.id ?? tx.primaryAccountId ?? null;
-            if (!tx.debitAccount && secondaryAccountId) tx.debitAccount = { id: secondaryAccountId };
-            if (!tx.creditAccount && primaryAccountId) tx.creditAccount = { id: primaryAccountId };
-          } else {
-            // Money Out: primary -> secondary
-            primaryAccountId = tx.debitAccount?.id ?? tx.primaryAccountId ?? null;
-            secondaryAccountId = tx.creditAccount?.id ?? tx.secondaryAccountId ?? null;
-            if (!tx.debitAccount && primaryAccountId) tx.debitAccount = { id: primaryAccountId };
-            if (!tx.creditAccount && secondaryAccountId) tx.creditAccount = { id: secondaryAccountId };
-          }
-
           return {
             ...tx,
             transactionType: { id: transactionTypeId, name: transactionTypeId === 1 ? 'Money In' : 'Money Out' },
             transactionTypeId,
-            primaryAccountId,
-            secondaryAccountId,
+            primaryAccountId: tx.primaryAccountId ?? null,
+            secondaryAccountId: tx.secondaryAccountId ?? null,
           };
         };
 
@@ -1683,18 +1540,48 @@ async function loadMasterTransactionsGrid(container) {
                   periodicChange: null
                 });
 
-                // Update the transaction with the new account
+                console.log('[Transactions] Created new account:', newAccount);
+
+                // Update the current row data immediately
+                const currentRow = cell.getRow();
+                const currentData = currentRow.getData();
+                
+                // Update the field being edited
+                if (field === 'primaryAccount') {
+                  currentData.primaryAccountId = newAccount.id;
+                  currentData.primaryAccount = newAccount;
+                } else {
+                  currentData.secondaryAccountId = newAccount.id;
+                  currentData.secondaryAccount = newAccount;
+                }
+                
+                // Update the row in the table
+                currentRow.update(currentData);
+                
+                console.log('[Transactions] Updated row data:', currentData);
+
+                // Save all transactions to persist the change
                 const allTxs = await getTransactions(currentScenario.id);
-                const txIndex = allTxs.findIndex(tx => tx.id === rowData.id);
+                const txIndex = allTxs.findIndex(tx => tx.id === currentData.id);
                 if (txIndex >= 0) {
+                  // Update using the storage format
                   if (field === 'primaryAccount') {
-                    allTxs[txIndex].debitAccount = newAccount;
+                    allTxs[txIndex].primaryAccountId = newAccount.id;
                   } else {
-                    allTxs[txIndex].secondaryAccount = { id: newAccount.id, name: newAccount.name };
+                    allTxs[txIndex].secondaryAccountId = newAccount.id;
                   }
                   await TransactionManager.saveAll(currentScenario.id, allTxs);
-                  // Reload grid to show updated accounts
-                  await loadMasterTransactionsGrid(container);
+                  console.log('[Transactions] Saved transaction with new account');
+                }
+                
+                // Add new account to accounts grid without reloading
+                if (window.accountsTableInstance) {
+                  const enrichedAccount = {
+                    ...newAccount,
+                    accountType: newAccount.type?.name || 'Unknown'
+                  };
+                  window.accountsTableInstance.addRow(enrichedAccount);
+                  console.log('[Transactions] Added account to accounts grid');
                 }
               } catch (err) {
                 console.error('Failed to create account:', err);
@@ -1734,64 +1621,16 @@ async function loadMasterTransactionsGrid(container) {
             }
           }
 
-          // Determine current primary/secondary to preserve intent in unfiltered mode
-          const currentPrimary = rowData.primaryAccount
-            || (rowData.transactionType?.name === 'Money Out' ? rowData.debitAccount || updatedTx.debitAccount : rowData.creditAccount || updatedTx.creditAccount);
-          const currentSecondary = rowData.secondaryAccount
-            || (rowData.transactionType?.name === 'Money Out' ? rowData.creditAccount || updatedTx.creditAccount : rowData.debitAccount || updatedTx.debitAccount);
-
-          // If transaction type changed, update debit/credit accounts accordingly
+          // If transaction type changed, update transactionTypeId
           if (field === 'transactionType') {
-            const secondaryAccount = rowData.secondaryAccount || updatedTx.secondaryAccount;
-
-            if (selectedAccountId) {
-              const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-              if (newValue?.name === 'Money Out') {
-                // Money Out: selected account is debit, secondary is credit
-                updatedTx.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
-                updatedTx.creditAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
-              } else if (newValue?.name === 'Money In') {
-                // Money In: selected account is credit, secondary is debit
-                updatedTx.debitAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
-                updatedTx.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
-              }
-            } else {
-              // Unfiltered view: preserve current primary/secondary by mapping type
-              if (newValue?.name === 'Money Out') {
-                updatedTx.debitAccount = currentPrimary ? { id: currentPrimary.id } : null;
-                updatedTx.creditAccount = currentSecondary ? { id: currentSecondary.id } : null;
-              } else if (newValue?.name === 'Money In') {
-                updatedTx.debitAccount = currentSecondary ? { id: currentSecondary.id } : null;
-                updatedTx.creditAccount = currentPrimary ? { id: currentPrimary.id } : null;
-              }
-            }
+            updatedTx.transactionTypeId = newValue?.id || (newValue?.name === 'Money In' ? 1 : 2);
+            // Keep primaryAccountId and secondaryAccountId as-is
+            // The type change just affects how amounts are interpreted
           }
 
-          // If secondary account changed, update debit/credit accounts accordingly
+          // If secondary account changed, update secondaryAccountId
           if (field === 'secondaryAccount') {
-            const transactionType = updatedTx.transactionType;
-
-            if (selectedAccountId) {
-              const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-              if (transactionType?.name === 'Money Out') {
-                // Money Out: selected account is debit, secondary is credit
-                updatedTx.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
-                updatedTx.creditAccount = newValue ? { id: newValue.id } : null;
-              } else if (transactionType?.name === 'Money In') {
-                // Money In: selected account is credit, secondary is debit
-                updatedTx.debitAccount = newValue ? { id: newValue.id } : null;
-                updatedTx.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
-              }
-            } else {
-              // Unfiltered view: update based on transaction type
-              if (transactionType?.name === 'Money Out') {
-                updatedTx.debitAccount = currentPrimary ? { id: currentPrimary.id } : null;
-                updatedTx.creditAccount = newValue ? { id: newValue.id } : null;
-              } else if (transactionType?.name === 'Money In') {
-                updatedTx.creditAccount = currentPrimary ? { id: currentPrimary.id } : null;
-                updatedTx.debitAccount = newValue ? { id: newValue.id } : null;
-              }
-            }
+            updatedTx.secondaryAccountId = newValue?.id || null;
           }
 
           // If primary account changed (only shown in unfiltered mode), update debit/credit based on type
