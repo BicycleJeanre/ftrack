@@ -95,6 +95,7 @@ export async function create(scenarioId, accountData) {
         };
         
         scenario.accounts.push(newAccount);
+        
         return data;
     });
 }

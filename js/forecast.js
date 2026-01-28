@@ -554,11 +554,20 @@ async function buildScenarioGrid(container) {
     });
 
     // Set initial scenario if not set and load its data
+    console.log('[ScenarioGrid] Checking initial scenario - currentScenario:', currentScenario, 'scenarios.length:', scenarios.length);
     if (!currentScenario && scenarios.length > 0) {
+      console.log('[ScenarioGrid] Loading initial scenario:', scenarios[0].id);
       currentScenario = await getScenario(scenarios[0].id);
+      console.log('[ScenarioGrid] Got scenario, now loading data...');
       await loadScenarioData();
-      // Note: Not selecting row to avoid triggering duplicate load
-      // User can click to select if needed
+      console.log('[ScenarioGrid] Data loaded, selecting row...');
+      // Select the first row visually without triggering the handler
+      // (data is already loaded above, so we don't want duplicate load)
+      const firstRow = scenariosTable.getRows()[0];
+      if (firstRow) {
+        firstRow.select();
+        console.log('[ScenarioGrid] First row selected');
+      }
     }
   } catch (err) {
     console.error('[Forecast] Failed to load scenario grid:', err);
@@ -648,7 +657,7 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
     if (foundAccount) {
       secondaryAccountObj = { id: foundAccount.id };
     } else {
-      const newAccount = await AccountManager.create(currentScenario.id, {
+      const data = await AccountManager.create(currentScenario.id, {
         name: secondaryAccountObj,
         type: { id: 1, name: 'Asset' },
         currency: { id: 1, name: 'ZAR' },
@@ -656,6 +665,8 @@ async function transformPlannedTxForBackend(tx, selectedAccountId) {
         openDate: formatDateOnly(new Date()),
         periodicChange: null
       });
+      const scenario = data.scenarios.find(s => s.id === currentScenario.id);
+      const newAccount = scenario.accounts[scenario.accounts.length - 1];
       currentScenario = await getScenario(currentScenario.id);
       secondaryAccountObj = { id: newAccount.id };
     }
@@ -838,6 +849,9 @@ async function loadAccountsGrid(container) {
     const lookupFile = await fs.readFile(lookupPath, 'utf8');
     const lookupData = JSON.parse(lookupFile);
 
+    // Declare accountsTable variable for use in button handlers
+    let accountsTable;
+
     // Add "Add Account" button
     // Remove any existing add buttons for accounts (defensive)
     const existingAccountAdds = container.querySelectorAll('.btn-add');
@@ -855,13 +869,26 @@ async function loadAccountsGrid(container) {
     addButton.className = 'btn btn-primary';
     addButton.textContent = '+ Add New';
     addButton.addEventListener('click', async () => {
-      const newAccount = await AccountManager.create(currentScenario.id, {
+      const data = await AccountManager.create(currentScenario.id, {
         name: 'New Account',
         type: null,
         currency: null,
         startingBalance: 0
       });
-      await loadAccountsGrid(container);
+      const scenario = data.scenarios.find(s => s.id === currentScenario.id);
+      const newAccount = scenario.accounts[scenario.accounts.length - 1];
+      // Add to current scenario's accounts array
+      if (!currentScenario.accounts) currentScenario.accounts = [];
+      currentScenario.accounts.push(newAccount);
+      // Add row to table without reloading
+      if (accountsTable) {
+        const rowData = {
+          ...newAccount,
+          accountType: newAccount.type?.name || 'Unknown'
+        };
+        console.log('[Accounts] Adding new row:', rowData);
+        accountsTable.addRow(rowData, false); // false = add to bottom
+      }
     });
     window.add(buttonContainer, addButton);
     window.add(toolbar, buttonContainer);
@@ -897,7 +924,7 @@ async function loadAccountsGrid(container) {
     // Mount grid container before initializing Tabulator so layout can measure dimensions
     window.add(container, gridContainer);
 
-    const accountsTable = createGrid(gridContainer, {
+    accountsTable = createGrid(gridContainer, {
       data: enrichedAccounts,
       selectable: 1, // Enable built-in single selection
       columns: [
@@ -932,6 +959,8 @@ async function loadAccountsGrid(container) {
       ],
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
+        console.log('[Accounts] cellEdited - account data:', account);
+        console.log('[Accounts] cellEdited - account.id:', account.id);
         // Normalize primitive ids back to objects for storage
         try {
           if (account.type && typeof account.type !== 'object') {
@@ -2880,10 +2909,14 @@ async function loadScenarioData() {
 
 // Initialize the page
 async function init() {
+  console.log('[ForecastPage] Starting initialization...');
+  
+  console.log('[ForecastPage] Loading globals...');
   loadGlobals();
   
   // Run data migration if needed
   try {
+    console.log('[ForecastPage] Checking data migration...');
     const { needsMigration, migrateAllScenarios } = await import('./data-migration.js');
     if (await needsMigration()) {
       console.log('[App] Running data migration...');
@@ -2894,15 +2927,21 @@ async function init() {
     console.error('[App] Data migration failed:', error);
   }
   
+  console.log('[ForecastPage] Building grid container...');
   const containers = buildGridContainer();
   
+  console.log('[ForecastPage] Loading scenario types...');
   await loadScenarioTypes();
+  
+  console.log('[ForecastPage] Building scenario grid...');
   await buildScenarioGrid(containers.scenarioSelector);
   
   // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
   
-  // Initialize keyboard shortcuts
+  console.log('[ForecastPage] Initializing keyboard shortcuts...');
   initializeKeyboardShortcuts();
+  
+  console.log('[ForecastPage] Initialization complete!');
 }
 
 /**
@@ -2935,4 +2974,8 @@ function initializeKeyboardShortcuts() {
   document.body.appendChild(shortcutsBtn);
 }
 
-init();
+init().catch(err => {
+  console.error('[ForecastPage] Initialization failed:', err);
+  logger.error('Page initialization failed', err);
+});
+

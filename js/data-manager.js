@@ -190,7 +190,10 @@ import * as AccountManager from './managers/account-manager.js';
 
 export async function createAccount(scenarioId, accountData) {
   // Delegate to the single canonical AccountManager implementation
-  return await AccountManager.create(scenarioId, accountData);
+  const data = await AccountManager.create(scenarioId, accountData);
+  const scenario = data.scenarios.find(s => s.id === scenarioId);
+  // Return the last account (the one just created)
+  return scenario.accounts[scenario.accounts.length - 1];
 }
 
 /**
