@@ -107,7 +107,7 @@
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
           "transactionTypeId": 2,
-          "amount": 8500,
+          "amount": -8500,
           "description": "Rent payment",
           "recurrence": {
             "recurrenceType": {
@@ -140,7 +140,7 @@
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
           "transactionTypeId": 2,
-          "amount": 8500,
+          "amount": -8500,
           "description": "Rent payment - January",
           "recurrence": {
             "recurrenceType": {
@@ -163,7 +163,7 @@
           "periodicChange": null,
           "status": {
             "name": "actual",
-            "actualAmount": 8500,
+            "actualAmount": -8500,
             "actualDate": "2026-01-01"
           },
           "tags": ["housing"]

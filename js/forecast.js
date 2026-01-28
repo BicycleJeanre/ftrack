@@ -120,7 +120,7 @@ let masterTransactionsTable = null; // Store transactions table instance for fil
 let masterBudgetTable = null; // Store budget table instance for filtering
 
 // Update transaction totals in toolbar based on current filtered data
-function updateTransactionTotals() {
+function updateTransactionTotals(filteredRows = null) {
   if (!masterTransactionsTable) {
     console.log('[Totals] updateTransactionTotals: masterTransactionsTable is null');
     return;
@@ -128,9 +128,15 @@ function updateTransactionTotals() {
   
   const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   
-  // Get currently visible (filtered) data
-  const visibleData = masterTransactionsTable.getData('active');
+  // Get currently visible (filtered) data from provided rows or table
+  const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterTransactionsTable.getData('active');
   console.log('[Totals] updateTransactionTotals: visibleData count =', visibleData.length);
+  console.log('[Totals] updateTransactionTotals: visibleData sample =', visibleData.slice(0, 3).map(d => ({ 
+    id: d.id, 
+    amount: d.amount, 
+    type: d.transactionTypeName,
+    perspectiveAccountId: d.perspectiveAccountId 
+  })));
   
   // Compute totals from visible data
   const txTotals = computeMoneyTotals(visibleData, {
@@ -154,7 +160,7 @@ function updateTransactionTotals() {
 }
 
 // Update budget totals in toolbar based on current filtered data
-function updateBudgetTotals() {
+function updateBudgetTotals(filteredRows = null) {
   if (!masterBudgetTable) {
     console.log('[Totals] updateBudgetTotals: masterBudgetTable is null');
     return;
@@ -162,8 +168,8 @@ function updateBudgetTotals() {
   
   const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   
-  // Get currently visible (filtered) data
-  const visibleData = masterBudgetTable.getData('active');
+  // Get currently visible (filtered) data from provided rows or table
+  const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterBudgetTable.getData('active');
   console.log('[Totals] updateBudgetTotals: visibleData count =', visibleData.length);
   
   // Compute totals from visible data
@@ -618,9 +624,9 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
     const mapped = mapTxToUI(tx, selIdNum);
     if (!mapped) return null;
 
-
     return {
       ...tx,
+      amount: mapped.amount, // Use potentially flipped amount
       transactionType: mapped.transactionType,
       secondaryAccount: mapped.secondaryAccount
     };
@@ -752,7 +758,12 @@ function mapTxToUI(tx, selectedAccountId) {
       ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
       : null;
     const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
-    return { transactionType, secondaryAccount, primaryAccount };
+    return { 
+      transactionType, 
+      secondaryAccount, 
+      primaryAccount,
+      amount: tx.amount // Keep amount as-is for primary perspective
+    };
   } else {
     // Selected account IS the stored secondary - FLIP the perspective
     const primaryAccount = currentScenario.accounts?.find(a => a.id === selIdNum) || { id: selIdNum };
@@ -761,7 +772,14 @@ function mapTxToUI(tx, selectedAccountId) {
       : null;
     // Flip the transaction type: Money In becomes Money Out and vice versa
     const transactionType = storedTypeId === 1 ? { id: 2, name: 'Money Out' } : { id: 1, name: 'Money In' };
-    return { transactionType, secondaryAccount, primaryAccount };
+    // Flip the amount sign for the flipped perspective
+    const flippedAmount = -(tx.amount || 0);
+    return { 
+      transactionType, 
+      secondaryAccount, 
+      primaryAccount,
+      amount: flippedAmount // Flip the sign when viewing from secondary perspective
+    };
   }
 }
 
@@ -1044,6 +1062,8 @@ async function loadAccountsGrid(container) {
             masterTransactionsTable.setFilter((data) => {
               return !String(data.id).includes('_flipped');
             });
+            // Manually update totals after filter
+            updateTransactionTotals();
           }
           
           // Show only primary perspectives in budget grid (not flipped)
@@ -1120,10 +1140,13 @@ async function loadAccountsGrid(container) {
         
         // Apply filter to show transactions from selected account's perspective
         if (masterTransactionsTable) {
+          console.log('[Accounts] Filtering transactions for accountId:', selectedAccountId);
           masterTransactionsTable.setFilter((data) => {
             if (!data.perspectiveAccountId) return true;
             return Number(data.perspectiveAccountId) === selectedAccountId;
           });
+          // Manually update totals after filter
+          updateTransactionTotals();
         }
         
         // Apply filter to budget grid
@@ -1132,6 +1155,8 @@ async function loadAccountsGrid(container) {
             if (!data.perspectiveAccountId) return true;
             return Number(data.perspectiveAccountId) === selectedAccountId;
           });
+          // Manually update totals after filter
+          updateBudgetTotals();
         }
         
         // Reload projections grid
@@ -1181,7 +1206,7 @@ async function loadAccountsGrid(container) {
             return `${value} (${count} items)`;
           });
         } else {
-          accountsTable.clearGroupBy();
+          accountsTable.setGroupBy(false);
         }
       });
     }
@@ -1231,16 +1256,22 @@ async function loadMasterTransactionsGrid(container) {
   addButton.textContent = '+ Add New Transaction';
   addButton.addEventListener('click', async () => {
     try {
-      // Create new planned transaction
+      // Require an account to be selected
+      if (!selectedAccountId) {
+        alert('Please select an account first before adding a transaction.');
+        return;
+      }
+      
+      // Create new planned transaction with selected account as primary
       const newTx = await createTransaction(currentScenario.id, {
-        status: 'planned',
-        debitAccount: null,
-        creditAccount: null,
+        primaryAccountId: selectedAccountId,
+        secondaryAccountId: null, // User will fill this in
+        transactionTypeId: 2, // Default to Money Out
         amount: 0,
         description: '',
-        effectiveDate: formatDateOnly(new Date()),
         recurrence: null,
         periodicChange: null,
+        status: 'planned',
         tags: []
       });
 
@@ -1806,7 +1837,7 @@ async function loadMasterTransactionsGrid(container) {
             return `${label} (${count} items, Total: ${formatted})`;
           });
         } else {
-          masterTransactionsTable.clearGroupBy();
+          masterTransactionsTable.setGroupBy(false);
         }
       });
     }
@@ -1833,6 +1864,12 @@ async function loadMasterTransactionsGrid(container) {
     // Update totals when filter changes
     masterTransactionsTable.on('dataFiltered', function(filters, rows) {
       console.log('[Transactions] dataFiltered - rows:', rows.length);
+      updateTransactionTotals(rows);
+    });
+    
+    // Update totals after table is built (initial load)
+    masterTransactionsTable.on('tableBuilt', function() {
+      console.log('[Transactions] tableBuilt - updating initial totals');
       updateTransactionTotals();
     });
 
@@ -2516,7 +2553,7 @@ async function loadBudgetGrid(container) {
             return `${label} (${count} items, Total: ${formatted})`;
           });
         } else {
-          masterBudgetTable.clearGroupBy();
+          masterBudgetTable.setGroupBy(false);
         }
       });
     }
@@ -2543,6 +2580,12 @@ async function loadBudgetGrid(container) {
     // Update totals when filter changes
     masterBudgetTable.on('dataFiltered', function(filters, rows) {
       console.log('[Budget] dataFiltered - rows:', rows.length);
+      updateBudgetTotals(rows);
+    });
+    
+    // Update totals after table is built (initial load)
+    masterBudgetTable.on('tableBuilt', function() {
+      console.log('[Budget] tableBuilt - updating initial totals');
       updateBudgetTotals();
     });
 
@@ -2858,7 +2901,7 @@ async function loadProjectionsGrid(container) {
             return `${label} (${count} periods, Total Balance: ${formatted})`;
           });
         } else {
-          projectionsTable.clearGroupBy();
+          projectionsTable.setGroupBy(false);
         }
       });
     }

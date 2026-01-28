@@ -82,12 +82,19 @@ export async function saveAll(scenarioId, transactions) {
                 };
             }
             
+            // Normalize amount sign based on transaction type
+            const rawAmount = txn.amount || 0;
+            const absAmount = Math.abs(rawAmount);
+            const normalizedAmount = transactionTypeId === 1
+                ? absAmount  // Money In: always positive
+                : -absAmount; // Money Out: always negative
+            
             const mapped = {
                 id,
                 primaryAccountId,
                 secondaryAccountId,
                 transactionTypeId,
-                amount: txn.amount || 0,
+                amount: normalizedAmount,
                 effectiveDate: txn.effectiveDate || txn.plannedDate || txn.recurrence?.startDate || null,
                 description: txn.description || '',
                 recurrence: txn.recurrence || null,

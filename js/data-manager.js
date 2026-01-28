@@ -360,29 +360,20 @@ export async function createTransaction(scenarioId, transactionData) {
     ? Math.max(...scenario.transactions.map(t => t.id))
     : 0;
 
-  // Convert debitAccount/creditAccount to primaryAccountId/secondaryAccountId based on transactionType
-  // Default to Money Out (type 2) if not specified
+  // Normalize amount sign based on transaction type
   const transactionTypeId = transactionData.transactionTypeId || 2;
-  
-  let primaryAccountId = null;
-  let secondaryAccountId = null;
-  
-  if (transactionTypeId === 1) {
-    // Money In: secondary → primary (debit=secondary, credit=primary)
-    primaryAccountId = transactionData.creditAccount?.id || null;
-    secondaryAccountId = transactionData.debitAccount?.id || null;
-  } else {
-    // Money Out: primary → secondary (debit=primary, credit=secondary)
-    primaryAccountId = transactionData.debitAccount?.id || null;
-    secondaryAccountId = transactionData.creditAccount?.id || null;
-  }
+  const rawAmount = transactionData.amount || 0;
+  const absAmount = Math.abs(rawAmount);
+  const normalizedAmount = transactionTypeId === 1 
+    ? absAmount  // Money In: always positive
+    : -absAmount; // Money Out: always negative
 
   const newTransaction = {
     id: maxId + 1,
-    primaryAccountId,
-    secondaryAccountId,
-    transactionTypeId,
-    amount: transactionData.amount || 0,
+    primaryAccountId: transactionData.primaryAccountId || null,
+    secondaryAccountId: transactionData.secondaryAccountId || null,
+    transactionTypeId: transactionTypeId,
+    amount: normalizedAmount,
     description: transactionData.description || '',
     recurrence: transactionData.recurrence || null,
     periodicChange: transactionData.periodicChange || null,
