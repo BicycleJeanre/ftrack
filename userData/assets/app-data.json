@@ -661,7 +661,7 @@
       ],
       "budgets": [
         {
-          "id": 1,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -681,7 +681,7 @@
           ]
         },
         {
-          "id": 2,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -701,7 +701,7 @@
           ]
         },
         {
-          "id": 3,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -721,7 +721,7 @@
           ]
         },
         {
-          "id": 4,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -741,7 +741,7 @@
           ]
         },
         {
-          "id": 5,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -761,7 +761,7 @@
           ]
         },
         {
-          "id": 6,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -781,7 +781,7 @@
           ]
         },
         {
-          "id": 7,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -801,7 +801,7 @@
           ]
         },
         {
-          "id": 8,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -821,7 +821,7 @@
           ]
         },
         {
-          "id": 9,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -841,7 +841,7 @@
           ]
         },
         {
-          "id": 10,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -861,7 +861,7 @@
           ]
         },
         {
-          "id": 11,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -881,7 +881,7 @@
           ]
         },
         {
-          "id": 12,
+          "id": 0,
           "sourceTransactionId": 1,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
@@ -901,7 +901,7 @@
           ]
         },
         {
-          "id": 13,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -912,16 +912,16 @@
           "occurrenceDate": "2026-01-31",
           "periodicChange": null,
           "status": {
-            "name": "actual",
-            "actualAmount": 3000,
-            "actualDate": "2026-01-27"
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
           },
           "tags": [
             "housing"
           ]
         },
         {
-          "id": 14,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -932,8 +932,8 @@
           "occurrenceDate": "2026-02-28",
           "periodicChange": null,
           "status": {
-            "name": "actual",
-            "actualAmount": 5,
+            "name": "planned",
+            "actualAmount": null,
             "actualDate": null
           },
           "tags": [
@@ -941,7 +941,7 @@
           ]
         },
         {
-          "id": 15,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -961,7 +961,7 @@
           ]
         },
         {
-          "id": 16,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -981,7 +981,7 @@
           ]
         },
         {
-          "id": 17,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1001,7 +1001,7 @@
           ]
         },
         {
-          "id": 18,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1021,7 +1021,7 @@
           ]
         },
         {
-          "id": 19,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1041,7 +1041,7 @@
           ]
         },
         {
-          "id": 20,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1061,7 +1061,7 @@
           ]
         },
         {
-          "id": 21,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1081,7 +1081,7 @@
           ]
         },
         {
-          "id": 22,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1101,7 +1101,7 @@
           ]
         },
         {
-          "id": 23,
+          "id": 0,
           "sourceTransactionId": 2,
           "primaryAccountId": 1,
           "secondaryAccountId": 3,
@@ -1121,10 +1121,10 @@
           ]
         },
         {
-          "id": 24,
+          "id": 0,
           "sourceTransactionId": 4,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
+          "primaryAccountId": 2,
+          "secondaryAccountId": 1,
           "transactionTypeId": 2,
           "amount": -5000,
           "description": "Bonus!",
@@ -1139,10 +1139,10 @@
           "tags": []
         },
         {
-          "id": 25,
+          "id": 0,
           "sourceTransactionId": 4,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
+          "primaryAccountId": 2,
+          "secondaryAccountId": 1,
           "transactionTypeId": 2,
           "amount": -5000,
           "description": "Bonus!",
@@ -1157,33 +1157,15 @@
           "tags": []
         },
         {
-          "id": 26,
+          "id": 0,
           "sourceTransactionId": 4,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
+          "primaryAccountId": 2,
+          "secondaryAccountId": 1,
           "transactionTypeId": 2,
           "amount": -5000,
           "description": "Bonus!",
           "recurrenceDescription": "Quarterly",
           "occurrenceDate": "2026-09-30",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 27,
-          "sourceTransactionId": null,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 1,
-          "transactionTypeId": 2,
-          "amount": 1000,
-          "description": "more bonus",
-          "recurrenceDescription": "One time",
-          "occurrenceDate": "2026-01-01",
           "periodicChange": null,
           "status": {
             "name": "planned",

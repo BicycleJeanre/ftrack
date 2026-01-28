@@ -117,15 +117,20 @@ let budgetPeriod = null; // Selected period for budget view
 let periods = []; // Calculated periods for current scenario
 let budgetGridLoadToken = 0; // Prevent stale budget renders
 let masterTransactionsTable = null; // Store transactions table instance for filtering
+let masterBudgetTable = null; // Store budget table instance for filtering
 
 // Update transaction totals in toolbar based on current filtered data
 function updateTransactionTotals() {
-  if (!masterTransactionsTable) return;
+  if (!masterTransactionsTable) {
+    console.log('[Totals] updateTransactionTotals: masterTransactionsTable is null');
+    return;
+  }
   
   const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   
   // Get currently visible (filtered) data
   const visibleData = masterTransactionsTable.getData('active');
+  console.log('[Totals] updateTransactionTotals: visibleData count =', visibleData.length);
   
   // Compute totals from visible data
   const txTotals = computeMoneyTotals(visibleData, {
@@ -134,14 +139,50 @@ function updateTransactionTotals() {
     typeNameField: 'transactionTypeName',
     typeIdField: 'transactionTypeId'
   });
+  console.log('[Totals] updateTransactionTotals: computed =', txTotals);
   
   // Update toolbar totals
-  const toolbarTotals = document.querySelector('.toolbar-totals');
+  const toolbarTotals = document.querySelector('#transactionsContent .toolbar-totals');
+  console.log('[Totals] updateTransactionTotals: toolbarTotals element found =', !!toolbarTotals);
   if (toolbarTotals) {
     toolbarTotals.innerHTML = `
       <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(txTotals.moneyIn)}</span></span>
       <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(txTotals.moneyOut)}</span></span>
       <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${txTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(txTotals.net)}</span></span>
+    `;
+  }
+}
+
+// Update budget totals in toolbar based on current filtered data
+function updateBudgetTotals() {
+  if (!masterBudgetTable) {
+    console.log('[Totals] updateBudgetTotals: masterBudgetTable is null');
+    return;
+  }
+  
+  const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  
+  // Get currently visible (filtered) data
+  const visibleData = masterBudgetTable.getData('active');
+  console.log('[Totals] updateBudgetTotals: visibleData count =', visibleData.length);
+  
+  // Compute totals from visible data
+  const budgetTotals = computeMoneyTotals(visibleData, {
+    amountField: 'amount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId'
+  });
+  console.log('[Totals] updateBudgetTotals: computed =', budgetTotals);
+  
+  // Update toolbar totals
+  const toolbarTotals = document.querySelector('#budgetContent .toolbar-totals');
+  console.log('[Totals] updateBudgetTotals: toolbarTotals element found =', !!toolbarTotals);
+  if (toolbarTotals) {
+    toolbarTotals.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(budgetTotals.moneyIn)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(budgetTotals.moneyOut)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${budgetTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(budgetTotals.net)}</span></span>
     `;
   }
 }
@@ -516,14 +557,8 @@ async function buildScenarioGrid(container) {
     if (!currentScenario && scenarios.length > 0) {
       currentScenario = await getScenario(scenarios[0].id);
       await loadScenarioData();
-      
-      // Select the first row
-      setTimeout(() => {
-        const rows = scenariosTable.getRows();
-        if (rows && rows.length > 0) {
-          rows[0].select();
-        }
-      }, 100);
+      // Note: Not selecting row to avoid triggering duplicate load
+      // User can click to select if needed
     }
   } catch (err) {
     console.error('[Forecast] Failed to load scenario grid:', err);
@@ -915,7 +950,7 @@ async function loadAccountsGrid(container) {
       },
       rowSelectionChanged: async function(data, rows) {
         // Log raw event
-        // logger.debug('[Forecast] rowSelectionChanged fired. Length:', rows.length);
+        console.log('[Accounts] rowSelectionChanged fired with rows:', rows.length);
         try {
           const table = this;
           const selected = table.getSelectedRows();
@@ -931,8 +966,9 @@ async function loadAccountsGrid(container) {
         
         if (rows.length > 0) {
           const account = rows[0].getData();
-          console.log('[Accounts] Account selected:', account.id, account.name);
+          console.log('[Accounts] rowSelectionChanged - Account selected:', account.id, account.name);
           selectedAccountId = Number(account.id);
+          lastProcessedAccountId = selectedAccountId; // Mark as processed to prevent duplicate in rowSelected
           console.log('[Accounts] Updated selectedAccountId to:', selectedAccountId);
           
           // Update accordion header
@@ -951,8 +987,17 @@ async function loadAccountsGrid(container) {
             updateTransactionTotals();
           }
           
-          // Reload budget and projections grids
-          await loadBudgetGrid(getEl('budgetTable'));
+          // Apply filter to budget grid
+          if (masterBudgetTable) {
+            masterBudgetTable.setFilter((data) => {
+              if (!data.perspectiveAccountId) return true;
+              return Number(data.perspectiveAccountId) === selectedAccountId;
+            });
+            // Manually update totals after filter
+            updateBudgetTotals();
+          }
+          
+          // Reload projections grid
           await loadProjectionsSection(getEl('projectionsContent'));
         } else {
           // No account selected
@@ -972,8 +1017,16 @@ async function loadAccountsGrid(container) {
             });
           }
           
-          // Reload budget and projections grids
-          await loadBudgetGrid(getEl('budgetTable'));
+          // Show only primary perspectives in budget grid (not flipped)
+          if (masterBudgetTable) {
+            masterBudgetTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+            // Manually update totals after filter
+            updateBudgetTotals();
+          }
+          
+          // Reload projections grid
           await loadProjectionsSection(getEl('projectionsContent'));
         }
       }
@@ -1003,48 +1056,69 @@ async function loadAccountsGrid(container) {
       }
     });
     
-    // Auto-select first account if accounts exist
-    // Use tableBuilt event to ensure rows are rendered before selection
+    // Show empty state if no accounts exist
     accountsTable.on("tableBuilt", function() {
       const rows = accountsTable.getRows();
-      if (rows && rows.length > 0) {
-        rows[0].select();
-      } else {
+      if (!rows || rows.length === 0) {
         // If no accounts, clear the "Loading..." message from downstream grids
         const plannedContainer = document.getElementById('transactionsTable');
         if (plannedContainer) plannedContainer.innerHTML = '<div class="empty-message">No accounts found. Create an account to get started.</div>';
       }
     });
 
-    // Robust fallback: ensure selection changes trigger transaction filter
-    accountsTable.on("rowSelected", function(row) {
+    // Fallback for when rowSelectionChanged doesn't fire (Tabulator version compatibility)
+    let lastProcessedAccountId = null;
+    accountsTable.on("rowSelected", async function(row) {
       try {
         const account = row.getData();
         const accountIdNum = Number(account.id);
-        if (selectedAccountId !== accountIdNum) {
-          selectedAccountId = accountIdNum;
-          setTimeout(async () => {
-            // Filter transactions to show selected account's perspective
-            if (masterTransactionsTable) {
-              masterTransactionsTable.setFilter((data) => {
-                if (!data.perspectiveAccountId) return true;
-                return Number(data.perspectiveAccountId) === selectedAccountId;
-              });
-              // Manually update totals after filter
-              updateTransactionTotals();
-            }
-            await loadBudgetGrid(getEl('budgetTable'));
-            await loadProjectionsSection(document.getElementById('projectionsContent'));
-          }, 40);
+        
+        // Only process if this is a new selection (avoid duplicate processing)
+        if (lastProcessedAccountId === accountIdNum) {
+          console.log('[Accounts] rowSelected - already processed account:', accountIdNum);
+          return;
         }
-      } catch (e) { logger.error('[AccountsGrid] fallback rowSelected handler error:', e); }
+        
+        console.log('[Accounts] rowSelected - processing account:', accountIdNum, account.name);
+        lastProcessedAccountId = accountIdNum;
+        selectedAccountId = accountIdNum;
+        
+        // Update accordion header
+        const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
+        if (accordionHeader) {
+          accordionHeader.textContent = `Transactions - ${account.name}`;
+        }
+        
+        // Apply filter to show transactions from selected account's perspective
+        if (masterTransactionsTable) {
+          masterTransactionsTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === selectedAccountId;
+          });
+        }
+        
+        // Apply filter to budget grid
+        if (masterBudgetTable) {
+          masterBudgetTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === selectedAccountId;
+          });
+        }
+        
+        // Reload projections grid
+        await loadProjectionsSection(getEl('projectionsContent'));
+      } catch (e) {
+        logger.error('[AccountsGrid] rowSelected handler error:', e);
+      }
     });
 
     accountsTable.on("rowDeselected", async function(row) {
       try {
         const remaining = accountsTable.getSelectedRows();
         if (!remaining || remaining.length === 0) {
+          console.log('[Accounts] All accounts deselected');
           selectedAccountId = null;
+          lastProcessedAccountId = null; // Reset tracking flag
           // Show only primary perspectives (not flipped)
           if (masterTransactionsTable) {
             masterTransactionsTable.setFilter((data) => {
@@ -1053,7 +1127,14 @@ async function loadAccountsGrid(container) {
             // Manually update totals after filter
             updateTransactionTotals();
           }
-          await loadBudgetGrid(getEl('budgetTable'));
+          // Show only primary perspectives in budget grid (not flipped)
+          if (masterBudgetTable) {
+            masterBudgetTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+            // Manually update totals after filter
+            updateBudgetTotals();
+          }
           await loadProjectionsSection(document.getElementById('projectionsContent'));
         }
       } catch (e) { logger.error('[AccountsGrid] fallback rowDeselected handler error:', e); }
@@ -1171,7 +1252,54 @@ async function loadMasterTransactionsGrid(container) {
     <button id="actual-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
   `;
   window.add(toolbar, periodFilter);
+  
+  // Add toolbar to container FIRST so we can find the select element
   window.add(container, toolbar);
+  
+  // Calculate periods for current scenario
+  periods = await getScenarioPeriods(currentScenario.id);
+  console.log('[Transactions] Calculated periods:', periods);
+  
+  // Populate period dropdown immediately
+  const periodSelect = document.getElementById('actual-period-select');
+  if (periodSelect) {
+    console.log('[Transactions] Found period select element');
+    periodSelect.innerHTML = '<option value="">-- All Periods --</option>';
+    periods.forEach((period) => {
+      const option = document.createElement('option');
+      option.value = period.id;
+      option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
+      periodSelect.appendChild(option);
+      console.log('[Transactions] Added period option:', period.id, option.textContent);
+    });
+    
+    // Set current selected value
+    periodSelect.value = actualPeriod || '';
+    
+    // Attach event listeners
+    periodSelect.addEventListener('change', async (e) => {
+      actualPeriod = e.target.value;
+      await loadMasterTransactionsGrid(container);
+    });
+    
+    document.getElementById('actual-prev-period-btn')?.addEventListener('click', async () => {
+      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
+      if (currentIndex > 0) {
+        actualPeriod = periods[currentIndex - 1].id;
+        await loadMasterTransactionsGrid(container);
+      }
+    });
+    
+    document.getElementById('actual-next-period-btn')?.addEventListener('click', async () => {
+      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
+      if (currentIndex < periods.length - 1) {
+        actualPeriod = periods[currentIndex + 1].id;
+        await loadMasterTransactionsGrid(container);
+      }
+    });
+  } else {
+    console.error('[Transactions] Could not find period select element!');
+  }
 
   const gridContainer = document.createElement('div');
   gridContainer.className = 'grid-container master-transactions-grid';
@@ -1654,28 +1782,30 @@ async function loadMasterTransactionsGrid(container) {
       });
     }
     
-    // Apply initial filter
-    if (selIdNum) {
-      // If account is selected, show only that account's perspective
-      masterTransactionsTable.setFilter((data) => {
-        if (!data.perspectiveAccountId) return true;
-        return Number(data.perspectiveAccountId) === selIdNum;
-      });
-    } else {
-      // If no account selected, show only primary perspectives (not flipped ones)
-      masterTransactionsTable.setFilter((data) => {
-        // Show rows that are NOT flipped perspectives (no "_flipped" in ID)
-        return !String(data.id).includes('_flipped');
-      });
-    }
+    // Apply initial filter after table creation
+    setTimeout(() => {
+      console.log('[Transactions] Applying initial filter for account:', selIdNum);
+      if (selIdNum) {
+        // If account is selected, show only that account's perspective
+        masterTransactionsTable.setFilter((data) => {
+          if (!data.perspectiveAccountId) return true;
+          return Number(data.perspectiveAccountId) === selIdNum;
+        });
+      } else {
+        // If no account selected, show only primary perspectives (not flipped ones)
+        masterTransactionsTable.setFilter((data) => {
+          // Show rows that are NOT flipped perspectives (no "_flipped" in ID)
+          return !String(data.id).includes('_flipped');
+        });
+      }
+      // Totals will be updated via dataFiltered event
+    }, 0);
     
     // Update totals when filter changes
     masterTransactionsTable.on('dataFiltered', function(filters, rows) {
+      console.log('[Transactions] dataFiltered - rows:', rows.length);
       updateTransactionTotals();
     });
-    
-    // Initial totals calculation
-    updateTransactionTotals();
 
   } catch (err) {
     console.error('[Forecast] Failed to load master transactions grid:', err);
@@ -1869,56 +1999,57 @@ async function loadBudgetGrid(container) {
         <button id="budget-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
         <button id="budget-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
     `;
-    window.add(container, periodFilter);
+    window.add(toolbar, periodFilter);
+    
+    // Add toolbar to container FIRST so we can find the select element
+    window.add(container, toolbar);
+
+    // Calculate periods for current scenario
+    periods = await getScenarioPeriods(currentScenario.id);
 
     // Populate budget period dropdown
     const budgetPeriodSelect = document.getElementById('budget-period-select');
-    budgetPeriodSelect.innerHTML = '<option value="">-- All Periods --</option>';
-    periods.forEach((period) => {
-      const option = document.createElement('option');
-      option.value = period.id;
-      option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
-      budgetPeriodSelect.appendChild(option);
-    });
-    
-    // Set current selection if any
-    budgetPeriodSelect.value = budgetPeriodSnapshot || '';
-    
-    // Attach period selector event listeners
-    budgetPeriodSelect.addEventListener('change', async (e) => {
-      budgetPeriod = e.target.value;
-      await loadBudgetGrid(container);
-    });
-    
-    document.getElementById('budget-prev-period-btn').addEventListener('click', async () => {
-      const currentIndex = periods.findIndex(p => p.id === budgetPeriod);
-      if (currentIndex > 0) {
-        budgetPeriod = periods[currentIndex - 1].id;
-        budgetPeriodSelect.value = budgetPeriod;
-        await loadBudgetGrid(container);
-      }
-    });
-    
-    document.getElementById('budget-next-period-btn').addEventListener('click', async () => {
-      const currentIndex = periods.findIndex(p => p.id === budgetPeriod);
-      if (currentIndex < periods.length - 1) {
-        budgetPeriod = periods[currentIndex + 1].id;
-        budgetPeriodSelect.value = budgetPeriod;
-        await loadBudgetGrid(container);
-      }
-    });
-
-    window.add(toolbar, periodFilter);
-
-    // Transform budgets for UI (resolve IDs to full objects) - mirror transactions grid
-    const transformedData = budgetOccurrences.map(budget => {
-      const primaryAccount = currentScenario.accounts?.find(a => a.id === budget.primaryAccountId);
-      const secondaryAccount = currentScenario.accounts?.find(a => a.id === budget.secondaryAccountId);
+    if (budgetPeriodSelect) {
+      budgetPeriodSelect.innerHTML = '<option value="">-- All Periods --</option>';
+      periods.forEach((period) => {
+        const option = document.createElement('option');
+        option.value = period.id;
+        option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
+        budgetPeriodSelect.appendChild(option);
+      });
       
-      // Map to UI format based on transaction type
-      // transactionTypeId: 1 = Money In (secondary -> primary), 2 = Money Out (primary -> secondary)
-      const debitAccount = budget.transactionTypeId === 1 ? secondaryAccount : primaryAccount;
-      const creditAccount = budget.transactionTypeId === 1 ? primaryAccount : secondaryAccount;
+      // Set current selection if any
+      budgetPeriodSelect.value = budgetPeriodSnapshot || '';
+      
+      // Attach period selector event listeners
+      budgetPeriodSelect.addEventListener('change', async (e) => {
+        budgetPeriod = e.target.value;
+        await loadBudgetGrid(container);
+      });
+      
+      document.getElementById('budget-prev-period-btn')?.addEventListener('click', async () => {
+        const currentIndex = periods.findIndex(p => p.id === budgetPeriod);
+        if (currentIndex > 0) {
+          budgetPeriod = periods[currentIndex - 1].id;
+          await loadBudgetGrid(container);
+        }
+      });
+      
+      document.getElementById('budget-next-period-btn')?.addEventListener('click', async () => {
+        const currentIndex = periods.findIndex(p => p.id === budgetPeriod);
+        if (currentIndex < periods.length - 1) {
+          budgetPeriod = periods[currentIndex + 1].id;
+          await loadBudgetGrid(container);
+        }
+      });
+    }
+
+    // Transform budgets for UI - create dual-perspective rows (mirror transactions grid)
+    const transformedData = budgetOccurrences.flatMap(budget => {
+      const storedPrimaryId = budget.primaryAccountId;
+      const storedSecondaryId = budget.secondaryAccountId;
+      const storedTypeId = budget.transactionTypeId;
+      
       const statusObj = typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null };
       
       // Get source transaction to extract recurrence for description
@@ -1929,43 +2060,23 @@ async function loadBudgetGrid(container) {
         ? getRecurrenceDescription(sourceTransaction.recurrence)
         : (budget.recurrenceDescription || 'One time');
       
-      const transactionTypeName = budget.transactionTypeId === 1 ? 'Money In' : 'Money Out';
-      const primaryAccountResolved = debitAccount?.id === primaryAccount?.id ? primaryAccount : creditAccount;
-
-      return {
+      const baseData = {
         id: budget.id,
+        originalBudgetId: budget.id,
         sourceTransactionId: budget.sourceTransactionId,
+        primaryAccountId: storedPrimaryId,
+        secondaryAccountId: storedSecondaryId,
         plannedAmount: budget.amount,
         actualAmount: statusObj.actualAmount,
         amount: statusObj.actualAmount !== null && statusObj.actualAmount !== undefined ? statusObj.actualAmount : budget.amount,
         description: budget.description,
-        debitAccount: debitAccount || null,
-        creditAccount: creditAccount || null,
-        primaryAccount: primaryAccountResolved,
-        primaryAccountName: primaryAccountResolved?.name || '',
-        secondaryAccount: secondaryAccount || null,
-        transactionType: { id: budget.transactionTypeId, name: transactionTypeName },
-        transactionTypeName,
         occurrenceDate: budget.occurrenceDate,
         recurrenceDescription: recurrenceSummary,
         status: statusObj,
         actualDateOverride: statusObj.actualDate
       };
-    }).filter(budget => {
-      console.log('[Budget] Filter:', { selectedAccountId: selectedAccountIdSnapshot, budgetPeriod: budgetPeriodSnapshot, loadToken });
-      // Filter by account if selected
-      if (selIdNum) {
-        const matches = [
-          budget.debitAccount?.id,
-          budget.creditAccount?.id,
-          budget.primaryAccountId,
-          budget.secondaryAccountId
-        ].some(id => Number(id) === selIdNum);
-        console.log('[Budget] Filtering budget', budget.id, '- debit:', budget.debitAccount?.id, 'credit:', budget.creditAccount?.id, 'primaryId:', budget.primaryAccountId, 'secondaryId:', budget.secondaryAccountId, 'selected:', selIdNum, 'matches:', matches, 'loadToken:', loadToken);
-        if (!matches) return false;
-      }
       
-      // Filter by period if selected
+      // Filter by period if selected (before creating perspectives)
       if (budgetPeriodSnapshot) {
         const selectedPeriod = periods.find(p => p.id === budgetPeriodSnapshot);
         if (selectedPeriod) {
@@ -1975,12 +2086,69 @@ async function loadBudgetGrid(container) {
           // Adjust end date to be inclusive (end of day)
           periodEnd.setHours(23, 59, 59, 999);
           if (budgetDate < periodStart || budgetDate > periodEnd) {
-            return false;
+            return []; // Skip this budget entry
           }
         }
       }
-      return true;
+      
+      const rows = [];
+      
+      // Perspective 1: From the stored primary account's view (as-is)
+      if (storedPrimaryId) {
+        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId };
+        const secondaryAccount = storedSecondaryId 
+          ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
+          : null;
+        const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+        
+        rows.push({
+          ...baseData,
+          perspectiveAccountId: storedPrimaryId, // Used for filtering
+          transactionTypeId: storedTypeId,
+          primaryAccount,
+          primaryAccountName: primaryAccount?.name || '',
+          transactionType,
+          transactionTypeName: transactionType?.name || '',
+          secondaryAccount
+        });
+      }
+      
+      // Perspective 2: From the stored secondary account's view (flipped)
+      if (storedSecondaryId) {
+        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId };
+        const secondaryAccount = storedPrimaryId
+          ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
+          : null;
+        // Flip the transaction type
+        const flippedTypeId = storedTypeId === 1 ? 2 : 1;
+        const transactionType = flippedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+        
+        // Flip the amount sign when flipping perspective
+        const flippedAmount = -(baseData.amount);
+        const flippedPlannedAmount = -(baseData.plannedAmount);
+        const flippedActualAmount = baseData.actualAmount !== undefined && baseData.actualAmount !== null 
+          ? -(baseData.actualAmount) 
+          : baseData.actualAmount;
+        
+        rows.push({
+          ...baseData,
+          id: `${budget.id}_flipped`, // Unique ID for flipped perspective
+          perspectiveAccountId: storedSecondaryId, // Used for filtering
+          transactionTypeId: flippedTypeId,
+          amount: flippedAmount,
+          plannedAmount: flippedPlannedAmount,
+          actualAmount: flippedActualAmount,
+          primaryAccount,
+          primaryAccountName: primaryAccount?.name || '',
+          transactionType,
+          transactionTypeName: transactionType?.name || '',
+          secondaryAccount
+        });
+      }
+      
+      return rows;
     });
+    // Note: Account filtering is now handled by Tabulator's setFilter() - see account selection handler
 
     // Skip render if this run is no longer the latest
     if (loadToken !== budgetGridLoadToken) {
@@ -2003,14 +2171,6 @@ async function loadBudgetGrid(container) {
       return;
     }
 
-    // Compute filtered totals (money in/out) for the current view
-    const budgetTotals = computeMoneyTotals(transformedData, {
-      amountField: 'amount',
-      typeField: 'transactionType',
-      typeNameField: 'transactionTypeName',
-      typeIdField: 'transactionTypeId'
-    });
-
     // Add grouping control
     const groupingControl = document.createElement('div');
     groupingControl.className = 'toolbar-item grouping-control';
@@ -2025,14 +2185,14 @@ async function loadBudgetGrid(container) {
     `;
     window.add(toolbar, groupingControl);
 
-    // Add inline totals to toolbar
+    // Add inline totals to toolbar (will be updated dynamically)
     const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
     const totalsInline = document.createElement('div');
     totalsInline.className = 'toolbar-item toolbar-totals';
     totalsInline.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(budgetTotals.moneyIn)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(budgetTotals.moneyOut)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${budgetTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(budgetTotals.net)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(0)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(0)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value">${formatCurrency(0)}</span></span>
     `;
     window.add(toolbar, totalsInline);
     window.add(container, toolbar);
@@ -2042,7 +2202,7 @@ async function loadBudgetGrid(container) {
     gridContainer.className = 'grid-container budget-grid';
     window.add(container, gridContainer);
 
-    const budgetTable = createGrid(gridContainer, {
+    masterBudgetTable = createGrid(gridContainer, {
       data: transformedData,
       columns: [
         {
@@ -2318,19 +2478,44 @@ async function loadBudgetGrid(container) {
       budgetGroupingSelect.addEventListener('change', (e) => {
         const groupField = e.target.value;
         if (groupField) {
-          budgetTable.setGroupBy(groupField);
+          masterBudgetTable.setGroupBy(groupField);
           // Add groupHeader with sum for grouped field
-          budgetTable.setGroupHeader((value, count, data, group) => {
+          masterBudgetTable.setGroupHeader((value, count, data, group) => {
             const totalAmount = data.reduce((sum, row) => sum + Number(row.plannedAmount || 0), 0);
             const label = formatGroupLabel(value);
             const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalAmount);
             return `${label} (${count} items, Total: ${formatted})`;
           });
         } else {
-          budgetTable.clearGroupBy();
+          masterBudgetTable.clearGroupBy();
         }
       });
     }
+    
+    // Apply initial filter after table creation
+    setTimeout(() => {
+      console.log('[Budget] Applying initial filter for account:', selIdNum);
+      if (selIdNum) {
+        // If account is selected, show only that account's perspective
+        masterBudgetTable.setFilter((data) => {
+          if (!data.perspectiveAccountId) return true;
+          return Number(data.perspectiveAccountId) === selIdNum;
+        });
+      } else {
+        // If no account selected, show only primary perspectives (not flipped ones)
+        masterBudgetTable.setFilter((data) => {
+          // Show rows that are NOT flipped perspectives (no "_flipped" in ID)
+          return !String(data.id).includes('_flipped');
+        });
+      }
+      // Totals will be updated via dataFiltered event
+    }, 0);
+    
+    // Update totals when filter changes
+    masterBudgetTable.on('dataFiltered', function(filters, rows) {
+      console.log('[Budget] dataFiltered - rows:', rows.length);
+      updateBudgetTotals();
+    });
 
   } catch (err) {
     console.error('[Forecast] Failed to load budget grid:', err);
@@ -2686,66 +2871,11 @@ async function loadScenarioData() {
   await loadAccountsGrid(containers.accountsTable);
   
   // Load transactions grid initially (filtering will be applied by account selection)
+  // Period calculation happens inside each grid load function
   await loadMasterTransactionsGrid(containers.transactionsTable);
-  
-  // Initialize period selector for transactions
-  await initializePeriodSelector();
   
   await loadBudgetGrid(containers.budgetTable);
   await loadProjectionsSection(containers.projectionsContent);
-}
-
-// Initialize period selector dropdown and navigation
-async function initializePeriodSelector() {
-  if (!currentScenario) return;
-  
-  try {
-    // Calculate periods for current scenario
-    periods = await getScenarioPeriods(currentScenario.id);
-    
-    // Populate period dropdown
-    const periodSelect = document.getElementById('actual-period-select');
-    if (!periodSelect) return;
-    
-    periodSelect.innerHTML = '<option value="">-- All Periods --</option>';
-    periods.forEach((period, index) => {
-      const option = document.createElement('option');
-      option.value = period.id;
-      option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
-      periodSelect.appendChild(option);
-    });
-    
-    // Set "All" as default
-    actualPeriod = '';
-    periodSelect.value = actualPeriod;
-    
-    // Attach event listeners
-    periodSelect.addEventListener('change', async (e) => {
-      actualPeriod = e.target.value;
-      await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
-    });
-    
-    document.getElementById('actual-prev-period-btn')?.addEventListener('click', async () => {
-      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
-      if (currentIndex > 0) {
-        actualPeriod = periods[currentIndex - 1].id;
-        periodSelect.value = actualPeriod;
-        await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
-      }
-    });
-    
-    document.getElementById('actual-next-period-btn')?.addEventListener('click', async () => {
-      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
-      if (currentIndex < periods.length - 1) {
-        actualPeriod = periods[currentIndex + 1].id;
-        periodSelect.value = actualPeriod;
-        await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
-      }
-    });
-    
-  } catch (err) {
-    console.error('[Forecast] Failed to initialize period selector:', err);
-  }
 }
 
 // Initialize the page
