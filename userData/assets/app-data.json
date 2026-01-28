@@ -88,22 +88,6 @@
           "openDate": "2026-01-28",
           "periodicChange": null,
           "accountType": "Unknown"
-        },
-        {
-          "id": 5,
-          "name": "your gob",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "startingBalance": 0,
-          "openDate": "2026-01-28",
-          "periodicChange": null,
-          "balance": 0
         }
       ],
       "transactions": [
@@ -160,7 +144,7 @@
             "endDate": null,
             "interval": 1,
             "dayOfWeek": null,
-            "dayOfMonth": 1,
+            "dayOfMonth": 15,
             "weekOfMonth": null,
             "dayOfWeekInMonth": null,
             "dayOfQuarter": null,
@@ -214,23 +198,6 @@
           "tags": [
             "housing"
           ]
-        },
-        {
-          "id": 4,
-          "primaryAccountId": 4,
-          "secondaryAccountId": 5,
-          "transactionTypeId": 2,
-          "amount": -600,
-          "effectiveDate": null,
-          "description": "",
-          "recurrence": null,
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
         }
       ],
       "projections": [
@@ -240,10 +207,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-01-01",
-          "balance": 48500,
+          "balance": 31500,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 1
         },
         {
@@ -252,10 +219,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-02-01",
-          "balance": 82000,
+          "balance": 48000,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 2
         },
         {
@@ -264,10 +231,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-03-01",
-          "balance": 115500,
+          "balance": 64500,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 3
         },
         {
@@ -276,10 +243,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-04-01",
-          "balance": 149000,
+          "balance": 81000,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 4
         },
         {
@@ -288,10 +255,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-05-01",
-          "balance": 182500,
+          "balance": 97500,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 5
         },
         {
@@ -300,10 +267,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-06-01",
-          "balance": 216000,
+          "balance": 114000,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 6
         },
         {
@@ -312,10 +279,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-07-01",
-          "balance": 249500,
+          "balance": 130500,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 7
         },
         {
@@ -324,10 +291,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-08-01",
-          "balance": 283000,
+          "balance": 147000,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 8
         },
         {
@@ -336,10 +303,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-09-01",
-          "balance": 316500,
+          "balance": 163500,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 9
         },
         {
@@ -348,10 +315,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-10-01",
-          "balance": 350000,
+          "balance": 180000,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 10
         },
         {
@@ -360,10 +327,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-11-01",
-          "balance": 383500,
+          "balance": 196500,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 11
         },
         {
@@ -372,10 +339,10 @@
           "accountId": 1,
           "account": "Checking Account",
           "date": "2026-12-01",
-          "balance": 417000,
+          "balance": 213000,
           "income": 25000,
-          "expenses": -8500,
-          "netChange": 33500,
+          "expenses": 8500,
+          "netChange": 16500,
           "period": 12
         },
         {
@@ -528,10 +495,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-01-01",
-          "balance": -8500,
-          "income": -8500,
+          "balance": 8500,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 1
         },
         {
@@ -540,10 +507,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-02-01",
-          "balance": -17000,
-          "income": -8500,
+          "balance": 17000,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 2
         },
         {
@@ -552,10 +519,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-03-01",
-          "balance": -25500,
-          "income": -8500,
+          "balance": 25500,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 3
         },
         {
@@ -564,10 +531,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-04-01",
-          "balance": -34000,
-          "income": -8500,
+          "balance": 34000,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 4
         },
         {
@@ -576,10 +543,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-05-01",
-          "balance": -42500,
-          "income": -8500,
+          "balance": 42500,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 5
         },
         {
@@ -588,10 +555,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-06-01",
-          "balance": -51000,
-          "income": -8500,
+          "balance": 51000,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 6
         },
         {
@@ -600,10 +567,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-07-01",
-          "balance": -59500,
-          "income": -8500,
+          "balance": 59500,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 7
         },
         {
@@ -612,10 +579,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-08-01",
-          "balance": -68000,
-          "income": -8500,
+          "balance": 68000,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 8
         },
         {
@@ -624,10 +591,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-09-01",
-          "balance": -76500,
-          "income": -8500,
+          "balance": 76500,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 9
         },
         {
@@ -636,10 +603,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-10-01",
-          "balance": -85000,
-          "income": -8500,
+          "balance": 85000,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 10
         },
         {
@@ -648,10 +615,10 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-11-01",
-          "balance": -93500,
-          "income": -8500,
+          "balance": 93500,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
           "period": 11
         },
         {
@@ -660,10 +627,154 @@
           "accountId": 3,
           "account": "Rent",
           "date": "2026-12-01",
-          "balance": -102000,
-          "income": -8500,
+          "balance": 102000,
+          "income": 8500,
           "expenses": 0,
-          "netChange": -8500,
+          "netChange": 8500,
+          "period": 12
+        },
+        {
+          "id": 37,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-01-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 1
+        },
+        {
+          "id": 38,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-02-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 2
+        },
+        {
+          "id": 39,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-03-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 3
+        },
+        {
+          "id": 40,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-04-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 4
+        },
+        {
+          "id": 41,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-05-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 5
+        },
+        {
+          "id": 42,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-06-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 6
+        },
+        {
+          "id": 43,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-07-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 7
+        },
+        {
+          "id": 44,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-08-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 8
+        },
+        {
+          "id": 45,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-09-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 9
+        },
+        {
+          "id": 46,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-10-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 10
+        },
+        {
+          "id": 47,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-11-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
+          "period": 11
+        },
+        {
+          "id": 48,
+          "scenarioId": 1,
+          "accountId": 4,
+          "account": "gob",
+          "date": "2026-12-01",
+          "balance": 0,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0,
           "period": 12
         }
       ],
@@ -677,7 +788,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-01-24",
+          "occurrenceDate": "2026-01-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -697,7 +808,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-02-24",
+          "occurrenceDate": "2026-02-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -717,7 +828,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-03-24",
+          "occurrenceDate": "2026-03-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -737,7 +848,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-04-24",
+          "occurrenceDate": "2026-04-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -757,7 +868,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-05-24",
+          "occurrenceDate": "2026-05-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -777,7 +888,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-06-24",
+          "occurrenceDate": "2026-06-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -797,7 +908,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-07-24",
+          "occurrenceDate": "2026-07-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -817,7 +928,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-08-24",
+          "occurrenceDate": "2026-08-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -837,7 +948,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-09-24",
+          "occurrenceDate": "2026-09-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -857,7 +968,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-10-24",
+          "occurrenceDate": "2026-10-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -877,7 +988,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-11-24",
+          "occurrenceDate": "2026-11-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -897,7 +1008,7 @@
           "amount": 25000,
           "description": "Monthly salary",
           "recurrenceDescription": "Monthly - Day of Month (Day 25)",
-          "occurrenceDate": "2026-12-24",
+          "occurrenceDate": "2026-12-25",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -916,8 +1027,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-01-31",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-01-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -936,8 +1047,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-02-28",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-02-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -956,8 +1067,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-03-31",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-03-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -976,8 +1087,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-04-30",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-04-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -996,8 +1107,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-05-31",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-05-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -1016,8 +1127,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-06-30",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-06-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -1036,8 +1147,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-07-31",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-07-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -1056,8 +1167,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-08-31",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-08-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -1076,8 +1187,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-09-30",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-09-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -1096,8 +1207,8 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-10-31",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-10-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -1116,8 +1227,28 @@
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
-          "recurrenceDescription": "Monthly - Day of Month (Day 1)",
-          "occurrenceDate": "2026-11-30",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-11-15",
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "housing"
+          ]
+        },
+        {
+          "id": 0,
+          "sourceTransactionId": 2,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 3,
+          "transactionTypeId": 2,
+          "amount": -8500,
+          "description": "Rent payment",
+          "recurrenceDescription": "Monthly - Day of Month (Day 15)",
+          "occurrenceDate": "2026-12-15",
           "periodicChange": null,
           "status": {
             "name": "planned",
@@ -1129,6 +1260,106 @@
           ]
         }
       ]
+    },
+    {
+      "id": 2,
+      "name": "NEW QC",
+      "type": {
+        "id": 1,
+        "name": "Budget",
+        "description": "Budget tracking scenario",
+        "showAccounts": true,
+        "showPlannedTransactions": true,
+        "showActualTransactions": true,
+        "showProjections": true,
+        "accountColumns": [
+          "name",
+          "type",
+          "currency",
+          "balance",
+          "openDate"
+        ],
+        "transactionColumns": [
+          "debitAccount",
+          "creditAccount",
+          "amount",
+          "description",
+          "tags"
+        ]
+      },
+      "description": "New test scenario",
+      "startDate": "2026-01-01",
+      "endDate": "2026-06-01",
+      "projectionPeriod": {
+        "id": 5,
+        "name": "Year"
+      },
+      "accounts": [
+        {
+          "id": 1,
+          "name": "Primary",
+          "type": null,
+          "currency": null,
+          "startingBalance": 0,
+          "openDate": "2026-01-28",
+          "periodicChange": null,
+          "accountType": "Unknown"
+        },
+        {
+          "id": 2,
+          "name": "rent",
+          "type": {
+            "id": 1,
+            "name": "Asset"
+          },
+          "currency": {
+            "id": 1,
+            "name": "ZAR"
+          },
+          "startingBalance": 0,
+          "openDate": "2026-01-28",
+          "periodicChange": null,
+          "balance": 0
+        }
+      ],
+      "transactions": [
+        {
+          "id": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": -5000,
+          "effectiveDate": "2026-01-28",
+          "description": "",
+          "recurrence": {
+            "recurrenceType": {
+              "id": 3,
+              "name": "Weekly"
+            },
+            "startDate": "2026-01-28",
+            "endDate": null,
+            "interval": 2,
+            "dayOfWeek": null,
+            "dayOfMonth": null,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
+          },
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": []
+        }
+      ],
+      "projections": [],
+      "budgets": []
     }
   ],
   "migrationVersion": 2

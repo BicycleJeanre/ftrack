@@ -44,15 +44,15 @@ function getRecurrenceDescription(recurrence) {
 
   const getDayOfMonth = () => {
     if (recurrence.dayOfMonth) return recurrence.dayOfMonth;
-    if (recurrence.startDate) return new Date(recurrence.startDate).getUTCDate();
+    if (recurrence.startDate) return parseDateOnly(recurrence.startDate).getDate();
     return null;
   };
 
   const formatYearlyAnchor = () => {
     if (!recurrence.startDate) return null;
-    const d = new Date(recurrence.startDate);
+    const d = parseDateOnly(recurrence.startDate);
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${monthNames[d.getUTCMonth()]} ${String(d.getUTCDate()).padStart(2, '0')}`;
+    return `${monthNames[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`;
   };
 
   // Descriptions per recurrence type
@@ -1202,7 +1202,7 @@ async function loadMasterTransactionsGrid(container) {
     periods.forEach((period) => {
       const option = document.createElement('option');
       option.value = period.id;
-      option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
+      option.textContent = period.label || `${formatDateOnly(period.startDate) || ''} to ${formatDateOnly(period.endDate) || ''}`;
       periodSelect.appendChild(option);
       console.log('[Transactions] Added period option:', period.id, option.textContent);
     });
@@ -1919,7 +1919,7 @@ async function loadBudgetGrid(container) {
       periods.forEach((period) => {
         const option = document.createElement('option');
         option.value = period.id;
-        option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
+        option.textContent = period.label || `${formatDateOnly(period.startDate) || ''} to ${formatDateOnly(period.endDate) || ''}`;
         budgetPeriodSelect.appendChild(option);
       });
       
@@ -2468,7 +2468,7 @@ function openStatusModal(rowData, onConfirm) {
 
   confirmBtn.addEventListener('click', () => {
     const actualAmount = actualAmountInput.value ? parseFloat(actualAmountInput.value) : null;
-    const actualDate = actualDateInput.value ? new Date(actualDateInput.value).toISOString().split('T')[0] : null;
+    const actualDate = actualDateInput.value || null;
 
     onConfirm({
       actualAmount,

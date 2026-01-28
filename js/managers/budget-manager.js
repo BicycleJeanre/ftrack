@@ -47,6 +47,7 @@ function getRecurrenceDescription(recurrence) {
 
 import * as DataStore from '../core/data-store.js';
 import { generateRecurrenceDates } from '../calculation-utils.js';
+import { formatDateOnly } from '../date-utils.js';
 
 /**
  * Get all budget occurrences for a scenario
@@ -167,7 +168,7 @@ export async function createFromProjections(scenarioId) {
                     amount: tx.amount,
                     description: tx.description,
                     recurrenceDescription: recurrenceDescription,
-                    occurrenceDate: date.toISOString().split('T')[0], // YYYY-MM-DD
+                    occurrenceDate: formatDateOnly(date),
                     periodicChange: tx.periodicChange,
                     status: {
                         name: 'planned',
