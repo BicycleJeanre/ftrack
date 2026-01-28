@@ -25,6 +25,8 @@ Thumbs.db
 migrate-to-scenarios.js
 *.backup
 test-calculations.js
+app-data.json
+app-data.json.backup
 
 # Ignore user data and sensitive files
 

@@ -696,11 +696,12 @@ export async function clearBudget(scenarioId) {
 /**
  * Calculate all periods for a scenario based on start/end dates and period type
  * @param {number} scenarioId - The scenario ID
+ * @param {string} customPeriodType - Optional period type override (Day, Week, Month, Quarter, Year)
  * @returns {Promise<Array>} - Array of period objects
  */
 import { parseDateOnly } from './date-utils.js';
 
-export async function getScenarioPeriods(scenarioId) {
+export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   const scenario = await getScenario(scenarioId);
   
   if (!scenario) {
@@ -710,7 +711,7 @@ export async function getScenarioPeriods(scenarioId) {
   const periods = [];
   const start = typeof scenario.startDate === 'string' ? parseDateOnly(scenario.startDate) : new Date(scenario.startDate);
   const end = typeof scenario.endDate === 'string' ? parseDateOnly(scenario.endDate) : new Date(scenario.endDate);
-  const periodType = scenario.projectionPeriod?.name || 'Month';
+  const periodType = customPeriodType || scenario.projectionPeriod?.name || 'Month';
   
   let current = new Date(start);
   

@@ -113,7 +113,9 @@ let currentScenario = null;
 let scenarioTypes = null;
 let selectedAccountId = null; // Track selected account for filtering transaction views
 let actualPeriod = null; // Selected period for actual transactions
+let actualPeriodType = 'Month'; // Selected period type for transactions view
 let budgetPeriod = null; // Selected period for budget view
+let budgetPeriodType = 'Month'; // Selected period type for budget view
 let periods = []; // Calculated periods for current scenario
 let budgetGridLoadToken = 0; // Prevent stale budget renders
 let masterTransactionsTable = null; // Store transactions table instance for filtering
@@ -1176,6 +1178,21 @@ async function loadMasterTransactionsGrid(container) {
   `;
   window.add(toolbar, groupingControl);
 
+  // Add period type selector
+  const periodTypeControl = document.createElement('div');
+  periodTypeControl.className = 'toolbar-item period-type-control';
+  periodTypeControl.innerHTML = `
+    <label for="tx-period-type-select" class="text-muted control-label">View By:</label>
+    <select id="tx-period-type-select" class="input-select control-select">
+      <option value="Day">Day</option>
+      <option value="Week">Week</option>
+      <option value="Month">Month</option>
+      <option value="Quarter">Quarter</option>
+      <option value="Year">Year</option>
+    </select>
+  `;
+  window.add(toolbar, periodTypeControl);
+
   // Add period filter
   const periodFilter = document.createElement('div');
   periodFilter.className = 'toolbar-item period-filter';
@@ -1190,8 +1207,14 @@ async function loadMasterTransactionsGrid(container) {
   // Add toolbar to container FIRST so we can find the select element
   window.add(container, toolbar);
   
-  // Calculate periods for current scenario
-  periods = await getScenarioPeriods(currentScenario.id);
+  // Set the selected period type from variable
+  const periodTypeSelect = document.getElementById('tx-period-type-select');
+  if (periodTypeSelect) {
+    periodTypeSelect.value = actualPeriodType;
+  }
+  
+  // Calculate periods for current scenario with selected period type
+  periods = await getScenarioPeriods(currentScenario.id, actualPeriodType);
   console.log('[Transactions] Calculated periods:', periods);
   
   // Populate period dropdown immediately
@@ -1230,6 +1253,13 @@ async function loadMasterTransactionsGrid(container) {
         actualPeriod = periods[currentIndex + 1].id;
         await loadMasterTransactionsGrid(container);
       }
+    });
+    
+    // Add period type change handler
+    document.getElementById('tx-period-type-select')?.addEventListener('change', async (e) => {
+      actualPeriodType = e.target.value; // Save selected type
+      actualPeriod = null; // Reset period selection when type changes
+      await loadMasterTransactionsGrid(container);
     });
   } else {
     console.error('[Transactions] Could not find period select element!');
@@ -1886,6 +1916,21 @@ async function loadBudgetGrid(container) {
     
     window.add(toolbar, buttonContainer);
 
+    // Add period type selector
+    const periodTypeControl = document.createElement('div');
+    periodTypeControl.className = 'toolbar-item period-type-control';
+    periodTypeControl.innerHTML = `
+      <label for="budget-period-type-select" class="text-muted control-label">View By:</label>
+      <select id="budget-period-type-select" class="input-select control-select">
+        <option value="Day">Day</option>
+        <option value="Week">Week</option>
+        <option value="Month">Month</option>
+        <option value="Quarter">Quarter</option>
+        <option value="Year">Year</option>
+      </select>
+    `;
+    window.add(toolbar, periodTypeControl);
+
     // Add period filter controls (similar to transactions)
     const periodFilter = document.createElement('div');
     periodFilter.className = 'toolbar-item period-filter control-layout-wrap';
@@ -1900,8 +1945,14 @@ async function loadBudgetGrid(container) {
     // Add toolbar to container FIRST so we can find the select element
     window.add(container, toolbar);
 
-    // Calculate periods for current scenario
-    periods = await getScenarioPeriods(currentScenario.id);
+    // Set the selected period type from variable
+    const periodTypeSelect = document.getElementById('budget-period-type-select');
+    if (periodTypeSelect) {
+      periodTypeSelect.value = budgetPeriodType;
+    }
+
+    // Calculate periods for current scenario with selected period type
+    periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType);
 
     // Populate budget period dropdown
     const budgetPeriodSelect = document.getElementById('budget-period-select');
@@ -1937,6 +1988,13 @@ async function loadBudgetGrid(container) {
           budgetPeriod = periods[currentIndex + 1].id;
           await loadBudgetGrid(container);
         }
+      });
+      
+      // Add period type change handler
+      document.getElementById('budget-period-type-select')?.addEventListener('change', async (e) => {
+        budgetPeriodType = e.target.value; // Save selected type
+        budgetPeriod = null; // Reset period selection when type changes
+        await loadBudgetGrid(container);
       });
     }
 
@@ -2747,6 +2805,8 @@ async function init() {
     }
   } catch (error) {
     console.error('[App] Data migration failed:', error);
+    console.error('[App] Error message:', error?.message);
+    console.error('[App] Error stack:', error?.stack);
   }
   
   console.log('[ForecastPage] Building grid container...');

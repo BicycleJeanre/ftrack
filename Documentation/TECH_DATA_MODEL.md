@@ -7,8 +7,33 @@ The application uses a **File-Based JSON Database**. It loads all data into memo
 - **User Data**: `userData/assets/app-data.json`
   - Contains mutable user data (Transactions, Accounts, Scenarios).
   - *Note: In dev, this may be copied from `assets/app-data.sample.json` if missing.*
+- **Legacy Data**: `app-data.json` (repo root, deprecated)
+  - Automatically migrated to new location on first app load
+  - Renamed to `app-data.json.migrated.backup` after successful migration
 - **Static Assets**: `assets/lookup-data.json`
   - Contains immutable lookup definitions (Currencies, Account Types).
+
+## 2.1 Data Migration
+The app includes automatic migration handling for schema changes and location updates.
+
+**Migration System** (`js/data-migration.js`):
+- Runs automatically on app startup via `forecast.js` init
+- Checks `migrationVersion` in app-data.json to determine if migration needed
+- Current version: **3** (includes unified account model and location migration)
+
+**Migration History**:
+- **v1 → v2**: Unified planned/actual transactions into single transactions array, added budgets array
+- **v2 → v3**: Migrated from debit/credit accounts to primary/secondary accounts, migrated balance to startingBalance, migrated from repo root to userData/assets
+
+**Old Format Migration** (`migrateOldAppData`):
+- Detects `app-data.json` in repo root
+- Transforms old schema to new format:
+  - `plannedTransactions` → `transactions` array with status
+  - `debitAccount`/`creditAccount` → `primaryAccountId`/`secondaryAccountId` with `transactionTypeId`
+  - `balance` → `startingBalance`
+- Writes to new location: `userData/assets/app-data.json`
+- Renames old file to `.migrated.backup` to prevent re-migration
+- Only runs if new file doesn't have user data (prevents overwriting)
 
 ## 3.0 Core Entities (User Data)
 
