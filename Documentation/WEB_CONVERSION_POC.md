@@ -119,15 +119,14 @@ async saveAppData(data) {
 
 ```
 ftrack/
-├── index.html (NEW - web entry point)
-├── web/
-│   └── index.js (NEW - web initialization)
+├── index.html (NEW - web entry, redirects to pages/forecast.html)
 ├── js/
 │   ├── data-manager.js (MODIFIED - add platform detection)
+│   ├── data-export-import.js (NEW - export/import for both platforms)
 │   └── ... (all other files UNCHANGED)
 ├── pages/
-│   ├── forecast.html (shared)
-│   └── home.html (shared)
+│   ├── forecast.html (shared - main app interface)
+│   └── home.html (shared - Electron only)
 ├── styles/
 │   └── app.css (shared)
 ├── assets/
@@ -142,43 +141,44 @@ ftrack/
 
 **Electron (Desktop)**
 ```
-main.js → loads preload.js → BrowserWindow loads forecast.html
-         → forecast.js init() → StorageAdapter (Electron version)
+main.js → loads preload.js → BrowserWindow loads home.html
+         → user navigates → forecast.html
+         → forecast.js init() → data-manager (Electron mode)
          → reads userData/app-data.json
 ```
 
 **Web (Browser)**
 ```
-index.html → loads web/index.js → detects platform = web
+index.html → redirects to pages/forecast.html
            → forecast.html loads → forecast.js init()
-           → StorageAdapter (Web version) → reads localStorage
+           → data-manager (Web mode) → reads localStorage
 ```
 
 ---
 
 ## 5.0 Implementation Phases
 
-### Phase 1: Modify data-manager.js
-- [ ] Add platform detection (`isElectron`)
-- [ ] Update `readAppData()` with conditional logic
-- [ ] Update `saveAppData()` with conditional logic
-- [ ] Update `data-migration.js` to use modified data-manager
-- [ ] Test on both Electron and placeholder web
+### Phase 1: Modify data-manager.js ✅ COMPLETE
+- [x] Add platform detection (`isElectron`)
+- [x] Update `readAppData()` with conditional logic
+- [x] Update `writeAppData()` with conditional logic
+- [x] Update app-paths.js for web compatibility
+- [x] Create data-export-import.js for file operations
 
-### Phase 2: Web Entry Point
-- [ ] Create `index.html` (web entry)
-- [ ] Create `web/index.js` (web initialization)
-- [ ] Point to shared `pages/forecast.html`
-- [ ] Configure localStorage limits + IndexedDB fallback
+### Phase 2: Web Entry Point ✅ COMPLETE
+- [x] Create `index.html` redirecting to pages/forecast.html
+- [x] Update POC documentation
 
-### Phase 3: Export/Import
-- [ ] Add export-to-file button (both platforms)
-- [ ] Add import-from-file button (both platforms)
+### Phase 3: Export/Import UI
+- [ ] Add export/import buttons to navbar or forecast page
+- [ ] Wire up buttons to data-export-import.js functions
+- [ ] Test file download/upload in web browser
 - [ ] Test round-trip: export → modify → import
 
 ### Phase 4: Testing & Polish
-- [ ] Test data persistence across sessions
-- [ ] Test export/import workflow
+- [ ] Test data persistence across sessions (web)
+- [ ] Test export/import workflow (both platforms)
+- [ ] Test Electron still works unchanged
 - [ ] Test offline functionality
 - [ ] Size limit handling
 
@@ -314,14 +314,13 @@ These files remain 100% identical:
 | File | Changes |
 |------|---------|
 | `js/data-manager.js` | Add platform detection, conditional read/write logic |
-| `js/data-migration.js` | Use modified data-manager methods |
-| `js/app-paths.js` | Return dummy paths for web (optional, if needed) |
+| `js/app-paths.js` | Return web-compatible paths for web platform |
 
 ### 10.2 New Files
 | File | Purpose |
 |------|---------|
-| `index.html` | Web entry point |
-| `web/index.js` | Web initialization |
+| `index.html` | Web entry point, redirects to pages/forecast.html |
+| `js/data-export-import.js` | Export/import functionality for both platforms |
 
 ---
 
