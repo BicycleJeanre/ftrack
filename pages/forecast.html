@@ -10,6 +10,14 @@
     <!-- App theme -->
     <link rel="stylesheet" href="../styles/app.css">
 
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;">
+    <!-- Forecast page Tabulator theme moved to styles/app.css -->
+</head>
+<body class="bg-main text-main">
+    <div id="main-navbar"></div>
+    <div id="panel-forecast"></div>
+    <!-- Tabulator library UMD from CDN - loads as window.Tabulator -->
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2.0/dist/js/tabulator.min.js"></script>
     <script src="../js/navbar.js"></script>
     <script>
       // Dynamic cache busting
@@ -19,13 +27,5 @@
       script.type = 'module';
       document.head.appendChild(script);
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;">
-    <!-- Forecast page Tabulator theme moved to styles/app.css -->
-</head>
-<body class="bg-main text-main">
-    <div id="main-navbar"></div>
-    <div id="panel-forecast"></div>
-    <!-- Tabulator library UMD from CDN - loads as window.Tabulator -->
-    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2.0/dist/js/tabulator.min.js"></script>
 </body>
 </html>
