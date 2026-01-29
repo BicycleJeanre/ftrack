@@ -137,6 +137,9 @@ p {
   border-bottom: 1px solid var(--border-primary);
   padding: 0 32px;
   margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 #main-navbar a {
@@ -158,6 +161,17 @@ p {
 #main-navbar a.active {
   color: var(--accent-primary);
   border-bottom-color: var(--accent-primary);
+}
+
+#main-navbar .nav-spacer {
+  flex: 1;
+}
+
+#main-navbar button {
+  padding: 8px 16px;
+  font-size: 0.85em;
+  margin: 8px 4px;
+  white-space: nowrap;
 }
 
 /* ==================================== Buttons ====================================*/
