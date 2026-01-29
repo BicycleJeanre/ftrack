@@ -6,10 +6,11 @@ console.log('forecast.js loaded at', new Date().toISOString());
 
 import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
-import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor } from './grid-factory.js';
+import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
 import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
+import * as BudgetManager from './managers/budget-manager.js';
 import { openRecurrenceModal } from './modal-recurrence.js';
 import { openPeriodicChangeModal } from './modal-periodic-change.js';
 import { openTextInputModal } from './modal-text-input.js';
@@ -20,6 +21,80 @@ import { createLogger } from './logger.js';
 const logger = createLogger('ForecastController');
 
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
+import { generateRecurrenceDates } from './calculation-utils.js';
+import { expandTransactions } from './transaction-expander.js';
+
+// Generate human-readable recurrence description from recurrence object
+function getRecurrenceDescription(recurrence) {
+  if (!recurrence || !recurrence.recurrenceType) return '';
+
+  const typeId = recurrence.recurrenceType.id;
+  const interval = recurrence.interval && recurrence.interval > 1 ? recurrence.interval : 1;
+  const end = recurrence.endDate ? ` until ${recurrence.endDate}` : '';
+
+  const getWeekday = () => {
+    if (recurrence.dayOfWeek?.name) return recurrence.dayOfWeek.name;
+    if (recurrence.startDate) {
+      const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const d = new Date(recurrence.startDate);
+      return weekdayNames[d.getUTCDay()];
+    }
+    return null;
+  };
+
+  const getDayOfMonth = () => {
+    if (recurrence.dayOfMonth) return recurrence.dayOfMonth;
+    if (recurrence.startDate) return parseDateOnly(recurrence.startDate).getDate();
+    return null;
+  };
+
+  const formatYearlyAnchor = () => {
+    if (!recurrence.startDate) return null;
+    const d = parseDateOnly(recurrence.startDate);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${monthNames[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // Descriptions per recurrence type
+  switch (typeId) {
+    case 1: // One Time
+      return recurrence.startDate ? `One time on ${recurrence.startDate}` : 'One time';
+    case 2: // Daily
+      return interval === 1 ? `Every day${end}` : `Every ${interval} days${end}`;
+    case 3: { // Weekly
+      const dow = getWeekday();
+      const dayPart = dow ? ` on ${dow}` : '';
+      return interval === 1 ? `Every week${dayPart}${end}` : `Every ${interval} weeks${dayPart}${end}`;
+    }
+    case 4: { // Monthly - Day of Month
+      const dom = getDayOfMonth();
+      const dayPart = dom ? ` on day ${dom}` : '';
+      return interval === 1 ? `Every month${dayPart}${end}` : `Every ${interval} months${dayPart}${end}`;
+    }
+    case 5: { // Monthly - Week of Month (fallback wording)
+      const dow = getWeekday();
+      const week = recurrence.weekOfMonth ? `${recurrence.weekOfMonth} week` : 'week';
+      const dayPart = dow ? ` on ${dow}` : '';
+      return interval === 1 ? `Every month (${week}${dayPart})${end}` : `Every ${interval} months (${week}${dayPart})${end}`;
+    }
+    case 6: { // Quarterly
+      const dom = getDayOfMonth();
+      const dayPart = dom ? ` on day ${dom}` : '';
+      return interval === 1 ? `Every quarter${dayPart}${end}` : `Every ${interval} quarters${dayPart}${end}`;
+    }
+    case 7: { // Yearly
+      const anchor = formatYearlyAnchor();
+      const dayPart = anchor ? ` on ${anchor}` : '';
+      return interval === 1 ? `Every year${dayPart}${end}` : `Every ${interval} years${dayPart}${end}`;
+    }
+    case 11: { // Custom Dates
+      const count = recurrence.customDates ? recurrence.customDates.split(',').filter(Boolean).length : 0;
+      return count > 0 ? `Custom: ${count} dates` : 'Custom dates';
+    }
+    default:
+      return recurrence.recurrenceType.name || 'Recurring';
+  }
+}
 
 import {
   getScenarios,
@@ -28,7 +103,9 @@ import {
   getTransactions,
   createTransaction,
   createAccount,
-  getScenarioPeriods
+  getScenarioPeriods,
+  getBudget,
+  saveBudget
 } from './data-manager.js';
 import { generateProjections, clearProjections } from './projection-engine.js';
 
@@ -36,7 +113,118 @@ let currentScenario = null;
 let scenarioTypes = null;
 let selectedAccountId = null; // Track selected account for filtering transaction views
 let actualPeriod = null; // Selected period for actual transactions
+let actualPeriodType = 'Month'; // Selected period type for transactions view
+let budgetPeriod = null; // Selected period for budget view
+let budgetPeriodType = 'Month'; // Selected period type for budget view
 let periods = []; // Calculated periods for current scenario
+let budgetGridLoadToken = 0; // Prevent stale budget renders
+let masterTransactionsTable = null; // Store transactions table instance for filtering
+let masterBudgetTable = null; // Store budget table instance for filtering
+
+// Update transaction totals in toolbar based on current filtered data
+function updateTransactionTotals(filteredRows = null) {
+  if (!masterTransactionsTable) {
+    console.log('[Totals] updateTransactionTotals: masterTransactionsTable is null');
+    return;
+  }
+  
+  const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  
+  // Get currently visible (filtered) data from provided rows or table
+  const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterTransactionsTable.getData('active');
+  console.log('[Totals] updateTransactionTotals: visibleData count =', visibleData.length);
+  console.log('[Totals] updateTransactionTotals: visibleData sample =', visibleData.slice(0, 3).map(d => ({ 
+    id: d.id, 
+    amount: d.amount, 
+    type: d.transactionTypeName,
+    perspectiveAccountId: d.perspectiveAccountId 
+  })));
+  
+  // Compute totals from visible data
+  const txTotals = computeMoneyTotals(visibleData, {
+    amountField: 'amount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId'
+  });
+  console.log('[Totals] updateTransactionTotals: computed =', txTotals);
+  
+  // Update toolbar totals
+  const toolbarTotals = document.querySelector('#transactionsContent .toolbar-totals');
+  console.log('[Totals] updateTransactionTotals: toolbarTotals element found =', !!toolbarTotals);
+  if (toolbarTotals) {
+    toolbarTotals.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(txTotals.moneyIn)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(txTotals.moneyOut)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${txTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(txTotals.net)}</span></span>
+    `;
+  }
+}
+
+// Update budget totals in toolbar based on current filtered data
+function updateBudgetTotals(filteredRows = null) {
+  if (!masterBudgetTable) {
+    console.log('[Totals] updateBudgetTotals: masterBudgetTable is null');
+    return;
+  }
+  
+  const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  
+  // Get currently visible (filtered) data from provided rows or table
+  const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterBudgetTable.getData('active');
+  console.log('[Totals] updateBudgetTotals: visibleData count =', visibleData.length);
+  
+  // Compute totals from visible data
+  const budgetTotals = computeMoneyTotals(visibleData, {
+    amountField: 'amount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId'
+  });
+  console.log('[Totals] updateBudgetTotals: computed =', budgetTotals);
+  
+  // Update toolbar totals
+  const toolbarTotals = document.querySelector('#budgetContent .toolbar-totals');
+  console.log('[Totals] updateBudgetTotals: toolbarTotals element found =', !!toolbarTotals);
+  if (toolbarTotals) {
+    toolbarTotals.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(budgetTotals.moneyIn)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(budgetTotals.moneyOut)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${budgetTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(budgetTotals.net)}</span></span>
+    `;
+  }
+}
+
+// Shared helper: compute Money In / Money Out totals and net using signed amounts
+function computeMoneyTotals(rows, opts = {}) {
+  const amountField = opts.amountField || 'amount';
+  const typeField = opts.typeField || 'transactionType';
+  const typeNameField = opts.typeNameField || 'transactionTypeName';
+  const typeIdField = opts.typeIdField || 'transactionTypeId';
+
+  return rows.reduce((acc, row) => {
+    const amount = Number(row?.[amountField] || 0);
+    const typeObj = row?.[typeField];
+    const name = typeObj?.name || row?.[typeNameField] || '';
+    const id = typeObj?.id ?? row?.[typeIdField];
+    
+    // Determine if it's Money In or Money Out based on transaction type
+    const isMoneyIn = name === 'Money In' || id === 1;
+    const isMoneyOut = name === 'Money Out' || id === 2;
+    
+    const absAmount = Math.abs(amount);
+
+    if (isMoneyIn) {
+      acc.moneyIn += absAmount;
+      acc.net += absAmount; // Money In adds to net
+    } else if (isMoneyOut) {
+      acc.moneyOut += absAmount;
+      acc.net -= absAmount; // Money Out subtracts from net
+    }
+    
+    return acc;
+  }, { moneyIn: 0, moneyOut: 0, net: 0 });
+}
 
 // Build the main UI container with independent accordions
 function buildGridContainer() {
@@ -101,6 +289,34 @@ function buildGridContainer() {
   window.add(transactionsContent, transactionsTable);
 
   window.add(middleRow, transactionsSection);
+  
+  // Budget section (between Transactions and Projections)
+  const budgetRow = document.createElement('div');
+  budgetRow.classList.add('mb-lg');
+  window.add(forecastEl, budgetRow);
+
+  const budgetSection = document.createElement('div');
+  budgetSection.id = 'budgetSection';
+  budgetSection.className = 'bg-main bordered rounded shadow-lg';
+
+  const budgetHeader = document.createElement('div');
+  budgetHeader.id = 'budgetAccordionHeader';
+  budgetHeader.className = 'pointer flex-between accordion-header section-padding';
+  budgetHeader.innerHTML = `<h2 class="text-main section-title">Budget</h2><span class="accordion-arrow">&#9662;</span>`;
+  budgetHeader.addEventListener('click', () => window.toggleAccordion('budgetContent'));
+  window.add(budgetSection, budgetHeader);
+
+  const budgetContent = document.createElement('div');
+  budgetContent.id = 'budgetContent';
+  budgetContent.className = 'accordion-content open section-content';
+  window.add(budgetSection, budgetContent);
+
+  const budgetTable = document.createElement('div');
+  budgetTable.id = 'budgetTable';
+  window.add(budgetContent, budgetTable);
+
+  window.add(budgetRow, budgetSection);
+
   // Bottom row: Projections (full width)
   const projectionsSection = document.createElement('div');
   projectionsSection.id = 'projectionsSection';
@@ -124,19 +340,28 @@ function buildGridContainer() {
     scenarioSelector,
     accountsTable,
     transactionsTable,
+    budgetTable,
     projectionsContent
   };
 }
-
-// Build scenario grid for creation and selection
 async function buildScenarioGrid(container) {
   container.innerHTML = '';
 
-  const fs = window.require('fs').promises;
+  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
   const lookupPath = getSchemaPath('lookup-data.json');
 
   try {
-    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    let lookupFile;
+    
+    if (isElectron) {
+      const fs = window.require('fs').promises;
+      lookupFile = await fs.readFile(lookupPath, 'utf8');
+    } else {
+      // Web: use fetch
+      const response = await fetch(lookupPath);
+      lookupFile = await response.text();
+    }
+    
     const lookupData = JSON.parse(lookupFile);
 
     // Add "Add Scenario" button
@@ -173,6 +398,31 @@ async function buildScenarioGrid(container) {
       data: scenarios,
       selectable: 1, // Only allow single row selection
       columns: [
+        {
+          width: 50,
+          hozAlign: "center",
+          cssClass: "duplicate-cell",
+          headerTooltip: "Duplicate Scenario",
+          formatter: function(cell){
+            try {
+              const rowEl = cell.getRow().getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
+            } catch(e){}
+            return '<svg height="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+          },
+          cellClick: async function(e, cell) {
+            try {
+              const row = cell.getRow();
+              const rowEl = row.getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return;
+              const rowData = row.getData();
+              await ScenarioManager.duplicate(rowData.id);
+              await buildScenarioGrid(container);
+            } catch (err) {
+              console.error('Duplicate scenario cellClick failed', err);
+            }
+          }
+        },
         {
           width: 50,
           hozAlign: "center",
@@ -347,17 +597,20 @@ async function buildScenarioGrid(container) {
     });
 
     // Set initial scenario if not set and load its data
+    console.log('[ScenarioGrid] Checking initial scenario - currentScenario:', currentScenario, 'scenarios.length:', scenarios.length);
     if (!currentScenario && scenarios.length > 0) {
+      console.log('[ScenarioGrid] Loading initial scenario:', scenarios[0].id);
       currentScenario = await getScenario(scenarios[0].id);
+      console.log('[ScenarioGrid] Got scenario, now loading data...');
       await loadScenarioData();
-      
-      // Select the first row
-      setTimeout(() => {
-        const rows = scenariosTable.getRows();
-        if (rows && rows.length > 0) {
-          rows[0].select();
-        }
-      }, 100);
+      console.log('[ScenarioGrid] Data loaded, selecting row...');
+      // Select the first row visually without triggering the handler
+      // (data is already loaded above, so we don't want duplicate load)
+      const firstRow = scenariosTable.getRows()[0];
+      if (firstRow) {
+        firstRow.select();
+        console.log('[ScenarioGrid] First row selected');
+      }
     }
   } catch (err) {
     console.error('[Forecast] Failed to load scenario grid:', err);
@@ -366,11 +619,22 @@ async function buildScenarioGrid(container) {
 
 // Load scenario type configuration
 async function loadScenarioTypes() {
-  const fs = window.require('fs').promises;
   const lookupPath = getSchemaPath('lookup-data.json');
 
   try {
-    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    // Platform detection - use fetch in web, fs in Electron
+    const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+    let lookupFile;
+    
+    if (isElectron) {
+      const fs = window.require('fs').promises;
+      lookupFile = await fs.readFile(lookupPath, 'utf8');
+    } else {
+      // Web: use fetch to load JSON
+      const response = await fetch(lookupPath);
+      lookupFile = await response.text();
+    }
+    
     const data = JSON.parse(lookupFile);
     scenarioTypes = data.scenarioTypes;
   } catch (err) {
@@ -387,8 +651,7 @@ function getScenarioTypeConfig() {
 }
 
 /**
- * Transform planned transactions from backend format (debitAccount/creditAccount)
- * to UI format (transactionType/secondaryAccount) filtered by selected account
+ * Transform planned transactions to UI format (transactionType/secondaryAccount) filtered by selected account
  */
 function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
@@ -398,19 +661,22 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
   const result = plannedTxs.map((tx, index) => {
     if (!selIdNum) {
       // Default view when no account is selected: show all transactions
+      const secondaryAccount = tx.secondaryAccountId 
+        ? currentScenario.accounts?.find(a => a.id === tx.secondaryAccountId) || { id: tx.secondaryAccountId }
+        : null;
       return {
         ...tx,
         transactionType: { id: 1, name: 'Money Out' },
-        secondaryAccount: tx.creditAccount
+        secondaryAccount
       };
     }
 
     const mapped = mapTxToUI(tx, selIdNum);
     if (!mapped) return null;
 
-
     return {
       ...tx,
+      amount: mapped.amount, // Use potentially flipped amount
       transactionType: mapped.transactionType,
       secondaryAccount: mapped.secondaryAccount
     };
@@ -419,80 +685,7 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
   return result;
 }
 
-/**
- * Transform planned transaction from UI format (transactionType/secondaryAccount)
- * back to backend format (debitAccount/creditAccount) relative to selected account
- */
-async function transformPlannedTxForBackend(tx, selectedAccountId) {
-  // Skip transactions with missing required fields (allow zero amount)
-  if (!tx.transactionType || !tx.secondaryAccount || tx.amount == null) {
-    console.warn('[Forecast] Skipping transaction with missing required fields');
-    return null;
-  }
-  
-  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Money Out';
-  
-  // Get selected account details
-  const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-  const selectedAccountObj = selectedAccount 
-    ? { id: selectedAccount.id }
-    : { id: selectedAccountId };
-  
-  // Resolve secondary account - accept object, id=null placeholder, or string name
-  let secondaryAccountObj = tx.secondaryAccount;
-  
-  if (typeof secondaryAccountObj === 'string') {
-    // lookup or create if string provided
-    const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj);
-    if (foundAccount) {
-      secondaryAccountObj = { id: foundAccount.id };
-    } else {
-      const newAccount = await AccountManager.create(currentScenario.id, {
-        name: secondaryAccountObj,
-        type: { id: 1, name: 'Asset' },
-        currency: { id: 1, name: 'ZAR' },
-        balance: 0,
-        openDate: formatDateOnly(new Date()),
-        periodicChange: null
-      });
-      currentScenario = await getScenario(currentScenario.id);
-      secondaryAccountObj = { id: newAccount.id };
-    }
-  } else if (secondaryAccountObj && secondaryAccountObj.id === null && secondaryAccountObj.name) {
-    const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj.name);
-    if (foundAccount) {
-      secondaryAccountObj = { id: foundAccount.id };
-    } else {
-      // Account doesn't exist - create it
-      const newAccount = await createAccount(currentScenario.id, {
-        name: secondaryAccountObj.name,
-        type: { id: 1, name: 'Asset' }, // Default to Asset type
-        currency: { id: 1, name: 'ZAR' }, // Default currency
-        balance: 0,
-        openDate: formatDateOnly(new Date()),
-        periodicChange: null
-      });
-      
-      // Reload scenario to get the updated accounts list
-      currentScenario = await getScenario(currentScenario.id);
-      
-      secondaryAccountObj = { id: newAccount.id };
-    }
-  }
-  
-  const result = {
-    ...tx,
-    debitAccount: isDebit ? selectedAccountObj : secondaryAccountObj,
-    creditAccount: isDebit ? secondaryAccountObj : selectedAccountObj,
-    // Remove UI-only fields
-    transactionType: undefined,
-    secondaryAccount: undefined,
-    fromAccount: undefined,
-    toAccount: undefined
-  };
-  
-  return result;
-}
+
 
 /**
  * Transform actual transactions for UI (same as planned transactions)
@@ -501,11 +694,16 @@ function transformActualTxForUI(actualTxs, selectedAccountId) {
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
 
   // When no account selected, show all actual transactions (default view)
-  if (!selIdNum) return actualTxs.map(tx => ({
-    ...tx,
-    transactionType: { id: 1, name: 'Debit' },
-    secondaryAccount: tx.creditAccount
-  }));
+  if (!selIdNum) return actualTxs.map(tx => {
+    const secondaryAccount = tx.secondaryAccountId 
+      ? currentScenario.accounts?.find(a => a.id === tx.secondaryAccountId) || { id: tx.secondaryAccountId }
+      : null;
+    return {
+      ...tx,
+      transactionType: tx.transactionType || (tx.transactionTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' }),
+      secondaryAccount
+    };
+  });
 
   return actualTxs.map(tx => {
     const mapped = mapTxToUI(tx, selIdNum);
@@ -522,78 +720,50 @@ function mapTxToUI(tx, selectedAccountId) {
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
   if (!selIdNum) return null;
 
-  const isSelectedDebit = tx.debitAccount?.id === selIdNum;
-  const isSelectedCredit = tx.creditAccount?.id === selIdNum;
-  if (!isSelectedDebit && !isSelectedCredit) return null;
-
-  const secondaryAccountRef = isSelectedDebit ? tx.creditAccount : tx.debitAccount;
-  const secondaryAccount = secondaryAccountRef
-    ? currentScenario.accounts?.find(a => a.id === secondaryAccountRef.id) || secondaryAccountRef
-    : null;
-
-  const transactionType = isSelectedDebit ? { id: 1, name: 'Money Out' } : { id: 2, name: 'Money In' };
-  return { transactionType, secondaryAccount };
-}
-
-/**
- * Transform actual transaction from UI back to backend format (same as planned transactions)
- */
-async function transformActualTxForBackend(tx, selectedAccountId) {
-  const isDebit = tx.transactionType?.id === 1 || tx.transactionType?.name === 'Money Out';
+  // Check if selected account matches the stored primary or secondary account ID
+  const storedPrimaryId = tx.primaryAccountId;
+  const storedSecondaryId = tx.secondaryAccountId;
+  const storedTypeId = tx.transactionTypeId || tx.transactionType?.id;
   
-  // Get selected account details
-  const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-  const selectedAccountObj = selectedAccount 
-    ? { id: selectedAccount.id }
-    : { id: selectedAccountId };
+  const isStoredPrimary = Number(storedPrimaryId) === selIdNum;
+  const isStoredSecondary = Number(storedSecondaryId) === selIdNum;
   
-  // Resolve secondary account - if id is null, look up by name or create new account
-  let secondaryAccountObj = null;
-  
-  // If secondary account is missing, default to first available account (excluding selected)
-  if (!tx.secondaryAccount || !tx.secondaryAccount.name) {
-    const otherAccounts = currentScenario.accounts?.filter(a => a.id !== Number(selectedAccountId)) || [];
-    if (otherAccounts.length > 0) {
-      secondaryAccountObj = { id: otherAccounts[0].id };
-    } else {
-      console.warn('[Forecast] No available secondary account, skipping transaction');
-      return null;
-    }
+  // Only show transactions where the selected account is involved
+  if (!isStoredPrimary && !isStoredSecondary) return null;
+
+  if (isStoredPrimary) {
+    // Selected account IS the stored primary - show as-is
+    const primaryAccount = currentScenario.accounts?.find(a => a.id === selIdNum) || { id: selIdNum };
+    const secondaryAccount = storedSecondaryId 
+      ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
+      : null;
+    const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+    return { 
+      transactionType, 
+      secondaryAccount, 
+      primaryAccount,
+      amount: tx.amount // Keep amount as-is for primary perspective
+    };
   } else {
-    secondaryAccountObj = tx.secondaryAccount;
+    // Selected account IS the stored secondary - FLIP the perspective
+    const primaryAccount = currentScenario.accounts?.find(a => a.id === selIdNum) || { id: selIdNum };
+    const secondaryAccount = storedPrimaryId
+      ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
+      : null;
+    // Flip the transaction type: Money In becomes Money Out and vice versa
+    const transactionType = storedTypeId === 1 ? { id: 2, name: 'Money Out' } : { id: 1, name: 'Money In' };
+    // Flip the amount sign for the flipped perspective
+    const flippedAmount = -(tx.amount || 0);
+    return { 
+      transactionType, 
+      secondaryAccount, 
+      primaryAccount,
+      amount: flippedAmount // Flip the sign when viewing from secondary perspective
+    };
   }
-  
-  if (secondaryAccountObj && secondaryAccountObj.id === null && secondaryAccountObj.name) {
-    const foundAccount = currentScenario.accounts?.find(a => a.name === secondaryAccountObj.name);
-    if (foundAccount) {
-      secondaryAccountObj = { id: foundAccount.id };
-    } else {
-      // Account doesn't exist - create it
-      const newAccount = await createAccount(currentScenario.id, {
-        name: secondaryAccountObj.name,
-        type: { id: 1, name: 'Asset' }, // Default to Asset type
-        currency: { id: 1, name: 'ZAR' }, // Default currency
-        balance: 0,
-        openDate: formatDateOnly(new Date()),
-        periodicChange: null
-      });
-      
-      // Reload scenario to get the updated accounts list
-      currentScenario = await getScenario(currentScenario.id);
-      
-      secondaryAccountObj = { id: newAccount.id };
-    }
-  }
-  
-  return {
-    ...tx,
-    debitAccount: isDebit ? selectedAccountObj : secondaryAccountObj,
-    creditAccount: isDebit ? secondaryAccountObj : selectedAccountObj,
-    // Remove UI-only fields
-    transactionType: undefined,
-    secondaryAccount: undefined
-  };
 }
+
+
 
 // Load accounts grid
 async function loadAccountsGrid(container) {
@@ -614,9 +784,21 @@ async function loadAccountsGrid(container) {
   try {
     const accounts = await AccountManager.getAll(currentScenario.id);
     const displayAccounts = accounts.filter(a => a.name !== 'Select Account');
-    const fs = window.require('fs').promises;
+    
+    // Platform detection for loading lookup data
+    const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
     const lookupPath = getSchemaPath('lookup-data.json');
-    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    let lookupFile;
+    
+    if (isElectron) {
+      const fs = window.require('fs').promises;
+      lookupFile = await fs.readFile(lookupPath, 'utf8');
+    } else {
+      // Web: use fetch
+      const response = await fetch(lookupPath);
+      lookupFile = await response.text();
+    }
+    
     const lookupData = JSON.parse(lookupFile);
 
     // Add "Add Account" button
@@ -624,19 +806,54 @@ async function loadAccountsGrid(container) {
     const existingAccountAdds = container.querySelectorAll('.btn-add');
     existingAccountAdds.forEach(el => el.remove());
 
+    // Create toolbar for controls
+    const toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar';
+
+    // Add button
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'toolbar-item';
+    
     const addButton = document.createElement('button');
-    addButton.className = 'btn btn-primary btn-add';
+    addButton.className = 'btn btn-primary';
     addButton.textContent = '+ Add New';
     addButton.addEventListener('click', async () => {
-      const newAccount = await AccountManager.create(currentScenario.id, {
+      const data = await AccountManager.create(currentScenario.id, {
         name: 'New Account',
         type: null,
         currency: null,
-        balance: 0
+        startingBalance: 0
       });
-      await loadAccountsGrid(container);
+      const scenario = data.scenarios.find(s => s.id === currentScenario.id);
+      const newAccount = scenario.accounts[scenario.accounts.length - 1];
+      // Add to current scenario's accounts array
+      if (!currentScenario.accounts) currentScenario.accounts = [];
+      currentScenario.accounts.push(newAccount);
+      // Add row to table without reloading
+      if (accountsTable) {
+        const rowData = {
+          ...newAccount,
+          accountType: newAccount.type?.name || 'Unknown'
+        };
+        console.log('[Accounts] Adding new row:', rowData);
+        accountsTable.addRow(rowData, false); // false = add to bottom
+      }
     });
-    window.add(container, addButton);
+    window.add(buttonContainer, addButton);
+    window.add(toolbar, buttonContainer);
+
+    // Add grouping control
+    const accountGroupingControl = document.createElement('div');
+    accountGroupingControl.className = 'toolbar-item grouping-control';
+    accountGroupingControl.innerHTML = `
+      <label for="account-grouping-select" class="text-muted control-label">Group By:</label>
+      <select id="account-grouping-select" class="input-select control-select">
+        <option value="">None</option>
+        <option value="accountType">Type</option>
+      </select>
+    `;
+    window.add(toolbar, accountGroupingControl);
+    window.add(container, toolbar);
 
     // Create grid container
     const gridContainer = document.createElement('div');
@@ -645,10 +862,19 @@ async function loadAccountsGrid(container) {
     // Remove any previous inner accountsGrid if present (defensive)
     const existingInner = container.querySelector('#accountsGrid');
     if (existingInner) existingInner.remove();
+
+
+    // Add accountType field for grouping
+    const enrichedAccounts = displayAccounts.map(a => ({
+      ...a,
+      accountType: a.type?.name || 'Unknown'
+    }));
+
+    // Mount grid container before initializing Tabulator so layout can measure dimensions
     window.add(container, gridContainer);
 
     const accountsTable = createGrid(gridContainer, {
-      data: displayAccounts,
+      data: enrichedAccounts,
       selectable: 1, // Enable built-in single selection
       columns: [
         {
@@ -678,10 +904,12 @@ async function loadAccountsGrid(container) {
 
         createObjectColumn('Currency', 'currency', 'name', Object.assign({ width: 100, responsive: 2 }, createListEditor(lookupData.currencies))),
 
-        createMoneyColumn('Balance', 'balance', { widthGrow: 1 })
+        createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 })
       ],
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
+        console.log('[Accounts] cellEdited - account data:', account);
+        console.log('[Accounts] cellEdited - account.id:', account.id);
         // Normalize primitive ids back to objects for storage
         try {
           if (account.type && typeof account.type !== 'object') {
@@ -700,7 +928,7 @@ async function loadAccountsGrid(container) {
       },
       rowSelectionChanged: async function(data, rows) {
         // Log raw event
-        // logger.debug('[Forecast] rowSelectionChanged fired. Length:', rows.length);
+        console.log('[Accounts] rowSelectionChanged fired with rows:', rows.length);
         try {
           const table = this;
           const selected = table.getSelectedRows();
@@ -716,20 +944,70 @@ async function loadAccountsGrid(container) {
         
         if (rows.length > 0) {
           const account = rows[0].getData();
-          if (selectedAccountId !== account.id) {
-             selectedAccountId = account.id;
-             // Debounce reloads slightly to avoid re-render conflicts
-             setTimeout(async () => {
-               await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
-               // Also refresh Projections as they might depend on the account filter (future proofing)
-               await loadProjectionsSection(document.getElementById('projectionsContent'));
-             }, 40);
+          console.log('[Accounts] rowSelectionChanged - Account selected:', account.id, account.name);
+          selectedAccountId = Number(account.id);
+          lastProcessedAccountId = selectedAccountId; // Mark as processed to prevent duplicate in rowSelected
+          console.log('[Accounts] Updated selectedAccountId to:', selectedAccountId);
+          
+          // Update accordion header
+          const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
+          if (accordionHeader) {
+            accordionHeader.textContent = `Transactions - ${account.name}`;
           }
+          
+          // Apply filter to show transactions from selected account's perspective
+          if (masterTransactionsTable) {
+            masterTransactionsTable.setFilter((data) => {
+              if (!data.perspectiveAccountId) return true;
+              return Number(data.perspectiveAccountId) === selectedAccountId;
+            });
+            // Manually update totals after filter
+            updateTransactionTotals();
+          }
+          
+          // Apply filter to budget grid
+          if (masterBudgetTable) {
+            masterBudgetTable.setFilter((data) => {
+              if (!data.perspectiveAccountId) return true;
+              return Number(data.perspectiveAccountId) === selectedAccountId;
+            });
+            // Manually update totals after filter
+            updateBudgetTotals();
+          }
+          
+          // Reload projections grid
+          await loadProjectionsSection(getEl('projectionsContent'));
         } else {
           // No account selected
+          console.log('[Accounts] Clearing account selection');
           selectedAccountId = null;
-          // Clear downstream grids
-          document.getElementById('transactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
+          
+          // Update accordion header
+          const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
+          if (accordionHeader) {
+            accordionHeader.textContent = 'Transactions';
+          }
+          
+          // Show only primary perspectives (not flipped)
+          if (masterTransactionsTable) {
+            masterTransactionsTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+            // Manually update totals after filter
+            updateTransactionTotals();
+          }
+          
+          // Show only primary perspectives in budget grid (not flipped)
+          if (masterBudgetTable) {
+            masterBudgetTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+            // Manually update totals after filter
+            updateBudgetTotals();
+          }
+          
+          // Reload projections grid
+          await loadProjectionsSection(getEl('projectionsContent'));
         }
       }
     });
@@ -758,43 +1036,114 @@ async function loadAccountsGrid(container) {
       }
     });
     
-    // Auto-select first account if accounts exist
-    // Use tableBuilt event to ensure rows are rendered before selection
+    // Show empty state if no accounts exist
     accountsTable.on("tableBuilt", function() {
       const rows = accountsTable.getRows();
-      if (rows && rows.length > 0) {
-        rows[0].select();
-      } else {
+      if (!rows || rows.length === 0) {
         // If no accounts, clear the "Loading..." message from downstream grids
         const plannedContainer = document.getElementById('transactionsTable');
         if (plannedContainer) plannedContainer.innerHTML = '<div class="empty-message">No accounts found. Create an account to get started.</div>';
       }
     });
 
-    // Robust fallback: ensure selection changes trigger transaction loads
-    accountsTable.on("rowSelected", function(row) {
+    // Fallback for when rowSelectionChanged doesn't fire (Tabulator version compatibility)
+    let lastProcessedAccountId = null;
+    accountsTable.on("rowSelected", async function(row) {
       try {
         const account = row.getData();
-        if (selectedAccountId !== account.id) {
-          selectedAccountId = account.id;
-          setTimeout(async () => {
-            await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
-            await loadProjectionsSection(document.getElementById('projectionsContent'));
-          }, 40);
+        const accountIdNum = Number(account.id);
+        
+        // Only process if this is a new selection (avoid duplicate processing)
+        if (lastProcessedAccountId === accountIdNum) {
+          console.log('[Accounts] rowSelected - already processed account:', accountIdNum);
+          return;
         }
-      } catch (e) { logger.error('[AccountsGrid] fallback rowSelected handler error:', e); }
+        
+        console.log('[Accounts] rowSelected - processing account:', accountIdNum, account.name);
+        lastProcessedAccountId = accountIdNum;
+        selectedAccountId = accountIdNum;
+        
+        // Update accordion header
+        const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
+        if (accordionHeader) {
+          accordionHeader.textContent = `Transactions - ${account.name}`;
+        }
+        
+        // Apply filter to show transactions from selected account's perspective
+        if (masterTransactionsTable) {
+          console.log('[Accounts] Filtering transactions for accountId:', selectedAccountId);
+          masterTransactionsTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === selectedAccountId;
+          });
+          // Manually update totals after filter
+          updateTransactionTotals();
+        }
+        
+        // Apply filter to budget grid
+        if (masterBudgetTable) {
+          masterBudgetTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === selectedAccountId;
+          });
+          // Manually update totals after filter
+          updateBudgetTotals();
+        }
+        
+        // Reload projections grid
+        await loadProjectionsSection(getEl('projectionsContent'));
+      } catch (e) {
+        logger.error('[AccountsGrid] rowSelected handler error:', e);
+      }
     });
 
     accountsTable.on("rowDeselected", async function(row) {
       try {
         const remaining = accountsTable.getSelectedRows();
         if (!remaining || remaining.length === 0) {
+          console.log('[Accounts] All accounts deselected');
           selectedAccountId = null;
-          document.getElementById('transactionsTable').innerHTML = '<div class="empty-message">Select an account to view transactions</div>';
+          lastProcessedAccountId = null; // Reset tracking flag
+          // Show only primary perspectives (not flipped)
+          if (masterTransactionsTable) {
+            masterTransactionsTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+            // Manually update totals after filter
+            updateTransactionTotals();
+          }
+          // Show only primary perspectives in budget grid (not flipped)
+          if (masterBudgetTable) {
+            masterBudgetTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+            // Manually update totals after filter
+            updateBudgetTotals();
+          }
           await loadProjectionsSection(document.getElementById('projectionsContent'));
         }
       } catch (e) { logger.error('[AccountsGrid] fallback rowDeselected handler error:', e); }
     });
+
+    // Attach grouping control handler
+    const accountGroupingSelect = document.getElementById('account-grouping-select');
+    if (accountGroupingSelect) {
+      accountGroupingSelect.addEventListener('change', (e) => {
+        const groupField = e.target.value;
+        if (groupField) {
+          accountsTable.setGroupBy(groupField);
+          // Add groupHeader with count (no sum for accounts)
+          accountsTable.setGroupHeader((value, count, data, group) => {
+            return `${value} (${count} items)`;
+          });
+        } else {
+          accountsTable.setGroupBy(false);
+        }
+      });
+    }
+    
+    // Store globally for access from transaction grid
+    window.accountsTableInstance = accountsTable;
 
   } catch (err) {
     logger.error('[Forecast] Failed to load accounts grid:', err);
@@ -813,103 +1162,316 @@ async function loadMasterTransactionsGrid(container) {
 
   container.innerHTML = '';
 
-  // Add section header
-  const sectionHeader = document.createElement('h3');
-  sectionHeader.className = 'text-main section-header';
-
+  // Update accordion header with filter info
+  const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
   const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
-
-  if (selIdNum) {
-    const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
-    sectionHeader.textContent = `Filtered by: ${selectedAccount?.name || 'Unknown Account'}`;
-  } else {
-    sectionHeader.textContent = 'All Transactions';
+  
+  if (accordionHeader) {
+    if (selIdNum) {
+      const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
+      accordionHeader.textContent = `Transactions - ${selectedAccount?.name || 'Unknown Account'}`;
+    } else {
+      accordionHeader.textContent = 'Transactions';
+    }
   }
 
-  window.add(container, sectionHeader);
+  // Create toolbar for controls
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar';
 
   // Add "Add Transaction" button
   const existingAdds = container.querySelectorAll('.btn-add');
   existingAdds.forEach(el => el.remove());
 
   const addButtonContainer = document.createElement('div');
-  addButtonContainer.className = 'mb-sm';
+  addButtonContainer.className = 'toolbar-item';
   const addButton = document.createElement('button');
   addButton.className = 'btn btn-primary btn-add';
   addButton.textContent = '+ Add New Transaction';
   addButton.addEventListener('click', async () => {
-    // Create new planned transaction
-    const newTx = await createTransaction(currentScenario.id, {
-      status: 'planned',
-      debitAccount: null,
-      creditAccount: null,
-      amount: 0,
-      description: '',
-      effectiveDate: formatDateOnly(new Date()),
-      recurrence: null,
-      periodicChange: null,
-      tags: []
-    });
+    try {
+      // Require an account to be selected
+      if (!selectedAccountId) {
+        alert('Please select an account first before adding a transaction.');
+        return;
+      }
+      
+      // Create new planned transaction with selected account as primary
+      const newTx = await createTransaction(currentScenario.id, {
+        primaryAccountId: selectedAccountId,
+        secondaryAccountId: null, // User will fill this in
+        transactionTypeId: 2, // Default to Money Out
+        amount: 0,
+        description: '',
+        recurrence: null,
+        periodicChange: null,
+        status: 'planned',
+        tags: []
+      });
 
-    // Reload grid
-    await loadMasterTransactionsGrid(container);
+      // Refresh currentScenario to ensure grid reflects new transaction
+      currentScenario = await getScenario(currentScenario.id);
+
+      // Reload grid
+      await loadMasterTransactionsGrid(container);
+    } catch (err) {
+      console.error('[Forecast] Failed to create transaction:', err);
+      alert('Failed to create transaction. Please try again.');
+    }
   });
   window.add(addButtonContainer, addButton);
-  window.add(container, addButtonContainer);
+  window.add(toolbar, addButtonContainer);
+
+  // Add grouping control (left side)
+  const groupingControl = document.createElement('div');
+  groupingControl.className = 'toolbar-item grouping-control';
+  groupingControl.innerHTML = `
+    <label for="tx-grouping-select" class="text-muted control-label">Group By:</label>
+    <select id="tx-grouping-select" class="input-select control-select">
+      <option value="">None</option>
+      <option value="transactionTypeName">Type (Money In/Out)</option>
+      <option value="recurrenceSummary">Recurrence Period</option>
+      <option value="primaryAccountName">Account</option>
+    </select>
+  `;
+  window.add(toolbar, groupingControl);
+
+  // Add period type selector
+  const periodTypeControl = document.createElement('div');
+  periodTypeControl.className = 'toolbar-item period-type-control';
+  periodTypeControl.innerHTML = `
+    <label for="tx-period-type-select" class="text-muted control-label">View By:</label>
+    <select id="tx-period-type-select" class="input-select control-select">
+      <option value="Day">Day</option>
+      <option value="Week">Week</option>
+      <option value="Month">Month</option>
+      <option value="Quarter">Quarter</option>
+      <option value="Year">Year</option>
+    </select>
+  `;
+  window.add(toolbar, periodTypeControl);
+
+  // Add period filter
+  const periodFilter = document.createElement('div');
+  periodFilter.className = 'toolbar-item period-filter';
+  periodFilter.innerHTML = `
+    <label for="actual-period-select" class="text-muted control-label">Period:</label>
+    <select id="actual-period-select" class="input-select control-select"></select>
+    <button id="actual-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
+    <button id="actual-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
+  `;
+  window.add(toolbar, periodFilter);
+  
+  // Add toolbar to container FIRST so we can find the select element
+  window.add(container, toolbar);
+  
+  // Set the selected period type from variable
+  const periodTypeSelect = document.getElementById('tx-period-type-select');
+  if (periodTypeSelect) {
+    periodTypeSelect.value = actualPeriodType;
+  }
+  
+  // Calculate periods for current scenario with selected period type
+  periods = await getScenarioPeriods(currentScenario.id, actualPeriodType);
+  console.log('[Transactions] Calculated periods:', periods);
+  
+  // Populate period dropdown immediately
+  const periodSelect = document.getElementById('actual-period-select');
+  if (periodSelect) {
+    console.log('[Transactions] Found period select element');
+    periodSelect.innerHTML = '<option value="">-- All Periods --</option>';
+    periods.forEach((period) => {
+      const option = document.createElement('option');
+      option.value = period.id;
+      option.textContent = period.label || `${formatDateOnly(period.startDate) || ''} to ${formatDateOnly(period.endDate) || ''}`;
+      periodSelect.appendChild(option);
+      console.log('[Transactions] Added period option:', period.id, option.textContent);
+    });
+    
+    // Set current selected value
+    periodSelect.value = actualPeriod || '';
+    
+    // Attach event listeners
+    periodSelect.addEventListener('change', async (e) => {
+      actualPeriod = e.target.value;
+      await loadMasterTransactionsGrid(container);
+    });
+    
+    document.getElementById('actual-prev-period-btn')?.addEventListener('click', async () => {
+      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
+      if (currentIndex > 0) {
+        actualPeriod = periods[currentIndex - 1].id;
+        await loadMasterTransactionsGrid(container);
+      }
+    });
+    
+    document.getElementById('actual-next-period-btn')?.addEventListener('click', async () => {
+      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
+      if (currentIndex < periods.length - 1) {
+        actualPeriod = periods[currentIndex + 1].id;
+        await loadMasterTransactionsGrid(container);
+      }
+    });
+    
+    // Add period type change handler
+    document.getElementById('tx-period-type-select')?.addEventListener('change', async (e) => {
+      actualPeriodType = e.target.value; // Save selected type
+      actualPeriod = null; // Reset period selection when type changes
+      await loadMasterTransactionsGrid(container);
+    });
+  } else {
+    console.error('[Transactions] Could not find period select element!');
+  }
 
   const gridContainer = document.createElement('div');
   gridContainer.className = 'grid-container master-transactions-grid';
   window.add(container, gridContainer);
 
+  // Show primary account column only when not filtered by a single account
+  const showPrimaryColumn = !selIdNum;
+  // Show date column only when a specific period is selected
+  const showDateColumn = !!actualPeriod;
+
   try {
     // Get all transactions
     let allTransactions = await getTransactions(currentScenario.id);
 
-    // Filter by period if selected
+    // If a period is selected, expand transactions by their recurrence within that period
     if (actualPeriod) {
       const selectedPeriod = periods.find(p => p.id === actualPeriod);
       if (selectedPeriod) {
-        allTransactions = allTransactions.filter(tx => {
-          const txDate = tx.status === 'actual' && tx.actualDate ? parseDateOnly(tx.actualDate) : parseDateOnly(tx.effectiveDate);
-          return txDate >= selectedPeriod.startDate && txDate <= selectedPeriod.endDate;
-        });
+        // Use shared transaction expander utility
+        allTransactions = expandTransactions(allTransactions, selectedPeriod.startDate, selectedPeriod.endDate, currentScenario.accounts);
       }
     }
 
-    // Transform for UI
-    const transformedData = allTransactions.map(tx => {
-      // Use centralized mapping helper to determine transactionType/secondaryAccount
-      const mapped = mapTxToUI(tx, selectedAccountId);
+    // Transform for UI - create dual-perspective rows
+    const transformedData = allTransactions.flatMap(tx => {
+      const storedPrimaryId = tx.primaryAccountId;
+      const storedSecondaryId = tx.secondaryAccountId;
+      const storedTypeId = tx.transactionTypeId || tx.transactionType?.id;
       
-      return {
+      // Handle status as object or string
+      const statusName = typeof tx.status === 'object' ? tx.status.name : tx.status;
+      const actualAmount = typeof tx.status === 'object' ? tx.status.actualAmount : tx.actualAmount;
+      const actualDate = typeof tx.status === 'object' ? tx.status.actualDate : tx.actualDate;
+      
+      // Display date: only show occurrence date when a specific period is selected; blank for all-period view
+      const displayDate = actualPeriod
+        ? (statusName === 'actual' && actualDate ? actualDate : tx.effectiveDate)
+        : '';
+
+      const recurrenceSummary = getRecurrenceDescription(tx.recurrence);
+      
+      const baseData = {
         id: tx.id,
-        status: tx.status || 'planned',
-        amount: tx.status === 'actual' && tx.actualAmount !== undefined ? tx.actualAmount : tx.amount,
+        originalTransactionId: tx.id,
+        primaryAccountId: storedPrimaryId,
+        secondaryAccountId: storedSecondaryId,
+        status: statusName || 'planned',
+        amount: statusName === 'actual' && actualAmount !== undefined ? actualAmount : tx.amount,
         plannedAmount: tx.amount,
-        actualAmount: tx.actualAmount,
-        effectiveDate: tx.status === 'actual' && tx.actualDate ? tx.actualDate : tx.effectiveDate,
+        actualAmount: actualAmount,
+        effectiveDate: tx.effectiveDate,
         plannedDate: tx.effectiveDate,
-        actualDate: tx.actualDate,
+        actualDate: actualDate,
+        displayDate,
         description: tx.description,
-        debitAccount: tx.debitAccount,
-        creditAccount: tx.creditAccount,
-        transactionType: mapped ? mapped.transactionType : { id: 1, name: 'Money Out' },
-        secondaryAccount: mapped ? mapped.secondaryAccount : tx.creditAccount,
         recurrence: tx.recurrence,
+        recurrenceDescription: recurrenceSummary,
+        recurrenceSummary,
         tags: tx.tags || []
       };
-    }).filter(tx => !selectedAccountId ||
-      tx.debitAccount?.id === selectedAccountId ||
-      tx.creditAccount?.id === selectedAccountId
-    );
+      
+      const rows = [];
+      
+      // Perspective 1: From the stored primary account's view (as-is)
+      if (storedPrimaryId) {
+        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId };
+        const secondaryAccount = storedSecondaryId 
+          ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
+          : null;
+        const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+        
+        rows.push({
+          ...baseData,
+          perspectiveAccountId: storedPrimaryId, // Used for filtering
+          transactionTypeId: storedTypeId,
+          primaryAccount,
+          primaryAccountName: primaryAccount?.name || '',
+          transactionType,
+          transactionTypeName: transactionType?.name || '',
+          secondaryAccount
+        });
+      }
+      
+      // Perspective 2: From the stored secondary account's view (flipped)
+      if (storedSecondaryId) {
+        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId };
+        const secondaryAccount = storedPrimaryId
+          ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
+          : null;
+        // Flip the transaction type
+        const flippedTypeId = storedTypeId === 1 ? 2 : 1;
+        const transactionType = flippedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+        
+        // Flip the amount sign when flipping perspective
+        const flippedAmount = -(baseData.amount);
+        const flippedPlannedAmount = -(baseData.plannedAmount);
+        const flippedActualAmount = baseData.actualAmount !== undefined && baseData.actualAmount !== null 
+          ? -(baseData.actualAmount) 
+          : baseData.actualAmount;
+        
+        rows.push({
+          ...baseData,
+          id: `${tx.id}_flipped`, // Unique ID for flipped perspective
+          perspectiveAccountId: storedSecondaryId, // Used for filtering
+          transactionTypeId: flippedTypeId,
+          amount: flippedAmount,
+          plannedAmount: flippedPlannedAmount,
+          actualAmount: flippedActualAmount,
+          primaryAccount,
+          primaryAccountName: primaryAccount?.name || '',
+          transactionType,
+          transactionTypeName: transactionType?.name || '',
+          secondaryAccount
+        });
+      }
+      
+      return rows;
+    });
+    // Note: Filtering is now handled by Tabulator's setFilter() - see account selection handler
 
-    const masterTxTable = createGrid(gridContainer, {
+    // Compute filtered totals for current transactions view
+    const txTotals = computeMoneyTotals(transformedData, {
+      amountField: 'amount',
+      typeField: 'transactionType',
+      typeNameField: 'transactionTypeName',
+      typeIdField: 'transactionTypeId'
+    });
+
+    // Add inline totals to toolbar (right side)
+    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    const totalsInline = document.createElement('div');
+    totalsInline.className = 'toolbar-item toolbar-totals';
+    totalsInline.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(txTotals.moneyIn)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(txTotals.moneyOut)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${txTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(txTotals.net)}</span></span>
+    `;
+    toolbar.appendChild(totalsInline);
+
+    masterTransactionsTable = createGrid(gridContainer, {
       data: transformedData,
+      headerWordWrap: false, // Prevent header text wrapping
+      autoResize: true, // Enable auto-resize on window changes
       columns: [
         {
           width: 50,
+          minWidth: 50,
           hozAlign: "center",
           cssClass: "delete-cell",
+          resizable: false,
           formatter: function(cell){
             return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
           },
@@ -924,25 +1486,11 @@ async function loadMasterTransactionsGrid(container) {
             }
           }
         },
-        {
-          title: "Status",
-          field: "status",
-          width: 80,
-          formatter: function(cell) {
-            const status = cell.getValue();
-            return status === 'actual' ? 'Actual' : 'Planned';
-          },
-          cellClick: function(e, cell) {
-            // Open modal for actual transaction details
-            openActualTransactionModal(cell.getRow().getData(), container);
-          }
-        },
-        createDateColumn('Date', 'effectiveDate', { width: 120 }),
-        createMoneyColumn('Amount', 'amount', { width: 120 }),
-        {
-          title: "Type",
-          field: "transactionType",
-          width: 100,
+        ...(showPrimaryColumn ? [{
+          title: "Primary Account",
+          field: "primaryAccount",
+          minWidth: 150,
+          widthGrow: 1.5,
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -950,8 +1498,33 @@ async function loadMasterTransactionsGrid(container) {
           editor: "list",
           editorParams: {
             values: [
-              { label: 'Money Out', value: { id: 1, name: 'Money Out' } },
-              { label: 'Money In', value: { id: 2, name: 'Money In' } }
+              ...((currentScenario.accounts || []).map(acc => ({ label: acc.name, value: acc }))),
+              { label: 'Insert New Account...', value: { __create__: true } }
+            ],
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          sorter: function(a, b) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          }
+        }] : []),
+        {
+          title: "Type",
+          field: "transactionType",
+          minWidth: 100,
+          widthGrow: 1,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: [
+              { label: 'Money In', value: { id: 1, name: 'Money In' } },
+              { label: 'Money Out', value: { id: 2, name: 'Money Out' } }
             ],
             listItemFormatter: function(value, title) {
               return title;
@@ -966,7 +1539,8 @@ async function loadMasterTransactionsGrid(container) {
         {
           title: "Secondary Account",
           field: "secondaryAccount",
-          width: 150,
+          minWidth: 150,
+          widthGrow: 1.5,
           formatter: function(cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -987,14 +1561,16 @@ async function loadMasterTransactionsGrid(container) {
             return aVal.localeCompare(bVal);
           }
         },
+        createMoneyColumn('Amount', 'amount', { minWidth: 100, widthGrow: 1 }),
         {
           title: "Recurrence",
-          field: "recurrence",
-          width: 100,
+          field: "recurrenceSummary",
+          minWidth: 170,
+          widthGrow: 1.2,
           formatter: function(cell) {
-            const value = cell.getValue();
-            if (!value) return '';
-            return value.type || 'Recurring';
+            const summary = cell.getValue() || 'One time';
+            const icon = '<svg class="recurrence-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>';
+            return `<span class="recurrence-cell">${icon}<span class="recurrence-text">${summary}</span></span>`;
           },
           cellClick: function(e, cell) {
             const rowData = cell.getRow().getData();
@@ -1011,15 +1587,33 @@ async function loadMasterTransactionsGrid(container) {
             });
           }
         },
-        createTextColumn('Description', 'description', { widthGrow: 2 }),
+        ...(showDateColumn ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })] : []),
+        createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 })
       ],
       cellEdited: async function(cell) {
         const rowData = cell.getRow().getData();
         const field = cell.getColumn().getField();
         const newValue = cell.getValue();
+        console.log('[TransactionsGrid] cellEdited start', { field, newValue, rowId: rowData.id });
+
+        const normalizeForSave = (tx) => {
+          const typeName = tx.transactionType?.name
+            || (tx.transactionTypeId === 1 ? 'Money In' : 'Money Out');
+          const transactionTypeId = tx.transactionType?.id
+            ?? tx.transactionTypeId
+            ?? (typeName === 'Money In' ? 1 : 2);
+
+          return {
+            ...tx,
+            transactionType: { id: transactionTypeId, name: transactionTypeId === 1 ? 'Money In' : 'Money Out' },
+            transactionTypeId,
+            primaryAccountId: tx.primaryAccountId ?? null,
+            secondaryAccountId: tx.secondaryAccountId ?? null,
+          };
+        };
 
         // Handle new account creation
-        if (field === 'secondaryAccount' && newValue && newValue.__create__) {
+        if ((field === 'secondaryAccount' || field === 'primaryAccount') && newValue && newValue.__create__) {
           // Open text input modal to get account name
           openTextInputModal('Create New Account', 'Enter account name:', '', async (accountName) => {
             if (accountName && accountName.trim()) {
@@ -1034,14 +1628,48 @@ async function loadMasterTransactionsGrid(container) {
                   periodicChange: null
                 });
 
-                // Update the transaction with the new account
+                console.log('[Transactions] Created new account:', newAccount);
+
+                // Update the current row data immediately
+                const currentRow = cell.getRow();
+                const currentData = currentRow.getData();
+                
+                // Update the field being edited
+                if (field === 'primaryAccount') {
+                  currentData.primaryAccountId = newAccount.id;
+                  currentData.primaryAccount = newAccount;
+                } else {
+                  currentData.secondaryAccountId = newAccount.id;
+                  currentData.secondaryAccount = newAccount;
+                }
+                
+                // Update the row in the table
+                currentRow.update(currentData);
+                
+                console.log('[Transactions] Updated row data:', currentData);
+
+                // Save all transactions to persist the change
                 const allTxs = await getTransactions(currentScenario.id);
-                const txIndex = allTxs.findIndex(tx => tx.id === rowData.id);
+                const txIndex = allTxs.findIndex(tx => tx.id === currentData.id);
                 if (txIndex >= 0) {
-                  allTxs[txIndex].secondaryAccount = { id: newAccount.id, name: newAccount.name };
+                  // Update using the storage format
+                  if (field === 'primaryAccount') {
+                    allTxs[txIndex].primaryAccountId = newAccount.id;
+                  } else {
+                    allTxs[txIndex].secondaryAccountId = newAccount.id;
+                  }
                   await TransactionManager.saveAll(currentScenario.id, allTxs);
-                  // Reload grid to show updated accounts
-                  await loadMasterTransactionsGrid(container);
+                  console.log('[Transactions] Saved transaction with new account');
+                }
+                
+                // Add new account to accounts grid without reloading
+                if (window.accountsTableInstance) {
+                  const enrichedAccount = {
+                    ...newAccount,
+                    accountType: newAccount.type?.name || 'Unknown'
+                  };
+                  window.accountsTableInstance.addRow(enrichedAccount);
+                  console.log('[Transactions] Added account to accounts grid');
                 }
               } catch (err) {
                 console.error('Failed to create account:', err);
@@ -1059,42 +1687,108 @@ async function loadMasterTransactionsGrid(container) {
         if (txIndex >= 0) {
           const updatedTx = { ...allTxs[txIndex], [field]: newValue };
 
-          // If transaction type changed, update debit/credit accounts accordingly
-          if (field === 'transactionType' && selectedAccountId) {
-            const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-            const secondaryAccount = updatedTx.secondaryAccount;
+          // Normalize amount sign based on transaction type
+          if (field === 'amount') {
+            const txType = updatedTx.transactionType?.name || rowData.transactionType?.name;
+            const absAmount = Math.abs(newValue);
+            if (txType === 'Money Out') {
+              updatedTx.amount = -absAmount; // Money Out is always negative
+            } else if (txType === 'Money In') {
+              updatedTx.amount = absAmount; // Money In is always positive
+            }
+          }
 
+          // If transaction type changed, normalize amount sign
+          if (field === 'transactionType') {
+            const currentAmount = updatedTx.amount || allTxs[txIndex].amount || 0;
+            const absAmount = Math.abs(currentAmount);
             if (newValue?.name === 'Money Out') {
-              // Money Out: selected account is debit, secondary is credit
-              updatedTx.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
-              updatedTx.creditAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
+              updatedTx.amount = -absAmount;
             } else if (newValue?.name === 'Money In') {
-              // Money In: selected account is credit, secondary is debit
-              updatedTx.debitAccount = secondaryAccount ? { id: secondaryAccount.id } : null;
-              updatedTx.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
+              updatedTx.amount = absAmount;
             }
           }
 
-          // If secondary account changed, update debit/credit accounts accordingly
-          if (field === 'secondaryAccount' && selectedAccountId) {
-            const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-            const transactionType = updatedTx.transactionType;
-
-            if (transactionType?.name === 'Money Out') {
-              // Money Out: selected account is debit, secondary is credit
-              updatedTx.debitAccount = selectedAccount ? { id: selectedAccount.id } : null;
-              updatedTx.creditAccount = newValue ? { id: newValue.id } : null;
-            } else if (transactionType?.name === 'Money In') {
-              // Money In: selected account is credit, secondary is debit
-              updatedTx.debitAccount = newValue ? { id: newValue.id } : null;
-              updatedTx.creditAccount = selectedAccount ? { id: selectedAccount.id } : null;
-            }
+          // If transaction type changed, update transactionTypeId
+          if (field === 'transactionType') {
+            updatedTx.transactionTypeId = newValue?.id || (newValue?.name === 'Money In' ? 1 : 2);
+            // Keep primaryAccountId and secondaryAccountId as-is
+            // The type change just affects how amounts are interpreted
           }
 
-          allTxs[txIndex] = updatedTx;
+          // If secondary account changed, update secondaryAccountId
+          if (field === 'secondaryAccount') {
+            updatedTx.secondaryAccountId = newValue?.id || null;
+          }
+
+          // If primary account changed (only shown in unfiltered mode), update primaryAccountId
+          if (field === 'primaryAccount' && !selectedAccountId) {
+            updatedTx.primaryAccountId = newValue?.id || null;
+          }
+
+          allTxs[txIndex] = normalizeForSave(updatedTx);
+          console.log('[TransactionsGrid] saveAll ->', { txId: updatedTx.id, field, updatedTx: allTxs[txIndex] });
           await TransactionManager.saveAll(currentScenario.id, allTxs);
+          console.log('[TransactionsGrid] saveAll complete', { txId: updatedTx.id });
         }
       }
+    });
+
+    // Attach grouping control handler
+    const groupingSelect = document.getElementById('tx-grouping-select');
+    if (groupingSelect) {
+      const formatGroupLabel = (val) => {
+        if (val === null || val === undefined || val === '') return 'Unspecified';
+        if (typeof val === 'object') return val.name || val.label || val.description || 'Unspecified';
+        return String(val);
+      };
+
+      groupingSelect.addEventListener('change', (e) => {
+        const groupField = e.target.value;
+        if (groupField) {
+          masterTransactionsTable.setGroupBy(groupField);
+          // Add groupHeader with sum for grouped field
+          masterTransactionsTable.setGroupHeader((value, count, data, group) => {
+            const totalAmount = data.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+            const label = formatGroupLabel(value);
+            const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalAmount);
+            return `${label} (${count} items, Total: ${formatted})`;
+          });
+        } else {
+          masterTransactionsTable.setGroupBy(false);
+        }
+      });
+    }
+    
+    // Apply initial filter after table creation
+    setTimeout(() => {
+      console.log('[Transactions] Applying initial filter for account:', selIdNum);
+      if (selIdNum) {
+        // If account is selected, show only that account's perspective
+        masterTransactionsTable.setFilter((data) => {
+          if (!data.perspectiveAccountId) return true;
+          return Number(data.perspectiveAccountId) === selIdNum;
+        });
+      } else {
+        // If no account selected, show only primary perspectives (not flipped ones)
+        masterTransactionsTable.setFilter((data) => {
+          // Show rows that are NOT flipped perspectives (no "_flipped" in ID)
+          return !String(data.id).includes('_flipped');
+        });
+      }
+      // Totals will be updated via dataFiltered event
+    }, 0);
+    
+    // Update totals when filter changes
+    masterTransactionsTable.on('dataFiltered', function(filters, rows) {
+      console.log('[Transactions] dataFiltered - rows:', rows.length);
+      updateTransactionTotals(rows);
+    });
+    
+    // Update totals after table is built (initial load)
+    masterTransactionsTable.on('tableBuilt', function() {
+      console.log('[Transactions] tableBuilt - updating initial totals');
+      updateTransactionTotals();
     });
 
   } catch (err) {
@@ -1168,6 +1862,692 @@ function openActualTransactionModal(transaction, container) {
 }
 
 
+// Load budget grid
+async function loadBudgetGrid(container) {
+  if (!currentScenario) return;
+
+  const loadToken = ++budgetGridLoadToken;
+  const selectedAccountIdSnapshot = selectedAccountId;
+  const budgetPeriodSnapshot = budgetPeriod;
+  const selIdNum = selectedAccountIdSnapshot != null ? Number(selectedAccountIdSnapshot) : null;
+
+  console.log('[Budget] loadBudgetGrid start', { loadToken, selectedAccountId: selectedAccountIdSnapshot, budgetPeriod: budgetPeriodSnapshot });
+
+  container.innerHTML = '';
+
+  try {
+    // Get budget occurrences
+    let budgetOccurrences = await getBudget(currentScenario.id);
+
+    // Abort if a newer load kicked off while we were waiting
+    if (loadToken !== budgetGridLoadToken) {
+      console.log('[Budget] loadBudgetGrid stale run skipped', { loadToken, latest: budgetGridLoadToken });
+      return;
+    }
+
+    // Update accordion header with filter info
+    const accordionHeader = document.getElementById('budgetAccordionHeader')?.querySelector('h2');
+    if (accordionHeader) {
+      if (selIdNum) {
+        const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
+        accordionHeader.textContent = `Budget - ${selectedAccount?.name || 'Unknown Account'}`;
+      } else {
+        accordionHeader.textContent = 'Budget';
+      }
+    }
+
+    // Create toolbar for controls
+    const toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar';
+
+    // Add budget action buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'toolbar-item';
+    
+    // Add New Budget Entry button
+    const addButton = document.createElement('button');
+    addButton.className = 'btn btn-primary';
+    addButton.textContent = '+ Add New Entry';
+    addButton.addEventListener('click', async () => {
+      try {
+        // Get current budgets and add a new occurrence
+        const currentBudgets = await getBudget(currentScenario.id);
+        
+        // Determine default date based on selected period or use today
+        let defaultDate = formatDateOnly(new Date());
+        if (budgetPeriodSnapshot) {
+          const selectedPeriod = periods.find(p => p.id === budgetPeriodSnapshot);
+          if (selectedPeriod && selectedPeriod.startDate) {
+            defaultDate = formatDateOnly(new Date(selectedPeriod.startDate));
+          }
+        }
+        
+        // Create new budget occurrence with default values
+        const newBudget = {
+          id: null, // Will be assigned by saveAll
+          sourceTransactionId: null,
+          primaryAccountId: selIdNum || null, // Use selected account as primary
+          secondaryAccountId: null,
+          transactionTypeId: 2, // Default to Money Out
+          amount: 0,
+          description: '',
+          occurrenceDate: defaultDate, // Use period-aware default date
+          recurrenceDescription: 'One time',
+          status: {
+            name: 'planned',
+            actualAmount: null,
+            actualDate: null
+          }
+        };
+        
+        currentBudgets.push(newBudget);
+        await BudgetManager.saveAll(currentScenario.id, currentBudgets);
+        
+        // Refresh scenario and reload budget grid
+        currentScenario = await getScenario(currentScenario.id);
+        await loadBudgetGrid(container);
+      } catch (err) {
+        console.error('[Forecast] Failed to create budget entry:', err);
+        alert('Failed to create budget entry. Please try again.');
+      }
+    });
+    window.add(buttonContainer, addButton);
+    
+    // Add Clear Budget button
+    const clearButton = document.createElement('button');
+    clearButton.className = 'btn';
+    clearButton.textContent = 'Clear Budget';
+    clearButton.addEventListener('click', async () => {
+      const confirmed = confirm('Clear all budget occurrences? This cannot be undone.');
+      if (!confirmed) return;
+      
+      try {
+        await BudgetManager.clearAll(currentScenario.id);
+        currentScenario = await getScenario(currentScenario.id);
+        await loadBudgetGrid(container);
+      } catch (err) {
+        console.error('[Forecast] Failed to clear budget:', err);
+        alert('Failed to clear budget: ' + err.message);
+      }
+    });
+    window.add(buttonContainer, clearButton);
+    
+    window.add(toolbar, buttonContainer);
+
+    // Add period type selector
+    const periodTypeControl = document.createElement('div');
+    periodTypeControl.className = 'toolbar-item period-type-control';
+    periodTypeControl.innerHTML = `
+      <label for="budget-period-type-select" class="text-muted control-label">View By:</label>
+      <select id="budget-period-type-select" class="input-select control-select">
+        <option value="Day">Day</option>
+        <option value="Week">Week</option>
+        <option value="Month">Month</option>
+        <option value="Quarter">Quarter</option>
+        <option value="Year">Year</option>
+      </select>
+    `;
+    window.add(toolbar, periodTypeControl);
+
+    // Add period filter controls (similar to transactions)
+    const periodFilter = document.createElement('div');
+    periodFilter.className = 'toolbar-item period-filter control-layout-wrap';
+    periodFilter.innerHTML = `
+        <label for="budget-period-select" class="text-muted control-label">Period:</label>
+      <select id="budget-period-select" class="input-select control-select"></select>
+        <button id="budget-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
+        <button id="budget-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
+    `;
+    window.add(toolbar, periodFilter);
+    
+    // Add toolbar to container FIRST so we can find the select element
+    window.add(container, toolbar);
+
+    // Set the selected period type from variable
+    const periodTypeSelect = document.getElementById('budget-period-type-select');
+    if (periodTypeSelect) {
+      periodTypeSelect.value = budgetPeriodType;
+    }
+
+    // Calculate periods for current scenario with selected period type
+    periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType);
+
+    // Populate budget period dropdown
+    const budgetPeriodSelect = document.getElementById('budget-period-select');
+    if (budgetPeriodSelect) {
+      budgetPeriodSelect.innerHTML = '<option value="">-- All Periods --</option>';
+      periods.forEach((period) => {
+        const option = document.createElement('option');
+        option.value = period.id;
+        option.textContent = period.label || `${formatDateOnly(period.startDate) || ''} to ${formatDateOnly(period.endDate) || ''}`;
+        budgetPeriodSelect.appendChild(option);
+      });
+      
+      // Set current selection if any
+      budgetPeriodSelect.value = budgetPeriodSnapshot || '';
+      
+      // Attach period selector event listeners
+      budgetPeriodSelect.addEventListener('change', async (e) => {
+        budgetPeriod = e.target.value;
+        await loadBudgetGrid(container);
+      });
+      
+      document.getElementById('budget-prev-period-btn')?.addEventListener('click', async () => {
+        const currentIndex = periods.findIndex(p => p.id === budgetPeriod);
+        if (currentIndex > 0) {
+          budgetPeriod = periods[currentIndex - 1].id;
+          await loadBudgetGrid(container);
+        }
+      });
+      
+      document.getElementById('budget-next-period-btn')?.addEventListener('click', async () => {
+        const currentIndex = periods.findIndex(p => p.id === budgetPeriod);
+        if (currentIndex < periods.length - 1) {
+          budgetPeriod = periods[currentIndex + 1].id;
+          await loadBudgetGrid(container);
+        }
+      });
+      
+      // Add period type change handler
+      document.getElementById('budget-period-type-select')?.addEventListener('change', async (e) => {
+        budgetPeriodType = e.target.value; // Save selected type
+        budgetPeriod = null; // Reset period selection when type changes
+        await loadBudgetGrid(container);
+      });
+    }
+
+    // Transform budgets for UI - create dual-perspective rows (mirror transactions grid)
+    const transformedData = budgetOccurrences.flatMap(budget => {
+      const storedPrimaryId = budget.primaryAccountId;
+      const storedSecondaryId = budget.secondaryAccountId;
+      const storedTypeId = budget.transactionTypeId;
+      
+      const statusObj = typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null };
+      
+      // Get source transaction to extract recurrence for description
+      const sourceTransaction = budget.sourceTransactionId 
+        ? currentScenario.transactions?.find(tx => tx.id === budget.sourceTransactionId)
+        : null;
+      const recurrenceSummary = sourceTransaction?.recurrence 
+        ? getRecurrenceDescription(sourceTransaction.recurrence)
+        : (budget.recurrenceDescription || 'One time');
+      
+      const baseData = {
+        id: budget.id,
+        originalBudgetId: budget.id,
+        sourceTransactionId: budget.sourceTransactionId,
+        primaryAccountId: storedPrimaryId,
+        secondaryAccountId: storedSecondaryId,
+        plannedAmount: budget.amount,
+        actualAmount: statusObj.actualAmount,
+        amount: statusObj.actualAmount !== null && statusObj.actualAmount !== undefined ? statusObj.actualAmount : budget.amount,
+        description: budget.description,
+        occurrenceDate: budget.occurrenceDate,
+        recurrenceDescription: recurrenceSummary,
+        status: statusObj,
+        actualDateOverride: statusObj.actualDate
+      };
+      
+      // Filter by period if selected (before creating perspectives)
+      if (budgetPeriodSnapshot) {
+        const selectedPeriod = periods.find(p => p.id === budgetPeriodSnapshot);
+        if (selectedPeriod) {
+          const budgetDate = new Date(budget.occurrenceDate);
+          const periodStart = new Date(selectedPeriod.startDate);
+          const periodEnd = new Date(selectedPeriod.endDate);
+          // Adjust end date to be inclusive (end of day)
+          periodEnd.setHours(23, 59, 59, 999);
+          if (budgetDate < periodStart || budgetDate > periodEnd) {
+            return []; // Skip this budget entry
+          }
+        }
+      }
+      
+      const rows = [];
+      
+      // Perspective 1: From the stored primary account's view (as-is)
+      if (storedPrimaryId) {
+        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId };
+        const secondaryAccount = storedSecondaryId 
+          ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
+          : null;
+        const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+        
+        rows.push({
+          ...baseData,
+          perspectiveAccountId: storedPrimaryId, // Used for filtering
+          transactionTypeId: storedTypeId,
+          primaryAccount,
+          primaryAccountName: primaryAccount?.name || '',
+          transactionType,
+          transactionTypeName: transactionType?.name || '',
+          secondaryAccount
+        });
+      }
+      
+      // Perspective 2: From the stored secondary account's view (flipped)
+      if (storedSecondaryId) {
+        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId };
+        const secondaryAccount = storedPrimaryId
+          ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
+          : null;
+        // Flip the transaction type
+        const flippedTypeId = storedTypeId === 1 ? 2 : 1;
+        const transactionType = flippedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
+        
+        // Flip the amount sign when flipping perspective
+        const flippedAmount = -(baseData.amount);
+        const flippedPlannedAmount = -(baseData.plannedAmount);
+        const flippedActualAmount = baseData.actualAmount !== undefined && baseData.actualAmount !== null 
+          ? -(baseData.actualAmount) 
+          : baseData.actualAmount;
+        
+        rows.push({
+          ...baseData,
+          id: `${budget.id}_flipped`, // Unique ID for flipped perspective
+          perspectiveAccountId: storedSecondaryId, // Used for filtering
+          transactionTypeId: flippedTypeId,
+          amount: flippedAmount,
+          plannedAmount: flippedPlannedAmount,
+          actualAmount: flippedActualAmount,
+          primaryAccount,
+          primaryAccountName: primaryAccount?.name || '',
+          transactionType,
+          transactionTypeName: transactionType?.name || '',
+          secondaryAccount
+        });
+      }
+      
+      return rows;
+    });
+    // Note: Account filtering is now handled by Tabulator's setFilter() - see account selection handler
+
+    // Skip render if this run is no longer the latest
+    if (loadToken !== budgetGridLoadToken) {
+      console.log('[Budget] loadBudgetGrid skipped render for stale run', { loadToken, latest: budgetGridLoadToken });
+      return;
+    }
+
+    // Show/hide primary account column (only when not filtered by account)
+    const showPrimaryColumnBudget = !selIdNum;
+    
+    // Always show date column - it's essential for budget tracking and planning
+    const showBudgetDateColumn = true;
+
+    // Show empty message if no budget data to display
+    if (transformedData.length === 0) {
+      const emptyMsg = document.createElement('p');
+      emptyMsg.className = 'text-muted';
+      emptyMsg.textContent = 'No budget entries found. Click "Add New Entry" to create one.';
+      window.add(container, emptyMsg);
+      return;
+    }
+
+    // Add grouping control
+    const groupingControl = document.createElement('div');
+    groupingControl.className = 'toolbar-item grouping-control';
+    groupingControl.innerHTML = `
+      <label for="budget-grouping-select" class="text-muted control-label">Group By:</label>
+      <select id="budget-grouping-select" class="input-select control-select">
+        <option value="">None</option>
+        <option value="transactionTypeName">Type (Money In/Out)</option>
+        <option value="recurrenceDescription">Recurrence Period</option>
+        <option value="primaryAccountName">Account</option>
+      </select>
+    `;
+    window.add(toolbar, groupingControl);
+
+    // Add inline totals to toolbar (will be updated dynamically)
+    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    const totalsInline = document.createElement('div');
+    totalsInline.className = 'toolbar-item toolbar-totals';
+    totalsInline.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(0)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(0)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value">${formatCurrency(0)}</span></span>
+    `;
+    window.add(toolbar, totalsInline);
+    window.add(container, toolbar);
+
+    // Create grid container
+    const gridContainer = document.createElement('div');
+    gridContainer.className = 'grid-container budget-grid';
+    window.add(container, gridContainer);
+
+    masterBudgetTable = createGrid(gridContainer, {
+      data: transformedData,
+      columns: [
+        {
+          width: 50,
+          minWidth: 50,
+          hozAlign: "center",
+          cssClass: "delete-cell",
+          resizable: false,
+          formatter: function(cell){
+            return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
+          },
+          cellClick: async function(e, cell) {
+            if (confirm('Delete this budget occurrence?')) {
+              try {
+                await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
+                currentScenario = await getScenario(currentScenario.id);
+                await loadBudgetGrid(container);
+              } catch (err) {
+                console.error('[Forecast] Failed to delete budget occurrence:', err);
+              }
+            }
+          }
+        },
+        ...(showPrimaryColumnBudget ? [{
+          title: "Primary Account",
+          field: "primaryAccount",
+          minWidth: 150,
+          widthGrow: 1.5,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: (currentScenario.accounts || []).map(acc => ({ label: acc.name, value: acc })),
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          sorter: function(a, b) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          }
+        }] : []),
+        {
+          title: "Type",
+          field: "transactionType",
+          minWidth: 100,
+          widthGrow: 1,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: [
+              { label: 'Money Out', value: { id: 1, name: 'Money Out' } },
+              { label: 'Money In', value: { id: 2, name: 'Money In' } }
+            ],
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          sorter: function(a, b) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          }
+        },
+        {
+          title: "Secondary Account",
+          field: "secondaryAccount",
+          minWidth: 150,
+          widthGrow: 1.5,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: (currentScenario.accounts || []).map(acc => ({ label: acc.name, value: acc })),
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          },
+          sorter: function(a, b) {
+            const aVal = a?.name || '';
+            const bVal = b?.name || '';
+            return aVal.localeCompare(bVal);
+          }
+        },
+        createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
+        ...(showBudgetDateColumn ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 })] : []),
+        {
+          title: "Schedule",
+          field: "recurrenceDescription",
+          minWidth: 170,
+          widthGrow: 1.2,
+          formatter: function(cell) {
+            return cell.getValue() || 'One time';
+          }
+        },
+        createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 }),
+        {
+          title: "Status",
+          field: "status",
+          minWidth: 100,
+          widthGrow: 1,
+          formatter: function(cell) {
+            const rowData = cell.getRow().getData();
+            const status = rowData.status;
+            const statusName = typeof status === 'object' ? status?.name : status;
+            return statusName === 'actual' ? 'Actual' : 'Planned';
+          },
+          cellClick: async function(e, cell) {
+            const rowData = cell.getRow().getData();
+            openStatusModal(rowData, async (updates) => {
+              // Update budget occurrence with actual amount and date
+              const allBudgets = await getBudget(currentScenario.id);
+              const budgetIndex = allBudgets.findIndex(b => b.id === rowData.id);
+              if (budgetIndex >= 0) {
+                const updatedBudget = { ...allBudgets[budgetIndex] };
+                
+                // Normalize budget for save
+                const normalizeBudgetForSave = (budget) => {
+                  const typeName = budget.transactionType?.name || 'Money Out';
+                  const typeId = budget.transactionType?.id ?? (typeName === 'Money In' ? 1 : 2);
+
+                  return {
+                    ...budget,
+                    transactionTypeId: typeId,
+                    primaryAccountId: budget.primaryAccountId ?? null,
+                    secondaryAccountId: budget.secondaryAccountId ?? null,
+                    status: typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null }
+                  };
+                };
+                
+                updatedBudget.status = {
+                  name: updates.actualAmount !== null && updates.actualAmount !== undefined ? 'actual' : 'planned',
+                  actualAmount: updates.actualAmount || null,
+                  actualDate: updates.actualDate || null
+                };
+                
+                allBudgets[budgetIndex] = normalizeBudgetForSave(updatedBudget);
+                await BudgetManager.saveAll(currentScenario.id, allBudgets);
+                currentScenario = await getScenario(currentScenario.id);
+                await loadBudgetGrid(container);
+              }
+            });
+          }
+        }
+      ],
+      cellEdited: async function(cell) {
+        const rowData = cell.getRow().getData();
+        const field = cell.getColumn().getField();
+        const newValue = cell.getValue();
+
+        // Update budget occurrence
+        const allBudgets = await getBudget(currentScenario.id);
+        const budgetIndex = allBudgets.findIndex(b => b.id === rowData.id);
+
+        if (budgetIndex >= 0) {
+          const updatedBudget = { ...allBudgets[budgetIndex] };
+
+          // Normalize budget for save (convert UI format to storage format)
+          const normalizeBudgetForSave = (budget) => {
+            const typeName = budget.transactionType?.name || 'Money Out';
+            const typeId = budget.transactionType?.id ?? (typeName === 'Money In' ? 1 : 2);
+
+            return {
+              ...budget,
+              transactionTypeId: typeId,
+              primaryAccountId: budget.primaryAccountId ?? null,
+              secondaryAccountId: budget.secondaryAccountId ?? null,
+              status: typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null }
+            };
+          };
+
+          // Handle field update
+          if (field === 'transactionType') {
+            updatedBudget.transactionType = newValue;
+          } else if (field === 'secondaryAccount') {
+            updatedBudget.secondaryAccount = newValue;
+            updatedBudget.secondaryAccountId = newValue?.id || null;
+          } else if (field === 'plannedAmount') {
+            // Map UI field 'plannedAmount' back to storage field 'amount'
+            updatedBudget.amount = newValue;
+          } else if (field === 'actualAmount') {
+            // Update actual amount in status object
+            if (!updatedBudget.status || typeof updatedBudget.status !== 'object') {
+              updatedBudget.status = { name: 'planned', actualAmount: null, actualDate: null };
+            }
+            if (newValue !== null && newValue !== undefined && newValue !== '') {
+              updatedBudget.status.actualAmount = newValue;
+              if (!updatedBudget.status.actualDate) {
+                updatedBudget.status.actualDate = formatDateOnly(new Date());
+              }
+              updatedBudget.status.name = 'actual';
+            }
+          } else {
+            // Update other fields normally
+            updatedBudget[field] = newValue;
+          }
+
+          // Normalize and save
+          allBudgets[budgetIndex] = normalizeBudgetForSave(updatedBudget);
+          await BudgetManager.saveAll(currentScenario.id, allBudgets);
+        }
+      }
+    });
+
+    // Attach grouping control handler
+    const budgetGroupingSelect = document.getElementById('budget-grouping-select');
+    if (budgetGroupingSelect) {
+      const formatGroupLabel = (val) => {
+        if (val === null || val === undefined || val === '') return 'Unspecified';
+        if (typeof val === 'object') return val.name || val.label || val.description || 'Unspecified';
+        return String(val);
+      };
+
+      budgetGroupingSelect.addEventListener('change', (e) => {
+        const groupField = e.target.value;
+        if (groupField) {
+          masterBudgetTable.setGroupBy(groupField);
+          // Add groupHeader with sum for grouped field
+          masterBudgetTable.setGroupHeader((value, count, data, group) => {
+            const totalAmount = data.reduce((sum, row) => sum + Number(row.plannedAmount || 0), 0);
+            const label = formatGroupLabel(value);
+            const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalAmount);
+            return `${label} (${count} items, Total: ${formatted})`;
+          });
+        } else {
+          masterBudgetTable.setGroupBy(false);
+        }
+      });
+    }
+    
+    // Apply initial filter after table creation
+    setTimeout(() => {
+      console.log('[Budget] Applying initial filter for account:', selIdNum);
+      if (selIdNum) {
+        // If account is selected, show only that account's perspective
+        masterBudgetTable.setFilter((data) => {
+          if (!data.perspectiveAccountId) return true;
+          return Number(data.perspectiveAccountId) === selIdNum;
+        });
+      } else {
+        // If no account selected, show only primary perspectives (not flipped ones)
+        masterBudgetTable.setFilter((data) => {
+          // Show rows that are NOT flipped perspectives (no "_flipped" in ID)
+          return !String(data.id).includes('_flipped');
+        });
+      }
+      // Totals will be updated via dataFiltered event
+    }, 0);
+    
+    // Update totals when filter changes
+    masterBudgetTable.on('dataFiltered', function(filters, rows) {
+      console.log('[Budget] dataFiltered - rows:', rows.length);
+      updateBudgetTotals(rows);
+    });
+    
+    // Update totals after table is built (initial load)
+    masterBudgetTable.on('tableBuilt', function() {
+      console.log('[Budget] tableBuilt - updating initial totals');
+      updateBudgetTotals();
+    });
+
+  } catch (err) {
+    console.error('[Forecast] Failed to load budget grid:', err);
+  }
+}
+
+// Open status modal for editing actual amount and date
+function openStatusModal(rowData, onConfirm) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+
+  const content = document.createElement('div');
+  content.className = 'modal-content';
+  content.innerHTML = `
+    <h3>Edit Status</h3>
+    <form>
+      <div class="form-group">
+        <label for="actualAmount">Actual Amount:</label>
+        <input type="number" id="actualAmount" step="0.01" value="${rowData.status?.actualAmount || ''}" placeholder="Enter actual amount">
+      </div>
+      <div class="form-group">
+        <label for="actualDate">Actual Date:</label>
+        <input type="date" id="actualDate" value="${rowData.status?.actualDate ? formatDateOnly(new Date(rowData.status.actualDate)) : ''}">
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-confirm">Confirm</button>
+        <button type="button" class="btn btn-cancel">Cancel</button>
+      </div>
+    </form>
+  `;
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  const confirmBtn = content.querySelector('.btn-confirm');
+  const cancelBtn = content.querySelector('.btn-cancel');
+  const actualAmountInput = content.querySelector('#actualAmount');
+  const actualDateInput = content.querySelector('#actualDate');
+
+  confirmBtn.addEventListener('click', () => {
+    const actualAmount = actualAmountInput.value ? parseFloat(actualAmountInput.value) : null;
+    const actualDate = actualDateInput.value || null;
+
+    onConfirm({
+      actualAmount,
+      actualDate,
+      name: actualAmount !== null ? 'actual' : 'planned'
+    });
+
+    modal.remove();
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    modal.remove();
+  });
+
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
+}
+
+
 // Load projections section (buttons and grid)
 async function loadProjectionsSection(container) {
   if (!currentScenario) return;
@@ -1186,7 +2566,10 @@ async function loadProjectionsSection(container) {
     try {
       generateButton.textContent = 'Generating...';
       generateButton.disabled = true;
-      await generateProjections(currentScenario.id, { periodicity: 'monthly' });
+      await generateProjections(currentScenario.id, { 
+        periodicity: 'monthly',
+        source: 'transactions' // Explicitly use transactions as source
+      });
       // Reload scenario to get updated projections
       currentScenario = await getScenario(currentScenario.id);
       await loadProjectionsGrid(projectionsGridContainer);
@@ -1221,6 +2604,48 @@ async function loadProjectionsSection(container) {
     }
   });
   window.add(buttonContainer, clearButton);
+  
+  // Add Save as Budget button
+  const saveBudgetButton = document.createElement('button');
+  saveBudgetButton.className = 'btn btn-primary';
+  saveBudgetButton.textContent = 'Save as Budget';
+  saveBudgetButton.style.padding = '12px 24px';
+  saveBudgetButton.style.fontSize = '1.04em';
+  saveBudgetButton.style.whiteSpace = 'nowrap';
+  saveBudgetButton.style.minWidth = 'fit-content';
+  saveBudgetButton.style.width = 'auto';
+  saveBudgetButton.style.display = 'inline-block';
+  saveBudgetButton.addEventListener('click', async () => {
+    try {
+      if (!currentScenario.projections || currentScenario.projections.length === 0) {
+        alert('No projections to save as budget. Generate projections first.');
+        return;
+      }
+      
+      const confirmed = confirm('Save current projection as Budget? This will replace any existing budget.');
+      if (!confirmed) return;
+      
+      saveBudgetButton.textContent = 'Saving...';
+      saveBudgetButton.disabled = true;
+      
+      // Create budget from current projections
+      await BudgetManager.createFromProjections(currentScenario.id, currentScenario.projections);
+      
+      // Reload scenario and budget grid
+      currentScenario = await getScenario(currentScenario.id);
+      await loadBudgetGrid(getEl('budgetTable'));
+      
+      alert('Budget saved successfully!');
+    } catch (err) {
+      console.error('[Forecast] Failed to save budget:', err);
+      alert('Failed to save budget: ' + err.message);
+    } finally {
+      saveBudgetButton.textContent = 'Save as Budget';
+      saveBudgetButton.disabled = false;
+    }
+  });
+  window.add(buttonContainer, saveBudgetButton);
+  
   window.add(container, buttonContainer);
 
   // Update accordion header with selected account
@@ -1276,6 +2701,48 @@ async function loadProjectionsGrid(container) {
       netChange: p.netChange || 0
     }));
 
+    // Create toolbar for controls
+    const toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar';
+
+    // Add grouping control
+    const projectionsGroupingControl = document.createElement('div');
+    projectionsGroupingControl.className = 'toolbar-item grouping-control';
+    projectionsGroupingControl.innerHTML = `
+      <label for="projections-grouping-select" class="text-muted control-label">Group By:</label>
+      <select id="projections-grouping-select" class="input-select control-select">
+        <option value="">None</option>
+        <option value="account">Account</option>
+      </select>
+    `;
+    window.add(toolbar, projectionsGroupingControl);
+
+    // Compute filtered totals for the current projection view
+    const projectionTotals = transformedData.reduce((acc, row) => {
+      const income = Number(row.income || 0);
+      const expenses = Number(row.expenses || 0);
+      const netChange = row.netChange !== undefined && row.netChange !== null
+        ? Number(row.netChange)
+        : (income - expenses);
+
+      acc.income += income;
+      acc.expenses += expenses;
+      acc.net += netChange;
+      return acc;
+    }, { income: 0, expenses: 0, net: 0 });
+
+    // Add inline totals to toolbar
+    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    const totalsInline = document.createElement('div');
+    totalsInline.className = 'toolbar-item toolbar-totals';
+    totalsInline.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Income:</span> <span class="value positive">${formatCurrency(projectionTotals.income)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Expenses:</span> <span class="value negative">${formatCurrency(projectionTotals.expenses)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net Change:</span> <span class="value ${projectionTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(projectionTotals.net)}</span></span>
+    `;
+    window.add(toolbar, totalsInline);
+    window.add(container, toolbar);
+
     const projectionsTable = createGrid(container, {
       data: transformedData,
       layout: "fitColumns",
@@ -1308,6 +2775,32 @@ async function loadProjectionsGrid(container) {
       ]
     });
 
+    // Attach grouping control handler
+    const projectionsGroupingSelect = document.getElementById('projections-grouping-select');
+    if (projectionsGroupingSelect) {
+      const formatGroupLabel = (val) => {
+        if (val === null || val === undefined || val === '') return 'Unspecified';
+        if (typeof val === 'object') return val.name || val.label || val.description || 'Unspecified';
+        return String(val);
+      };
+
+      projectionsGroupingSelect.addEventListener('change', (e) => {
+        const groupField = e.target.value;
+        if (groupField) {
+          projectionsTable.setGroupBy(groupField);
+          // Add groupHeader with sum of balance
+          projectionsTable.setGroupHeader((value, count, data, group) => {
+            const totalBalance = data.reduce((sum, row) => sum + Number(row.balance || 0), 0);
+            const label = formatGroupLabel(value);
+            const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalBalance);
+            return `${label} (${count} periods, Total Balance: ${formatted})`;
+          });
+        } else {
+          projectionsTable.setGroupBy(false);
+        }
+      });
+    }
+
   } catch (err) {
     console.error('[Forecast] Failed to load projections grid:', err);
   }
@@ -1318,6 +2811,7 @@ async function loadScenarioData() {
   const containers = {
     accountsTable: getEl('accountsTable'),
     transactionsTable: getEl('transactionsTable'),
+    budgetTable: getEl('budgetTable'),
     projectionsContent: getEl('projectionsContent')
   };
 
@@ -1326,86 +2820,41 @@ async function loadScenarioData() {
   // Show/hide sections based on scenario type
   const accountsSection = getEl('accountsTable').closest('.bg-main');
   const txSection = getEl('transactionsTable').closest('.bg-main');
+  const budgetSection = getEl('budgetSection');
   const projectionsSection = getEl('projectionsSection');
   
   if (typeConfig) {
     if (typeConfig.showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
     if (typeConfig.showPlannedTransactions || typeConfig.showActualTransactions) txSection.classList.remove('hidden'); else txSection.classList.add('hidden');
     if (typeConfig.showProjections) projectionsSection.classList.remove('hidden'); else projectionsSection.classList.add('hidden');
+    // Budget section is always visible (can be hidden manually by user via accordion)
+    budgetSection.classList.remove('hidden');
   }
 
   // Clear downstream grids to prevent ghost data
   containers.transactionsTable.innerHTML = '<div class="empty-message">Loading...</div>';
+  containers.budgetTable.innerHTML = '<div class="empty-message">Loading...</div>';
 
   await loadAccountsGrid(containers.accountsTable);
-  // Note: loadPlannedTransactionsGrid and loadMasterTransactionsGrid
-  // are triggered by the auto-selection in loadAccountsGrid
   
-  // Initialize period selector for transactions
-  await initializePeriodSelector();
+  // Load transactions grid initially (filtering will be applied by account selection)
+  // Period calculation happens inside each grid load function
+  await loadMasterTransactionsGrid(containers.transactionsTable);
   
+  await loadBudgetGrid(containers.budgetTable);
   await loadProjectionsSection(containers.projectionsContent);
-}
-
-// Initialize period selector dropdown and navigation
-async function initializePeriodSelector() {
-  if (!currentScenario) return;
-  
-  try {
-    // Calculate periods for current scenario
-    periods = await getScenarioPeriods(currentScenario.id);
-    
-    // Populate period dropdown
-    const periodSelect = document.getElementById('actual-period-select');
-    if (!periodSelect) return;
-    
-    periodSelect.innerHTML = '<option value="">-- All Periods --</option>';
-    periods.forEach((period, index) => {
-      const option = document.createElement('option');
-      option.value = period.id;
-      option.textContent = period.label || `${period.startDate?.toISOString?.().slice(0,10) || ''} to ${period.endDate?.toISOString?.().slice(0,10) || ''}`;
-      periodSelect.appendChild(option);
-    });
-    
-    // Set "All" as default
-    actualPeriod = '';
-    periodSelect.value = actualPeriod;
-    
-    // Attach event listeners
-    periodSelect.addEventListener('change', async (e) => {
-      actualPeriod = e.target.value;
-      await loadMasterTransactionsGrid(document.getElementById('transactionsContent'));
-    });
-    
-    document.getElementById('actual-prev-period-btn')?.addEventListener('click', async () => {
-      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
-      if (currentIndex > 0) {
-        actualPeriod = periods[currentIndex - 1].id;
-        periodSelect.value = actualPeriod;
-        await loadMasterTransactionsGrid(document.getElementById('transactionsContent'));
-      }
-    });
-    
-    document.getElementById('actual-next-period-btn')?.addEventListener('click', async () => {
-      const currentIndex = periods.findIndex(p => p.id === actualPeriod);
-      if (currentIndex < periods.length - 1) {
-        actualPeriod = periods[currentIndex + 1].id;
-        periodSelect.value = actualPeriod;
-        await loadMasterTransactionsGrid(document.getElementById('transactionsContent'));
-      }
-    });
-    
-  } catch (err) {
-    console.error('[Forecast] Failed to initialize period selector:', err);
-  }
 }
 
 // Initialize the page
 async function init() {
+  console.log('[ForecastPage] Starting initialization...');
+  
+  console.log('[ForecastPage] Loading globals...');
   loadGlobals();
   
   // Run data migration if needed
   try {
+    console.log('[ForecastPage] Checking data migration...');
     const { needsMigration, migrateAllScenarios } = await import('./data-migration.js');
     if (await needsMigration()) {
       console.log('[App] Running data migration...');
@@ -1414,17 +2863,25 @@ async function init() {
     }
   } catch (error) {
     console.error('[App] Data migration failed:', error);
+    console.error('[App] Error message:', error?.message);
+    console.error('[App] Error stack:', error?.stack);
   }
   
+  console.log('[ForecastPage] Building grid container...');
   const containers = buildGridContainer();
   
+  console.log('[ForecastPage] Loading scenario types...');
   await loadScenarioTypes();
+  
+  console.log('[ForecastPage] Building scenario grid...');
   await buildScenarioGrid(containers.scenarioSelector);
   
   // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
   
-  // Initialize keyboard shortcuts
+  console.log('[ForecastPage] Initializing keyboard shortcuts...');
   initializeKeyboardShortcuts();
+  
+  console.log('[ForecastPage] Initialization complete!');
 }
 
 /**
@@ -1457,4 +2914,8 @@ function initializeKeyboardShortcuts() {
   document.body.appendChild(shortcutsBtn);
 }
 
-init();
+init().catch(err => {
+  console.error('[ForecastPage] Initialization failed:', err);
+  logger.error('Page initialization failed', err);
+});
+

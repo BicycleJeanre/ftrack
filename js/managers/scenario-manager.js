@@ -50,6 +50,7 @@ export async function create(scenarioData) {
             accounts: [],
             transactions: [],
             projections: [],
+            budgets: [],
             ...scenarioData
         };
         

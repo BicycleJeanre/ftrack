@@ -135,14 +135,39 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       
     case 'Weekly':
       const weekInterval = recurrence.interval || 1;
-      const dayOfWeek = recurrence.dayOfWeek?.id || 1; // Monday default
+      const dayOfWeekId = recurrence.dayOfWeek?.id;
       
-      // Find first occurrence on or after effective start
-      let weekDate = new Date(effectiveStart);
-      const currentDayOfWeek = weekDate.getDay();
-      const daysUntilTarget = (dayOfWeek - currentDayOfWeek + 7) % 7;
-      weekDate.setDate(weekDate.getDate() + daysUntilTarget);
+      // If no day of week specified, use the day of week from startDate
+      let targetDayOfWeek;
+      if (dayOfWeekId !== undefined && dayOfWeekId !== null) {
+        // dayOfWeek.id mapping: 0=Sunday, 1=Monday, 2=Tuesday, ..., 6=Saturday
+        // This matches JavaScript's getDay() directly
+        targetDayOfWeek = dayOfWeekId;
+      } else {
+        // Use the day of week from the recurrence start date
+        targetDayOfWeek = startDate.getDay();
+      }
       
+      // Start from the recurrence anchor date and find the first occurrence of the target day
+      let weekDate = new Date(startDate);
+      
+      // Adjust weekDate to the target day of week if it's not already on that day
+      const currentDay = weekDate.getDay();
+      if (currentDay !== targetDayOfWeek) {
+        const daysToAdd = (targetDayOfWeek - currentDay + 7) % 7;
+        weekDate.setDate(weekDate.getDate() + daysToAdd);
+      }
+      
+      // If the first occurrence is before effectiveStart, advance by the interval to find the first one in range
+      if (weekDate < effectiveStart) {
+        const daysDiff = Math.floor((effectiveStart - weekDate) / (1000 * 60 * 60 * 24));
+        const weeksDiff = Math.floor(daysDiff / 7);
+        // Calculate how many intervals to skip to get into the range
+        const intervalsToSkip = Math.ceil(weeksDiff / weekInterval);
+        weekDate.setDate(weekDate.getDate() + (intervalsToSkip * 7 * weekInterval));
+      }
+      
+      // Generate all occurrences within the effective range
       while (weekDate <= effectiveEnd) {
         if (weekDate >= effectiveStart) {
           dates.push(new Date(weekDate));

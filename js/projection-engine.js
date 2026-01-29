@@ -6,15 +6,20 @@ import { generateRecurrenceDates } from './calculation-utils.js';
 import { applyPeriodicChange } from './financial-utils.js';
 import { getScenario, saveProjections } from './data-manager.js';
 import { parseDateOnly, formatDateOnly } from './date-utils.js';
+import { expandTransactions } from './transaction-expander.js';
 
 /**
  * Generate projections for a scenario
  * @param {number} scenarioId - The scenario ID to generate projections for
  * @param {Object} options - Generation options
+ * @param {string} options.source - 'transactions' (default) or 'budget'
+ * @param {string} options.periodicity - 'daily', 'weekly', 'monthly' (default), 'quarterly', 'yearly'
  * @returns {Promise<Array>} - Array of projection records
  */
 export async function generateProjections(scenarioId, options = {}) {
   console.log('[ProjectionEngine] Generating projections for scenario:', scenarioId);
+  
+  const source = options.source || 'transactions';
   
   // Load scenario data
   const scenario = await getScenario(scenarioId);
@@ -23,7 +28,31 @@ export async function generateProjections(scenarioId, options = {}) {
   }
   
   const accounts = scenario.accounts || [];
-  const plannedTransactions = (scenario.transactions || []).filter(tx => tx.status === 'planned');
+  let plannedTransactions;
+  
+  if (source === 'budget') {
+    // Use budget occurrences as source instead of transactions
+    console.log('[ProjectionEngine] Using budget as projection source');
+    const statusName = budget => typeof budget.status === 'object' ? budget.status.name : budget.status;
+    plannedTransactions = (scenario.budgets || [])
+      .filter(budget => statusName(budget) === 'planned')
+      .map(budget => ({
+        id: budget.id,
+        primaryAccountId: budget.primaryAccountId,
+        secondaryAccountId: budget.secondaryAccountId,
+        transactionTypeId: budget.transactionTypeId,
+        amount: budget.amount,
+        description: budget.description,
+        recurrence: budget.recurrence,
+        periodicChange: null, // Budget occurrences don't typically have periodic changes
+        effectiveDate: budget.date,
+        status: budget.status
+      }));
+  } else {
+    // Use planned transactions (default) - filter by status.name
+    const statusName = tx => typeof tx.status === 'object' ? tx.status.name : tx.status;
+    plannedTransactions = (scenario.transactions || []).filter(tx => statusName(tx) === 'planned');
+  }
   
   // Parse projection window
   const startDate = parseDateOnly(scenario.startDate);
@@ -31,50 +60,43 @@ export async function generateProjections(scenarioId, options = {}) {
   
   console.log('[ProjectionEngine] Projection window:', startDate, 'to', endDate);
   console.log('[ProjectionEngine] Accounts:', accounts.length);
-  console.log('[ProjectionEngine] Planned transactions:', plannedTransactions.length);
+  console.log('[ProjectionEngine] Planned transactions/budget items:', plannedTransactions.length);
   
-  // Initialize account balances
+  // Initialize account balances from startingBalance
   const accountBalances = new Map();
   accounts.forEach(acc => {
-    accountBalances.set(acc.id, acc.balance || 0);
+    accountBalances.set(acc.id, acc.startingBalance || 0);
   });
   
-  // Generate all transaction occurrences from planned transactions
-  const transactionOccurrences = [];
+  // Use shared transaction expander to generate all occurrences within the projection window
+  const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
   
-  plannedTransactions.forEach(txn => {
-    if (!txn.recurrence) {
-      console.warn('[ProjectionEngine] Transaction missing recurrence:', txn.id);
-      return;
+  console.log('[ProjectionEngine] Expanded to', expandedTransactions.length, 'transaction occurrences');
+  
+  // Convert expanded transactions to occurrence format for projection calculations
+  const transactionOccurrences = expandedTransactions.map(txn => {
+    const occDate = txn._occurrenceDate || parseDateOnly(txn.effectiveDate);
+    const occKey = occDate.getFullYear() * 10000 + (occDate.getMonth() + 1) * 100 + occDate.getDate();
+    
+    // Calculate amount for this occurrence (considering periodic changes)
+    let amount = txn.amount || 0;
+    
+    if (txn.periodicChange) {
+      const txnStartDate = txn.recurrence?.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
+      const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
+      amount = applyPeriodicChange(txn.amount, txn.periodicChange, yearsDiff);
     }
     
-    const dates = generateRecurrenceDates(txn.recurrence, startDate, endDate);
-    
-    dates.forEach(date => {
-      // Calculate amount for this occurrence (considering amount changes)
-      let amount = txn.amount || 0;
-      
-      if (txn.periodicChange) {
-        // Calculate periods from transaction start to this occurrence (use local date-only parsing)
-        const txnStartDate = txn.recurrence && txn.recurrence.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
-        const yearsDiff = (date - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
-        amount = applyPeriodicChange(txn.amount, txn.periodicChange, yearsDiff);
-      }
-      
-      // Ensure occurrence date is a local date-only (date may already be a Date at local midnight)
-      const occDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      const occKey = occDate.getFullYear() * 10000 + (occDate.getMonth() + 1) * 100 + occDate.getDate();
-
-      transactionOccurrences.push({
-        date: occDate,
-        dateKey: occKey,
-        debitAccountId: txn.debitAccount?.id,
-        creditAccountId: txn.creditAccount?.id,
-        amount: amount,
-        description: txn.description || '',
-        sourceTransactionId: txn.id
-      });
-    });
+    return {
+      date: occDate,
+      dateKey: occKey,
+      primaryAccountId: txn.primaryAccountId,
+      secondaryAccountId: txn.secondaryAccountId,
+      transactionTypeId: txn.transactionTypeId,
+      amount: amount,
+      description: txn.description || '',
+      sourceTransactionId: txn.id
+    };
   });
   
   // Sort occurrences by dateKey (date-only)
@@ -84,7 +106,20 @@ export async function generateProjections(scenarioId, options = {}) {
   
   // Generate projections - one record per account per period
   const projections = [];
-  const periodicity = options.periodicity || 'monthly'; // daily, weekly, monthly, quarterly, yearly
+  // Use scenario's projectionPeriod if available, otherwise fall back to options or default
+  const scenarioPeriodType = scenario.projectionPeriod?.name || 'Month';
+  
+  // Map capitalized period names to lowercase periodicity strings
+  const periodMap = {
+    'Day': 'daily',
+    'Week': 'weekly', 
+    'Month': 'monthly',
+    'Quarter': 'quarterly',
+    'Year': 'yearly'
+  };
+  const periodicity = options.periodicity || periodMap[scenarioPeriodType] || 'monthly';
+  
+  console.log('[ProjectionEngine] Using periodicity:', periodicity, 'from scenario period type:', scenarioPeriodType);
   
   // Generate period dates
   const periods = generatePeriods(startDate, endDate, periodicity);
@@ -92,7 +127,7 @@ export async function generateProjections(scenarioId, options = {}) {
   console.log('[ProjectionEngine] Generating', periods.length, 'periods');
   
   accounts.forEach(account => {
-    let currentBalance = account.balance || 0;
+    let currentBalance = account.startingBalance || 0;
     let lastPeriodEnd = new Date(startDate);
     lastPeriodEnd.setDate(lastPeriodEnd.getDate() - 1); // Start just before first period
     
@@ -116,16 +151,33 @@ export async function generateProjections(scenarioId, options = {}) {
 
       transactionOccurrences.forEach(txn => {
         if (txn.dateKey >= periodStartKey && txn.dateKey <= periodEndKey) {
-          // Debit from this account (money out)
-          if (txn.debitAccountId === account.id) {
-            currentBalance -= txn.amount;
-            periodExpenses += txn.amount;
+          // Check if this account is primary or secondary
+          const absAmount = Math.abs(txn.amount);
+          
+          if (txn.primaryAccountId === account.id) {
+            // Primary account: Money In adds, Money Out subtracts
+            if (txn.transactionTypeId === 1) {
+              // Money In
+              currentBalance += absAmount;
+              periodIncome += absAmount;
+            } else {
+              // Money Out
+              currentBalance -= absAmount;
+              periodExpenses += absAmount;
+            }
           }
-
-          // Credit to this account (money in)
-          if (txn.creditAccountId === account.id) {
-            currentBalance += txn.amount;
-            periodIncome += txn.amount;
+          
+          if (txn.secondaryAccountId === account.id) {
+            // Secondary account: opposite of primary
+            if (txn.transactionTypeId === 1) {
+              // Money In (from primary perspective) = Money Out from secondary
+              currentBalance -= absAmount;
+              periodExpenses += absAmount;
+            } else {
+              // Money Out (from primary perspective) = Money In from secondary
+              currentBalance += absAmount;
+              periodIncome += absAmount;
+            }
           }
         }
       });

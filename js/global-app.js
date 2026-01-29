@@ -9,7 +9,7 @@ export function loadGlobals() {
         // Adds a global helper to toggle the display of an element (accordion style)
         window.toggleAccordion = (id) => {
             const panel = document.getElementById(id);
-            panel.style.display = (panel.style.display === 'none') ? 'block' : 'none';
+            panel.classList.toggle('hidden');
         };
 }
 

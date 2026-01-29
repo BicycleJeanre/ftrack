@@ -9,30 +9,9 @@
 export function openPeriodicChangeModal(currentValue, onSave) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    `;
 
     const modal = document.createElement('div');
-    modal.className = 'modal-content';
-    modal.style.cssText = `
-        background: #2d2d30;
-        border: 1px solid #3e3e42;
-        border-radius: 4px;
-        padding: 20px;
-        min-width: 500px;
-        max-width: 600px;
-        color: #d4d4d4;
-    `;
+    modal.className = 'modal-content modal-periodic';
 
     // Extract current values or use defaults
     const value = currentValue?.value || 0;
@@ -40,21 +19,19 @@ export function openPeriodicChangeModal(currentValue, onSave) {
     const changeTypeId = currentValue?.changeType?.id || 1;
 
     modal.innerHTML = `
-        <h2 style="margin-top: 0; color: #4ec9b0; border-bottom: 2px solid #4ec9b0; padding-bottom: 10px;">
-            Edit Periodic Change
-        </h2>
+        <h2 class="modal-periodic-title">Edit Periodic Change</h2>
         
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Change Mode:</label>
-            <select id="changeMode" style="width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px;">
+        <div class="modal-periodic-form-group">
+            <label class="modal-periodic-label">Change Mode:</label>
+            <select id="changeMode" class="modal-periodic-select">
                 <option value="1" ${changeModeId === 1 ? 'selected' : ''}>Percentage Rate</option>
                 <option value="2" ${changeModeId === 2 ? 'selected' : ''}>Fixed Amount</option>
             </select>
         </div>
 
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Change Type:</label>
-            <select id="changeType" style="width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px;">
+        <div class="modal-periodic-form-group">
+            <label class="modal-periodic-label">Change Type:</label>
+            <select id="changeType" class="modal-periodic-select">
                 <option value="1" ${changeTypeId === 1 ? 'selected' : ''}>Nominal Annual (No Compounding)</option>
                 <option value="2" ${changeTypeId === 2 ? 'selected' : ''}>Nominal Annual, Compounded Monthly</option>
                 <option value="3" ${changeTypeId === 3 ? 'selected' : ''}>Nominal Annual, Compounded Quarterly</option>
@@ -62,30 +39,29 @@ export function openPeriodicChangeModal(currentValue, onSave) {
             </select>
         </div>
 
-        <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
-            <input type="number" id="value" value="${value}" step="0.01" 
-                style="width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px;">
-            <small id="valueHint" style="color: #999;">Enter percentage (e.g., 3 for 3% growth)</small>
+        <div class="modal-periodic-form-group">
+            <label class="modal-periodic-label">Value:</label>
+            <input type="number" id="value" class="modal-periodic-input" value="${value}" step="0.01">
+            <div id="valueHint" class="modal-periodic-hint">Enter percentage (e.g., 3 for 3% growth)</div>
         </div>
 
-        <div style="background: #1e1e1e; border: 1px solid #3e3e42; border-radius: 3px; padding: 10px; margin-bottom: 20px;">
-            <strong style="color: #4ec9b0;">Examples:</strong>
-            <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.9em;">
+        <div class="modal-periodic-examples">
+            <div class="modal-periodic-examples-title">Examples:</div>
+            <ul class="modal-periodic-examples-list">
                 <li>3% annual salary increase: Percentage Rate, Nominal Annual, Value = 3</li>
                 <li>5% compounded savings growth: Percentage Rate, Compounded Monthly, Value = 5</li>
-                <li>$50/month fixed increase: Fixed Amount, Value = 50</li>
+                <li>\$50/month fixed increase: Fixed Amount, Value = 50</li>
             </ul>
         </div>
 
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button id="clearBtn" style="padding: 8px 16px; background: #d73027; color: #fff; border: none; border-radius: 3px; cursor: pointer;">
+        <div class="modal-periodic-actions">
+            <button id="clearBtn" class="modal-periodic-button modal-periodic-clear">
                 Clear
             </button>
-            <button id="cancelBtn" style="padding: 8px 16px; background: #555; color: #fff; border: none; border-radius: 3px; cursor: pointer;">
+            <button id="cancelBtn" class="modal-periodic-button modal-periodic-cancel">
                 Cancel
             </button>
-            <button id="saveBtn" style="padding: 8px 16px; background: #4ec9b0; color: #000; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;">
+            <button id="saveBtn" class="modal-periodic-button modal-periodic-save">
                 Save
             </button>
         </div>

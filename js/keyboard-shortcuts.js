@@ -168,40 +168,18 @@ class KeyboardShortcuts {
     showHelp() {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        `;
 
         const modal = document.createElement('div');
-        modal.className = 'shortcuts-help-modal';
-        modal.style.cssText = `
-            background: #2d2d30;
-            border: 1px solid #3e3e42;
-            border-radius: 8px;
-            padding: 30px;
-            max-width: 700px;
-            max-height: 80vh;
-            overflow-y: auto;
-            color: #d4d4d4;
-        `;
+        modal.className = 'modal-content modal-shortcuts';
 
         let shortcutsHtml = `
-            <h2 style="margin-top: 0; color: #4ec9b0; border-bottom: 2px solid #4ec9b0; padding-bottom: 15px;">
+            <h2 class="shortcuts-title">
                 ⌨️ Keyboard Shortcuts
             </h2>
             
-            <div style="margin-bottom: 25px;">
-                <h3 style="color: #4ec9b0; font-size: 1.1em; margin-bottom: 10px;">Grid Navigation (Tabulator Built-in)</h3>
-                <table style="width: 100%; border-collapse: collapse;">
+            <div class="shortcuts-section">
+                <h3 class="shortcuts-heading">Grid Navigation (Tabulator Built-in)</h3>
+                <table class="shortcuts-table">
                     ${this.createShortcutRow('Arrow Keys', 'Navigate between cells')}
                     ${this.createShortcutRow('Tab', 'Move to next cell')}
                     ${this.createShortcutRow('Shift+Tab', 'Move to previous cell')}
@@ -212,9 +190,9 @@ class KeyboardShortcuts {
                 </table>
             </div>
 
-            <div style="margin-bottom: 25px;">
-                <h3 style="color: #4ec9b0; font-size: 1.1em; margin-bottom: 10px;">Application Shortcuts</h3>
-                <table style="width: 100%; border-collapse: collapse;">
+            <div class="shortcuts-section">
+                <h3 class="shortcuts-heading">Application Shortcuts</h3>
+                <table class="shortcuts-table">
         `;
 
         // Add registered shortcuts
@@ -227,8 +205,8 @@ class KeyboardShortcuts {
                 </table>
             </div>
 
-            <div style="text-align: center; margin-top: 25px;">
-                <button id="close-shortcuts-help" style="padding: 10px 24px; background: #4ec9b0; color: #000; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1em;">
+            <div class="shortcuts-footer">
+                <button id="close-shortcuts-help" class="shortcuts-close">
                     Close
                 </button>
             </div>
@@ -260,11 +238,11 @@ class KeyboardShortcuts {
      */
     createShortcutRow(key, description) {
         return `
-            <tr style="border-bottom: 1px solid #3e3e42;">
-                <td style="padding: 12px 20px 12px 0; font-family: 'Courier New', monospace; color: #4ec9b0; font-weight: bold;">
+            <tr class="shortcuts-row">
+                <td class="shortcuts-key">
                     ${key}
                 </td>
-                <td style="padding: 12px 0;">
+                <td class="shortcuts-desc">
                     ${description}
                 </td>
             </tr>

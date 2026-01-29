@@ -11,84 +11,63 @@ import { formatDateOnly } from './date-utils.js';
 export function openRecurrenceModal(currentValue, onSave) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    `;
 
     const modal = document.createElement('div');
-    modal.className = 'modal-content';
-    modal.style.cssText = `
-        background: #2d2d30;
-        border: 1px solid #3e3e42;
-        border-radius: 4px;
-        padding: 20px;
-        min-width: 500px;
-        max-width: 600px;
-        color: #d4d4d4;
-    `;
+    modal.className = 'modal-content modal-recurrence';
 
     // Extract current values or use defaults
-    const pattern = currentValue?.pattern || 'Monthly';
+    const recurrenceTypeId = currentValue?.recurrenceType?.id || 1;
     const startDate = currentValue?.startDate || formatDateOnly(new Date());
     const endDate = currentValue?.endDate || '';
-    const frequency = currentValue?.frequency || 1;
     const interval = currentValue?.interval || 1;
+    const dayOfMonth = currentValue?.dayOfMonth || 1;
 
     modal.innerHTML = `
-        <h2 style="margin-top: 0; color: #4ec9b0; border-bottom: 2px solid #4ec9b0; padding-bottom: 10px;">
+        <h2 class="modal-periodic-title">
             Edit Recurrence
         </h2>
         
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Pattern:</label>
-            <select id="pattern" style="width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px;">
-                <option value="Daily" ${pattern === 'Daily' ? 'selected' : ''}>Daily</option>
-                <option value="Weekly" ${pattern === 'Weekly' ? 'selected' : ''}>Weekly</option>
-                <option value="Monthly" ${pattern === 'Monthly' ? 'selected' : ''}>Monthly</option>
-                <option value="Yearly" ${pattern === 'Yearly' ? 'selected' : ''}>Yearly</option>
+        <div class="modal-periodic-form-group">
+            <label class="modal-periodic-label">Recurrence Type:</label>
+            <select id="recurrenceType" class="modal-periodic-select">
+                <option value="1" ${recurrenceTypeId === 1 ? 'selected' : ''}>One Time</option>
+                <option value="2" ${recurrenceTypeId === 2 ? 'selected' : ''}>Daily</option>
+                <option value="3" ${recurrenceTypeId === 3 ? 'selected' : ''}>Weekly</option>
+                <option value="4" ${recurrenceTypeId === 4 ? 'selected' : ''}>Monthly - Day of Month</option>
+                <option value="5" ${recurrenceTypeId === 5 ? 'selected' : ''}>Monthly - Week of Month</option>
+                <option value="6" ${recurrenceTypeId === 6 ? 'selected' : ''}>Quarterly</option>
+                <option value="7" ${recurrenceTypeId === 7 ? 'selected' : ''}>Yearly</option>
+                <option value="11" ${recurrenceTypeId === 11 ? 'selected' : ''}>Custom Dates</option>
             </select>
         </div>
 
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Start Date:</label>
-            <input type="date" id="startDate" value="${startDate}" 
-                style="width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px;">
+        <div class="modal-periodic-form-group" id="startDateContainer">
+            <label class="modal-periodic-label">Start Date:</label>
+            <input type="date" id="startDate" value="${startDate}" class="modal-periodic-input">
         </div>
 
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">End Date (optional):</label>
-            <input type="date" id="endDate" value="${endDate}" 
-                style="width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px;">
+        <div class="modal-periodic-form-group" id="endDateContainer">
+            <label class="modal-periodic-label">End Date (optional):</label>
+            <input type="date" id="endDate" value="${endDate}" class="modal-periodic-input">
         </div>
 
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Frequency:</label>
-            <input type="number" id="frequency" value="${frequency}" min="1" 
-                style="width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px;">
-            <small style="color: #999;">How many times per interval (e.g., 2 for bi-weekly)</small>
+        <div class="modal-periodic-form-group" id="intervalContainer">
+            <label class="modal-periodic-label">Interval:</label>
+            <input type="number" id="interval" value="${interval}" min="1" class="modal-periodic-input">
+            <div class="modal-periodic-hint">Repeat every N periods (e.g., 2 for every 2 months)</div>
         </div>
 
-        <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Interval:</label>
-            <input type="number" id="interval" value="${interval}" min="1" 
-                style="width: 100%; padding: 8px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 3px;">
-            <small style="color: #999;">Every N periods (e.g., 2 for every 2 months)</small>
+        <div class="modal-periodic-form-group hidden" id="dayOfMonthContainer">
+            <label class="modal-periodic-label">Day of Month:</label>
+            <input type="number" id="dayOfMonth" value="${dayOfMonth}" min="1" max="31" class="modal-periodic-input">
+            <div class="modal-periodic-hint">Which day of the month (1-31)</div>
         </div>
 
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button id="cancelBtn" style="padding: 8px 16px; background: #555; color: #fff; border: none; border-radius: 3px; cursor: pointer;">
+        <div class="modal-periodic-actions">
+            <button id="cancelBtn" class="modal-periodic-button modal-periodic-cancel">
                 Cancel
             </button>
-            <button id="saveBtn" style="padding: 8px 16px; background: #4ec9b0; color: #000; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;">
+            <button id="saveBtn" class="modal-periodic-button modal-periodic-save">
                 Save
             </button>
         </div>
@@ -96,6 +75,40 @@ export function openRecurrenceModal(currentValue, onSave) {
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+
+    // Show/hide fields based on recurrence type
+    const recurrenceTypeSelect = modal.querySelector('#recurrenceType');
+    const intervalContainer = modal.querySelector('#intervalContainer');
+    const endDateContainer = modal.querySelector('#endDateContainer');
+    const dayOfMonthContainer = modal.querySelector('#dayOfMonthContainer');
+    
+    const setVisible = (el, visible) => {
+        el.classList.toggle('hidden', !visible);
+    };
+
+    const updateFieldVisibility = () => {
+        const selectedType = parseInt(recurrenceTypeSelect.value);
+        
+        if (selectedType === 1) {
+            // One Time - hide all recurring fields
+            setVisible(intervalContainer, false);
+            setVisible(endDateContainer, false);
+            setVisible(dayOfMonthContainer, false);
+        } else if (selectedType === 4) {
+            // Monthly - Day of Month - show day of month
+            setVisible(intervalContainer, true);
+            setVisible(endDateContainer, true);
+            setVisible(dayOfMonthContainer, true);
+        } else {
+            // Other recurring types - show interval and end date, hide day of month
+            setVisible(intervalContainer, true);
+            setVisible(endDateContainer, true);
+            setVisible(dayOfMonthContainer, false);
+        }
+    };
+    
+    updateFieldVisibility();
+    recurrenceTypeSelect.addEventListener('change', updateFieldVisibility);
 
     // Event handlers
     const cancelBtn = modal.querySelector('#cancelBtn');
@@ -111,16 +124,35 @@ export function openRecurrenceModal(currentValue, onSave) {
     });
 
     saveBtn.addEventListener('click', () => {
+        const selectedTypeId = parseInt(modal.querySelector('#recurrenceType').value);
+        const typeNames = {
+            1: 'One Time',
+            2: 'Daily',
+            3: 'Weekly',
+            4: 'Monthly - Day of Month',
+            5: 'Monthly - Week of Month',
+            6: 'Quarterly',
+            7: 'Yearly',
+            11: 'Custom Dates'
+        };
+        
         const recurrence = {
-            pattern: modal.querySelector('#pattern').value,
+            recurrenceType: {
+                id: selectedTypeId,
+                name: typeNames[selectedTypeId]
+            },
             startDate: modal.querySelector('#startDate').value,
             endDate: modal.querySelector('#endDate').value || null,
-            frequency: parseInt(modal.querySelector('#frequency').value),
-            interval: parseInt(modal.querySelector('#interval').value),
-            recurrenceType: { 
-                id: modal.querySelector('#pattern').value === 'Monthly' ? 3 : 1,
-                name: modal.querySelector('#pattern').value 
-            }
+            interval: selectedTypeId === 1 ? null : parseInt(modal.querySelector('#interval').value),
+            dayOfWeek: null,
+            dayOfMonth: selectedTypeId === 4 ? parseInt(modal.querySelector('#dayOfMonth').value) : null,
+            weekOfMonth: null,
+            dayOfWeekInMonth: null,
+            dayOfQuarter: null,
+            month: null,
+            dayOfYear: null,
+            customDates: null,
+            id: null
         };
 
         onSave(recurrence);

@@ -1,42 +1,110 @@
 // data-manager.js
 // Centralized data management for scenario-centric architecture
-// All operations read/write from assets/app-data.json
+// All operations read/write from assets/app-data.json (Electron) or localStorage (Web)
 
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { formatDateOnly } from './date-utils.js';
 import { getAppDataPath } from './app-paths.js';
 
-const fs = window.require('fs').promises;
-const dataPath = getAppDataPath();
+// Platform detection
+const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+
+// Electron-specific setup
+let fs, dataPath;
+if (isElectron) {
+  fs = window.require('fs').promises;
+  dataPath = getAppDataPath();
+}
+
+// Web storage constants
+const WEB_STORAGE_KEY = 'ftrack:app-data';
+const WEB_MIGRATION_KEY = 'ftrack:migration-version';
 
 // ============================================================================
 // DATA FILE OPERATIONS
 // ============================================================================
 
 /**
- * Read the entire app-data.json file
+ * Read the entire app-data.json file (Electron) or localStorage (Web)
  * @returns {Promise<Object>} - The app data object
  */
 async function readAppData() {
   try {
-    const dataFile = await fs.readFile(dataPath, 'utf8');
-    return JSON.parse(dataFile);
+    if (isElectron) {
+      // Electron: read from file system
+      const dataFile = await fs.readFile(dataPath, 'utf8');
+      return JSON.parse(dataFile);
+    } else {
+      // Web: read from localStorage
+      const dataString = localStorage.getItem(WEB_STORAGE_KEY);
+      if (!dataString) {
+        console.log('[DataManager] No data in localStorage, returning default structure');
+        // Return default structure if no data exists
+        return {
+          scenarios: [],
+          migrationVersion: 3
+        };
+      }
+      const data = JSON.parse(dataString);
+      console.log('[DataManager] Loaded data from localStorage, scenarios:', data.scenarios?.length || 0);
+      return data;
+    }
   } catch (err) {
-    console.error('[DataManager] Failed to read app-data.json:', err);
-    throw err;
+    console.error('[DataManager] Failed to read app data:', err);
+    if (isElectron) {
+      throw err;
+    } else {
+      // For web, return default structure on error
+      console.log('[DataManager] Returning default structure due to error');
+      return {
+        scenarios: [],
+        migrationVersion: 3
+      };
+    }
   }
 }
 
 /**
- * Write to the app-data.json file
+ * Write to the app-data.json file (Electron) or localStorage (Web)
  * @param {Object} data - The data to write
  * @returns {Promise<void>}
  */
 async function writeAppData(data) {
   try {
-    await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
+    if (isElectron) {
+      // Electron: write to file system
+      await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
+    } else {
+      // Web: write to localStorage
+      const dataString = JSON.stringify(data);
+      
+      // Check localStorage size limit (roughly 5-10MB)
+      const estimatedSize = new Blob([dataString]).size;
+      if (estimatedSize > 5 * 1024 * 1024) { // 5MB warning
+        console.warn('[DataManager] Data size approaching localStorage limit:', estimatedSize, 'bytes');
+      }
+      
+      localStorage.setItem(WEB_STORAGE_KEY, dataString);
+      
+      // Also save migration version separately for quick access
+      if (data.migrationVersion !== undefined) {
+        localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
+      }
+      
+      // Verify write was successful
+      const verify = localStorage.getItem(WEB_STORAGE_KEY);
+      if (verify) {
+        const verifyCount = JSON.parse(verify).scenarios?.length || 0;
+        console.log('[DataManager] Web storage write verified, scenarios in storage:', verifyCount);
+      } else {
+        console.error('[DataManager] Web storage write failed - data not found after write!');
+      }
+    }
   } catch (err) {
-    console.error('[DataManager] Failed to write app-data.json:', err);
+    console.error('[DataManager] Failed to write app data:', err);
+    if (!isElectron && err.name === 'QuotaExceededError') {
+      alert('Storage quota exceeded. Please export your data and clear some scenarios.');
+    }
     throw err;
   }
 }
@@ -184,13 +252,15 @@ export async function getAccounts(scenarioId) {
  * @param {Object} accountData - The account data
  * @returns {Promise<Object>} - The created account
  */
-import { transaction } from './core/data-store.js';
 
 import * as AccountManager from './managers/account-manager.js';
 
 export async function createAccount(scenarioId, accountData) {
   // Delegate to the single canonical AccountManager implementation
-  return await AccountManager.create(scenarioId, accountData);
+  const data = await AccountManager.create(scenarioId, accountData);
+  const scenario = data.scenarios.find(s => s.id === scenarioId);
+  // Return the last account (the one just created)
+  return scenario.accounts[scenario.accounts.length - 1];
 }
 
 /**
@@ -226,53 +296,70 @@ export async function updateAccount(scenarioId, accountId, updates) {
 
 /**
  * Delete an account from a scenario
- * Cascades delete to all planned and actual transactions that reference this account
+ * Cascades delete to all transactions that reference this account
  * @param {number} scenarioId - The scenario ID
  * @param {number} accountId - The account ID
  * @returns {Promise<void>}
  */
 export async function deleteAccount(scenarioId, accountId) {
-  // Run as a transaction to avoid race conditions
-  await transaction(async (appData) => {
+  // Run as a transaction to avoid race conditions (Electron only)
+  if (isElectron) {
+    const { transaction } = await import('./core/data-store.js');
+    await transaction(async (appData) => {
+      const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
+      if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
+
+      const scenario = appData.scenarios[scenarioIndex];
+      const accountIdNum = Number(accountId);
+
+      // Cascade delete: Remove all transactions that reference this account (primary or secondary)
+      if (scenario.transactions) {
+        const beforeCount = scenario.transactions.length;
+        scenario.transactions = scenario.transactions.filter(tx => {
+        const hasPrimary = tx.primaryAccountId && Number(tx.primaryAccountId) === accountIdNum;
+        const hasSecondary = tx.secondaryAccountId && Number(tx.secondaryAccountId) === accountIdNum;
+        
+        // Keep transaction only if it doesn't reference the deleted account
+        return !hasPrimary && !hasSecondary;
+      });
+      const afterCount = scenario.transactions.length;
+      const deletedCount = beforeCount - afterCount;
+      if (deletedCount > 0) {
+        console.log(`[DataManager] Cascade deleted ${deletedCount} transaction(s) referencing account ${accountId}`);
+      }
+    }
+
+      // Delete the account
+      scenario.accounts = scenario.accounts.filter(a => a.id !== accountId);
+      return appData;
+    });
+  } else {
+    // Web: use localStorage-based approach
+    const appData = await readAppData();
     const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
     if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
 
     const scenario = appData.scenarios[scenarioIndex];
+    const accountIdNum = Number(accountId);
 
-    // Cascade delete: Remove all planned transactions that reference this account
-    if (scenario.plannedTransactions) {
-      const accountIdNum = Number(accountId);
-      const transactionsToDelete = scenario.plannedTransactions.filter(tx => 
-        (tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) ||
-        (tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
-      );
-      if (transactionsToDelete.length > 0) {
-        scenario.plannedTransactions = scenario.plannedTransactions.filter(tx => 
-          !(tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) &&
-          !(tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
-        );
-      }
-    }
-
-    // Cascade delete: Remove all actual transactions that reference this account
-    if (scenario.actualTransactions) {
-      const accountIdNum = Number(accountId);
-      const transactionsToDelete = scenario.actualTransactions.filter(tx => 
-        (tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) ||
-        (tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
-      );
-      if (transactionsToDelete.length > 0) {
-        scenario.actualTransactions = scenario.actualTransactions.filter(tx => 
-          !(tx.debitAccount && Number(tx.debitAccount.id) === accountIdNum) &&
-          !(tx.creditAccount && Number(tx.creditAccount.id) === accountIdNum)
-        );
+    // Cascade delete: Remove all transactions that reference this account (primary or secondary)
+    if (scenario.transactions) {
+      const beforeCount = scenario.transactions.length;
+      scenario.transactions = scenario.transactions.filter(tx => {
+        const primaryMatch = tx.accountId === accountIdNum;
+        const secondaryMatch = tx.secondaryAccountId === accountIdNum;
+        return !primaryMatch && !secondaryMatch;
+      });
+      const deletedCount = beforeCount - scenario.transactions.length;
+      if (deletedCount > 0) {
+        console.log(`[DataManager] Cascade deleted ${deletedCount} transaction(s) referencing account ${accountId}`);
       }
     }
 
     // Delete the account
     scenario.accounts = scenario.accounts.filter(a => a.id !== accountId);
-    return appData;
-  });
+    await writeAppData(appData);
+  }
 }
 
 /**
@@ -283,7 +370,31 @@ export async function deleteAccount(scenarioId, accountId) {
  */
 export async function saveAccounts(scenarioId, accounts) {
   // Serialize this through a transaction to ensure consistent ID generation
-  await transaction(async (appData) => {
+  if (isElectron) {
+    const { transaction } = await import('./core/data-store.js');
+    await transaction(async (appData) => {
+      const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
+      if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
+
+      // Assign IDs to any accounts that don't have them
+      const validIds = accounts
+        .map(a => a.id)
+        .filter(id => id !== null && id !== undefined && typeof id === 'number');
+      let nextId = validIds.length > 0 ? Math.max(...validIds) + 1 : 1;
+
+      const accountsWithIds = accounts.map(account => {
+        if (account.id === null || account.id === undefined || isNaN(account.id)) {
+          return { ...account, id: nextId++ };
+        }
+        return account;
+      });
+
+      appData.scenarios[scenarioIndex].accounts = accountsWithIds;
+      return appData;
+    });
+  } else {
+    // Web: use localStorage-based approach
+    const appData = await readAppData();
     const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
     if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
 
@@ -301,8 +412,8 @@ export async function saveAccounts(scenarioId, accounts) {
     });
 
     appData.scenarios[scenarioIndex].accounts = accountsWithIds;
-    return appData;
-  });
+    await writeAppData(appData);
+  }
 }
 
 // ============================================================================
@@ -316,7 +427,28 @@ export async function saveAccounts(scenarioId, accounts) {
  */
 export async function getTransactions(scenarioId) {
   const scenario = await getScenario(scenarioId);
-  return scenario ? scenario.transactions || [] : [];
+  if (!scenario) return [];
+  
+  const transactions = scenario.transactions || [];
+  const accounts = scenario.accounts || [];
+
+  console.log('[DataManager.getTransactions] scenario', { scenarioId, count: transactions.length });
+  
+  // Resolve account IDs to full account objects for UI display
+  return transactions.map(tx => {
+    const primaryAccount = accounts.find(a => a.id === tx.primaryAccountId);
+    const secondaryAccount = accounts.find(a => a.id === tx.secondaryAccountId);
+    const transactionType = tx.transactionTypeId === 1
+      ? { id: 1, name: 'Money In' }
+      : { id: 2, name: 'Money Out' };
+    
+    return {
+      ...tx,
+      primaryAccount: primaryAccount || null,
+      secondaryAccount: secondaryAccount || null,
+      transactionType
+    };
+  });
 }
 
 /**
@@ -343,18 +475,29 @@ export async function createTransaction(scenarioId, transactionData) {
     ? Math.max(...scenario.transactions.map(t => t.id))
     : 0;
 
+  // Normalize amount sign based on transaction type
+  const transactionTypeId = transactionData.transactionTypeId || 2;
+  const rawAmount = transactionData.amount || 0;
+  const absAmount = Math.abs(rawAmount);
+  const normalizedAmount = transactionTypeId === 1 
+    ? absAmount  // Money In: always positive
+    : -absAmount; // Money Out: always negative
+
   const newTransaction = {
     id: maxId + 1,
-    status: 'planned', // Default to planned
-    debitAccount: transactionData.debitAccount || null,
-    creditAccount: transactionData.creditAccount || null,
-    amount: transactionData.amount || 0,
+    primaryAccountId: transactionData.primaryAccountId || null,
+    secondaryAccountId: transactionData.secondaryAccountId || null,
+    transactionTypeId: transactionTypeId,
+    amount: normalizedAmount,
     description: transactionData.description || '',
-    effectiveDate: transactionData.effectiveDate || formatDateOnly(new Date()),
     recurrence: transactionData.recurrence || null,
     periodicChange: transactionData.periodicChange || null,
-    tags: transactionData.tags || [],
-    ...transactionData
+    status: {
+      name: transactionData.status || 'planned',
+      actualAmount: transactionData.actualAmount || null,
+      actualDate: transactionData.actualDate || null
+    },
+    tags: transactionData.tags || []
   };
 
   scenario.transactions.push(newTransaction);
@@ -486,8 +629,9 @@ export async function createActualTransaction(scenarioId, transactionData) {
   const newTransaction = {
     id: maxId + 1,
     date: transactionData.date || formatDateOnly(new Date()),
-    debitAccount: transactionData.debitAccount || null,
-    creditAccount: transactionData.creditAccount || null,
+    primaryAccountId: transactionData.primaryAccountId || null,
+    secondaryAccountId: transactionData.secondaryAccountId || null,
+    transactionTypeId: transactionData.transactionTypeId || 2,
     amount: transactionData.amount || 0,
     description: transactionData.description || '',
     status: transactionData.status || { id: 2, name: 'Completed' },
@@ -625,17 +769,59 @@ export async function clearProjections(scenarioId) {
 }
 
 // ============================================================================
+// BUDGET OPERATIONS
+// ============================================================================
+
+/**
+ * Save budget for a scenario (replaces all existing budget occurrences)
+ * @param {number} scenarioId - The scenario ID
+ * @param {Array} budgets - Array of budget occurrence records
+ * @returns {Promise<void>}
+ */
+export async function saveBudget(scenarioId, budgets) {
+  const appData = await readAppData();
+  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
+  
+  if (scenarioIndex === -1) {
+    throw new Error(`Scenario ${scenarioId} not found`);
+  }
+  
+  appData.scenarios[scenarioIndex].budgets = budgets;
+  await writeAppData(appData);
+}
+
+/**
+ * Get budget for a scenario
+ * @param {number} scenarioId - The scenario ID
+ * @returns {Promise<Array>} - Array of budget occurrences
+ */
+export async function getBudget(scenarioId) {
+  const scenario = await getScenario(scenarioId);
+  return scenario?.budgets || [];
+}
+
+/**
+ * Clear all budget occurrences for a scenario
+ * @param {number} scenarioId - The scenario ID
+ * @returns {Promise<void>}
+ */
+export async function clearBudget(scenarioId) {
+  await saveBudget(scenarioId, []);
+}
+
+// ============================================================================
 // PERIOD OPERATIONS
 // ============================================================================
 
 /**
  * Calculate all periods for a scenario based on start/end dates and period type
  * @param {number} scenarioId - The scenario ID
+ * @param {string} customPeriodType - Optional period type override (Day, Week, Month, Quarter, Year)
  * @returns {Promise<Array>} - Array of period objects
  */
 import { parseDateOnly } from './date-utils.js';
 
-export async function getScenarioPeriods(scenarioId) {
+export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   const scenario = await getScenario(scenarioId);
   
   if (!scenario) {
@@ -645,12 +831,27 @@ export async function getScenarioPeriods(scenarioId) {
   const periods = [];
   const start = typeof scenario.startDate === 'string' ? parseDateOnly(scenario.startDate) : new Date(scenario.startDate);
   const end = typeof scenario.endDate === 'string' ? parseDateOnly(scenario.endDate) : new Date(scenario.endDate);
-  const periodType = scenario.projectionPeriod?.name || 'Month';
+  const periodType = customPeriodType || scenario.projectionPeriod?.name || 'Month';
   
   let current = new Date(start);
   
   while (current <= end) {
-    if (periodType === 'Month') {
+    if (periodType === 'Day') {
+      const periodId = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+      const dayName = current.toLocaleString('default', { weekday: 'long' });
+      const monthName = current.toLocaleString('default', { month: 'short' });
+      const day = current.getDate();
+      const year = current.getFullYear();
+      
+      periods.push({
+        id: periodId,
+        label: `${dayName}, ${monthName} ${day}, ${year}`,
+        startDate: new Date(current),
+        endDate: new Date(current)
+      });
+      
+      current.setDate(current.getDate() + 1);
+    } else if (periodType === 'Month') {
       const periodId = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
       const monthName = current.toLocaleString('default', { month: 'long' });
       const year = current.getFullYear();
@@ -664,13 +865,77 @@ export async function getScenarioPeriods(scenarioId) {
       
       current.setMonth(current.getMonth() + 1);
     } else if (periodType === 'Week') {
-      // TODO: Implement weekly period calculation
+      // Align to Monday as week start (ISO week)
+      const weekStart = new Date(current);
+      const day = weekStart.getDay();
+      const diff = (day + 6) % 7; // days since Monday
+      weekStart.setDate(weekStart.getDate() - diff);
+      
+      // Skip if week starts after end date
+      if (weekStart > end) break;
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      // Clip to scenario end
+      const clippedEnd = weekEnd > end ? new Date(end) : weekEnd;
+      
+      const weekNum = Math.ceil(((weekStart - start) / 86400000 + 1) / 7);
+      const periodId = `${weekStart.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+      const startMonth = weekStart.toLocaleString('default', { month: 'short' });
+      const endMonth = clippedEnd.toLocaleString('default', { month: 'short' });
+      const label = startMonth === endMonth 
+        ? `Week ${weekNum}: ${startMonth} ${weekStart.getDate()}-${clippedEnd.getDate()}, ${weekStart.getFullYear()}`
+        : `Week ${weekNum}: ${startMonth} ${weekStart.getDate()} - ${endMonth} ${clippedEnd.getDate()}, ${weekStart.getFullYear()}`;
+      
+      periods.push({
+        id: periodId,
+        label: label,
+        startDate: weekStart,
+        endDate: clippedEnd
+      });
+      
       current.setDate(current.getDate() + 7);
     } else if (periodType === 'Quarter') {
-      // TODO: Implement quarterly period calculation
+      const quarter = Math.floor(current.getMonth() / 3) + 1;
+      const quarterStart = new Date(current.getFullYear(), (quarter - 1) * 3, 1);
+      
+      // Skip if quarter starts after end date
+      if (quarterStart > end) break;
+      
+      let quarterEnd = new Date(current.getFullYear(), quarter * 3, 0);
+      // Clip to scenario end
+      quarterEnd = quarterEnd > end ? new Date(end) : quarterEnd;
+      
+      const periodId = `${current.getFullYear()}-Q${quarter}`;
+      
+      periods.push({
+        id: periodId,
+        label: `Q${quarter} ${current.getFullYear()}`,
+        startDate: quarterStart,
+        endDate: quarterEnd
+      });
+      
       current.setMonth(current.getMonth() + 3);
     } else if (periodType === 'Year') {
-      // TODO: Implement yearly period calculation
+      const yearStart = new Date(current.getFullYear(), 0, 1);
+      
+      // Skip if year starts after end date
+      if (yearStart > end) break;
+      
+      let yearEnd = new Date(current.getFullYear(), 11, 31);
+      // Clip to scenario end
+      yearEnd = yearEnd > end ? new Date(end) : yearEnd;
+      
+      const periodId = `${current.getFullYear()}`;
+      
+      periods.push({
+        id: periodId,
+        label: `${current.getFullYear()}`,
+        startDate: yearStart,
+        endDate: yearEnd
+      });
+      
       current.setFullYear(current.getFullYear() + 1);
     } else {
       // Default to month
@@ -786,4 +1051,74 @@ export async function saveActualTransaction(scenarioId, actualTransaction) {
   
   await writeAppData(appData);
   return actualTransaction;
+}
+
+// ============================================================================
+// EXPORT/IMPORT OPERATIONS
+// ============================================================================
+
+/**
+ * Export all app data as JSON blob (for download)
+ * @returns {Promise<Blob>} - JSON blob ready for download
+ */
+export async function exportAppData() {
+  const appData = await readAppData();
+  const jsonString = JSON.stringify(appData, null, 2);
+  return new Blob([jsonString], { type: 'application/json' });
+}
+
+/**
+ * Import app data from JSON string
+ * @param {string} jsonString - The JSON string to import
+ * @param {boolean} merge - Whether to merge (true) or replace (false)
+ * @returns {Promise<void>}
+ */
+export async function importAppData(jsonString, merge = false) {
+  try {
+    console.log('[DataManager] Importing data, merge mode:', merge);
+    const importedData = JSON.parse(jsonString);
+    
+    // Validate basic structure
+    if (!importedData.scenarios || !Array.isArray(importedData.scenarios)) {
+      throw new Error('Invalid app data format: missing scenarios array');
+    }
+    
+    console.log('[DataManager] Import validation passed, scenarios:', importedData.scenarios.length);
+    
+    if (merge) {
+      // Merge mode: add imported scenarios with new IDs
+      const currentData = await readAppData();
+      const maxId = currentData.scenarios.length > 0
+        ? Math.max(...currentData.scenarios.map(s => s.id))
+        : 0;
+      
+      // Renumber imported scenarios
+      importedData.scenarios.forEach((scenario, index) => {
+        scenario.id = maxId + index + 1;
+      });
+      
+      currentData.scenarios.push(...importedData.scenarios);
+      await writeAppData(currentData);
+      console.log('[DataManager] Merge complete, total scenarios now:', currentData.scenarios.length);
+    } else {
+      // Replace mode: overwrite all data
+      await writeAppData(importedData);
+      console.log('[DataManager] Replace complete, total scenarios now:', importedData.scenarios.length);
+    }
+  } catch (err) {
+    console.error('[DataManager] Failed to import app data:', err);
+    throw new Error(`Import failed: ${err.message}`);
+  }
+}
+
+/**
+ * Get platform information
+ * @returns {Object} - Platform details
+ */
+export function getPlatformInfo() {
+  return {
+    isElectron,
+    isWeb: !isElectron,
+    storageType: isElectron ? 'filesystem' : 'localStorage'
+  };
 }

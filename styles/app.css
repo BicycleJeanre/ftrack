@@ -137,6 +137,9 @@ p {
   border-bottom: 1px solid var(--border-primary);
   padding: 0 32px;
   margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 #main-navbar a {
@@ -158,6 +161,17 @@ p {
 #main-navbar a.active {
   color: var(--accent-primary);
   border-bottom-color: var(--accent-primary);
+}
+
+#main-navbar .nav-spacer {
+  flex: 1;
+}
+
+#main-navbar button {
+  padding: 8px 16px;
+  font-size: 0.85em;
+  margin: 8px 4px;
+  white-space: nowrap;
 }
 
 /* ==================================== Buttons ====================================*/
@@ -200,6 +214,19 @@ p {
 .btn-primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  padding: 8px 12px;
+  min-height: 32px;
+}
+
+.btn-ghost:hover {
+  border-color: var(--border-accent);
+  background: var(--bg-tertiary);
 }
 
 .icon-btn {
@@ -367,6 +394,64 @@ p {
   text-align: right;
 }
 
+/* Grid totals bar for filtered views */
+.grid-totals {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 24px !important;
+  margin: 16px 0 24px 0;
+  padding: 18px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  align-items: stretch;
+}
+
+.grid-total-item {
+  padding: 18px 20px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 160px;
+  min-height: 80px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+@media (max-width: 700px) {
+  .grid-totals {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 6px;
+  }
+  .grid-total-item {
+    min-width: 0;
+    min-height: 60px;
+    padding: 12px 10px;
+  }
+}
+
+.grid-total-item .label {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin-bottom: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.grid-total-item .value {
+  font-weight: 700;
+  font-size: 1.4em;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.grid-total-item .value.positive { color: var(--success); }
+.grid-total-item .value.negative { color: var(--danger); }
+
 /* Add button styles moved from inline */
 .btn-add { margin-bottom: 12px; padding: 10px 20px; font-size: 0.95em; font-weight: 600; min-width: 140px; border: 2px solid var(--primary); border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
 .btn-add:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
@@ -378,6 +463,76 @@ p {
 
 /* Small margin utility */
 .mb-sm { margin-bottom: 12px; }
+
+/* Grid toolbar - horizontal layout for controls */
+.grid-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.grid-toolbar .toolbar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.grid-toolbar .toolbar-totals {
+  margin-left: auto;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.toolbar-total-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.toolbar-total-item .label {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.toolbar-total-item .value {
+  font-weight: 700;
+  font-size: 1.1em;
+  color: var(--text-primary);
+}
+
+.toolbar-total-item .value.positive { color: var(--success); }
+.toolbar-total-item .value.negative { color: var(--danger); }
+
+@media (max-width: 768px) {
+  .grid-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .grid-toolbar .toolbar-totals {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .toolbar-total-item .label {
+    font-size: 0.8em;
+  }
+  
+  .toolbar-total-item .value {
+    font-size: 0.95em;
+  }
+}
 
 .section-header { margin-bottom: 12px; font-size: 1.22em; }
 .empty-message { padding: 20px; text-align: center; color: var(--text-secondary); }
@@ -442,6 +597,368 @@ input[type="checkbox"] {
 }
 
 /* ==================================== Modal ====================================*/
+
+/* Shared modal sizing */
+.modal-text-input {
+  min-width: 360px;
+  max-width: 560px;
+}
+
+.modal-periodic,
+.modal-recurrence {
+  min-width: 500px;
+  max-width: 600px;
+}
+
+.modal-shortcuts {
+  max-width: 700px;
+  max-height: 80vh;
+  padding: 30px;
+}
+
+/* Text Input Modal Styles */
+.modal-text-input-title {
+  margin-top: 0;
+  color: var(--accent-primary);
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.modal-text-input-body {
+  margin: 10px 0 15px 0;
+}
+
+.modal-text-input-input {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.95em;
+}
+
+.modal-text-input-input:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.modal-text-input-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
+.modal-text-input-button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.modal-text-input-cancel {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+}
+
+.modal-text-input-cancel:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-accent);
+}
+
+.modal-text-input-save {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.modal-text-input-save:hover {
+  background: var(--accent-hover);
+}
+
+/* Periodic Change Modal Styles */
+.modal-periodic-title {
+  margin-top: 0;
+  color: var(--accent-primary);
+  border-bottom: 2px solid var(--accent-primary);
+  padding-bottom: 10px;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.modal-periodic-form-group {
+  margin-bottom: 15px;
+}
+
+.modal-periodic-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-periodic-select {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.95em;
+}
+
+.modal-periodic-select:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.modal-periodic-input {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.95em;
+}
+
+.modal-periodic-input:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.modal-periodic-hint {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin-top: 4px;
+}
+
+.modal-periodic-examples {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.modal-periodic-examples-title {
+  color: var(--accent-primary);
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.modal-periodic-examples-list {
+  margin: 5px 0;
+  padding-left: 20px;
+  font-size: 0.9em;
+  color: var(--text-secondary);
+}
+
+.modal-periodic-examples-list li {
+  margin-bottom: 3px;
+}
+
+.modal-periodic-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.modal-periodic-button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.modal-periodic-cancel {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+}
+
+.modal-periodic-cancel:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-accent);
+}
+
+.modal-periodic-save {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.modal-periodic-save:hover {
+  background: var(--accent-hover);
+}
+
+.modal-periodic-clear {
+  background: var(--danger);
+  color: #fff;
+  border: 1px solid var(--danger);
+}
+
+.modal-periodic-clear:hover {
+  background: #ff6666;
+  border-color: #ff6666;
+}
+
+/* Keyboard Shortcuts Modal */
+.shortcuts-title {
+  margin-top: 0;
+  color: var(--accent-primary);
+  border-bottom: 2px solid var(--accent-primary);
+  padding-bottom: 15px;
+}
+
+.shortcuts-section {
+  margin-bottom: 25px;
+}
+
+.shortcuts-heading {
+  color: var(--accent-primary);
+  font-size: 1.1em;
+  margin-bottom: 10px;
+}
+
+.shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcuts-row {
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.shortcuts-key {
+  padding: 12px 20px 12px 0;
+  font-family: 'Courier New', monospace;
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.shortcuts-desc {
+  padding: 12px 0;
+  color: var(--text-secondary);
+}
+
+.shortcuts-footer {
+  text-align: center;
+  margin-top: 25px;
+}
+
+.shortcuts-close {
+  padding: 10px 24px;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1em;
+}
+
+.shortcuts-close:hover {
+  background: var(--accent-hover);
+}
+
+/* Layout and Control Styles */
+.control-layout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-layout-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.control-label {
+  white-space: nowrap;
+}
+
+.control-select {
+  min-width: 150px;
+}
+
+.control-button {
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+/* Grouping and Filter Controls */
+.grouping-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.period-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+/* Page Container Styles */
+.page-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.page-title {
+  margin-bottom: 20px;
+}
+
+.page-subtitle {
+  font-size: 1.1em;
+  margin-bottom: 30px;
+}
+
+.page-section {
+  margin-bottom: 40px;
+}
+
+.page-section-title {
+  margin-bottom: 15px;
+}
+
+.page-section-list {
+  line-height: 1.8;
+  font-size: 1.05em;
+}
+
+.feature-box {
+  background: var(--bg-tertiary);
+  padding: 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-secondary);
+}
+
+.feature-box-title {
+  margin-bottom: 10px;
+}
+
+.feature-box-list {
+  line-height: 1.7;
+}
 
 .modal-overlay {
   position: fixed;
@@ -603,6 +1120,50 @@ body .tabulator .tabulator-calcs .tabulator-cell {
   font-weight: 600;
 }
 
+/* Group subtotal rows (Tabulator group headers) — mirror totals/footer row styling */
+/* Apply same elevated background and styling as calc/footer rows */
+/* Use full selector path to override Tabulator theme defaults */
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-group,
+body .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-group,
+body .tabulator .tabulator-row.tabulator-group,
+body .tabulator .tabulator-row.tabulator-group.tabulator-selected,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-0,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-1,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-2 {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-top: 1px solid var(--border-secondary) !important;
+  border-bottom: 1px solid var(--border-secondary) !important;
+}
+
+/* Group header cells — match footer/calc cell styling with padding */
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-group .tabulator-cell,
+body .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-group .tabulator-cell,
+body .tabulator .tabulator-row.tabulator-group .tabulator-cell,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-0 .tabulator-cell,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-1 .tabulator-cell,
+body .tabulator .tabulator-row.tabulator-group.tabulator-group-level-2 .tabulator-cell {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  border-color: var(--border-secondary) !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+/* Group header elements — ensure text visible */
+body .tabulator .tabulator-row.tabulator-group .tabulator-group-toggle,
+body .tabulator .tabulator-row.tabulator-group .tabulator-group-title,
+body .tabulator .tabulator-row.tabulator-group .tabulator-group-title span {
+  color: var(--text-primary) !important;
+}
+
+/* Ensure arrow/chevron icons inherit text color */
+body .tabulator .tabulator-row.tabulator-group .tabulator-arrow {
+  border-top-color: var(--text-primary) !important;
+  border-left-color: var(--text-primary) !important;
+}
+
 /* Some Tabulator themes set inline colors on .tabulator-col; override with high specificity */
 body .tabulator .tabulator-calcs .tabulator-col,
 body .tabulator .tabulator-footer .tabulator-col {
@@ -653,6 +1214,41 @@ body .tabulator .tabulator-footer .tabulator-col {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 2px rgba(78, 201, 176, 0.2);
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.form-actions .btn-confirm,
+.form-actions .btn-cancel {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.form-actions .btn-confirm {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+.form-actions .btn-confirm:hover {
+  background-color: #3fa880;
+}
+
+.form-actions .btn-cancel {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.form-actions .btn-cancel:hover {
+  background-color: #d0d0d0;
 }
 
 /* ==================================== Tags ====================================*/
@@ -989,6 +1585,26 @@ body .tabulator .tabulator-footer .tabulator-col {
   outline: none;
 }
 
+/* Recurrence cell styling */
+.recurrence-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.recurrence-cell svg {
+  vertical-align: middle;
+}
+
+.recurrence-cell svg path {
+  fill: var(--accent-primary);
+}
+
+.recurrence-text {
+  color: var(--text-primary);
+}
+
 /* ==================================== Scrollbar Styling ====================================*/
 
 ::-webkit-scrollbar {
@@ -1029,3 +1645,40 @@ body .tabulator .tabulator-footer .tabulator-col {
 .p-2 { padding: 16px; }
 .p-3 { padding: 24px; }
 .p-4 { padding: 32px; }
+
+/* ==================================== Critical Overrides ====================================*/
+/* These rules MUST come last to override Tabulator's default theme */
+
+/* Tabulator's base CSS sets .tabulator-row.tabulator-group { background: #ccc } */
+/* We need exact same specificity but declared AFTER to win the cascade */
+.tabulator-row.tabulator-group {
+  background: var(--bg-elevated) !important;
+  background-color: var(--bg-elevated) !important;
+}
+
+.tabulator-row.tabulator-group:hover {
+  background: var(--bg-hover) !important;
+  background-color: var(--bg-hover) !important;
+  cursor: pointer;
+}
+
+/* Also target print table groups */
+.tabulator-print-table-group {
+  background: var(--bg-elevated) !important;
+}
+
+/* Ensure all nested variants also get dark background */
+.tabulator .tabulator-row.tabulator-group,
+html body .tabulator .tabulator-row.tabulator-group {
+  background: var(--bg-elevated) !important;
+}
+/* Match Tabulator's calc row selector (more specific than our earlier rule) */
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-calcs {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border-top: 1px solid var(--border-secondary) !important;
+}
+
+.tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-calcs.tabulator-calcs-bottom {
+  border-top: 1px solid var(--border-secondary) !important;
+}
