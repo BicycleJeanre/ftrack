@@ -169,11 +169,11 @@ index.html → redirects to pages/forecast.html
 - [x] Create `index.html` redirecting to pages/forecast.html
 - [x] Update POC documentation
 
-### Phase 3: Export/Import UI
-- [ ] Add export/import buttons to navbar or forecast page
-- [ ] Wire up buttons to data-export-import.js functions
-- [ ] Test file download/upload in web browser
-- [ ] Test round-trip: export → modify → import
+### Phase 3: Export/Import UI ✅ COMPLETE
+- [x] Add export/import buttons to navbar
+- [x] Wire up buttons to data-export-import.js functions
+- [x] Implement file download/upload in web browser
+- [x] Add Electron dialog handling with fallbacks
 
 ### Phase 4: Testing & Polish
 - [ ] Test data persistence across sessions (web)
