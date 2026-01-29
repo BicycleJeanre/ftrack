@@ -230,23 +230,29 @@ function computeMoneyTotals(rows, opts = {}) {
 function buildGridContainer() {
   const forecastEl = getEl('panel-forecast');
 
-  // Top row: Scenarios and Accounts side-by-side
-  const topRow = document.createElement('div');
-  topRow.classList.add('layout-two-column', 'mb-lg');
-  window.add(forecastEl, topRow);
-
-  // Scenario selector (always visible, no accordion)
+  // Scenarios section with accordion (at the top)
   const scenarioSection = document.createElement('div');
-  scenarioSection.className = 'bg-main bordered rounded shadow-lg section-padding';
+  scenarioSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
+  
+  const scenarioHeader = document.createElement('div');
+  scenarioHeader.className = 'pointer flex-between accordion-header section-padding';
+  scenarioHeader.innerHTML = `<h2 class="text-main section-title">Scenarios</h2><span class="accordion-arrow">&#9662;</span>`;
+  scenarioHeader.addEventListener('click', () => window.toggleAccordion('scenarioContent'));
+  window.add(scenarioSection, scenarioHeader);
+  
+  const scenarioContent = document.createElement('div');
+  scenarioContent.id = 'scenarioContent';
+  scenarioContent.className = 'accordion-content open';
+  window.add(scenarioSection, scenarioContent);
   
   const scenarioSelector = document.createElement('div');
   scenarioSelector.id = 'scenario-selector';
-  window.add(scenarioSection, scenarioSelector);
-  window.add(topRow, scenarioSection);
+  window.add(scenarioContent, scenarioSelector);
+  window.add(forecastEl, scenarioSection);
 
   // Accounts section with accordion
   const accountsSection = document.createElement('div');
-  accountsSection.className = 'bg-main bordered rounded shadow-lg';
+  accountsSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
   
   const accountsHeader = document.createElement('div');
   accountsHeader.className = 'pointer flex-between accordion-header section-padding';
@@ -262,16 +268,11 @@ function buildGridContainer() {
   const accountsTable = document.createElement('div');
   accountsTable.id = 'accountsTable';
   window.add(accountsContent, accountsTable);
-  window.add(topRow, accountsSection);
-
-  // Middle row: Transactions (unified planned and actual)
-  const middleRow = document.createElement('div');
-  middleRow.classList.add('mb-lg');
-  window.add(forecastEl, middleRow);
+  window.add(forecastEl, accountsSection);
 
   // Transactions section (unified planned and actual)
   const transactionsSection = document.createElement('div');
-  transactionsSection.className = 'bg-main bordered rounded shadow-lg';
+  transactionsSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
 
   const transactionsHeader = document.createElement('div');
   transactionsHeader.className = 'pointer flex-between accordion-header section-padding';
@@ -288,16 +289,12 @@ function buildGridContainer() {
   transactionsTable.id = 'transactionsTable';
   window.add(transactionsContent, transactionsTable);
 
-  window.add(middleRow, transactionsSection);
+  window.add(forecastEl, transactionsSection);
   
-  // Budget section (between Transactions and Projections)
-  const budgetRow = document.createElement('div');
-  budgetRow.classList.add('mb-lg');
-  window.add(forecastEl, budgetRow);
-
+  // Budget section
   const budgetSection = document.createElement('div');
   budgetSection.id = 'budgetSection';
-  budgetSection.className = 'bg-main bordered rounded shadow-lg';
+  budgetSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
 
   const budgetHeader = document.createElement('div');
   budgetHeader.id = 'budgetAccordionHeader';
@@ -315,9 +312,9 @@ function buildGridContainer() {
   budgetTable.id = 'budgetTable';
   window.add(budgetContent, budgetTable);
 
-  window.add(budgetRow, budgetSection);
+  window.add(forecastEl, budgetSection);
 
-  // Bottom row: Projections (full width)
+  // Projections section (full width)
   const projectionsSection = document.createElement('div');
   projectionsSection.id = 'projectionsSection';
   projectionsSection.className = 'bg-main bordered rounded shadow-lg';
@@ -454,6 +451,7 @@ async function buildScenarioGrid(container) {
           title: "Type",
           field: "type",
           widthGrow: 2,
+          responsive: 0,
           editor: "list",
           editorParams: {
             values: lookupData.scenarioTypes.map(t => ({ label: t.name, value: t })),
@@ -470,13 +468,14 @@ async function buildScenarioGrid(container) {
           headerFilterPlaceholder: "Filter...",
           headerHozAlign: "left"
         },
-        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true, responsive: 2 }),
-        createDateColumn('Start Date', 'startDate', { widthGrow: 2, editor: "date", responsive: 3 }),
-        createDateColumn('End Date', 'endDate', { widthGrow: 2, editor: "date", responsive: 3 }),
+        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true, responsive: 3 }),
+        createDateColumn('Start Date', 'startDate', { widthGrow: 2, editor: "date", responsive: 1 }),
+        createDateColumn('End Date', 'endDate', { widthGrow: 2, editor: "date", responsive: 2 }),
         {
           title: "Period Type",
           field: "projectionPeriod",
           widthGrow: 2,
+          responsive: 0,
           editor: "list",
           editorParams: {
             values: lookupData.periodTypes.map(p => ({ label: p.name, value: p })),
@@ -904,13 +903,8 @@ async function loadAccountsGrid(container) {
                 await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
               }
             } catch (err) { console.error('Delete account failed', err); }
-          }
-        },
+          }  },
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
-        createObjectColumn('Type', 'type', 'name', Object.assign({ widthGrow: 1 }, createListEditor(lookupData.accountTypes))),
-
-        createObjectColumn('Currency', 'currency', 'name', Object.assign({ width: 100, responsive: 2 }, createListEditor(lookupData.currencies))),
-
         createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 })
       ],
       cellEdited: async function(cell) {
@@ -1593,8 +1587,7 @@ async function loadMasterTransactionsGrid(container) {
             });
           }
         },
-        ...(showDateColumn ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })] : []),
-        createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 })
+        ...(showDateColumn ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })] : [])
       ],
       cellEdited: async function(cell) {
         const rowData = cell.getRow().getData();
@@ -2308,16 +2301,6 @@ async function loadBudgetGrid(container) {
         },
         createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
         ...(showBudgetDateColumn ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 })] : []),
-        {
-          title: "Schedule",
-          field: "recurrenceDescription",
-          minWidth: 170,
-          widthGrow: 1.2,
-          formatter: function(cell) {
-            return cell.getValue() || 'One time';
-          }
-        },
-        createTextColumn('Description', 'description', { minWidth: 150, widthGrow: 3 }),
         {
           title: "Status",
           field: "status",
