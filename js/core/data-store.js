@@ -1,12 +1,20 @@
 // data-store.js
 // Generic CRUD layer for data persistence
 // Single source of truth for file I/O operations
+// NOTE: This module is Electron-only. In web, data-manager.js uses localStorage instead.
 
 import { getAppDataPath } from '../app-paths.js';
 
-const fs = window.require('fs').promises;
-const path = window.require('path');
-const dataPath = getAppDataPath();
+// Platform detection
+const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+
+let fs, path, dataPath;
+if (isElectron) {
+  fs = window.require('fs').promises;
+  path = window.require('path');
+  dataPath = getAppDataPath();
+}
+
 let writeQueue = Promise.resolve(); // serialize writes to avoid concurrent truncation
 let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
 
@@ -15,6 +23,10 @@ let transactionQueue = Promise.resolve(); // serialize transactions (read-modify
  * @returns {Promise<Object>} - The complete app data object
  */
 export async function read() {
+    if (!isElectron) {
+        console.warn('[DataStore] read() called in non-Electron environment');
+        return { scenarios: [] };
+    }
     try {
         const dataFile = await fs.readFile(dataPath, 'utf8');
         if (!dataFile || dataFile.trim() === '') return { scenarios: [] };
@@ -31,6 +43,10 @@ export async function read() {
  * @returns {Promise<void>}
  */
 export async function write(data) {
+    if (!isElectron) {
+        console.warn('[DataStore] write() called in non-Electron environment');
+        return;
+    }
     // Serialize writes through a promise chain and use atomic write (temp file + rename)
     writeQueue = writeQueue.then(async () => {
         const tmpPath = dataPath + '.tmp';
@@ -55,6 +71,10 @@ export async function write(data) {
  * @returns {Promise<any>} - The queried data
  */
 export async function query(path) {
+    if (!isElectron) {
+        console.warn('[DataStore] query() called in non-Electron environment');
+        return undefined;
+    }
     const data = await read();
     const keys = path.split('.');
     let result = data;
@@ -76,6 +96,10 @@ export async function query(path) {
  * @returns {Promise<void>}
  */
 export async function update(path, value) {
+    if (!isElectron) {
+        console.warn('[DataStore] update() called in non-Electron environment');
+        return;
+    }
     const data = await read();
     const keys = path.split('.');
     const lastKey = keys.pop();
@@ -98,6 +122,10 @@ export async function update(path, value) {
  * @returns {Promise<Object>} - The modified data
  */
 export async function transaction(modifyFn) {
+    if (!isElectron) {
+        console.warn('[DataStore] transaction() called in non-Electron environment');
+        return { scenarios: [] };
+    }
     // Ensure transactions happen sequentially to avoid race conditions when generating new IDs
     transactionQueue = transactionQueue.then(async () => {
         const data = await read();

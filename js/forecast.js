@@ -347,11 +347,21 @@ function buildGridContainer() {
 async function buildScenarioGrid(container) {
   container.innerHTML = '';
 
-  const fs = window.require('fs').promises;
+  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
   const lookupPath = getSchemaPath('lookup-data.json');
 
   try {
-    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    let lookupFile;
+    
+    if (isElectron) {
+      const fs = window.require('fs').promises;
+      lookupFile = await fs.readFile(lookupPath, 'utf8');
+    } else {
+      // Web: use fetch
+      const response = await fetch(lookupPath);
+      lookupFile = await response.text();
+    }
+    
     const lookupData = JSON.parse(lookupFile);
 
     // Add "Add Scenario" button
@@ -609,11 +619,22 @@ async function buildScenarioGrid(container) {
 
 // Load scenario type configuration
 async function loadScenarioTypes() {
-  const fs = window.require('fs').promises;
   const lookupPath = getSchemaPath('lookup-data.json');
 
   try {
-    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    // Platform detection - use fetch in web, fs in Electron
+    const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+    let lookupFile;
+    
+    if (isElectron) {
+      const fs = window.require('fs').promises;
+      lookupFile = await fs.readFile(lookupPath, 'utf8');
+    } else {
+      // Web: use fetch to load JSON
+      const response = await fetch(lookupPath);
+      lookupFile = await response.text();
+    }
+    
     const data = JSON.parse(lookupFile);
     scenarioTypes = data.scenarioTypes;
   } catch (err) {

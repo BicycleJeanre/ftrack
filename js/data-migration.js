@@ -1,13 +1,20 @@
 // data-migration.js
 // One-time migration script to convert old data format to new unified transactions
+// NOTE: Only runs in Electron, not in web
 
 import { getAppDataPath } from './app-paths.js';
 import { parseDateOnly } from './date-utils.js';
 
-const fs = window.require('fs').promises;
-const path = window.require('path');
-const dataPath = getAppDataPath();
-const oldDataPath = path.join(path.dirname(path.dirname(dataPath)), 'app-data.json');
+// Platform detection
+const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+
+let fs, path, dataPath, oldDataPath;
+if (isElectron) {
+  fs = window.require('fs').promises;
+  path = window.require('path');
+  dataPath = getAppDataPath();
+  oldDataPath = path.join(path.dirname(path.dirname(dataPath)), 'app-data.json');
+}
 
 /**
  * Migrate scenario data from old plannedTransactions/actualTransactions format to unified transactions
@@ -74,6 +81,10 @@ export function ensureBudgetsArray(scenario) {
  * @returns {Promise<void>}
  */
 export async function migrateAllScenarios() {
+    if (!isElectron) {
+        console.log('[Migration] Skipping migration in web environment');
+        return;
+    }
     try {
         // Read current data
         const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
@@ -119,6 +130,10 @@ export async function migrateAllScenarios() {
  * @returns {Promise<boolean>}
  */
 export async function needsMigration() {
+    if (!isElectron) {
+        console.log('[Migration] No migration needed in web environment');
+        return false;
+    }
     try {
         const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
         return !data.migrationVersion || data.migrationVersion < 3;

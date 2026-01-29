@@ -1,12 +1,18 @@
 // financial-utils.js
 // Utility wrapper for financial calculations
-// Uses 'financejs' library for core math to ensure accuracy
-
-// Import external library via Electron's node integration
-const Finance = window.require('financejs');
-const finance = new Finance();
+// Uses 'financejs' library for core math to ensure accuracy (Electron only)
+// In web, uses fallback implementations
 
 import { parseDateOnly } from './date-utils.js';
+
+// Platform detection
+const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+
+let Finance, finance;
+if (isElectron) {
+  Finance = window.require('financejs');
+  finance = new Finance();
+}
 
 /**
  * Calculate Future Value (FV)
@@ -17,8 +23,16 @@ import { parseDateOnly } from './date-utils.js';
  * @returns {number} - Future value
  */
 export function calculateFutureValue(rate, nper, pmt, pv) {
-    // financejs usage: FV(rate, nper, pmt, pv, type)
-    return finance.FV(rate, nper, pmt, pv, 0);
+    if (isElectron && finance) {
+        // financejs usage: FV(rate, nper, pmt, pv, type)
+        return finance.FV(rate, nper, pmt, pv, 0);
+    }
+    // Fallback: manual FV calculation
+    // FV = PV * (1 + r)^n + PMT * [((1 + r)^n - 1) / r]
+    const r = rate / 100;
+    if (r === 0) return -(pv + pmt * nper);
+    const factor = Math.pow(1 + r, nper);
+    return -(pv * factor + pmt * ((factor - 1) / r));
 }
 
 /**
@@ -30,7 +44,14 @@ export function calculateFutureValue(rate, nper, pmt, pv) {
  * @returns {number} - Present value
  */
 export function calculatePresentValue(rate, nper, pmt, fv = 0) {
-    return finance.PV(rate, nper, pmt, fv, 0);
+    if (isElectron && finance) {
+        return finance.PV(rate, nper, pmt, fv, 0);
+    }
+    // Fallback: manual PV calculation
+    const r = rate / 100;
+    if (r === 0) return -(fv + pmt * nper);
+    const factor = Math.pow(1 + r, nper);
+    return -(fv / factor + pmt * ((factor - 1) / r) / factor);
 }
 
 /**
@@ -48,10 +69,14 @@ export function calculateCompoundInterest(principal, rate, periods, frequency = 
     // Total periods (e.g. 5 years * 12 months = 60)
     const totalPeriods = periods * frequency;
     
-    // finance.FV(rate, nper, pmt, pv)
-    // Excel: FV(5%, 12, 0, -1000) = +1795.
-    // We pass -principal to get positive result if principal was positive.
-    return finance.FV(ratePerPeriod, totalPeriods, 0, -principal, 0);
+    if (isElectron && finance) {
+        // finance.FV(rate, nper, pmt, pv)
+        // Excel: FV(5%, 12, 0, -1000) = +1795.
+        // We pass -principal to get positive result if principal was positive.
+        return finance.FV(ratePerPeriod, totalPeriods, 0, -principal, 0);
+    }
+    // Fallback: A = P(1 + r/n)^(nt)
+    return principal * Math.pow(1 + rate / (100 * frequency), periods * frequency);
 }
 
 /**
@@ -75,7 +100,14 @@ export function calculateEffectiveRate(nominalRate, frequency) {
  * @returns {number} - Payment amount per period
  */
 export function calculatePayment(rate, nper, pv, fv = 0) {
-    return finance.PMT(rate, nper, pv, fv, 0);
+    if (isElectron && finance) {
+        return finance.PMT(rate, nper, pv, fv, 0);
+    }
+    // Fallback: PMT = [r*PV*(1+r)^n - r*FV] / [(1+r)^n - 1]
+    const r = rate / 100;
+    if (r === 0) return -(pv + fv) / nper;
+    const factor = Math.pow(1 + r, nper);
+    return (r * pv * factor - r * fv) / (factor - 1);
 }
 
 /**
@@ -112,8 +144,12 @@ export function applyPeriodicChange(value, periodicChange, periods) {
         } else {
             // Simple interest / nominal rate (Exponential growth without intra-year compounding steps)
             // Equivalent to FV with periods, rate, 0 pmt
-            // finance.FV(rate, nper, pmt, pv)
-            return finance.FV(changeValue, periods, 0, -value, 0);
+            if (isElectron && finance) {
+                // finance.FV(rate, nper, pmt, pv)
+                return finance.FV(changeValue, periods, 0, -value, 0);
+            }
+            // Fallback: V_final = V_initial * (1 + r)^n
+            return value * Math.pow(1 + changeValue / 100, periods);
         }
     }
 }
