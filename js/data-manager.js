@@ -987,3 +987,68 @@ export async function saveActualTransaction(scenarioId, actualTransaction) {
   await writeAppData(appData);
   return actualTransaction;
 }
+
+// ============================================================================
+// EXPORT/IMPORT OPERATIONS
+// ============================================================================
+
+/**
+ * Export all app data as JSON blob (for download)
+ * @returns {Promise<Blob>} - JSON blob ready for download
+ */
+export async function exportAppData() {
+  const appData = await readAppData();
+  const jsonString = JSON.stringify(appData, null, 2);
+  return new Blob([jsonString], { type: 'application/json' });
+}
+
+/**
+ * Import app data from JSON string
+ * @param {string} jsonString - The JSON string to import
+ * @param {boolean} merge - Whether to merge (true) or replace (false)
+ * @returns {Promise<void>}
+ */
+export async function importAppData(jsonString, merge = false) {
+  try {
+    const importedData = JSON.parse(jsonString);
+    
+    // Validate basic structure
+    if (!importedData.scenarios || !Array.isArray(importedData.scenarios)) {
+      throw new Error('Invalid app data format: missing scenarios array');
+    }
+    
+    if (merge) {
+      // Merge mode: add imported scenarios with new IDs
+      const currentData = await readAppData();
+      const maxId = currentData.scenarios.length > 0
+        ? Math.max(...currentData.scenarios.map(s => s.id))
+        : 0;
+      
+      // Renumber imported scenarios
+      importedData.scenarios.forEach((scenario, index) => {
+        scenario.id = maxId + index + 1;
+      });
+      
+      currentData.scenarios.push(...importedData.scenarios);
+      await writeAppData(currentData);
+    } else {
+      // Replace mode: overwrite all data
+      await writeAppData(importedData);
+    }
+  } catch (err) {
+    console.error('[DataManager] Failed to import app data:', err);
+    throw new Error(`Import failed: ${err.message}`);
+  }
+}
+
+/**
+ * Get platform information
+ * @returns {Object} - Platform details
+ */
+export function getPlatformInfo() {
+  return {
+    isElectron,
+    isWeb: !isElectron,
+    storageType: isElectron ? 'filesystem' : 'localStorage'
+  };
+}
