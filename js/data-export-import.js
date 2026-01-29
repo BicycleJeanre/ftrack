@@ -3,6 +3,15 @@
 
 import { exportAppData, importAppData, getPlatformInfo } from './data-manager.js';
 
+// Robust Electron detection
+function isElectronEnv() {
+  return typeof window !== 'undefined' &&
+    typeof window.process === 'object' &&
+    window.process.type === 'renderer' &&
+    window.process.versions &&
+    !!window.process.versions.electron;
+}
+
 /**
  * Download app data as JSON file
  * Works in both Electron and web browsers
@@ -13,48 +22,19 @@ export async function downloadAppData() {
     const filename = `ftrack-backup-${new Date().toISOString().split('T')[0]}.json`;
     
     const platform = getPlatformInfo();
-    
-    if (platform.isElectron) {
-      // Electron: simplified file save (works in newer Electron)
-      const fs = window.require('fs').promises;
-      const path = window.require('path');
-      
-      // Use electron's dialog API if available
-      try {
-        const { dialog } = window.require('@electron/remote') || window.require('electron').remote;
-        
-        const { filePath } = await dialog.showSaveDialog({
-          title: 'Export FTrack Data',
-          defaultPath: filename,
-          filters: [
-            { name: 'JSON Files', extensions: ['json'] },
-            { name: 'All Files', extensions: ['*'] }
-          ]
-        });
-        
-        if (filePath) {
-          const arrayBuffer = await blob.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          await fs.writeFile(filePath, buffer);
-          console.log('[Export] Data exported to:', filePath);
-          alert('Data exported successfully!');
-          return true;
-        }
-        return false;
-      } catch (dialogErr) {
-        // Fallback: save to default location
-        console.warn('[Export] Dialog not available, using default location:', dialogErr);
-        const { app } = window.require('electron').remote || window.require('@electron/remote');
-        const defaultPath = path.join(app.getPath('downloads'), filename);
-        
-        const arrayBuffer = await blob.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        await fs.writeFile(defaultPath, buffer);
-        console.log('[Export] Data exported to:', defaultPath);
-        alert(`Data exported to: ${defaultPath}`);
+    if (isElectronEnv() && window.electronAPI) {
+      // Electron: use IPC to show save dialog and write file
+      const jsonString = await blob.text();
+      const result = await window.electronAPI.exportData(jsonString);
+      if (result.success) {
+        console.log('[Export] Data exported to:', result.filePath);
+        alert('Data exported successfully!');
         return true;
+      } else {
+        alert(`Export failed: ${result.message}`);
+        return false;
       }
-    } else {
+    } else if (platform.isWeb) {
       // Web: trigger download
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -66,6 +46,9 @@ export async function downloadAppData() {
       URL.revokeObjectURL(url);
       console.log('[Export] Data exported as:', filename);
       return true;
+    } else {
+      alert('Export failed: Not running in Electron or supported web environment.');
+      return false;
     }
   } catch (err) {
     console.error('[Export] Failed to export data:', err);
@@ -82,33 +65,14 @@ export async function downloadAppData() {
 export async function uploadAppData(merge = false) {
   try {
     const platform = getPlatformInfo();
-    
     let jsonString;
-    
-    if (platform.isElectron) {
-      // Electron: use open dialog
-      const fs = window.require('fs').promises;
-      
-      try {
-        const { dialog } = window.require('@electron/remote') || window.require('electron').remote;
-        
-        const { filePaths } = await dialog.showOpenDialog({
-          title: 'Import FTrack Data',
-          filters: [
-            { name: 'JSON Files', extensions: ['json'] },
-            { name: 'All Files', extensions: ['*'] }
-          ],
-          properties: ['openFile']
-        });
-        
-        if (!filePaths || filePaths.length === 0) {
-          return false;
-        }
-        
-        jsonString = await fs.readFile(filePaths[0], 'utf8');
-      } catch (dialogErr) {
-        console.error('[Import] Dialog error:', dialogErr);
-        alert('Import dialog not available in this Electron version. Please use web version.');
+    if (isElectronEnv() && window.electronAPI) {
+      // Electron: use IPC to show open dialog and read file
+      const result = await window.electronAPI.importData();
+      if (result.success) {
+        jsonString = result.data;
+      } else {
+        alert(`Import failed: ${result.message}`);
         return false;
       }
     } else {

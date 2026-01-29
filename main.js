@@ -1,3 +1,44 @@
+// --- IPC handlers for export/import ---
+const { dialog } = require('electron');
+const appPaths = require('./js/app-paths.js');
+
+// Export data: show save dialog, write file
+ipcMain.handle('export-data', async (event, data) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Export FTrack Data',
+      defaultPath: `ftrack-backup-${new Date().toISOString().split('T')[0]}.json`,
+      filters: [
+        { name: 'JSON Files', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+    if (canceled || !filePath) return { success: false, message: 'Export canceled.' };
+    await fs.promises.writeFile(filePath, data, 'utf8');
+    return { success: true, filePath };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+});
+
+// Import data: show open dialog, read file
+ipcMain.handle('import-data', async () => {
+  try {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'Import FTrack Data',
+      filters: [
+        { name: 'JSON Files', extensions: ['json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+    if (canceled || !filePaths || filePaths.length === 0) return { success: false, message: 'Import canceled.' };
+    const jsonString = await fs.promises.readFile(filePaths[0], 'utf8');
+    return { success: true, data: jsonString };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+});
 // main.js
 // Main process for Electron app
 
