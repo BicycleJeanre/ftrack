@@ -42,6 +42,7 @@ const defaultConfig = {
     headerVisible: true,
     headerFilterPlaceholder: "Filter...",
     headerWordWrap: true,
+    placeholder: "No data available. Use the 'Add New' button to get started.", // Message when grid is empty
     
     // Keyboard navigation enabled
     keybindings: {

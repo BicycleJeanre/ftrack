@@ -1036,15 +1036,7 @@ async function loadAccountsGrid(container) {
       }
     });
     
-    // Show empty state if no accounts exist
-    accountsTable.on("tableBuilt", function() {
-      const rows = accountsTable.getRows();
-      if (!rows || rows.length === 0) {
-        // If no accounts, clear the "Loading..." message from downstream grids
-        const plannedContainer = document.getElementById('transactionsTable');
-        if (plannedContainer) plannedContainer.innerHTML = '<div class="empty-message">No accounts found. Create an account to get started.</div>';
-      }
-    });
+    // Grid will show placeholder if no accounts exist (handled by Tabulator)
 
     // Fallback for when rowSelectionChanged doesn't fire (Tabulator version compatibility)
     let lastProcessedAccountId = null;
@@ -2174,14 +2166,7 @@ async function loadBudgetGrid(container) {
     // Always show date column - it's essential for budget tracking and planning
     const showBudgetDateColumn = true;
 
-    // Show empty message if no budget data to display
-    if (transformedData.length === 0) {
-      const emptyMsg = document.createElement('p');
-      emptyMsg.className = 'text-muted';
-      emptyMsg.textContent = 'No budget entries found. Click "Add New Entry" to create one.';
-      window.add(container, emptyMsg);
-      return;
-    }
+    // Grid will show placeholder if no budget data (handled by Tabulator)
 
     // Add grouping control
     const groupingControl = document.createElement('div');
@@ -2683,13 +2668,7 @@ async function loadProjectionsGrid(container) {
       : currentScenario.projections || [];
 
 
-    if (filteredProjections.length === 0) {
-      const emptyMsg = document.createElement('p');
-      emptyMsg.className = 'text-muted';
-      emptyMsg.textContent = 'No projections available. Click "Generate Projections" to calculate.';
-      window.add(container, emptyMsg);
-      return;
-    }
+    // Grid will show placeholder if no projections (handled by Tabulator)
 
     // Transform projections for display
     const transformedData = filteredProjections.map(p => ({
