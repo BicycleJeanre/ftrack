@@ -79,6 +79,6 @@ export function getSchemaPath(schemaName) {
     return path.join(bundledAssetsPath, schemaName);
   } else {
     // Web: return absolute path from root (for use with fetch)
-    return `/assets/${schemaName}`;
+    return `../assets/${schemaName}`;
   }
 }
