@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forecast | Financial Tracking</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='-5' y='90' font-size='100'%3E%24%3C/text%3E%3C/svg%3E" type="image/svg+xml">
-    <!-- Tabulator CSS (base layout rules) -->
-    <link href="../node_modules/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">
+    <!-- Tabulator CSS from CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2.0/dist/css/tabulator.min.css" rel="stylesheet">
     <!-- App theme -->
     <link rel="stylesheet" href="../styles/app.css">
 
@@ -19,11 +19,13 @@
       script.type = 'module';
       document.head.appendChild(script);
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;">
     <!-- Forecast page Tabulator theme moved to styles/app.css -->
 </head>
 <body class="bg-main text-main">
     <div id="main-navbar"></div>
     <div id="panel-forecast"></div>
+    <!-- Tabulator library UMD from CDN - loads as window.Tabulator -->
+    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2.0/dist/js/tabulator.min.js"></script>
 </body>
 </html>

@@ -394,7 +394,7 @@ async function buildScenarioGrid(container) {
     // Load all scenarios
     const scenarios = await ScenarioManager.getAll();
 
-    const scenariosTable = createGrid(gridContainer, {
+    const scenariosTable = await createGrid(gridContainer, {
       data: scenarios,
       selectable: 1, // Only allow single row selection
       columns: [
@@ -873,7 +873,7 @@ async function loadAccountsGrid(container) {
     // Mount grid container before initializing Tabulator so layout can measure dimensions
     window.add(container, gridContainer);
 
-    const accountsTable = createGrid(gridContainer, {
+    const accountsTable = await createGrid(gridContainer, {
       data: enrichedAccounts,
       selectable: 1, // Enable built-in single selection
       columns: [
@@ -1461,7 +1461,7 @@ async function loadMasterTransactionsGrid(container) {
     `;
     toolbar.appendChild(totalsInline);
 
-    masterTransactionsTable = createGrid(gridContainer, {
+    masterTransactionsTable = await createGrid(gridContainer, {
       data: transformedData,
       headerWordWrap: false, // Prevent header text wrapping
       autoResize: true, // Enable auto-resize on window changes
@@ -2214,7 +2214,7 @@ async function loadBudgetGrid(container) {
     gridContainer.className = 'grid-container budget-grid';
     window.add(container, gridContainer);
 
-    masterBudgetTable = createGrid(gridContainer, {
+    masterBudgetTable = await createGrid(gridContainer, {
       data: transformedData,
       columns: [
         {
@@ -2743,7 +2743,7 @@ async function loadProjectionsGrid(container) {
     window.add(toolbar, totalsInline);
     window.add(container, toolbar);
 
-    const projectionsTable = createGrid(container, {
+    const projectionsTable = await createGrid(container, {
       data: transformedData,
       layout: "fitColumns",
       columns: [
