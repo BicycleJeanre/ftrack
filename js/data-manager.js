@@ -38,13 +38,16 @@ async function readAppData() {
       // Web: read from localStorage
       const dataString = localStorage.getItem(WEB_STORAGE_KEY);
       if (!dataString) {
+        console.log('[DataManager] No data in localStorage, returning default structure');
         // Return default structure if no data exists
         return {
           scenarios: [],
           migrationVersion: 3
         };
       }
-      return JSON.parse(dataString);
+      const data = JSON.parse(dataString);
+      console.log('[DataManager] Loaded data from localStorage, scenarios:', data.scenarios?.length || 0);
+      return data;
     }
   } catch (err) {
     console.error('[DataManager] Failed to read app data:', err);
@@ -52,6 +55,7 @@ async function readAppData() {
       throw err;
     } else {
       // For web, return default structure on error
+      console.log('[DataManager] Returning default structure due to error');
       return {
         scenarios: [],
         migrationVersion: 3
@@ -85,6 +89,15 @@ async function writeAppData(data) {
       // Also save migration version separately for quick access
       if (data.migrationVersion !== undefined) {
         localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
+      }
+      
+      // Verify write was successful
+      const verify = localStorage.getItem(WEB_STORAGE_KEY);
+      if (verify) {
+        const verifyCount = JSON.parse(verify).scenarios?.length || 0;
+        console.log('[DataManager] Web storage write verified, scenarios in storage:', verifyCount);
+      } else {
+        console.error('[DataManager] Web storage write failed - data not found after write!');
       }
     }
   } catch (err) {
