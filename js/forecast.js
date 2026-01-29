@@ -391,6 +391,31 @@ async function buildScenarioGrid(container) {
         {
           width: 50,
           hozAlign: "center",
+          cssClass: "duplicate-cell",
+          headerTooltip: "Duplicate Scenario",
+          formatter: function(cell){
+            try {
+              const rowEl = cell.getRow().getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
+            } catch(e){}
+            return '<svg height="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+          },
+          cellClick: async function(e, cell) {
+            try {
+              const row = cell.getRow();
+              const rowEl = row.getElement();
+              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return;
+              const rowData = row.getData();
+              await ScenarioManager.duplicate(rowData.id);
+              await buildScenarioGrid(container);
+            } catch (err) {
+              console.error('Duplicate scenario cellClick failed', err);
+            }
+          }
+        },
+        {
+          width: 50,
+          hozAlign: "center",
           cssClass: "delete-cell",
           formatter: function(cell){
             try {
