@@ -1,11 +1,18 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 (function() {
+  // Platform detection
+  var isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+  
+  // Add clear data button only for web
+  var clearDataBtn = !isElectron ? '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>' : '';
+  
   var navLinks = `
     <a href="home.html" id="nav-home">Home</a>
     <a href="forecast.html" id="nav-forecast">Forecast</a>
     <div class="nav-spacer"></div>
     <button id="nav-export" class="btn btn-secondary" title="Export data to file">Export Data</button>
     <button id="nav-import" class="btn btn-secondary" title="Import data from file">Import Data</button>
+    ${clearDataBtn}
   `;
   function getPage() {
     var path = window.location.pathname.split('/').pop();
@@ -59,6 +66,24 @@
         } catch (err) {
           console.error('[Navbar] Import failed:', err);
           alert('Import failed: ' + err.message);
+        }
+      });
+    }
+    
+    // Clear data button (web only)
+    var clearBtn = document.getElementById('nav-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (confirm('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) {
+          try {
+            localStorage.removeItem('ftrack:app-data');
+            alert('All data cleared successfully. The page will now reload.');
+            window.location.reload();
+          } catch (err) {
+            console.error('[Navbar] Clear data failed:', err);
+            alert('Failed to clear data: ' + err.message);
+          }
         }
       });
     }
