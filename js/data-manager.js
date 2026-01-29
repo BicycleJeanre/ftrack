@@ -1,42 +1,97 @@
 // data-manager.js
 // Centralized data management for scenario-centric architecture
-// All operations read/write from assets/app-data.json
+// All operations read/write from assets/app-data.json (Electron) or localStorage (Web)
 
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { formatDateOnly } from './date-utils.js';
 import { getAppDataPath } from './app-paths.js';
 
-const fs = window.require('fs').promises;
-const dataPath = getAppDataPath();
+// Platform detection
+const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+
+// Electron-specific setup
+let fs, dataPath;
+if (isElectron) {
+  fs = window.require('fs').promises;
+  dataPath = getAppDataPath();
+}
+
+// Web storage constants
+const WEB_STORAGE_KEY = 'ftrack:app-data';
+const WEB_MIGRATION_KEY = 'ftrack:migration-version';
 
 // ============================================================================
 // DATA FILE OPERATIONS
 // ============================================================================
 
 /**
- * Read the entire app-data.json file
+ * Read the entire app-data.json file (Electron) or localStorage (Web)
  * @returns {Promise<Object>} - The app data object
  */
 async function readAppData() {
   try {
-    const dataFile = await fs.readFile(dataPath, 'utf8');
-    return JSON.parse(dataFile);
+    if (isElectron) {
+      // Electron: read from file system
+      const dataFile = await fs.readFile(dataPath, 'utf8');
+      return JSON.parse(dataFile);
+    } else {
+      // Web: read from localStorage
+      const dataString = localStorage.getItem(WEB_STORAGE_KEY);
+      if (!dataString) {
+        // Return default structure if no data exists
+        return {
+          scenarios: [],
+          migrationVersion: 3
+        };
+      }
+      return JSON.parse(dataString);
+    }
   } catch (err) {
-    console.error('[DataManager] Failed to read app-data.json:', err);
-    throw err;
+    console.error('[DataManager] Failed to read app data:', err);
+    if (isElectron) {
+      throw err;
+    } else {
+      // For web, return default structure on error
+      return {
+        scenarios: [],
+        migrationVersion: 3
+      };
+    }
   }
 }
 
 /**
- * Write to the app-data.json file
+ * Write to the app-data.json file (Electron) or localStorage (Web)
  * @param {Object} data - The data to write
  * @returns {Promise<void>}
  */
 async function writeAppData(data) {
   try {
-    await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
+    if (isElectron) {
+      // Electron: write to file system
+      await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
+    } else {
+      // Web: write to localStorage
+      const dataString = JSON.stringify(data);
+      
+      // Check localStorage size limit (roughly 5-10MB)
+      const estimatedSize = new Blob([dataString]).size;
+      if (estimatedSize > 5 * 1024 * 1024) { // 5MB warning
+        console.warn('[DataManager] Data size approaching localStorage limit:', estimatedSize, 'bytes');
+      }
+      
+      localStorage.setItem(WEB_STORAGE_KEY, dataString);
+      
+      // Also save migration version separately for quick access
+      if (data.migrationVersion !== undefined) {
+        localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
+      }
+    }
   } catch (err) {
-    console.error('[DataManager] Failed to write app-data.json:', err);
+    console.error('[DataManager] Failed to write app data:', err);
+    if (!isElectron && err.name === 'QuotaExceededError') {
+      alert('Storage quota exceeded. Please export your data and clear some scenarios.');
+    }
     throw err;
   }
 }
