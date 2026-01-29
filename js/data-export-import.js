@@ -3,13 +3,15 @@
 
 import { exportAppData, importAppData, getPlatformInfo } from './data-manager.js';
 
-// Robust Electron detection
+// Electron detection - check if window.electronAPI is available (set by preload.js)
+// or if running with nodeIntegration enabled
 function isElectronEnv() {
-  return typeof window !== 'undefined' &&
-    typeof window.process === 'object' &&
-    window.process.type === 'renderer' &&
-    window.process.versions &&
-    !!window.process.versions.electron;
+  return typeof window !== 'undefined' && (
+    !!window.electronAPI ||
+    (typeof window.require === 'function' && 
+     typeof window.process === 'object' && 
+     window.process.type === 'renderer')
+  );
 }
 
 /**
