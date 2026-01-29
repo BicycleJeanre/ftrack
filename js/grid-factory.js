@@ -1,10 +1,29 @@
 // grid-factory.js
 // Utility wrapper for creating Tabulator grids with consistent configuration
 
-import { TabulatorFull as Tabulator } from '../node_modules/tabulator-tables/dist/js/tabulator_esm.min.js';
 import { createLogger } from './logger.js';
 
 const logger = createLogger('GridFactory');
+
+// Platform detection for Tabulator - will be set before first grid creation
+let Tabulator = null;
+
+async function getTabulatorLib() {
+  if (Tabulator) return Tabulator;
+  
+  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+  
+  if (isElectron) {
+    // Electron: import from node_modules
+    const tabulatorModule = await import('../node_modules/tabulator-tables/dist/js/tabulator_esm.min.js');
+    Tabulator = tabulatorModule.TabulatorFull;
+  } else {
+    // Web: use global Tabulator from CDN (loaded in forecast.html)
+    Tabulator = window.Tabulator;
+  }
+  
+  return Tabulator;
+}
 
 /**
  * Default Tabulator configuration for FTrack
@@ -51,9 +70,11 @@ const defaultConfig = {
  * Create a Tabulator grid with FTrack defaults
  * @param {string|HTMLElement} element - Container element or selector
  * @param {Object} options - Tabulator options (merged with defaults)
- * @returns {Tabulator} - Tabulator instance
+ * @returns {Promise<Tabulator>} - Tabulator instance
  */
-export function createGrid(element, options = {}) {
+export async function createGrid(element, options = {}) {
+    const TabulatorLib = await getTabulatorLib();
+    
     // Extract cellEdited before merging
     const { cellEdited, ...tabulatorOptions } = options;
     
@@ -80,7 +101,7 @@ export function createGrid(element, options = {}) {
     //     selector: element.id || element 
     // });
     
-    const table = new Tabulator(element, config);
+    const table = new TabulatorLib(element, config);
 
     // Instrument selection events for debugging
     table.on("rowSelected", function(row){
