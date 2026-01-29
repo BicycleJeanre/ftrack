@@ -5,24 +5,22 @@ import { createLogger } from './logger.js';
 
 const logger = createLogger('GridFactory');
 
-// Platform detection for Tabulator - will be set before first grid creation
-let Tabulator = null;
+// Platform detection for Tabulator
+const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
 
+// Get Tabulator - from node_modules in Electron, from global CDN in web
 async function getTabulatorLib() {
-  if (Tabulator) return Tabulator;
-  
-  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
-  
   if (isElectron) {
     // Electron: import from node_modules
     const tabulatorModule = await import('../node_modules/tabulator-tables/dist/js/tabulator_esm.min.js');
-    Tabulator = tabulatorModule.TabulatorFull;
+    return tabulatorModule.TabulatorFull;
   } else {
-    // Web: use global Tabulator from CDN (loaded in forecast.html)
-    Tabulator = window.Tabulator;
+    // Web: use global Tabulator from CDN (loaded in forecast.html as UMD)
+    if (!window.Tabulator) {
+      throw new Error('Tabulator library not loaded. Check if CDN script is included.');
+    }
+    return window.Tabulator;
   }
-  
-  return Tabulator;
 }
 
 /**
