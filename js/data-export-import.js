@@ -79,10 +79,13 @@ export async function uploadAppData(merge = false) {
       }
     } else {
       // Web: use file input
+      console.log('[Import] Web mode: opening file picker');
       jsonString = await selectAndReadFile();
+      console.log('[Import] File selected, length:', jsonString?.length);
     }
     
     if (!jsonString) {
+      console.log('[Import] No file selected or file empty');
       return false;
     }
     
@@ -91,10 +94,13 @@ export async function uploadAppData(merge = false) {
     const confirmed = confirm(`This will ${action} your current data. Continue?`);
     
     if (!confirmed) {
+      console.log('[Import] User cancelled import');
       return false;
     }
     
+    console.log('[Import] Starting data import...');
     await importAppData(jsonString, merge);
+    console.log('[Import] Data import complete, reloading page');
     
     alert('Data imported successfully! The page will reload.');
     window.location.reload();

@@ -1062,12 +1062,15 @@ export async function exportAppData() {
  */
 export async function importAppData(jsonString, merge = false) {
   try {
+    console.log('[DataManager] Importing data, merge mode:', merge);
     const importedData = JSON.parse(jsonString);
     
     // Validate basic structure
     if (!importedData.scenarios || !Array.isArray(importedData.scenarios)) {
       throw new Error('Invalid app data format: missing scenarios array');
     }
+    
+    console.log('[DataManager] Import validation passed, scenarios:', importedData.scenarios.length);
     
     if (merge) {
       // Merge mode: add imported scenarios with new IDs
@@ -1083,9 +1086,11 @@ export async function importAppData(jsonString, merge = false) {
       
       currentData.scenarios.push(...importedData.scenarios);
       await writeAppData(currentData);
+      console.log('[DataManager] Merge complete, total scenarios now:', currentData.scenarios.length);
     } else {
       // Replace mode: overwrite all data
       await writeAppData(importedData);
+      console.log('[DataManager] Replace complete, total scenarios now:', importedData.scenarios.length);
     }
   } catch (err) {
     console.error('[DataManager] Failed to import app data:', err);
