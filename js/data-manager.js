@@ -38,12 +38,9 @@ async function readAppData() {
       // Web: read from localStorage
       const dataString = localStorage.getItem(WEB_STORAGE_KEY);
       if (!dataString) {
-        console.log('[DataManager] No data in localStorage, returning default structure');
-        // Return default structure if no data exists
-        return {
-          scenarios: [],
-          migrationVersion: 3
-        };
+        console.log('[DataManager] No data in localStorage, returning sample scenario');
+        // Return sample scenario for first-time web users
+        return getSampleData();
       }
       const data = JSON.parse(dataString);
       console.log('[DataManager] Loaded data from localStorage, scenarios:', data.scenarios?.length || 0);
@@ -54,14 +51,104 @@ async function readAppData() {
     if (isElectron) {
       throw err;
     } else {
-      // For web, return default structure on error
-      console.log('[DataManager] Returning default structure due to error');
-      return {
-        scenarios: [],
-        migrationVersion: 3
-      };
+      // For web, return sample data on error
+      console.log('[DataManager] Returning sample data due to error');
+      return getSampleData();
     }
   }
+}
+
+/**
+ * Get sample/example data for web users with no existing data
+ * @returns {Object} - Sample app data structure
+ */
+function getSampleData() {
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  
+  return {
+    scenarios: [
+      {
+        id: 1,
+        name: 'Example Budget',
+        type: { id: 1, name: 'Budget' },
+        description: 'Sample scenario - import your own data or modify this example',
+        startDate: formatDateOnly(startOfMonth),
+        endDate: formatDateOnly(endOfMonth),
+        projectionPeriod: { id: 3, name: 'Month' },
+        accounts: [
+          {
+            id: 1,
+            name: 'Checking Account',
+            type: { id: 1, name: 'Bank' },
+            balance: 5000,
+            description: 'Primary checking account'
+          },
+          {
+            id: 2,
+            name: 'Savings Account',
+            type: { id: 2, name: 'Savings' },
+            balance: 10000,
+            description: 'Emergency fund'
+          }
+        ],
+        transactions: [
+          {
+            id: 1,
+            name: 'Monthly Salary',
+            amount: 5000,
+            effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 1)),
+            transactionType: { id: 1, name: 'Money In' },
+            transactionTypeId: 1,
+            transactionTypeName: 'Money In',
+            primaryAccountId: 1,
+            primaryAccountName: 'Checking Account',
+            secondaryAccountId: null,
+            secondaryAccountName: null,
+            recurrence: null,
+            notes: 'Monthly income',
+            tags: []
+          },
+          {
+            id: 2,
+            name: 'Rent',
+            amount: -1500,
+            effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 5)),
+            transactionType: { id: 2, name: 'Money Out' },
+            transactionTypeId: 2,
+            transactionTypeName: 'Money Out',
+            primaryAccountId: 1,
+            primaryAccountName: 'Checking Account',
+            secondaryAccountId: null,
+            secondaryAccountName: null,
+            recurrence: null,
+            notes: 'Monthly rent payment',
+            tags: []
+          },
+          {
+            id: 3,
+            name: 'Groceries',
+            amount: -400,
+            effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 10)),
+            transactionType: { id: 2, name: 'Money Out' },
+            transactionTypeId: 2,
+            transactionTypeName: 'Money Out',
+            primaryAccountId: 1,
+            primaryAccountName: 'Checking Account',
+            secondaryAccountId: null,
+            secondaryAccountName: null,
+            recurrence: null,
+            notes: 'Weekly groceries',
+            tags: []
+          }
+        ],
+        projections: [],
+        budgets: []
+      }
+    ],
+    migrationVersion: 3
+  };
 }
 
 /**
