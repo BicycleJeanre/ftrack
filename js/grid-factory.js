@@ -37,12 +37,12 @@ const defaultConfig = {
         return true; // Default to selectable
     },
     editTriggerEvent: "dblclick", // Double-click to edit cells (allows single-click for row selection)
-    maxHeight: "100%",
+    height: "400px", // Fixed height to prevent resize loop
     rowHeight: 42,
     headerVisible: true,
     headerFilterPlaceholder: "Filter...",
     headerWordWrap: true,
-    placeholder: "No data available. Use the 'Add New' button to get started.", // Message when grid is empty
+    placeholderHeaderFilter: "No matching data", // Message when filter returns no results
     
     // Keyboard navigation enabled
     keybindings: {
