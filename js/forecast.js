@@ -646,6 +646,7 @@ async function loadScenarioTypes() {
 // Get current scenario type configuration
 function getScenarioTypeConfig() {
   if (!currentScenario || !scenarioTypes) return null;
+  if (!currentScenario.type) return null;
   
   return scenarioTypes.find(st => st.name === currentScenario.type.name);
 }
@@ -772,9 +773,15 @@ async function loadAccountsGrid(container) {
     return;
   }
 
-
   const typeConfig = getScenarioTypeConfig();
-  if (!typeConfig || !typeConfig.showAccounts) {
+  
+  // Show message if scenario type is not set
+  if (!currentScenario.type) {
+    container.innerHTML = '<div class="empty-message">Please select a Scenario Type and Period Type in the scenario grid above to enable accounts.</div>';
+    return;
+  }
+  
+  if (!typeConfig.showAccounts) {
     container.innerHTML = '';
     return;
   }
@@ -1147,7 +1154,14 @@ async function loadMasterTransactionsGrid(container) {
   if (!currentScenario) return;
 
   const typeConfig = getScenarioTypeConfig();
-  if (!typeConfig || !typeConfig.showPlannedTransactions) {
+  
+  // Show message if scenario type is not set
+  if (!currentScenario.type) {
+    container.innerHTML = '<div class="empty-message">Please select a Scenario Type and Period Type in the scenario grid above to enable transactions.</div>';
+    return;
+  }
+  
+  if (!typeConfig.showPlannedTransactions) {
     container.innerHTML = '';
     return;
   }
