@@ -100,10 +100,11 @@ export async function uploadAppData(merge = false) {
     
     console.log('[Import] Starting data import...');
     await importAppData(jsonString, merge);
-    console.log('[Import] Data import complete, reloading page');
+    console.log('[Import] Data import complete');
     
+    // Reload to show imported data (works in both Electron and web now that DataStore handles localStorage)
     alert('Data imported successfully! The page will reload.');
-    window.location.reload();
+    setTimeout(() => window.location.reload(), 1000);
     
     return true;
   } catch (err) {

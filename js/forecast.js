@@ -784,9 +784,21 @@ async function loadAccountsGrid(container) {
   try {
     const accounts = await AccountManager.getAll(currentScenario.id);
     const displayAccounts = accounts.filter(a => a.name !== 'Select Account');
-    const fs = window.require('fs').promises;
+    
+    // Platform detection for loading lookup data
+    const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
     const lookupPath = getSchemaPath('lookup-data.json');
-    const lookupFile = await fs.readFile(lookupPath, 'utf8');
+    let lookupFile;
+    
+    if (isElectron) {
+      const fs = window.require('fs').promises;
+      lookupFile = await fs.readFile(lookupPath, 'utf8');
+    } else {
+      // Web: use fetch
+      const response = await fetch(lookupPath);
+      lookupFile = await response.text();
+    }
+    
     const lookupData = JSON.parse(lookupFile);
 
     // Add "Add Account" button
