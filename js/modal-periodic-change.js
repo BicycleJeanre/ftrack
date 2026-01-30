@@ -104,19 +104,11 @@ export function openPeriodicChangeModal(currentValue, onSave) {
     saveBtn.addEventListener('click', () => {
         const changeModeId = parseInt(modal.querySelector('#changeMode').value);
         const changeTypeId = parseInt(modal.querySelector('#changeType').value);
-        
-        const changeModeName = changeModeId === 1 ? 'Percentage Rate' : 'Fixed Amount';
-        const changeTypeNames = {
-            1: 'Nominal Annual (No Compounding)',
-            2: 'Nominal Annual, Compounded Monthly',
-            3: 'Nominal Annual, Compounded Quarterly',
-            4: 'Nominal Annual, Compounded Semi-Annually'
-        };
 
         const periodicChange = {
             value: parseFloat(modal.querySelector('#value').value),
-            changeMode: { id: changeModeId, name: changeModeName },
-            changeType: { id: changeTypeId, name: changeTypeNames[changeTypeId] }
+            changeMode: changeModeId,
+            changeType: changeTypeId
         };
 
         onSave(periodicChange);

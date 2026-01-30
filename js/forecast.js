@@ -13,6 +13,7 @@ import * as TransactionManager from './managers/transaction-manager.js';
 import * as BudgetManager from './managers/budget-manager.js';
 import { openRecurrenceModal } from './modal-recurrence.js';
 import { openPeriodicChangeModal } from './modal-periodic-change.js';
+import { getPeriodicChangeDescription } from './periodic-change-utils.js';
 import { openTextInputModal } from './modal-text-input.js';
 import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
@@ -873,7 +874,8 @@ async function loadAccountsGrid(container) {
     // Add accountType field for grouping
     const enrichedAccounts = displayAccounts.map(a => ({
       ...a,
-      accountType: a.type?.name || 'Unknown'
+      accountType: a.type?.name || 'Unknown',
+      periodicChangeSummary: getPeriodicChangeDescription(a.periodicChange)
     }));
 
     // Mount grid container before initializing Tabulator so layout can measure dimensions
@@ -905,7 +907,32 @@ async function loadAccountsGrid(container) {
             } catch (err) { console.error('Delete account failed', err); }
           }  },
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
-        createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 })
+        createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 }),
+        {
+          title: "Periodic Change",
+          field: "periodicChangeSummary",
+          minWidth: 170,
+          widthGrow: 1.2,
+          formatter: function(cell) {
+            const summary = cell.getValue() || 'None';
+            const icon = '<svg class="periodic-change-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v8h-8v2h8v8h2v-8h8v-2h-8V3z"/></svg>';
+            return `<span class="periodic-change-cell">${icon}<span class="periodic-change-text">${summary}</span></span>`;
+          },
+          cellClick: function(e, cell) {
+            const rowData = cell.getRow().getData();
+            openPeriodicChangeModal(rowData.periodicChange, async (newPeriodicChange) => {
+              // Update the account with new periodic change
+              const allAccts = await AccountManager.getAll(currentScenario.id);
+              const acctIndex = allAccts.findIndex(ac => ac.id === rowData.id);
+              if (acctIndex >= 0) {
+                allAccts[acctIndex].periodicChange = newPeriodicChange;
+                await AccountManager.saveAll(currentScenario.id, allAccts);
+                // Reload grid
+                await loadAccountsGrid(container);
+              }
+            });
+          }
+        }
       ],
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
@@ -1362,6 +1389,7 @@ async function loadMasterTransactionsGrid(container) {
         : '';
 
       const recurrenceSummary = getRecurrenceDescription(tx.recurrence);
+      const periodicChangeSummary = getPeriodicChangeDescription(tx.periodicChange);
       
       const baseData = {
         id: tx.id,
@@ -1380,6 +1408,8 @@ async function loadMasterTransactionsGrid(container) {
         recurrence: tx.recurrence,
         recurrenceDescription: recurrenceSummary,
         recurrenceSummary,
+        periodicChange: tx.periodicChange,
+        periodicChangeSummary,
         tags: tx.tags || []
       };
       
@@ -1580,6 +1610,31 @@ async function loadMasterTransactionsGrid(container) {
               const txIndex = allTxs.findIndex(tx => tx.id === rowData.id);
               if (txIndex >= 0) {
                 allTxs[txIndex].recurrence = newRecurrence;
+                await TransactionManager.saveAll(currentScenario.id, allTxs);
+                // Reload grid
+                await loadMasterTransactionsGrid(container);
+              }
+            });
+          }
+        },
+        {
+          title: "Periodic Change",
+          field: "periodicChangeSummary",
+          minWidth: 170,
+          widthGrow: 1.2,
+          formatter: function(cell) {
+            const summary = cell.getValue() || 'None';
+            const icon = '<svg class="periodic-change-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v8h-8v2h8v8h2v-8h8v-2h-8V3z"/></svg>';
+            return `<span class="periodic-change-cell">${icon}<span class="periodic-change-text">${summary}</span></span>`;
+          },
+          cellClick: function(e, cell) {
+            const rowData = cell.getRow().getData();
+            openPeriodicChangeModal(rowData.periodicChange, async (newPeriodicChange) => {
+              // Update the transaction with new periodic change
+              const allTxs = await getTransactions(currentScenario.id);
+              const txIndex = allTxs.findIndex(tx => tx.id === rowData.id);
+              if (txIndex >= 0) {
+                allTxs[txIndex].periodicChange = newPeriodicChange;
                 await TransactionManager.saveAll(currentScenario.id, allTxs);
                 // Reload grid
                 await loadMasterTransactionsGrid(container);
