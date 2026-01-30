@@ -10,7 +10,15 @@ Every account and transaction has:
 periodicChange: {
   value: 3.5,      // numeric: % or $
   changeMode: 1,   // ID only (1=Percentage Rate, 2=Fixed Amount)
-  changeType: 2    // ID only (1-7, see types below)
+  changeType: 2,   // ID only (1-7, see types below)
+  frequency: 3,    // Optional: For Fixed Amount - when to apply (1=Daily, 2=Weekly, 3=Monthly, 4=Quarterly, 5=Yearly)
+  dayOfMonth: 15,  // Optional: For Fixed Amount with Monthly frequency - which day (1-31)
+  dayOfWeek: 1,    // Optional: For Fixed Amount with Weekly frequency - which day (1=Mon, 7=Sun)
+  weekOfMonth: 1,  // Optional: For Fixed Amount - which week (1-4, or -1 for last)
+  customCompounding: {  // Optional: For Custom change type only
+    frequency: 12,  // How many times to compound
+    period: 1       // Per what? (1=Annual, 2=Monthly, 3=Quarterly, 4=Daily)
+  }
 }
 ```
 
@@ -27,7 +35,14 @@ periodicChange: {
 4. Nominal Annual, Compounded Quarterly
 5. Nominal Annual, Compounded Annually
 6. Effective Annual Rate
-7. Continuous Compounding
+7. **Custom** - Allows custom compounding frequency
+
+**Valid Frequency IDs** (for Fixed Amount mode):
+1. Daily
+2. Weekly
+3. Monthly
+4. Quarterly
+5. Yearly
 
 ## Status
 **80% Built**: Modal, calculations, data persistence all exist.  
@@ -134,12 +149,53 @@ if (txn.periodicChange) {
 ```
 
 ### 6. Update Sample Data
-Add one example to `app-data.json.example`:
+Add examples to `app-data.json.example`:
 ```json
+// Account with percentage rate (compounded monthly)
+"periodicChange": {
+  "value": 2.5,
+  "changeMode": 1,
+  "changeType": 2
+}
+
+// Transaction with fixed amount (applied monthly on 15th)
+"periodicChange": {
+  "value": 50,
+  "changeMode": 2,
+  "changeType": 1,
+  "frequency": 3,
+  "dayOfMonth": 15
+}
+
+// Transaction with fixed amount (every Monday)
+"periodicChange": {
+  "value": 75,
+  "changeMode": 2,
+  "changeType": 1,
+  "frequency": 2,
+  "dayOfWeek": 1
+}
+
+// Account with custom compounding (12 times per year)
 "periodicChange": {
   "value": 3.5,
   "changeMode": 1,
-  "changeType": 2
+  "changeType": 7,
+  "customCompounding": {
+    "frequency": 12,
+    "period": 1
+  }
+}
+
+// Account with custom compounding (30 times per month)
+"periodicChange": {
+  "value": 3.5,
+  "changeMode": 1,
+  "changeType": 7,
+  "customCompounding": {
+    "frequency": 30,
+    "period": 2
+  }
 }
 ```
 

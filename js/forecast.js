@@ -872,11 +872,11 @@ async function loadAccountsGrid(container) {
 
 
     // Add accountType field for grouping
-    const enrichedAccounts = displayAccounts.map(a => ({
+    const enrichedAccounts = await Promise.all(displayAccounts.map(async a => ({
       ...a,
       accountType: a.type?.name || 'Unknown',
-      periodicChangeSummary: getPeriodicChangeDescription(a.periodicChange)
-    }));
+      periodicChangeSummary: await getPeriodicChangeDescription(a.periodicChange)
+    })));
 
     // Mount grid container before initializing Tabulator so layout can measure dimensions
     window.add(container, gridContainer);
@@ -1373,7 +1373,7 @@ async function loadMasterTransactionsGrid(container) {
     }
 
     // Transform for UI - create dual-perspective rows
-    const transformedData = allTransactions.flatMap(tx => {
+    const transformedData = await Promise.all(allTransactions.flatMap(async tx => {
       const storedPrimaryId = tx.primaryAccountId;
       const storedSecondaryId = tx.secondaryAccountId;
       const storedTypeId = tx.transactionTypeId || tx.transactionType?.id;
@@ -1389,7 +1389,7 @@ async function loadMasterTransactionsGrid(container) {
         : '';
 
       const recurrenceSummary = getRecurrenceDescription(tx.recurrence);
-      const periodicChangeSummary = getPeriodicChangeDescription(tx.periodicChange);
+      const periodicChangeSummary = await getPeriodicChangeDescription(tx.periodicChange);
       
       const baseData = {
         id: tx.id,
@@ -1469,11 +1469,14 @@ async function loadMasterTransactionsGrid(container) {
       }
       
       return rows;
-    });
+    }));
+    
+    // Flatten the array of arrays from Promise.all
+    const flatTransformedData = transformedData.flat();
     // Note: Filtering is now handled by Tabulator's setFilter() - see account selection handler
 
     // Compute filtered totals for current transactions view
-    const txTotals = computeMoneyTotals(transformedData, {
+    const txTotals = computeMoneyTotals(flatTransformedData, {
       amountField: 'amount',
       typeField: 'transactionType',
       typeNameField: 'transactionTypeName',
@@ -1492,7 +1495,7 @@ async function loadMasterTransactionsGrid(container) {
     toolbar.appendChild(totalsInline);
 
     masterTransactionsTable = await createGrid(gridContainer, {
-      data: transformedData,
+      data: flatTransformedData,
       headerWordWrap: false, // Prevent header text wrapping
       autoResize: true, // Enable auto-resize on window changes
       columns: [

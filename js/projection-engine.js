@@ -8,7 +8,7 @@ import { expandPeriodicChangeForCalculation } from './periodic-change-utils.js';
 import { getScenario, saveProjections } from './data-manager.js';
 import { parseDateOnly, formatDateOnly } from './date-utils.js';
 import { expandTransactions } from './transaction-expander.js';
-import { loadLookupData } from './config.js';
+import { getSchemaPath } from './app-paths.js';
 
 /**
  * Generate projections for a scenario
@@ -22,7 +22,21 @@ export async function generateProjections(scenarioId, options = {}) {
   console.log('[ProjectionEngine] Generating projections for scenario:', scenarioId);
   
   const source = options.source || 'transactions';
-  const lookupData = loadLookupData();
+  
+  // Load lookup data for periodic change expansion
+  const lookupPath = getSchemaPath('lookup-data.json');
+  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+  let lookupFile;
+  
+  if (isElectron) {
+    const fs = window.require('fs').promises;
+    lookupFile = await fs.readFile(lookupPath, 'utf8');
+  } else {
+    const response = await fetch(lookupPath);
+    lookupFile = await response.text();
+  }
+  
+  const lookupData = JSON.parse(lookupFile);
   
   // Load scenario data
   const scenario = await getScenario(scenarioId);

@@ -126,11 +126,41 @@ export function applyPeriodicChange(value, periodicChange, periods) {
     const changeValue = periodicChange.value;
     
     if (changeMode === 'Fixed Amount') {
-        // Fixed amount change per period
-        return value + (changeValue * periods);
+        // Fixed amount change - need to consider frequency
+        // periods is in years, so convert based on frequency
+        const frequency = periodicChange.frequency?.name || 'Monthly';
+        let periodsPerYear = 12; // Default to monthly
+        
+        if (frequency === 'Daily') periodsPerYear = 365;
+        else if (frequency === 'Weekly') periodsPerYear = 52;
+        else if (frequency === 'Monthly') periodsPerYear = 12;
+        else if (frequency === 'Quarterly') periodsPerYear = 4;
+        else if (frequency === 'Yearly') periodsPerYear = 1;
+        
+        const totalApplications = periods * periodsPerYear;
+        return value + (changeValue * totalApplications);
     } else {
         // Percentage rate change
         const changeType = periodicChange.changeType?.name || 'Nominal Annual (No Compounding)';
+        
+        // Handle custom compounding
+        if (changeType.includes('Custom') && periodicChange.customCompounding?.frequency) {
+            const frequency = periodicChange.customCompounding.frequency;
+            const periodId = periodicChange.customCompounding.period || 1; // Default to Annual
+            
+            // Convert periods (in years) to the specified period type
+            let adjustedPeriods = periods;
+            if (periodId === 2) { // Monthly
+                adjustedPeriods = periods * 12;
+            } else if (periodId === 3) { // Quarterly
+                adjustedPeriods = periods * 4;
+            } else if (periodId === 4) { // Daily
+                adjustedPeriods = periods * 365;
+            }
+            // periodId === 1 (Annual) uses periods as-is
+            
+            return calculateCompoundInterest(value, changeValue, adjustedPeriods / frequency, frequency);
+        }
         
         if (changeType.includes('Compounded')) {
             // Compound interest
