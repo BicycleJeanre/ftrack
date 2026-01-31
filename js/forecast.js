@@ -20,6 +20,7 @@ import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
 import { createLogger } from './logger.js';
 import { isElectronEnv } from './core/platform.js';
+import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from './transaction-row-transformer.js';
 
 const logger = createLogger('ForecastController');
 const isElectron = isElectronEnv();
@@ -1305,12 +1306,10 @@ async function loadMasterTransactionsGrid(container) {
       }
     }
 
-    // Transform for UI - create dual-perspective rows
+    // Normalize canonical data and transform to dual-perspective display rows
+    allTransactions = allTransactions.map(normalizeCanonicalTransaction);
+
     const transformedData = await Promise.all(allTransactions.flatMap(async tx => {
-      const storedPrimaryId = tx.primaryAccountId;
-      const storedSecondaryId = tx.secondaryAccountId;
-      const storedTypeId = tx.transactionTypeId || tx.transactionType?.id;
-      
       // Handle status as object or string
       const statusName = typeof tx.status === 'object' ? tx.status.name : tx.status;
       const actualAmount = typeof tx.status === 'object' ? tx.status.actualAmount : tx.actualAmount;
@@ -1324,90 +1323,23 @@ async function loadMasterTransactionsGrid(container) {
       const recurrenceSummary = getRecurrenceDescription(tx.recurrence);
       const periodicChangeSummary = await getPeriodicChangeDescription(tx.periodicChange);
       
-      const baseData = {
-        id: tx.id,
-        originalTransactionId: tx.id,
-        primaryAccountId: storedPrimaryId,
-        secondaryAccountId: storedSecondaryId,
+      const txForDisplay = {
+        ...tx,
         status: statusName || 'planned',
-        amount: statusName === 'actual' && actualAmount !== undefined ? actualAmount : tx.amount,
-        plannedAmount: tx.amount,
-        actualAmount: actualAmount,
+        plannedAmount: tx.plannedAmount ?? Math.abs(Number(tx.amount ?? 0)),
+        actualAmount: actualAmount !== undefined && actualAmount !== null ? Math.abs(actualAmount) : tx.actualAmount,
         effectiveDate: tx.effectiveDate,
         plannedDate: tx.effectiveDate,
         actualDate: actualDate,
         displayDate,
-        description: tx.description,
-        recurrence: tx.recurrence,
         recurrenceDescription: recurrenceSummary,
         recurrenceSummary,
-        periodicChange: tx.periodicChange,
         periodicChangeSummary,
+        periodicChange: tx.periodicChange,
         tags: tx.tags || []
       };
       
-      const rows = [];
-      
-      // Perspective 1: From the stored primary account's view (as-is)
-      if (storedPrimaryId) {
-        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId };
-        const secondaryAccount = storedSecondaryId 
-          ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
-          : null;
-        const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
-        
-        rows.push({
-          ...baseData,
-          perspectiveAccountId: storedPrimaryId, // Used for filtering
-          transactionTypeId: storedTypeId,
-          primaryAccount,
-          primaryAccountName: primaryAccount?.name || '',
-          transactionType,
-          transactionTypeName: transactionType?.name || '',
-          secondaryAccount
-        });
-      }
-      
-      // Perspective 2: From the stored secondary account's view (flipped)
-      // This is a generated internal view - accounts and type are inverted for display
-      if (storedSecondaryId) {
-        // SWAP accounts: secondary becomes primary in the flipped view
-        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId };
-        const secondaryAccount = storedPrimaryId
-          ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
-          : null;
-        
-        // Flip the transaction type for this perspective
-        const flippedTypeId = storedTypeId === 1 ? 2 : 1;
-        const transactionType = flippedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
-        
-        // Flip the amount sign for display (we'll handle this in formatter, but store inverted for now)
-        const flippedAmount = -(baseData.amount);
-        const flippedPlannedAmount = -(baseData.plannedAmount);
-        const flippedActualAmount = baseData.actualAmount !== undefined && baseData.actualAmount !== null 
-          ? -(baseData.actualAmount) 
-          : baseData.actualAmount;
-        
-        rows.push({
-          ...baseData,
-          id: `${tx.id}_flipped`, // Unique ID for flipped perspective (internal only)
-          perspectiveAccountId: storedSecondaryId, // Used for filtering - who is viewing this
-          // These are SWAPPED for flipped perspective (as if secondary account initiated the transaction)
-          transactionTypeId: flippedTypeId,
-          amount: flippedAmount,
-          plannedAmount: flippedPlannedAmount,
-          actualAmount: flippedActualAmount,
-          primaryAccount, // Now the stored secondary account
-          primaryAccountName: primaryAccount?.name || '',
-          primaryAccountId: storedSecondaryId,  // SWAPPED
-          secondaryAccount, // Now the stored primary account
-          secondaryAccountId: storedPrimaryId,  // SWAPPED
-          transactionType,
-          transactionTypeName: transactionType?.name || ''
-        });
-      }
-      
-      return rows;
+      return transformTransactionToRows(txForDisplay, currentScenario.accounts);
     }));
     
     // Flatten the array of arrays from Promise.all
@@ -1611,22 +1543,6 @@ async function loadMasterTransactionsGrid(container) {
         const actualTxId = String(rowData.id).replace('_flipped', '');
         console.log('[TransactionsGrid] isFlipped:', isFlipped, 'actualTxId:', actualTxId);
 
-        const normalizeForSave = (tx) => {
-          const typeName = tx.transactionType?.name
-            || (tx.transactionTypeId === 1 ? 'Money In' : 'Money Out');
-          const transactionTypeId = tx.transactionType?.id
-            ?? tx.transactionTypeId
-            ?? (typeName === 'Money In' ? 1 : 2);
-
-          return {
-            ...tx,
-            transactionType: { id: transactionTypeId, name: transactionTypeId === 1 ? 'Money In' : 'Money Out' },
-            transactionTypeId,
-            primaryAccountId: tx.primaryAccountId ?? null,
-            secondaryAccountId: tx.secondaryAccountId ?? null,
-          };
-        };
-
         // Handle new account creation
         if ((field === 'secondaryAccount' || field === 'primaryAccount') && newValue && newValue.__create__) {
           // Open text input modal to get account name
@@ -1696,54 +1612,13 @@ async function loadMasterTransactionsGrid(container) {
         }
 
         // Normal cell editing
-        const allTxs = await getTransactions(currentScenario.id);
+        const allTxs = (await getTransactions(currentScenario.id)).map(normalizeCanonicalTransaction);
         const txIndex = allTxs.findIndex(tx => String(tx.id) === actualTxId);
 
         if (txIndex >= 0) {
-          const updatedTx = { ...allTxs[txIndex] };
+          const updatedTx = mapEditToCanonical(allTxs[txIndex], { field, value: newValue, isFlipped });
 
-          // KEY: If editing from flipped row, we need to map the field back to canonical storage format
-          // The flipped row shows a swapped perspective, so we need to reverse that for storage
-          
-          if (isFlipped) {
-            // User is editing from secondary account's perspective (flipped view)
-            // The data in the flipped row has primary/secondary swapped and type inverted
-            // We need to map it back to the CANONICAL primary/secondary/type
-            
-            if (field === 'primaryAccount') {
-              // User edited primaryAccount in flipped view (which was actually secondaryAccountId in storage)
-              updatedTx.secondaryAccountId = newValue?.id || null;
-            } else if (field === 'secondaryAccount') {
-              // User edited secondaryAccount in flipped view (which was actually primaryAccountId in storage)
-              updatedTx.primaryAccountId = newValue?.id || null;
-            } else if (field === 'transactionType') {
-              // User selected a type in flipped view
-              // Flip it back to storage format: if they select type 1, store type 2, etc.
-              const selectedTypeId = newValue?.id || 1;
-              updatedTx.transactionTypeId = selectedTypeId === 1 ? 2 : 1;
-            } else if (field === 'amount') {
-              // Amount is shown negated in flipped view, so negate it back
-              updatedTx.amount = -(newValue);
-            } else {
-              // Other fields (description, recurrence, etc.) - no mapping needed
-              updatedTx[field] = newValue;
-            }
-          } else {
-            // Editing from primary account's perspective - store as-is (canonical form)
-            if (field === 'primaryAccount') {
-              updatedTx.primaryAccountId = newValue?.id || null;
-            } else if (field === 'secondaryAccount') {
-              updatedTx.secondaryAccountId = newValue?.id || null;
-            } else if (field === 'transactionType') {
-              updatedTx.transactionTypeId = newValue?.id || (newValue?.name === 'Money In' ? 1 : 2);
-            } else if (field === 'amount') {
-              updatedTx.amount = newValue;
-            } else {
-              updatedTx[field] = newValue;
-            }
-          }
-
-          allTxs[txIndex] = normalizeForSave(updatedTx);
+          allTxs[txIndex] = updatedTx;
           console.log('[TransactionsGrid] saveAll ->', { txId: actualTxId, field, isFlipped, canonical: allTxs[txIndex] });
           await TransactionManager.saveAll(currentScenario.id, allTxs);
           console.log('[TransactionsGrid] saveAll complete', { txId: actualTxId });
@@ -2101,6 +1976,8 @@ async function loadBudgetGrid(container) {
         sourceTransactionId: budget.sourceTransactionId,
         primaryAccountId: storedPrimaryId,
         secondaryAccountId: storedSecondaryId,
+        transactionTypeId: storedTypeId,
+        transactionType: storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' },
         plannedAmount: budget.amount,
         actualAmount: statusObj.actualAmount,
         amount: statusObj.actualAmount !== null && statusObj.actualAmount !== undefined ? statusObj.actualAmount : budget.amount,
@@ -2126,62 +2003,8 @@ async function loadBudgetGrid(container) {
         }
       }
       
-      const rows = [];
-      
-      // Perspective 1: From the stored primary account's view (as-is)
-      if (storedPrimaryId) {
-        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId };
-        const secondaryAccount = storedSecondaryId 
-          ? currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId }
-          : null;
-        const transactionType = storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
-        
-        rows.push({
-          ...baseData,
-          perspectiveAccountId: storedPrimaryId, // Used for filtering
-          transactionTypeId: storedTypeId,
-          primaryAccount,
-          primaryAccountName: primaryAccount?.name || '',
-          transactionType,
-          transactionTypeName: transactionType?.name || '',
-          secondaryAccount
-        });
-      }
-      
-      // Perspective 2: From the stored secondary account's view (flipped)
-      if (storedSecondaryId) {
-        const primaryAccount = currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId };
-        const secondaryAccount = storedPrimaryId
-          ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
-          : null;
-        // Flip the transaction type
-        const flippedTypeId = storedTypeId === 1 ? 2 : 1;
-        const transactionType = flippedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
-        
-        // Flip the amount sign when flipping perspective
-        const flippedAmount = -(baseData.amount);
-        const flippedPlannedAmount = -(baseData.plannedAmount);
-        const flippedActualAmount = baseData.actualAmount !== undefined && baseData.actualAmount !== null 
-          ? -(baseData.actualAmount) 
-          : baseData.actualAmount;
-        
-        rows.push({
-          ...baseData,
-          id: `${budget.id}_flipped`, // Unique ID for flipped perspective
-          perspectiveAccountId: storedSecondaryId, // Used for filtering
-          transactionTypeId: flippedTypeId,
-          amount: flippedAmount,
-          plannedAmount: flippedPlannedAmount,
-          actualAmount: flippedActualAmount,
-          primaryAccount,
-          primaryAccountName: primaryAccount?.name || '',
-          transactionType,
-          transactionTypeName: transactionType?.name || '',
-          secondaryAccount
-        });
-      }
-      
-      return rows;
+      const canonicalBudget = normalizeCanonicalTransaction(baseData);
+      return transformTransactionToRows(canonicalBudget, currentScenario.accounts);
     });
     // Note: Account filtering is now handled by Tabulator's setFilter() - see account selection handler
 
@@ -2340,32 +2163,22 @@ async function loadBudgetGrid(container) {
             const rowData = cell.getRow().getData();
             openStatusModal(rowData, async (updates) => {
               // Update budget occurrence with actual amount and date
-              const allBudgets = await getBudget(currentScenario.id);
-              const budgetIndex = allBudgets.findIndex(b => b.id === rowData.id);
+              const canonicalId = String(rowData.id).replace('_flipped', '');
+              const allBudgets = (await getBudget(currentScenario.id)).map(normalizeCanonicalTransaction);
+              const budgetIndex = allBudgets.findIndex(b => String(b.id) === canonicalId);
               if (budgetIndex >= 0) {
                 const updatedBudget = { ...allBudgets[budgetIndex] };
-                
-                // Normalize budget for save
-                const normalizeBudgetForSave = (budget) => {
-                  const typeName = budget.transactionType?.name || 'Money Out';
-                  const typeId = budget.transactionType?.id ?? (typeName === 'Money In' ? 1 : 2);
+                const actualAmount = updates.actualAmount !== null && updates.actualAmount !== undefined
+                  ? Math.abs(updates.actualAmount)
+                  : null;
 
-                  return {
-                    ...budget,
-                    transactionTypeId: typeId,
-                    primaryAccountId: budget.primaryAccountId ?? null,
-                    secondaryAccountId: budget.secondaryAccountId ?? null,
-                    status: typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null }
-                  };
-                };
-                
                 updatedBudget.status = {
-                  name: updates.actualAmount !== null && updates.actualAmount !== undefined ? 'actual' : 'planned',
-                  actualAmount: updates.actualAmount || null,
+                  name: actualAmount !== null ? 'actual' : 'planned',
+                  actualAmount,
                   actualDate: updates.actualDate || null
                 };
-                
-                allBudgets[budgetIndex] = normalizeBudgetForSave(updatedBudget);
+
+                allBudgets[budgetIndex] = updatedBudget;
                 await BudgetManager.saveAll(currentScenario.id, allBudgets);
                 currentScenario = await getScenario(currentScenario.id);
                 await loadBudgetGrid(container);
@@ -2379,55 +2192,22 @@ async function loadBudgetGrid(container) {
         const field = cell.getColumn().getField();
         const newValue = cell.getValue();
 
-        // Update budget occurrence
-        const allBudgets = await getBudget(currentScenario.id);
-        const budgetIndex = allBudgets.findIndex(b => b.id === rowData.id);
+        const isFlipped = String(rowData.id).includes('_flipped');
+        const canonicalId = String(rowData.id).replace('_flipped', '');
+        const allBudgets = (await getBudget(currentScenario.id)).map(normalizeCanonicalTransaction);
+        const budgetIndex = allBudgets.findIndex(b => String(b.id) === canonicalId);
 
         if (budgetIndex >= 0) {
-          const updatedBudget = { ...allBudgets[budgetIndex] };
+          const updatedBudget = mapEditToCanonical(allBudgets[budgetIndex], { field, value: newValue, isFlipped });
 
-          // Normalize budget for save (convert UI format to storage format)
-          const normalizeBudgetForSave = (budget) => {
-            const typeName = budget.transactionType?.name || 'Money Out';
-            const typeId = budget.transactionType?.id ?? (typeName === 'Money In' ? 1 : 2);
-
-            return {
-              ...budget,
-              transactionTypeId: typeId,
-              primaryAccountId: budget.primaryAccountId ?? null,
-              secondaryAccountId: budget.secondaryAccountId ?? null,
-              status: typeof budget.status === 'object' ? budget.status : { name: budget.status, actualAmount: null, actualDate: null }
+          if (updatedBudget.status && typeof updatedBudget.status === 'object' && updatedBudget.status.actualAmount !== null && updatedBudget.status.actualAmount !== undefined) {
+            updatedBudget.status = {
+              ...updatedBudget.status,
+              actualAmount: Math.abs(Number(updatedBudget.status.actualAmount) || 0)
             };
-          };
-
-          // Handle field update
-          if (field === 'transactionType') {
-            updatedBudget.transactionType = newValue;
-          } else if (field === 'secondaryAccount') {
-            updatedBudget.secondaryAccount = newValue;
-            updatedBudget.secondaryAccountId = newValue?.id || null;
-          } else if (field === 'plannedAmount') {
-            // Map UI field 'plannedAmount' back to storage field 'amount'
-            updatedBudget.amount = newValue;
-          } else if (field === 'actualAmount') {
-            // Update actual amount in status object
-            if (!updatedBudget.status || typeof updatedBudget.status !== 'object') {
-              updatedBudget.status = { name: 'planned', actualAmount: null, actualDate: null };
-            }
-            if (newValue !== null && newValue !== undefined && newValue !== '') {
-              updatedBudget.status.actualAmount = newValue;
-              if (!updatedBudget.status.actualDate) {
-                updatedBudget.status.actualDate = formatDateOnly(new Date());
-              }
-              updatedBudget.status.name = 'actual';
-            }
-          } else {
-            // Update other fields normally
-            updatedBudget[field] = newValue;
           }
 
-          // Normalize and save
-          allBudgets[budgetIndex] = normalizeBudgetForSave(updatedBudget);
+          allBudgets[budgetIndex] = updatedBudget;
           await BudgetManager.saveAll(currentScenario.id, allBudgets);
         }
       }

@@ -81,13 +81,14 @@ export async function saveAll(scenarioId, transactions) {
                     actualDate: txn.actualDate || null
                 };
             }
+
+            if (status.actualAmount !== null && status.actualAmount !== undefined) {
+                status.actualAmount = Math.abs(Number(status.actualAmount) || 0);
+            }
             
-            // Normalize amount sign based on transaction type
+            // Store canonical unsigned amount
             const rawAmount = txn.amount || 0;
-            const absAmount = Math.abs(rawAmount);
-            const normalizedAmount = transactionTypeId === 1
-                ? absAmount  // Money In: always positive
-                : -absAmount; // Money Out: always negative
+            const normalizedAmount = Math.abs(rawAmount);
             
             const mapped = {
                 id,

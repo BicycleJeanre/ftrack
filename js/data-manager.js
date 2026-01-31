@@ -473,9 +473,7 @@ export async function createTransaction(scenarioId, transactionData) {
   const transactionTypeId = transactionData.transactionTypeId || 2;
   const rawAmount = transactionData.amount || 0;
   const absAmount = Math.abs(rawAmount);
-  const normalizedAmount = transactionTypeId === 1 
-    ? absAmount  // Money In: always positive
-    : -absAmount; // Money Out: always negative
+  const normalizedAmount = absAmount; // Store canonical unsigned amount
 
   const newTransaction = {
     id: maxId + 1,
@@ -626,7 +624,7 @@ export async function createActualTransaction(scenarioId, transactionData) {
     primaryAccountId: transactionData.primaryAccountId || null,
     secondaryAccountId: transactionData.secondaryAccountId || null,
     transactionTypeId: transactionData.transactionTypeId || 2,
-    amount: transactionData.amount || 0,
+    amount: Math.abs(transactionData.amount || 0),
     description: transactionData.description || '',
     status: transactionData.status || { id: 2, name: 'Completed' },
     tags: transactionData.tags || [],
