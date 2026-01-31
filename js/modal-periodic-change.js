@@ -3,6 +3,7 @@
 
 import { getSchemaPath } from './app-paths.js';
 import { isElectronEnv } from './core/platform.js';
+import { createModal } from './modal-factory.js';
 
 /**
  * Open a modal to edit periodic change data
@@ -25,11 +26,7 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
     
     const lookupData = JSON.parse(lookupFile);
     
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-
-    const modal = document.createElement('div');
-    modal.className = 'modal-content modal-periodic';
+    const { modal, close } = createModal({ contentClass: 'modal-periodic' });
 
     // Extract current values or use defaults
     const value = currentValue?.value || 0;
@@ -148,9 +145,6 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
         </div>
     `;
 
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
     // Get DOM elements
     const changeModeSelect = modal.querySelector('#changeMode');
     const changeTypeSelect = modal.querySelector('#changeType');
@@ -252,14 +246,7 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
     const saveBtn = modal.querySelector('#saveBtn');
     const clearBtn = modal.querySelector('#clearBtn');
 
-    const close = () => {
-        overlay.remove();
-    };
-
     cancelBtn.addEventListener('click', close);
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) close();
-    });
 
     clearBtn.addEventListener('click', () => {
         onSave(null);
