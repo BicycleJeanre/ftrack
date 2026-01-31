@@ -30,24 +30,10 @@
  */
 
 
-/**
- * Generate human-readable recurrence description from recurrence object
- * @param {Object} recurrence - Recurrence pattern object
- * @returns {string} - Description like "Monthly - Day 1", "Weekly (Friday)", etc.
- */
-function getRecurrenceDescription(recurrence) {
-  if (!recurrence || !recurrence.recurrenceType) return '';
-  const pattern = recurrence.recurrenceType.name || '';
-  
-  if (recurrence.dayOfMonth) return `${pattern} (Day ${recurrence.dayOfMonth})`;
-  if (recurrence.dayOfWeek?.name) return `${pattern} (${recurrence.dayOfWeek.name})`;
-  if (recurrence.customDates) return `Custom: ${recurrence.customDates.split(',').length} dates`;
-  return pattern;
-}
-
 import * as DataStore from '../core/data-store.js';
 import { generateRecurrenceDates } from '../calculation-utils.js';
 import { formatDateOnly } from '../date-utils.js';
+import { getRecurrenceDescription } from '../recurrence-utils.js';
 
 /**
  * Get all budget occurrences for a scenario
