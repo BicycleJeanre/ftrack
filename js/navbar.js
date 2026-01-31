@@ -1,4 +1,6 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
+import { downloadAppData, uploadAppData } from './data-export-import.js';
+
 (function() {
   // Platform detection
   var isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
@@ -40,9 +42,7 @@
       exportBtn.addEventListener('click', async function(e) {
         e.preventDefault();
         try {
-          // Dynamic import to avoid loading on every page
-          const module = await import('./data-export-import.js');
-          const success = await module.downloadAppData();
+          const success = await downloadAppData();
           if (success) {
             console.log('[Navbar] Data exported successfully');
           }
@@ -56,12 +56,14 @@
     if (importBtn) {
       importBtn.addEventListener('click', async function(e) {
         e.preventDefault();
+        console.log('[Navbar] Import button clicked');
         try {
-          // Dynamic import to avoid loading on every page
-          const module = await import('./data-export-import.js');
-          const success = await module.uploadAppData(false); // false = replace mode
+          const success = await uploadAppData(false); // false = replace mode
+          console.log('[Navbar] uploadAppData returned:', success);
           if (success) {
             console.log('[Navbar] Data imported successfully');
+          } else {
+            console.log('[Navbar] Import was cancelled or failed');
           }
         } catch (err) {
           console.error('[Navbar] Import failed:', err);

@@ -66,6 +66,7 @@ export async function downloadAppData() {
  */
 export async function uploadAppData(merge = false) {
   try {
+    console.log('[Import] uploadAppData called, merge:', merge);
     const platform = getPlatformInfo();
     let jsonString;
     if (isElectronEnv() && window.electronAPI) {
@@ -89,6 +90,7 @@ export async function uploadAppData(merge = false) {
       return false;
     }
     
+    console.log('[Import] File read successfully, showing confirmation dialog');
     // Confirm action
     const action = merge ? 'merge with' : 'replace';
     const confirmed = confirm(`This will ${action} your current data. Continue?`);
@@ -123,9 +125,11 @@ function selectAndReadFile() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,application/json';
+    input.style.display = 'none';
     
     input.onchange = async (e) => {
       const file = e.target.files[0];
+      document.body.removeChild(input);
       if (!file) {
         resolve(null);
         return;
@@ -140,9 +144,12 @@ function selectAndReadFile() {
     };
     
     input.oncancel = () => {
+      document.body.removeChild(input);
       resolve(null);
     };
     
+    // Attach to DOM before clicking to ensure it's treated as a user action
+    document.body.appendChild(input);
     input.click();
   });
 }
