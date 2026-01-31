@@ -9,6 +9,9 @@ import { getScenario, saveProjections } from './data-manager.js';
 import { parseDateOnly, formatDateOnly } from './date-utils.js';
 import { expandTransactions } from './transaction-expander.js';
 import { getSchemaPath } from './app-paths.js';
+import { isElectronEnv } from './core/platform.js';
+
+const isElectron = isElectronEnv();
 
 /**
  * Generate projections for a scenario
@@ -25,7 +28,6 @@ export async function generateProjections(scenarioId, options = {}) {
   
   // Load lookup data for periodic change expansion
   const lookupPath = getSchemaPath('lookup-data.json');
-  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
   let lookupFile;
   
   if (isElectron) {

@@ -1,31 +1,16 @@
 // data-store.js
 // Generic CRUD layer for data persistence
 // Single source of truth for file I/O operations
-// Delegates to data-manager.js in web environment for localStorage
 
 import { getAppDataPath } from '../app-paths.js';
+import { getFsPromises, isElectronEnv } from './platform.js';
 
-// Platform detection
-const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
-
-let fs, path, dataPath;
-if (isElectron) {
-  fs = window.require('fs').promises;
-  path = window.require('path');
-  dataPath = getAppDataPath();
-}
+const isElectron = isElectronEnv();
+const fs = getFsPromises();
+const dataPath = isElectron ? getAppDataPath() : null;
 
 let writeQueue = Promise.resolve(); // serialize writes to avoid concurrent truncation
 let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
-
-// Lazy import data-manager for web mode
-let dataManager;
-async function getDataManager() {
-  if (!dataManager) {
-    dataManager = await import('../data-manager.js');
-  }
-  return dataManager;
-}
 
 // Web storage key (must match data-manager.js)
 const WEB_STORAGE_KEY = 'ftrack:app-data';
@@ -42,6 +27,9 @@ export async function read() {
             return { scenarios: [] };
         }
         return JSON.parse(dataString);
+    }
+    if (!fs || !dataPath) {
+        throw new Error('[DataStore] Filesystem not available in Electron context');
     }
     try {
         const dataFile = await fs.readFile(dataPath, 'utf8');
@@ -60,14 +48,11 @@ export async function read() {
  */
 export async function write(data) {
     if (!isElectron) {
-        const dm = await getDataManager();
-        // For web, we need to call the internal write function
-        // Since data-manager exports specific methods, we'll need to work with scenarios
-        // This is a bit awkward - we may need to expose a writeAppData in data-manager
-        // For now, let's use a workaround
-        const WEB_STORAGE_KEY = 'ftrack:app-data';
         localStorage.setItem(WEB_STORAGE_KEY, JSON.stringify(data));
         return;
+    }
+    if (!fs || !dataPath) {
+        throw new Error('[DataStore] Filesystem not available in Electron context');
     }
     // Serialize writes through a promise chain and use atomic write (temp file + rename)
     writeQueue = writeQueue.then(async () => {

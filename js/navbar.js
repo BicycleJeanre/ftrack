@@ -1,9 +1,10 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 import { downloadAppData, uploadAppData } from './data-export-import.js';
+import { isElectronEnv } from './core/platform.js';
 
 (function() {
   // Platform detection
-  var isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+  var isElectron = isElectronEnv();
   
   // Add clear data button only for web
   var clearDataBtn = !isElectron ? '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>' : '';

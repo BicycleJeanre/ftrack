@@ -18,8 +18,10 @@ import { openTextInputModal } from './modal-text-input.js';
 import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
 import { createLogger } from './logger.js';
+import { isElectronEnv } from './core/platform.js';
 
 const logger = createLogger('ForecastController');
+const isElectron = isElectronEnv();
 
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
 import { generateRecurrenceDates } from './calculation-utils.js';
@@ -345,7 +347,6 @@ function buildGridContainer() {
 async function buildScenarioGrid(container) {
   container.innerHTML = '';
 
-  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
   const lookupPath = getSchemaPath('lookup-data.json');
 
   try {
@@ -623,7 +624,6 @@ async function loadScenarioTypes() {
 
   try {
     // Platform detection - use fetch in web, fs in Electron
-    const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
     let lookupFile;
     
     if (isElectron) {
@@ -793,7 +793,6 @@ async function loadAccountsGrid(container) {
     const displayAccounts = accounts.filter(a => a.name !== 'Select Account');
     
     // Platform detection for loading lookup data
-    const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
     const lookupPath = getSchemaPath('lookup-data.json');
     let lookupFile;
     
@@ -2982,4 +2981,3 @@ init().catch(err => {
   console.error('[ForecastPage] Initialization failed:', err);
   logger.error('Page initialization failed', err);
 });
-

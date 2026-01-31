@@ -4,9 +4,10 @@
 // In web, uses fallback implementations
 
 import { parseDateOnly } from './date-utils.js';
+import { isElectronEnv } from './core/platform.js';
 
 // Platform detection
-const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+const isElectron = isElectronEnv();
 
 let Finance, finance;
 if (isElectron) {

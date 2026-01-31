@@ -2,6 +2,7 @@
 // Utilities for periodic change display and ID expansion
 
 import { getSchemaPath } from './app-paths.js';
+import { isElectronEnv } from './core/platform.js';
 
 // Cache for lookup data
 let lookupDataCache = null;
@@ -14,7 +15,7 @@ async function loadLookupData() {
   if (lookupDataCache) return lookupDataCache;
   
   const lookupPath = getSchemaPath('lookup-data.json');
-  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+  const isElectron = isElectronEnv();
   let lookupFile;
   
   if (isElectron) {

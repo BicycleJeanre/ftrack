@@ -2,11 +2,12 @@
 // Utility wrapper for creating Tabulator grids with consistent configuration
 
 import { createLogger } from './logger.js';
+import { isElectronEnv } from './core/platform.js';
 
 const logger = createLogger('GridFactory');
 
 // Platform detection for Tabulator
-const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+const isElectron = isElectronEnv();
 
 // Get Tabulator - from node_modules in Electron, from global CDN in web
 async function getTabulatorLib() {

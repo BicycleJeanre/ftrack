@@ -4,14 +4,14 @@
 
 import { getAppDataPath } from './app-paths.js';
 import { parseDateOnly } from './date-utils.js';
+import { getFsPromises, getPathModule, isElectronEnv } from './core/platform.js';
 
-// Platform detection
-const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+const isElectron = isElectronEnv();
+const fs = isElectron ? getFsPromises() : null;
+const path = isElectron ? getPathModule() : null;
 
-let fs, path, dataPath, oldDataPath;
-if (isElectron) {
-  fs = window.require('fs').promises;
-  path = window.require('path');
+let dataPath, oldDataPath;
+if (isElectron && path) {
   dataPath = getAppDataPath();
   oldDataPath = path.join(path.dirname(path.dirname(dataPath)), 'app-data.json');
 }
@@ -85,6 +85,9 @@ export async function migrateAllScenarios() {
         console.log('[Migration] Skipping migration in web environment');
         return;
     }
+    if (!fs || !dataPath) {
+        throw new Error('[Migration] Filesystem unavailable for migration');
+    }
     try {
         // Read current data
         const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
@@ -132,6 +135,10 @@ export async function migrateAllScenarios() {
 export async function needsMigration() {
     if (!isElectron) {
         console.log('[Migration] No migration needed in web environment');
+        return false;
+    }
+    if (!fs || !dataPath) {
+        console.error('[Migration] Filesystem unavailable for migration check');
         return false;
     }
     try {
