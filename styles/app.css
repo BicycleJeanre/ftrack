@@ -408,10 +408,25 @@ p {
 }
 
 /* Grid containers */
-.grid-container { width: 100%; overflow-y: auto; max-width: 100%; overflow-x: auto; }
-.scenarios-grid { max-height: 300px; }
-.accounts-grid { max-height: 280px; }
-.planned-grid { max-height: 350px; }
+.grid-container { width: 100%; overflow-y: auto; max-width: 100%; overflow-x: auto; max-height: 60vh; }
+.scenarios-grid,
+.accounts-grid,
+.master-transactions-grid,
+.budget-grid,
+.planned-grid {
+  max-height: 60vh;
+}
+
+@media (max-width: 768px) {
+  .grid-container,
+  .scenarios-grid,
+  .accounts-grid,
+  .master-transactions-grid,
+  .budget-grid,
+  .planned-grid {
+    max-height: 50vh;
+  }
+}
 
 /* Transaction summary styles */
 .transaction-summary {

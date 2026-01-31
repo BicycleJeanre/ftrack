@@ -38,7 +38,6 @@ const defaultConfig = {
         return true; // Default to selectable
     },
     editTriggerEvent: "dblclick", // Double-click to edit cells (allows single-click for row selection)
-    height: "500px", // Fixed height to prevent resize loop
     rowHeight: 42,
     headerVisible: true,
     headerFilterPlaceholder: "Filter...",
