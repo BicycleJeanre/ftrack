@@ -243,7 +243,7 @@ function buildGridContainer() {
   
   const scenarioContent = document.createElement('div');
   scenarioContent.id = 'scenarioContent';
-  scenarioContent.className = 'accordion-content open';
+  scenarioContent.className = 'accordion-content hidden';
   window.add(scenarioSection, scenarioContent);
   
   const scenarioSelector = document.createElement('div');
@@ -263,7 +263,7 @@ function buildGridContainer() {
   
   const accountsContent = document.createElement('div');
   accountsContent.id = 'accountsContent';
-  accountsContent.className = 'accordion-content open';
+  accountsContent.className = 'accordion-content hidden';
   window.add(accountsSection, accountsContent);
   
   const accountsTable = document.createElement('div');
@@ -283,7 +283,7 @@ function buildGridContainer() {
 
   const transactionsContent = document.createElement('div');
   transactionsContent.id = 'transactionsContent';
-  transactionsContent.className = 'accordion-content open section-content';
+  transactionsContent.className = 'accordion-content section-content hidden';
   window.add(transactionsSection, transactionsContent);
 
   const transactionsTable = document.createElement('div');
@@ -306,7 +306,7 @@ function buildGridContainer() {
 
   const budgetContent = document.createElement('div');
   budgetContent.id = 'budgetContent';
-  budgetContent.className = 'accordion-content open section-content';
+  budgetContent.className = 'accordion-content section-content hidden';
   window.add(budgetSection, budgetContent);
 
   const budgetTable = document.createElement('div');
@@ -330,7 +330,7 @@ function buildGridContainer() {
 
   const projectionsContent = document.createElement('div');
   projectionsContent.id = 'projectionsContent';
-  projectionsContent.className = 'accordion-content open';
+  projectionsContent.className = 'accordion-content hidden';
   window.add(projectionsSection, projectionsContent);
   window.add(forecastEl, projectionsSection);
 
