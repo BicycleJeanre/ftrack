@@ -7,6 +7,7 @@ console.log('forecast.js loaded at', new Date().toISOString());
 import { getSchemaPath, getAppDataPath } from './app-paths.js';
 
 import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
+import { attachGridHandlers } from './grid-handlers.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
 import * as AccountManager from './managers/account-manager.js';
 import * as TransactionManager from './managers/transaction-manager.js';
@@ -503,8 +504,7 @@ async function buildScenarioGrid(container) {
       }
     });
 
-    // Also attach handler to Tabulator's rowSelected event to follow recommended pattern
-    scenariosTable.on('rowSelected', async function(row){
+    const handleScenarioRowSelectedPrimary = async function(row) {
       try {
         const scenario = row.getData();
         currentScenario = await getScenario(scenario.id);
@@ -513,10 +513,34 @@ async function buildScenarioGrid(container) {
       } catch (err) {
         logger.error('[ScenarioGrid] rowSelected handler failed:', err);
       }
-    });
+    };
 
-    // Attach direct event listeners to help debug selection behavior
-    scenariosTable.on('rowClick', function(e, row) {
+    const handleScenarioRowSelectedEnforce = function(row) {
+      try {
+        const table = row.getTable();
+        const selected = table.getSelectedRows();
+        if (selected.length > 1) {
+          // Deselect others, keep this one
+          selected.forEach(r => { if (r.getData().id !== row.getData().id) r.deselect(); });
+        }
+      } catch (err) {
+        logger.error('[ScenarioGrid] rowSelected enforcement failed:', err);
+      }
+      // Debounce reload to avoid re-render races
+      setTimeout(async () => {
+        try {
+          const scenario = row.getData();
+          if (currentScenario && currentScenario.id === scenario.id) return; // already set
+          currentScenario = await getScenario(scenario.id);
+          selectedAccountId = null;
+          await loadScenarioData();
+        } catch (err) {
+          logger.error('[ScenarioGrid] rowSelected handler failed (delayed):', err);
+        }
+      }, 40);
+    };
+
+    const handleScenarioRowClick = function(e, row) {
       // Ensure single-selection by deselecting others then selecting this row
       try {
         const table = row.getTable();
@@ -541,41 +565,11 @@ async function buildScenarioGrid(container) {
       } catch (err) {
         logger.error('[ScenarioGrid] rowClick fallback failed:', err);
       }
-    });
+    };
 
-    scenariosTable.on('rowSelected', function(row) {
-      try {
-        const table = row.getTable();
-        const selected = table.getSelectedRows();
-        if (selected.length > 1) {
-          // Deselect others, keep this one
-          selected.forEach(r => { if (r.getData().id !== row.getData().id) r.deselect(); });
-        }
-      } catch (err) {
-        logger.error('[ScenarioGrid] rowSelected enforcement failed:', err);
-      }
-      // Debounce reload to avoid re-render races
-      setTimeout(async () => {
-        try {
-          const scenario = row.getData();
-          if (currentScenario && currentScenario.id === scenario.id) return; // already set
-          currentScenario = await getScenario(scenario.id);
-          selectedAccountId = null;
-          await loadScenarioData();
-        } catch (err) {
-          logger.error('[ScenarioGrid] rowSelected handler failed (delayed):', err);
-        }
-      }, 40);
-    });
-
-    scenariosTable.on('rowDeselected', function(row) {
-    });
-
-    // Attach cellEdited event handler
-    scenariosTable.on("cellEdited", async function(cell) {
+    const handleScenarioCellEdited = async function(cell) {
       const row = cell.getRow();
       const scenario = row.getData();
-      
       
       try {
         // Extract only the fields that should be saved (exclude Tabulator-specific fields)
@@ -588,13 +582,18 @@ async function buildScenarioGrid(container) {
           projectionPeriod: scenario.projectionPeriod
         };
         
-        
         // Update just the edited scenario
         await ScenarioManager.update(scenario.id, updates);
       } catch (err) {
         console.error('[Forecast] ✗ Failed to save scenario:', err);
         alert('Failed to save scenario: ' + err.message);
       }
+    };
+
+    attachGridHandlers(scenariosTable, {
+      rowSelected: [handleScenarioRowSelectedPrimary, handleScenarioRowSelectedEnforce],
+      rowClick: handleScenarioRowClick,
+      cellEdited: handleScenarioCellEdited
     });
 
     // Set initial scenario if not set and load its data
@@ -1040,7 +1039,7 @@ async function loadAccountsGrid(container) {
     });
 
     // Enforce single selection and provide fallback selection on click for accounts
-    accountsTable.on('rowClick', function(e, row) {
+    const handleAccountRowClick = function(e, row) {
       try {
         const table = row.getTable();
         if (row.isSelected()) {
@@ -1061,13 +1060,13 @@ async function loadAccountsGrid(container) {
       } catch (err) {
         logger.error('[AccountsGrid] rowClick fallback failed:', err);
       }
-    });
+    };
     
     // Grid will show placeholder if no accounts exist (handled by Tabulator)
 
     // Fallback for when rowSelectionChanged doesn't fire (Tabulator version compatibility)
     let lastProcessedAccountId = null;
-    accountsTable.on("rowSelected", async function(row) {
+    const handleAccountRowSelected = async function(row) {
       try {
         const account = row.getData();
         const accountIdNum = Number(account.id);
@@ -1114,9 +1113,9 @@ async function loadAccountsGrid(container) {
       } catch (e) {
         logger.error('[AccountsGrid] rowSelected handler error:', e);
       }
-    });
+    };
 
-    accountsTable.on("rowDeselected", async function(row) {
+    const handleAccountRowDeselected = async function(row) {
       try {
         const remaining = accountsTable.getSelectedRows();
         if (!remaining || remaining.length === 0) {
@@ -1142,6 +1141,12 @@ async function loadAccountsGrid(container) {
           await loadProjectionsSection(document.getElementById('projectionsContent'));
         }
       } catch (e) { logger.error('[AccountsGrid] fallback rowDeselected handler error:', e); }
+    };
+
+    attachGridHandlers(accountsTable, {
+      rowClick: handleAccountRowClick,
+      rowSelected: handleAccountRowSelected,
+      rowDeselected: handleAccountRowDeselected
     });
 
     // Attach grouping control handler
@@ -1865,16 +1870,19 @@ async function loadMasterTransactionsGrid(container) {
       // Totals will be updated via dataFiltered event
     }, 0);
     
-    // Update totals when filter changes
-    masterTransactionsTable.on('dataFiltered', function(filters, rows) {
+    const handleTransactionsFiltered = function(filters, rows) {
       console.log('[Transactions] dataFiltered - rows:', rows.length);
       updateTransactionTotals(rows);
-    });
+    };
     
-    // Update totals after table is built (initial load)
-    masterTransactionsTable.on('tableBuilt', function() {
+    const handleTransactionsBuilt = function() {
       console.log('[Transactions] tableBuilt - updating initial totals');
       updateTransactionTotals();
+    };
+
+    attachGridHandlers(masterTransactionsTable, {
+      dataFiltered: handleTransactionsFiltered,
+      tableBuilt: handleTransactionsBuilt
     });
 
   } catch (err) {
@@ -2541,16 +2549,19 @@ async function loadBudgetGrid(container) {
       // Totals will be updated via dataFiltered event
     }, 0);
     
-    // Update totals when filter changes
-    masterBudgetTable.on('dataFiltered', function(filters, rows) {
+    const handleBudgetFiltered = function(filters, rows) {
       console.log('[Budget] dataFiltered - rows:', rows.length);
       updateBudgetTotals(rows);
-    });
+    };
     
-    // Update totals after table is built (initial load)
-    masterBudgetTable.on('tableBuilt', function() {
+    const handleBudgetBuilt = function() {
       console.log('[Budget] tableBuilt - updating initial totals');
       updateBudgetTotals();
+    };
+
+    attachGridHandlers(masterBudgetTable, {
+      dataFiltered: handleBudgetFiltered,
+      tableBuilt: handleBudgetBuilt
     });
 
   } catch (err) {
