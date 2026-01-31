@@ -1,8 +1,7 @@
 // periodic-change-utils.js
 // Utilities for periodic change display and ID expansion
 
-import { getSchemaPath } from './app-paths.js';
-import { isElectronEnv } from './core/platform.js';
+import { loadLookup } from './lookup-loader.js';
 
 // Cache for lookup data
 let lookupDataCache = null;
@@ -13,20 +12,8 @@ let lookupDataCache = null;
  */
 async function loadLookupData() {
   if (lookupDataCache) return lookupDataCache;
-  
-  const lookupPath = getSchemaPath('lookup-data.json');
-  const isElectron = isElectronEnv();
-  let lookupFile;
-  
-  if (isElectron) {
-    const fs = window.require('fs').promises;
-    lookupFile = await fs.readFile(lookupPath, 'utf8');
-  } else {
-    const response = await fetch(lookupPath);
-    lookupFile = await response.text();
-  }
-  
-  lookupDataCache = JSON.parse(lookupFile);
+
+  lookupDataCache = await loadLookup('lookup-data.json');
   return lookupDataCache;
 }
 

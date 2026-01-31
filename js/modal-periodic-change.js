@@ -1,9 +1,8 @@
 // modal-periodic-change.js
 // Modal for editing periodic change (escalation/growth)
 
-import { getSchemaPath } from './app-paths.js';
-import { isElectronEnv } from './core/platform.js';
 import { createModal } from './modal-factory.js';
+import { loadLookup } from './lookup-loader.js';
 
 /**
  * Open a modal to edit periodic change data
@@ -12,19 +11,7 @@ import { createModal } from './modal-factory.js';
  */
 export async function openPeriodicChangeModal(currentValue, onSave) {
     // Load lookup data for frequencies and compounding options
-    const lookupPath = getSchemaPath('lookup-data.json');
-    const isElectron = isElectronEnv();
-    let lookupFile;
-    
-    if (isElectron) {
-        const fs = window.require('fs').promises;
-        lookupFile = await fs.readFile(lookupPath, 'utf8');
-    } else {
-        const response = await fetch(lookupPath);
-        lookupFile = await response.text();
-    }
-    
-    const lookupData = JSON.parse(lookupFile);
+    const lookupData = await loadLookup('lookup-data.json');
     
     const { modal, close } = createModal({ contentClass: 'modal-periodic' });
 

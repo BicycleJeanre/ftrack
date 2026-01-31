@@ -4,8 +4,6 @@
 
 console.log('forecast.js loaded at', new Date().toISOString());
 
-import { getSchemaPath, getAppDataPath } from './app-paths.js';
-
 import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
@@ -19,11 +17,11 @@ import { openTextInputModal } from './modal-text-input.js';
 import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
 import { createLogger } from './logger.js';
-import { isElectronEnv } from './core/platform.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from './transaction-row-transformer.js';
+import { renderMoneyTotals } from './toolbar-totals.js';
+import { loadLookup } from './lookup-loader.js';
 
 const logger = createLogger('ForecastController');
-const isElectron = isElectronEnv();
 
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
 import { generateRecurrenceDates } from './calculation-utils.js';
@@ -61,9 +59,7 @@ function updateTransactionTotals(filteredRows = null) {
     console.log('[Totals] updateTransactionTotals: masterTransactionsTable is null');
     return;
   }
-  
-  const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-  
+
   // Get currently visible (filtered) data from provided rows or table
   const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterTransactionsTable.getData('active');
   console.log('[Totals] updateTransactionTotals: visibleData count =', visibleData.length);
@@ -86,13 +82,7 @@ function updateTransactionTotals(filteredRows = null) {
   // Update toolbar totals
   const toolbarTotals = document.querySelector('#transactionsContent .toolbar-totals');
   console.log('[Totals] updateTransactionTotals: toolbarTotals element found =', !!toolbarTotals);
-  if (toolbarTotals) {
-    toolbarTotals.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(txTotals.moneyIn)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(txTotals.moneyOut)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${txTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(txTotals.net)}</span></span>
-    `;
-  }
+  renderMoneyTotals(toolbarTotals, txTotals);
 }
 
 // Update budget totals in toolbar based on current filtered data
@@ -101,9 +91,7 @@ function updateBudgetTotals(filteredRows = null) {
     console.log('[Totals] updateBudgetTotals: masterBudgetTable is null');
     return;
   }
-  
-  const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-  
+
   // Get currently visible (filtered) data from provided rows or table
   const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterBudgetTable.getData('active');
   console.log('[Totals] updateBudgetTotals: visibleData count =', visibleData.length);
@@ -120,13 +108,7 @@ function updateBudgetTotals(filteredRows = null) {
   // Update toolbar totals
   const toolbarTotals = document.querySelector('#budgetContent .toolbar-totals');
   console.log('[Totals] updateBudgetTotals: toolbarTotals element found =', !!toolbarTotals);
-  if (toolbarTotals) {
-    toolbarTotals.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(budgetTotals.moneyIn)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(budgetTotals.moneyOut)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${budgetTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(budgetTotals.net)}</span></span>
-    `;
-  }
+  renderMoneyTotals(toolbarTotals, budgetTotals);
 }
 
 // Shared helper: compute Money In / Money Out totals and net using signed amounts
@@ -278,21 +260,8 @@ function buildGridContainer() {
 async function buildScenarioGrid(container) {
   container.innerHTML = '';
 
-  const lookupPath = getSchemaPath('lookup-data.json');
-
   try {
-    let lookupFile;
-    
-    if (isElectron) {
-      const fs = window.require('fs').promises;
-      lookupFile = await fs.readFile(lookupPath, 'utf8');
-    } else {
-      // Web: use fetch
-      const response = await fetch(lookupPath);
-      lookupFile = await response.text();
-    }
-    
-    const lookupData = JSON.parse(lookupFile);
+    const lookupData = await loadLookup('lookup-data.json');
 
     // Add "Add Scenario" button
     // Remove any existing add buttons (defensive)
@@ -549,22 +518,8 @@ async function buildScenarioGrid(container) {
 
 // Load scenario type configuration
 async function loadScenarioTypes() {
-  const lookupPath = getSchemaPath('lookup-data.json');
-
   try {
-    // Platform detection - use fetch in web, fs in Electron
-    let lookupFile;
-    
-    if (isElectron) {
-      const fs = window.require('fs').promises;
-      lookupFile = await fs.readFile(lookupPath, 'utf8');
-    } else {
-      // Web: use fetch to load JSON
-      const response = await fetch(lookupPath);
-      lookupFile = await response.text();
-    }
-    
-    const data = JSON.parse(lookupFile);
+    const data = await loadLookup('lookup-data.json');
     scenarioTypes = data.scenarioTypes;
   } catch (err) {
     console.error('[Forecast] Failed to load scenario types:', err);
@@ -721,20 +676,7 @@ async function loadAccountsGrid(container) {
     const accounts = await AccountManager.getAll(currentScenario.id);
     const displayAccounts = accounts.filter(a => a.name !== 'Select Account');
     
-    // Platform detection for loading lookup data
-    const lookupPath = getSchemaPath('lookup-data.json');
-    let lookupFile;
-    
-    if (isElectron) {
-      const fs = window.require('fs').promises;
-      lookupFile = await fs.readFile(lookupPath, 'utf8');
-    } else {
-      // Web: use fetch
-      const response = await fetch(lookupPath);
-      lookupFile = await response.text();
-    }
-    
-    const lookupData = JSON.parse(lookupFile);
+    const lookupData = await loadLookup('lookup-data.json');
 
     // Add "Add Account" button
     // Remove any existing add buttons for accounts (defensive)
@@ -1693,72 +1635,6 @@ async function loadMasterTransactionsGrid(container) {
     console.error('[Forecast] Failed to load master transactions grid:', err);
   }
 }
-
-// Modal for editing actual transaction details
-function openActualTransactionModal(transaction, container) {
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.innerHTML = `
-    <div class="modal-content">
-      <h3>Actual Transaction Details</h3>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Status:</label>
-          <select id="statusSelect">
-            <option value="planned" ${transaction.status === 'planned' ? 'selected' : ''}>Planned</option>
-            <option value="actual" ${transaction.status === 'actual' ? 'selected' : ''}>Actual</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Actual Amount:</label>
-          <input type="number" id="actualAmount" step="0.01" value="${transaction.actualAmount || transaction.amount || 0}">
-        </div>
-        <div class="form-group">
-          <label>Actual Date:</label>
-          <input type="date" id="actualDate" value="${transaction.actualDate || transaction.effectiveDate || ''}">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button id="cancelBtn">Cancel</button>
-        <button id="saveBtn">Save</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  // Event listeners
-  document.getElementById('cancelBtn').addEventListener('click', () => {
-    document.body.removeChild(modal);
-  });
-
-  document.getElementById('saveBtn').addEventListener('click', async () => {
-    const status = document.getElementById('statusSelect').value;
-    const actualAmount = parseFloat(document.getElementById('actualAmount').value) || null;
-    const actualDate = document.getElementById('actualDate').value || null;
-
-    // Update transaction
-    const allTxs = await getTransactions(currentScenario.id);
-    const txIndex = allTxs.findIndex(tx => tx.id === transaction.id);
-
-    if (txIndex >= 0) {
-      allTxs[txIndex].status = status;
-      if (status === 'actual') {
-        allTxs[txIndex].actualAmount = actualAmount;
-        allTxs[txIndex].actualDate = actualDate;
-      } else {
-        delete allTxs[txIndex].actualAmount;
-        delete allTxs[txIndex].actualDate;
-      }
-      await TransactionManager.saveAll(currentScenario.id, allTxs);
-    }
-
-    document.body.removeChild(modal);
-    // Reload grid
-    await loadMasterTransactionsGrid(container);
-  });
-}
-
 
 // Load budget grid
 async function loadBudgetGrid(container) {

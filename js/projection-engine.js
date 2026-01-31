@@ -8,10 +8,7 @@ import { expandPeriodicChangeForCalculation } from './periodic-change-utils.js';
 import { getScenario, saveProjections } from './data-manager.js';
 import { parseDateOnly, formatDateOnly } from './date-utils.js';
 import { expandTransactions } from './transaction-expander.js';
-import { getSchemaPath } from './app-paths.js';
-import { isElectronEnv } from './core/platform.js';
-
-const isElectron = isElectronEnv();
+import { loadLookup } from './lookup-loader.js';
 
 /**
  * Generate projections for a scenario
@@ -27,18 +24,7 @@ export async function generateProjections(scenarioId, options = {}) {
   const source = options.source || 'transactions';
   
   // Load lookup data for periodic change expansion
-  const lookupPath = getSchemaPath('lookup-data.json');
-  let lookupFile;
-  
-  if (isElectron) {
-    const fs = window.require('fs').promises;
-    lookupFile = await fs.readFile(lookupPath, 'utf8');
-  } else {
-    const response = await fetch(lookupPath);
-    lookupFile = await response.text();
-  }
-  
-  const lookupData = JSON.parse(lookupFile);
+  const lookupData = await loadLookup('lookup-data.json');
   
   // Load scenario data
   const scenario = await getScenario(scenarioId);
