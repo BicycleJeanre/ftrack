@@ -1,0 +1,2807 @@
+{
+    "profile": "Jeanre",
+    "scenarios": [
+      {
+        "id": 2,
+        "name": "QC Scenario",
+        "type": {
+          "id": 2,
+          "name": "General",
+          "description": "General financial planning scenario",
+          "showAccounts": true,
+          "showPlannedTransactions": true,
+          "showActualTransactions": false,
+          "showProjections": true,
+          "accountColumns": [
+            "name",
+            "type",
+            "currency",
+            "balance",
+            "openDate",
+            "interestRate",
+            "periodicChange"
+          ],
+          "transactionColumns": [
+            "primaryAccount",
+            "secondaryAccount",
+            "transactionType",
+            "amount",
+            "description",
+            "recurrence",
+            "periodicChange",
+            "tags"
+          ]
+        },
+        "description": "QC Scenario ",
+        "startDate": "2026-02-01",
+        "endDate": "2026-12-01",
+        "projectionPeriod": {
+          "id": 4,
+          "name": "Quarter"
+        },
+        "accounts": [
+          {
+            "id": 1,
+            "name": "A1",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": null,
+            "startingBalance": 10000,
+            "openDate": "2026-02-01",
+            "periodicChange": null,
+            "accountType": "Unknown",
+            "periodicChangeSummary": "",
+            "description": "first main primary mfuckin' account!"
+          }
+        ],
+        "transactions": [],
+        "projections": [
+          {
+            "id": 1,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-02-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 2,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-03-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 3,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-04-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 4,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-05-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 5,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-06-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 6,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-07-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 7,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-08-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 8,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-09-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 9,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-10-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 10,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-11-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 11,
+            "scenarioId": 2,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-12-01",
+            "balance": 10000,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          }
+        ],
+        "budgets": []
+      },
+      {
+        "id": 3,
+        "name": "QC Scenario (Copy)",
+        "type": {
+          "id": 2,
+          "name": "General",
+          "description": "General financial planning scenario",
+          "showAccounts": true,
+          "showPlannedTransactions": true,
+          "showActualTransactions": false,
+          "showProjections": true,
+          "accountColumns": [
+            "name",
+            "type",
+            "currency",
+            "balance",
+            "openDate",
+            "interestRate",
+            "periodicChange"
+          ],
+          "transactionColumns": [
+            "primaryAccount",
+            "secondaryAccount",
+            "transactionType",
+            "amount",
+            "description",
+            "recurrence",
+            "periodicChange",
+            "tags"
+          ]
+        },
+        "description": "QC Scenario ",
+        "startDate": "2026-02-01",
+        "endDate": "2026-12-01",
+        "projectionPeriod": {
+          "id": 4,
+          "name": "Quarter"
+        },
+        "accounts": [
+          {
+            "id": 1,
+            "name": "A1",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": null,
+            "startingBalance": 10000,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 6,
+              "changeMode": 1,
+              "changeType": 2
+            },
+            "accountType": "Unknown",
+            "periodicChangeSummary": "",
+            "description": "first main primary mfuckin' account!"
+          },
+          {
+            "id": 2,
+            "name": "A2",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 1,
+              "changeType": 1
+            },
+            "accountType": "Expense",
+            "periodicChangeSummary": "",
+            "description": "expenses bruh"
+          },
+          {
+            "id": 3,
+            "name": "A3",
+            "type": {
+              "id": 4,
+              "name": "Income"
+            },
+            "currency": null,
+            "startingBalance": 100000000,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 1,
+              "changeType": 2
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 4,
+            "name": "A4",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 1,
+              "changeType": 3
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 5,
+            "name": "A5",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 1,
+              "changeType": 4
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 6,
+            "name": "A6",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 1,
+              "changeType": 5
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 7,
+            "name": "A7",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 1,
+              "changeType": 7,
+              "customCompounding": {
+                "frequency": 12,
+                "period": 1
+              }
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 8,
+            "name": "A8",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 1,
+              "changeType": 7,
+              "customCompounding": {
+                "frequency": 6,
+                "period": 2
+              }
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 9,
+            "name": "A9",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 2,
+              "changeType": 1,
+              "frequency": 1
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 10,
+            "name": "A10",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 2,
+              "changeType": 1,
+              "frequency": 2
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 11,
+            "name": "A11",
+            "type": {
+              "id": 5,
+              "name": "Expense"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 2,
+              "changeType": 1,
+              "frequency": 3,
+              "dayOfMonth": 1
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 12,
+            "name": "A12",
+            "type": {
+              "id": 2,
+              "name": "Liability"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 2,
+              "changeType": 1,
+              "frequency": 4
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 13,
+            "name": "A13",
+            "type": {
+              "id": 2,
+              "name": "Liability"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": {
+              "value": 10,
+              "changeMode": 2,
+              "changeType": 1,
+              "frequency": 5
+            },
+            "accountType": "Unknown"
+          },
+          {
+            "id": 14,
+            "name": "A14",
+            "type": {
+              "id": 1,
+              "name": "Asset"
+            },
+            "currency": null,
+            "startingBalance": 0,
+            "openDate": "2026-02-01",
+            "periodicChange": null,
+            "accountType": "Unknown"
+          }
+        ],
+        "transactions": [
+          {
+            "id": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "effectiveDate": "2026-02-01",
+            "description": "duh it is going out... ",
+            "recurrence": {
+              "recurrenceType": {
+                "id": 4,
+                "name": "Monthly - Day of Month"
+              },
+              "startDate": "2026-02-01",
+              "endDate": null,
+              "interval": 1,
+              "dayOfWeek": null,
+              "dayOfMonth": 1,
+              "weekOfMonth": null,
+              "dayOfWeekInMonth": null,
+              "dayOfQuarter": null,
+              "month": null,
+              "dayOfYear": null,
+              "customDates": null,
+              "id": null
+            },
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "effectiveDate": "2026-02-01",
+            "description": "money in bruh",
+            "recurrence": {
+              "recurrenceType": {
+                "id": 4,
+                "name": "Monthly - Day of Month"
+              },
+              "startDate": "2026-02-01",
+              "endDate": null,
+              "interval": 1,
+              "dayOfWeek": null,
+              "dayOfMonth": 1,
+              "weekOfMonth": null,
+              "dayOfWeekInMonth": null,
+              "dayOfQuarter": null,
+              "month": null,
+              "dayOfYear": null,
+              "customDates": null,
+              "id": null
+            },
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 3,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 4,
+            "transactionTypeId": 2,
+            "amount": 50000,
+            "effectiveDate": "2026-03-01",
+            "description": "fuck hookers are expensive!",
+            "recurrence": {
+              "recurrenceType": {
+                "id": 1,
+                "name": "One Time"
+              },
+              "startDate": "2026-03-01",
+              "endDate": null,
+              "interval": null,
+              "dayOfWeek": null,
+              "dayOfMonth": null,
+              "weekOfMonth": null,
+              "dayOfWeekInMonth": null,
+              "dayOfQuarter": null,
+              "month": null,
+              "dayOfYear": null,
+              "customDates": null,
+              "id": null
+            },
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          }
+        ],
+        "projections": [
+          {
+            "id": 1,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-02-01",
+            "balance": 19507.59,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 1
+          },
+          {
+            "id": 2,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-03-01",
+            "balance": -21001.29,
+            "income": 10000,
+            "expenses": 50500,
+            "netChange": -40500,
+            "period": 2
+          },
+          {
+            "id": 3,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-04-01",
+            "balance": -11506.01,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 3
+          },
+          {
+            "id": 4,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-05-01",
+            "balance": -2006.86,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 4
+          },
+          {
+            "id": 5,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-06-01",
+            "balance": 7496.21,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 5
+          },
+          {
+            "id": 6,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-07-01",
+            "balance": 17003.41,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 6
+          },
+          {
+            "id": 7,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-08-01",
+            "balance": 26514.63,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 7
+          },
+          {
+            "id": 8,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-09-01",
+            "balance": 36029.39,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 8
+          },
+          {
+            "id": 9,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-10-01",
+            "balance": 45548.67,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 9
+          },
+          {
+            "id": 10,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-11-01",
+            "balance": 55071.22,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 10
+          },
+          {
+            "id": 11,
+            "scenarioId": 3,
+            "accountId": 1,
+            "account": "A1",
+            "date": "2026-12-01",
+            "balance": 64572.1,
+            "income": 10000,
+            "expenses": 500,
+            "netChange": 9500,
+            "period": 11
+          },
+          {
+            "id": 12,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-02-01",
+            "balance": 503.67,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 1
+          },
+          {
+            "id": 13,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-03-01",
+            "balance": 1011.82,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 2
+          },
+          {
+            "id": 14,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-04-01",
+            "balance": 1523.7,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 3
+          },
+          {
+            "id": 15,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-05-01",
+            "balance": 2040.14,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 4
+          },
+          {
+            "id": 16,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-06-01",
+            "balance": 2560.1,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 5
+          },
+          {
+            "id": 17,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-07-01",
+            "balance": 3084.95,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 6
+          },
+          {
+            "id": 18,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-08-01",
+            "balance": 3614.07,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 7
+          },
+          {
+            "id": 19,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-09-01",
+            "balance": 4146.4,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 8
+          },
+          {
+            "id": 20,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-10-01",
+            "balance": 4684.14,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 9
+          },
+          {
+            "id": 21,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-11-01",
+            "balance": 5224.89,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 10
+          },
+          {
+            "id": 22,
+            "scenarioId": 3,
+            "accountId": 2,
+            "account": "A2",
+            "date": "2026-12-01",
+            "balance": 5726.38,
+            "income": 500,
+            "expenses": 0,
+            "netChange": 500,
+            "period": 11
+          },
+          {
+            "id": 23,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-02-01",
+            "balance": 100055905.91,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 1
+          },
+          {
+            "id": 24,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-03-01",
+            "balance": 100116397.81,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 2
+          },
+          {
+            "id": 25,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-04-01",
+            "balance": 100174656.24,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 3
+          },
+          {
+            "id": 26,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-05-01",
+            "balance": 100235231.81,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 4
+          },
+          {
+            "id": 27,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-06-01",
+            "balance": 100293571.27,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 5
+          },
+          {
+            "id": 28,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-07-01",
+            "balance": 100354230.63,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 6
+          },
+          {
+            "id": 29,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-08-01",
+            "balance": 100414932.72,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 7
+          },
+          {
+            "id": 30,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-09-01",
+            "balance": 100473394.72,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 8
+          },
+          {
+            "id": 31,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-10-01",
+            "balance": 100534180.77,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 9
+          },
+          {
+            "id": 32,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-11-01",
+            "balance": 100592724.08,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 10
+          },
+          {
+            "id": 33,
+            "scenarioId": 3,
+            "accountId": 3,
+            "account": "A3",
+            "date": "2026-12-01",
+            "balance": 100585009.43,
+            "income": 0,
+            "expenses": 10000,
+            "netChange": -10000,
+            "period": 11
+          },
+          {
+            "id": 34,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-02-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 35,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-03-01",
+            "balance": 50001.16,
+            "income": 50000,
+            "expenses": 0,
+            "netChange": 50000,
+            "period": 2
+          },
+          {
+            "id": 36,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-04-01",
+            "balance": 50002.29,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 37,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-05-01",
+            "balance": 50003.45,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 38,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-06-01",
+            "balance": 50004.58,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 39,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-07-01",
+            "balance": 50005.74,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 40,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-08-01",
+            "balance": 50006.9,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 41,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-09-01",
+            "balance": 50008.03,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 42,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-10-01",
+            "balance": 50009.19,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 43,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-11-01",
+            "balance": 50010.31,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 44,
+            "scenarioId": 3,
+            "accountId": 4,
+            "account": "A4",
+            "date": "2026-12-01",
+            "balance": 50010.35,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 45,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-02-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 46,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-03-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 47,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-04-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 48,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-05-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 49,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-06-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 50,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-07-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 51,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-08-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 52,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-09-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 53,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-10-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 54,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-11-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 55,
+            "scenarioId": 3,
+            "accountId": 5,
+            "account": "A5",
+            "date": "2026-12-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 56,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-02-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 57,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-03-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 58,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-04-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 59,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-05-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 60,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-06-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 61,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-07-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 62,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-08-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 63,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-09-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 64,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-10-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 65,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-11-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 66,
+            "scenarioId": 3,
+            "accountId": 6,
+            "account": "A6",
+            "date": "2026-12-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 67,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-02-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 68,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-03-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 69,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-04-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 70,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-05-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 71,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-06-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 72,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-07-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 73,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-08-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 74,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-09-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 75,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-10-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 76,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-11-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 77,
+            "scenarioId": 3,
+            "accountId": 7,
+            "account": "A7",
+            "date": "2026-12-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 78,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-02-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 79,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-03-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 80,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-04-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 81,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-05-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 82,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-06-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 83,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-07-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 84,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-08-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 85,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-09-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 86,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-10-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 87,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-11-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 88,
+            "scenarioId": 3,
+            "accountId": 8,
+            "account": "A8",
+            "date": "2026-12-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 89,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-02-01",
+            "balance": 289.8,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 90,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-03-01",
+            "balance": 599.59,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 91,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-04-01",
+            "balance": 899.38,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 92,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-05-01",
+            "balance": 1209.17,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 93,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-06-01",
+            "balance": 1508.97,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 94,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-07-01",
+            "balance": 1818.75,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 95,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-08-01",
+            "balance": 2128.54,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 96,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-09-01",
+            "balance": 2428.34,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 97,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-10-01",
+            "balance": 2738.12,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 98,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-11-01",
+            "balance": 3037.92,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 99,
+            "scenarioId": 3,
+            "accountId": 9,
+            "account": "A9",
+            "date": "2026-12-01",
+            "balance": 3047.91,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 100,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-02-01",
+            "balance": 41.29,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 101,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-03-01",
+            "balance": 85.42,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 102,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-04-01",
+            "balance": 128.13,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 103,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-05-01",
+            "balance": 172.27,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 104,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-06-01",
+            "balance": 214.98,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 105,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-07-01",
+            "balance": 259.11,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 106,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-08-01",
+            "balance": 303.24,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 107,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-09-01",
+            "balance": 345.95,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 108,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-10-01",
+            "balance": 390.09,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 109,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-11-01",
+            "balance": 432.8,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 110,
+            "scenarioId": 3,
+            "accountId": 10,
+            "account": "A10",
+            "date": "2026-12-01",
+            "balance": 434.22,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 111,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-02-01",
+            "balance": 9.53,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 112,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-03-01",
+            "balance": 19.71,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 113,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-04-01",
+            "balance": 29.57,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 114,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-05-01",
+            "balance": 39.75,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 115,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-06-01",
+            "balance": 49.61,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 116,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-07-01",
+            "balance": 59.79,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 117,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-08-01",
+            "balance": 69.98,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 118,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-09-01",
+            "balance": 79.84,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 119,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-10-01",
+            "balance": 90.02,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 120,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-11-01",
+            "balance": 99.88,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 121,
+            "scenarioId": 3,
+            "accountId": 11,
+            "account": "A11",
+            "date": "2026-12-01",
+            "balance": 100.21,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 122,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-02-01",
+            "balance": 3.18,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 123,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-03-01",
+            "balance": 6.57,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 124,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-04-01",
+            "balance": 9.86,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 125,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-05-01",
+            "balance": 13.25,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 126,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-06-01",
+            "balance": 16.54,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 127,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-07-01",
+            "balance": 19.93,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 128,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-08-01",
+            "balance": 23.33,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 129,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-09-01",
+            "balance": 26.61,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 130,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-10-01",
+            "balance": 30.01,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 131,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-11-01",
+            "balance": 33.29,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 132,
+            "scenarioId": 3,
+            "accountId": 12,
+            "account": "A12",
+            "date": "2026-12-01",
+            "balance": 33.4,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 133,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-02-01",
+            "balance": 0.79,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 134,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-03-01",
+            "balance": 1.64,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 135,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-04-01",
+            "balance": 2.46,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 136,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-05-01",
+            "balance": 3.31,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 137,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-06-01",
+            "balance": 4.13,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 138,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-07-01",
+            "balance": 4.98,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 139,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-08-01",
+            "balance": 5.83,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 140,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-09-01",
+            "balance": 6.65,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 141,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-10-01",
+            "balance": 7.5,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 142,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-11-01",
+            "balance": 8.32,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 143,
+            "scenarioId": 3,
+            "accountId": 13,
+            "account": "A13",
+            "date": "2026-12-01",
+            "balance": 8.35,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          },
+          {
+            "id": 144,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-02-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 1
+          },
+          {
+            "id": 145,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-03-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 2
+          },
+          {
+            "id": 146,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-04-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 3
+          },
+          {
+            "id": 147,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-05-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 4
+          },
+          {
+            "id": 148,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-06-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 5
+          },
+          {
+            "id": 149,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-07-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 6
+          },
+          {
+            "id": 150,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-08-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 7
+          },
+          {
+            "id": 151,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-09-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 8
+          },
+          {
+            "id": 152,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-10-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 9
+          },
+          {
+            "id": 153,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-11-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 10
+          },
+          {
+            "id": 154,
+            "scenarioId": 3,
+            "accountId": 14,
+            "account": "A14",
+            "date": "2026-12-01",
+            "balance": 0,
+            "income": 0,
+            "expenses": 0,
+            "netChange": 0,
+            "period": 11
+          }
+        ],
+        "budgets": [
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-03-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-04-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-05-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-06-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-07-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-08-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-09-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-10-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-11-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 1,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 2,
+            "transactionTypeId": 2,
+            "amount": 500,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-12-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-03-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-04-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-05-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-06-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-07-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-08-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-09-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-10-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-11-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          },
+          {
+            "id": 0,
+            "sourceTransactionId": 2,
+            "primaryAccountId": 1,
+            "secondaryAccountId": 3,
+            "transactionTypeId": 1,
+            "amount": 10000,
+            "description": "",
+            "recurrenceDescription": "Every month on day 1",
+            "occurrenceDate": "2026-12-01",
+            "periodicChange": null,
+            "status": {
+              "name": "planned",
+              "actualAmount": null,
+              "actualDate": null
+            },
+            "tags": []
+          }
+        ]
+      }
+    ],
+    "migrationVersion": 3
+  }

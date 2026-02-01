@@ -4,9 +4,10 @@
 // In web, uses fallback implementations
 
 import { parseDateOnly } from './date-utils.js';
+import { isElectronEnv } from './core/platform.js';
 
 // Platform detection
-const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+const isElectron = isElectronEnv();
 
 let Finance, finance;
 if (isElectron) {
@@ -126,11 +127,41 @@ export function applyPeriodicChange(value, periodicChange, periods) {
     const changeValue = periodicChange.value;
     
     if (changeMode === 'Fixed Amount') {
-        // Fixed amount change per period
-        return value + (changeValue * periods);
+        // Fixed amount change - need to consider frequency
+        // periods is in years, so convert based on frequency
+        const frequency = periodicChange.frequency?.name || 'Monthly';
+        let periodsPerYear = 12; // Default to monthly
+        
+        if (frequency === 'Daily') periodsPerYear = 365;
+        else if (frequency === 'Weekly') periodsPerYear = 52;
+        else if (frequency === 'Monthly') periodsPerYear = 12;
+        else if (frequency === 'Quarterly') periodsPerYear = 4;
+        else if (frequency === 'Yearly') periodsPerYear = 1;
+        
+        const totalApplications = periods * periodsPerYear;
+        return value + (changeValue * totalApplications);
     } else {
         // Percentage rate change
         const changeType = periodicChange.changeType?.name || 'Nominal Annual (No Compounding)';
+        
+        // Handle custom compounding
+        if (changeType.includes('Custom') && periodicChange.customCompounding?.frequency) {
+            const frequency = periodicChange.customCompounding.frequency;
+            const periodId = periodicChange.customCompounding.period || 1; // Default to Annual
+            
+            // Convert periods (in years) to the specified period type
+            let adjustedPeriods = periods;
+            if (periodId === 2) { // Monthly
+                adjustedPeriods = periods * 12;
+            } else if (periodId === 3) { // Quarterly
+                adjustedPeriods = periods * 4;
+            } else if (periodId === 4) { // Daily
+                adjustedPeriods = periods * 365;
+            }
+            // periodId === 1 (Annual) uses periods as-is
+            
+            return calculateCompoundInterest(value, changeValue, adjustedPeriods / frequency, frequency);
+        }
         
         if (changeType.includes('Compounded')) {
             // Compound interest
@@ -193,4 +224,44 @@ export function calculatePeriods(startDate, endDate, frequency) {
         default:
             return months;
     }
+}
+
+/**
+ * Calculate Money In / Money Out totals and net from transaction rows
+ * @param {Array} rows - Array of transaction row objects
+ * @param {Object} opts - Configuration options
+ * @param {string} opts.amountField - Field name for amount (default: 'amount')
+ * @param {string} opts.typeField - Field name for transaction type object (default: 'transactionType')
+ * @param {string} opts.typeNameField - Field name for transaction type name (default: 'transactionTypeName')
+ * @param {string} opts.typeIdField - Field name for transaction type ID (default: 'transactionTypeId')
+ * @returns {Object} - Object with moneyIn, moneyOut, and net totals
+ */
+export function calculateCategoryTotals(rows, opts = {}) {
+    const amountField = opts.amountField || 'amount';
+    const typeField = opts.typeField || 'transactionType';
+    const typeNameField = opts.typeNameField || 'transactionTypeName';
+    const typeIdField = opts.typeIdField || 'transactionTypeId';
+
+    return rows.reduce((acc, row) => {
+        const amount = Number(row?.[amountField] || 0);
+        const typeObj = row?.[typeField];
+        const name = typeObj?.name || row?.[typeNameField] || '';
+        const id = typeObj?.id ?? row?.[typeIdField];
+        
+        // Determine if it's Money In or Money Out based on transaction type
+        const isMoneyIn = name === 'Money In' || id === 1;
+        const isMoneyOut = name === 'Money Out' || id === 2;
+        
+        const absAmount = Math.abs(amount);
+
+        if (isMoneyIn) {
+            acc.moneyIn += absAmount;
+            acc.net += absAmount; // Money In adds to net
+        } else if (isMoneyOut) {
+            acc.moneyOut += absAmount;
+            acc.net -= absAmount; // Money Out subtracts from net
+        }
+        
+        return acc;
+    }, { moneyIn: 0, moneyOut: 0, net: 0 });
 }

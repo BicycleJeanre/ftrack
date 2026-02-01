@@ -4,9 +4,11 @@
 
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { applyPeriodicChange } from './financial-utils.js';
+import { expandPeriodicChangeForCalculation } from './periodic-change-utils.js';
 import { getScenario, saveProjections } from './data-manager.js';
 import { parseDateOnly, formatDateOnly } from './date-utils.js';
 import { expandTransactions } from './transaction-expander.js';
+import { loadLookup } from './lookup-loader.js';
 
 /**
  * Generate projections for a scenario
@@ -17,9 +19,11 @@ import { expandTransactions } from './transaction-expander.js';
  * @returns {Promise<Array>} - Array of projection records
  */
 export async function generateProjections(scenarioId, options = {}) {
-  console.log('[ProjectionEngine] Generating projections for scenario:', scenarioId);
   
   const source = options.source || 'transactions';
+  
+  // Load lookup data for periodic change expansion
+  const lookupData = await loadLookup('lookup-data.json');
   
   // Load scenario data
   const scenario = await getScenario(scenarioId);
@@ -32,7 +36,6 @@ export async function generateProjections(scenarioId, options = {}) {
   
   if (source === 'budget') {
     // Use budget occurrences as source instead of transactions
-    console.log('[ProjectionEngine] Using budget as projection source');
     const statusName = budget => typeof budget.status === 'object' ? budget.status.name : budget.status;
     plannedTransactions = (scenario.budgets || [])
       .filter(budget => statusName(budget) === 'planned')
@@ -58,9 +61,6 @@ export async function generateProjections(scenarioId, options = {}) {
   const startDate = parseDateOnly(scenario.startDate);
   const endDate = parseDateOnly(scenario.endDate);
   
-  console.log('[ProjectionEngine] Projection window:', startDate, 'to', endDate);
-  console.log('[ProjectionEngine] Accounts:', accounts.length);
-  console.log('[ProjectionEngine] Planned transactions/budget items:', plannedTransactions.length);
   
   // Initialize account balances from startingBalance
   const accountBalances = new Map();
@@ -71,7 +71,6 @@ export async function generateProjections(scenarioId, options = {}) {
   // Use shared transaction expander to generate all occurrences within the projection window
   const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
   
-  console.log('[ProjectionEngine] Expanded to', expandedTransactions.length, 'transaction occurrences');
   
   // Convert expanded transactions to occurrence format for projection calculations
   const transactionOccurrences = expandedTransactions.map(txn => {
@@ -82,9 +81,12 @@ export async function generateProjections(scenarioId, options = {}) {
     let amount = txn.amount || 0;
     
     if (txn.periodicChange) {
-      const txnStartDate = txn.recurrence?.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
-      const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
-      amount = applyPeriodicChange(txn.amount, txn.periodicChange, yearsDiff);
+      const expandedPC = expandPeriodicChangeForCalculation(txn.periodicChange, lookupData);
+      if (expandedPC) {
+        const txnStartDate = txn.recurrence?.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
+        const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
+        amount = applyPeriodicChange(txn.amount, expandedPC, yearsDiff);
+      }
     }
     
     return {
@@ -102,7 +104,6 @@ export async function generateProjections(scenarioId, options = {}) {
   // Sort occurrences by dateKey (date-only)
   transactionOccurrences.sort((a, b) => a.dateKey - b.dateKey);
   
-  console.log('[ProjectionEngine] Generated', transactionOccurrences.length, 'transaction occurrences');
   
   // Generate projections - one record per account per period
   const projections = [];
@@ -119,12 +120,10 @@ export async function generateProjections(scenarioId, options = {}) {
   };
   const periodicity = options.periodicity || periodMap[scenarioPeriodType] || 'monthly';
   
-  console.log('[ProjectionEngine] Using periodicity:', periodicity, 'from scenario period type:', scenarioPeriodType);
   
   // Generate period dates
   const periods = generatePeriods(startDate, endDate, periodicity);
   
-  console.log('[ProjectionEngine] Generating', periods.length, 'periods');
   
   accounts.forEach(account => {
     let currentBalance = account.startingBalance || 0;
@@ -139,9 +138,12 @@ export async function generateProjections(scenarioId, options = {}) {
       
       // Apply interest/growth up to the period START so snapshot is at period start
       if (account.periodicChange) {
-        const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
-        if (yearsDiffToStart !== 0) {
-          currentBalance = applyPeriodicChange(currentBalance, account.periodicChange, yearsDiffToStart);
+        const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
+        if (expandedPC) {
+          const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
+          if (yearsDiffToStart !== 0) {
+            currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffToStart);
+          }
         }
       }
 
@@ -184,9 +186,12 @@ export async function generateProjections(scenarioId, options = {}) {
 
       // After applying transactions for the period, apply periodicChange across the period
       if (account.periodicChange) {
-        const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
-        if (yearsDiffPeriod !== 0) {
-          currentBalance = applyPeriodicChange(currentBalance, account.periodicChange, yearsDiffPeriod);
+        const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
+        if (expandedPC) {
+          const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
+          if (yearsDiffPeriod !== 0) {
+            currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
+          }
         }
       }
 
@@ -209,7 +214,6 @@ export async function generateProjections(scenarioId, options = {}) {
     });
   });
   
-  console.log('[ProjectionEngine] Generated', projections.length, 'projection records');
   
   // Save projections to scenario
   await saveProjections(scenarioId, projections);
@@ -336,6 +340,5 @@ function formatDate(date) {
  * @returns {Promise<void>}
  */
 export async function clearProjections(scenarioId) {
-  console.log('[ProjectionEngine] Clearing projections for scenario:', scenarioId);
   await saveProjections(scenarioId, []);
 }

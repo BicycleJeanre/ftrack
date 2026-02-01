@@ -2,6 +2,7 @@
 // Modal for editing transaction recurrence patterns
 
 import { formatDateOnly } from './date-utils.js';
+import { createModal } from './modal-factory.js';
 
 /**
  * Open a modal to edit recurrence data
@@ -9,11 +10,7 @@ import { formatDateOnly } from './date-utils.js';
  * @param {Function} onSave - Callback when saved
  */
 export function openRecurrenceModal(currentValue, onSave) {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-
-    const modal = document.createElement('div');
-    modal.className = 'modal-content modal-recurrence';
+    const { modal, close } = createModal({ contentClass: 'modal-recurrence' });
 
     // Extract current values or use defaults
     const recurrenceTypeId = currentValue?.recurrenceType?.id || 1;
@@ -73,9 +70,6 @@ export function openRecurrenceModal(currentValue, onSave) {
         </div>
     `;
 
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
     // Show/hide fields based on recurrence type
     const recurrenceTypeSelect = modal.querySelector('#recurrenceType');
     const intervalContainer = modal.querySelector('#intervalContainer');
@@ -114,14 +108,7 @@ export function openRecurrenceModal(currentValue, onSave) {
     const cancelBtn = modal.querySelector('#cancelBtn');
     const saveBtn = modal.querySelector('#saveBtn');
 
-    const close = () => {
-        overlay.remove();
-    };
-
     cancelBtn.addEventListener('click', close);
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) close();
-    });
 
     saveBtn.addEventListener('click', () => {
         const selectedTypeId = parseInt(modal.querySelector('#recurrenceType').value);

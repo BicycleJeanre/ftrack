@@ -36,6 +36,7 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
   - Cell Editing: Calls `TransactionManager.saveAll`.
   - Status tracking: Planned vs Actual transactions.
   - Recurrence configuration via modal.
+  - New Transaction Defaults: Uses the active account filter as the primary account (fallback: first account) and sets `effectiveDate` to the selected period start or scenario start date.
 
 #### D. Budget Grid
 - **Type**: Multi-row, Editable.
@@ -78,3 +79,50 @@ Scenarios and Accounts enforce single selection behavior.
 4. **Regenerate from Source**: User clicks "Generate Projections" to bypass budget and use original transactions.
 
 This pattern allows iterative planning: save projection → edit budget → reproject → refine budget.
+
+### 3.4 Budget Creation from Projections
+Budget creation converts forward-looking projections into an editable baseline for tracking and refinement.
+
+**Process**:
+1. User generates projections using "Generate Projections" (sources from transactions)
+2. Projection grid displays calculated values for each period
+3. "Save as Budget" button creates budget occurrences, copying:
+   - Period dates (startDate/endDate)
+   - Projected amounts as plannedAmount
+   - Account associations (primaryAccountId/secondaryAccountId)
+   - Transaction types (transactionTypeId)
+   - Descriptions
+
+**Technical Implementation**:
+- Budget occurrences are independent records (not linked to source transactions)
+- Each occurrence gets unique ID for individual tracking
+- Creation happens via `BudgetManager.createFromProjections()`
+- Budget data persists in scenario's `budgets` array
+
+**Use Case**: User wants to establish a monthly spending plan based on projected expenses, then track actual spending against it.
+
+### 3.5 Budget vs. Actual Tracking
+Each budget occurrence supports dual-amount tracking to compare planned vs. actual financial events.
+
+**Data Structure**:
+- `plannedAmount`: Original budgeted amount (set when budget is created)
+- `actualAmount`: Real amount spent/received (edited by user as events occur)
+- `variance`: Calculated as `actualAmount - plannedAmount`
+
+**Workflow**:
+1. Budget created with plannedAmount from projections
+2. As real transactions occur, user updates actualAmount fields
+3. Grid displays both values for comparison
+4. Variance indicators show over/under budget status
+
+**Period Filtering**:
+- Budget grid filters by selected period (Month/Quarter/Year)
+- Only occurrences within period date range display
+- Totals toolbar shows aggregated planned vs. actual for visible period
+
+**Technical Implementation**:
+- Budget filtering uses `BudgetManager.getByPeriod()`
+- Grid columns use `createMoneyColumn()` for consistent formatting
+- Totals calculated via `calculateCategoryTotals()` utility
+
+**Use Case**: User budgets $500/month for groceries (plannedAmount), then tracks actual grocery spending each month (actualAmount) to identify overspending trends.

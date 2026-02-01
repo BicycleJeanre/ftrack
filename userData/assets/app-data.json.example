@@ -12,7 +12,7 @@
         "showActualTransactions": true,
         "showProjections": true,
         "accountColumns": ["name", "type", "currency", "startingBalance", "openDate"],
-        "transactionColumns": ["debitAccount", "creditAccount", "amount", "description", "tags"]
+        "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "tags"]
       },
       "description": "Personal monthly budget",
       "startDate": "2026-01-01",
@@ -35,7 +35,11 @@
           },
           "startingBalance": 15000,
           "openDate": "2026-01-01",
-          "periodicChange": null
+          "periodicChange": {
+            "value": 2.5,
+            "changeMode": 1,
+            "changeType": 2
+          }
         },
         {
           "id": 2,

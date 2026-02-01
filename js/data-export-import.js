@@ -29,7 +29,6 @@ export async function downloadAppData() {
       const jsonString = await blob.text();
       const result = await window.electronAPI.exportData(jsonString);
       if (result.success) {
-        console.log('[Export] Data exported to:', result.filePath);
         alert('Data exported successfully!');
         return true;
       } else {
@@ -46,14 +45,12 @@ export async function downloadAppData() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      console.log('[Export] Data exported as:', filename);
       return true;
     } else {
       alert('Export failed: Not running in Electron or supported web environment.');
       return false;
     }
   } catch (err) {
-    console.error('[Export] Failed to export data:', err);
     alert(`Export failed: ${err.message}`);
     return false;
   }
@@ -79,13 +76,10 @@ export async function uploadAppData(merge = false) {
       }
     } else {
       // Web: use file input
-      console.log('[Import] Web mode: opening file picker');
       jsonString = await selectAndReadFile();
-      console.log('[Import] File selected, length:', jsonString?.length);
     }
     
     if (!jsonString) {
-      console.log('[Import] No file selected or file empty');
       return false;
     }
     
@@ -94,13 +88,10 @@ export async function uploadAppData(merge = false) {
     const confirmed = confirm(`This will ${action} your current data. Continue?`);
     
     if (!confirmed) {
-      console.log('[Import] User cancelled import');
       return false;
     }
     
-    console.log('[Import] Starting data import...');
     await importAppData(jsonString, merge);
-    console.log('[Import] Data import complete');
     
     // Reload to show imported data (works in both Electron and web now that DataStore handles localStorage)
     alert('Data imported successfully! The page will reload.');
@@ -108,7 +99,6 @@ export async function uploadAppData(merge = false) {
     
     return true;
   } catch (err) {
-    console.error('[Import] Failed to import data:', err);
     alert(`Import failed: ${err.message}`);
     return false;
   }
@@ -123,9 +113,11 @@ function selectAndReadFile() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json,application/json';
+    input.style.display = 'none';
     
     input.onchange = async (e) => {
       const file = e.target.files[0];
+      document.body.removeChild(input);
       if (!file) {
         resolve(null);
         return;
@@ -140,9 +132,12 @@ function selectAndReadFile() {
     };
     
     input.oncancel = () => {
+      document.body.removeChild(input);
       resolve(null);
     };
     
+    // Attach to DOM before clicking to ensure it's treated as a user action
+    document.body.appendChild(input);
     input.click();
   });
 }

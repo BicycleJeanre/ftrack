@@ -1,11 +1,9 @@
 // modal-text-input.js
 // Simple modal to accept a short text input and call onSave with the value
-export function openTextInputModal(title, defaultValue = '', placeholder = '', onSave) {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
+import { createModal } from './modal-factory.js';
 
-  const modal = document.createElement('div');
-  modal.className = 'modal-content modal-text-input';
+export function openTextInputModal(title, defaultValue = '', placeholder = '', onSave) {
+  const { modal, close } = createModal({ contentClass: 'modal-text-input' });
 
   modal.innerHTML = `
     <h2 class="modal-text-input-title">${title}</h2>
@@ -18,17 +16,11 @@ export function openTextInputModal(title, defaultValue = '', placeholder = '', o
     </div>
   `;
 
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
   const input = modal.querySelector('#modalTextInput');
   const cancelBtn = modal.querySelector('#modalCancel');
   const saveBtn = modal.querySelector('#modalSave');
 
-  const close = () => { overlay.remove(); };
-
   cancelBtn.addEventListener('click', () => close());
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
   saveBtn.addEventListener('click', () => {
     const value = (input.value || '').trim();

@@ -1,12 +1,26 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
+import { downloadAppData, uploadAppData } from './data-export-import.js';
+import { isElectronEnv } from './core/platform.js';
+
 (function() {
   // Platform detection
-  var isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+  var isElectron = isElectronEnv();
   
   // Add clear data button only for web
   var clearDataBtn = !isElectron ? '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>' : '';
   
+  // Determine the correct path to assets based on current location
+  var logoPath = 'assets/ftrack-logo.svg';
+  var path = window.location.pathname;
+  if (path.includes('/pages/')) {
+    logoPath = '../assets/ftrack-logo.svg';
+  }
+  
   var navLinks = `
+    <div class="navbar-brand">
+      <img src="${logoPath}" alt="FTrack" class="navbar-logo" />
+      <span class="navbar-title">FTrack</span>
+    </div>
     <a href="home.html" id="nav-home">Home</a>
     <a href="forecast.html" id="nav-forecast">Forecast</a>
     <div class="nav-spacer"></div>
@@ -40,14 +54,10 @@
       exportBtn.addEventListener('click', async function(e) {
         e.preventDefault();
         try {
-          // Dynamic import to avoid loading on every page
-          const module = await import('./data-export-import.js');
-          const success = await module.downloadAppData();
+          const success = await downloadAppData();
           if (success) {
-            console.log('[Navbar] Data exported successfully');
           }
         } catch (err) {
-          console.error('[Navbar] Export failed:', err);
           alert('Export failed: ' + err.message);
         }
       });
@@ -57,14 +67,11 @@
       importBtn.addEventListener('click', async function(e) {
         e.preventDefault();
         try {
-          // Dynamic import to avoid loading on every page
-          const module = await import('./data-export-import.js');
-          const success = await module.uploadAppData(false); // false = replace mode
+          const success = await uploadAppData(false); // false = replace mode
           if (success) {
-            console.log('[Navbar] Data imported successfully');
+          } else {
           }
         } catch (err) {
-          console.error('[Navbar] Import failed:', err);
           alert('Import failed: ' + err.message);
         }
       });
@@ -81,7 +88,6 @@
             alert('All data cleared successfully. The page will now reload.');
             window.location.reload();
           } catch (err) {
-            console.error('[Navbar] Clear data failed:', err);
             alert('Failed to clear data: ' + err.message);
           }
         }
