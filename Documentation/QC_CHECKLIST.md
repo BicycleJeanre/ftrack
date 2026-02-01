@@ -8,19 +8,19 @@
 ## 1.0 Scenarios
 
 ### 1.1 Create/Add/New
-- [ ] Create new scenario
-- [ ] Verify scenario name is saved correctly
-- [ ] Verify scenario appears in scenario list
+- [x] Create new scenario
+- [x] Verify scenario name is saved correctly
+- [x] Verify scenario appears in scenario list
 
 ### 1.2 Edit
-- [ ] Edit scenario name
-- [ ] Edit scenario settings
-- [ ] Verify changes are saved
+- [x] Edit scenario name
+- [x] Edit scenario settings
+- [x] Verify changes are saved
 
 ### 1.3 Delete
-- [ ] Delete scenario
-- [ ] Verify scenario is removed from list
-- [ ] Verify data integrity after deletion
+- [x] Delete scenario
+- [x] Verify scenario is removed from list
+- [x] Verify data integrity after deletion
 
 ---
 

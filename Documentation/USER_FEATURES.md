@@ -1,7 +1,7 @@
 # FTrack User Features
 
-**Version**: 1.0.0  
-**Last Updated**: January 11, 2026  
+**Version**: 1.2.0  
+**Last Updated**: February 1, 2026  
 **Purpose**: Complete list of implemented user functionality
 
 ---
@@ -74,6 +74,7 @@
 6.7 Save/cancel edits with action buttons  
 6.8 Select rows with radio buttons  
 6.9 Open modal dialogs for complex data (recurrence, periodic change)
+6.10 Read the home page user guide for quick start and component tips
 
 ## 7.0 Keyboard Shortcuts
 
@@ -106,6 +107,26 @@
 10.4 Automatic ID generation for new records  
 10.5 Conditional field visibility based on scenario type  
 10.6 Cross-reference validation between accounts and transactions
+
+## 11.0 Documentation Expansion Layout
+
+11.1 Getting Started Tutorials (quick wins and first-run setup)  
+11.2 Core Workflows (accounts, transactions, projections)  
+11.3 Scenario Planning (comparisons and what-if patterns)  
+11.4 Advanced Features (recurrence, periodic changes, shortcuts)  
+11.5 Troubleshooting and FAQs  
+11.6 Glossary of terms and account types
+
+## 12.0 Create Your First Budget
+
+12.1 Open Forecast and select a scenario (create one if needed)  
+12.2 Set the scenario type to Budget  
+12.3 Add or confirm key accounts with opening balances  
+12.4 Enter planned income transactions (paychecks, deposits)  
+12.5 Enter planned expense transactions (rent, utilities, groceries)  
+12.6 Configure recurrence for repeating items  
+12.7 Run projections to confirm the budget is sustainable  
+12.8 Adjust amounts and dates until the projected balance stays positive
 
 ---
 
