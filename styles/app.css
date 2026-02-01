@@ -1808,3 +1808,21 @@ html body .tabulator .tabulator-row.tabulator-group {
 .tabulator .tabulator-tableholder .tabulator-table .tabulator-row.tabulator-calcs.tabulator-calcs-bottom {
   border-top: 1px solid var(--border-secondary) !important;
 }
+
+/* Periodic Change Cell Styling */
+.periodic-change-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.periodic-change-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.periodic-change-text {
+  color: var(--text-primary);
+  font-size: 0.9em;
+}

@@ -4,9 +4,11 @@
 
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { applyPeriodicChange } from './financial-utils.js';
+import { expandPeriodicChangeForCalculation } from './periodic-change-utils.js';
 import { getScenario, saveProjections } from './data-manager.js';
 import { parseDateOnly, formatDateOnly } from './date-utils.js';
 import { expandTransactions } from './transaction-expander.js';
+import { getSchemaPath } from './app-paths.js';
 
 /**
  * Generate projections for a scenario
@@ -20,6 +22,21 @@ export async function generateProjections(scenarioId, options = {}) {
   console.log('[ProjectionEngine] Generating projections for scenario:', scenarioId);
   
   const source = options.source || 'transactions';
+  
+  // Load lookup data for periodic change expansion
+  const lookupPath = getSchemaPath('lookup-data.json');
+  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+  let lookupFile;
+  
+  if (isElectron) {
+    const fs = window.require('fs').promises;
+    lookupFile = await fs.readFile(lookupPath, 'utf8');
+  } else {
+    const response = await fetch(lookupPath);
+    lookupFile = await response.text();
+  }
+  
+  const lookupData = JSON.parse(lookupFile);
   
   // Load scenario data
   const scenario = await getScenario(scenarioId);
@@ -82,9 +99,12 @@ export async function generateProjections(scenarioId, options = {}) {
     let amount = txn.amount || 0;
     
     if (txn.periodicChange) {
-      const txnStartDate = txn.recurrence?.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
-      const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
-      amount = applyPeriodicChange(txn.amount, txn.periodicChange, yearsDiff);
+      const expandedPC = expandPeriodicChangeForCalculation(txn.periodicChange, lookupData);
+      if (expandedPC) {
+        const txnStartDate = txn.recurrence?.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
+        const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
+        amount = applyPeriodicChange(txn.amount, expandedPC, yearsDiff);
+      }
     }
     
     return {
@@ -139,9 +159,12 @@ export async function generateProjections(scenarioId, options = {}) {
       
       // Apply interest/growth up to the period START so snapshot is at period start
       if (account.periodicChange) {
-        const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
-        if (yearsDiffToStart !== 0) {
-          currentBalance = applyPeriodicChange(currentBalance, account.periodicChange, yearsDiffToStart);
+        const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
+        if (expandedPC) {
+          const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
+          if (yearsDiffToStart !== 0) {
+            currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffToStart);
+          }
         }
       }
 
@@ -184,9 +207,12 @@ export async function generateProjections(scenarioId, options = {}) {
 
       // After applying transactions for the period, apply periodicChange across the period
       if (account.periodicChange) {
-        const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
-        if (yearsDiffPeriod !== 0) {
-          currentBalance = applyPeriodicChange(currentBalance, account.periodicChange, yearsDiffPeriod);
+        const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
+        if (expandedPC) {
+          const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
+          if (yearsDiffPeriod !== 0) {
+            currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
+          }
         }
       }
 

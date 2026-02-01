@@ -35,7 +35,11 @@
           },
           "startingBalance": 15000,
           "openDate": "2026-01-01",
-          "periodicChange": null
+          "periodicChange": {
+            "value": 2.5,
+            "changeMode": 1,
+            "changeType": 2
+          }
         },
         {
           "id": 2,

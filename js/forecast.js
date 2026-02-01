@@ -13,6 +13,7 @@ import * as TransactionManager from './managers/transaction-manager.js';
 import * as BudgetManager from './managers/budget-manager.js';
 import { openRecurrenceModal } from './modal-recurrence.js';
 import { openPeriodicChangeModal } from './modal-periodic-change.js';
+import { getPeriodicChangeDescription } from './periodic-change-utils.js';
 import { openTextInputModal } from './modal-text-input.js';
 import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
@@ -242,7 +243,7 @@ function buildGridContainer() {
   
   const scenarioContent = document.createElement('div');
   scenarioContent.id = 'scenarioContent';
-  scenarioContent.className = 'accordion-content open';
+  scenarioContent.className = 'accordion-content hidden';
   window.add(scenarioSection, scenarioContent);
   
   const scenarioSelector = document.createElement('div');
@@ -262,7 +263,7 @@ function buildGridContainer() {
   
   const accountsContent = document.createElement('div');
   accountsContent.id = 'accountsContent';
-  accountsContent.className = 'accordion-content open';
+  accountsContent.className = 'accordion-content hidden';
   window.add(accountsSection, accountsContent);
   
   const accountsTable = document.createElement('div');
@@ -282,7 +283,7 @@ function buildGridContainer() {
 
   const transactionsContent = document.createElement('div');
   transactionsContent.id = 'transactionsContent';
-  transactionsContent.className = 'accordion-content open section-content';
+  transactionsContent.className = 'accordion-content section-content hidden';
   window.add(transactionsSection, transactionsContent);
 
   const transactionsTable = document.createElement('div');
@@ -305,7 +306,7 @@ function buildGridContainer() {
 
   const budgetContent = document.createElement('div');
   budgetContent.id = 'budgetContent';
-  budgetContent.className = 'accordion-content open section-content';
+  budgetContent.className = 'accordion-content section-content hidden';
   window.add(budgetSection, budgetContent);
 
   const budgetTable = document.createElement('div');
@@ -329,7 +330,7 @@ function buildGridContainer() {
 
   const projectionsContent = document.createElement('div');
   projectionsContent.id = 'projectionsContent';
-  projectionsContent.className = 'accordion-content open';
+  projectionsContent.className = 'accordion-content hidden';
   window.add(projectionsSection, projectionsContent);
   window.add(forecastEl, projectionsSection);
 
@@ -871,10 +872,11 @@ async function loadAccountsGrid(container) {
 
 
     // Add accountType field for grouping
-    const enrichedAccounts = displayAccounts.map(a => ({
+    const enrichedAccounts = await Promise.all(displayAccounts.map(async a => ({
       ...a,
-      accountType: a.type?.name || 'Unknown'
-    }));
+      accountType: a.type?.name || 'Unknown',
+      periodicChangeSummary: await getPeriodicChangeDescription(a.periodicChange)
+    })));
 
     // Mount grid container before initializing Tabulator so layout can measure dimensions
     window.add(container, gridContainer);
@@ -905,7 +907,32 @@ async function loadAccountsGrid(container) {
             } catch (err) { console.error('Delete account failed', err); }
           }  },
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
-        createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 })
+        createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 }),
+        {
+          title: "Periodic Change",
+          field: "periodicChangeSummary",
+          minWidth: 170,
+          widthGrow: 1.2,
+          formatter: function(cell) {
+            const summary = cell.getValue() || 'None';
+            const icon = '<svg class="periodic-change-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v8h-8v2h8v8h2v-8h8v-2h-8V3z"/></svg>';
+            return `<span class="periodic-change-cell">${icon}<span class="periodic-change-text">${summary}</span></span>`;
+          },
+          cellClick: function(e, cell) {
+            const rowData = cell.getRow().getData();
+            openPeriodicChangeModal(rowData.periodicChange, async (newPeriodicChange) => {
+              // Update the account with new periodic change
+              const allAccts = await AccountManager.getAll(currentScenario.id);
+              const acctIndex = allAccts.findIndex(ac => ac.id === rowData.id);
+              if (acctIndex >= 0) {
+                allAccts[acctIndex].periodicChange = newPeriodicChange;
+                await AccountManager.saveAll(currentScenario.id, allAccts);
+                // Reload grid
+                await loadAccountsGrid(container);
+              }
+            });
+          }
+        }
       ],
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
@@ -1346,7 +1373,7 @@ async function loadMasterTransactionsGrid(container) {
     }
 
     // Transform for UI - create dual-perspective rows
-    const transformedData = allTransactions.flatMap(tx => {
+    const transformedData = await Promise.all(allTransactions.flatMap(async tx => {
       const storedPrimaryId = tx.primaryAccountId;
       const storedSecondaryId = tx.secondaryAccountId;
       const storedTypeId = tx.transactionTypeId || tx.transactionType?.id;
@@ -1362,6 +1389,7 @@ async function loadMasterTransactionsGrid(container) {
         : '';
 
       const recurrenceSummary = getRecurrenceDescription(tx.recurrence);
+      const periodicChangeSummary = await getPeriodicChangeDescription(tx.periodicChange);
       
       const baseData = {
         id: tx.id,
@@ -1380,6 +1408,8 @@ async function loadMasterTransactionsGrid(container) {
         recurrence: tx.recurrence,
         recurrenceDescription: recurrenceSummary,
         recurrenceSummary,
+        periodicChange: tx.periodicChange,
+        periodicChangeSummary,
         tags: tx.tags || []
       };
       
@@ -1406,16 +1436,19 @@ async function loadMasterTransactionsGrid(container) {
       }
       
       // Perspective 2: From the stored secondary account's view (flipped)
+      // This is a generated internal view - accounts and type are inverted for display
       if (storedSecondaryId) {
+        // SWAP accounts: secondary becomes primary in the flipped view
         const primaryAccount = currentScenario.accounts?.find(a => a.id === storedSecondaryId) || { id: storedSecondaryId };
         const secondaryAccount = storedPrimaryId
           ? currentScenario.accounts?.find(a => a.id === storedPrimaryId) || { id: storedPrimaryId }
           : null;
-        // Flip the transaction type
+        
+        // Flip the transaction type for this perspective
         const flippedTypeId = storedTypeId === 1 ? 2 : 1;
         const transactionType = flippedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' };
         
-        // Flip the amount sign when flipping perspective
+        // Flip the amount sign for display (we'll handle this in formatter, but store inverted for now)
         const flippedAmount = -(baseData.amount);
         const flippedPlannedAmount = -(baseData.plannedAmount);
         const flippedActualAmount = baseData.actualAmount !== undefined && baseData.actualAmount !== null 
@@ -1424,26 +1457,32 @@ async function loadMasterTransactionsGrid(container) {
         
         rows.push({
           ...baseData,
-          id: `${tx.id}_flipped`, // Unique ID for flipped perspective
-          perspectiveAccountId: storedSecondaryId, // Used for filtering
+          id: `${tx.id}_flipped`, // Unique ID for flipped perspective (internal only)
+          perspectiveAccountId: storedSecondaryId, // Used for filtering - who is viewing this
+          // These are SWAPPED for flipped perspective (as if secondary account initiated the transaction)
           transactionTypeId: flippedTypeId,
           amount: flippedAmount,
           plannedAmount: flippedPlannedAmount,
           actualAmount: flippedActualAmount,
-          primaryAccount,
+          primaryAccount, // Now the stored secondary account
           primaryAccountName: primaryAccount?.name || '',
+          primaryAccountId: storedSecondaryId,  // SWAPPED
+          secondaryAccount, // Now the stored primary account
+          secondaryAccountId: storedPrimaryId,  // SWAPPED
           transactionType,
-          transactionTypeName: transactionType?.name || '',
-          secondaryAccount
+          transactionTypeName: transactionType?.name || ''
         });
       }
       
       return rows;
-    });
+    }));
+    
+    // Flatten the array of arrays from Promise.all
+    const flatTransformedData = transformedData.flat();
     // Note: Filtering is now handled by Tabulator's setFilter() - see account selection handler
 
     // Compute filtered totals for current transactions view
-    const txTotals = computeMoneyTotals(transformedData, {
+    const txTotals = computeMoneyTotals(flatTransformedData, {
       amountField: 'amount',
       typeField: 'transactionType',
       typeNameField: 'transactionTypeName',
@@ -1462,7 +1501,7 @@ async function loadMasterTransactionsGrid(container) {
     toolbar.appendChild(totalsInline);
 
     masterTransactionsTable = await createGrid(gridContainer, {
-      data: transformedData,
+      data: flatTransformedData,
       headerWordWrap: false, // Prevent header text wrapping
       autoResize: true, // Enable auto-resize on window changes
       columns: [
@@ -1574,15 +1613,54 @@ async function loadMasterTransactionsGrid(container) {
           },
           cellClick: function(e, cell) {
             const rowData = cell.getRow().getData();
+            console.log('[Transactions] Recurrence cellClick - opening modal for tx:', rowData.id);
             openRecurrenceModal(rowData.recurrence, async (newRecurrence) => {
+              console.log('[Transactions] Recurrence modal callback - new recurrence:', newRecurrence);
               // Update the transaction with new recurrence
               const allTxs = await getTransactions(currentScenario.id);
-              const txIndex = allTxs.findIndex(tx => tx.id === rowData.id);
+              // Strip _flipped suffix from ID if present (for flipped perspective rows)
+              const actualTxId = String(rowData.id).replace('_flipped', '');
+              const txIndex = allTxs.findIndex(tx => String(tx.id) === actualTxId);
               if (txIndex >= 0) {
                 allTxs[txIndex].recurrence = newRecurrence;
+                console.log('[Transactions] Saving transaction with updated recurrence:', allTxs[txIndex]);
                 await TransactionManager.saveAll(currentScenario.id, allTxs);
+                console.log('[Transactions] Save complete, reloading grid...');
                 // Reload grid
                 await loadMasterTransactionsGrid(container);
+                console.log('[Transactions] Grid reload complete');
+              }
+            });
+          }
+        },
+        {
+          title: "Periodic Change",
+          field: "periodicChangeSummary",
+          minWidth: 170,
+          widthGrow: 1.2,
+          formatter: function(cell) {
+            const summary = cell.getValue() || 'None';
+            const icon = '<svg class="periodic-change-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v8h-8v2h8v8h2v-8h8v-2h-8V3z"/></svg>';
+            return `<span class="periodic-change-cell">${icon}<span class="periodic-change-text">${summary}</span></span>`;
+          },
+          cellClick: function(e, cell) {
+            const rowData = cell.getRow().getData();
+            console.log('[Transactions] Periodic Change cellClick - opening modal for tx:', rowData.id);
+            openPeriodicChangeModal(rowData.periodicChange, async (newPeriodicChange) => {
+              console.log('[Transactions] Periodic Change modal callback - new periodicChange:', newPeriodicChange);
+              // Update the transaction with new periodic change
+              const allTxs = await getTransactions(currentScenario.id);
+              // Strip _flipped suffix from ID if present (for flipped perspective rows)
+              const actualTxId = String(rowData.id).replace('_flipped', '');
+              const txIndex = allTxs.findIndex(tx => String(tx.id) === actualTxId);
+              if (txIndex >= 0) {
+                allTxs[txIndex].periodicChange = newPeriodicChange;
+                console.log('[Transactions] Saving transaction with updated periodic change:', allTxs[txIndex]);
+                await TransactionManager.saveAll(currentScenario.id, allTxs);
+                console.log('[Transactions] Save complete, reloading grid...');
+                // Reload grid
+                await loadMasterTransactionsGrid(container);
+                console.log('[Transactions] Grid reload complete');
               }
             });
           }
@@ -1594,6 +1672,11 @@ async function loadMasterTransactionsGrid(container) {
         const field = cell.getColumn().getField();
         const newValue = cell.getValue();
         console.log('[TransactionsGrid] cellEdited start', { field, newValue, rowId: rowData.id });
+        
+        // Detect if this is a flipped perspective row
+        const isFlipped = String(rowData.id).includes('_flipped');
+        const actualTxId = String(rowData.id).replace('_flipped', '');
+        console.log('[TransactionsGrid] isFlipped:', isFlipped, 'actualTxId:', actualTxId);
 
         const normalizeForSave = (tx) => {
           const typeName = tx.transactionType?.name
@@ -1681,54 +1764,59 @@ async function loadMasterTransactionsGrid(container) {
 
         // Normal cell editing
         const allTxs = await getTransactions(currentScenario.id);
-        const txIndex = allTxs.findIndex(tx => tx.id === rowData.id);
+        const txIndex = allTxs.findIndex(tx => String(tx.id) === actualTxId);
 
         if (txIndex >= 0) {
-          const updatedTx = { ...allTxs[txIndex], [field]: newValue };
+          const updatedTx = { ...allTxs[txIndex] };
 
-          // Normalize amount sign based on transaction type
-          if (field === 'amount') {
-            const txType = updatedTx.transactionType?.name || rowData.transactionType?.name;
-            const absAmount = Math.abs(newValue);
-            if (txType === 'Money Out') {
-              updatedTx.amount = -absAmount; // Money Out is always negative
-            } else if (txType === 'Money In') {
-              updatedTx.amount = absAmount; // Money In is always positive
+          // KEY: If editing from flipped row, we need to map the field back to canonical storage format
+          // The flipped row shows a swapped perspective, so we need to reverse that for storage
+          
+          if (isFlipped) {
+            // User is editing from secondary account's perspective (flipped view)
+            // The data in the flipped row has primary/secondary swapped and type inverted
+            // We need to map it back to the CANONICAL primary/secondary/type
+            
+            if (field === 'primaryAccount') {
+              // User edited primaryAccount in flipped view (which was actually secondaryAccountId in storage)
+              updatedTx.secondaryAccountId = newValue?.id || null;
+            } else if (field === 'secondaryAccount') {
+              // User edited secondaryAccount in flipped view (which was actually primaryAccountId in storage)
+              updatedTx.primaryAccountId = newValue?.id || null;
+            } else if (field === 'transactionType') {
+              // User selected a type in flipped view
+              // Flip it back to storage format: if they select type 1, store type 2, etc.
+              const selectedTypeId = newValue?.id || 1;
+              updatedTx.transactionTypeId = selectedTypeId === 1 ? 2 : 1;
+            } else if (field === 'amount') {
+              // Amount is shown negated in flipped view, so negate it back
+              updatedTx.amount = -(newValue);
+            } else {
+              // Other fields (description, recurrence, etc.) - no mapping needed
+              updatedTx[field] = newValue;
             }
-          }
-
-          // If transaction type changed, normalize amount sign
-          if (field === 'transactionType') {
-            const currentAmount = updatedTx.amount || allTxs[txIndex].amount || 0;
-            const absAmount = Math.abs(currentAmount);
-            if (newValue?.name === 'Money Out') {
-              updatedTx.amount = -absAmount;
-            } else if (newValue?.name === 'Money In') {
-              updatedTx.amount = absAmount;
+          } else {
+            // Editing from primary account's perspective - store as-is (canonical form)
+            if (field === 'primaryAccount') {
+              updatedTx.primaryAccountId = newValue?.id || null;
+            } else if (field === 'secondaryAccount') {
+              updatedTx.secondaryAccountId = newValue?.id || null;
+            } else if (field === 'transactionType') {
+              updatedTx.transactionTypeId = newValue?.id || (newValue?.name === 'Money In' ? 1 : 2);
+            } else if (field === 'amount') {
+              updatedTx.amount = newValue;
+            } else {
+              updatedTx[field] = newValue;
             }
-          }
-
-          // If transaction type changed, update transactionTypeId
-          if (field === 'transactionType') {
-            updatedTx.transactionTypeId = newValue?.id || (newValue?.name === 'Money In' ? 1 : 2);
-            // Keep primaryAccountId and secondaryAccountId as-is
-            // The type change just affects how amounts are interpreted
-          }
-
-          // If secondary account changed, update secondaryAccountId
-          if (field === 'secondaryAccount') {
-            updatedTx.secondaryAccountId = newValue?.id || null;
-          }
-
-          // If primary account changed (only shown in unfiltered mode), update primaryAccountId
-          if (field === 'primaryAccount' && !selectedAccountId) {
-            updatedTx.primaryAccountId = newValue?.id || null;
           }
 
           allTxs[txIndex] = normalizeForSave(updatedTx);
-          console.log('[TransactionsGrid] saveAll ->', { txId: updatedTx.id, field, updatedTx: allTxs[txIndex] });
+          console.log('[TransactionsGrid] saveAll ->', { txId: actualTxId, field, isFlipped, canonical: allTxs[txIndex] });
           await TransactionManager.saveAll(currentScenario.id, allTxs);
-          console.log('[TransactionsGrid] saveAll complete', { txId: updatedTx.id });
+          console.log('[TransactionsGrid] saveAll complete', { txId: actualTxId });
+          
+          // After save, reload the grid to regenerate BOTH perspective rows from canonical storage
+          await loadMasterTransactionsGrid(container);
         }
       }
     });

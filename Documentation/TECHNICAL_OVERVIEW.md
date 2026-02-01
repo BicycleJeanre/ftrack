@@ -26,6 +26,10 @@ The technical documentation is modularized. Read the specific section required f
 **Read this if:** You are changing the Grid visualizations, editing `forecast.js`, or working on the frontend logic.
 *Covers: Tabulator implementation, GridFactory, Event Handling.*
 
+### [4. Goal-Based Planning >](TECH_GOAL_PLANNING.md)
+**Read this if:** You are adding or refining the goal-based scenario type and calculations.
+*Covers: Parameters, calculation modes, and formulas.*
+
 ## 4.0 Quick Start Reference
 - **Entry Point**: `main.js` (Electron Main Process).
 - **Frontend Entry**: `pages/forecast.html` -> `js/global-app.js`.
