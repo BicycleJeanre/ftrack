@@ -88,12 +88,18 @@ export async function saveAll(scenarioId, budgets) {
                 };
             }
 
+            // Extract IDs from objects if present, otherwise use ID fields directly
+            const extractId = (obj, idField) => {
+                if (obj && typeof obj === 'object' && obj.id !== undefined) return obj.id;
+                return idField || null;
+            };
+
             const normalized = {
                 id: budget.id || nextId++,
                 sourceTransactionId: budget.sourceTransactionId || null,
-                primaryAccountId: budget.primaryAccountId || null,
-                secondaryAccountId: budget.secondaryAccountId || null,
-                transactionTypeId: budget.transactionTypeId || null,
+                primaryAccountId: extractId(budget.primaryAccount, budget.primaryAccountId),
+                secondaryAccountId: extractId(budget.secondaryAccount, budget.secondaryAccountId),
+                transactionTypeId: extractId(budget.transactionType, budget.transactionTypeId),
                 amount: Math.abs(budget.amount || 0),
                 description: budget.description || '',
                 recurrenceDescription: budget.recurrenceDescription || '',

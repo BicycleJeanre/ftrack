@@ -599,6 +599,8 @@ p {
   margin-left: auto;
   display: flex;
   gap: 20px;
+  flex-wrap: wrap;
+  row-gap: 8px;
   align-items: center;
 }
 

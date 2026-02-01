@@ -17,7 +17,7 @@ import keyboardShortcuts from './keyboard-shortcuts.js';
 import { loadGlobals } from './global-app.js';
 import { createLogger } from './logger.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from './transaction-row-transformer.js';
-import { renderMoneyTotals } from './toolbar-totals.js';
+import { renderMoneyTotals, renderBudgetTotals } from './toolbar-totals.js';
 import { loadLookup } from './lookup-loader.js';
 
 const logger = createLogger('ForecastController');
@@ -26,7 +26,7 @@ import { formatDateOnly, parseDateOnly } from './date-utils.js';
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { expandTransactions } from './transaction-expander.js';
 import { getRecurrenceDescription } from './recurrence-utils.js';
-import { calculateCategoryTotals } from './financial-utils.js';
+import { calculateCategoryTotals, calculateBudgetTotals } from './financial-utils.js';
 
 import {
   getScenarios,
@@ -85,9 +85,10 @@ function updateBudgetTotals(filteredRows = null) {
   // Get currently visible (filtered) data from provided rows or table
   const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterBudgetTable.getData('active');
   
-  // Compute totals from visible data
-  const budgetTotals = calculateCategoryTotals(visibleData, {
-    amountField: 'amount',
+  // Compute totals from visible data including budget-specific metrics
+  const budgetTotals = calculateBudgetTotals(visibleData, {
+    plannedField: 'plannedAmount',
+    actualField: 'actualAmount',
     typeField: 'transactionType',
     typeNameField: 'transactionTypeName',
     typeIdField: 'transactionTypeId'
@@ -95,7 +96,7 @@ function updateBudgetTotals(filteredRows = null) {
   
   // Update toolbar totals
   const toolbarTotals = document.querySelector('#budgetContent .toolbar-totals');
-  renderMoneyTotals(toolbarTotals, budgetTotals);
+  renderBudgetTotals(toolbarTotals, budgetTotals);
 }
 
 
@@ -847,9 +848,9 @@ async function loadMasterTransactionsGrid(container) {
     <select id="tx-grouping-select" class="input-select control-select">
       <option value="">None</option>
       <option value="transactionTypeName">Type (Money In/Out)</option>
-      <option value="primaryAccountTypeName">Account Type</option>
+      <option value="secondaryAccountTypeName">Account Type</option>
       <option value="recurrenceSummary">Recurrence Period</option>
-      <option value="primaryAccountName">Account</option>
+      <option value="secondaryAccountName">Account</option>
     </select>
   `;
   window.add(toolbar, groupingControl);
@@ -1717,9 +1718,13 @@ async function loadBudgetGrid(container) {
     const totalsInline = document.createElement('div');
     totalsInline.className = 'toolbar-item toolbar-totals';
     totalsInline.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Actual Net:</span> <span class="value">${formatCurrency(0)}</span></span>
       <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${formatCurrency(0)}</span></span>
       <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${formatCurrency(0)}</span></span>
       <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value">${formatCurrency(0)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Planned Outstanding:</span> <span class="value negative">${formatCurrency(0)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Planned Net Balance:</span> <span class="value">${formatCurrency(0)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Unplanned:</span> <span class="value negative">${formatCurrency(0)}</span></span>
     `;
     window.add(toolbar, totalsInline);
     window.add(container, toolbar);
@@ -1771,8 +1776,8 @@ async function loadBudgetGrid(container) {
           editor: "list",
           editorParams: {
             values: [
-              { label: 'Money Out', value: { id: 1, name: 'Money Out' } },
-              { label: 'Money In', value: { id: 2, name: 'Money In' } }
+              { label: 'Money In', value: { id: 1, name: 'Money In' } },
+              { label: 'Money Out', value: { id: 2, name: 'Money Out' } }
             ],
             listItemFormatter: function(value, title) {
               return title;
