@@ -847,6 +847,7 @@ async function loadMasterTransactionsGrid(container) {
     <select id="tx-grouping-select" class="input-select control-select">
       <option value="">None</option>
       <option value="transactionTypeName">Type (Money In/Out)</option>
+      <option value="primaryAccountTypeName">Account Type</option>
       <option value="recurrenceSummary">Recurrence Period</option>
       <option value="primaryAccountName">Account</option>
     </select>
@@ -1684,6 +1685,7 @@ async function loadBudgetGrid(container) {
       <select id="budget-grouping-select" class="input-select control-select">
         <option value="">None</option>
         <option value="transactionTypeName">Type (Money In/Out)</option>
+        <option value="primaryAccountTypeName">Account Type</option>
         <option value="recurrenceDescription">Recurrence Period</option>
         <option value="primaryAccountName">Account</option>
       </select>
