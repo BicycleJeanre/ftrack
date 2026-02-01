@@ -1006,6 +1006,16 @@ async function loadMasterTransactionsGrid(container) {
     console.error('[Transactions] Could not find account filter select element!');
   }
 
+  // Normalize accounts to ensure type field is an object (not primitive ID)
+  const normalizedAccounts = (currentScenario.accounts || []).map(account => {
+    const normalized = { ...account };
+    if (normalized.type && typeof normalized.type !== 'object') {
+      const foundType = lookupData.accountTypes.find(t => t.id == normalized.type);
+      if (foundType) normalized.type = foundType;
+    }
+    return normalized;
+  });
+
   const gridContainer = document.createElement('div');
   gridContainer.className = 'grid-container master-transactions-grid';
   window.add(container, gridContainer);
@@ -1059,7 +1069,7 @@ async function loadMasterTransactionsGrid(container) {
         tags: tx.tags || []
       };
       
-      return transformTransactionToRows(txForDisplay, currentScenario.accounts);
+      return transformTransactionToRows(txForDisplay, normalizedAccounts);
     }));
     
     // Flatten the array of arrays from Promise.all
@@ -1610,6 +1620,16 @@ async function loadBudgetGrid(container) {
       console.error('[Budget] Could not find account filter select element!');
     }
 
+    // Normalize accounts to ensure type field is an object (not primitive ID)
+    const normalizedAccounts = (currentScenario.accounts || []).map(account => {
+      const normalized = { ...account };
+      if (normalized.type && typeof normalized.type !== 'object') {
+        const foundType = lookupData.accountTypes.find(t => t.id == normalized.type);
+        if (foundType) normalized.type = foundType;
+      }
+      return normalized;
+    });
+
     // Transform budgets for UI - create dual-perspective rows (mirror transactions grid)
     const transformedData = budgetOccurrences.flatMap(budget => {
       const storedPrimaryId = budget.primaryAccountId;
@@ -1660,7 +1680,7 @@ async function loadBudgetGrid(container) {
       }
       
       const canonicalBudget = normalizeCanonicalTransaction(baseData);
-      return transformTransactionToRows(canonicalBudget, currentScenario.accounts);
+      return transformTransactionToRows(canonicalBudget, normalizedAccounts);
     });
     // Note: Account filtering is now handled by Tabulator's setFilter() - see account selection handler
 
@@ -1685,9 +1705,9 @@ async function loadBudgetGrid(container) {
       <select id="budget-grouping-select" class="input-select control-select">
         <option value="">None</option>
         <option value="transactionTypeName">Type (Money In/Out)</option>
-        <option value="primaryAccountTypeName">Account Type</option>
+        <option value="secondaryAccountTypeName">Account Type</option>
         <option value="recurrenceDescription">Recurrence Period</option>
-        <option value="primaryAccountName">Account</option>
+        <option value="secondaryAccountName">Account</option>
       </select>
     `;
     window.add(toolbar, groupingControl);

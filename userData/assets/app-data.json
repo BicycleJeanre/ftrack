@@ -83,8 +83,8 @@
       "transactions": [
         {
           "id": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
+          "primaryAccountId": 2,
+          "secondaryAccountId": 1,
           "transactionTypeId": 1,
           "amount": 25000,
           "description": "Monthly salary",
@@ -118,8 +118,8 @@
         },
         {
           "id": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
+          "primaryAccountId": 3,
+          "secondaryAccountId": 1,
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
@@ -153,8 +153,8 @@
         },
         {
           "id": 3,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
+          "primaryAccountId": 3,
+          "secondaryAccountId": 1,
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment - January",
@@ -273,8 +273,8 @@
       "transactions": [
         {
           "id": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
+          "primaryAccountId": 2,
+          "secondaryAccountId": 1,
           "transactionTypeId": 1,
           "amount": 25000,
           "description": "Monthly salary",
@@ -308,8 +308,8 @@
         },
         {
           "id": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
+          "primaryAccountId": 3,
+          "secondaryAccountId": 1,
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment",
@@ -343,8 +343,8 @@
         },
         {
           "id": 3,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
+          "primaryAccountId": 3,
+          "secondaryAccountId": 1,
           "transactionTypeId": 2,
           "amount": -8500,
           "description": "Rent payment - January",

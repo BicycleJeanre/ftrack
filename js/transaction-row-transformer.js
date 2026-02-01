@@ -84,6 +84,10 @@ export function transformTransactionToRows(tx, accounts = []) {
     actualAmount: unsignedActual === null || unsignedActual === undefined ? unsignedActual : signedAmount(typeId, unsignedActual)
   };
 
+  if (tx.id <= 3) {
+    console.log(`TX ${tx.id}: primaryAccountTypeName="${primaryRow.primaryAccountTypeName}", primaryAccountName="${primaryRow.primaryAccountName}"`, { primaryAccount });
+  }
+
   rows.push(primaryRow);
 
   if (tx.secondaryAccountId) {
