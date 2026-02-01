@@ -795,22 +795,30 @@ async function loadMasterTransactionsGrid(container) {
   addButton.textContent = '+ Add New Transaction';
   addButton.addEventListener('click', async () => {
     try {
-      // Get the first account as default, or null if no accounts exist
-      const defaultAccountId = (currentScenario.accounts && currentScenario.accounts.length > 0)
-        ? currentScenario.accounts[0].id
+      // Prefer the active account filter, fall back to the first account
+      const accountIds = (currentScenario.accounts || []).map(acc => acc.id);
+      const filteredAccountId = transactionFilterAccountId && accountIds.includes(transactionFilterAccountId)
+        ? transactionFilterAccountId
         : null;
+      const defaultAccountId = filteredAccountId || (accountIds.length > 0 ? accountIds[0] : null);
       
       if (!defaultAccountId) {
         alert('Please create at least one account before adding a transaction.');
         return;
       }
       
-      // Create new planned transaction with first account as default primary
+      // Create new planned transaction with default primary account
+      const selectedPeriod = actualPeriod ? periods.find(p => p.id === actualPeriod) : null;
+      const defaultEffectiveDate = selectedPeriod
+        ? formatDateOnly(selectedPeriod.startDate)
+        : (currentScenario.startDate || formatDateOnly(new Date()));
+
       const newTx = await createTransaction(currentScenario.id, {
         primaryAccountId: defaultAccountId,
         secondaryAccountId: null, // User will fill this in
         transactionTypeId: 2, // Default to Money Out
         amount: 0,
+        effectiveDate: defaultEffectiveDate,
         description: '',
         recurrence: null,
         periodicChange: null,

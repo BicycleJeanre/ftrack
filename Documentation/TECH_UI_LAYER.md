@@ -36,6 +36,7 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
   - Cell Editing: Calls `TransactionManager.saveAll`.
   - Status tracking: Planned vs Actual transactions.
   - Recurrence configuration via modal.
+  - New Transaction Defaults: Uses the active account filter as the primary account (fallback: first account) and sets `effectiveDate` to the selected period start or scenario start date.
 
 #### D. Budget Grid
 - **Type**: Multi-row, Editable.

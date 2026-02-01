@@ -16,8 +16,8 @@ export function expandTransactions(transactions, startDate, endDate, accounts = 
   const expandedTransactions = [];
 
   transactions.forEach(tx => {
-    // Ignore transactions that are not fully linked to accounts
-    if (!tx.primaryAccountId || !tx.secondaryAccountId) return;
+    // Ignore transactions that are not linked to a primary account
+    if (!tx.primaryAccountId) return;
 
     const statusName = typeof tx.status === 'object' ? tx.status.name : tx.status;
     

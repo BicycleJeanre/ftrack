@@ -475,6 +475,7 @@ export async function createTransaction(scenarioId, transactionData) {
     secondaryAccountId: transactionData.secondaryAccountId || null,
     transactionTypeId: transactionTypeId,
     amount: normalizedAmount,
+    effectiveDate: transactionData.effectiveDate || transactionData.plannedDate || null,
     description: transactionData.description || '',
     recurrence: transactionData.recurrence || null,
     periodicChange: transactionData.periodicChange || null,
