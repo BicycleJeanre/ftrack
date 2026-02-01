@@ -9,7 +9,6 @@ try {
         ipcRenderer = window.require('electron').ipcRenderer;
     }
 } catch (e) {
-    console.warn('Logger: Failed to initialize ipcRenderer', e);
 }
 
 class Logger {
@@ -26,9 +25,6 @@ class Logger {
         }).join(' ');
 
         // Log to browser console (for human debugging)
-        if (level === 'ERROR') console.error(`[${this.source}]`, ...args);
-        else if (level === 'WARN') console.warn(`[${this.source}]`, ...args);
-        // else console.log(`[${this.source}]`, ...args); // Disabled for performance
 
         // Send to Main process (for File logging/AI visibility)
         if (ipcRenderer) {
@@ -39,7 +35,6 @@ class Logger {
                     message: message
                 });
             } catch (e) {
-                console.error('Failed to send log via IPC', e);
             }
         }
     }

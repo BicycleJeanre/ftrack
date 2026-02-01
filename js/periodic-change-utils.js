@@ -1,7 +1,7 @@
 // periodic-change-utils.js
 // Utilities for periodic change display and ID expansion
 
-import { getSchemaPath } from './app-paths.js';
+import { loadLookup } from './lookup-loader.js';
 
 // Cache for lookup data
 let lookupDataCache = null;
@@ -12,20 +12,8 @@ let lookupDataCache = null;
  */
 async function loadLookupData() {
   if (lookupDataCache) return lookupDataCache;
-  
-  const lookupPath = getSchemaPath('lookup-data.json');
-  const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
-  let lookupFile;
-  
-  if (isElectron) {
-    const fs = window.require('fs').promises;
-    lookupFile = await fs.readFile(lookupPath, 'utf8');
-  } else {
-    const response = await fetch(lookupPath);
-    lookupFile = await response.text();
-  }
-  
-  lookupDataCache = JSON.parse(lookupFile);
+
+  lookupDataCache = await loadLookup('lookup-data.json');
   return lookupDataCache;
 }
 
@@ -42,7 +30,6 @@ export function expandPeriodicChangeForCalculation(pc, lookupData) {
   const type = lookupData.periodicChangeTypes.find(t => t.id === pc.changeType);
   
   if (!mode || !type) {
-    console.warn('[PeriodicChangeUtils] Invalid periodic change IDs:', pc);
     return null;
   }
   

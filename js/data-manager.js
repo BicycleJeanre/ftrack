@@ -4,20 +4,12 @@
 
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { formatDateOnly } from './date-utils.js';
-import { getAppDataPath } from './app-paths.js';
+import * as DataStore from './core/data-store.js';
+import { isElectronEnv, getPlatformInfo as getPlatformInfoCore } from './core/platform.js';
 
-// Platform detection
-const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
-
-// Electron-specific setup
-let fs, dataPath;
-if (isElectron) {
-  fs = window.require('fs').promises;
-  dataPath = getAppDataPath();
-}
+const isElectron = isElectronEnv();
 
 // Web storage constants
-const WEB_STORAGE_KEY = 'ftrack:app-data';
 const WEB_MIGRATION_KEY = 'ftrack:migration-version';
 
 // ============================================================================
@@ -30,29 +22,23 @@ const WEB_MIGRATION_KEY = 'ftrack:migration-version';
  */
 async function readAppData() {
   try {
-    if (isElectron) {
-      // Electron: read from file system
-      const dataFile = await fs.readFile(dataPath, 'utf8');
-      return JSON.parse(dataFile);
-    } else {
-      // Web: read from localStorage
-      const dataString = localStorage.getItem(WEB_STORAGE_KEY);
-      if (!dataString) {
-        console.log('[DataManager] No data in localStorage, returning sample scenario');
-        // Return sample scenario for first-time web users
-        return getSampleData();
-      }
-      const data = JSON.parse(dataString);
-      console.log('[DataManager] Loaded data from localStorage, scenarios:', data.scenarios?.length || 0);
-      return data;
+    const data = await DataStore.read();
+
+    if (!data || !data.scenarios) {
+      return getSampleData();
     }
+
+    // For web users with no stored data, provide sample content
+    if (!isElectron && (!data.scenarios.length || data.scenarios.length === 0)) {
+      return getSampleData();
+    }
+
+    return data;
   } catch (err) {
-    console.error('[DataManager] Failed to read app data:', err);
     if (isElectron) {
       throw err;
     } else {
       // For web, return sample data on error
-      console.log('[DataManager] Returning sample data due to error');
       return getSampleData();
     }
   }
@@ -158,37 +144,12 @@ function getSampleData() {
  */
 async function writeAppData(data) {
   try {
-    if (isElectron) {
-      // Electron: write to file system
-      await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
-    } else {
-      // Web: write to localStorage
-      const dataString = JSON.stringify(data);
-      
-      // Check localStorage size limit (roughly 5-10MB)
-      const estimatedSize = new Blob([dataString]).size;
-      if (estimatedSize > 5 * 1024 * 1024) { // 5MB warning
-        console.warn('[DataManager] Data size approaching localStorage limit:', estimatedSize, 'bytes');
-      }
-      
-      localStorage.setItem(WEB_STORAGE_KEY, dataString);
-      
-      // Also save migration version separately for quick access
-      if (data.migrationVersion !== undefined) {
-        localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
-      }
-      
-      // Verify write was successful
-      const verify = localStorage.getItem(WEB_STORAGE_KEY);
-      if (verify) {
-        const verifyCount = JSON.parse(verify).scenarios?.length || 0;
-        console.log('[DataManager] Web storage write verified, scenarios in storage:', verifyCount);
-      } else {
-        console.error('[DataManager] Web storage write failed - data not found after write!');
-      }
+    await DataStore.write(data);
+
+    if (!isElectron && data.migrationVersion !== undefined) {
+      localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
     }
   } catch (err) {
-    console.error('[DataManager] Failed to write app data:', err);
     if (!isElectron && err.name === 'QuotaExceededError') {
       alert('Storage quota exceeded. Please export your data and clear some scenarios.');
     }
@@ -389,40 +350,7 @@ export async function updateAccount(scenarioId, accountId, updates) {
  * @returns {Promise<void>}
  */
 export async function deleteAccount(scenarioId, accountId) {
-  // Run as a transaction to avoid race conditions (Electron only)
-  if (isElectron) {
-    const { transaction } = await import('./core/data-store.js');
-    await transaction(async (appData) => {
-      const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-      if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
-
-      const scenario = appData.scenarios[scenarioIndex];
-      const accountIdNum = Number(accountId);
-
-      // Cascade delete: Remove all transactions that reference this account (primary or secondary)
-      if (scenario.transactions) {
-        const beforeCount = scenario.transactions.length;
-        scenario.transactions = scenario.transactions.filter(tx => {
-        const hasPrimary = tx.primaryAccountId && Number(tx.primaryAccountId) === accountIdNum;
-        const hasSecondary = tx.secondaryAccountId && Number(tx.secondaryAccountId) === accountIdNum;
-        
-        // Keep transaction only if it doesn't reference the deleted account
-        return !hasPrimary && !hasSecondary;
-      });
-      const afterCount = scenario.transactions.length;
-      const deletedCount = beforeCount - afterCount;
-      if (deletedCount > 0) {
-        console.log(`[DataManager] Cascade deleted ${deletedCount} transaction(s) referencing account ${accountId}`);
-      }
-    }
-
-      // Delete the account
-      scenario.accounts = scenario.accounts.filter(a => a.id !== accountId);
-      return appData;
-    });
-  } else {
-    // Web: use localStorage-based approach
-    const appData = await readAppData();
+  await DataStore.transaction(async (appData) => {
     const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
     if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
 
@@ -433,20 +361,19 @@ export async function deleteAccount(scenarioId, accountId) {
     if (scenario.transactions) {
       const beforeCount = scenario.transactions.length;
       scenario.transactions = scenario.transactions.filter(tx => {
-        const primaryMatch = tx.accountId === accountIdNum;
-        const secondaryMatch = tx.secondaryAccountId === accountIdNum;
-        return !primaryMatch && !secondaryMatch;
+        const hasPrimary = tx.primaryAccountId && Number(tx.primaryAccountId) === accountIdNum;
+        const hasSecondary = tx.secondaryAccountId && Number(tx.secondaryAccountId) === accountIdNum;
+        return !hasPrimary && !hasSecondary;
       });
       const deletedCount = beforeCount - scenario.transactions.length;
       if (deletedCount > 0) {
-        console.log(`[DataManager] Cascade deleted ${deletedCount} transaction(s) referencing account ${accountId}`);
       }
     }
 
     // Delete the account
-    scenario.accounts = scenario.accounts.filter(a => a.id !== accountId);
-    await writeAppData(appData);
-  }
+    scenario.accounts = (scenario.accounts || []).filter(a => a.id !== accountIdNum);
+    return appData;
+  });
 }
 
 /**
@@ -456,32 +383,7 @@ export async function deleteAccount(scenarioId, accountId) {
  * @returns {Promise<void>}
  */
 export async function saveAccounts(scenarioId, accounts) {
-  // Serialize this through a transaction to ensure consistent ID generation
-  if (isElectron) {
-    const { transaction } = await import('./core/data-store.js');
-    await transaction(async (appData) => {
-      const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-      if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
-
-      // Assign IDs to any accounts that don't have them
-      const validIds = accounts
-        .map(a => a.id)
-        .filter(id => id !== null && id !== undefined && typeof id === 'number');
-      let nextId = validIds.length > 0 ? Math.max(...validIds) + 1 : 1;
-
-      const accountsWithIds = accounts.map(account => {
-        if (account.id === null || account.id === undefined || isNaN(account.id)) {
-          return { ...account, id: nextId++ };
-        }
-        return account;
-      });
-
-      appData.scenarios[scenarioIndex].accounts = accountsWithIds;
-      return appData;
-    });
-  } else {
-    // Web: use localStorage-based approach
-    const appData = await readAppData();
+  await DataStore.transaction(async (appData) => {
     const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
     if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
 
@@ -499,8 +401,8 @@ export async function saveAccounts(scenarioId, accounts) {
     });
 
     appData.scenarios[scenarioIndex].accounts = accountsWithIds;
-    await writeAppData(appData);
-  }
+    return appData;
+  });
 }
 
 // ============================================================================
@@ -519,7 +421,6 @@ export async function getTransactions(scenarioId) {
   const transactions = scenario.transactions || [];
   const accounts = scenario.accounts || [];
 
-  console.log('[DataManager.getTransactions] scenario', { scenarioId, count: transactions.length });
   
   // Resolve account IDs to full account objects for UI display
   return transactions.map(tx => {
@@ -566,9 +467,7 @@ export async function createTransaction(scenarioId, transactionData) {
   const transactionTypeId = transactionData.transactionTypeId || 2;
   const rawAmount = transactionData.amount || 0;
   const absAmount = Math.abs(rawAmount);
-  const normalizedAmount = transactionTypeId === 1 
-    ? absAmount  // Money In: always positive
-    : -absAmount; // Money Out: always negative
+  const normalizedAmount = absAmount; // Store canonical unsigned amount
 
   const newTransaction = {
     id: maxId + 1,
@@ -719,7 +618,7 @@ export async function createActualTransaction(scenarioId, transactionData) {
     primaryAccountId: transactionData.primaryAccountId || null,
     secondaryAccountId: transactionData.secondaryAccountId || null,
     transactionTypeId: transactionData.transactionTypeId || 2,
-    amount: transactionData.amount || 0,
+    amount: Math.abs(transactionData.amount || 0),
     description: transactionData.description || '',
     status: transactionData.status || { id: 2, name: 'Completed' },
     tags: transactionData.tags || [],
@@ -1162,7 +1061,6 @@ export async function exportAppData() {
  */
 export async function importAppData(jsonString, merge = false) {
   try {
-    console.log('[DataManager] Importing data, merge mode:', merge);
     const importedData = JSON.parse(jsonString);
     
     // Validate basic structure
@@ -1170,7 +1068,6 @@ export async function importAppData(jsonString, merge = false) {
       throw new Error('Invalid app data format: missing scenarios array');
     }
     
-    console.log('[DataManager] Import validation passed, scenarios:', importedData.scenarios.length);
     
     if (merge) {
       // Merge mode: add imported scenarios with new IDs
@@ -1186,14 +1083,11 @@ export async function importAppData(jsonString, merge = false) {
       
       currentData.scenarios.push(...importedData.scenarios);
       await writeAppData(currentData);
-      console.log('[DataManager] Merge complete, total scenarios now:', currentData.scenarios.length);
     } else {
       // Replace mode: overwrite all data
       await writeAppData(importedData);
-      console.log('[DataManager] Replace complete, total scenarios now:', importedData.scenarios.length);
     }
   } catch (err) {
-    console.error('[DataManager] Failed to import app data:', err);
     throw new Error(`Import failed: ${err.message}`);
   }
 }
@@ -1203,9 +1097,5 @@ export async function importAppData(jsonString, merge = false) {
  * @returns {Object} - Platform details
  */
 export function getPlatformInfo() {
-  return {
-    isElectron,
-    isWeb: !isElectron,
-    storageType: isElectron ? 'filesystem' : 'localStorage'
-  };
+  return getPlatformInfoCore();
 }

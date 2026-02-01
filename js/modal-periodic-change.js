@@ -1,7 +1,8 @@
 // modal-periodic-change.js
 // Modal for editing periodic change (escalation/growth)
 
-import { getSchemaPath } from './app-paths.js';
+import { createModal } from './modal-factory.js';
+import { loadLookup } from './lookup-loader.js';
 
 /**
  * Open a modal to edit periodic change data
@@ -10,25 +11,9 @@ import { getSchemaPath } from './app-paths.js';
  */
 export async function openPeriodicChangeModal(currentValue, onSave) {
     // Load lookup data for frequencies and compounding options
-    const lookupPath = getSchemaPath('lookup-data.json');
-    const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
-    let lookupFile;
+    const lookupData = await loadLookup('lookup-data.json');
     
-    if (isElectron) {
-        const fs = window.require('fs').promises;
-        lookupFile = await fs.readFile(lookupPath, 'utf8');
-    } else {
-        const response = await fetch(lookupPath);
-        lookupFile = await response.text();
-    }
-    
-    const lookupData = JSON.parse(lookupFile);
-    
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-
-    const modal = document.createElement('div');
-    modal.className = 'modal-content modal-periodic';
+    const { modal, close } = createModal({ contentClass: 'modal-periodic' });
 
     // Extract current values or use defaults
     const value = currentValue?.value || 0;
@@ -147,9 +132,6 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
         </div>
     `;
 
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
     // Get DOM elements
     const changeModeSelect = modal.querySelector('#changeMode');
     const changeTypeSelect = modal.querySelector('#changeType');
@@ -251,14 +233,7 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
     const saveBtn = modal.querySelector('#saveBtn');
     const clearBtn = modal.querySelector('#clearBtn');
 
-    const close = () => {
-        overlay.remove();
-    };
-
     cancelBtn.addEventListener('click', close);
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) close();
-    });
 
     clearBtn.addEventListener('click', () => {
         onSave(null);

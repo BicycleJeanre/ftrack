@@ -25,29 +25,15 @@
  *   tags: string[]                        // Associated tags
  * }
  * 
- * UI transforms budgets to include resolved objects (debitAccount, creditAccount, etc.)
+ * UI transforms budgets to include resolved objects (primaryAccount, secondaryAccount, etc.)
  * but these are NEVER persisted to disk—only IDs are stored.
  */
 
 
-/**
- * Generate human-readable recurrence description from recurrence object
- * @param {Object} recurrence - Recurrence pattern object
- * @returns {string} - Description like "Monthly - Day 1", "Weekly (Friday)", etc.
- */
-function getRecurrenceDescription(recurrence) {
-  if (!recurrence || !recurrence.recurrenceType) return '';
-  const pattern = recurrence.recurrenceType.name || '';
-  
-  if (recurrence.dayOfMonth) return `${pattern} (Day ${recurrence.dayOfMonth})`;
-  if (recurrence.dayOfWeek?.name) return `${pattern} (${recurrence.dayOfWeek.name})`;
-  if (recurrence.customDates) return `Custom: ${recurrence.customDates.split(',').length} dates`;
-  return pattern;
-}
-
 import * as DataStore from '../core/data-store.js';
 import { generateRecurrenceDates } from '../calculation-utils.js';
 import { formatDateOnly } from '../date-utils.js';
+import { getRecurrenceDescription } from '../recurrence-utils.js';
 
 /**
  * Get all budget occurrences for a scenario
@@ -83,29 +69,42 @@ export async function saveAll(scenarioId, budgets) {
 
         data.scenarios[scenarioIndex].budgets = budgets.map(budget => {
             // Normalize budget to storage format: only store IDs, not objects
+            let statusObj;
+            if (budget.status && typeof budget.status === 'object') {
+                const actual = budget.status.actualAmount !== undefined && budget.status.actualAmount !== null
+                    ? Math.abs(budget.status.actualAmount)
+                    : budget.status.actualAmount;
+                statusObj = {
+                    ...budget.status,
+                    actualAmount: actual
+                };
+            } else {
+                statusObj = {
+                    name: budget.status || 'planned',
+                    actualAmount: budget.status?.actualAmount !== undefined && budget.status?.actualAmount !== null 
+                      ? Math.abs(budget.status.actualAmount) 
+                      : null,
+                    actualDate: null 
+                };
+            }
+
             const normalized = {
                 id: budget.id || nextId++,
                 sourceTransactionId: budget.sourceTransactionId || null,
                 primaryAccountId: budget.primaryAccountId || null,
                 secondaryAccountId: budget.secondaryAccountId || null,
                 transactionTypeId: budget.transactionTypeId || null,
-                amount: budget.amount || 0,
+                amount: Math.abs(budget.amount || 0),
                 description: budget.description || '',
                 recurrenceDescription: budget.recurrenceDescription || '',
                 occurrenceDate: budget.occurrenceDate || '',
                 periodicChange: budget.periodicChange || null,
-                status: typeof budget.status === 'object' ? budget.status : { 
-                    name: budget.status || 'planned',
-                    actualAmount: null,
-                    actualDate: null 
-                },
+                status: statusObj,
                 tags: budget.tags || []
             };
             
             // Explicitly exclude UI-only fields (objects that should never be stored)
             // These may exist in memory for rendering but should never be persisted
-            delete normalized.debitAccount;
-            delete normalized.creditAccount;
             delete normalized.primaryAccount;
             delete normalized.secondaryAccount;
             delete normalized.transactionType;

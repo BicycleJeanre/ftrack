@@ -4,56 +4,12 @@
 // User Data: userData directory (writable)
 // Works in dev, Windows, Mac, and Web
 
-// Platform detection
-const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+import { isElectronEnv, getBundledAssetsPath, getPathModule, getUserAssetsPath } from './core/platform.js';
 
-let path, fs, isDev, userDataPath, bundledAssetsPath, userAssetsPath;
-
-if (isElectron) {
-  // Electron environment
-  path = window.require('path');
-  fs = window.require('fs');
-
-  // Detect if we're in development or production
-  // In dev: __dirname is /path/to/project/js
-  // In prod: __dirname contains .asar
-  isDev = !__dirname.includes('.asar');
-
-  // Calculate userData path based on platform
-  // This matches Electron's app.getPath('userData') behavior
-  if (isDev) {
-    // Development: use project directory for easy access
-    userDataPath = path.join(process.cwd(), 'userData');
-  } else {
-    // Production: use standard OS-specific paths
-    const appName = 'ftrack';
-    if (process.platform === 'win32') {
-      userDataPath = path.join(process.env.APPDATA, appName);
-    } else if (process.platform === 'darwin') {
-      userDataPath = path.join(process.env.HOME, 'Library', 'Application Support', appName);
-    } else {
-      // Linux
-      userDataPath = path.join(process.env.HOME, '.config', appName);
-    }
-  }
-
-  // Bundled assets path (schemas, read-only)
-  if (isDev) {
-    // Development: assets in project directory
-    bundledAssetsPath = path.join(process.cwd(), 'assets');
-  } else {
-    // Production: assets in app.asar (one level up from __dirname which is /app.asar/js)
-    bundledAssetsPath = path.join(__dirname, '..', 'assets');
-  }
-
-  // User assets path (app-data.json, writable)
-  userAssetsPath = path.join(userDataPath, 'assets');
-} else {
-  // Web environment - return dummy paths (not used for data storage)
-  userDataPath = '/ftrack-web/userData';
-  bundledAssetsPath = '/assets';
-  userAssetsPath = '/ftrack-web/userData/assets';
-}
+const isElectron = isElectronEnv();
+const path = getPathModule();
+const bundledAssetsPath = getBundledAssetsPath();
+const userAssetsPath = getUserAssetsPath();
 
 /**
  * Get path to user's app-data.json (writable)
@@ -61,7 +17,7 @@ if (isElectron) {
  * @returns {string} - Full path to user data file
  */
 export function getAppDataPath() {
-  if (isElectron) {
+  if (isElectron && path) {
     return path.join(userAssetsPath, 'app-data.json');
   } else {
     // Web: return dummy path (not used, data in localStorage)
@@ -75,7 +31,7 @@ export function getAppDataPath() {
  * @returns {string} - Full path to schema file
  */
 export function getSchemaPath(schemaName) {
-  if (isElectron) {
+  if (isElectron && path) {
     return path.join(bundledAssetsPath, schemaName);
   } else {
     // Web: return absolute path from root (for use with fetch)

@@ -9,7 +9,7 @@
       "showActualTransactions": true,
       "showProjections": true,
       "accountColumns": ["name", "type", "currency", "balance", "openDate"],
-      "transactionColumns": ["debitAccount", "creditAccount", "amount", "description", "tags"]
+      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "tags"]
     },
     {
       "id": 2,
@@ -20,7 +20,7 @@
       "showActualTransactions": false,
       "showProjections": true,
       "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange"],
-      "transactionColumns": ["debitAccount", "creditAccount", "amount", "description", "recurrence", "periodicChange", "tags"]
+      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
     },
     {
       "id": 3,
@@ -31,7 +31,7 @@
       "showActualTransactions": false,
       "showProjections": true,
       "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange"],
-      "transactionColumns": ["debitAccount", "creditAccount", "amount", "description", "recurrence", "periodicChange", "tags"]
+      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
     }
   ],
   "periodTypes": [

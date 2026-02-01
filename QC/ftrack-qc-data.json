@@ -1,0 +1,65 @@
+{
+  "profile": "Jeanre",
+  "scenarios": [
+    {
+      "id": 2,
+      "name": "QC Scenario",
+      "type": {
+        "id": 2,
+        "name": "General",
+        "description": "General financial planning scenario",
+        "showAccounts": true,
+        "showPlannedTransactions": true,
+        "showActualTransactions": false,
+        "showProjections": true,
+        "accountColumns": [
+          "name",
+          "type",
+          "currency",
+          "balance",
+          "openDate",
+          "interestRate",
+          "periodicChange"
+        ],
+        "transactionColumns": [
+          "primaryAccount",
+          "secondaryAccount",
+          "transactionType",
+          "amount",
+          "description",
+          "recurrence",
+          "periodicChange",
+          "tags"
+        ]
+      },
+      "description": "QC Scenario ",
+      "startDate": "2026-02-01",
+      "endDate": "2026-12-01",
+      "projectionPeriod": {
+        "id": 4,
+        "name": "Quarter"
+      },
+      "accounts": [
+        {
+          "id": 1,
+          "name": "A1",
+          "type": {
+            "id": 1,
+            "name": "Asset"
+          },
+          "currency": null,
+          "startingBalance": 10000,
+          "openDate": "2026-02-01",
+          "periodicChange": null,
+          "accountType": "Unknown",
+          "periodicChangeSummary": "",
+          "description": "first main primary mfuckin' account!"
+        }
+      ],
+      "transactions": [],
+      "projections": [],
+      "budgets": []
+    }
+  ],
+  "migrationVersion": 3
+}

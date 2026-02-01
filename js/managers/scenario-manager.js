@@ -66,7 +66,6 @@ export async function create(scenarioData) {
  * @returns {Promise<Object>} - The updated scenario
  */
 export async function update(scenarioId, updates) {
-    console.log(`[ScenarioManager] Updating scenario ${scenarioId} with:`, updates);
     
     return await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
@@ -75,14 +74,12 @@ export async function update(scenarioId, updates) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
         
-        console.log(`[ScenarioManager] Before update:`, data.scenarios[scenarioIndex]);
         
         data.scenarios[scenarioIndex] = {
             ...data.scenarios[scenarioIndex],
             ...updates
         };
         
-        console.log(`[ScenarioManager] After update:`, data.scenarios[scenarioIndex]);
         
         return data;
     });

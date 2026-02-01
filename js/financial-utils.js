@@ -4,9 +4,10 @@
 // In web, uses fallback implementations
 
 import { parseDateOnly } from './date-utils.js';
+import { isElectronEnv } from './core/platform.js';
 
 // Platform detection
-const isElectron = typeof window !== 'undefined' && typeof window.require !== 'undefined';
+const isElectron = isElectronEnv();
 
 let Finance, finance;
 if (isElectron) {
@@ -223,4 +224,44 @@ export function calculatePeriods(startDate, endDate, frequency) {
         default:
             return months;
     }
+}
+
+/**
+ * Calculate Money In / Money Out totals and net from transaction rows
+ * @param {Array} rows - Array of transaction row objects
+ * @param {Object} opts - Configuration options
+ * @param {string} opts.amountField - Field name for amount (default: 'amount')
+ * @param {string} opts.typeField - Field name for transaction type object (default: 'transactionType')
+ * @param {string} opts.typeNameField - Field name for transaction type name (default: 'transactionTypeName')
+ * @param {string} opts.typeIdField - Field name for transaction type ID (default: 'transactionTypeId')
+ * @returns {Object} - Object with moneyIn, moneyOut, and net totals
+ */
+export function calculateCategoryTotals(rows, opts = {}) {
+    const amountField = opts.amountField || 'amount';
+    const typeField = opts.typeField || 'transactionType';
+    const typeNameField = opts.typeNameField || 'transactionTypeName';
+    const typeIdField = opts.typeIdField || 'transactionTypeId';
+
+    return rows.reduce((acc, row) => {
+        const amount = Number(row?.[amountField] || 0);
+        const typeObj = row?.[typeField];
+        const name = typeObj?.name || row?.[typeNameField] || '';
+        const id = typeObj?.id ?? row?.[typeIdField];
+        
+        // Determine if it's Money In or Money Out based on transaction type
+        const isMoneyIn = name === 'Money In' || id === 1;
+        const isMoneyOut = name === 'Money Out' || id === 2;
+        
+        const absAmount = Math.abs(amount);
+
+        if (isMoneyIn) {
+            acc.moneyIn += absAmount;
+            acc.net += absAmount; // Money In adds to net
+        } else if (isMoneyOut) {
+            acc.moneyOut += absAmount;
+            acc.net -= absAmount; // Money Out subtracts from net
+        }
+        
+        return acc;
+    }, { moneyIn: 0, moneyOut: 0, net: 0 });
 }

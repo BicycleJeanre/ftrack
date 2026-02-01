@@ -35,9 +35,7 @@ function writeToLog(source, level, message) {
   try {
     fs.appendFileSync(debugLogPath, logLine);
     // Also echo to console for terminal visibility
-    console.log(logLine.trim());
   } catch (err) {
-    console.error('Failed to write to log:', err);
   }
 }
 
@@ -87,9 +85,6 @@ ipcMain.on('log-message', (event, { source, level, message }) => {
 
 const userAssetsPath = path.join(userDataPath, 'assets');
 
-console.log('[Main] isDev:', isDev);
-console.log('[Main] User data path:', userDataPath);
-console.log('[Main] User assets path:', userAssetsPath);
 
 /**
  * Initialize user data on first run
@@ -100,7 +95,6 @@ async function initializeUserData() {
   
   // Check if user already has data
   if (!fs.existsSync(userDataFile)) {
-    console.log('[Main] First run - initializing user data');
     
     // Create assets directory in userData
     fs.mkdirSync(userAssetsPath, { recursive: true });
@@ -110,17 +104,13 @@ async function initializeUserData() {
       ? path.join(process.cwd(), 'assets', 'app-data.sample.json')
       : path.join(process.resourcesPath, 'app.asar', 'assets', 'app-data.sample.json');
     
-    console.log('[Main] Looking for bundled data at:', bundledDataPath);
     
     // Copy bundled sample data to writable location as app-data.json
     if (fs.existsSync(bundledDataPath)) {
       fs.copyFileSync(bundledDataPath, userDataFile);
-      console.log('[Main] Sample data copied to:', userDataFile);
     } else {
-      console.error('[Main] Bundled app-data.json not found at:', bundledDataPath);
     }
   } else {
-    console.log('[Main] Using existing user data at:', userDataFile);
   }
 }
 
