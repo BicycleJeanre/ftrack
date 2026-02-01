@@ -82,7 +82,6 @@ export function ensureBudgetsArray(scenario) {
  */
 export async function migrateAllScenarios() {
     if (!isElectron) {
-        console.log('[Migration] Skipping migration in web environment');
         return;
     }
     if (!fs || !dataPath) {
@@ -92,20 +91,15 @@ export async function migrateAllScenarios() {
         // Read current data
         const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
         
-        console.log('[Migration] Current data migrationVersion:', data.migrationVersion);
         
         // Check if migration is needed
         if (data.migrationVersion >= 3) {
-            console.log('[Migration] Data already at version 3, skipping migration');
             return;
         }
         
-        console.log('[Migration] Running migrations on userData app-data.json...');
-        console.log('[Migration] Found', data.scenarios?.length || 0, 'scenarios');
         
         if (data.scenarios) {
             data.scenarios = data.scenarios.map((scenario, idx) => {
-                console.log(`[Migration] Migrating scenario ${idx + 1}: ${scenario.name}`);
                 // Apply all migrations in sequence
                 scenario = migrateScenarioTransactions(scenario);
                 scenario = ensureBudgetsArray(scenario);
@@ -120,10 +114,7 @@ export async function migrateAllScenarios() {
         
         // Write back
         await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
-        console.log('[Migration] Successfully migrated userData app-data.json');
-        console.log('[Migration] Migration version set to:', data.migrationVersion);
     } catch (err) {
-        console.error('[Migration] Error in migrateAllScenarios:', err);
         throw err;
     }
 }
@@ -134,18 +125,15 @@ export async function migrateAllScenarios() {
  */
 export async function needsMigration() {
     if (!isElectron) {
-        console.log('[Migration] No migration needed in web environment');
         return false;
     }
     if (!fs || !dataPath) {
-        console.error('[Migration] Filesystem unavailable for migration check');
         return false;
     }
     try {
         const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
         return !data.migrationVersion || data.migrationVersion < 3;
     } catch (err) {
-        console.error('[Migration] Failed to check migration status:', err);
         return false;
     }
 }
@@ -329,7 +317,6 @@ function migrateRecurrenceStructure(recurrence) {
 export function migrateAccountBalanceField(scenario) {
     if (!scenario.accounts) return scenario;
 
-    console.log(`[Migration] Migrating ${scenario.accounts.length} accounts for scenario: ${scenario.name}`);
     
     scenario.accounts = scenario.accounts.map((account, idx) => {
         const updated = { ...account };
@@ -337,7 +324,6 @@ export function migrateAccountBalanceField(scenario) {
         
         // Migrate balance to startingBalance if needed
         if (account.balance !== undefined && account.startingBalance === undefined) {
-            console.log(`[Migration]   Account ${idx} (${account.name}): balance ${account.balance} -> startingBalance`);
             updated.startingBalance = account.balance;
             delete updated.balance;
             migrated = true;
@@ -345,7 +331,6 @@ export function migrateAccountBalanceField(scenario) {
         
         // Ensure currency is always an object, default to ZAR if null
         if (!updated.currency || updated.currency === null) {
-            console.log(`[Migration]   Account ${idx} (${account.name}): currency null -> ZAR`);
             updated.currency = {
                 id: 1,
                 name: "ZAR"
@@ -354,7 +339,6 @@ export function migrateAccountBalanceField(scenario) {
         }
         
         if (migrated) {
-            console.log(`[Migration]   Account ${idx} migrated successfully`);
         }
         
         return updated;

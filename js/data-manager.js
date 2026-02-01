@@ -30,18 +30,15 @@ async function readAppData() {
 
     // For web users with no stored data, provide sample content
     if (!isElectron && (!data.scenarios.length || data.scenarios.length === 0)) {
-      console.log('[DataManager] No scenarios found in storage, returning sample data');
       return getSampleData();
     }
 
     return data;
   } catch (err) {
-    console.error('[DataManager] Failed to read app data:', err);
     if (isElectron) {
       throw err;
     } else {
       // For web, return sample data on error
-      console.log('[DataManager] Returning sample data due to error');
       return getSampleData();
     }
   }
@@ -153,7 +150,6 @@ async function writeAppData(data) {
       localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
     }
   } catch (err) {
-    console.error('[DataManager] Failed to write app data:', err);
     if (!isElectron && err.name === 'QuotaExceededError') {
       alert('Storage quota exceeded. Please export your data and clear some scenarios.');
     }
@@ -371,7 +367,6 @@ export async function deleteAccount(scenarioId, accountId) {
       });
       const deletedCount = beforeCount - scenario.transactions.length;
       if (deletedCount > 0) {
-        console.log(`[DataManager] Cascade deleted ${deletedCount} transaction(s) referencing account ${accountId}`);
       }
     }
 
@@ -426,7 +421,6 @@ export async function getTransactions(scenarioId) {
   const transactions = scenario.transactions || [];
   const accounts = scenario.accounts || [];
 
-  console.log('[DataManager.getTransactions] scenario', { scenarioId, count: transactions.length });
   
   // Resolve account IDs to full account objects for UI display
   return transactions.map(tx => {
@@ -1067,7 +1061,6 @@ export async function exportAppData() {
  */
 export async function importAppData(jsonString, merge = false) {
   try {
-    console.log('[DataManager] Importing data, merge mode:', merge);
     const importedData = JSON.parse(jsonString);
     
     // Validate basic structure
@@ -1075,7 +1068,6 @@ export async function importAppData(jsonString, merge = false) {
       throw new Error('Invalid app data format: missing scenarios array');
     }
     
-    console.log('[DataManager] Import validation passed, scenarios:', importedData.scenarios.length);
     
     if (merge) {
       // Merge mode: add imported scenarios with new IDs
@@ -1091,14 +1083,11 @@ export async function importAppData(jsonString, merge = false) {
       
       currentData.scenarios.push(...importedData.scenarios);
       await writeAppData(currentData);
-      console.log('[DataManager] Merge complete, total scenarios now:', currentData.scenarios.length);
     } else {
       // Replace mode: overwrite all data
       await writeAppData(importedData);
-      console.log('[DataManager] Replace complete, total scenarios now:', importedData.scenarios.length);
     }
   } catch (err) {
-    console.error('[DataManager] Failed to import app data:', err);
     throw new Error(`Import failed: ${err.message}`);
   }
 }

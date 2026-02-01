@@ -19,7 +19,6 @@ import { loadLookup } from './lookup-loader.js';
  * @returns {Promise<Array>} - Array of projection records
  */
 export async function generateProjections(scenarioId, options = {}) {
-  console.log('[ProjectionEngine] Generating projections for scenario:', scenarioId);
   
   const source = options.source || 'transactions';
   
@@ -37,7 +36,6 @@ export async function generateProjections(scenarioId, options = {}) {
   
   if (source === 'budget') {
     // Use budget occurrences as source instead of transactions
-    console.log('[ProjectionEngine] Using budget as projection source');
     const statusName = budget => typeof budget.status === 'object' ? budget.status.name : budget.status;
     plannedTransactions = (scenario.budgets || [])
       .filter(budget => statusName(budget) === 'planned')
@@ -63,9 +61,6 @@ export async function generateProjections(scenarioId, options = {}) {
   const startDate = parseDateOnly(scenario.startDate);
   const endDate = parseDateOnly(scenario.endDate);
   
-  console.log('[ProjectionEngine] Projection window:', startDate, 'to', endDate);
-  console.log('[ProjectionEngine] Accounts:', accounts.length);
-  console.log('[ProjectionEngine] Planned transactions/budget items:', plannedTransactions.length);
   
   // Initialize account balances from startingBalance
   const accountBalances = new Map();
@@ -76,7 +71,6 @@ export async function generateProjections(scenarioId, options = {}) {
   // Use shared transaction expander to generate all occurrences within the projection window
   const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
   
-  console.log('[ProjectionEngine] Expanded to', expandedTransactions.length, 'transaction occurrences');
   
   // Convert expanded transactions to occurrence format for projection calculations
   const transactionOccurrences = expandedTransactions.map(txn => {
@@ -110,7 +104,6 @@ export async function generateProjections(scenarioId, options = {}) {
   // Sort occurrences by dateKey (date-only)
   transactionOccurrences.sort((a, b) => a.dateKey - b.dateKey);
   
-  console.log('[ProjectionEngine] Generated', transactionOccurrences.length, 'transaction occurrences');
   
   // Generate projections - one record per account per period
   const projections = [];
@@ -127,12 +120,10 @@ export async function generateProjections(scenarioId, options = {}) {
   };
   const periodicity = options.periodicity || periodMap[scenarioPeriodType] || 'monthly';
   
-  console.log('[ProjectionEngine] Using periodicity:', periodicity, 'from scenario period type:', scenarioPeriodType);
   
   // Generate period dates
   const periods = generatePeriods(startDate, endDate, periodicity);
   
-  console.log('[ProjectionEngine] Generating', periods.length, 'periods');
   
   accounts.forEach(account => {
     let currentBalance = account.startingBalance || 0;
@@ -223,7 +214,6 @@ export async function generateProjections(scenarioId, options = {}) {
     });
   });
   
-  console.log('[ProjectionEngine] Generated', projections.length, 'projection records');
   
   // Save projections to scenario
   await saveProjections(scenarioId, projections);
@@ -350,6 +340,5 @@ function formatDate(date) {
  * @returns {Promise<void>}
  */
 export async function clearProjections(scenarioId) {
-  console.log('[ProjectionEngine] Clearing projections for scenario:', scenarioId);
   await saveProjections(scenarioId, []);
 }

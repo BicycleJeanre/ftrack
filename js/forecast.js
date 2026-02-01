@@ -2,7 +2,6 @@
 // Manages the Forecast page with scenario-centric model
 // Displays accounts, planned transactions, actual transactions, and projections based on scenario type
 
-console.log('forecast.js loaded at', new Date().toISOString());
 
 import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
@@ -56,19 +55,12 @@ let masterBudgetTable = null; // Store budget table instance for filtering
 // Update transaction totals in toolbar based on current filtered data
 function updateTransactionTotals(filteredRows = null) {
   if (!masterTransactionsTable) {
-    console.log('[Totals] updateTransactionTotals: masterTransactionsTable is null');
     return;
   }
 
   // Get currently visible (filtered) data from provided rows or table
   const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterTransactionsTable.getData('active');
-  console.log('[Totals] updateTransactionTotals: visibleData count =', visibleData.length);
-  console.log('[Totals] updateTransactionTotals: visibleData sample =', visibleData.slice(0, 3).map(d => ({ 
-    id: d.id, 
-    amount: d.amount, 
-    type: d.transactionTypeName,
-    perspectiveAccountId: d.perspectiveAccountId 
-  })));
+
   
   // Compute totals from visible data
   const txTotals = computeMoneyTotals(visibleData, {
@@ -77,24 +69,20 @@ function updateTransactionTotals(filteredRows = null) {
     typeNameField: 'transactionTypeName',
     typeIdField: 'transactionTypeId'
   });
-  console.log('[Totals] updateTransactionTotals: computed =', txTotals);
   
   // Update toolbar totals
   const toolbarTotals = document.querySelector('#transactionsContent .toolbar-totals');
-  console.log('[Totals] updateTransactionTotals: toolbarTotals element found =', !!toolbarTotals);
   renderMoneyTotals(toolbarTotals, txTotals);
 }
 
 // Update budget totals in toolbar based on current filtered data
 function updateBudgetTotals(filteredRows = null) {
   if (!masterBudgetTable) {
-    console.log('[Totals] updateBudgetTotals: masterBudgetTable is null');
     return;
   }
 
   // Get currently visible (filtered) data from provided rows or table
   const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterBudgetTable.getData('active');
-  console.log('[Totals] updateBudgetTotals: visibleData count =', visibleData.length);
   
   // Compute totals from visible data
   const budgetTotals = computeMoneyTotals(visibleData, {
@@ -103,11 +91,9 @@ function updateBudgetTotals(filteredRows = null) {
     typeNameField: 'transactionTypeName',
     typeIdField: 'transactionTypeId'
   });
-  console.log('[Totals] updateBudgetTotals: computed =', budgetTotals);
   
   // Update toolbar totals
   const toolbarTotals = document.querySelector('#budgetContent .toolbar-totals');
-  console.log('[Totals] updateBudgetTotals: toolbarTotals element found =', !!toolbarTotals);
   renderMoneyTotals(toolbarTotals, budgetTotals);
 }
 
@@ -496,19 +482,14 @@ async function buildScenarioGrid(container) {
     });
 
     // Set initial scenario if not set and load its data
-    console.log('[ScenarioGrid] Checking initial scenario - currentScenario:', currentScenario, 'scenarios.length:', scenarios.length);
     if (!currentScenario && scenarios.length > 0) {
-      console.log('[ScenarioGrid] Loading initial scenario:', scenarios[0].id);
       currentScenario = await getScenario(scenarios[0].id);
-      console.log('[ScenarioGrid] Got scenario, now loading data...');
       await loadScenarioData();
-      console.log('[ScenarioGrid] Data loaded, selecting row...');
       // Select the first row visually without triggering the handler
       // (data is already loaded above, so we don't want duplicate load)
       const firstRow = scenariosTable.getRows()[0];
       if (firstRow) {
         firstRow.select();
-        console.log('[ScenarioGrid] First row selected');
       }
     }
   } catch (err) {
@@ -712,7 +693,6 @@ async function loadAccountsGrid(container) {
           ...newAccount,
           accountType: newAccount.type?.name || 'Unknown'
         };
-        console.log('[Accounts] Adding new row:', rowData);
         accountsTable.addRow(rowData, false); // false = add to bottom
       }
     });
@@ -806,8 +786,6 @@ async function loadAccountsGrid(container) {
       ],
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
-        console.log('[Accounts] cellEdited - account data:', account);
-        console.log('[Accounts] cellEdited - account.id:', account.id);
         // Normalize primitive ids back to objects for storage
         try {
           if (account.type && typeof account.type !== 'object') {
@@ -826,7 +804,6 @@ async function loadAccountsGrid(container) {
       },
       rowSelectionChanged: async function(data, rows) {
         // Log raw event
-        console.log('[Accounts] rowSelectionChanged fired with rows:', rows.length);
         try {
           const table = this;
           const selected = table.getSelectedRows();
@@ -842,10 +819,8 @@ async function loadAccountsGrid(container) {
         
         if (rows.length > 0) {
           const account = rows[0].getData();
-          console.log('[Accounts] rowSelectionChanged - Account selected:', account.id, account.name);
           selectedAccountId = Number(account.id);
           lastProcessedAccountId = selectedAccountId; // Mark as processed to prevent duplicate in rowSelected
-          console.log('[Accounts] Updated selectedAccountId to:', selectedAccountId);
           
           // Update accordion header
           const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
@@ -877,7 +852,6 @@ async function loadAccountsGrid(container) {
           await loadProjectionsSection(getEl('projectionsContent'));
         } else {
           // No account selected
-          console.log('[Accounts] Clearing account selection');
           selectedAccountId = null;
           
           // Update accordion header
@@ -945,11 +919,9 @@ async function loadAccountsGrid(container) {
         
         // Only process if this is a new selection (avoid duplicate processing)
         if (lastProcessedAccountId === accountIdNum) {
-          console.log('[Accounts] rowSelected - already processed account:', accountIdNum);
           return;
         }
         
-        console.log('[Accounts] rowSelected - processing account:', accountIdNum, account.name);
         lastProcessedAccountId = accountIdNum;
         selectedAccountId = accountIdNum;
         
@@ -961,7 +933,6 @@ async function loadAccountsGrid(container) {
         
         // Apply filter to show transactions from selected account's perspective
         if (masterTransactionsTable) {
-          console.log('[Accounts] Filtering transactions for accountId:', selectedAccountId);
           masterTransactionsTable.setFilter((data) => {
             if (!data.perspectiveAccountId) return true;
             return Number(data.perspectiveAccountId) === selectedAccountId;
@@ -991,7 +962,6 @@ async function loadAccountsGrid(container) {
       try {
         const remaining = accountsTable.getSelectedRows();
         if (!remaining || remaining.length === 0) {
-          console.log('[Accounts] All accounts deselected');
           selectedAccountId = null;
           lastProcessedAccountId = null; // Reset tracking flag
           // Show only primary perspectives (not flipped)
@@ -1176,19 +1146,16 @@ async function loadMasterTransactionsGrid(container) {
   
   // Calculate periods for current scenario with selected period type
   periods = await getScenarioPeriods(currentScenario.id, actualPeriodType);
-  console.log('[Transactions] Calculated periods:', periods);
   
   // Populate period dropdown immediately
   const periodSelect = document.getElementById('actual-period-select');
   if (periodSelect) {
-    console.log('[Transactions] Found period select element');
     periodSelect.innerHTML = '<option value="">-- All Periods --</option>';
     periods.forEach((period) => {
       const option = document.createElement('option');
       option.value = period.id;
       option.textContent = period.label || `${formatDateOnly(period.startDate) || ''} to ${formatDateOnly(period.endDate) || ''}`;
       periodSelect.appendChild(option);
-      console.log('[Transactions] Added period option:', period.id, option.textContent);
     });
     
     // Set current selected value
@@ -1420,9 +1387,7 @@ async function loadMasterTransactionsGrid(container) {
           },
           cellClick: function(e, cell) {
             const rowData = cell.getRow().getData();
-            console.log('[Transactions] Recurrence cellClick - opening modal for tx:', rowData.id);
             openRecurrenceModal(rowData.recurrence, async (newRecurrence) => {
-              console.log('[Transactions] Recurrence modal callback - new recurrence:', newRecurrence);
               // Update the transaction with new recurrence
               const allTxs = await getTransactions(currentScenario.id);
               // Strip _flipped suffix from ID if present (for flipped perspective rows)
@@ -1430,12 +1395,9 @@ async function loadMasterTransactionsGrid(container) {
               const txIndex = allTxs.findIndex(tx => String(tx.id) === actualTxId);
               if (txIndex >= 0) {
                 allTxs[txIndex].recurrence = newRecurrence;
-                console.log('[Transactions] Saving transaction with updated recurrence:', allTxs[txIndex]);
                 await TransactionManager.saveAll(currentScenario.id, allTxs);
-                console.log('[Transactions] Save complete, reloading grid...');
                 // Reload grid
                 await loadMasterTransactionsGrid(container);
-                console.log('[Transactions] Grid reload complete');
               }
             });
           }
@@ -1452,9 +1414,7 @@ async function loadMasterTransactionsGrid(container) {
           },
           cellClick: function(e, cell) {
             const rowData = cell.getRow().getData();
-            console.log('[Transactions] Periodic Change cellClick - opening modal for tx:', rowData.id);
             openPeriodicChangeModal(rowData.periodicChange, async (newPeriodicChange) => {
-              console.log('[Transactions] Periodic Change modal callback - new periodicChange:', newPeriodicChange);
               // Update the transaction with new periodic change
               const allTxs = await getTransactions(currentScenario.id);
               // Strip _flipped suffix from ID if present (for flipped perspective rows)
@@ -1462,12 +1422,9 @@ async function loadMasterTransactionsGrid(container) {
               const txIndex = allTxs.findIndex(tx => String(tx.id) === actualTxId);
               if (txIndex >= 0) {
                 allTxs[txIndex].periodicChange = newPeriodicChange;
-                console.log('[Transactions] Saving transaction with updated periodic change:', allTxs[txIndex]);
                 await TransactionManager.saveAll(currentScenario.id, allTxs);
-                console.log('[Transactions] Save complete, reloading grid...');
                 // Reload grid
                 await loadMasterTransactionsGrid(container);
-                console.log('[Transactions] Grid reload complete');
               }
             });
           }
@@ -1478,12 +1435,10 @@ async function loadMasterTransactionsGrid(container) {
         const rowData = cell.getRow().getData();
         const field = cell.getColumn().getField();
         const newValue = cell.getValue();
-        console.log('[TransactionsGrid] cellEdited start', { field, newValue, rowId: rowData.id });
         
         // Detect if this is a flipped perspective row
         const isFlipped = String(rowData.id).includes('_flipped');
         const actualTxId = String(rowData.id).replace('_flipped', '');
-        console.log('[TransactionsGrid] isFlipped:', isFlipped, 'actualTxId:', actualTxId);
 
         // Handle new account creation
         if ((field === 'secondaryAccount' || field === 'primaryAccount') && newValue && newValue.__create__) {
@@ -1501,7 +1456,6 @@ async function loadMasterTransactionsGrid(container) {
                   periodicChange: null
                 });
 
-                console.log('[Transactions] Created new account:', newAccount);
 
                 // Update the current row data immediately
                 const currentRow = cell.getRow();
@@ -1519,7 +1473,6 @@ async function loadMasterTransactionsGrid(container) {
                 // Update the row in the table
                 currentRow.update(currentData);
                 
-                console.log('[Transactions] Updated row data:', currentData);
 
                 // Save all transactions to persist the change
                 const allTxs = await getTransactions(currentScenario.id);
@@ -1532,7 +1485,6 @@ async function loadMasterTransactionsGrid(container) {
                     allTxs[txIndex].secondaryAccountId = newAccount.id;
                   }
                   await TransactionManager.saveAll(currentScenario.id, allTxs);
-                  console.log('[Transactions] Saved transaction with new account');
                 }
                 
                 // Add new account to accounts grid without reloading
@@ -1542,7 +1494,6 @@ async function loadMasterTransactionsGrid(container) {
                     accountType: newAccount.type?.name || 'Unknown'
                   };
                   window.accountsTableInstance.addRow(enrichedAccount);
-                  console.log('[Transactions] Added account to accounts grid');
                 }
               } catch (err) {
                 console.error('Failed to create account:', err);
@@ -1561,9 +1512,7 @@ async function loadMasterTransactionsGrid(container) {
           const updatedTx = mapEditToCanonical(allTxs[txIndex], { field, value: newValue, isFlipped });
 
           allTxs[txIndex] = updatedTx;
-          console.log('[TransactionsGrid] saveAll ->', { txId: actualTxId, field, isFlipped, canonical: allTxs[txIndex] });
           await TransactionManager.saveAll(currentScenario.id, allTxs);
-          console.log('[TransactionsGrid] saveAll complete', { txId: actualTxId });
           
           // After save, reload the grid to regenerate BOTH perspective rows from canonical storage
           await loadMasterTransactionsGrid(container);
@@ -1599,7 +1548,6 @@ async function loadMasterTransactionsGrid(container) {
     
     // Apply initial filter after table creation
     setTimeout(() => {
-      console.log('[Transactions] Applying initial filter for account:', selIdNum);
       if (selIdNum) {
         // If account is selected, show only that account's perspective
         masterTransactionsTable.setFilter((data) => {
@@ -1617,12 +1565,10 @@ async function loadMasterTransactionsGrid(container) {
     }, 0);
     
     const handleTransactionsFiltered = function(filters, rows) {
-      console.log('[Transactions] dataFiltered - rows:', rows.length);
       updateTransactionTotals(rows);
     };
     
     const handleTransactionsBuilt = function() {
-      console.log('[Transactions] tableBuilt - updating initial totals');
       updateTransactionTotals();
     };
 
@@ -1645,7 +1591,6 @@ async function loadBudgetGrid(container) {
   const budgetPeriodSnapshot = budgetPeriod;
   const selIdNum = selectedAccountIdSnapshot != null ? Number(selectedAccountIdSnapshot) : null;
 
-  console.log('[Budget] loadBudgetGrid start', { loadToken, selectedAccountId: selectedAccountIdSnapshot, budgetPeriod: budgetPeriodSnapshot });
 
   container.innerHTML = '';
 
@@ -1655,7 +1600,6 @@ async function loadBudgetGrid(container) {
 
     // Abort if a newer load kicked off while we were waiting
     if (loadToken !== budgetGridLoadToken) {
-      console.log('[Budget] loadBudgetGrid stale run skipped', { loadToken, latest: budgetGridLoadToken });
       return;
     }
 
@@ -1886,7 +1830,6 @@ async function loadBudgetGrid(container) {
 
     // Skip render if this run is no longer the latest
     if (loadToken !== budgetGridLoadToken) {
-      console.log('[Budget] loadBudgetGrid skipped render for stale run', { loadToken, latest: budgetGridLoadToken });
       return;
     }
 
@@ -2117,7 +2060,6 @@ async function loadBudgetGrid(container) {
     
     // Apply initial filter after table creation
     setTimeout(() => {
-      console.log('[Budget] Applying initial filter for account:', selIdNum);
       if (selIdNum) {
         // If account is selected, show only that account's perspective
         masterBudgetTable.setFilter((data) => {
@@ -2135,12 +2077,10 @@ async function loadBudgetGrid(container) {
     }, 0);
     
     const handleBudgetFiltered = function(filters, rows) {
-      console.log('[Budget] dataFiltered - rows:', rows.length);
       updateBudgetTotals(rows);
     };
     
     const handleBudgetBuilt = function() {
-      console.log('[Budget] tableBuilt - updating initial totals');
       updateBudgetTotals();
     };
 
@@ -2506,19 +2446,14 @@ async function loadScenarioData() {
 
 // Initialize the page
 async function init() {
-  console.log('[ForecastPage] Starting initialization...');
   
-  console.log('[ForecastPage] Loading globals...');
   loadGlobals();
   
   // Run data migration if needed
   try {
-    console.log('[ForecastPage] Checking data migration...');
     const { needsMigration, migrateAllScenarios } = await import('./data-migration.js');
     if (await needsMigration()) {
-      console.log('[App] Running data migration...');
       await migrateAllScenarios();
-      console.log('[App] Data migration completed');
     }
   } catch (error) {
     console.error('[App] Data migration failed:', error);
@@ -2526,21 +2461,16 @@ async function init() {
     console.error('[App] Error stack:', error?.stack);
   }
   
-  console.log('[ForecastPage] Building grid container...');
   const containers = buildGridContainer();
   
-  console.log('[ForecastPage] Loading scenario types...');
   await loadScenarioTypes();
   
-  console.log('[ForecastPage] Building scenario grid...');
   await buildScenarioGrid(containers.scenarioSelector);
   
   // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
   
-  console.log('[ForecastPage] Initializing keyboard shortcuts...');
   initializeKeyboardShortcuts();
   
-  console.log('[ForecastPage] Initialization complete!');
 }
 
 /**

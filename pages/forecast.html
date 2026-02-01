@@ -21,7 +21,6 @@
     <script type="module" src="../js/navbar.js"></script>
     <script>
       // Dynamic cache busting
-      console.log('Loading forecast.js with timestamp:', Date.now());
       const script = document.createElement('script');
       script.src = '../js/forecast.js?v=' + Date.now();
       script.type = 'module';

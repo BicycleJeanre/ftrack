@@ -29,7 +29,6 @@ export async function downloadAppData() {
       const jsonString = await blob.text();
       const result = await window.electronAPI.exportData(jsonString);
       if (result.success) {
-        console.log('[Export] Data exported to:', result.filePath);
         alert('Data exported successfully!');
         return true;
       } else {
@@ -46,14 +45,12 @@ export async function downloadAppData() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      console.log('[Export] Data exported as:', filename);
       return true;
     } else {
       alert('Export failed: Not running in Electron or supported web environment.');
       return false;
     }
   } catch (err) {
-    console.error('[Export] Failed to export data:', err);
     alert(`Export failed: ${err.message}`);
     return false;
   }
@@ -66,7 +63,6 @@ export async function downloadAppData() {
  */
 export async function uploadAppData(merge = false) {
   try {
-    console.log('[Import] uploadAppData called, merge:', merge);
     const platform = getPlatformInfo();
     let jsonString;
     if (isElectronEnv() && window.electronAPI) {
@@ -80,29 +76,22 @@ export async function uploadAppData(merge = false) {
       }
     } else {
       // Web: use file input
-      console.log('[Import] Web mode: opening file picker');
       jsonString = await selectAndReadFile();
-      console.log('[Import] File selected, length:', jsonString?.length);
     }
     
     if (!jsonString) {
-      console.log('[Import] No file selected or file empty');
       return false;
     }
     
-    console.log('[Import] File read successfully, showing confirmation dialog');
     // Confirm action
     const action = merge ? 'merge with' : 'replace';
     const confirmed = confirm(`This will ${action} your current data. Continue?`);
     
     if (!confirmed) {
-      console.log('[Import] User cancelled import');
       return false;
     }
     
-    console.log('[Import] Starting data import...');
     await importAppData(jsonString, merge);
-    console.log('[Import] Data import complete');
     
     // Reload to show imported data (works in both Electron and web now that DataStore handles localStorage)
     alert('Data imported successfully! The page will reload.');
@@ -110,7 +99,6 @@ export async function uploadAppData(merge = false) {
     
     return true;
   } catch (err) {
-    console.error('[Import] Failed to import data:', err);
     alert(`Import failed: ${err.message}`);
     return false;
   }

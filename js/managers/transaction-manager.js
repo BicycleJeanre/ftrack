@@ -21,7 +21,6 @@ export async function getAll(scenarioId) {
  * @returns {Promise<void>}
  */
 export async function saveAll(scenarioId, transactions) {
-    console.log('[TransactionManager.saveAll] start', { scenarioId, count: transactions?.length });
     return await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
 
@@ -104,16 +103,8 @@ export async function saveAll(scenarioId, transactions) {
                 tags: txn.tags || []
             };
 
-            if (txn.__logOnce !== false) {
-                console.log('[TransactionManager.saveAll] mapped txn', { id, primaryAccountId, secondaryAccountId, transactionTypeId, effectiveDate: mapped.effectiveDate });
-            }
 
             return mapped;
-        });
-
-        console.log('[TransactionManager.saveAll] mapped for write', {
-            scenarioId,
-            count: data.scenarios[scenarioIndex].transactions.length
         });
 
         return data;

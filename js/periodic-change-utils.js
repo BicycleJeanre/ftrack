@@ -30,7 +30,6 @@ export function expandPeriodicChangeForCalculation(pc, lookupData) {
   const type = lookupData.periodicChangeTypes.find(t => t.id === pc.changeType);
   
   if (!mode || !type) {
-    console.warn('[PeriodicChangeUtils] Invalid periodic change IDs:', pc);
     return null;
   }
   

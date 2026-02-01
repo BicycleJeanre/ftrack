@@ -45,10 +45,8 @@ import { isElectronEnv } from './core/platform.js';
         try {
           const success = await downloadAppData();
           if (success) {
-            console.log('[Navbar] Data exported successfully');
           }
         } catch (err) {
-          console.error('[Navbar] Export failed:', err);
           alert('Export failed: ' + err.message);
         }
       });
@@ -57,17 +55,12 @@ import { isElectronEnv } from './core/platform.js';
     if (importBtn) {
       importBtn.addEventListener('click', async function(e) {
         e.preventDefault();
-        console.log('[Navbar] Import button clicked');
         try {
           const success = await uploadAppData(false); // false = replace mode
-          console.log('[Navbar] uploadAppData returned:', success);
           if (success) {
-            console.log('[Navbar] Data imported successfully');
           } else {
-            console.log('[Navbar] Import was cancelled or failed');
           }
         } catch (err) {
-          console.error('[Navbar] Import failed:', err);
           alert('Import failed: ' + err.message);
         }
       });
@@ -84,7 +77,6 @@ import { isElectronEnv } from './core/platform.js';
             alert('All data cleared successfully. The page will now reload.');
             window.location.reload();
           } catch (err) {
-            console.error('[Navbar] Clear data failed:', err);
             alert('Failed to clear data: ' + err.message);
           }
         }

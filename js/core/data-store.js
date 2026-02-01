@@ -36,7 +36,6 @@ export async function read() {
         if (!dataFile || dataFile.trim() === '') return { scenarios: [] };
         return JSON.parse(dataFile);
     } catch (err) {
-        console.error('[DataStore] Failed to read app-data.json:', err);
         throw err;
     }
 }
@@ -58,12 +57,9 @@ export async function write(data) {
     writeQueue = writeQueue.then(async () => {
         const tmpPath = dataPath + '.tmp';
         try {
-            console.log('[DataStore.write] target', dataPath);
             await fs.writeFile(tmpPath, JSON.stringify(data, null, 2), 'utf8');
             await fs.rename(tmpPath, dataPath);
-            // console.log('[DataStore] Data saved successfully');
         } catch (err) {
-            console.error('[DataStore] Failed to write app-data.json atomically:', err);
             // try to cleanup temp file
             try { await fs.unlink(tmpPath); } catch (e) { /* ignore */ }
             throw err;
@@ -128,9 +124,7 @@ export async function transaction(modifyFn) {
     transactionQueue = transactionQueue.then(async () => {
         const data = await read();
         const modified = await modifyFn(data);
-        console.log('[DataStore.transaction] writing data');
         await write(modified);
-        console.log('[DataStore.transaction] write complete');
         return modified;
     });
     return transactionQueue;
