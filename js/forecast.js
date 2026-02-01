@@ -3,7 +3,7 @@
 // Displays accounts, planned transactions, actual transactions, and projections based on scenario type
 
 
-import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
+import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay, createDeleteColumn, createDuplicateColumn } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import * as ScenarioManager from './managers/scenario-manager.js';
 import * as AccountManager from './managers/account-manager.js';
@@ -26,6 +26,7 @@ import { formatDateOnly, parseDateOnly } from './date-utils.js';
 import { generateRecurrenceDates } from './calculation-utils.js';
 import { expandTransactions } from './transaction-expander.js';
 import { getRecurrenceDescription } from './recurrence-utils.js';
+import { calculateCategoryTotals } from './financial-utils.js';
 
 import {
   getScenarios,
@@ -63,7 +64,7 @@ function updateTransactionTotals(filteredRows = null) {
 
   
   // Compute totals from visible data
-  const txTotals = computeMoneyTotals(visibleData, {
+  const txTotals = calculateCategoryTotals(visibleData, {
     amountField: 'amount',
     typeField: 'transactionType',
     typeNameField: 'transactionTypeName',
@@ -85,7 +86,7 @@ function updateBudgetTotals(filteredRows = null) {
   const visibleData = filteredRows ? filteredRows.map(r => r.getData()) : masterBudgetTable.getData('active');
   
   // Compute totals from visible data
-  const budgetTotals = computeMoneyTotals(visibleData, {
+  const budgetTotals = calculateCategoryTotals(visibleData, {
     amountField: 'amount',
     typeField: 'transactionType',
     typeNameField: 'transactionTypeName',
@@ -97,36 +98,7 @@ function updateBudgetTotals(filteredRows = null) {
   renderMoneyTotals(toolbarTotals, budgetTotals);
 }
 
-// Shared helper: compute Money In / Money Out totals and net using signed amounts
-function computeMoneyTotals(rows, opts = {}) {
-  const amountField = opts.amountField || 'amount';
-  const typeField = opts.typeField || 'transactionType';
-  const typeNameField = opts.typeNameField || 'transactionTypeName';
-  const typeIdField = opts.typeIdField || 'transactionTypeId';
 
-  return rows.reduce((acc, row) => {
-    const amount = Number(row?.[amountField] || 0);
-    const typeObj = row?.[typeField];
-    const name = typeObj?.name || row?.[typeNameField] || '';
-    const id = typeObj?.id ?? row?.[typeIdField];
-    
-    // Determine if it's Money In or Money Out based on transaction type
-    const isMoneyIn = name === 'Money In' || id === 1;
-    const isMoneyOut = name === 'Money Out' || id === 2;
-    
-    const absAmount = Math.abs(amount);
-
-    if (isMoneyIn) {
-      acc.moneyIn += absAmount;
-      acc.net += absAmount; // Money In adds to net
-    } else if (isMoneyOut) {
-      acc.moneyOut += absAmount;
-      acc.net -= absAmount; // Money Out subtracts from net
-    }
-    
-    return acc;
-  }, { moneyIn: 0, moneyOut: 0, net: 0 });
-}
 
 // Build the main UI container with independent accordions
 function buildGridContainer() {
@@ -283,57 +255,16 @@ async function buildScenarioGrid(container) {
       data: scenarios,
       selectable: 1, // Only allow single row selection
       columns: [
-        {
-          width: 50,
-          hozAlign: "center",
-          cssClass: "duplicate-cell",
-          headerTooltip: "Duplicate Scenario",
-          formatter: function(cell){
-            try {
-              const rowEl = cell.getRow().getElement();
-              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
-            } catch(e){}
-            return '<svg height="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-          },
-          cellClick: async function(e, cell) {
-            try {
-              const row = cell.getRow();
-              const rowEl = row.getElement();
-              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return;
-              const rowData = row.getData();
-              await ScenarioManager.duplicate(rowData.id);
-              await buildScenarioGrid(container);
-            } catch (err) {
-              console.error('Duplicate scenario cellClick failed', err);
-            }
-          }
-        },
-        {
-          width: 50,
-          hozAlign: "center",
-          cssClass: "delete-cell",
-          formatter: function(cell){
-            try {
-              const rowEl = cell.getRow().getElement();
-              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
-            } catch(e){}
-            return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
-          },
-          cellClick: async function(e, cell) {
-            try {
-              const row = cell.getRow();
-              const rowEl = row.getElement();
-              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return; // ignore calc row
-              const rowData = row.getData();
-              if (confirm(`Delete scenario: ${rowData.name}?`)) {
-                await ScenarioManager.remove(rowData.id);
-                await buildScenarioGrid(container);
-              }
-            } catch (err) {
-              console.error('Delete scenario cellClick failed', err);
-            }
-          }
-        },
+        createDuplicateColumn(async (cell) => {
+          const rowData = cell.getRow().getData();
+          await ScenarioManager.duplicate(rowData.id);
+          await buildScenarioGrid(container);
+        }, { headerTooltip: 'Duplicate Scenario' }),
+        createDeleteColumn(async (cell) => {
+          const rowData = cell.getRow().getData();
+          await ScenarioManager.remove(rowData.id);
+          await buildScenarioGrid(container);
+        }, { confirmMessage: (rowData) => `Delete scenario: ${rowData.name}?` }),
         createTextColumn('Scenario Name', 'name', { widthGrow: 3, editor: "input", editable: true }),
         {
           title: "Type",
@@ -735,27 +666,12 @@ async function loadAccountsGrid(container) {
       data: enrichedAccounts,
       selectable: 1, // Enable built-in single selection
       columns: [
-        {
-          width: 50,
-          hozAlign: "center",
-          cssClass: "delete-cell",
-          formatter: function(cell){
-            try { const rowEl = cell.getRow().getElement(); if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return ''; } catch(e){}
-            return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
-          },
-          cellClick: async function(e, cell) {
-            try {
-              const row = cell.getRow();
-              const rowEl = row.getElement();
-              if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return; // ignore calc row
-              const rowData = row.getData();
-              if (confirm(`Delete account: ${rowData.name}?`)) {
-                await AccountManager.remove(currentScenario.id, rowData.id);
-                await loadAccountsGrid(container);
-                await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
-              }
-            } catch (err) { console.error('Delete account failed', err); }
-          }  },
+        createDeleteColumn(async (cell) => {
+          const rowData = cell.getRow().getData();
+          await AccountManager.remove(currentScenario.id, rowData.id);
+          await loadAccountsGrid(container);
+          await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+        }, { confirmMessage: (rowData) => `Delete account: ${rowData.name}?` }),
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
         createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 }),
         {
@@ -1256,7 +1172,7 @@ async function loadMasterTransactionsGrid(container) {
     // Note: Filtering is now handled by Tabulator's setFilter() - see account selection handler
 
     // Compute filtered totals for current transactions view
-    const txTotals = computeMoneyTotals(flatTransformedData, {
+    const txTotals = calculateCategoryTotals(flatTransformedData, {
       amountField: 'amount',
       typeField: 'transactionType',
       typeNameField: 'transactionTypeName',
@@ -1279,26 +1195,12 @@ async function loadMasterTransactionsGrid(container) {
       headerWordWrap: false, // Prevent header text wrapping
       autoResize: true, // Enable auto-resize on window changes
       columns: [
-        {
-          width: 50,
-          minWidth: 50,
-          hozAlign: "center",
-          cssClass: "delete-cell",
-          resizable: false,
-          formatter: function(cell){
-            return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
-          },
-          cellClick: async function(e, cell) {
-            if (confirm('Delete this transaction?')) {
-              // Remove from data
-              const allTxs = await getTransactions(currentScenario.id);
-              const filteredTxs = allTxs.filter(tx => tx.id !== cell.getRow().getData().id);
-              await TransactionManager.saveAll(currentScenario.id, filteredTxs);
-              // Reload grid
-              await loadMasterTransactionsGrid(container);
-            }
-          }
-        },
+        createDeleteColumn(async (cell) => {
+          const allTxs = await getTransactions(currentScenario.id);
+          const filteredTxs = allTxs.filter(tx => tx.id !== cell.getRow().getData().id);
+          await TransactionManager.saveAll(currentScenario.id, filteredTxs);
+          await loadMasterTransactionsGrid(container);
+        }, { confirmMessage: () => 'Delete this transaction?' }),
         ...(showPrimaryColumn ? [{
           title: "Primary Account",
           field: "primaryAccount",
@@ -1875,27 +1777,11 @@ async function loadBudgetGrid(container) {
     masterBudgetTable = await createGrid(gridContainer, {
       data: transformedData,
       columns: [
-        {
-          width: 50,
-          minWidth: 50,
-          hozAlign: "center",
-          cssClass: "delete-cell",
-          resizable: false,
-          formatter: function(cell){
-            return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
-          },
-          cellClick: async function(e, cell) {
-            if (confirm('Delete this budget occurrence?')) {
-              try {
-                await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
-                currentScenario = await getScenario(currentScenario.id);
-                await loadBudgetGrid(container);
-              } catch (err) {
-                console.error('[Forecast] Failed to delete budget occurrence:', err);
-              }
-            }
-          }
-        },
+        createDeleteColumn(async (cell) => {
+          await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
+          currentScenario = await getScenario(currentScenario.id);
+          await loadBudgetGrid(container);
+        }, { confirmMessage: () => 'Delete this budget occurrence?' }),
         ...(showPrimaryColumnBudget ? [{
           title: "Primary Account",
           field: "primaryAccount",
