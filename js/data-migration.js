@@ -18,7 +18,7 @@ if (isElectron && path) {
 
 /**
  * Migrate scenario data from old plannedTransactions/actualTransactions format to unified transactions
- * Old format: plannedTransactions and actualTransactions arrays with debitAccount/creditAccount
+ * Old format: plannedTransactions and actualTransactions arrays
  * New format: single transactions array with primaryAccountId/secondaryAccountId/transactionTypeId
  * @param {Object} scenario - The scenario object to migrate
  * @returns {Object} - The migrated scenario
@@ -37,8 +37,7 @@ export function migrateScenarioTransactions(scenario) {
 
     const transactions = [];
 
-    // Convert planned transactions - copy exactly, preserving debitAccount/creditAccount
-    // (they will be converted in migrateToUnifiedAccountModel)
+    // Convert planned transactions
     if (scenario.plannedTransactions) {
         scenario.plannedTransactions.forEach(planned => {
             transactions.push({
@@ -47,7 +46,7 @@ export function migrateScenarioTransactions(scenario) {
         });
     }
 
-    // Convert actual transactions - copy exactly, preserving debitAccount/creditAccount
+    // Convert actual transactions
     if (scenario.actualTransactions) {
         scenario.actualTransactions.forEach(actual => {
             transactions.push({
@@ -104,12 +103,11 @@ export async function migrateAllScenarios() {
                 scenario = migrateScenarioTransactions(scenario);
                 scenario = ensureBudgetsArray(scenario);
                 scenario = migrateAccountBalanceField(scenario);
-                scenario = migrateToUnifiedAccountModel(scenario);
                 return scenario;
             });
         }
         
-        // Mark migration as complete (v3 includes unified account model)
+        // Mark migration as complete
         data.migrationVersion = 3;
         
         // Write back
@@ -136,92 +134,6 @@ export async function needsMigration() {
     } catch (err) {
         return false;
     }
-}
-
-/**
- * Migrate from old debit/credit account format to new primary/secondary account format
- * Old format: debitAccount and creditAccount objects
- * New format: primaryAccountId, secondaryAccountId, transactionTypeId
- * Also migrates recurrence structure and adds status field
- * @param {Object} scenario - The scenario object to migrate
- * @returns {Object} - The migrated scenario
- */
-export function migrateToUnifiedAccountModel(scenario) {
-    if (!scenario.transactions) return scenario;
-
-    scenario.transactions = scenario.transactions.map(tx => {
-        const updated = { ...tx };
-        
-        // Skip if already migrated (has primaryAccountId)
-        if (updated.primaryAccountId !== undefined && updated.secondaryAccountId !== undefined) {
-            // Still need to check recurrence and status
-            updated.recurrence = migrateRecurrenceStructure(updated.recurrence);
-            if (!updated.status) {
-                updated.status = {
-                    name: "planned",
-                    actualAmount: null,
-                    actualDate: null
-                };
-            }
-            return updated;
-        }
-
-        // Skip if no old format fields
-        if (!tx.debitAccount && !tx.creditAccount) {
-            return updated;
-        }
-
-        // Extract account IDs from old format
-        const debitAccountId = tx.debitAccount?.id || null;
-        const creditAccountId = tx.creditAccount?.id || null;
-
-        // Determine transaction type based on account types
-        let primaryAccountId, secondaryAccountId, transactionTypeId;
-
-        const debitAccount = scenario.accounts?.find(a => a.id === debitAccountId);
-        const creditAccount = scenario.accounts?.find(a => a.id === creditAccountId);
-
-        const debitType = debitAccount?.type?.name;
-        const creditType = creditAccount?.type?.name;
-
-        // Money In: Debit is Income, Credit is Asset/Liability
-        if (debitType === 'Income') {
-            primaryAccountId = creditAccountId;
-            secondaryAccountId = debitAccountId;
-            transactionTypeId = 1; // Money In
-        }
-        // Money Out: Debit is Expense, Credit is Asset/Liability
-        else if (debitType === 'Expense') {
-            primaryAccountId = creditAccountId;
-            secondaryAccountId = debitAccountId;
-            transactionTypeId = 2; // Money Out
-        }
-        // Transfer or other: use credit as primary
-        else {
-            primaryAccountId = creditAccountId;
-            secondaryAccountId = debitAccountId;
-            // Use amount sign to determine type
-            transactionTypeId = (tx.amount >= 0) ? 1 : 2;
-        }
-
-        // Create new transaction preserving ALL original fields except debitAccount/creditAccount
-        const { debitAccount: _, creditAccount: __, ...rest } = tx;
-
-        return {
-            ...rest,
-            primaryAccountId,
-            secondaryAccountId,
-            transactionTypeId,
-            recurrence: migrateRecurrenceStructure(rest.recurrence),
-            status: rest.status || {
-                name: "planned",
-                actualAmount: null,
-                actualDate: null
-            }
-        };
-    });
-
-    return scenario;
 }
 
 /**

@@ -220,7 +220,7 @@ Columns explained:
 - **Account**: Primary account affected (where money goes or comes from)
 - **Secondary Account**: The other side (where money comes from or goes to)
 - **Amount**: How much money
-- **Type**: Credit (money IN) or Debit (money OUT)
+- **Type**: Money In or Money Out
 - **Start Date**: When does this transaction begin?
 - **Recurrence**: How often does it repeat?
 - **End Date**: When does it stop? (leave blank for ongoing)
@@ -235,7 +235,7 @@ Columns explained:
    - Account: "Checking Account" (where paycheck deposits)
    - Secondary Account: "Salary Income" (source)
    - Amount: 2500.00
-   - Type: Credit (money coming IN)
+   - Type: Money In
    - Start Date: Your next payday
    - Recurrence Type: Weekly
    - Recurrence Interval: 2 (every 2 weeks)
@@ -278,8 +278,7 @@ Columns explained:
 
 **Transfers** (Money moving between YOUR accounts):
 - Savings transfer: Checking Account → Savings Account
-- Both are debits/credits depending on perspective
-- Choose the account losing money as primary
+- Perspective matters - choose the account losing money as primary
 
 #### 3.4.5 Tips for Planning
 

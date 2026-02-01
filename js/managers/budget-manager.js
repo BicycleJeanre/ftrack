@@ -25,7 +25,7 @@
  *   tags: string[]                        // Associated tags
  * }
  * 
- * UI transforms budgets to include resolved objects (debitAccount, creditAccount, etc.)
+ * UI transforms budgets to include resolved objects (primaryAccount, secondaryAccount, etc.)
  * but these are NEVER persisted to disk—only IDs are stored.
  */
 
@@ -105,8 +105,6 @@ export async function saveAll(scenarioId, budgets) {
             
             // Explicitly exclude UI-only fields (objects that should never be stored)
             // These may exist in memory for rendering but should never be persisted
-            delete normalized.debitAccount;
-            delete normalized.creditAccount;
             delete normalized.primaryAccount;
             delete normalized.secondaryAccount;
             delete normalized.transactionType;

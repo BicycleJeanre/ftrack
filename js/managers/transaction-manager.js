@@ -35,35 +35,13 @@ export async function saveAll(scenarioId, transactions) {
 
         let nextId = maxId + 1;
 
-        // Convert UI format (debitAccount/creditAccount) to storage format (primaryAccountId/secondaryAccountId/transactionTypeId)
         data.scenarios[scenarioIndex].transactions = transactions.map(txn => {
             const id = (!txn.id || txn.id === 0) ? nextId++ : txn.id;
             
-            // Determine transaction type and account IDs
-            let transactionTypeId, primaryAccountId, secondaryAccountId;
-            
-            // If already has the new format, preserve it
-            if (txn.primaryAccountId !== undefined && txn.secondaryAccountId !== undefined && txn.transactionTypeId !== undefined) {
-                transactionTypeId = txn.transactionTypeId;
-                primaryAccountId = txn.primaryAccountId;
-                secondaryAccountId = txn.secondaryAccountId;
-            } else {
-                // Convert from debitAccount/creditAccount format
-                // Infer transaction type from transactionType field or default to Money Out (2)
-                const transactionTypeName = txn.transactionType?.name;
-                
-                if (transactionTypeName === 'Money In') {
-                    // Money In: secondary → primary (debit=secondary, credit=primary)
-                    transactionTypeId = 1;
-                    primaryAccountId = txn.creditAccount?.id || null;
-                    secondaryAccountId = txn.debitAccount?.id || null;
-                } else {
-                    // Money Out: primary → secondary (debit=primary, credit=secondary)
-                    transactionTypeId = 2;
-                    primaryAccountId = txn.debitAccount?.id || null;
-                    secondaryAccountId = txn.creditAccount?.id || null;
-                }
-            }
+            // Extract transaction type and account IDs
+            const transactionTypeId = txn.transactionTypeId ?? 2; // Default to Money Out
+            const primaryAccountId = txn.primaryAccountId ?? null;
+            const secondaryAccountId = txn.secondaryAccountId ?? null;
             
             // Normalize status to object format, preserving actual fields when provided
             let status;
