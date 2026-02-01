@@ -1092,22 +1092,10 @@ input[type="checkbox"] {
   }
 }
 
-.page-title {
-  margin-bottom: 20px;
-}
-
-.page-subtitle {
-  font-size: 1.1em;
-  margin-bottom: 30px;
-}
-
 .page-section {
   margin-bottom: 40px;
 }
 
-.page-section-title {
-  margin-bottom: 15px;
-}
 
 .page-section-list {
   line-height: 1.8;
