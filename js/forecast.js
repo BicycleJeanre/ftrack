@@ -43,7 +43,7 @@ import { generateProjections, clearProjections } from './projection-engine.js';
 
 let currentScenario = null;
 let scenarioTypes = null;
-let selectedAccountId = null; // Track selected account for filtering transaction views
+let transactionFilterAccountId = null; // Track account filter for transactions view (independent of account grid selection)
 let actualPeriod = null; // Selected period for actual transactions
 let actualPeriodType = 'Month'; // Selected period type for transactions view
 let budgetPeriod = null; // Selected period for budget view
@@ -314,7 +314,7 @@ async function buildScenarioGrid(container) {
         if (rows.length > 0) {
           const scenario = rows[0].getData();
           currentScenario = await getScenario(scenario.id);
-          selectedAccountId = null; // Clear selected account when switching scenarios
+          transactionFilterAccountId = null; // Clear transaction filter when switching scenarios
           await loadScenarioData();
         }
       }
@@ -324,7 +324,7 @@ async function buildScenarioGrid(container) {
       try {
         const scenario = row.getData();
         currentScenario = await getScenario(scenario.id);
-        selectedAccountId = null;
+        transactionFilterAccountId = null;
         await loadScenarioData();
       } catch (err) {
         logger.error('[ScenarioGrid] rowSelected handler failed:', err);
@@ -348,7 +348,7 @@ async function buildScenarioGrid(container) {
           const scenario = row.getData();
           if (currentScenario && currentScenario.id === scenario.id) return; // already set
           currentScenario = await getScenario(scenario.id);
-          selectedAccountId = null;
+          transactionFilterAccountId = null;
           await loadScenarioData();
         } catch (err) {
           logger.error('[ScenarioGrid] rowSelected handler failed (delayed):', err);
@@ -450,8 +450,8 @@ function getScenarioTypeConfig() {
 /**
  * Transform planned transactions to UI format (transactionType/secondaryAccount) filtered by selected account
  */
-function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
-  const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+function transformPlannedTxForUI(plannedTxs, transactionFilterAccountId) {
+  const selIdNum = transactionFilterAccountId != null ? Number(transactionFilterAccountId) : null;
 
   // logger.debug(`[Transform] transformPlannedTxForUI - Processing ${plannedTxs.length} total transactions for account ${selIdNum}`);
 
@@ -487,8 +487,8 @@ function transformPlannedTxForUI(plannedTxs, selectedAccountId) {
 /**
  * Transform actual transactions for UI (same as planned transactions)
  */
-function transformActualTxForUI(actualTxs, selectedAccountId) {
-  const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+function transformActualTxForUI(actualTxs, transactionFilterAccountId) {
+  const selIdNum = transactionFilterAccountId != null ? Number(transactionFilterAccountId) : null;
 
   // When no account selected, show all actual transactions (default view)
   if (!selIdNum) return actualTxs.map(tx => {
@@ -513,8 +513,8 @@ function transformActualTxForUI(actualTxs, selectedAccountId) {
  * Map a backend transaction to UI representation for a selected account.
  * Returns null if the transaction does not involve the selected account.
  */
-function mapTxToUI(tx, selectedAccountId) {
-  const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
+function mapTxToUI(tx, transactionFilterAccountId) {
+  const selIdNum = transactionFilterAccountId != null ? Number(transactionFilterAccountId) : null;
   if (!selIdNum) return null;
 
   // Check if selected account matches the stored primary or secondary account ID
@@ -664,7 +664,6 @@ async function loadAccountsGrid(container) {
 
     const accountsTable = await createGrid(gridContainer, {
       data: enrichedAccounts,
-      selectable: 1, // Enable built-in single selection
       columns: [
         createDeleteColumn(async (cell) => {
           const rowData = cell.getRow().getData();
@@ -718,194 +717,9 @@ async function loadAccountsGrid(container) {
 
         await AccountManager.update(currentScenario.id, account.id, account);
       },
-      rowSelectionChanged: async function(data, rows) {
-        // Log raw event
-        try {
-          const table = this;
-          const selected = table.getSelectedRows();
-          if (selected.length > 1) {
-            // Keep the first selected row and deselect the rest
-            selected.forEach((r, i) => { if (i > 0) r.deselect(); });
-            // Recompute rows array
-            rows = table.getSelectedRows();
-          }
-        } catch (err) {
-          logger.error('[Forecast] rowSelectionChanged enforcement failed:', err);
-        }
-        
-        if (rows.length > 0) {
-          const account = rows[0].getData();
-          selectedAccountId = Number(account.id);
-          lastProcessedAccountId = selectedAccountId; // Mark as processed to prevent duplicate in rowSelected
-          
-          // Update accordion header
-          const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
-          if (accordionHeader) {
-            accordionHeader.textContent = `Transactions - ${account.name}`;
-          }
-          
-          // Apply filter to show transactions from selected account's perspective
-          if (masterTransactionsTable) {
-            masterTransactionsTable.setFilter((data) => {
-              if (!data.perspectiveAccountId) return true;
-              return Number(data.perspectiveAccountId) === selectedAccountId;
-            });
-            // Manually update totals after filter
-            updateTransactionTotals();
-          }
-          
-          // Apply filter to budget grid
-          if (masterBudgetTable) {
-            masterBudgetTable.setFilter((data) => {
-              if (!data.perspectiveAccountId) return true;
-              return Number(data.perspectiveAccountId) === selectedAccountId;
-            });
-            // Manually update totals after filter
-            updateBudgetTotals();
-          }
-          
-          // Reload projections grid
-          await loadProjectionsSection(getEl('projectionsContent'));
-        } else {
-          // No account selected
-          selectedAccountId = null;
-          
-          // Update accordion header
-          const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
-          if (accordionHeader) {
-            accordionHeader.textContent = 'Transactions';
-          }
-          
-          // Show only primary perspectives (not flipped)
-          if (masterTransactionsTable) {
-            masterTransactionsTable.setFilter((data) => {
-              return !String(data.id).includes('_flipped');
-            });
-            // Manually update totals after filter
-            updateTransactionTotals();
-          }
-          
-          // Show only primary perspectives in budget grid (not flipped)
-          if (masterBudgetTable) {
-            masterBudgetTable.setFilter((data) => {
-              return !String(data.id).includes('_flipped');
-            });
-            // Manually update totals after filter
-            updateBudgetTotals();
-          }
-          
-          // Reload projections grid
-          await loadProjectionsSection(getEl('projectionsContent'));
-        }
-      }
     });
 
-    // Enforce single selection and provide fallback selection on click for accounts
-    const handleAccountRowClick = function(e, row) {
-      try {
-        const table = row.getTable();
-        if (row.isSelected()) {
-          table.deselectRow(row);
-          return;
-        }
-        table.deselectRow();
-        row.select();
-        setTimeout(() => {
-          const selected = table.getSelectedRows();
-          if (!row.isSelected()) {
-            table.deselectRow();
-            row.select();
-          } else if (selected.length > 1) {
-            selected.forEach(r => { if (r.getData().id !== row.getData().id) r.deselect(); });
-          }
-        }, 20);
-      } catch (err) {
-        logger.error('[AccountsGrid] rowClick fallback failed:', err);
-      }
-    };
-    
     // Grid will show placeholder if no accounts exist (handled by Tabulator)
-
-    // Fallback for when rowSelectionChanged doesn't fire (Tabulator version compatibility)
-    let lastProcessedAccountId = null;
-    const handleAccountRowSelected = async function(row) {
-      try {
-        const account = row.getData();
-        const accountIdNum = Number(account.id);
-        
-        // Only process if this is a new selection (avoid duplicate processing)
-        if (lastProcessedAccountId === accountIdNum) {
-          return;
-        }
-        
-        lastProcessedAccountId = accountIdNum;
-        selectedAccountId = accountIdNum;
-        
-        // Update accordion header
-        const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
-        if (accordionHeader) {
-          accordionHeader.textContent = `Transactions - ${account.name}`;
-        }
-        
-        // Apply filter to show transactions from selected account's perspective
-        if (masterTransactionsTable) {
-          masterTransactionsTable.setFilter((data) => {
-            if (!data.perspectiveAccountId) return true;
-            return Number(data.perspectiveAccountId) === selectedAccountId;
-          });
-          // Manually update totals after filter
-          updateTransactionTotals();
-        }
-        
-        // Apply filter to budget grid
-        if (masterBudgetTable) {
-          masterBudgetTable.setFilter((data) => {
-            if (!data.perspectiveAccountId) return true;
-            return Number(data.perspectiveAccountId) === selectedAccountId;
-          });
-          // Manually update totals after filter
-          updateBudgetTotals();
-        }
-        
-        // Reload projections grid
-        await loadProjectionsSection(getEl('projectionsContent'));
-      } catch (e) {
-        logger.error('[AccountsGrid] rowSelected handler error:', e);
-      }
-    };
-
-    const handleAccountRowDeselected = async function(row) {
-      try {
-        const remaining = accountsTable.getSelectedRows();
-        if (!remaining || remaining.length === 0) {
-          selectedAccountId = null;
-          lastProcessedAccountId = null; // Reset tracking flag
-          // Show only primary perspectives (not flipped)
-          if (masterTransactionsTable) {
-            masterTransactionsTable.setFilter((data) => {
-              return !String(data.id).includes('_flipped');
-            });
-            // Manually update totals after filter
-            updateTransactionTotals();
-          }
-          // Show only primary perspectives in budget grid (not flipped)
-          if (masterBudgetTable) {
-            masterBudgetTable.setFilter((data) => {
-              return !String(data.id).includes('_flipped');
-            });
-            // Manually update totals after filter
-            updateBudgetTotals();
-          }
-          await loadProjectionsSection(document.getElementById('projectionsContent'));
-        }
-      } catch (e) { logger.error('[AccountsGrid] fallback rowDeselected handler error:', e); }
-    };
-
-    attachGridHandlers(accountsTable, {
-      rowClick: handleAccountRowClick,
-      rowSelected: handleAccountRowSelected,
-      rowDeselected: handleAccountRowDeselected
-    });
 
     // Attach grouping control handler
     const accountGroupingSelect = document.getElementById('account-grouping-select');
@@ -923,9 +737,6 @@ async function loadAccountsGrid(container) {
         }
       });
     }
-    
-    // Store globally for access from transaction grid
-    window.accountsTableInstance = accountsTable;
 
   } catch (err) {
     logger.error('[Forecast] Failed to load accounts grid:', err);
@@ -951,19 +762,6 @@ async function loadMasterTransactionsGrid(container) {
 
   container.innerHTML = '';
 
-  // Update accordion header with filter info
-  const accordionHeader = document.querySelector('#transactionsContent').closest('.bg-main').querySelector('.accordion-header h2');
-  const selIdNum = selectedAccountId != null ? Number(selectedAccountId) : null;
-  
-  if (accordionHeader) {
-    if (selIdNum) {
-      const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
-      accordionHeader.textContent = `Transactions - ${selectedAccount?.name || 'Unknown Account'}`;
-    } else {
-      accordionHeader.textContent = 'Transactions';
-    }
-  }
-
   // Create toolbar for controls
   const toolbar = document.createElement('div');
   toolbar.className = 'grid-toolbar';
@@ -979,15 +777,19 @@ async function loadMasterTransactionsGrid(container) {
   addButton.textContent = '+ Add New Transaction';
   addButton.addEventListener('click', async () => {
     try {
-      // Require an account to be selected
-      if (!selectedAccountId) {
-        alert('Please select an account first before adding a transaction.');
+      // Get the first account as default, or null if no accounts exist
+      const defaultAccountId = (currentScenario.accounts && currentScenario.accounts.length > 0)
+        ? currentScenario.accounts[0].id
+        : null;
+      
+      if (!defaultAccountId) {
+        alert('Please create at least one account before adding a transaction.');
         return;
       }
       
-      // Create new planned transaction with selected account as primary
+      // Create new planned transaction with first account as default primary
       const newTx = await createTransaction(currentScenario.id, {
-        primaryAccountId: selectedAccountId,
+        primaryAccountId: defaultAccountId,
         secondaryAccountId: null, // User will fill this in
         transactionTypeId: 2, // Default to Money Out
         amount: 0,
@@ -1051,6 +853,17 @@ async function loadMasterTransactionsGrid(container) {
   `;
   window.add(toolbar, periodFilter);
   
+  // Add account filter dropdown
+  const accountFilter = document.createElement('div');
+  accountFilter.className = 'toolbar-item account-filter';
+  accountFilter.innerHTML = `
+    <label for="account-filter-select" class="text-muted control-label">Account:</label>
+    <select id="account-filter-select" class="input-select control-select">
+      <option value="">-- All Accounts --</option>
+    </select>
+  `;
+  window.add(toolbar, accountFilter);
+  
   // Add toolbar to container FIRST so we can find the select element
   window.add(container, toolbar);
   
@@ -1109,12 +922,69 @@ async function loadMasterTransactionsGrid(container) {
     console.error('[Transactions] Could not find period select element!');
   }
 
+  // Populate account filter dropdown
+  const accountFilterSelect = document.getElementById('account-filter-select');
+  if (accountFilterSelect) {
+    accountFilterSelect.innerHTML = '<option value="">-- All Accounts --</option>';
+    (currentScenario.accounts || []).forEach((account) => {
+      const option = document.createElement('option');
+      option.value = account.id;
+      option.textContent = account.name;
+      accountFilterSelect.appendChild(option);
+    });
+    
+    // Set current selected value
+    accountFilterSelect.value = transactionFilterAccountId || '';
+    
+    // Attach event listener for filtering transactions
+    accountFilterSelect.addEventListener('change', async (e) => {
+      transactionFilterAccountId = e.target.value ? Number(e.target.value) : null;
+      
+      // Apply filter to transactions grid if it exists
+      if (masterTransactionsTable) {
+        if (transactionFilterAccountId) {
+          masterTransactionsTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === transactionFilterAccountId;
+          });
+        } else {
+          // Show only primary perspectives (not flipped)
+          masterTransactionsTable.setFilter((data) => {
+            return !String(data.id).includes('_flipped');
+          });
+        }
+        updateTransactionTotals();
+      }
+      
+      // Apply filter to budget grid if it exists
+      if (masterBudgetTable) {
+        if (transactionFilterAccountId) {
+          masterBudgetTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === transactionFilterAccountId;
+          });
+        } else {
+          // Show only primary perspectives (not flipped)
+          masterBudgetTable.setFilter((data) => {
+            return !String(data.id).includes('_flipped');
+          });
+        }
+        updateBudgetTotals();
+      }
+      
+      // Reload projections grid
+      await loadProjectionsSection(getEl('projectionsContent'));
+    });
+  } else {
+    console.error('[Transactions] Could not find account filter select element!');
+  }
+
   const gridContainer = document.createElement('div');
   gridContainer.className = 'grid-container master-transactions-grid';
   window.add(container, gridContainer);
 
-  // Show primary account column only when not filtered by a single account
-  const showPrimaryColumn = !selIdNum;
+  // Always show primary account column (filtering now handled by dropdown)
+  const showPrimaryColumn = true;
   // Show date column only when a specific period is selected
   const showDateColumn = !!actualPeriod;
 
@@ -1450,11 +1320,11 @@ async function loadMasterTransactionsGrid(container) {
     
     // Apply initial filter after table creation
     setTimeout(() => {
-      if (selIdNum) {
+      if (transactionFilterAccountId) {
         // If account is selected, show only that account's perspective
         masterTransactionsTable.setFilter((data) => {
           if (!data.perspectiveAccountId) return true;
-          return Number(data.perspectiveAccountId) === selIdNum;
+          return Number(data.perspectiveAccountId) === transactionFilterAccountId;
         });
       } else {
         // If no account selected, show only primary perspectives (not flipped ones)
@@ -1489,9 +1359,9 @@ async function loadBudgetGrid(container) {
   if (!currentScenario) return;
 
   const loadToken = ++budgetGridLoadToken;
-  const selectedAccountIdSnapshot = selectedAccountId;
+  const transactionFilterAccountIdSnapshot = transactionFilterAccountId;
   const budgetPeriodSnapshot = budgetPeriod;
-  const selIdNum = selectedAccountIdSnapshot != null ? Number(selectedAccountIdSnapshot) : null;
+  const selIdNum = transactionFilterAccountIdSnapshot != null ? Number(transactionFilterAccountIdSnapshot) : null;
 
 
   container.innerHTML = '';
@@ -1503,17 +1373,6 @@ async function loadBudgetGrid(container) {
     // Abort if a newer load kicked off while we were waiting
     if (loadToken !== budgetGridLoadToken) {
       return;
-    }
-
-    // Update accordion header with filter info
-    const accordionHeader = document.getElementById('budgetAccordionHeader')?.querySelector('h2');
-    if (accordionHeader) {
-      if (selIdNum) {
-        const selectedAccount = currentScenario.accounts?.find(a => a.id === selIdNum);
-        accordionHeader.textContent = `Budget - ${selectedAccount?.name || 'Unknown Account'}`;
-      } else {
-        accordionHeader.textContent = 'Budget';
-      }
     }
 
     // Create toolbar for controls
@@ -1546,7 +1405,7 @@ async function loadBudgetGrid(container) {
         const newBudget = {
           id: null, // Will be assigned by saveAll
           sourceTransactionId: null,
-          primaryAccountId: selIdNum || null, // Use selected account as primary
+          primaryAccountId: transactionFilterAccountIdSnapshot || (currentScenario.accounts && currentScenario.accounts.length > 0 ? currentScenario.accounts[0].id : null),
           secondaryAccountId: null,
           transactionTypeId: 2, // Default to Money Out
           amount: 0,
@@ -1620,6 +1479,17 @@ async function loadBudgetGrid(container) {
     `;
     window.add(toolbar, periodFilter);
     
+    // Add account filter dropdown
+    const accountFilter = document.createElement('div');
+    accountFilter.className = 'toolbar-item account-filter';
+    accountFilter.innerHTML = `
+      <label for="budget-account-filter-select" class="text-muted control-label">Account:</label>
+      <select id="budget-account-filter-select" class="input-select control-select">
+        <option value="">-- All Accounts --</option>
+      </select>
+    `;
+    window.add(toolbar, accountFilter);
+    
     // Add toolbar to container FIRST so we can find the select element
     window.add(container, toolbar);
 
@@ -1674,6 +1544,63 @@ async function loadBudgetGrid(container) {
         budgetPeriod = null; // Reset period selection when type changes
         await loadBudgetGrid(container);
       });
+    }
+
+    // Populate budget account filter dropdown
+    const budgetAccountFilterSelect = document.getElementById('budget-account-filter-select');
+    if (budgetAccountFilterSelect) {
+      budgetAccountFilterSelect.innerHTML = '<option value="">-- All Accounts --</option>';
+      (currentScenario.accounts || []).forEach((account) => {
+        const option = document.createElement('option');
+        option.value = account.id;
+        option.textContent = account.name;
+        budgetAccountFilterSelect.appendChild(option);
+      });
+      
+      // Set current selected value
+      budgetAccountFilterSelect.value = transactionFilterAccountId || '';
+      
+      // Attach event listener for filtering budget
+      budgetAccountFilterSelect.addEventListener('change', async (e) => {
+        transactionFilterAccountId = e.target.value ? Number(e.target.value) : null;
+        
+        // Apply filter to budget grid if it exists
+        if (masterBudgetTable) {
+          if (transactionFilterAccountId) {
+            masterBudgetTable.setFilter((data) => {
+              if (!data.perspectiveAccountId) return true;
+              return Number(data.perspectiveAccountId) === transactionFilterAccountId;
+            });
+          } else {
+            // Show only primary perspectives (not flipped)
+            masterBudgetTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+          }
+          updateBudgetTotals();
+        }
+        
+        // Apply filter to transactions grid if it exists
+        if (masterTransactionsTable) {
+          if (transactionFilterAccountId) {
+            masterTransactionsTable.setFilter((data) => {
+              if (!data.perspectiveAccountId) return true;
+              return Number(data.perspectiveAccountId) === transactionFilterAccountId;
+            });
+          } else {
+            // Show only primary perspectives (not flipped)
+            masterTransactionsTable.setFilter((data) => {
+              return !String(data.id).includes('_flipped');
+            });
+          }
+          updateTransactionTotals();
+        }
+        
+        // Reload projections grid
+        await loadProjectionsSection(getEl('projectionsContent'));
+      });
+    } else {
+      console.error('[Budget] Could not find account filter select element!');
     }
 
     // Transform budgets for UI - create dual-perspective rows (mirror transactions grid)
@@ -1735,8 +1662,8 @@ async function loadBudgetGrid(container) {
       return;
     }
 
-    // Show/hide primary account column (only when not filtered by account)
-    const showPrimaryColumnBudget = !selIdNum;
+    // Always show primary account column (filtering now handled by dropdown)
+    const showPrimaryColumnBudget = true;
     
     // Always show date column - it's essential for budget tracking and planning
     const showBudgetDateColumn = true;
@@ -1946,11 +1873,11 @@ async function loadBudgetGrid(container) {
     
     // Apply initial filter after table creation
     setTimeout(() => {
-      if (selIdNum) {
+      if (transactionFilterAccountIdSnapshot) {
         // If account is selected, show only that account's perspective
         masterBudgetTable.setFilter((data) => {
           if (!data.perspectiveAccountId) return true;
-          return Number(data.perspectiveAccountId) === selIdNum;
+          return Number(data.perspectiveAccountId) === transactionFilterAccountIdSnapshot;
         });
       } else {
         // If no account selected, show only primary perspectives (not flipped ones)
@@ -2045,14 +1972,17 @@ async function loadProjectionsSection(container) {
 
   container.innerHTML = '';
 
-  // Button container and Generate button
+  // Create toolbar for controls
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar';
+
+  // Add button container with Generate, Clear, and Save as Budget buttons
   const buttonContainer = document.createElement('div');
-  buttonContainer.className = 'button-container';
+  buttonContainer.className = 'toolbar-item';
 
   const generateButton = document.createElement('button');
-  generateButton.className = 'btn btn-generate';
+  generateButton.className = 'btn btn-primary';
   generateButton.textContent = 'Generate Projections';
-
   generateButton.addEventListener('click', async () => {
     try {
       generateButton.textContent = 'Generating...';
@@ -2063,7 +1993,7 @@ async function loadProjectionsSection(container) {
       });
       // Reload scenario to get updated projections
       currentScenario = await getScenario(currentScenario.id);
-      await loadProjectionsGrid(projectionsGridContainer);
+      await loadProjectionsSection(container);
     } catch (err) {
       console.error('[Forecast] Failed to generate projections:', err);
       alert('Failed to generate projections: ' + err.message);
@@ -2072,40 +2002,25 @@ async function loadProjectionsSection(container) {
       generateButton.disabled = false;
     }
   });
-
   window.add(buttonContainer, generateButton);
 
-  // Add clear button
   const clearButton = document.createElement('button');
   clearButton.className = 'btn';
   clearButton.textContent = 'Clear Projections';
-  clearButton.style.padding = '12px 24px';
-  clearButton.style.fontSize = '1.04em';
-  clearButton.style.whiteSpace = 'nowrap';
-  clearButton.style.minWidth = 'fit-content';
-  clearButton.style.width = 'auto';
-  clearButton.style.display = 'inline-block';
   clearButton.addEventListener('click', async () => {
     try {
       await clearProjections(currentScenario.id);
       currentScenario = await getScenario(currentScenario.id);
-      await loadProjectionsGrid(projectionsGridContainer);
+      await loadProjectionsSection(container);
     } catch (err) {
       console.error('[Forecast] Failed to clear projections:', err);
     }
   });
   window.add(buttonContainer, clearButton);
   
-  // Add Save as Budget button
   const saveBudgetButton = document.createElement('button');
   saveBudgetButton.className = 'btn btn-primary';
   saveBudgetButton.textContent = 'Save as Budget';
-  saveBudgetButton.style.padding = '12px 24px';
-  saveBudgetButton.style.fontSize = '1.04em';
-  saveBudgetButton.style.whiteSpace = 'nowrap';
-  saveBudgetButton.style.minWidth = 'fit-content';
-  saveBudgetButton.style.width = 'auto';
-  saveBudgetButton.style.display = 'inline-block';
   saveBudgetButton.addEventListener('click', async () => {
     try {
       if (!currentScenario.projections || currentScenario.projections.length === 0) {
@@ -2137,18 +2052,123 @@ async function loadProjectionsSection(container) {
   });
   window.add(buttonContainer, saveBudgetButton);
   
-  window.add(container, buttonContainer);
+  window.add(toolbar, buttonContainer);
 
-  // Update accordion header with selected account
-  const accordionHeader = getEl('projectionsAccordionHeader');
-  if (accordionHeader) {
-    let headerText = 'Projections';
-    if (selectedAccountId) {
-      const selectedAccount = currentScenario.accounts?.find(a => a.id === Number(selectedAccountId));
-      headerText = `Projections - ${selectedAccount?.name || 'Unknown Account'}`;
-    } else {
+  // Add account filter dropdown
+  const accountFilter = document.createElement('div');
+  accountFilter.className = 'toolbar-item account-filter';
+  accountFilter.innerHTML = `
+    <label for="projections-account-filter-select" class="text-muted control-label">Account:</label>
+    <select id="projections-account-filter-select" class="input-select control-select">
+      <option value="">-- All Accounts --</option>
+    </select>
+  `;
+  window.add(toolbar, accountFilter);
+  
+  // Add grouping control
+  const groupingControl = document.createElement('div');
+  groupingControl.className = 'toolbar-item grouping-control';
+  groupingControl.innerHTML = `
+    <label for="projections-grouping-select" class="text-muted control-label">Group By:</label>
+    <select id="projections-grouping-select" class="input-select control-select">
+      <option value="">None</option>
+      <option value="account">Account</option>
+    </select>
+  `;
+  window.add(toolbar, groupingControl);
+  
+  // Add toolbar to container
+  window.add(container, toolbar);
+
+  // Populate projections account filter dropdown
+  const projectionsAccountFilterSelect = document.getElementById('projections-account-filter-select');
+  if (projectionsAccountFilterSelect) {
+    (currentScenario.accounts || []).forEach((account) => {
+      const option = document.createElement('option');
+      option.value = account.id;
+      option.textContent = account.name;
+      projectionsAccountFilterSelect.appendChild(option);
+    });
+    
+    // Set default to first account if not already filtered, or keep current selection
+    const firstAccountId = currentScenario.accounts?.[0]?.id;
+    projectionsAccountFilterSelect.value = transactionFilterAccountId || firstAccountId || '';
+    
+    // If we're setting a default account that wasn't previously selected, update the filter
+    if (!transactionFilterAccountId && firstAccountId) {
+      transactionFilterAccountId = firstAccountId;
     }
-    accordionHeader.innerHTML = `<h2 class="text-main">${headerText}</h2><span class="accordion-arrow">&#9662;</span>`;
+    
+    // Attach event listener for filtering projections
+    projectionsAccountFilterSelect.addEventListener('change', async (e) => {
+      transactionFilterAccountId = e.target.value ? Number(e.target.value) : null;
+      
+      // Apply filter to all grids
+      if (masterTransactionsTable) {
+        if (transactionFilterAccountId) {
+          masterTransactionsTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === transactionFilterAccountId;
+          });
+        } else {
+          masterTransactionsTable.setFilter((data) => {
+            return !String(data.id).includes('_flipped');
+          });
+        }
+        updateTransactionTotals();
+      }
+      
+      if (masterBudgetTable) {
+        if (transactionFilterAccountId) {
+          masterBudgetTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === transactionFilterAccountId;
+          });
+        } else {
+          masterBudgetTable.setFilter((data) => {
+            return !String(data.id).includes('_flipped');
+          });
+        }
+        updateBudgetTotals();
+      }
+      
+      // Reload projections grid to reflect filter (only the grid, not the whole section)
+      const gridContainer = document.getElementById('projectionsGrid');
+      if (gridContainer) {
+        await loadProjectionsGrid(gridContainer);
+        
+        // Update totals in toolbar
+        const filteredProjections = transactionFilterAccountId
+          ? (currentScenario.projections || []).filter(p => p.accountId === transactionFilterAccountId)
+          : currentScenario.projections || [];
+        
+        const projectionTotals = filteredProjections.reduce((acc, p) => {
+          const income = Number(p.income || 0);
+          const expenses = Number(p.expenses || 0);
+          const netChange = p.netChange !== undefined && p.netChange !== null
+            ? Number(p.netChange)
+            : (income - expenses);
+
+          acc.income += income;
+          acc.expenses += expenses;
+          acc.net += netChange;
+          return acc;
+        }, { income: 0, expenses: 0, net: 0 });
+        
+        // Update totals display
+        const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+        const toolbarTotals = container.querySelector('.toolbar-totals');
+        if (toolbarTotals) {
+          toolbarTotals.innerHTML = `
+            <span class="toolbar-total-item"><span class="label">Income:</span> <span class="value positive">${formatCurrency(projectionTotals.income)}</span></span>
+            <span class="toolbar-total-item"><span class="label">Expenses:</span> <span class="value negative">${formatCurrency(projectionTotals.expenses)}</span></span>
+            <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${projectionTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(projectionTotals.net)}</span></span>
+          `;
+        }
+      }
+    });
+  } else {
+    console.error('[Projections] Could not find account filter select element!');
   }
 
   // Projections grid container
@@ -2169,64 +2189,24 @@ async function loadProjectionsGrid(container) {
 
   try {
     // Filter projections by selected account
-    const filteredProjections = selectedAccountId
-      ? (currentScenario.projections || []).filter(p => p.accountId === selectedAccountId)
+    const filteredProjections = transactionFilterAccountId
+      ? (currentScenario.projections || []).filter(p => p.accountId === transactionFilterAccountId)
       : currentScenario.projections || [];
 
+    // Build account lookup map for O(1) access instead of O(n) find for each projection
+    const accountMap = new Map((currentScenario.accounts || []).map(a => [a.id, a]));
 
     // Grid will show placeholder if no projections (handled by Tabulator)
 
     // Transform projections for display
     const transformedData = filteredProjections.map(p => ({
       date: p.date,
-      account: currentScenario.accounts?.find(a => a.id === p.accountId)?.name || '',
+      account: accountMap.get(p.accountId)?.name || '',
       balance: p.balance || 0,
       income: p.income || 0,
       expenses: p.expenses || 0,
       netChange: p.netChange || 0
     }));
-
-    // Create toolbar for controls
-    const toolbar = document.createElement('div');
-    toolbar.className = 'grid-toolbar';
-
-    // Add grouping control
-    const projectionsGroupingControl = document.createElement('div');
-    projectionsGroupingControl.className = 'toolbar-item grouping-control';
-    projectionsGroupingControl.innerHTML = `
-      <label for="projections-grouping-select" class="text-muted control-label">Group By:</label>
-      <select id="projections-grouping-select" class="input-select control-select">
-        <option value="">None</option>
-        <option value="account">Account</option>
-      </select>
-    `;
-    window.add(toolbar, projectionsGroupingControl);
-
-    // Compute filtered totals for the current projection view
-    const projectionTotals = transformedData.reduce((acc, row) => {
-      const income = Number(row.income || 0);
-      const expenses = Number(row.expenses || 0);
-      const netChange = row.netChange !== undefined && row.netChange !== null
-        ? Number(row.netChange)
-        : (income - expenses);
-
-      acc.income += income;
-      acc.expenses += expenses;
-      acc.net += netChange;
-      return acc;
-    }, { income: 0, expenses: 0, net: 0 });
-
-    // Add inline totals to toolbar
-    const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-    const totalsInline = document.createElement('div');
-    totalsInline.className = 'toolbar-item toolbar-totals';
-    totalsInline.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Income:</span> <span class="value positive">${formatCurrency(projectionTotals.income)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Expenses:</span> <span class="value negative">${formatCurrency(projectionTotals.expenses)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net Change:</span> <span class="value ${projectionTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(projectionTotals.net)}</span></span>
-    `;
-    window.add(toolbar, totalsInline);
-    window.add(container, toolbar);
 
     const projectionsTable = await createGrid(container, {
       data: transformedData,
