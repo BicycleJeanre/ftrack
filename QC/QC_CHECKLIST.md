@@ -18,13 +18,13 @@
 - [x] Verify changes are saved
 
 ### 1.3 Duplicate
-- [ ] Duplicate scenario
-- [ ] Verify new scenario name is set correctly (includes "(Copy)")
-- [ ] Verify all accounts are duplicated
+- [x] Duplicate scenario
+- [x] Verify new scenario name is set correctly (includes "(Copy)")
+- [x] Verify all accounts are duplicated
 - [ ] Verify all transactions are duplicated
 - [ ] Verify all budgets are duplicated
 - [ ] Verify projections are NOT duplicated (reset to empty)
-- [ ] Verify duplicate scenario can be edited independently
+- [x] Verify duplicate scenario can be edited independently
 
 ### 1.4 Delete
 - [x] Delete scenario
@@ -37,53 +37,53 @@
 
 ### 2.1 Create/Add/New
 - [x] Create new account
-- [ ] Verify account name is saved correctly
-- [ ] Verify account appears in account list
-- [ ] Verify account type is set correctly
+- [x] Verify account name is saved correctly
+- [x] Verify account appears in account list
+- [ ] Verify account type is set correctly (not setting default Yet)
 
 ### 2.2 Edit
-- [ ] Edit account name
-- [ ] Edit account type
-- [ ] Edit account settings
-- [ ] Verify changes are saved
+- [x] Edit account name
+- [x] Edit account type
+- [x] Edit account settings
+- [x] Verify changes are saved
 
 ### 2.3 Delete
-- [ ] Delete account
-- [ ] Verify account is removed from list
+- [x] Delete account
+- [x] Verify account is removed from list
 - [ ] Verify associated transactions are handled correctly
-- [ ] Verify data integrity after deletion
+- [x] Verify data integrity after deletion
 
 ### 2.4 Periodic Change
 
 #### 2.4.1 Percentage Rate Mode
-- [ ] Set percentage rate mode on account
-- [ ] Test with nominal annual (no compounding)
-- [ ] Test with compounded monthly
-- [ ] Test with compounded daily
-- [ ] Test with compounded quarterly
-- [ ] Test with compounded annually
-- [ ] Test with continuous compounding
-- [ ] Test with custom compounding (various frequencies and periods)
+- [x] Set percentage rate mode on account
+- [x] Test with nominal annual (no compounding)
+- [x] Test with compounded monthly
+- [x] Test with compounded daily
+- [x] Test with compounded quarterly
+- [x] Test with compounded annually
+- [x] Test with continuous compounding
+- [x] Test with custom compounding (various frequencies and periods)
 - [ ] Test with small percentage (e.g., 0.5%)
-- [ ] Test with medium percentage (e.g., 3%)
+- [x] Test with medium percentage (e.g., 3%)
 - [ ] Test with large percentage (e.g., 15%)
 - [ ] Test with negative percentage (decline)
 - [ ] Test with decimal percentages (e.g., 3.75%)
 
 #### 2.4.2 Fixed Amount Mode
-- [ ] Set fixed amount mode on account
-- [ ] Test with daily frequency
-- [ ] Test with weekly frequency (with/without specific day)
-- [ ] Test with monthly frequency (with/without specific day)
-- [ ] Test with quarterly frequency
-- [ ] Test with yearly frequency
+- [x] Set fixed amount mode on account
+- [x] Test with daily frequency
+- [x] Test with weekly frequency (with/without specific day)
+- [x] Test with monthly frequency (with/without specific day)
+- [x] Test with quarterly frequency
+- [x] Test with yearly frequency
 - [ ] Test with various dollar amounts (small, medium, large, negative, decimal)
 
 #### 2.4.3 Clear and Persistence
-- [ ] Clear periodic change from account
-- [ ] Verify account periodic change persists after save
+- [x] Clear periodic change from account
+- [x] Verify account periodic change persists after save
 - [ ] Verify periodic change affects account projections correctly
-- [ ] Verify periodic change description displays correctly
+- [x] Verify periodic change description displays correctly
 
 ---
 
