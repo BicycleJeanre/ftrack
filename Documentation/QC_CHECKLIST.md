@@ -27,7 +27,7 @@
 ## 2.0 Accounts
 
 ### 2.1 Create/Add/New
-- [ ] Create new account
+- [x] Create new account
 - [ ] Verify account name is saved correctly
 - [ ] Verify account appears in account list
 - [ ] Verify account type is set correctly

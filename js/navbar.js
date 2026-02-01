@@ -9,7 +9,18 @@ import { isElectronEnv } from './core/platform.js';
   // Add clear data button only for web
   var clearDataBtn = !isElectron ? '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>' : '';
   
+  // Determine the correct path to assets based on current location
+  var logoPath = 'assets/ftrack-logo.svg';
+  var path = window.location.pathname;
+  if (path.includes('/pages/')) {
+    logoPath = '../assets/ftrack-logo.svg';
+  }
+  
   var navLinks = `
+    <div class="navbar-brand">
+      <img src="${logoPath}" alt="FTrack" class="navbar-logo" />
+      <span class="navbar-title">FTrack</span>
+    </div>
     <a href="home.html" id="nav-home">Home</a>
     <a href="forecast.html" id="nav-forecast">Forecast</a>
     <div class="nav-spacer"></div>
