@@ -672,6 +672,23 @@ async function loadAccountsGrid(container) {
           await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
         }, { confirmMessage: (rowData) => `Delete account: ${rowData.name}?` }),
         createTextColumn('Account Name', 'name', { widthGrow: 2 }),
+        {
+          title: "Type",
+          field: "type",
+          minWidth: 120,
+          widthGrow: 1,
+          formatter: function(cell) {
+            const value = cell.getValue();
+            return value?.name || '';
+          },
+          editor: "list",
+          editorParams: {
+            values: lookupData.accountTypes.map(t => ({ label: t.name, value: t })),
+            listItemFormatter: function(value, title) {
+              return title;
+            }
+          }
+        },
         createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 }),
         {
           title: "Periodic Change",
@@ -697,7 +714,8 @@ async function loadAccountsGrid(container) {
               }
             });
           }
-        }
+        },
+        createTextColumn('Description', 'description', { widthGrow: 2 }),
       ],
       cellEdited: async function(cell) {
         const account = cell.getRow().getData();
@@ -983,8 +1001,6 @@ async function loadMasterTransactionsGrid(container) {
   gridContainer.className = 'grid-container master-transactions-grid';
   window.add(container, gridContainer);
 
-  // Always show primary account column (filtering now handled by dropdown)
-  const showPrimaryColumn = true;
   // Show date column only when a specific period is selected
   const showDateColumn = !!actualPeriod;
 
@@ -1071,31 +1087,6 @@ async function loadMasterTransactionsGrid(container) {
           await TransactionManager.saveAll(currentScenario.id, filteredTxs);
           await loadMasterTransactionsGrid(container);
         }, { confirmMessage: () => 'Delete this transaction?' }),
-        ...(showPrimaryColumn ? [{
-          title: "Primary Account",
-          field: "primaryAccount",
-          minWidth: 150,
-          widthGrow: 1.5,
-          formatter: function(cell) {
-            const value = cell.getValue();
-            return value?.name || '';
-          },
-          editor: "list",
-          editorParams: {
-            values: [
-              ...((currentScenario.accounts || []).map(acc => ({ label: acc.name, value: acc }))),
-              { label: 'Insert New Account...', value: { __create__: true } }
-            ],
-            listItemFormatter: function(value, title) {
-              return title;
-            }
-          },
-          sorter: function(a, b) {
-            const aVal = a?.name || '';
-            const bVal = b?.name || '';
-            return aVal.localeCompare(bVal);
-          }
-        }] : []),
         {
           title: "Type",
           field: "transactionType",
@@ -1201,7 +1192,8 @@ async function loadMasterTransactionsGrid(container) {
             });
           }
         },
-        ...(showDateColumn ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })] : [])
+        ...(showDateColumn ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })] : []),
+        createTextColumn('Description', 'description', { widthGrow: 2 }),
       ],
       cellEdited: async function(cell) {
         const rowData = cell.getRow().getData();
@@ -1629,12 +1621,12 @@ async function loadBudgetGrid(container) {
         transactionType: storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' },
         plannedAmount: budget.amount,
         actualAmount: statusObj.actualAmount,
+        actualDate: statusObj.actualDate,
         amount: statusObj.actualAmount !== null && statusObj.actualAmount !== undefined ? statusObj.actualAmount : budget.amount,
         description: budget.description,
         occurrenceDate: budget.occurrenceDate,
         recurrenceDescription: recurrenceSummary,
-        status: statusObj,
-        actualDateOverride: statusObj.actualDate
+        status: statusObj
       };
       
       // Filter by period if selected (before creating perspectives)
@@ -1709,9 +1701,9 @@ async function loadBudgetGrid(container) {
           currentScenario = await getScenario(currentScenario.id);
           await loadBudgetGrid(container);
         }, { confirmMessage: () => 'Delete this budget occurrence?' }),
-        ...(showPrimaryColumnBudget ? [{
-          title: "Primary Account",
-          field: "primaryAccount",
+        {
+          title: "Secondary Account",
+          field: "secondaryAccount",
           minWidth: 150,
           widthGrow: 1.5,
           formatter: function(cell) {
@@ -1730,7 +1722,7 @@ async function loadBudgetGrid(container) {
             const bVal = b?.name || '';
             return aVal.localeCompare(bVal);
           }
-        }] : []),
+        },
         {
           title: "Type",
           field: "transactionType",
@@ -1756,68 +1748,20 @@ async function loadBudgetGrid(container) {
             return aVal.localeCompare(bVal);
           }
         },
-        {
-          title: "Secondary Account",
-          field: "secondaryAccount",
-          minWidth: 150,
-          widthGrow: 1.5,
-          formatter: function(cell) {
-            const value = cell.getValue();
-            return value?.name || '';
-          },
-          editor: "list",
-          editorParams: {
-            values: (currentScenario.accounts || []).map(acc => ({ label: acc.name, value: acc })),
-            listItemFormatter: function(value, title) {
-              return title;
-            }
-          },
-          sorter: function(a, b) {
-            const aVal = a?.name || '';
-            const bVal = b?.name || '';
-            return aVal.localeCompare(bVal);
-          }
-        },
         createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
         ...(showBudgetDateColumn ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 })] : []),
         {
-          title: "Status",
-          field: "status",
-          minWidth: 100,
+          title: "Recurrence",
+          field: "recurrenceDescription",
+          minWidth: 130,
           widthGrow: 1,
           formatter: function(cell) {
-            const rowData = cell.getRow().getData();
-            const status = rowData.status;
-            const statusName = typeof status === 'object' ? status?.name : status;
-            return statusName === 'actual' ? 'Actual' : 'Planned';
-          },
-          cellClick: async function(e, cell) {
-            const rowData = cell.getRow().getData();
-            openStatusModal(rowData, async (updates) => {
-              // Update budget occurrence with actual amount and date
-              const canonicalId = String(rowData.id).replace('_flipped', '');
-              const allBudgets = (await getBudget(currentScenario.id)).map(normalizeCanonicalTransaction);
-              const budgetIndex = allBudgets.findIndex(b => String(b.id) === canonicalId);
-              if (budgetIndex >= 0) {
-                const updatedBudget = { ...allBudgets[budgetIndex] };
-                const actualAmount = updates.actualAmount !== null && updates.actualAmount !== undefined
-                  ? Math.abs(updates.actualAmount)
-                  : null;
-
-                updatedBudget.status = {
-                  name: actualAmount !== null ? 'actual' : 'planned',
-                  actualAmount,
-                  actualDate: updates.actualDate || null
-                };
-
-                allBudgets[budgetIndex] = updatedBudget;
-                await BudgetManager.saveAll(currentScenario.id, allBudgets);
-                currentScenario = await getScenario(currentScenario.id);
-                await loadBudgetGrid(container);
-              }
-            });
+            return cell.getValue() || 'One time';
           }
-        }
+        },
+        createTextColumn('Description', 'description', { widthGrow: 2 }),
+        createMoneyColumn('Actual Amount', 'actualAmount', { minWidth: 100, widthGrow: 1 }),
+        createDateColumn('Actual Date', 'actualDate', { minWidth: 110, widthGrow: 1 })
       ],
       cellEdited: async function(cell) {
         const rowData = cell.getRow().getData();
@@ -1832,11 +1776,22 @@ async function loadBudgetGrid(container) {
         if (budgetIndex >= 0) {
           const updatedBudget = mapEditToCanonical(allBudgets[budgetIndex], { field, value: newValue, isFlipped });
 
-          if (updatedBudget.status && typeof updatedBudget.status === 'object' && updatedBudget.status.actualAmount !== null && updatedBudget.status.actualAmount !== undefined) {
-            updatedBudget.status = {
-              ...updatedBudget.status,
-              actualAmount: Math.abs(Number(updatedBudget.status.actualAmount) || 0)
-            };
+          // Normalize actualAmount if set
+          if (updatedBudget.actualAmount !== null && updatedBudget.actualAmount !== undefined) {
+            updatedBudget.actualAmount = Math.abs(Number(updatedBudget.actualAmount) || 0);
+          }
+
+          // If actual amount or actual date is edited, change status to 'actual'
+          if (field === 'actualAmount' || field === 'actualDate') {
+            const hasActualData = (updatedBudget.actualAmount !== null && updatedBudget.actualAmount !== undefined) || 
+                                  (updatedBudget.actualDate !== null && updatedBudget.actualDate !== undefined);
+            if (hasActualData) {
+              updatedBudget.status = {
+                name: 'actual',
+                actualAmount: updatedBudget.actualAmount || null,
+                actualDate: updatedBudget.actualDate || null
+              };
+            }
           }
 
           allBudgets[budgetIndex] = updatedBudget;
@@ -1906,65 +1861,6 @@ async function loadBudgetGrid(container) {
     console.error('[Forecast] Failed to load budget grid:', err);
   }
 }
-
-// Open status modal for editing actual amount and date
-function openStatusModal(rowData, onConfirm) {
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-
-  const content = document.createElement('div');
-  content.className = 'modal-content';
-  content.innerHTML = `
-    <h3>Edit Status</h3>
-    <form>
-      <div class="form-group">
-        <label for="actualAmount">Actual Amount:</label>
-        <input type="number" id="actualAmount" step="0.01" value="${rowData.status?.actualAmount || ''}" placeholder="Enter actual amount">
-      </div>
-      <div class="form-group">
-        <label for="actualDate">Actual Date:</label>
-        <input type="date" id="actualDate" value="${rowData.status?.actualDate ? formatDateOnly(new Date(rowData.status.actualDate)) : ''}">
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-confirm">Confirm</button>
-        <button type="button" class="btn btn-cancel">Cancel</button>
-      </div>
-    </form>
-  `;
-
-  modal.appendChild(content);
-  document.body.appendChild(modal);
-
-  const confirmBtn = content.querySelector('.btn-confirm');
-  const cancelBtn = content.querySelector('.btn-cancel');
-  const actualAmountInput = content.querySelector('#actualAmount');
-  const actualDateInput = content.querySelector('#actualDate');
-
-  confirmBtn.addEventListener('click', () => {
-    const actualAmount = actualAmountInput.value ? parseFloat(actualAmountInput.value) : null;
-    const actualDate = actualDateInput.value || null;
-
-    onConfirm({
-      actualAmount,
-      actualDate,
-      name: actualAmount !== null ? 'actual' : 'planned'
-    });
-
-    modal.remove();
-  });
-
-  cancelBtn.addEventListener('click', () => {
-    modal.remove();
-  });
-
-  // Close on overlay click
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove();
-    }
-  });
-}
-
 
 // Load projections section (buttons and grid)
 async function loadProjectionsSection(container) {
