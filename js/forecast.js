@@ -1090,8 +1090,14 @@ async function loadMasterTransactionsGrid(container) {
       autoResize: true, // Enable auto-resize on window changes
       columns: [
         createDeleteColumn(async (cell) => {
+          const rowData = cell.getRow().getData();
+          // Strip _flipped suffix from ID if present (for flipped perspective rows)
+          // Safe for both perspectives: primary IDs unmodified, flipped IDs get suffix removed
+          const actualTxId = String(rowData.id).includes('_flipped') 
+            ? String(rowData.id).replace('_flipped', '') 
+            : rowData.id;
           const allTxs = await getTransactions(currentScenario.id);
-          const filteredTxs = allTxs.filter(tx => tx.id !== cell.getRow().getData().id);
+          const filteredTxs = allTxs.filter(tx => tx.id !== Number(actualTxId));
           await TransactionManager.saveAll(currentScenario.id, filteredTxs);
           await loadMasterTransactionsGrid(container);
         }, { confirmMessage: () => 'Delete this transaction?' }),
