@@ -5,6 +5,16 @@ All notable changes to FTrack will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Theme switching system (dark/light) with persistent user preference
+  - Navbar toggle button for easy theme switching
+  - Automatic theme detection based on system color scheme preference
+  - CSS custom properties enable theme-agnostic styling across all components
+  - Light theme color palette optimized for readability and visual hierarchy
+- Theme preference persisted to localStorage (`ftrack:theme`)
+
 ## [0.7.0-beta] - 2026-02-01
 
 ### Added

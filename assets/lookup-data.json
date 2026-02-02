@@ -32,6 +32,19 @@
       "showProjections": true,
       "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange"],
       "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
+    },
+    {
+      "id": 4,
+      "name": "Debt Repayment",
+      "description": "Track and model debt payoff scenarios",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": false,
+      "showBudget": false,
+      "showProjections": true,
+      "showSummaryCards": true,
+      "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange", "description"],
+      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
     }
   ],
   "periodTypes": [

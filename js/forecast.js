@@ -46,12 +46,16 @@ let scenarioTypes = null;
 let transactionFilterAccountId = null; // Track account filter for transactions view (independent of account grid selection)
 let actualPeriod = null; // Selected period for actual transactions
 let actualPeriodType = 'Month'; // Selected period type for transactions view
+let projectionPeriod = null; // Selected period for projections view
+let projectionPeriodType = 'Month'; // Selected period type for projections view
 let budgetPeriod = null; // Selected period for budget view
 let budgetPeriodType = 'Month'; // Selected period type for budget view
 let periods = []; // Calculated periods for current scenario
+let projectionPeriods = []; // Calculated periods for projections view
 let budgetGridLoadToken = 0; // Prevent stale budget renders
 let masterTransactionsTable = null; // Store transactions table instance for filtering
 let masterBudgetTable = null; // Store budget table instance for filtering
+let summaryCardsAccountTypeFilter = 'All';
 
 // Update transaction totals in toolbar based on current filtered data
 function updateTransactionTotals(filteredRows = null) {
@@ -99,6 +103,66 @@ function updateBudgetTotals(filteredRows = null) {
   renderBudgetTotals(toolbarTotals, budgetTotals);
 }
 
+function getFilteredProjections() {
+  if (!currentScenario) return [];
+
+  let filtered = currentScenario.projections || [];
+
+  if (transactionFilterAccountId) {
+    filtered = filtered.filter(p => p.accountId === transactionFilterAccountId);
+  }
+
+  if (projectionPeriod && projectionPeriods.length) {
+    const selectedPeriod = projectionPeriods.find(p => p.id === projectionPeriod);
+    if (selectedPeriod) {
+      const startDate = selectedPeriod.startDate;
+      const endDate = selectedPeriod.endDate;
+      filtered = filtered.filter(p => {
+        const projectionDate = typeof p.date === 'string' ? parseDateOnly(p.date) : new Date(p.date);
+        return projectionDate >= startDate && projectionDate <= endDate;
+      });
+    }
+  }
+
+  return filtered;
+}
+
+function updateProjectionTotals(container, projections = null) {
+  if (!container) return;
+
+  const data = projections || getFilteredProjections();
+  const totals = data.reduce((acc, p) => {
+    const income = Number(p.income || 0);
+    const expenses = Number(p.expenses || 0);
+    const netChange = p.netChange !== undefined && p.netChange !== null
+      ? Number(p.netChange)
+      : (income - expenses);
+
+    acc.income += income;
+    acc.expenses += expenses;
+    acc.net += netChange;
+    return acc;
+  }, { income: 0, expenses: 0, net: 0 });
+
+  const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+
+  const displayExpenses = -Math.abs(totals.expenses);
+
+  const toolbarTotals = container.querySelector('.toolbar-totals');
+  if (toolbarTotals) {
+    toolbarTotals.innerHTML = `
+      <span class="toolbar-total-item"><span class="label">Income:</span> <span class="value positive">${formatCurrency(totals.income)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Expenses:</span> <span class="value negative">${formatCurrency(displayExpenses)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${totals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(totals.net)}</span></span>
+    `;
+  }
+}
+
 
 
 // Build the main UI container with independent accordions
@@ -124,6 +188,24 @@ function buildGridContainer() {
   scenarioSelector.id = 'scenario-selector';
   window.add(scenarioContent, scenarioSelector);
   window.add(forecastEl, scenarioSection);
+
+  // Summary Cards section with accordion (NEW - for debt repayment scenarios)
+  const summaryCardsSection = document.createElement('div');
+  summaryCardsSection.id = 'summaryCardsSection';
+  summaryCardsSection.className = 'bg-main bordered rounded shadow-lg mb-lg hidden';
+  
+  const summaryCardsHeader = document.createElement('div');
+  summaryCardsHeader.className = 'pointer flex-between accordion-header section-padding';
+  summaryCardsHeader.innerHTML = `<h2 class="text-main section-title">Summary</h2><span class="accordion-arrow">&#9662;</span>`;
+  summaryCardsHeader.addEventListener('click', () => window.toggleAccordion('summaryCardsContent'));
+  window.add(summaryCardsSection, summaryCardsHeader);
+  
+  const summaryCardsContent = document.createElement('div');
+  summaryCardsContent.id = 'summaryCardsContent';
+  summaryCardsContent.className = 'accordion-content section-content';
+  window.add(summaryCardsSection, summaryCardsContent);
+  
+  window.add(forecastEl, summaryCardsSection);
 
   // Accounts section with accordion
   const accountsSection = document.createElement('div');
@@ -210,6 +292,7 @@ function buildGridContainer() {
 
   return {
     scenarioSelector,
+    summaryCardsContent,
     accountsTable,
     transactionsTable,
     budgetTable,
@@ -417,12 +500,14 @@ async function buildScenarioGrid(container) {
     if (!currentScenario && scenarios.length > 0) {
       currentScenario = await getScenario(scenarios[0].id);
       await loadScenarioData();
-      // Select the first row visually without triggering the handler
-      // (data is already loaded above, so we don't want duplicate load)
-      const firstRow = scenariosTable.getRows()[0];
-      if (firstRow) {
-        firstRow.select();
-      }
+      // Select the first row visually after grid is fully initialized
+      // Use a small delay to ensure the grid is ready
+      setTimeout(() => {
+        const firstRow = scenariosTable.getRows()[0];
+        if (firstRow && !firstRow.isSelected()) {
+          firstRow.select();
+        }
+      }, 100);
     }
   } catch (err) {
     console.error('[Forecast] Failed to load scenario grid:', err);
@@ -1903,6 +1988,213 @@ async function loadBudgetGrid(container) {
   }
 }
 
+// Load debt summary cards (per-account + overall total)
+async function loadDebtSummaryCards(container) {
+  if (!container) {
+    return;
+  }
+  if (!currentScenario || !currentScenario.accounts) {
+    container.innerHTML = '<div class="empty-message">No accounts added yet.</div>';
+    return;
+  }
+
+  const { accounts, projections } = currentScenario;
+  if (!accounts.length) {
+    container.innerHTML = '<div class="empty-message">No accounts added yet.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar summary-cards-toolbar';
+
+  const filterItem = document.createElement('div');
+  filterItem.className = 'toolbar-item';
+  filterItem.innerHTML = `
+    <label for="summary-cards-type-filter" class="text-muted control-label">Account Type:</label>
+    <select id="summary-cards-type-filter" class="input-select control-select">
+      <option value="All">All</option>
+      <option value="Liability">Liability</option>
+      <option value="Asset">Asset</option>
+    </select>
+  `;
+  toolbar.appendChild(filterItem);
+  container.appendChild(toolbar);
+
+  const filterSelect = filterItem.querySelector('#summary-cards-type-filter');
+  if (filterSelect) {
+    filterSelect.value = summaryCardsAccountTypeFilter;
+    filterSelect.addEventListener('change', () => {
+      summaryCardsAccountTypeFilter = filterSelect.value;
+      loadDebtSummaryCards(container);
+    });
+  }
+
+  const getAccountTypeName = (account) => account?.type?.name || 'Unknown';
+  const filteredAccounts = summaryCardsAccountTypeFilter === 'All'
+    ? accounts
+    : accounts.filter(account => getAccountTypeName(account) === summaryCardsAccountTypeFilter);
+
+  if (!filteredAccounts.length) {
+    const emptyMessage = document.createElement('div');
+    emptyMessage.className = 'empty-message';
+    emptyMessage.textContent = 'No accounts match this filter.';
+    container.appendChild(emptyMessage);
+    return;
+  }
+
+  // Create per-account cards
+  let totalStarting = 0;
+  let totalProjectedEnd = 0;
+  let totalInterestEarned = 0;
+  let totalInterestPaid = 0;
+
+  const groupedAccounts = filteredAccounts.reduce((groups, account) => {
+    const typeName = getAccountTypeName(account);
+    if (!groups[typeName]) {
+      groups[typeName] = [];
+    }
+    groups[typeName].push(account);
+    return groups;
+  }, {});
+
+  const orderedGroupKeys = (() => {
+    const preferredOrder = ['Liability', 'Asset'];
+    const remaining = Object.keys(groupedAccounts).filter(key => !preferredOrder.includes(key)).sort();
+    if (summaryCardsAccountTypeFilter !== 'All') {
+      return Object.keys(groupedAccounts);
+    }
+    return [...preferredOrder.filter(key => groupedAccounts[key]), ...remaining];
+  })();
+
+  const groupWrapper = document.createElement('div');
+  groupWrapper.className = 'summary-cards-groups';
+
+  for (const groupKey of orderedGroupKeys) {
+    const groupContainer = document.createElement('div');
+    groupContainer.className = 'summary-cards-group';
+
+    const groupTitle = document.createElement('div');
+    groupTitle.className = 'summary-cards-group-title';
+    groupTitle.textContent = groupKey;
+    groupContainer.appendChild(groupTitle);
+
+    const grid = document.createElement('div');
+    grid.className = 'summary-cards-grid';
+
+    for (const account of groupedAccounts[groupKey]) {
+    const startingBalance = account.startingBalance ?? account.balance ?? 0;
+    totalStarting += startingBalance;
+
+    // Find projections for this account
+    const accountProjections = projections ? projections.filter(p => p.accountId === account.id) : [];
+    
+    // Calculate metrics
+    const projectedEnd = accountProjections.length ? (accountProjections[accountProjections.length - 1].balance || 0) : startingBalance;
+    totalProjectedEnd += projectedEnd;
+
+    // Sum interest earned and paid from projection records
+    let interestEarned = 0;
+    let interestPaid = 0;
+    
+    accountProjections.forEach(p => {
+      const interest = Number(p.interest || 0);
+      if (interest >= 0) {
+        interestEarned += interest;
+      } else {
+        interestPaid += interest; // Keep as negative
+      }
+    });
+    
+    totalInterestEarned += interestEarned;
+    totalInterestPaid += interestPaid;
+
+    // Find zero crossing date (when balance goes from negative to positive)
+    let zeroCrossingDate = null;
+    let previousBalance = startingBalance;
+    for (const p of accountProjections) {
+      const currentBalance = Number(p.balance || 0);
+      if (previousBalance < 0 && currentBalance >= 0) {
+        zeroCrossingDate = p.date;
+        break;
+      }
+      previousBalance = currentBalance;
+    }
+
+    // Format values for display
+    const startingStr = formatMoneyDisplay(startingBalance);
+    const projectedStr = formatMoneyDisplay(projectedEnd);
+    const interestEarnedStr = formatMoneyDisplay(interestEarned);
+    const interestPaidStr = formatMoneyDisplay(interestPaid);
+    const zeroCrossingStr = zeroCrossingDate ? formatDateOnly(parseDateOnly(zeroCrossingDate)) : 'N/A';
+
+    // Create card
+    const card = document.createElement('div');
+    card.className = 'summary-card';
+    card.innerHTML = `
+      <div class="summary-card-title">${account.name || 'Unnamed'}</div>
+      <div class="summary-card-row">
+        <span class="label">Starting Balance:</span>
+        <span class="value">${startingStr}</span>
+      </div>
+      <div class="summary-card-row">
+        <span class="label">Projected End:</span>
+        <span class="value">${projectedStr}</span>
+      </div>
+      <div class="summary-card-row">
+        <span class="label">Interest Earned:</span>
+        <span class="value interest-earned">${interestEarnedStr}</span>
+      </div>
+      <div class="summary-card-row">
+        <span class="label">Interest Paid:</span>
+        <span class="value interest-paid">${interestPaidStr}</span>
+      </div>
+      <div class="summary-card-row">
+        <span class="label">Zero Date:</span>
+        <span class="value">${zeroCrossingStr}</span>
+      </div>
+    `;
+    grid.appendChild(card);
+    }
+
+    groupContainer.appendChild(grid);
+    groupWrapper.appendChild(groupContainer);
+  }
+
+  // Create overall total card (only when multiple accounts exist)
+  if (filteredAccounts.length > 1) {
+    const totalCard = document.createElement('div');
+    totalCard.className = 'summary-card overall-total';
+    totalCard.innerHTML = `
+      <div class="summary-card-title">OVERALL TOTAL</div>
+      <div class="summary-card-row">
+        <span class="label">Starting Balance:</span>
+        <span class="value">${formatMoneyDisplay(totalStarting)}</span>
+      </div>
+      <div class="summary-card-row">
+        <span class="label">Projected End:</span>
+        <span class="value">${formatMoneyDisplay(totalProjectedEnd)}</span>
+      </div>
+      <div class="summary-card-row">
+        <span class="label">Interest Earned:</span>
+        <span class="value interest-earned">${formatMoneyDisplay(totalInterestEarned)}</span>
+      </div>
+      <div class="summary-card-row">
+        <span class="label">Interest Paid:</span>
+        <span class="value interest-paid">${formatMoneyDisplay(totalInterestPaid)}</span>
+      </div>
+      <div class="summary-card-row">
+        <span class="label">Accounts:</span>
+        <span class="value">${filteredAccounts.length}</span>
+      </div>
+    `;
+    groupWrapper.appendChild(totalCard);
+  }
+
+  container.appendChild(groupWrapper);
+}
+
 // Load projections section (buttons and grid)
 async function loadProjectionsSection(container) {
   if (!currentScenario) return;
@@ -1931,6 +2223,11 @@ async function loadProjectionsSection(container) {
       // Reload scenario to get updated projections
       currentScenario = await getScenario(currentScenario.id);
       await loadProjectionsSection(container);
+      // Refresh summary cards if enabled
+      const typeConfig = getScenarioTypeConfig();
+      if (typeConfig.showSummaryCards) {
+        await loadDebtSummaryCards(getEl('summaryCardsContent'));
+      }
     } catch (err) {
       console.error('[Forecast] Failed to generate projections:', err);
       alert('Failed to generate projections: ' + err.message);
@@ -2013,9 +2310,94 @@ async function loadProjectionsSection(container) {
     </select>
   `;
   window.add(toolbar, groupingControl);
+
+  // Add period type selector
+  const periodTypeControl = document.createElement('div');
+  periodTypeControl.className = 'toolbar-item period-type-control';
+  periodTypeControl.innerHTML = `
+    <label for="projections-period-type-select" class="text-muted control-label">View By:</label>
+    <select id="projections-period-type-select" class="input-select control-select">
+      <option value="Day">Day</option>
+      <option value="Week">Week</option>
+      <option value="Month">Month</option>
+      <option value="Quarter">Quarter</option>
+      <option value="Year">Year</option>
+    </select>
+  `;
+  window.add(toolbar, periodTypeControl);
+
+  // Add period filter
+  const periodFilter = document.createElement('div');
+  periodFilter.className = 'toolbar-item period-filter';
+  periodFilter.innerHTML = `
+    <label for="projections-period-select" class="text-muted control-label">Period:</label>
+    <select id="projections-period-select" class="input-select control-select"></select>
+    <button id="projections-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
+    <button id="projections-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
+  `;
+  window.add(toolbar, periodFilter);
+
+  const totalsInline = document.createElement('div');
+  totalsInline.className = 'toolbar-item toolbar-totals';
+  toolbar.appendChild(totalsInline);
   
   // Add toolbar to container
   window.add(container, toolbar);
+
+  // Set the selected period type from variable
+  const periodTypeSelect = document.getElementById('projections-period-type-select');
+  if (periodTypeSelect) {
+    periodTypeSelect.value = projectionPeriodType;
+  }
+
+  // Calculate periods for current scenario with selected period type
+  projectionPeriods = await getScenarioPeriods(currentScenario.id, projectionPeriodType);
+
+  // Populate period dropdown
+  const periodSelect = document.getElementById('projections-period-select');
+  if (periodSelect) {
+    periodSelect.innerHTML = '<option value="">-- All Periods --</option>';
+    projectionPeriods.forEach((period) => {
+      const option = document.createElement('option');
+      option.value = period.id;
+      option.textContent = period.label || `${formatDateOnly(period.startDate) || ''} to ${formatDateOnly(period.endDate) || ''}`;
+      periodSelect.appendChild(option);
+    });
+
+    periodSelect.value = projectionPeriod || '';
+
+    periodSelect.addEventListener('change', async (e) => {
+      projectionPeriod = e.target.value;
+      await loadProjectionsGrid(document.getElementById('projectionsGrid'));
+      updateProjectionTotals(container);
+    });
+
+    document.getElementById('projections-prev-period-btn')?.addEventListener('click', async () => {
+      const currentIndex = projectionPeriods.findIndex(p => p.id === projectionPeriod);
+      if (currentIndex > 0) {
+        projectionPeriod = projectionPeriods[currentIndex - 1].id;
+        await loadProjectionsGrid(document.getElementById('projectionsGrid'));
+        updateProjectionTotals(container);
+      }
+    });
+
+    document.getElementById('projections-next-period-btn')?.addEventListener('click', async () => {
+      const currentIndex = projectionPeriods.findIndex(p => p.id === projectionPeriod);
+      if (currentIndex >= 0 && currentIndex < projectionPeriods.length - 1) {
+        projectionPeriod = projectionPeriods[currentIndex + 1].id;
+        await loadProjectionsGrid(document.getElementById('projectionsGrid'));
+        updateProjectionTotals(container);
+      }
+    });
+
+    document.getElementById('projections-period-type-select')?.addEventListener('change', async (e) => {
+      projectionPeriodType = e.target.value;
+      projectionPeriod = null;
+      await loadProjectionsSection(container);
+    });
+  } else {
+    console.error('[Projections] Could not find period select element!');
+  }
 
   // Populate projections account filter dropdown
   const projectionsAccountFilterSelect = document.getElementById('projections-account-filter-select');
@@ -2073,35 +2455,7 @@ async function loadProjectionsSection(container) {
       const gridContainer = document.getElementById('projectionsGrid');
       if (gridContainer) {
         await loadProjectionsGrid(gridContainer);
-        
-        // Update totals in toolbar
-        const filteredProjections = transactionFilterAccountId
-          ? (currentScenario.projections || []).filter(p => p.accountId === transactionFilterAccountId)
-          : currentScenario.projections || [];
-        
-        const projectionTotals = filteredProjections.reduce((acc, p) => {
-          const income = Number(p.income || 0);
-          const expenses = Number(p.expenses || 0);
-          const netChange = p.netChange !== undefined && p.netChange !== null
-            ? Number(p.netChange)
-            : (income - expenses);
-
-          acc.income += income;
-          acc.expenses += expenses;
-          acc.net += netChange;
-          return acc;
-        }, { income: 0, expenses: 0, net: 0 });
-        
-        // Update totals display
-        const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-        const toolbarTotals = container.querySelector('.toolbar-totals');
-        if (toolbarTotals) {
-          toolbarTotals.innerHTML = `
-            <span class="toolbar-total-item"><span class="label">Income:</span> <span class="value positive">${formatCurrency(projectionTotals.income)}</span></span>
-            <span class="toolbar-total-item"><span class="label">Expenses:</span> <span class="value negative">${formatCurrency(projectionTotals.expenses)}</span></span>
-            <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${projectionTotals.net >= 0 ? 'positive' : 'negative'}">${formatCurrency(projectionTotals.net)}</span></span>
-          `;
-        }
+        updateProjectionTotals(container);
       }
     });
   } else {
@@ -2126,9 +2480,7 @@ async function loadProjectionsGrid(container) {
 
   try {
     // Filter projections by selected account
-    const filteredProjections = transactionFilterAccountId
-      ? (currentScenario.projections || []).filter(p => p.accountId === transactionFilterAccountId)
-      : currentScenario.projections || [];
+    const filteredProjections = getFilteredProjections();
 
     // Build account lookup map for O(1) access instead of O(n) find for each projection
     const accountMap = new Map((currentScenario.accounts || []).map(a => [a.id, a]));
@@ -2141,7 +2493,7 @@ async function loadProjectionsGrid(container) {
       account: accountMap.get(p.accountId)?.name || '',
       balance: p.balance || 0,
       income: p.income || 0,
-      expenses: p.expenses || 0,
+      expenses: -Math.abs(p.expenses || 0),
       netChange: p.netChange || 0
     }));
 
@@ -2203,6 +2555,8 @@ async function loadProjectionsGrid(container) {
       });
     }
 
+    updateProjectionTotals(getEl('projectionsContent'), filteredProjections);
+
   } catch (err) {
     console.error('[Forecast] Failed to load projections grid:', err);
   }
@@ -2214,7 +2568,8 @@ async function loadScenarioData() {
     accountsTable: getEl('accountsTable'),
     transactionsTable: getEl('transactionsTable'),
     budgetTable: getEl('budgetTable'),
-    projectionsContent: getEl('projectionsContent')
+    projectionsContent: getEl('projectionsContent'),
+    summaryCardsContent: getEl('summaryCardsContent')
   };
 
   const typeConfig = getScenarioTypeConfig();
@@ -2224,13 +2579,14 @@ async function loadScenarioData() {
   const txSection = getEl('transactionsTable').closest('.bg-main');
   const budgetSection = getEl('budgetSection');
   const projectionsSection = getEl('projectionsSection');
+  const summaryCardsSection = getEl('summaryCardsSection');
   
   if (typeConfig) {
     if (typeConfig.showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
     if (typeConfig.showPlannedTransactions || typeConfig.showActualTransactions) txSection.classList.remove('hidden'); else txSection.classList.add('hidden');
     if (typeConfig.showProjections) projectionsSection.classList.remove('hidden'); else projectionsSection.classList.add('hidden');
-    // Budget section is always visible (can be hidden manually by user via accordion)
-    budgetSection.classList.remove('hidden');
+    if (typeConfig.showBudget !== false) budgetSection.classList.remove('hidden'); else budgetSection.classList.add('hidden');
+    if (typeConfig.showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
   }
 
   // Clear downstream grids to prevent ghost data
@@ -2245,6 +2601,11 @@ async function loadScenarioData() {
   
   await loadBudgetGrid(containers.budgetTable);
   await loadProjectionsSection(containers.projectionsContent);
+  
+  // Load summary cards AFTER projections so they have data to work with
+  if (typeConfig.showSummaryCards) {
+    await loadDebtSummaryCards(containers.summaryCardsContent);
+  }
 }
 
 // Initialize the page

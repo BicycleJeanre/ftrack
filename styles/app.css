@@ -2724,6 +2724,24 @@ html[data-theme="light"] .home-hero {
   padding: var(--spacing-md) 0;
 }
 
+.summary-cards-toolbar {
+  margin-bottom: var(--spacing-sm);
+}
+
+.summary-cards-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.summary-cards-group-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
 .summary-card {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-secondary);
@@ -2772,6 +2790,14 @@ html[data-theme="light"] .home-hero {
   color: var(--text-primary);
   text-align: right;
   font-family: inherit;
+}
+
+.summary-card-row .value.interest-paid {
+  color: var(--danger);
+}
+
+.summary-card-row .value.interest-earned {
+  color: var(--success);
 }
 
 /* Overall Total Card - Visual Distinction */
