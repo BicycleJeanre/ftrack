@@ -76,11 +76,17 @@ export function transformTransactionToRows(tx, accounts = []) {
     primaryAccount,
     secondaryAccount,
     primaryAccountName: primaryAccount?.name || '',
+    primaryAccountTypeName: primaryAccount?.type?.name || '',
     secondaryAccountName: secondaryAccount?.name || '',
+    secondaryAccountTypeName: secondaryAccount?.type?.name || '',
     amount: signedAmount(typeId, unsignedPlanned),
     plannedAmount: signedAmount(typeId, unsignedPlanned),
     actualAmount: unsignedActual === null || unsignedActual === undefined ? unsignedActual : signedAmount(typeId, unsignedActual)
   };
+
+  if (tx.id <= 3) {
+    console.log(`TX ${tx.id}: primaryAccountTypeName="${primaryRow.primaryAccountTypeName}", primaryAccountName="${primaryRow.primaryAccountName}"`, { primaryAccount });
+  }
 
   rows.push(primaryRow);
 
@@ -97,7 +103,9 @@ export function transformTransactionToRows(tx, accounts = []) {
       primaryAccount: secondaryAccount,
       secondaryAccount: primaryAccount,
       primaryAccountName: secondaryAccount?.name || '',
+      primaryAccountTypeName: secondaryAccount?.type?.name || '',
       secondaryAccountName: primaryAccount?.name || '',
+      secondaryAccountTypeName: primaryAccount?.type?.name || '',
       transactionTypeId: flippedTypeId,
       transactionType: flippedType,
       transactionTypeName: flippedType.name,

@@ -15,9 +15,10 @@
 | [Budgets](#40-budgets) | 21 | 4 | 17 | 19% | 🟡 High | 🔴 High priority |
 | [Projections](#50-projection) | 11 | 9 | 2 | 82% | 🔴 Critical | ⚠️ Minor gaps |
 | [Data Management](#60-data-management) | 20 | 13 | 7 | 65% | 🟡 High | ⚠️ Needs attention |
+| [Debt Repayment](#90-debt-repayment) | 42 | 0 | 42 | 0% | 🟡 High | 🔵 Not started |
 | [Keyboard Shortcuts](#70-keyboard-shortcuts) | 12 | 0 | 12 | 0% | 🟢 Low | 🔵 Not started |
 | [Totals & Calculations](#80-totals-and-calculations) | 10 | 10 | 0 | 100% | 🔴 Critical | ✅ Complete |
-| **TOTAL** | **205** | **90** | **115** | **44%** | - | **In Progress** |
+| **TOTAL** | **247** | **90** | **157** | **36%** | - | **In Progress** |
 
 ### Legend
 - **Impact**: 🔴 Critical (core functionality) | 🟡 High (important features) | 🟢 Low (nice-to-have)
@@ -132,6 +133,7 @@
 
 #### 3.4.1 Percentage Rate Mode
 - [ ] Set percentage rate mode on transaction
+- [ ] 100% annual change - periodic change on transactions doesn't work as expected
 - [ ] Test with nominal annual (no compounding)
 - [ ] Test with compounded monthly
 - [ ] Test with compounded daily
@@ -385,6 +387,131 @@
 
 ---
 
+## 9.0 Debt Repayment
+
+### 9.1 Configuration & Visibility 🟡 High
+- [x] Debt Repayment appears in scenario type dropdown
+- [x] Budget section is hidden when Debt Repayment type selected
+- [x] Actual Transactions section is hidden when Debt Repayment type selected
+- [x] Summary Cards section appears when Debt Repayment type selected
+- [x] Scenarios section always visible
+- [x] Accounts section always visible
+- [x] Planned Transactions section always visible
+- [x] Projections section always visible
+- [x] Accordion headers toggle correctly for all visible sections
+
+### 9.2 Summary Cards - Display 🟡 High
+- [x] Summary Cards section renders without errors
+- [x] Per-account cards display for each account
+- [x] Overall Total card always appears as last card
+- [ ] Cards display in responsive grid layout
+- [x] No console errors when rendering cards
+- [x] Cards show "No accounts" message when no accounts added
+
+### 9.3 Summary Cards - Single Debt 🟡 High
+- [ ] Create new Debt Repayment scenario
+- [ ] Add account: Credit Card - $5,000 @ 18% APR
+- [ ] Verify Summary Card shows: Current = $5,000
+- [ ] Verify Summary Card shows: Projected End = $5,000 (no transactions yet)
+- [ ] Verify Summary Card shows: Interest Paid = $0
+- [ ] Verify Summary Card shows: Payoff Date = N/A
+- [ ] Overall Total card shows correct aggregate values
+
+### 9.4 Summary Cards - After Transactions 🟡 High
+- [ ] Add transaction: $250/month to Credit Card
+- [ ] Verify cards update after adding transaction
+- [ ] Generate projections (monthly)
+- [ ] Verify Summary Cards update after projection generation
+- [ ] Verify Projected End is calculated correctly (should approach $0)
+- [ ] Verify Payoff Date is calculated correctly
+- [ ] Verify Interest Paid is non-zero and reasonable
+- [ ] Verify currency formatting ($X,XXX.XX) is correct
+- [ ] Verify date formatting displays properly
+- [ ] Verify values are mathematically accurate
+
+### 9.5 Summary Cards - Multiple Debts 🟡 High
+- [ ] Add second account: Student Loan - $10,000 @ 5% APR
+- [ ] Add transaction: $100/month to Student Loan
+- [ ] Verify 2 per-account cards display (one for each account)
+- [ ] Verify Overall Total card displays (3rd card)
+- [ ] Verify Overall Total Current = sum of both accounts ($15,000)
+- [ ] Generate projections
+- [ ] Verify per-account payoff dates are different
+- [ ] Verify Overall Total Interest = sum of both accounts' interest
+- [ ] Verify Account Count = 2 in Overall Total card
+- [ ] Verify all calculations maintain accuracy with multiple debts
+
+### 9.6 Summary Cards - Updates & Refresh 🟡 High
+- [ ] Edit first transaction: Change $250 to $350/month
+- [ ] Verify cards update when transaction edited
+- [ ] Generate projections again
+- [ ] Verify Summary Cards update instantly after regeneration
+- [ ] Verify Payoff Date moves earlier (more payment = faster payoff)
+- [ ] Verify Interest Paid decreases with higher payments
+- [ ] Verify Overall Total Interest updates correctly
+- [ ] Add new account with third debt
+- [ ] Verify new card appears immediately
+- [ ] Verify Overall Total card recalculates with new account
+- [ ] Delete account
+- [ ] Verify card is removed from display
+- [ ] Verify Overall Total updates and recounts accounts
+
+### 9.7 Summary Cards - Styling & Responsive 🟡 High
+- [ ] Cards render with proper styling on desktop
+- [ ] Cards have correct background color matching theme
+- [ ] Overall Total card has distinct accent styling
+- [ ] Card titles display in uppercase and bold
+- [ ] Card values use consistent formatting
+- [ ] Responsive grid on desktop shows multiple columns
+- [ ] Responsive grid on tablet (768px) shows 1-2 columns
+- [ ] Responsive grid on mobile (480px) shows single column
+- [ ] No text overflow on any screen size
+- [ ] Text is readable and font-size appropriate on all sizes
+- [ ] Cards have proper spacing and padding
+- [ ] Card hover effects work (if implemented)
+- [ ] Grid gaps are consistent across all viewports
+
+### 9.8 Summary Cards - Edge Cases 🟢 Low
+- [ ] Scenario with no accounts displays "No accounts" message
+- [ ] Scenario with accounts but no projections shows current balances only
+- [ ] Account with $0 balance displays correctly
+- [ ] Account with negative balance displays correctly
+- [ ] Accounts with very high percentages (e.g., 50% APR) work correctly
+- [ ] Accounts with very low percentages (e.g., 0.5% APR) work correctly
+- [ ] Large numbers format correctly (e.g., $1,000,000.00)
+- [ ] Decimal amounts format correctly (e.g., $5,000.50)
+- [ ] Already-paid-off account shows appropriate Payoff Date value
+- [ ] Switching between scenarios correctly updates cards
+
+### 9.9 Summary Cards - Data Integrity 🟡 High
+- [ ] Scenario data persists after browser/app refresh
+- [ ] Cards recalculate correctly after data reload
+- [ ] No stale data displays after navigating away and back
+- [ ] Deleting scenario removes all associated card data
+- [ ] Duplicating scenario includes all account summary data
+- [ ] Switching between scenarios updates cards without artifacts
+- [ ] No JavaScript errors in console during normal usage
+
+### 9.10 Budget & Transaction Sections - Verification 🟡 High
+- [x] Budget section is completely hidden (no accordion visible)
+- [x] Actual Transactions section is completely hidden
+- [x] Planned Transactions section shows and functions normally
+- [x] Can add/edit/delete planned transactions in Debt Repayment scenario
+- [x] Planned transactions filter correctly by selected account
+- [x] Transactions correctly apply to projections
+
+### 9.11 Projections - Debt Repayment Specific 🟡 High
+- [x] Generate Projections button works in Debt Repayment scenario
+- [x] Projections calculate compound interest correctly
+- [x] Projections apply monthly payments correctly
+- [x] Multiple accounts project independently without interference
+- [x] Clear Projections button removes projection data
+- [x] Summary Cards update immediately after projections generate
+- [ ] Payoff dates are calculated accurately
+- [ ] Interest calculations are accurate for multi-period scenarios
+
+---
+
 ## Notes
 
 - Check all operations across different scenarios
@@ -395,3 +522,6 @@
 - Test both Electron and web browser environments where applicable
 - Verify all modal dialogs display and function correctly
 - Test keyboard shortcuts don't interfere with normal typing
+- For Debt Repayment: Verify Budget section is never visible regardless of user actions
+- For Debt Repayment: Verify Summary Cards update in real-time as data changes
+- For Debt Repayment: Test calculation accuracy with various APR and payment combinations

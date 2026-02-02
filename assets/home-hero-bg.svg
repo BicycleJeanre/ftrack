@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1440" height="480" viewBox="0 0 1440 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient-hero" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f8de4" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#00a8cc" stop-opacity="0.35" />
+    </linearGradient>
+    <linearGradient id="gradient-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00a8cc" stop-opacity="0.0" />
+      <stop offset="50%" stop-color="#00a8cc" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#00a8cc" stop-opacity="0.0" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1440" height="480" fill="none" />
+
+  <path d="M0 320 C 240 260, 420 360, 660 320 C 900 280, 1080 400, 1440 320" stroke="url(#gradient-line)" stroke-width="2" />
+  <path d="M0 360 C 260 300, 520 420, 760 360 C 980 320, 1180 420, 1440 360" stroke="url(#gradient-line)" stroke-width="1.5" opacity="0.7" />
+
+  <circle cx="180" cy="140" r="140" fill="url(#gradient-hero)" />
+  <circle cx="1260" cy="120" r="160" fill="url(#gradient-hero)" />
+  <circle cx="980" cy="400" r="200" fill="url(#gradient-hero)" opacity="0.7" />
+
+  <path d="M160 420 C 320 360, 520 460, 720 420 C 920 380, 1120 480, 1280 420" fill="none" stroke="#2f8de4" stroke-opacity="0.18" stroke-width="24" stroke-linecap="round" />
+  <path d="M120 420 C 320 380, 520 460, 720 420 C 920 380, 1120 480, 1320 420" fill="none" stroke="#00a8cc" stroke-opacity="0.12" stroke-width="48" stroke-linecap="round" />
+
+  <g opacity="0.35">
+    <rect x="260" y="80" width="6" height="90" fill="#2f8de4" />
+    <rect x="290" y="60" width="6" height="110" fill="#00a8cc" />
+    <rect x="320" y="95" width="6" height="75" fill="#2f8de4" />
+  </g>
+
+  <g opacity="0.35">
+    <rect x="1040" y="320" width="6" height="90" fill="#2f8de4" />
+    <rect x="1070" y="300" width="6" height="110" fill="#00a8cc" />
+    <rect x="1100" y="335" width="6" height="75" fill="#2f8de4" />
+  </g>
+</svg>

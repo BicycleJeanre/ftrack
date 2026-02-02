@@ -18,70 +18,6 @@
 ## 2.0 Active Bugs
 
 ### 2.1 Critical Bugs (🔴)
-
-#### [BUG-004] One-time transactions before scenario start date are excluded from first period 🔴
-
-**Status**: 🔴  
-**Reported**: 2026-02-01  
-**Component**: Projections / Transaction Expander  
-**Affects**: Projection calculations and transaction grid display for first period  
-
-**Description**:  
-One-time transactions that occur between the aligned period start date and the scenario start date are not included in projections or the transaction grid. This causes incorrect financial projections and missing transactions in the first period view.
-
-**Reproduction Steps**:  
-1. Create a scenario with start date January 15, 2026 and end date December 31, 2026
-2. Create a one-time transaction on January 10, 2026
-3. Generate projections (monthly periodicity)
-4. View the first period (January 2026) in the transactions grid
-5. Observe that the transaction from January 10 is not included in projections or grid
-
-**Expected Behavior**:  
-When periods are aligned to boundaries (e.g., monthly periods aligned to first of month), all transactions within those aligned period boundaries should be included, even if they occur before the scenario's start date.
-
-For example, if scenario starts January 15:
-- First period should be January 1-31, 2026
-- Transactions on January 1-14 should be included in the first period
-- Projections should correctly reflect these transactions
-
-**Actual Behavior**:  
-The projection engine aligns periods to boundaries (January 1 for monthly), but the transaction expander uses the original scenario start date (January 15) as the filter. This creates a gap where transactions from January 1-14 are excluded.
-
-**Root Cause Analysis**:  
-**Files**: [js/projection-engine.js](../js/projection-engine.js), [js/transaction-expander.js](../js/transaction-expander.js)  
-
-1. **Projection Engine** (lines 236-251):
-   - For monthly periods, `currentStart` is aligned to first of month
-   - First period runs from January 1 to January 31
-   
-2. **Transaction Expander** (line 48):
-   - Uses original `startDate` parameter (scenario start date = January 15)
-   - Filters: `if (txDate && txDate >= startDate && txDate <= endDate)`
-   - Excludes transactions from January 1-14
-
-3. **Mismatch**: Period boundaries don't match transaction filtering boundaries
-
-**Fix Required**:  
-Option 1 (Recommended - Align expander to period boundaries):
-1. In `expandTransactions()`, calculate aligned period start based on the periodicity
-2. Use aligned start date instead of raw scenario start date for filtering
-3. Ensure consistency between `generatePeriods()` alignment logic and expander filtering
-
-Option 2 (Alternative - Don't align periods):
-1. Modify `generatePeriods()` to not align to boundaries
-2. Start first period on exact scenario start date
-3. May result in partial periods (e.g., January 15-31)
-
-Option 3 (Document and accept):
-1. Update documentation to warn users that transactions before scenario start are excluded
-2. Recommend setting scenario start to first of month for monthly periods
-3. Less user-friendly, doesn't fix the issue
-
-**Recommended Fix**: Option 1 - Update `expandTransactions()` to accept and use aligned period boundaries when expanding one-time transactions.
-
-**Fixed**: Not yet  
-**Commit**: N/A
-
 ---
 
 ### 2.2 High Priority Bugs (🟡)
@@ -159,6 +95,54 @@ Comparison of toolbar controls:
 - Need to calculate periods using `getScenarioPeriods()` like transactions do
 - Should reuse similar event handler patterns from transactions section
 - Consider whether period filtering should trigger re-generation or just filter existing data
+
+**Fixed**: Not yet  
+**Commit**: N/A
+
+---
+
+#### [BUG-006] Periodic change not applied to transactions 🟡
+
+**Status**: 🟡  
+**Reported**: 2026-02-02  
+**Component**: Transactions / Periodic Change  
+**Affects**: Transaction projections and expanded occurrences  
+
+**Description**:  
+Transactions with any periodic change (Fixed Amount or Percentage Rate) do not increase or decrease over time. The periodic change appears saved but is not applied to transaction occurrences in projections.
+
+**Reproduction Steps**:  
+1. Create a transaction with a monthly recurrence
+2. Open Periodic Change and set Mode = Fixed Amount, Frequency = Monthly, Value = 100
+3. Save and generate projections
+4. Observe transaction occurrences across multiple months
+5. Repeat with Mode = Percentage Rate, Change Type = Nominal Annual, Value = 10
+6. Observe transaction occurrences across multiple months
+
+**Expected Behavior**:  
+Each occurrence should apply the configured periodic change (fixed amount or percentage rate) based on its schedule from the start date.
+
+**Actual Behavior**:  
+Transaction amounts remain constant across occurrences; periodic changes are not applied.
+
+**Analysis**:  
+**File(s)**: [js/projection-engine.js](../js/projection-engine.js#L78-L92), [js/periodic-change-utils.js](../js/periodic-change-utils.js#L24-L44), [js/modal-periodic-change.js](../js/modal-periodic-change.js#L246-L275)  
+**Issue**: The projection engine only applies periodic change when `expandPeriodicChangeForCalculation()` returns a fully expanded configuration. That helper currently requires both `changeMode` and `changeType` to resolve from lookup data, returning `null` when either is missing or mismatched. This prevents periodic changes from being applied to transactions when lookup data resolution fails (including Fixed Amount mode, which does not require `changeType`).
+
+**Fix Required**:  
+Option 1 (Recommended - Allow fixed amount without changeType):
+1. In `expandPeriodicChangeForCalculation()`, allow Fixed Amount mode to expand without a `changeType` lookup
+2. Populate `changeType` only when relevant (percentage rate)
+3. Add a guard to ensure `frequency` is present for fixed amount
+
+Option 2 (Alternative - Normalize on save):
+1. In `openPeriodicChangeModal()`, always set a valid `changeType` when saving Fixed Amount mode
+2. Add normalization in `TransactionManager.saveAll()` to enforce valid IDs
+
+Option 3 (Investigate lookup data mismatches):
+1. Validate `changeMode` and `changeType` IDs for transactions on save
+2. Ensure lookup data IDs align with stored transaction periodic change values
+3. Add warning logs if expansion fails for transactions
 
 **Fixed**: Not yet  
 **Commit**: N/A

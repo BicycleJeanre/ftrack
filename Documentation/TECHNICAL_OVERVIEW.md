@@ -11,7 +11,46 @@
 - **UI Component Library**: Tabulator 6.3 (strictly used for all data grids)
 - **Data persistence**: Local JSON files (No SQL/Cloud).
 
-## 3.0 Documentation Map
+## 3.0 User Documentation
+The application includes comprehensive user-facing documentation accessible from the navbar and home page. The documentation uses a single-page panel system for smooth navigation.
+
+**Location**: [pages/documentation.html](../pages/documentation.html)  
+**Panel Manager**: [js/doc-panel.js](../js/doc-panel.js)
+
+**Architecture**: 
+- Single HTML page with all documentation sections embedded as `.doc-panel` divs
+- Left sidebar with `.doc-panel-link` navigation (following navbar pattern)
+- Center panel area (`.doc-panel-content`) showing active section
+- JavaScript controller handles panel switching without page navigation
+
+**Documentation Sections**:
+1. **Getting Started** → Setup first budget and scenarios
+2. **Accounts** → Account types, balances, and management
+3. **Transactions** → Planned and actual transactions
+4. **Projections** → Understanding financial forecasts
+5. **Recurrence** → Setting up repeating transactions
+6. **Periodic Changes** → Automatic adjustments (raises, inflation)
+7. **Scenarios** → Multi-scenario planning
+8. **Keyboard Shortcuts** → Quick keyboard reference
+9. **Glossary** → Financial and app terminology
+10. **FAQ** → Common questions and troubleshooting
+
+**Key Design Pattern**:
+- Sidebar navigation with `.active` state highlighting (matches navbar pattern with left border and accent color)
+- Content panels stored as hidden divs until activated
+- Smooth fade-in animation (`fadeIn` keyframe) when switching panels
+- Responsive: Sidebar converts to grid buttons on mobile
+- Sticky sidebar on desktop, static on mobile
+
+**Navigation Flow**:
+- Home page displays documentation cards as entry points
+- Clicking a card or navbar Documentation link opens `documentation.html`
+- Sidebar links trigger panel switching via `doc-panel.js`
+- No full page reloads after initial page load
+
+## 3.1 Documentation Navigation Pattern
+
+## 4.0 Documentation Index (Technical)
 The technical documentation is modularized. Read the specific section required for your task:
 
 ### [1. Architecture >](TECH_ARCHITECTURE.md)
@@ -30,7 +69,7 @@ The technical documentation is modularized. Read the specific section required f
 **Read this if:** You are adding or refining the goal-based scenario type and calculations.
 *Covers: Parameters, calculation modes, and formulas.*
 
-## 4.0 Data Migration Strategy
+## 5.0 Data Migration Strategy
 FTrack uses versioned data migrations to evolve the schema while preserving user data. The migration system automatically detects and applies necessary updates when the application starts.
 
 **Migration File**: [js/data-migration.js](../js/data-migration.js)
@@ -53,18 +92,18 @@ FTrack uses versioned data migrations to evolve the schema while preserving user
 3. Increment target migration version
 4. Test with old data format to ensure backward compatibility
 
-## 5.0 Quick Start Reference
+## 6.0 Quick Start Reference
 - **Entry Point**: `main.js` (Electron Main Process).
 - **Frontend Entry**: `pages/forecast.html` -> `js/global-app.js`.
 - **Primary Logic**: `js/forecast.js`.
 - **Key Asset**: `assets/lookup-data.json` (Static definitions).
 
-## 6.0 Development Rules
+## 7.0 Development Rules
 1. **No External Databases**: Keep `DataStore` logic.
 2. **Tabulator Only**: Do not introduce new UI libraries for tables.
 3. **Manager Pattern**: Do not write file I/O code in UI files. Use a Manager.
 
-## 7.0 Styling System
+## 8.0 Styling System
 - **Single Source**: All UI theming lives in `styles/app.css`; inline styles are forbidden.
 - **Layout Tokens**: Use `control-layout*`, `grouping-control`, and `period-filter` classes for filter bars and toolbars.
 - **Modals**: Reuse `modal-overlay` + `modal-content` with size helpers (`modal-text-input`, `modal-periodic`, `modal-recurrence`, `modal-shortcuts`). Buttons use the `modal-periodic-*` and `shortcuts-*` utility classes.

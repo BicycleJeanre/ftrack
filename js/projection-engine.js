@@ -136,20 +136,29 @@ export async function generateProjections(scenarioId, options = {}) {
       const periodStartKey = periodStart.getFullYear() * 10000 + (periodStart.getMonth() + 1) * 100 + periodStart.getDate();
       const periodEndKey = periodEnd.getFullYear() * 10000 + (periodEnd.getMonth() + 1) * 100 + periodEnd.getDate();
       
+      // Apply transactions in this period to compute income/expenses and update running balance
+      let periodIncome = 0;
+      let periodExpenses = 0;
+      let periodInterest = 0;
+
       // Apply interest/growth up to the period START so snapshot is at period start
       if (account.periodicChange) {
         const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
         if (expandedPC) {
           const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
           if (yearsDiffToStart !== 0) {
+            const beforeBalance = currentBalance;
             currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffToStart);
+            const interestDelta = currentBalance - beforeBalance;
+            periodInterest += interestDelta;
+            if (interestDelta >= 0) {
+              periodIncome += interestDelta;
+            } else {
+              periodExpenses += Math.abs(interestDelta);
+            }
           }
         }
       }
-
-      // Apply transactions in this period to compute income/expenses and update running balance
-      let periodIncome = 0;
-      let periodExpenses = 0;
 
       transactionOccurrences.forEach(txn => {
         if (txn.dateKey >= periodStartKey && txn.dateKey <= periodEndKey) {
@@ -190,7 +199,15 @@ export async function generateProjections(scenarioId, options = {}) {
         if (expandedPC) {
           const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
           if (yearsDiffPeriod !== 0) {
+            const beforeBalance = currentBalance;
             currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
+            const interestDelta = currentBalance - beforeBalance;
+            periodInterest += interestDelta;
+            if (interestDelta >= 0) {
+              periodIncome += interestDelta;
+            } else {
+              periodExpenses += Math.abs(interestDelta);
+            }
           }
         }
       }
@@ -206,6 +223,7 @@ export async function generateProjections(scenarioId, options = {}) {
         income: Math.round(periodIncome * 100) / 100,
         expenses: Math.round(periodExpenses * 100) / 100,
         netChange: Math.round((periodIncome - periodExpenses) * 100) / 100,
+        interest: Math.round(periodInterest * 100) / 100,
         period: periodIndex + 1
       });
 
@@ -230,56 +248,66 @@ export async function generateProjections(scenarioId, options = {}) {
  */
 function generatePeriods(start, end, periodicity) {
   const periods = [];
-  // Align initial start to period boundary depending on periodicity
+  // Start from the scenario start date (do NOT align to period boundary for first period)
+  // This ensures we only calculate projections for dates where transactions can actually occur
   let currentStart = new Date(start);
-
-  switch (periodicity) {
-    case 'monthly':
-      currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth(), 1);
-      break;
-    case 'quarterly':
-      currentStart = new Date(currentStart.getFullYear(), Math.floor(currentStart.getMonth() / 3) * 3, 1);
-      break;
-    case 'yearly':
-      currentStart = new Date(currentStart.getFullYear(), 0, 1);
-      break;
-    case 'weekly':
-      // Align to Monday as week start (ISO-like); if you prefer Sunday change getDay logic
-      const day = currentStart.getDay();
-      const diff = (day + 6) % 7; // days since Monday
-      currentStart.setDate(currentStart.getDate() - diff);
-      currentStart.setHours(0, 0, 0, 0);
-      break;
-    default:
-      // daily and other types: keep provided start
-      currentStart.setHours(0, 0, 0, 0);
-  }
+  currentStart.setHours(0, 0, 0, 0);
+  
+  let isFirstPeriod = true;
 
   // Iterate by stepping to next period start; include periods where the start is <= end
   while (currentStart <= end) {
     let periodStart = new Date(currentStart);
     let periodEnd;
 
-    switch (periodicity) {
-      case 'daily':
-        periodEnd = new Date(periodStart);
-        periodEnd.setDate(periodEnd.getDate());
-        break;
-      case 'weekly':
-        periodEnd = new Date(periodStart);
-        periodEnd.setDate(periodEnd.getDate() + 6); // week = 7 days starting at periodStart
-        break;
-      case 'monthly':
-        periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0); // last day of month
-        break;
-      case 'quarterly':
-        periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 3, 0);
-        break;
-      case 'yearly':
-        periodEnd = new Date(periodStart.getFullYear(), 11, 31);
-        break;
-      default:
-        periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
+    // Calculate period end based on periodicity
+    if (isFirstPeriod) {
+      // For the first period, extend to the end of the current period boundary
+      switch (periodicity) {
+        case 'daily':
+          periodEnd = new Date(periodStart);
+          break;
+        case 'weekly':
+          // Find the end of the week (Sunday) from the start date
+          const daysToWeekEnd = 6 - periodStart.getDay();
+          periodEnd = new Date(periodStart);
+          periodEnd.setDate(periodEnd.getDate() + daysToWeekEnd);
+          break;
+        case 'monthly':
+          periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0); // last day of month
+          break;
+        case 'quarterly':
+          const startQuarter = Math.floor(periodStart.getMonth() / 3);
+          periodEnd = new Date(periodStart.getFullYear(), (startQuarter + 1) * 3, 0);
+          break;
+        case 'yearly':
+          periodEnd = new Date(periodStart.getFullYear(), 11, 31);
+          break;
+        default:
+          periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
+      }
+    } else {
+      // For subsequent periods, use standard period lengths
+      switch (periodicity) {
+        case 'daily':
+          periodEnd = new Date(periodStart);
+          break;
+        case 'weekly':
+          periodEnd = new Date(periodStart);
+          periodEnd.setDate(periodEnd.getDate() + 6); // week = 7 days starting at periodStart
+          break;
+        case 'monthly':
+          periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0); // last day of month
+          break;
+        case 'quarterly':
+          periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 3, 0);
+          break;
+        case 'yearly':
+          periodEnd = new Date(periodStart.getFullYear(), 11, 31);
+          break;
+        default:
+          periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
+      }
     }
 
     // Clip to scenario end
@@ -297,24 +325,58 @@ function generatePeriods(start, end, periodicity) {
     }
 
     // Advance currentStart to the next period's start
-    switch (periodicity) {
-      case 'daily':
-        currentStart.setDate(currentStart.getDate() + 1);
-        break;
-      case 'weekly':
-        currentStart.setDate(currentStart.getDate() + 7);
-        break;
-      case 'monthly':
-        currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 1, 1);
-        break;
-      case 'quarterly':
-        currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 3, 1);
-        break;
-      case 'yearly':
-        currentStart = new Date(currentStart.getFullYear() + 1, 0, 1);
-        break;
-      default:
-        currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 1, 1);
+    // After the first period, align to period boundaries
+    if (isFirstPeriod) {
+      isFirstPeriod = false;
+      // Move to the start of the next period boundary
+      switch (periodicity) {
+        case 'daily':
+          currentStart = new Date(periodEnd);
+          currentStart.setDate(currentStart.getDate() + 1);
+          break;
+        case 'weekly':
+          currentStart = new Date(periodEnd);
+          currentStart.setDate(currentStart.getDate() + 1);
+          // Align to Monday (start of week)
+          const day = currentStart.getDay();
+          const diff = (day + 6) % 7; // days since Monday
+          currentStart.setDate(currentStart.getDate() - diff);
+          break;
+        case 'monthly':
+          currentStart = new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 1);
+          break;
+        case 'quarterly':
+          currentStart = new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 1);
+          // Align to quarter boundary
+          currentStart = new Date(currentStart.getFullYear(), Math.floor(currentStart.getMonth() / 3) * 3, 1);
+          break;
+        case 'yearly':
+          currentStart = new Date(periodEnd.getFullYear() + 1, 0, 1);
+          break;
+        default:
+          currentStart = new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 1);
+      }
+    } else {
+      // Standard period advancement for aligned periods
+      switch (periodicity) {
+        case 'daily':
+          currentStart.setDate(currentStart.getDate() + 1);
+          break;
+        case 'weekly':
+          currentStart.setDate(currentStart.getDate() + 7);
+          break;
+        case 'monthly':
+          currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 1, 1);
+          break;
+        case 'quarterly':
+          currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 3, 1);
+          break;
+        case 'yearly':
+          currentStart = new Date(currentStart.getFullYear() + 1, 0, 1);
+          break;
+        default:
+          currentStart = new Date(currentStart.getFullYear(), currentStart.getMonth() + 1, 1);
+      }
     }
   }
 
