@@ -23,6 +23,7 @@ import { isElectronEnv } from './core/platform.js';
     </div>
     <a href="home.html" id="nav-home">Home</a>
     <a href="forecast.html" id="nav-forecast">Forecast</a>
+    <a href="documentation.html" id="nav-documentation">Documentation</a>
     <div class="nav-spacer"></div>
     <button id="nav-export" class="btn btn-secondary" title="Export data to file">Export Data</button>
     <button id="nav-import" class="btn btn-secondary" title="Import data from file">Import Data</button>
@@ -36,7 +37,8 @@ import { isElectronEnv } from './core/platform.js';
   function highlightActive() {
     var navMap = {
       'home.html': 'nav-home',
-      'forecast.html': 'nav-forecast'
+      'forecast.html': 'nav-forecast',
+      'documentation.html': 'nav-documentation'
     };
     var activeId = navMap[getPage()];
     if (activeId) {

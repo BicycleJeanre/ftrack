@@ -11,202 +11,98 @@
 <body class="bg-main text-main">
     <div id="main-navbar"></div>
     <div class="page-container">
-                <h1 class="text-main page-title">Welcome to FTrack</h1>
-                <p class="text-main page-subtitle">
-                    A streamlined financial forecasting tool for managing scenarios, accounts, and transactions.
+        <h1 class="text-main page-title">Welcome to FTrack</h1>
+        <p class="text-main page-subtitle">
+            A streamlined financial forecasting tool for managing scenarios, accounts, and transactions.
+        </p>
+        
+        <div class="home-hero">
+            <div class="hero-content">
+                <h2 class="text-main hero-title">Build Your Financial Plan</h2>
+                <p class="text-main hero-description">
+                    FTrack helps you forecast multiple financial scenarios, track income and expenses, and project your financial future with confidence.
                 </p>
-                
-                <div id="create-budget" class="page-section featured-section">
-                    <h2 class="text-main page-section-title">Getting Started: Create Your First Budget</h2>
-                    
-                    <div class="intro-box">
-                        <p class="intro-text">
-                            A budget is your financial roadmap. It helps you plan your income and expenses so you can see if your money will last through the month, and identify where you can save. FTrack makes this simple by letting you forecast multiple scenarios and compare them side-by-side.
-                        </p>
-                    </div>
+                <a href="documentation.html#getting-started" class="btn btn-primary hero-cta">Get Started</a>
+            </div>
+        </div>
 
-                    <h3 class="subsection-title">What is a Scenario?</h3>
-                    <p class="section-text">
-                        A scenario is a financial plan. You might have a baseline scenario showing your current reality, plus scenarios for "if I save $200/month" or "if I get a raise." Each scenario contains the same accounts, but with different transactions and projections.
+        <!-- What's New Section: Keep only the last 3 releases -->
+        <div class="whats-new-section">
+            <h2 class="text-main section-title">What's New</h2>
+            <div class="whats-new-content">
+                <!-- v0.7.1-beta - 2026-02-02 -->
+                <div class="whats-new-item">
+                    <span class="whats-new-version">v0.7.1-beta</span>
+                    <span class="whats-new-date">February 2, 2026</span>
+                    <h3 class="whats-new-title">Documentation Center</h3>
+                    <p class="whats-new-description">
+                        New panel-based documentation system with quick navigation and comprehensive guides for all features.
                     </p>
-
-                    <h3 class="subsection-title">Step-by-Step: Build Your First Budget</h3>
-                    <ol class="text-main page-section-list">
-                        <li><strong>Create a scenario:</strong> Click the Forecast button, then create a new scenario named "My Budget" and set the type to Budget.</li>
-                        <li><strong>Add your accounts:</strong> List the accounts where your money lives (e.g., Checking, Savings, Credit Card). Enter each account's current balance.</li>
-                        <li><strong>Add your income:</strong> Create a Planned Transaction for your paycheck. Set it to recur weekly or monthly depending on your pay schedule.</li>
-                        <li><strong>Add your expenses:</strong> Add Planned Transactions for recurring expenses like rent, utilities, groceries, and subscriptions. Use recurrence for monthly or weekly bills.</li>
-                        <li><strong>Configure recurrence:</strong> For repeating payments, set them to recur on the correct day each week or month.</li>
-                        <li><strong>Run a projection:</strong> Click "Generate Projections" to see your forecasted balances over the next 90 days.</li>
-                        <li><strong>Review and adjust:</strong> Look at the projection. If your balance goes negative, adjust your spending or add more income until it looks sustainable.</li>
-                        <li><strong>Save your plan:</strong> Your budget is automatically saved. You can now track it and compare it to actual spending.</li>
-                    </ol>
-
-                    <h3 class="subsection-title">Pro Tips for Beginners</h3>
-                    <ul class="tips-list">
-                        <li><strong>Start simple:</strong> Don't worry about every small expense. Focus on the big items first (rent, paycheck, major bills).</li>
-                        <li><strong>Keep one baseline:</strong> Always have one scenario that matches reality. Use it to compare "what-if" scenarios against.</li>
-                        <li><strong>Recurrence is your friend:</strong> Most expenses are monthly or weekly. Use recurrence so you don't have to enter each payment manually.</li>
-                        <li><strong>Log actuals regularly:</strong> Once a week, mark transactions as "actual" to see how your real spending compares to your plan.</li>
-                        <li><strong>Adjust as needed:</strong> Your budget isn't set in stone. Update it when your situation changes (raise, new expense, etc.).</li>
-                    </ul>
-                </div>
-                
-                <div id="quick-start" class="page-section">
-                    <h2 class="text-main page-section-title">Quick Start Overview</h2>
-                    <ol class="text-main page-section-list">
-                        <li>Open Forecast to select or create a scenario.</li>
-                        <li>Review Accounts and update opening balances.</li>
-                        <li>Add Planned Transactions for income and recurring expenses.</li>
-                        <li>Generate Projections to see future balances.</li>
-                        <li>Log Actual Transactions to keep forecasts accurate.</li>
-                    </ol>
-                </div>
-
-                <div id="basic-usage" class="page-section">
-                    <h2 class="text-main page-section-title">Basic Usage</h2>
-                    <ul class="text-main page-section-list">
-                        <li><strong>Start with a baseline:</strong> Keep one scenario that reflects your current reality.</li>
-                        <li><strong>Edit inline:</strong> Click any grid cell to update values, then save.</li>
-                        <li><strong>Use recurrence:</strong> Add repeating transactions for paychecks, rent, and bills.</li>
-                        <li><strong>Compare scenarios:</strong> Duplicate a scenario to test a what-if plan.</li>
-                        <li><strong>Keep it current:</strong> Record actuals to refine projections.</li>
-                    </ul>
-                </div>
-
-                <div id="accounts-guide" class="page-section">
-                    <h2 class="text-main page-section-title">Accounts Guide</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Account Basics</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>What they represent:</strong> Real places where your money lives.</li>
-                            <li><strong>Balances:</strong> Keep opening balances aligned with real accounts.</li>
-                            <li><strong>Types:</strong> Categorize accounts as Asset, Liability, Income, or Expense.</li>
-                            <li><strong>Status:</strong> Deactivate closed accounts without deleting history.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="transactions-guide" class="page-section">
-                    <h2 class="text-main page-section-title">Transactions Guide</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Planned Transactions</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>Purpose:</strong> Define all expected future income and expenses.</li>
-                            <li><strong>Recurrence:</strong> Set weekly, monthly, or custom repeating schedules.</li>
-                            <li><strong>Periodic change:</strong> Apply increases, decreases, or compounding effects.</li>
-                            <li><strong>Dual-entry:</strong> Always assign a secondary account for accuracy.</li>
-                        </ul>
-                    </div>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Actual Transactions</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>Reality check:</strong> Mark planned items as completed or adjust amounts.</li>
-                            <li><strong>Period filters:</strong> Focus on a specific month or time range.</li>
-                            <li><strong>Variance:</strong> Compare planned vs actual spending and income.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="projections-guide" class="page-section">
-                    <h2 class="text-main page-section-title">Projections Guide</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Understanding Projections</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>Forecast grid:</strong> See projected account balances over time.</li>
-                            <li><strong>How they work:</strong> Start with current balance, add income, subtract expenses.</li>
-                            <li><strong>Recalculate:</strong> Refresh projections after any change.</li>
-                            <li><strong>Scenario comparison:</strong> Validate which plan is most sustainable.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="recurrence-guide" class="page-section">
-                    <h2 class="text-main page-section-title">Recurrence & Scheduling</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Recurrence Patterns</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>One-time:</strong> Transactions that happen only once.</li>
-                            <li><strong>Weekly:</strong> Specify days of the week (e.g., every Monday and Friday).</li>
-                            <li><strong>Monthly:</strong> Specific day of month (e.g., 15th) or nth weekday (e.g., first Tuesday).</li>
-                            <li><strong>Quarterly:</strong> Same patterns as monthly, applied every 3 months.</li>
-                            <li><strong>Yearly:</strong> Specific month and day (e.g., December 25th).</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="periodic-changes" class="page-section">
-                    <h2 class="text-main page-section-title">Periodic Changes</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Amount Adjustments Over Time</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>Flat increase:</strong> Add a fixed amount each period (e.g., +$100 annually).</li>
-                            <li><strong>Flat decrease:</strong> Subtract a fixed amount each period.</li>
-                            <li><strong>Percentage increase:</strong> Grow by a percentage (e.g., 3% annually for salary raises).</li>
-                            <li><strong>Percentage decrease:</strong> Shrink by a percentage.</li>
-                            <li><strong>Compound interest:</strong> Apply exponential growth (e.g., investment returns).</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="scenarios" class="page-section">
-                    <h2 class="text-main page-section-title">Scenario Planning</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Using Scenarios Effectively</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>Baseline scenario:</strong> Your current reality with existing income and expenses.</li>
-                            <li><strong>What-if scenarios:</strong> Test changes like salary increases, new expenses, or big purchases.</li>
-                            <li><strong>Comparison:</strong> Duplicate a scenario to keep the original as a reference.</li>
-                            <li><strong>Budget vs General:</strong> Budget scenarios are for strict planning; General for open exploration.</li>
-                            <li><strong>Date ranges:</strong> Set scenario windows to focus on specific time periods.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="keyboard-shortcuts" class="page-section">
-                    <h2 class="text-main page-section-title">Keyboard Shortcuts</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Quick Actions</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>Save row:</strong> Press Enter to save edits.</li>
-                            <li><strong>Delete row:</strong> Press Delete to remove a row.</li>
-                            <li><strong>Add new row:</strong> Cmd+Shift+A (Mac) or Ctrl+Shift+A (Windows).</li>
-                            <li><strong>Open settings:</strong> Cmd+, (Mac) or Ctrl+, (Windows).</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="glossary" class="page-section">
-                    <h2 class="text-main page-section-title">Glossary</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Key Terms</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>Account:</strong> A place where money lives (checking, savings, credit card).</li>
-                            <li><strong>Transaction:</strong> A movement of money between accounts.</li>
-                            <li><strong>Planned Transaction:</strong> An expected future transaction with recurrence.</li>
-                            <li><strong>Actual Transaction:</strong> A transaction that actually occurred.</li>
-                            <li><strong>Projection:</strong> A forecast of future account balances.</li>
-                            <li><strong>Scenario:</strong> A named financial plan or what-if situation.</li>
-                            <li><strong>Recurrence:</strong> A repeating schedule (weekly, monthly, etc.).</li>
-                            <li><strong>Periodic change:</strong> An adjustment to a transaction amount over time.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div id="faq" class="page-section">
-                    <h2 class="text-main page-section-title">Frequently Asked Questions</h2>
-                    <div class="feature-box">
-                        <h3 class="text-main feature-box-title">Common Questions</h3>
-                        <ul class="text-main feature-box-list">
-                            <li><strong>Q: How do I get started?</strong> See the Quick Start section at the top.</li>
-                            <li><strong>Q: Can I have multiple scenarios?</strong> Yes, create as many as you need.</li>
-                            <li><strong>Q: How accurate are projections?</strong> As accurate as your planned transactions are.</li>
-                            <li><strong>Q: Can I edit a completed transaction?</strong> Yes, click on any row to edit.</li>
-                            <li><strong>Q: What if I make a mistake?</strong> All data is automatically saved; use Undo or edit the row directly.</li>
-                        </ul>
-                    </div>
                 </div>
             </div>
+        </div>
+
+        <div class="home-sections">
+            <div class="doc-card">
+                <h3 class="doc-card-title">Getting Started</h3>
+                <p class="doc-card-description">Learn how to create your first budget and set up scenarios.</p>
+                <a href="documentation.html#getting-started" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">Accounts</h3>
+                <p class="doc-card-description">Understand accounts, types, and how to manage your balances.</p>
+                <a href="documentation.html#accounts" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">Transactions</h3>
+                <p class="doc-card-description">Create and manage planned and actual transactions.</p>
+                <a href="documentation.html#transactions" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">Projections</h3>
+                <p class="doc-card-description">Generate and interpret financial forecasts.</p>
+                <a href="documentation.html#projections" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">Recurrence & Scheduling</h3>
+                <p class="doc-card-description">Set up repeating transactions with various patterns.</p>
+                <a href="documentation.html#recurrence" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">Periodic Changes</h3>
+                <p class="doc-card-description">Apply automatic adjustments like salary raises and inflation.</p>
+                <a href="documentation.html#periodic-changes" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">Scenario Planning</h3>
+                <p class="doc-card-description">Compare multiple financial plans and what-if scenarios.</p>
+                <a href="documentation.html#scenarios" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">Keyboard Shortcuts</h3>
+                <p class="doc-card-description">Speed up your workflow with quick key combinations.</p>
+                <a href="documentation.html#shortcuts" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">Glossary</h3>
+                <p class="doc-card-description">Reference guide to key financial and app terminology.</p>
+                <a href="documentation.html#glossary" class="doc-card-link">Read Guide →</a>
+            </div>
+
+            <div class="doc-card">
+                <h3 class="doc-card-title">FAQ</h3>
+                <p class="doc-card-description">Answers to common questions and troubleshooting.</p>
+                <a href="documentation.html#faq" class="doc-card-link">Read Guide →</a>
+            </div>
+        </div>
     </div>
     <script type="module" src="../js/config.js"></script>
     <script type="module" src="../js/navbar.js"></script>
