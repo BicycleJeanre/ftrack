@@ -32,6 +32,18 @@
       "showProjections": true,
       "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange"],
       "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
+    },
+    {
+      "id": 4,
+      "name": "Goal-Based",
+      "description": "Goal-based planning with automatic transaction generation",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": false,
+      "showProjections": true,
+      "showGeneratePlan": true,
+      "accountColumns": ["name", "type", "currency", "balance", "openDate", "goalAmount", "goalDate"],
+      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "tags"]
     }
   ],
   "periodTypes": [
