@@ -132,7 +132,7 @@ function buildGridContainer() {
   
   const accountsHeader = document.createElement('div');
   accountsHeader.className = 'pointer flex-between accordion-header section-padding';
-  accountsHeader.innerHTML = `<h2 class="text-main section-title">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;  
+  accountsHeader.innerHTML = `<h2 class="text-main section-title">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
   accountsHeader.addEventListener('click', () => window.toggleAccordion('accountsContent'));
   window.add(accountsSection, accountsHeader);
   
@@ -604,14 +604,12 @@ async function loadGeneratePlanSection(container) {
   // Create form container
   const formContainer = document.createElement('div');
   formContainer.className = 'generate-plan-form';
-  formContainer.style.padding = '16px';
 
   // Account selector
   const accountRowDiv = document.createElement('div');
-  accountRowDiv.style.marginBottom = '16px';
   accountRowDiv.innerHTML = `
     <label for="goal-account-select" class="control-label">Select Account:</label>
-    <select id="goal-account-select" class="input-select" style="width: 100%; padding: 8px;">
+    <select id="goal-account-select" class="input-select">
       <option value="">-- Choose an account --</option>
       ${displayAccounts.map(acc => `<option value="${acc.id}">${acc.name} (Goal: ${formatMoneyDisplay(acc.goalAmount)} by ${acc.goalDate})</option>`).join('')}
     </select>
@@ -620,10 +618,9 @@ async function loadGeneratePlanSection(container) {
 
   // Solve For selector
   const solveForDiv = document.createElement('div');
-  solveForDiv.style.marginBottom = '16px';
   solveForDiv.innerHTML = `
     <label for="goal-solve-for" class="control-label">Solve For:</label>
-    <select id="goal-solve-for" class="input-select" style="width: 100%; padding: 8px;">
+    <select id="goal-solve-for" class="input-select">
       <option value="contribution">Contribution Amount</option>
       <option value="date">Goal Date</option>
       <option value="amount">Goal Amount</option>
@@ -633,10 +630,9 @@ async function loadGeneratePlanSection(container) {
 
   // Frequency selector
   const frequencyDiv = document.createElement('div');
-  frequencyDiv.style.marginBottom = '16px';
   frequencyDiv.innerHTML = `
     <label for="goal-frequency" class="control-label">Contribution Frequency:</label>
-    <select id="goal-frequency" class="input-select" style="width: 100%; padding: 8px;">
+    <select id="goal-frequency" class="input-select">
       <option value="2">Weekly</option>
       <option value="3" selected>Monthly</option>
       <option value="4">Quarterly</option>
@@ -647,29 +643,21 @@ async function loadGeneratePlanSection(container) {
 
   // Contribution Amount input (editable when solving for date/amount)
   const contributionDiv = document.createElement('div');
-  contributionDiv.style.marginBottom = '16px';
   contributionDiv.innerHTML = `
     <label for="goal-contribution" class="control-label">Contribution Amount:</label>
-    <input type="number" id="goal-contribution" class="input-text" placeholder="0.00" step="0.01" style="width: 100%; padding: 8px;" />
+    <input type="number" id="goal-contribution" class="input-text" placeholder="0.00" step="0.01" />
   `;
   window.add(formContainer, contributionDiv);
 
   // Results/Summary area
   const summaryDiv = document.createElement('div');
   summaryDiv.id = 'goal-summary';
-  summaryDiv.style.marginBottom = '16px';
-  summaryDiv.style.padding = '12px';
-  summaryDiv.style.backgroundColor = '#f5f5f5';
-  summaryDiv.style.borderRadius = '4px';
-  summaryDiv.style.minHeight = '40px';
   summaryDiv.innerHTML = '<p class="text-muted">Select an account and adjust parameters to see calculations</p>';
   window.add(formContainer, summaryDiv);
 
   // Buttons
   const buttonDiv = document.createElement('div');
-  buttonDiv.style.display = 'flex';
-  buttonDiv.style.gap = '8px';
-  buttonDiv.style.marginBottom = '16px';
+  buttonDiv.className = 'generate-plan-buttons';
 
   const generateBtn = document.createElement('button');
   generateBtn.className = 'btn btn-primary';
@@ -744,7 +732,7 @@ async function loadGeneratePlanSection(container) {
         const calculatedContribution = calculateContributionAmount(startingBalance, goalAmount, monthsToGoal, annualRate);
         const displayContribution = convertContributionFrequency(calculatedContribution, 3, frequency); // Convert from monthly
         contributionInput.value = displayContribution.toFixed(2);
-        summary = `<strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution: <strong>${formatMoneyDisplay(displayContribution)}</strong><br/><small>to reach ${formatMoneyDisplay(goalAmount)} by ${selectedAccount.goalDate}</small>`;
+        summary = `<p><strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution: <strong>${formatMoneyDisplay(displayContribution)}</strong> · to reach <strong>${formatMoneyDisplay(goalAmount)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
       }
     } else if (solveFor === 'date') {
       if (contribution <= 0) {
@@ -759,7 +747,7 @@ async function loadGeneratePlanSection(container) {
           const futureDate = new Date();
           futureDate.setMonth(futureDate.getMonth() + daysInMonths);
           const formattedDate = formatDateOnly(futureDate);
-          summary = `<strong>Target date:</strong> ${formattedDate}<br/><small>at ${getFrequencyName(frequency).toLowerCase()} contribution of ${formatMoneyDisplay(contribution)}</small>`;
+          summary = `<p><strong>Target date:</strong> <strong>${formattedDate}</strong> · at <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong></p>`;
         }
       }
     } else if (solveFor === 'amount') {
@@ -770,7 +758,7 @@ async function loadGeneratePlanSection(container) {
       } else {
         const monthlyContribution = convertContributionFrequency(contribution, frequency, 3); // Convert to monthly
         const projectedAmount = calculateFutureValue(startingBalance, monthlyContribution, monthsToGoal, annualRate);
-        summary = `<strong>Projected goal amount:</strong> ${formatMoneyDisplay(projectedAmount)}<br/><small>with ${getFrequencyName(frequency).toLowerCase()} contribution of ${formatMoneyDisplay(contribution)} by ${selectedAccount.goalDate}</small>`;
+        summary = `<p><strong>Projected goal:</strong> <strong>${formatMoneyDisplay(projectedAmount)}</strong> · with <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
       }
     }
 
@@ -833,34 +821,72 @@ async function loadGeneratePlanSection(container) {
       const frequencyLookup = lookupData.frequencies.find(f => f.id === frequency);
       const transactions = currentScenario.transactions || [];
       
-      // Generate recurring transaction
+      // Remove any existing goal-generated transactions for this account
+      const filteredTransactions = transactions.filter(tx => {
+        const isGoalGenerated = tx.tags && tx.tags.includes('goal-generated');
+        const isForThisAccount = tx.primaryAccountId === selectedId;
+        return !(isGoalGenerated && isForThisAccount);
+      });
+
+      // Map frequency ID to recurrence type
+      const frequencyToRecurrenceType = {
+        1: { id: 2, name: 'Daily' },
+        2: { id: 3, name: 'Weekly' },
+        3: { id: 4, name: 'Monthly - Day of Month' },
+        4: { id: 6, name: 'Quarterly' },
+        5: { id: 7, name: 'Yearly' }
+      };
+
+      const startDateStr = formatDateOnly(new Date());
+      const endDateStr = selectedAccount.goalDate;
+
+      // Generate recurring transaction with proper recurrence structure
       const newTransaction = {
         id: 0, // Will be assigned by manager
         primaryAccountId: selectedId,
         secondaryAccountId: null,
         transactionTypeId: 1, // Money In
         amount: Math.abs(monthlyContribution),
-        effectiveDate: formatDateOnly(new Date()),
+        effectiveDate: startDateStr,
         description: `Goal: ${selectedAccount.name}`,
         recurrence: {
-          frequency: frequency,
-          startDate: formatDateOnly(new Date()),
-          endDate: selectedAccount.goalDate
+          recurrenceType: frequencyToRecurrenceType[frequency] || { id: 3, name: 'Weekly' },
+          startDate: startDateStr,
+          endDate: endDateStr,
+          interval: 1,
+          dayOfWeek: frequency === 2 ? { id: new Date().getDay(), name: '' } : null,
+          dayOfMonth: frequency === 3 ? new Date().getDate() : null,
+          weekOfMonth: null,
+          dayOfWeekInMonth: null,
+          dayOfQuarter: null,
+          month: null,
+          dayOfYear: null,
+          customDates: null
         },
         periodicChange: selectedAccount.periodicChange || null,
         status: { name: 'planned' },
         tags: ['goal-generated']
       };
 
-      transactions.push(newTransaction);
-      await TransactionManager.saveAll(currentScenario.id, transactions);
+      // Use filtered transactions list (without old goal-generated transactions)
+      filteredTransactions.push(newTransaction);
+      await TransactionManager.saveAll(currentScenario.id, filteredTransactions);
 
       // Reload everything
       currentScenario = await getScenario(currentScenario.id);
       await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
       await loadProjectionsSection(document.getElementById('projectionsContent'));
 
-      alert(`Goal plan generated! ${getFrequencyName(frequency).toLowerCase()} transaction of ${formatMoneyDisplay(monthlyContribution)} created.`);
+      // Format currency for alert message (plain text, no HTML)
+      const currencyFormatter = new Intl.NumberFormat('en-ZA', {
+        style: 'currency',
+        currency: 'ZAR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      const formattedAmount = currencyFormatter.format(Math.abs(monthlyContribution));
+      
+      alert(`Goal plan generated! ${getFrequencyName(frequency).toLowerCase()} transaction of ${formattedAmount} created.`);
       
       // Reset form
       accountSelect.value = '';
