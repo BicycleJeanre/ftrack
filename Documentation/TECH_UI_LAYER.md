@@ -5,6 +5,16 @@
 - **Grid System**: Tabulator v6.3.0.
 - **Styling**: CSS Variables, stored in `styles/app.css`.
 
+## 1.1 Theme Tokens
+- **Source of Truth**: Theme tokens live in `:root` within `styles/app.css`.
+- **Overrides**: Light theme overrides are applied via `html[data-theme="light"]`.
+- **Usage**: UI components must use variables (no hard-coded colors) so both themes inherit correctly.
+
+## 1.2 Theme Switching
+- **Toggle Location**: Navbar toggle button.
+- **Storage**: `localStorage` key `ftrack:theme`.
+- **Runtime Apply**: `document.documentElement` gets a `data-theme` attribute (`light` or `dark`).
+
 ## 2.0 Component Architecture
 
 ### 2.1 The Grid Factory (`js/grid-factory.js`)
@@ -56,6 +66,19 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
     - "Generate Projections": Uses transactions as source (regenerate from original data).
     - "Project from Budget": Uses budget occurrences as source (continue from budget).
   - **Save as Budget**: Creates editable budget snapshot from projections.
+  - **Toolbar**: Account filter, period view controls, and inline totals (Income, Expenses, Net).
+
+#### F. Debt Repayment Summary Cards
+- **Type**: Read-only summary cards (per-account).
+- **Behavior**: Displays debt-specific metrics based on account data and projections.
+- **Display Rules**:
+  - Uses `startingBalance` as the source for the Starting Balance value.
+  - Overall Total card only renders when there are 2+ accounts.
+  - Values use the standard app font (no monospace overrides).
+  - Interest Earned derives from positive interest deltas and displays in green.
+  - Interest Paid derives from negative interest deltas and displays as negative values in red.
+  - Zero Date shows when account balance crosses from negative to positive (debt payoff), or 'N/A' if never crosses.
+  - Summary cards group by account type and can be filtered to Assets or Liabilities.
 
 ## 3.0 Interactive Patterns
 
@@ -126,3 +149,13 @@ Each budget occurrence supports dual-amount tracking to compare planned vs. actu
 - Totals calculated via `calculateCategoryTotals()` utility
 
 **Use Case**: User budgets $500/month for groceries (plannedAmount), then tracks actual grocery spending each month (actualAmount) to identify overspending trends.
+
+### 2.3 Home Page Hero (`pages/home.html`)
+The home hero uses a layered background to keep the CTA readable while adding visual depth.
+- **Background Asset**: `assets/home-hero-bg.svg`
+- **Styling**: `styles/app.css` applies a gradient overlay plus SVG background on `.home-hero`.
+
+### 2.4 Home Page Background (`pages/home.html`)
+The full home page uses a separate SVG background for the overall layout.
+- **Background Asset**: `assets/home-page-bg.svg`
+- **Styling**: `styles/app.css` applies a gradient overlay plus SVG background on `.home-page`.

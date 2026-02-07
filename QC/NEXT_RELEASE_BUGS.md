@@ -101,6 +101,54 @@ Comparison of toolbar controls:
 
 ---
 
+#### [BUG-006] Periodic change not applied to transactions 🟡
+
+**Status**: 🟡  
+**Reported**: 2026-02-02  
+**Component**: Transactions / Periodic Change  
+**Affects**: Transaction projections and expanded occurrences  
+
+**Description**:  
+Transactions with any periodic change (Fixed Amount or Percentage Rate) do not increase or decrease over time. The periodic change appears saved but is not applied to transaction occurrences in projections.
+
+**Reproduction Steps**:  
+1. Create a transaction with a monthly recurrence
+2. Open Periodic Change and set Mode = Fixed Amount, Frequency = Monthly, Value = 100
+3. Save and generate projections
+4. Observe transaction occurrences across multiple months
+5. Repeat with Mode = Percentage Rate, Change Type = Nominal Annual, Value = 10
+6. Observe transaction occurrences across multiple months
+
+**Expected Behavior**:  
+Each occurrence should apply the configured periodic change (fixed amount or percentage rate) based on its schedule from the start date.
+
+**Actual Behavior**:  
+Transaction amounts remain constant across occurrences; periodic changes are not applied.
+
+**Analysis**:  
+**File(s)**: [js/projection-engine.js](../js/projection-engine.js#L78-L92), [js/periodic-change-utils.js](../js/periodic-change-utils.js#L24-L44), [js/modal-periodic-change.js](../js/modal-periodic-change.js#L246-L275)  
+**Issue**: The projection engine only applies periodic change when `expandPeriodicChangeForCalculation()` returns a fully expanded configuration. That helper currently requires both `changeMode` and `changeType` to resolve from lookup data, returning `null` when either is missing or mismatched. This prevents periodic changes from being applied to transactions when lookup data resolution fails (including Fixed Amount mode, which does not require `changeType`).
+
+**Fix Required**:  
+Option 1 (Recommended - Allow fixed amount without changeType):
+1. In `expandPeriodicChangeForCalculation()`, allow Fixed Amount mode to expand without a `changeType` lookup
+2. Populate `changeType` only when relevant (percentage rate)
+3. Add a guard to ensure `frequency` is present for fixed amount
+
+Option 2 (Alternative - Normalize on save):
+1. In `openPeriodicChangeModal()`, always set a valid `changeType` when saving Fixed Amount mode
+2. Add normalization in `TransactionManager.saveAll()` to enforce valid IDs
+
+Option 3 (Investigate lookup data mismatches):
+1. Validate `changeMode` and `changeType` IDs for transactions on save
+2. Ensure lookup data IDs align with stored transaction periodic change values
+3. Add warning logs if expansion fails for transactions
+
+**Fixed**: Not yet  
+**Commit**: N/A
+
+---
+
 ### 2.3 Medium Priority Bugs (🟢)
 
 #### [BUG-003] Cannot edit transaction date when period is selected 🟢

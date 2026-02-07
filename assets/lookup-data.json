@@ -35,6 +35,19 @@
     },
     {
       "id": 4,
+      "name": "Debt Repayment",
+      "description": "Track and model debt payoff scenarios",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": false,
+      "showBudget": false,
+      "showProjections": true,
+      "showSummaryCards": true,
+      "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange", "description"],
+      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
+    },
+    {
+      "id": 5,
       "name": "Goal-Based",
       "description": "Goal-based planning with automatic transaction generation",
       "showAccounts": true,
