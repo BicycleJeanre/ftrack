@@ -7,7 +7,8 @@
 
 ## 1.0 Overview
 
-Goal-Based Planning is implemented by storing a target amount and target date directly on each account, then generating standard transactions from a **Generate Plan** section. The resulting transactions appear in the normal transactions grid and are used by the existing projection engine.
+Goal-Based Planning is implemented by storing a target amount and target date directly on each account, then generating standard transactions from a **Generate Plan** section. The resulting transactions appear in the normal transactions grid and are used by the exi
+sting projection engine.
 
 ---
 
