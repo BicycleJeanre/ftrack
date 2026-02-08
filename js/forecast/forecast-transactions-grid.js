@@ -15,6 +15,7 @@ import { notifyError } from '../notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transaction-row-transformer.js';
 import * as TransactionManager from '../managers/transaction-manager.js';
 import { loadLookup } from '../lookup-loader.js';
+import { GridStateManager } from '../grid-state.js';
 
 import {
   getScenario,
@@ -23,6 +24,8 @@ import {
   createAccount,
   getScenarioPeriods
 } from '../data-manager.js';
+
+const transactionsGridState = new GridStateManager('transactions');
 
 export async function loadMasterTransactionsGrid({
   container,
@@ -35,6 +38,15 @@ export async function loadMasterTransactionsGrid({
 }) {
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
+
+  try {
+    const existingTable = tables?.getMasterTransactionsTable?.();
+    transactionsGridState.capture(existingTable, {
+      groupBy: '#tx-grouping-select'
+    });
+  } catch (_) {
+    // Keep existing behavior: ignore state capture errors.
+  }
 
   const typeConfig = getScenarioTypeConfig?.();
 
@@ -597,6 +609,15 @@ export async function loadMasterTransactionsGrid({
           masterTransactionsTable.setGroupBy(false);
         }
       });
+    }
+
+    try {
+      transactionsGridState.restore(masterTransactionsTable, { restoreGroupBy: false });
+      transactionsGridState.restoreDropdowns({
+        groupBy: '#tx-grouping-select'
+      });
+    } catch (_) {
+      // Keep existing behavior: ignore state restore errors.
     }
 
     setTimeout(() => {

@@ -8,10 +8,13 @@ import { getRecurrenceDescription } from '../recurrence-utils.js';
 import { notifyError } from '../notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transaction-row-transformer.js';
 import { loadLookup } from '../lookup-loader.js';
+import { GridStateManager } from '../grid-state.js';
 
 import * as BudgetManager from '../managers/budget-manager.js';
 
 import { getScenario, getScenarioPeriods, getBudget } from '../data-manager.js';
+
+const budgetGridState = new GridStateManager('budget');
 
 export async function loadBudgetGrid({
   container,
@@ -23,6 +26,15 @@ export async function loadBudgetGrid({
 }) {
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
+
+  try {
+    const existingTable = tables?.getMasterBudgetTable?.();
+    budgetGridState.capture(existingTable, {
+      groupBy: '#budget-grouping-select'
+    });
+  } catch (_) {
+    // Keep existing behavior: ignore state capture errors.
+  }
 
   const loadToken = state?.bumpBudgetGridLoadToken?.();
   const transactionFilterAccountIdSnapshot = state?.getTransactionFilterAccountId?.();
@@ -520,6 +532,15 @@ export async function loadBudgetGrid({
           budgetTable.setGroupBy(false);
         }
       });
+    }
+
+    try {
+      budgetGridState.restore(budgetTable, { restoreGroupBy: false });
+      budgetGridState.restoreDropdowns({
+        groupBy: '#budget-grouping-select'
+      });
+    } catch (_) {
+      // Keep existing behavior: ignore state restore errors.
     }
 
     setTimeout(() => {
