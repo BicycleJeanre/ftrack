@@ -84,6 +84,14 @@ let masterTransactionsTable = null; // Store transactions table instance for fil
 let masterBudgetTable = null; // Store budget table instance for filtering
 let summaryCardsAccountTypeFilter = 'All';
 
+function isDebtScenario(typeConfig) {
+  return typeConfig?.name === 'Debt Repayment';
+}
+
+function isGeneralScenario(typeConfig) {
+  return typeConfig?.name === 'General';
+}
+
 // Update transaction totals in toolbar based on current filtered data
 function updateTransactionTotals(filteredRows = null) {
   updateTransactionTotalsCore(masterTransactionsTable, filteredRows);
@@ -467,6 +475,7 @@ async function loadMasterTransactionsGrid(container) {
       updateTransactionTotals,
       updateBudgetTotals,
       loadProjectionsSection,
+      refreshSummaryCards,
       getEl
     },
     logger
@@ -727,6 +736,93 @@ async function loadDebtSummaryCards(container) {
   container.appendChild(groupWrapper);
 }
 
+async function loadGeneralSummaryCards(container) {
+  if (!container) {
+    return;
+  }
+
+  if (!currentScenario || !currentScenario.type) {
+    container.innerHTML = '';
+    return;
+  }
+
+  if (!masterTransactionsTable) {
+    container.innerHTML = '<div class="empty-message">No transactions to summarize yet.</div>';
+    return;
+  }
+
+  const rows = masterTransactionsTable.getData('active') || [];
+  if (!rows.length) {
+    container.innerHTML = '<div class="empty-message">No transactions to summarize yet.</div>';
+    return;
+  }
+
+  const totals = calculateCategoryTotals(rows, {
+    amountField: 'amount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId'
+  });
+
+  container.innerHTML = '';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'summary-cards-groups';
+
+  const card = document.createElement('div');
+  card.className = 'summary-card overall-total';
+  card.innerHTML = `
+    <div class="summary-card-title">OVERALL TOTAL</div>
+    <div class="summary-card-row">
+      <span class="label">Money In:</span>
+      <span class="value positive">${formatMoneyDisplay(totals.moneyIn || 0)}</span>
+    </div>
+    <div class="summary-card-row">
+      <span class="label">Money Out:</span>
+      <span class="value negative">${formatMoneyDisplay(totals.moneyOut || 0)}</span>
+    </div>
+    <div class="summary-card-row">
+      <span class="label">Net:</span>
+      <span class="value ${totals.net >= 0 ? 'positive' : 'negative'}">${formatMoneyDisplay(totals.net || 0)}</span>
+    </div>
+  `;
+
+  wrapper.appendChild(card);
+  container.appendChild(wrapper);
+}
+
+async function loadSummaryCards(container) {
+  const typeConfig = getScenarioTypeConfig();
+  if (!typeConfig?.showSummaryCards) {
+    if (container) container.innerHTML = '';
+    return;
+  }
+
+  if (isDebtScenario(typeConfig)) {
+    await loadDebtSummaryCards(container);
+    return;
+  }
+
+  if (isGeneralScenario(typeConfig)) {
+    await loadGeneralSummaryCards(container);
+    return;
+  }
+}
+
+async function refreshSummaryCards() {
+  const typeConfig = getScenarioTypeConfig();
+  if (!typeConfig?.showSummaryCards) {
+    return;
+  }
+
+  // Minimal plan requirement: General summary refreshes after edits.
+  if (!isGeneralScenario(typeConfig)) {
+    return;
+  }
+
+  await loadSummaryCards(getEl('summaryCardsContent'));
+}
+
 // Load projections section (buttons and grid)
 async function loadProjectionsSection(container) {
   return loadProjectionsSectionCore({
@@ -762,7 +858,7 @@ async function loadProjectionsSection(container) {
     },
     callbacks: {
       loadBudgetGrid,
-      loadDebtSummaryCards,
+      loadSummaryCards,
       updateTransactionTotals,
       updateBudgetTotals,
       updateProjectionTotals,
@@ -863,7 +959,7 @@ async function loadScenarioData() {
   
   // Load summary cards AFTER projections so they have data to work with
   if (typeConfig.showSummaryCards) {
-    await loadDebtSummaryCards(containers.summaryCardsContent);
+    await loadSummaryCards(containers.summaryCardsContent);
   }
 }
 

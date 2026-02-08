@@ -68,7 +68,12 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
   - **Save as Budget**: Creates editable budget snapshot from projections.
   - **Toolbar**: Account filter, period view controls, and inline totals (Income, Expenses, Net).
 
-#### F. Debt Repayment Summary Cards
+#### F. Summary Cards
+- **Type**: Read-only summary cards.
+- **Behavior**: A scenario-gated summary section shown near the top of the Forecast view.
+
+Debt Repayment summary cards.
+
 - **Type**: Read-only summary cards (per-account).
 - **Behavior**: Displays debt-specific metrics based on account data and projections.
 - **Display Rules**:
@@ -79,6 +84,11 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
   - Interest Paid derives from negative interest deltas and displays as negative values in red.
   - Zero Date shows when account balance crosses from negative to positive (debt payoff), or 'N/A' if never crosses.
   - Summary cards group by account type and can be filtered to Assets or Liabilities.
+
+General scenario summary cards.
+
+- **Type**: Single overall total card.
+- **Behavior**: Displays Money In, Money Out, and Net using the same conventions as transaction totals.
 
 ## 3.0 Interactive Patterns
 

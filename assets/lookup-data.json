@@ -16,7 +16,8 @@
       "showAccounts": true,
       "showPlannedTransactions": true,
       "showActualTransactions": false,
-      "showProjections": true
+      "showProjections": true,
+      "showSummaryCards": true
     },
     {
       "id": 3,

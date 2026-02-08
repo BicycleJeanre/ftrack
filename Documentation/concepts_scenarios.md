@@ -33,6 +33,8 @@ Best for: Monthly budget planning, expense control and monitoring, disciplined f
 
 An open exploration scenario with more flexibility. General scenarios provide the core planning tools, Accounts, Transactions, Projections, without the strict budget tracking overhead.
 
+General scenarios also include a compact Summary section at the top showing Money In, Money Out, and Net totals.
+
 Best for: Long-term financial planning, exploratory what-if analysis, modeling without strict budget constraints.
 
 ### 1.3.3 Debt Repayment Scenarios

@@ -61,7 +61,7 @@ export async function loadProjectionsSection({
 
       const typeConfig = getScenarioTypeConfig?.();
       if (typeConfig?.showSummaryCards) {
-        await callbacks?.loadDebtSummaryCards?.(callbacks?.getEl?.('summaryCardsContent'));
+        await callbacks?.loadSummaryCards?.(callbacks?.getEl?.('summaryCardsContent'));
       }
     } catch (err) {
       notifyError('Failed to generate projections: ' + err.message);
