@@ -62,36 +62,36 @@ The plan prioritizes reuse of existing patterns in `forecast.js`, existing grids
 ## 5.0 Implementation Tasks
 
 5.1 Enable Summary Cards for Funds
-5.1.1 File: [assets/lookup-data.json](../assets/lookup-data.json)
+5.1.1 File: [assets/lookup-data.json](../../assets/lookup-data.json)
 5.1.2 Action: set `showSummaryCards: true` on the existing Funds scenario type.
 
 5.2 Reuse Summary Cards Section Infrastructure
-5.2.1 File: [js/forecast.js](../js/forecast.js)
+5.2.1 File: [js/forecast.js](../../js/forecast.js)
 5.2.2 Action: reuse existing `summaryCardsSection` DOM + visibility gating used by Debt Repayment.
 
 5.3 Add Account Type Scope Selector
-5.3.1 File: [js/forecast.js](../js/forecast.js)
+5.3.1 File: [js/forecast.js](../../js/forecast.js)
 5.3.2 Action: selector options All, Asset, Liability, Equity, Income, Expense.
 
 5.4 Add Fund Summary Calculator
-5.4.1 File: [js/fund-utils.js](../js/fund-utils.js) (new)
+5.4.1 File: [js/fund-utils.js](../../js/fund-utils.js) (new)
 5.4.2 Action: compute NAV, total shares, share price, and Equity investor breakdown for a scope and as-of date.
 
 5.5 Render Funds Summary Cards + Detail Grid
-5.5.1 File: [js/forecast.js](../js/forecast.js)
+5.5.1 File: [js/forecast.js](../../js/forecast.js)
 5.5.2 Action: add `loadFundsSummaryCards()` similar to `loadDebtSummaryCards()`.
-5.5.3 Action: render a small detail grid under cards using [js/grid-factory.js](../js/grid-factory.js).
+5.5.3 Action: render a small detail grid under cards using [js/grid-factory.js](../../js/grid-factory.js).
 
 5.6 Implement Locked Shares Default + Manual Entry
-5.6.1 Files: [js/forecast.js](../js/forecast.js), [js/managers/scenario-manager.js](../js/managers/scenario-manager.js)
+5.6.1 Files: [js/forecast.js](../../js/forecast.js), [js/managers/scenario-manager.js](../../js/managers/scenario-manager.js)
 5.6.2 Action: initialize `scenario.fundSettings.shareMode` to Locked and persist `lockedSharesByAccountId`.
 
 5.7 Implement Automatic Shares Switch
-5.7.1 Files: [js/forecast.js](../js/forecast.js), [js/fund-utils.js](../js/fund-utils.js)
+5.7.1 Files: [js/forecast.js](../../js/forecast.js), [js/fund-utils.js](../../js/fund-utils.js)
 5.7.2 Action: switch to Automatic shares from a chosen effective date only.
 
 5.8 Implement Report-Time and Point-in-Time Refresh
-5.8.1 File: [js/forecast.js](../js/forecast.js)
+5.8.1 File: [js/forecast.js](../../js/forecast.js)
 5.8.2 Action: “As of date” + Refresh to regenerate summary + detail grid.
 
 ---

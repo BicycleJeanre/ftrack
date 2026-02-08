@@ -40,22 +40,22 @@ This plan adds a minimal “total summary at the top” by reusing the existing 
 ## 4.0 Implementation Tasks
 
 4.1 Enable Summary Cards for General
-4.1.1 File: [assets/lookup-data.json](../assets/lookup-data.json)
+4.1.1 File: [assets/lookup-data.json](../../assets/lookup-data.json)
 4.1.2 Action: set `showSummaryCards: true` for the existing General scenario type.
 
 4.2 Reuse the existing Summary Cards section
-4.2.1 File: [js/forecast.js](../js/forecast.js)
+4.2.1 File: [js/forecast.js](../../js/forecast.js)
 4.2.2 Action: General should participate in the same `typeConfig.showSummaryCards` gating already used by Debt Repayment.
 
 4.3 Add a General summary renderer
-4.3.1 File: [js/forecast.js](../js/forecast.js)
+4.3.1 File: [js/forecast.js](../../js/forecast.js)
 4.3.2 Action: add `loadGeneralSummaryCards(container)`.
 4.3.3 Rendering: one “Overall Total” card only.
 4.3.4 Values: Money in, Money out, Net.
 4.3.5 Optional extension: add Current net worth and Projected end net worth if the necessary values are already easily available.
 
 4.4 Hook refresh events
-4.4.1 File: [js/forecast.js](../js/forecast.js)
+4.4.1 File: [js/forecast.js](../../js/forecast.js)
 4.4.2 Action: refresh summary after:
 4.4.2.1 Scenario load
 4.4.2.2 Transactions edits
