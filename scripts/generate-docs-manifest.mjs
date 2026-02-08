@@ -11,6 +11,10 @@ const docsRoot = path.join(repoRoot, 'Documentation');
 const outPath = path.join(repoRoot, 'assets', 'docs-manifest.json');
 
 const categoryRules = [
+  { prefix: 'concepts_', category: 'Concepts' },
+  { prefix: 'plan_', category: 'Plan' },
+  { prefix: 'user_', category: 'User' },
+  { prefix: 'other_', category: 'Other' },
   { prefix: 'TECH_', category: 'Technical' },
   { prefix: 'DEBT_REPAYMENT_', category: 'Debt Repayment' },
   { prefix: 'GOAL_', category: 'Goal Planning' },
@@ -102,21 +106,35 @@ async function collectDocs(dir) {
 }
 
 function inferCategory(baseName) {
-  if (baseName.includes('__')) {
-    const [rawCategory] = baseName.split('__');
+  const normalized = baseName.replaceAll('-', '_');
+
+  if (normalized.includes('__')) {
+    const [rawCategory] = normalized.split('__');
     if (rawCategory && rawCategory.trim()) {
       return toTitleCase(rawCategory.replaceAll('_', ' '));
     }
   }
 
   for (const rule of categoryRules) {
-    if (baseName.startsWith(rule.prefix)) return rule.category;
+    if (normalized.toUpperCase().startsWith(rule.prefix.toUpperCase())) return rule.category;
   }
+
+  // Dynamic prefix support:
+  // If the filename starts with a simple prefix followed by an underscore,
+  // treat that prefix as the category. This allows adding new doc families
+  // without updating this script.
+  // Examples:
+  // - concepts_accounts -> Concepts
+  // - plan_project_notes -> Plan
+  // - user_getting_started -> User
+  const genericPrefix = getGenericPrefix(baseName);
+  if (genericPrefix) return toTitleCase(genericPrefix.replaceAll('_', ' '));
+
   return 'Other';
 }
 
 function inferTitle(baseName, category) {
-  let working = baseName;
+  let working = baseName.replaceAll('-', '_');
 
   if (working.includes('__')) {
     const parts = working.split('__');
@@ -124,10 +142,17 @@ function inferTitle(baseName, category) {
   }
 
   for (const rule of categoryRules) {
-    if (working.startsWith(rule.prefix)) {
+    if (working.toUpperCase().startsWith(rule.prefix.toUpperCase())) {
       working = working.slice(rule.prefix.length);
       break;
     }
+  }
+
+  // Match inferCategory dynamic prefixes (lowercase style) so fallback titles
+  // don't include the category prefix.
+  const genericPrefix = getGenericPrefix(working);
+  if (genericPrefix) {
+    working = working.slice(genericPrefix.length + 1);
   }
 
   if (!working) working = baseName;
@@ -141,6 +166,14 @@ function toTitleCase(text) {
     .filter(Boolean)
     .map(word => word.length ? word[0].toUpperCase() + word.slice(1).toLowerCase() : word)
     .join(' ');
+}
+
+function getGenericPrefix(baseName) {
+  // Only treat lowercase prefixes as dynamic categories.
+  // This avoids changing behavior for existing uppercase convention files
+  // like TECH_ARCHITECTURE.
+  const match = String(baseName).match(/^([a-z0-9]+)_/);
+  return match ? match[1] : null;
 }
 
 function extractFirstHeading(markdown) {

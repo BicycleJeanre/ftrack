@@ -360,5 +360,17 @@ function getInitialDocId(items) {
     if (items.some(d => d.id === docId)) return docId;
   }
 
+  // Prefer Getting Started when present.
+  const preferredIds = [
+    'user_getting_started',
+    'concepts_getting_started',
+    'user_overview',
+    'concepts_overview',
+    'TECH_OVERVIEW'
+  ];
+  for (const id of preferredIds) {
+    if (items.some(d => d.id === id)) return id;
+  }
+
   return items.length ? items[0].id : null;
 }

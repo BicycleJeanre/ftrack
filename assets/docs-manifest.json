@@ -1,61 +1,117 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-08T09:14:16.614Z",
+  "generatedAt": "2026-02-08T10:23:28.581Z",
   "items": [
     {
-      "id": "DEBT_REPAYMENT_FINAL_DESIGN",
-      "title": "Debt Repayment - Final Design Summary",
-      "category": "Debt Repayment",
-      "file": "Documentation/Plans/DEBT_REPAYMENT_FINAL_DESIGN.md",
+      "id": "concepts_accounts",
+      "title": "Accounts Guide",
+      "category": "Concepts",
+      "file": "Documentation/concepts_accounts.md",
       "kind": "md"
     },
     {
-      "id": "GRID_STATE_IMPLEMENTATION_ROADMAP",
-      "title": "Grid State Preservation - Implementation Roadmap",
-      "category": "Grid State",
-      "file": "Documentation/Plans/GRID_STATE_IMPLEMENTATION_ROADMAP.md",
+      "id": "concepts_periodic_changes",
+      "title": "Periodic Changes",
+      "category": "Concepts",
+      "file": "Documentation/concepts_periodic_changes.md",
       "kind": "md"
     },
     {
-      "id": "FUND_SCENARIO_IMPLEMENTATION_PLAN",
+      "id": "concepts_projections",
+      "title": "Projections Guide",
+      "category": "Concepts",
+      "file": "Documentation/concepts_projections.md",
+      "kind": "md"
+    },
+    {
+      "id": "concepts_recurrence",
+      "title": "Recurrence And Scheduling",
+      "category": "Concepts",
+      "file": "Documentation/concepts_recurrence.md",
+      "kind": "md"
+    },
+    {
+      "id": "concepts_scenarios",
+      "title": "Scenario Planning",
+      "category": "Concepts",
+      "file": "Documentation/concepts_scenarios.md",
+      "kind": "md"
+    },
+    {
+      "id": "concepts_transactions",
+      "title": "Transactions Guide",
+      "category": "Concepts",
+      "file": "Documentation/concepts_transactions.md",
+      "kind": "md"
+    },
+    {
+      "id": "other_CHANGELOG",
+      "title": "Changelog",
+      "category": "Other",
+      "file": "Documentation/other_CHANGELOG.md",
+      "kind": "md"
+    },
+    {
+      "id": "CLEANUP_PLAN_STARTING_BALANCE_2026-02-08",
+      "title": "Cleanup Plan - Starting Balance Normalization - 2026-02-08",
+      "category": "Other",
+      "file": "Documentation/Plans/CLEANUP_PLAN_STARTING_BALANCE_2026-02-08.md",
+      "kind": "md"
+    },
+    {
+      "id": "other_glossary",
+      "title": "Glossary",
+      "category": "Other",
+      "file": "Documentation/other_glossary.md",
+      "kind": "md"
+    },
+    {
+      "id": "other_shortcuts",
+      "title": "Keyboard Shortcuts",
+      "category": "Other",
+      "file": "Documentation/other_shortcuts.md",
+      "kind": "md"
+    },
+    {
+      "id": "other_LICENSE",
+      "title": "License",
+      "category": "Other",
+      "file": "Documentation/other_LICENSE.md",
+      "kind": "md"
+    },
+    {
+      "id": "plan_fund_scenario_implementation_plan",
       "title": "Fund Scenario - Minimal Implementation Plan",
-      "category": "Other",
-      "file": "Documentation/Plans/FUND_SCENARIO_IMPLEMENTATION_PLAN.md",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_fund_scenario_implementation_plan.md",
       "kind": "md"
     },
     {
-      "id": "FUND_SCENARIO_CONCEPT",
+      "id": "plan_fund_scenario_concept",
       "title": "Fund Scenario Concept Design",
-      "category": "Other",
-      "file": "Documentation/Plans/FUND_SCENARIO_CONCEPT.md",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_fund_scenario_concept.md",
       "kind": "md"
     },
     {
-      "id": "GENERAL_SCENARIO_IMPLEMENTATION_PLAN",
+      "id": "plan_general_scenario_implementation_plan",
       "title": "General Scenario - Minimal Implementation Plan",
-      "category": "Other",
-      "file": "Documentation/Plans/GENERAL_SCENARIO_IMPLEMENTATION_PLAN.md",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_general_scenario_implementation_plan.md",
       "kind": "md"
     },
     {
-      "id": "GENERAL_SCENARIO_CONCEPT",
+      "id": "plan_general_scenario_concept",
       "title": "General Scenario Concept Design",
-      "category": "Other",
-      "file": "Documentation/Plans/GENERAL_SCENARIO_CONCEPT.md",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_general_scenario_concept.md",
       "kind": "md"
     },
     {
-      "id": "project-notes",
-      "title": "Project-notes",
-      "category": "Other",
-      "file": "Documentation/Plans/project-notes.ipynb",
-      "kind": "ipynb"
-    },
-    {
-      "id": "RELEASE_WORKFLOW",
-      "title": "Production Release Workflow",
-      "category": "Release",
-      "file": "Documentation/RELEASE_WORKFLOW.md",
+      "id": "plan_grid_state_implementation_roadmap",
+      "title": "Grid State Preservation - Implementation Roadmap",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_grid_state_implementation_roadmap.md",
       "kind": "md"
     },
     {
@@ -80,10 +136,10 @@
       "kind": "md"
     },
     {
-      "id": "USAGE_GUIDE",
+      "id": "USER_GUIDE",
       "title": "FTrack Usage Guide",
       "category": "User",
-      "file": "Documentation/USAGE_GUIDE.md",
+      "file": "Documentation/USER_GUIDE.md",
       "kind": "md"
     },
     {
@@ -91,6 +147,20 @@
       "title": "FTrack User Features",
       "category": "User",
       "file": "Documentation/USER_FEATURES.md",
+      "kind": "md"
+    },
+    {
+      "id": "user_getting_started",
+      "title": "Getting Started",
+      "category": "User",
+      "file": "Documentation/user_getting_started.md",
+      "kind": "md"
+    },
+    {
+      "id": "user_overview",
+      "title": "Overview",
+      "category": "User",
+      "file": "Documentation/user_overview.md",
       "kind": "md"
     }
   ]
