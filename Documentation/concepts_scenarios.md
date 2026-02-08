@@ -86,6 +86,15 @@ Equity scope shows an investor breakdown including shares, ownership percent, an
 
 Note: The Budget grid is hidden in Funds scenarios.
 
+### 1.3.5 Advanced Goal Solver Scenarios
+
+Advanced Goal Solver scenarios support multi-goal planning under user-defined constraints.
+
+Advanced Goal Solver scenarios include.
+
+- **Generate Plan**: Define multiple goals and constraints, then solve and apply suggested transactions.
+- **Projections**: Validate results by generating projections after applying a solution.
+
 ## 1.4 Creating A Scenario
 
 1. Click the Forecast button in the navbar.

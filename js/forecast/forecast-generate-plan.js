@@ -2,7 +2,13 @@
 // Goal-based "Generate Plan" feature extracted from forecast.js (no behavior change).
 
 import { loadLookup } from '../lookup-loader.js';
-import { formatMoneyDisplay } from '../grid-factory.js';
+import {
+  createGrid,
+  createDateColumn,
+  createMoneyColumn,
+  createNumberColumn,
+  formatMoneyDisplay
+} from '../grid-factory.js';
 import { formatDateOnly } from '../date-utils.js';
 import {
   calculateContributionAmount,
@@ -13,8 +19,523 @@ import {
   convertContributionFrequency
 } from '../goal-calculation-utils.js';
 import * as TransactionManager from '../managers/transaction-manager.js';
+import * as ScenarioManager from '../managers/scenario-manager.js';
 import { getScenario } from '../data-manager.js';
 import { notifyError, notifySuccess } from '../notifications.js';
+import { solveAdvancedGoals } from '../advanced-goal-solver.js';
+
+function isAdvancedGoalSolverScenario(scenario) {
+  return scenario?.type?.name === 'Advanced Goal Solver';
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function getDefaultAdvancedGoalSettings(scenario) {
+  const accounts = scenario?.accounts || [];
+  const defaultFunding = accounts.find((a) => a.type?.name === 'Asset')?.id || null;
+  return {
+    goals: [],
+    constraints: {
+      fundingAccountId: defaultFunding,
+      maxOutflowPerMonth: null,
+      lockedAccountIds: [],
+      maxMovementByAccountId: {},
+      minBalanceFloorsByAccountId: {}
+    }
+  };
+}
+
+async function persistAdvancedSettings({ scenarioId, nextSettings, scenarioState }) {
+  await ScenarioManager.update(scenarioId, { advancedGoalSettings: nextSettings });
+  const refreshed = await getScenario(scenarioId);
+  scenarioState?.set?.(refreshed);
+  return refreshed;
+}
+
+function buildGoalTypeOptions() {
+  return [
+    { value: 'reach_balance_by_date', label: 'Reach balance target' },
+    { value: 'pay_down_by_date', label: 'Pay down to target' },
+    { value: 'increase_by_delta', label: 'Increase by delta' },
+    { value: 'maintain_floor', label: 'Maintain floor' }
+  ];
+}
+
+function buildConstraintTypeOptions() {
+  return [
+    { value: 'fundingAccount', label: 'Funding account' },
+    { value: 'maxOutflow', label: 'Max outflow per month' },
+    { value: 'lockedAccount', label: 'Locked account' },
+    { value: 'accountCap', label: 'Account movement cap per month' },
+    { value: 'minBalanceFloor', label: 'Min balance floor' }
+  ];
+}
+
+function makeId() {
+  return `g_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+}
+
+async function loadAdvancedGoalSolverSection({
+  container,
+  scenarioState,
+  loadMasterTransactionsGrid,
+  loadProjectionsSection,
+  logger
+}) {
+  const scenario = scenarioState?.get?.();
+  if (!scenario) {
+    container.innerHTML = '<div class="empty-message">No scenario selected</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  const accounts = (scenario.accounts || []).filter((a) => a.name !== 'Select Account');
+  if (accounts.length === 0) {
+    container.innerHTML = '<div class="empty-message">Create accounts first to configure goals.</div>';
+    return;
+  }
+
+  const settings = scenario.advancedGoalSettings || getDefaultAdvancedGoalSettings(scenario);
+  const goals = Array.isArray(settings.goals) ? settings.goals : [];
+  const constraints = settings.constraints || {};
+
+  const formContainer = document.createElement('div');
+  formContainer.className = 'generate-plan-form';
+
+  const constraintsDiv = document.createElement('div');
+  constraintsDiv.innerHTML = `
+    <h3 class="section-title text-main">Constraints</h3>
+    <div id="adv-constraints-grid" style="margin-top:8px;"></div>
+    <div class="generate-plan-buttons" style="margin-top:8px;">
+      <button id="adv-constraint-add" class="btn btn-secondary">+ Add Constraint</button>
+    </div>
+  `;
+  window.add(formContainer, constraintsDiv);
+
+  const goalsDiv = document.createElement('div');
+  goalsDiv.innerHTML = `
+    <h3 class="section-title text-main">Goals</h3>
+    <div id="adv-goals-grid" style="margin-top:8px;"></div>
+    <div class="generate-plan-buttons">
+      <button id="adv-goal-add" class="btn btn-secondary">+ Add Goal</button>
+    </div>
+  `;
+  window.add(formContainer, goalsDiv);
+
+  const resultsDiv = document.createElement('div');
+  resultsDiv.innerHTML = `
+    <h3 class="section-title text-main">Solution</h3>
+    <div id="adv-goal-solution" class="text-muted">Configure goals and click Solve.</div>
+    <div class="generate-plan-buttons">
+      <button id="adv-goal-solve" class="btn btn-primary">Solve</button>
+      <button id="adv-goal-apply" class="btn btn-secondary" disabled>Apply</button>
+    </div>
+  `;
+  window.add(formContainer, resultsDiv);
+
+  window.add(container, formContainer);
+
+  const constraintsGridEl = document.getElementById('adv-constraints-grid');
+  const addConstraintBtn = document.getElementById('adv-constraint-add');
+  const goalsGridEl = document.getElementById('adv-goals-grid');
+  const solveBtn = document.getElementById('adv-goal-solve');
+  const applyBtn = document.getElementById('adv-goal-apply');
+  const addBtn = document.getElementById('adv-goal-add');
+  const solutionEl = document.getElementById('adv-goal-solution');
+
+  let lastSolve = null;
+
+  const goalTypeOptions = buildGoalTypeOptions();
+  const constraintTypeOptions = buildConstraintTypeOptions();
+
+  const accountIdToName = new Map(accounts.map((a) => [Number(a.id), a.name]));
+  const goalTypeToLabel = new Map(goalTypeOptions.map((g) => [g.value, g.label]));
+  const constraintTypeToLabel = new Map(constraintTypeOptions.map((c) => [c.value, c.label]));
+
+  const normalizeGoalRow = (row) => {
+    const toNumOrNull = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+
+    return {
+      id: row.id || makeId(),
+      priority: Math.max(1, Number(row.priority || 1)),
+      accountId: row.accountId === '' || row.accountId == null ? null : Number(row.accountId),
+      type: row.type || 'reach_balance_by_date',
+      targetAmount: toNumOrNull(row.targetAmount),
+      deltaAmount: toNumOrNull(row.deltaAmount),
+      floorAmount: toNumOrNull(row.floorAmount),
+      startDate: row.startDate || null,
+      endDate: row.endDate || null
+    };
+  };
+
+  const buildConstraintRowsFromObject = () => {
+    const rows = [];
+    if (constraints.fundingAccountId != null) {
+      rows.push({ id: 'c_funding', type: 'fundingAccount', accountId: Number(constraints.fundingAccountId), amount: null });
+    }
+    if (constraints.maxOutflowPerMonth != null) {
+      rows.push({ id: 'c_maxOutflow', type: 'maxOutflow', accountId: null, amount: Number(constraints.maxOutflowPerMonth) });
+    }
+    (constraints.lockedAccountIds || []).forEach((id) => {
+      rows.push({ id: makeId(), type: 'lockedAccount', accountId: Number(id), amount: null });
+    });
+    Object.entries(constraints.maxMovementByAccountId || {}).forEach(([accountId, cap]) => {
+      rows.push({ id: makeId(), type: 'accountCap', accountId: Number(accountId), amount: Number(cap) });
+    });
+    Object.entries(constraints.minBalanceFloorsByAccountId || {}).forEach(([accountId, floor]) => {
+      rows.push({ id: makeId(), type: 'minBalanceFloor', accountId: Number(accountId), amount: Number(floor) });
+    });
+    return rows;
+  };
+
+  const normalizeConstraintRow = (row) => {
+    const toNumOrNull = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+
+    return {
+      id: row.id || makeId(),
+      type: row.type || 'lockedAccount',
+      accountId: row.accountId === '' || row.accountId == null ? null : Number(row.accountId),
+      amount: toNumOrNull(row.amount)
+    };
+  };
+
+  const buildConstraintsObjectFromRows = (rows) => {
+    const normalized = (rows || []).map(normalizeConstraintRow);
+
+    const fundingRow = normalized.find((r) => r.type === 'fundingAccount' && r.accountId != null);
+    const maxOutflowRow = normalized.find((r) => r.type === 'maxOutflow' && r.amount != null);
+
+    const lockedAccountIds = normalized
+      .filter((r) => r.type === 'lockedAccount' && r.accountId != null)
+      .map((r) => Number(r.accountId));
+
+    const maxMovementByAccountId = {};
+    normalized
+      .filter((r) => r.type === 'accountCap' && r.accountId != null && r.amount != null)
+      .forEach((r) => {
+        maxMovementByAccountId[String(Number(r.accountId))] = Number(r.amount);
+      });
+
+    const minBalanceFloorsByAccountId = {};
+    normalized
+      .filter((r) => r.type === 'minBalanceFloor' && r.accountId != null && r.amount != null)
+      .forEach((r) => {
+        minBalanceFloorsByAccountId[String(Number(r.accountId))] = Number(r.amount);
+      });
+
+    return {
+      fundingAccountId: fundingRow ? Number(fundingRow.accountId) : null,
+      maxOutflowPerMonth: maxOutflowRow ? Number(maxOutflowRow.amount) : null,
+      lockedAccountIds,
+      maxMovementByAccountId,
+      minBalanceFloorsByAccountId
+    };
+  };
+
+  let persistTimer = null;
+  const schedulePersistNow = () => {
+    if (persistTimer) window.clearTimeout(persistTimer);
+    persistTimer = window.setTimeout(async () => {
+      try {
+        await persistNow();
+      } catch (err) {
+        logger?.error?.('[AdvancedGoalSolver] Persist failed', err);
+      }
+    }, 250);
+  };
+
+  const moneyCellFormatterOrBlank = (cell) => {
+    const v = cell.getValue();
+    if (v === '' || v === null || v === undefined) return '';
+    return formatMoneyDisplay(v);
+  };
+
+  const goalsTable = await createGrid(goalsGridEl, {
+    data: goals.map(normalizeGoalRow),
+    index: 'id',
+    reactiveData: true,
+    placeholder: 'No goals yet.',
+    columns: [
+      createNumberColumn('Priority', 'priority', { minWidth: 90, widthGrow: 0.6, bottomCalc: null, editorParams: { step: 1, min: 1 } }),
+      {
+        title: 'Account',
+        field: 'accountId',
+        minWidth: 200,
+        widthGrow: 1.5,
+        editor: 'list',
+        editorParams: {
+          values: accounts.map((a) => ({ label: a.name, value: Number(a.id) })),
+          listItemFormatter: function (value, title) {
+            return title;
+          }
+        },
+        formatter: function (cell) {
+          const id = cell.getValue();
+          return id != null ? escapeHtml(accountIdToName.get(Number(id)) || '') : '';
+        }
+      },
+      {
+        title: 'Type',
+        field: 'type',
+        minWidth: 180,
+        widthGrow: 1.2,
+        editor: 'list',
+        editorParams: {
+          values: goalTypeOptions.map((t) => ({ label: t.label, value: t.value })),
+          listItemFormatter: function (value, title) {
+            return title;
+          }
+        },
+        formatter: function (cell) {
+          const v = cell.getValue();
+          return escapeHtml(goalTypeToLabel.get(v) || v || '');
+        }
+      },
+      createMoneyColumn('Target', 'targetAmount', { minWidth: 130, widthGrow: 1, bottomCalc: null, formatter: moneyCellFormatterOrBlank }),
+      createMoneyColumn('Delta', 'deltaAmount', { minWidth: 130, widthGrow: 1, bottomCalc: null, formatter: moneyCellFormatterOrBlank }),
+      createMoneyColumn('Floor', 'floorAmount', { minWidth: 130, widthGrow: 1, bottomCalc: null, formatter: moneyCellFormatterOrBlank }),
+      createDateColumn('Start', 'startDate', { minWidth: 130, widthGrow: 1, bottomCalc: null }),
+      createDateColumn('End', 'endDate', { minWidth: 130, widthGrow: 1, bottomCalc: null }),
+      {
+        title: '',
+        field: '_actions',
+        minWidth: 100,
+        widthGrow: 0.6,
+        headerSort: false,
+        formatter: function () {
+          return '<button class="btn btn-ghost">Remove</button>';
+        },
+        cellClick: async function (e, cell) {
+          e.preventDefault();
+          cell.getRow().delete();
+          lastSolve = null;
+          applyBtn.disabled = true;
+          await persistNow();
+        }
+      }
+    ],
+    cellEdited: function () {
+      lastSolve = null;
+      applyBtn.disabled = true;
+      schedulePersistNow();
+    }
+  });
+
+  let persistConstraintsTimer = null;
+  const schedulePersistConstraintsNow = () => {
+    if (persistConstraintsTimer) window.clearTimeout(persistConstraintsTimer);
+    persistConstraintsTimer = window.setTimeout(async () => {
+      try {
+        await persistNow();
+      } catch (err) {
+        logger?.error?.('[AdvancedGoalSolver] Persist constraints failed', err);
+      }
+    }, 250);
+  };
+
+  const constraintsTable = await createGrid(constraintsGridEl, {
+    data: buildConstraintRowsFromObject().map(normalizeConstraintRow),
+    index: 'id',
+    reactiveData: true,
+    placeholder: 'No constraints yet.',
+    columns: [
+      {
+        title: 'Type',
+        field: 'type',
+        minWidth: 210,
+        widthGrow: 1.5,
+        editor: 'list',
+        editorParams: {
+          values: constraintTypeOptions.map((t) => ({ label: t.label, value: t.value })),
+          listItemFormatter: function (value, title) {
+            return title;
+          }
+        },
+        formatter: function (cell) {
+          const v = cell.getValue();
+          return escapeHtml(constraintTypeToLabel.get(v) || v || '');
+        }
+      },
+      {
+        title: 'Account',
+        field: 'accountId',
+        minWidth: 220,
+        widthGrow: 1.6,
+        editor: 'list',
+        editorParams: {
+          values: [{ label: '-- None --', value: null }, ...accounts.map((a) => ({ label: a.name, value: Number(a.id) }))],
+          listItemFormatter: function (value, title) {
+            return title;
+          }
+        },
+        formatter: function (cell) {
+          const id = cell.getValue();
+          return id != null ? escapeHtml(accountIdToName.get(Number(id)) || '') : '';
+        }
+      },
+      createMoneyColumn('Amount', 'amount', {
+        minWidth: 160,
+        widthGrow: 1,
+        bottomCalc: null,
+        formatter: moneyCellFormatterOrBlank
+      }),
+      {
+        title: '',
+        field: '_actions',
+        minWidth: 100,
+        widthGrow: 0.6,
+        headerSort: false,
+        formatter: function () {
+          return '<button class="btn btn-ghost">Remove</button>';
+        },
+        cellClick: async function (e, cell) {
+          e.preventDefault();
+          cell.getRow().delete();
+          lastSolve = null;
+          applyBtn.disabled = true;
+          await persistNow();
+        }
+      }
+    ],
+    cellEdited: function () {
+      lastSolve = null;
+      applyBtn.disabled = true;
+      schedulePersistConstraintsNow();
+    }
+  });
+
+  const persistNow = async () => {
+    const gridGoals = goalsTable
+      ? goalsTable.getData().map(normalizeGoalRow)
+      : (Array.isArray(goals) ? goals.map(normalizeGoalRow) : []);
+
+    const gridConstraints = constraintsTable
+      ? constraintsTable.getData().map(normalizeConstraintRow)
+      : buildConstraintRowsFromObject().map(normalizeConstraintRow);
+
+    const nextConstraints = buildConstraintsObjectFromRows(gridConstraints);
+
+    const nextSettings = {
+      goals: gridGoals,
+      constraints: {
+        ...constraints,
+        ...nextConstraints
+      }
+    };
+    await persistAdvancedSettings({ scenarioId: scenario.id, nextSettings, scenarioState });
+  };
+
+  addBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const newGoal = {
+      id: makeId(),
+      priority: 1,
+      accountId: null,
+      type: 'reach_balance_by_date',
+      targetAmount: null,
+      deltaAmount: null,
+      floorAmount: null,
+      startDate: scenario.startDate || null,
+      endDate: scenario.endDate || null
+    };
+    goalsTable.addRow(newGoal, true);
+    await persistNow();
+  });
+
+  addConstraintBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    constraintsTable.addRow(
+      {
+        id: makeId(),
+        type: 'lockedAccount',
+        accountId: null,
+        amount: null
+      },
+      true
+    );
+    await persistNow();
+  });
+
+  solveBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      const latest = await persistAdvancedSettings({
+        scenarioId: scenario.id,
+        nextSettings: {
+          goals: goalsTable.getData().map(normalizeGoalRow),
+          constraints: {
+            ...constraints,
+            ...buildConstraintsObjectFromRows(constraintsTable.getData().map(normalizeConstraintRow))
+          }
+        },
+        scenarioState
+      });
+
+      const result = await solveAdvancedGoals({ scenario: latest, settings: latest.advancedGoalSettings });
+      lastSolve = result;
+
+      const lines = (result.explanation || []).map((l) => `<div>${escapeHtml(l)}</div>`).join('');
+      const txCount = result.suggestedTransactions?.length || 0;
+      solutionEl.innerHTML = `
+        <div><strong>Suggested transactions:</strong> ${txCount}</div>
+        <div style="margin-top:8px;">${lines}</div>
+      `;
+
+      applyBtn.disabled = !result.isFeasible || txCount === 0;
+    } catch (err) {
+      logger?.error?.('[AdvancedGoalSolver] Solve failed', err);
+
+      const message = err?.message ? String(err.message) : String(err || 'Unknown error');
+      solutionEl.innerHTML = `
+        <div class="error-message"><strong>Solve failed</strong></div>
+        <div class="text-muted" style="margin-top:8px;">${escapeHtml(message)}</div>
+        <div class="text-muted" style="margin-top:8px;">
+          Check DevTools Console for more details.
+        </div>
+      `;
+      notifyError('Failed to solve goals: ' + message);
+    }
+  });
+
+  applyBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!lastSolve || !Array.isArray(lastSolve.suggestedTransactions) || lastSolve.suggestedTransactions.length === 0) {
+      notifyError('Nothing to apply. Click Solve first.');
+      return;
+    }
+
+    try {
+      const refreshedScenario = await getScenario(scenario.id);
+      const existing = refreshedScenario?.transactions || [];
+
+      const filtered = existing.filter((tx) => !(tx.tags && tx.tags.includes('adv-goal-generated')));
+      const nextTxs = [...filtered, ...lastSolve.suggestedTransactions];
+
+      await TransactionManager.saveAll(refreshedScenario.id, nextTxs);
+
+      const refreshed = await getScenario(refreshedScenario.id);
+      scenarioState?.set?.(refreshed);
+
+      await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+      await loadProjectionsSection(document.getElementById('projectionsContent'));
+
+      notifySuccess('Advanced goal plan applied.');
+      applyBtn.disabled = true;
+    } catch (err) {
+      logger?.error?.('[AdvancedGoalSolver] Apply failed', err);
+      notifyError('Failed to apply solution: ' + err.message);
+    }
+  });
+
+}
 
 export async function loadGeneratePlanSection({
   container,
@@ -27,6 +548,16 @@ export async function loadGeneratePlanSection({
   if (!currentScenario) {
     container.innerHTML = '<div class="empty-message">No scenario selected</div>';
     return;
+  }
+
+  if (isAdvancedGoalSolverScenario(currentScenario)) {
+    return loadAdvancedGoalSolverSection({
+      container,
+      scenarioState,
+      loadMasterTransactionsGrid,
+      loadProjectionsSection,
+      logger
+    });
   }
 
   const accounts = currentScenario.accounts || [];

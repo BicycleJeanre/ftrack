@@ -51,6 +51,17 @@
       "showActualTransactions": false,
       "showProjections": true,
       "showGeneratePlan": true
+    },
+    {
+      "id": 6,
+      "name": "Advanced Goal Solver",
+      "description": "Multi-goal planning with constraints and solver-driven suggestions",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": false,
+      "showProjections": true,
+      "showGeneratePlan": true,
+      "showBudget": false
     }
   ],
   "periodTypes": [

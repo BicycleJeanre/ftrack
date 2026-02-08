@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-08T13:08:00.307Z",
+  "generatedAt": "2026-02-08T14:35:27.355Z",
   "items": [
     {
       "id": "concepts_accounts",
@@ -52,13 +52,6 @@
       "kind": "md"
     },
     {
-      "id": "CLEANUP_PLAN_CODEBASE_2026-02-08",
-      "title": "Cleanup Plan - Codebase Cleanup - 2026-02-08",
-      "category": "Other",
-      "file": "Documentation/Plans/CLEANUP_PLAN_CODEBASE_2026-02-08.md",
-      "kind": "md"
-    },
-    {
       "id": "other_glossary",
       "title": "Glossary",
       "category": "Other",
@@ -84,48 +77,6 @@
       "title": "Advanced Goal Solver Scenario Concept Design",
       "category": "Plan",
       "file": "Documentation/Plans/plan_advanced_goal_solver_concept.md",
-      "kind": "md"
-    },
-    {
-      "id": "plan_fund_scenario_implementation_plan",
-      "title": "Fund Scenario - Minimal Implementation Plan",
-      "category": "Plan",
-      "file": "Documentation/Plans/plan_fund_scenario_implementation_plan.md",
-      "kind": "md"
-    },
-    {
-      "id": "plan_fund_scenario_concept",
-      "title": "Fund Scenario Concept Design",
-      "category": "Plan",
-      "file": "Documentation/Plans/plan_fund_scenario_concept.md",
-      "kind": "md"
-    },
-    {
-      "id": "plan_general_scenario_implementation_plan",
-      "title": "General Scenario - Minimal Implementation Plan",
-      "category": "Plan",
-      "file": "Documentation/Plans/plan_general_scenario_implementation_plan.md",
-      "kind": "md"
-    },
-    {
-      "id": "plan_general_scenario_concept",
-      "title": "General Scenario Concept Design",
-      "category": "Plan",
-      "file": "Documentation/Plans/plan_general_scenario_concept.md",
-      "kind": "md"
-    },
-    {
-      "id": "plan_grid_state_implementation_roadmap",
-      "title": "Grid State Preservation - Implementation Roadmap",
-      "category": "Plan",
-      "file": "Documentation/Plans/plan_grid_state_implementation_roadmap.md",
-      "kind": "md"
-    },
-    {
-      "id": "plan_repo_analysis_report_2026-02-08",
-      "title": "Repo Analysis Report - 2026-02-08",
-      "category": "Plan",
-      "file": "Documentation/Plans/plan_repo_analysis_report_2026-02-08.md",
       "kind": "md"
     },
     {
