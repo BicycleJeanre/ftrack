@@ -1,45 +1,44 @@
 // Documentation Panel Controller - handles sidebar navigation and panel switching
 (function() {
-  // Configuration for documentation sections
-  const docSections = [
-    'getting-started',
-    'accounts',
-    'transactions',
-    'projections',
-    'recurrence',
-    'periodic-changes',
-    'scenarios',
-    'shortcuts',
-    'glossary',
-    'faq'
-  ];
-
   // Initialize on DOM ready
   document.addEventListener('DOMContentLoaded', function() {
     const navLinks = document.querySelectorAll('.doc-panel-link');
+    const docSections = Array.from(navLinks)
+      .map(link => link.getAttribute('data-section'))
+      .filter(Boolean);
     
     // Attach click handlers to sidebar links
     navLinks.forEach(link => {
       link.addEventListener('click', function(e) {
         e.preventDefault();
         const section = this.getAttribute('data-section');
+        const anchorId = this.getAttribute('data-anchor');
         if (section) {
-          showPanel(section);
+          showPanel(section, anchorId);
         }
       });
     });
 
     // Check for hash and show that section, otherwise show first
     const hash = window.location.hash.slice(1);
-    if (hash && docSections.includes(hash)) {
-      showPanel(hash);
+    const sectionFromHash = parseSectionFromHash(hash);
+    if (sectionFromHash && docSections.includes(sectionFromHash)) {
+      showPanel(sectionFromHash);
     } else if (docSections.length > 0) {
       showPanel(docSections[0]);
     }
   });
 
+  function parseSectionFromHash(hash) {
+    if (!hash) return null;
+    if (hash.includes('/')) {
+      return hash.split('/')[0];
+    }
+    return hash;
+  }
+
   // Show a specific panel and update active state
-  function showPanel(section) {
+  function showPanel(section, anchorId) {
     // Hide all panels
     const allPanels = document.querySelectorAll('.doc-panel');
     allPanels.forEach(panel => {
@@ -56,6 +55,10 @@
       if (contentContainer) {
         contentContainer.scrollTop = 0;
       }
+
+      if (anchorId) {
+        scrollToAnchor(anchorId);
+      }
     }
 
     // Update active state in sidebar
@@ -68,4 +71,17 @@
       }
     });
   }
+
+  function scrollToAnchor(anchorId) {
+    const contentContainer = document.querySelector('.doc-panel-content');
+    const anchorEl = document.getElementById(anchorId);
+    if (!contentContainer || !anchorEl) return;
+
+    const containerRect = contentContainer.getBoundingClientRect();
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const delta = anchorRect.top - containerRect.top;
+    contentContainer.scrollTop += delta - 8;
+  }
+
+  window.showDocPanel = showPanel;
 })();

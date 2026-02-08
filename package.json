@@ -1,10 +1,12 @@
 {
   "name": "ftrack",
-  "version": "0.7.0-beta",
+  "version": "0.7.1-beta",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --inspect=9229 --remote-debugging-port=9222",
+    "docs:manifest": "node scripts/generate-docs-manifest.mjs",
+    "prebuild": "npm run docs:manifest",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
@@ -32,6 +34,7 @@
       "preload.js",
       "pages/**/*",
       "js/**/*",
+      "Documentation/**/*",
       "styles/**/*",
       "assets/*.json",
       "!assets/app-data.json",

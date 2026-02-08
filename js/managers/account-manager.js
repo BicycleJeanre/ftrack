@@ -139,3 +139,14 @@ export async function update(scenarioId, accountId, updates) {
 export async function remove(scenarioId, accountId) {
     return await deleteAccount(scenarioId, accountId);
 }
+/**
+ * Update account goal parameters
+ * @param {number} scenarioId - The scenario ID
+ * @param {number} accountId - The account ID
+ * @param {number|null} goalAmount - Target goal amount (null to clear)
+ * @param {string|null} goalDate - Target goal date (null to clear)
+ * @returns {Promise<void>}
+ */
+export async function updateGoal(scenarioId, accountId, goalAmount, goalDate) {
+    return await update(scenarioId, accountId, { goalAmount, goalDate });
+}

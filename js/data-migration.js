@@ -76,6 +76,34 @@ export function ensureBudgetsArray(scenario) {
 }
 
 /**
+ * Ensure accounts have goal fields (migration to v4)
+ * Add goalAmount and goalDate fields if missing
+ * @param {Object} scenario - The scenario object to migrate
+ * @returns {Object} - The migrated scenario
+ */
+export function ensureGoalFields(scenario) {
+    if (!scenario.accounts) {
+        return scenario;
+    }
+
+    scenario.accounts = scenario.accounts.map(account => {
+        const updated = { ...account };
+        
+        // Add goal fields if missing
+        if (updated.goalAmount === undefined) {
+            updated.goalAmount = null;
+        }
+        if (updated.goalDate === undefined) {
+            updated.goalDate = null;
+        }
+        
+        return updated;
+    });
+
+    return scenario;
+}
+
+/**
  * Run migration on all scenarios in the data store
  * @returns {Promise<void>}
  */
@@ -92,7 +120,7 @@ export async function migrateAllScenarios() {
         
         
         // Check if migration is needed
-        if (data.migrationVersion >= 3) {
+        if (data.migrationVersion >= 4) {
             return;
         }
         
@@ -103,12 +131,13 @@ export async function migrateAllScenarios() {
                 scenario = migrateScenarioTransactions(scenario);
                 scenario = ensureBudgetsArray(scenario);
                 scenario = migrateAccountBalanceField(scenario);
+                scenario = ensureGoalFields(scenario);
                 return scenario;
             });
         }
         
         // Mark migration as complete
-        data.migrationVersion = 3;
+        data.migrationVersion = 4;
         
         // Write back
         await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
@@ -130,7 +159,7 @@ export async function needsMigration() {
     }
     try {
         const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-        return !data.migrationVersion || data.migrationVersion < 3;
+        return !data.migrationVersion || data.migrationVersion < 4;
     } catch (err) {
         return false;
     }

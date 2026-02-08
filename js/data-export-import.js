@@ -2,6 +2,7 @@
 // Export and import functionality for app data
 
 import { exportAppData, importAppData, getPlatformInfo } from './data-manager.js';
+import { notifyError, notifySuccess } from './notifications.js';
 
 // Electron detection - check if window.electronAPI is available (set by preload.js)
 // or if running with nodeIntegration enabled
@@ -29,10 +30,10 @@ export async function downloadAppData() {
       const jsonString = await blob.text();
       const result = await window.electronAPI.exportData(jsonString);
       if (result.success) {
-        alert('Data exported successfully!');
+        notifySuccess('Data exported successfully!');
         return true;
       } else {
-        alert(`Export failed: ${result.message}`);
+        notifyError(`Export failed: ${result.message}`);
         return false;
       }
     } else if (platform.isWeb) {
@@ -47,11 +48,11 @@ export async function downloadAppData() {
       URL.revokeObjectURL(url);
       return true;
     } else {
-      alert('Export failed: Not running in Electron or supported web environment.');
+      notifyError('Export failed: Not running in Electron or supported web environment.');
       return false;
     }
   } catch (err) {
-    alert(`Export failed: ${err.message}`);
+    notifyError(`Export failed: ${err.message}`);
     return false;
   }
 }
@@ -71,7 +72,7 @@ export async function uploadAppData(merge = false) {
       if (result.success) {
         jsonString = result.data;
       } else {
-        alert(`Import failed: ${result.message}`);
+        notifyError(`Import failed: ${result.message}`);
         return false;
       }
     } else {
@@ -94,12 +95,12 @@ export async function uploadAppData(merge = false) {
     await importAppData(jsonString, merge);
     
     // Reload to show imported data (works in both Electron and web now that DataStore handles localStorage)
-    alert('Data imported successfully! The page will reload.');
+    notifySuccess('Data imported successfully! The page will reload.');
     setTimeout(() => window.location.reload(), 1000);
     
     return true;
   } catch (err) {
-    alert(`Import failed: ${err.message}`);
+    notifyError(`Import failed: ${err.message}`);
     return false;
   }
 }

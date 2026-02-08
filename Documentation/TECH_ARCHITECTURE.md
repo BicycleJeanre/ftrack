@@ -58,6 +58,7 @@ The forecasting logic is centralized in `js/projection-engine.js`.
 - **Process**: It performs a time-step simulation (Daily/Monthly).
 - **Inputs**: Takes `PlannedTransactions` and `Account` attributes (Interest Rates).
 - **Outputs**: Generates a `projections` array used by the UI.
+- **Interest Handling**: Periodic change deltas contribute to projected Income/Expenses based on sign.
 
 ## 4.0 Infrastructure
 - **Configuration**: `js/app-paths.js` manages file paths and environment constants.

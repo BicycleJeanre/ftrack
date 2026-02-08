@@ -24,21 +24,6 @@ if (!fs.existsSync(logsPath)) {
   fs.mkdirSync(logsPath, { recursive: true });
 }
 
-// Setup debug logging
-const debugLogPath = path.join(logsPath, 'debug.log');
-// Clear log on startup
-fs.writeFileSync(debugLogPath, `[${new Date().toISOString()}] App Started\n`);
-
-function writeToLog(source, level, message) {
-  const timestamp = new Date().toISOString();
-  const logLine = `[${timestamp}] [${source}] [${level}] ${message}\n`;
-  try {
-    fs.appendFileSync(debugLogPath, logLine);
-    // Also echo to console for terminal visibility
-  } catch (err) {
-  }
-}
-
 // --- IPC handlers for export/import ---
 // Export data: show save dialog, write file
 ipcMain.handle('export-data', async (event, data) => {
@@ -76,11 +61,6 @@ ipcMain.handle('import-data', async () => {
   } catch (err) {
     return { success: false, message: err.message };
   }
-});
-
-// IPC Handlers for logging
-ipcMain.on('log-message', (event, { source, level, message }) => {
-  writeToLog(source, level, message);
 });
 
 const userAssetsPath = path.join(userDataPath, 'assets');

@@ -136,20 +136,29 @@ export async function generateProjections(scenarioId, options = {}) {
       const periodStartKey = periodStart.getFullYear() * 10000 + (periodStart.getMonth() + 1) * 100 + periodStart.getDate();
       const periodEndKey = periodEnd.getFullYear() * 10000 + (periodEnd.getMonth() + 1) * 100 + periodEnd.getDate();
       
+      // Apply transactions in this period to compute income/expenses and update running balance
+      let periodIncome = 0;
+      let periodExpenses = 0;
+      let periodInterest = 0;
+
       // Apply interest/growth up to the period START so snapshot is at period start
       if (account.periodicChange) {
         const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
         if (expandedPC) {
           const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
           if (yearsDiffToStart !== 0) {
+            const beforeBalance = currentBalance;
             currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffToStart);
+            const interestDelta = currentBalance - beforeBalance;
+            periodInterest += interestDelta;
+            if (interestDelta >= 0) {
+              periodIncome += interestDelta;
+            } else {
+              periodExpenses += Math.abs(interestDelta);
+            }
           }
         }
       }
-
-      // Apply transactions in this period to compute income/expenses and update running balance
-      let periodIncome = 0;
-      let periodExpenses = 0;
 
       transactionOccurrences.forEach(txn => {
         if (txn.dateKey >= periodStartKey && txn.dateKey <= periodEndKey) {
@@ -190,7 +199,15 @@ export async function generateProjections(scenarioId, options = {}) {
         if (expandedPC) {
           const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
           if (yearsDiffPeriod !== 0) {
+            const beforeBalance = currentBalance;
             currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
+            const interestDelta = currentBalance - beforeBalance;
+            periodInterest += interestDelta;
+            if (interestDelta >= 0) {
+              periodIncome += interestDelta;
+            } else {
+              periodExpenses += Math.abs(interestDelta);
+            }
           }
         }
       }
@@ -206,6 +223,7 @@ export async function generateProjections(scenarioId, options = {}) {
         income: Math.round(periodIncome * 100) / 100,
         expenses: Math.round(periodExpenses * 100) / 100,
         netChange: Math.round((periodIncome - periodExpenses) * 100) / 100,
+        interest: Math.round(periodInterest * 100) / 100,
         period: periodIndex + 1
       });
 

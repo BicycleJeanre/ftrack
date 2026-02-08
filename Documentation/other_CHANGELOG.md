@@ -5,6 +5,38 @@ All notable changes to FTrack will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.7.1-beta] - 2026-02-02
+
+### Added
+- Debt Repayment scenario type with Summary Cards component
+  - Per-account summary cards showing starting balance, projected end, interest earned/paid
+  - Zero crossing date tracking (when debt balance reaches $0)
+  - Account type filtering (All/Liability/Asset)
+  - Overall total card when multiple accounts exist
+- Projections toolbar with period filters and account filtering
+- Interest field added to projection records for accurate tracking
+- Theme switching system (dark/light) with persistent user preference
+  - Navbar toggle button for easy theme switching
+  - Automatic theme detection based on system color scheme preference
+  - CSS custom properties enable theme-agnostic styling across all components
+  - Light theme color palette optimized for readability and visual hierarchy
+- Theme preference persisted to localStorage (`ftrack:theme`)
+
+### Changed
+- Projection engine now tracks interest separately in dedicated field
+- Summary cards load after projections for accurate data
+- Interest earned displays in green, interest paid in red (negative)
+- First scenario auto-selects on app load
+- Projection expenses now show as negative values in red
+
+### Fixed
+- Interest calculation accuracy in summary cards
+- Projection interest tracking as income/expense
+- Summary cards display timing on initial load
+- Scenario selection on first load
+
 ## [0.7.0-beta] - 2026-02-01
 
 ### Added
