@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-08T10:23:28.581Z",
+  "generatedAt": "2026-02-08T11:28:43.055Z",
   "items": [
     {
       "id": "concepts_accounts",
@@ -52,10 +52,10 @@
       "kind": "md"
     },
     {
-      "id": "CLEANUP_PLAN_STARTING_BALANCE_2026-02-08",
-      "title": "Cleanup Plan - Starting Balance Normalization - 2026-02-08",
+      "id": "CLEANUP_PLAN_CODEBASE_2026-02-08",
+      "title": "Cleanup Plan - Codebase Cleanup - 2026-02-08",
       "category": "Other",
-      "file": "Documentation/Plans/CLEANUP_PLAN_STARTING_BALANCE_2026-02-08.md",
+      "file": "Documentation/Plans/CLEANUP_PLAN_CODEBASE_2026-02-08.md",
       "kind": "md"
     },
     {
@@ -77,6 +77,13 @@
       "title": "License",
       "category": "Other",
       "file": "Documentation/other_LICENSE.md",
+      "kind": "md"
+    },
+    {
+      "id": "plan_advanced_goal_solver_concept",
+      "title": "Advanced Goal Solver Scenario Concept Design",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_advanced_goal_solver_concept.md",
       "kind": "md"
     },
     {

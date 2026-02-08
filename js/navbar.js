@@ -1,6 +1,7 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 import { downloadAppData, uploadAppData } from './data-export-import.js';
 import { isElectronEnv } from './core/platform.js';
+import { notifyError, notifySuccess } from './notifications.js';
 
 // Platform detection
 const isElectron = isElectronEnv();
@@ -86,7 +87,7 @@ async function attachDataHandlers() {
         if (success) {
         }
       } catch (err) {
-        alert('Export failed: ' + err.message);
+        notifyError('Export failed: ' + err.message);
       }
     });
   }
@@ -100,7 +101,7 @@ async function attachDataHandlers() {
         } else {
         }
       } catch (err) {
-        alert('Import failed: ' + err.message);
+        notifyError('Import failed: ' + err.message);
       }
     });
   }
@@ -113,10 +114,10 @@ async function attachDataHandlers() {
       if (confirm('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) {
         try {
           localStorage.removeItem('ftrack:app-data');
-          alert('All data cleared successfully. The page will now reload.');
+          notifySuccess('All data cleared successfully. The page will now reload.');
           window.location.reload();
         } catch (err) {
-          alert('Failed to clear data: ' + err.message);
+          notifyError('Failed to clear data: ' + err.message);
         }
       }
     });

@@ -1,15 +1,6 @@
 // logger.js
-// Centralized logging utility that writes to both Console and File (via IPC)
-// Allows the AI Agent to debug the renderer process by reading userData/logs/debug.log
-
-// Initialize ipcRenderer safely
-let ipcRenderer = null;
-try {
-    if (window.require) {
-        ipcRenderer = window.require('electron').ipcRenderer;
-    }
-} catch (e) {
-}
+// Logging is currently disabled as part of codebase cleanup.
+// Keep the API surface so imports/call-sites don't need refactors.
 
 class Logger {
     constructor(source = 'Renderer') {
@@ -17,26 +8,8 @@ class Logger {
     }
 
     _send(level, ...args) {
-        // format message
-        const message = args.map(arg => {
-            if (arg instanceof Error) return arg.stack;
-            if (typeof arg === 'object') return JSON.stringify(arg); // Simple stringify
-            return String(arg);
-        }).join(' ');
-
-        // Log to browser console (for human debugging)
-
-        // Send to Main process (for File logging/AI visibility)
-        if (ipcRenderer) {
-            try {
-                ipcRenderer.send('log-message', {
-                    source: this.source,
-                    level: level,
-                    message: message
-                });
-            } catch (e) {
-            }
-        }
+        // Intentionally disabled.
+        return;
     }
 
     info(...args) { this._send('INFO', ...args); }

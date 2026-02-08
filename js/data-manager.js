@@ -6,6 +6,7 @@ import { generateRecurrenceDates } from './calculation-utils.js';
 import { formatDateOnly } from './date-utils.js';
 import * as DataStore from './core/data-store.js';
 import { isElectronEnv, getPlatformInfo as getPlatformInfoCore } from './core/platform.js';
+import { notifyError } from './notifications.js';
 
 const isElectron = isElectronEnv();
 
@@ -151,7 +152,7 @@ async function writeAppData(data) {
     }
   } catch (err) {
     if (!isElectron && err.name === 'QuotaExceededError') {
-      alert('Storage quota exceeded. Please export your data and clear some scenarios.');
+      notifyError('Storage quota exceeded. Please export your data and clear some scenarios.');
     }
     throw err;
   }

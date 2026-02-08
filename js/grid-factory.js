@@ -3,6 +3,7 @@
 
 import { createLogger } from './logger.js';
 import { isElectronEnv } from './core/platform.js';
+import { notifyError } from './notifications.js';
 
 const logger = createLogger('GridFactory');
 
@@ -402,7 +403,7 @@ export function createDeleteColumn(onDelete, options = {}) {
                     await onDelete(cell);
                 }
             } catch (err) {
-                console.error('Delete column cellClick failed', err);
+                notifyError('Action failed. Please try again.');
             }
         }
     };
@@ -441,7 +442,7 @@ export function createDuplicateColumn(onDuplicate, options = {}) {
                 if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return;
                 await onDuplicate(cell);
             } catch (err) {
-                console.error('Duplicate column cellClick failed', err);
+                notifyError('Action failed. Please try again.');
             }
         }
     };
