@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions
 
-**Version**: 4.2.0  
+**Version**: 4.2.1  
 **Last Updated**: February 8, 2026  
 **Purpose**: Lightweight, high-importance rules for working in this repo
 
@@ -14,7 +14,7 @@
 1.4 Only edit what was explicitly requested
 1.5 Reuse existing code and logic before adding new code
 1.6 Prefer minimal, targeted changes over refactors
-1.7 Keep in-app documentation accurate (`pages/documentation.html`)
+1.7 Keep documentation accurate (`Documentation/*.md`)
 
 ## 2.0 AI Workflows
 
@@ -24,13 +24,17 @@
 ## 3.0 Documentation Standards
 
 3.1 After code changes, update relevant documentation files
-3.2 Prefer documenting user-impacting behavior in `pages/documentation.html`
+3.2 Prefer documenting user-impacting behavior in `Documentation/*.md`
 3.3 Keep format consistent across documentation
 3.4 Only update affected documentation
 3.5 Use Mermaid diagrams for visual representations when helpful
 3.6 In Mermaid diagrams, do not use brackets "()" in names/descriptions - use brackets ONLY for circular nodes
 3.7 ALL documentation files MUST use legal numbering format (1.0, 1.1, 1.1.1, etc.)
 3.8 Keep All documentation short, simple and concise. Avoid replication of information across sections.
+3.9 Documentation file naming and display rules
+3.9.1 Documentation is stored and maintained under `Documentation/` as Markdown only.
+3.9.2 File naming uses a grouping prefix as the first word (e.g., `concepts_*`, `USER_*`, `TECH_*`, `other_*`).
+3.9.3 The first H1 in each Markdown file is the user-facing display name.
 
 ## 4.0 Response Format
 
@@ -47,4 +51,4 @@
 
 ---
 
-When making updates, keep the in-app documentation in `pages/documentation.html` aligned with user-visible behavior.
+When making updates, keep the documentation in `Documentation/` aligned with user-visible behavior.

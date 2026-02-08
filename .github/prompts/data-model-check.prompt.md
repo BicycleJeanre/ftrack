@@ -36,7 +36,7 @@ If inputs are missing:
 - If fields are renamed/removed: create a migration step and document it.
 
 3.4 Documentation update guidance
-- If this change affects user behavior, ensure `pages/documentation.html` reflects it.
+- If this change affects user behavior, ensure relevant docs under `Documentation/` reflect it.
 - If it affects only internals, document only what is needed to keep future changes safe.
 
 ---

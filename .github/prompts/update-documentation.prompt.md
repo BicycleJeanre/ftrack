@@ -1,11 +1,13 @@
 # Update Documentation Prompt
 
 ## 1.0 Purpose
-Keep the in-app documentation in sync with code changes.
+Keep the repository documentation in sync with code changes.
 
 **Definition of Done**:
-- Relevant sections in `pages/documentation.html` reflect the current behavior.
-- No new documentation files are created.
+- Relevant Markdown docs under `Documentation/` reflect the current behavior.
+- If a new doc is required, it follows the naming/display rules:
+	- Filename starts with a grouping prefix (first word)
+	- First H1 is the user-facing display name
 
 ---
 
@@ -23,12 +25,13 @@ If inputs are missing:
 ## 3.0 Steps
 3.1 Identify impacted areas
 - Review changed files and map them to documentation topics.
-- Prefer updating existing `.doc-panel` sections over adding new sections.
+- Prefer updating existing Markdown docs over creating new docs.
 
-3.2 Update `pages/documentation.html`
-- Find the smallest existing section that should change.
-- Update descriptions, steps, examples, and screenshots text if present.
-- Avoid duplicating content already explained elsewhere.
+3.2 Update `Documentation/*.md`
+- Find the smallest existing doc that should change.
+- Update descriptions, steps, and examples as needed.
+- Keep docs short and avoid duplicating content already explained elsewhere.
+- If you add/rename/remove docs, update the docs manifest (`assets/docs-manifest.json`) via `scripts/generate-docs-manifest.mjs`.
 
 3.3 Keep links accurate
 - Ensure file references are valid and match actual paths.
@@ -50,5 +53,5 @@ Return:
 
 ## 5.0 Validation Checks
 - The described steps match the actual UI.
-- No new documentation files were added.
+- New documentation files are added only when required, and follow the naming/display rules.
 - The documentation remains concise and non-repetitive.
