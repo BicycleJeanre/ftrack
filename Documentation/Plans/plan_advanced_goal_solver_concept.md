@@ -29,12 +29,31 @@
 3.2.3 Measurement
 3.2.3.1 Evaluation uses projections on the scenario timeline, not a separate calculator.
 
+3.2.4 Evaluation points
+3.2.4.1 Goals are evaluated at discrete projection points.
+3.2.4.2 "At all times" means "at every projection point" (not just end-of-period).
+3.2.4.3 If projections are monthly, then "at all times" is monthly unless a finer projection step exists.
+
+3.2.5 Measurement mode
+3.2.5.1 Default mode is balance-based: evaluate the projected account balance including all modeled effects.
+3.2.5.2 "Increase by delta" defaults to: projected balance at end date minus projected balance at start date >= delta.
+3.2.5.3 A goal may optionally specify a contributions-only mode (delta measured as net planned contributions), but balance-based remains the default.
+
+
 4.0 Constraints
 4.1 Funding and Cashflow Constraints
 4.1.1 Max outflow per period
 4.1.1.1 Example: Total planned contributions <= 8000 per month.
 4.1.2 Income allocation
 4.1.2.1 Example: Only allocate from specific income accounts.
+
+4.1.3 Baseline cashflow
+4.1.3.1 The solver treats existing scenario transactions and periodic changes as a fixed baseline.
+4.1.3.2 Suggested plan transactions are incremental changes and must not delete or modify baseline items unless explicitly allowed.
+
+4.1.4 Required payments
+4.1.4.1 Example: Credit Card requires minimum payment of 200 per month until paid off.
+
 
 4.2 Account Movement Constraints
 4.2.1 Max movement per account per period
@@ -175,8 +194,22 @@ flowchart TD
 12.3 Clear infeasible reporting.
 12.3.1 If goals are impossible under constraints, show the first binding constraint or missing requirement.
 
+12.4 Goal measurement clarity.
+12.4.1 Each solution must state which projection points and measurement mode were used.
+
+12.5 Timing and granularity.
+12.5.1 If a floor constraint is violated between paydays and bills at the current projection granularity, the solver should either (a) require a finer projection step, or (b) clearly label the result as "granularity-limited".
+
+12.6 Incremental-only suggestions.
+12.6.1 Suggested plan transactions must be additive to the existing scenario baseline (unless explicit permission is granted to modify baseline items).
+
+
 13.0 Open Questions
 13.1 How should interest and growth be modeled for investments in the solver.
 13.2 Should constraints be per account type or per specific account.
 13.3 Should the solver create one transaction per goal or consolidate where possible.
 13.4 How should “account max movement” interact with variable frequencies.
+
+13.5 Should "increase by delta" support contributions-only measurement as a first-class option.
+13.6 What projection granularity is required to make "at all times" constraints meaningful.
+
