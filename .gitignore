@@ -31,3 +31,4 @@ app-data.json.backup
 # Ignore user data and sensitive files
 
 *.json.bak
+project_notes.md
