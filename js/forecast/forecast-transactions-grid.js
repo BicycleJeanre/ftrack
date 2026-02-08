@@ -51,8 +51,8 @@ export async function loadMasterTransactionsGrid({
 
   container.innerHTML = '';
 
-  const rerun = async () =>
-    loadMasterTransactionsGrid({
+  const rerun = async () => {
+    await loadMasterTransactionsGrid({
       container,
       scenarioState,
       getScenarioTypeConfig,
@@ -61,6 +61,8 @@ export async function loadMasterTransactionsGrid({
       callbacks,
       logger
     });
+    await callbacks?.refreshSummaryCards?.();
+  };
 
   const toolbar = document.createElement('div');
   toolbar.className = 'grid-toolbar';

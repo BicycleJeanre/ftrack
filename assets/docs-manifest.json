@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-08T11:28:43.055Z",
+  "generatedAt": "2026-02-08T12:49:31.806Z",
   "items": [
     {
       "id": "concepts_accounts",
@@ -119,6 +119,13 @@
       "title": "Grid State Preservation - Implementation Roadmap",
       "category": "Plan",
       "file": "Documentation/Plans/plan_grid_state_implementation_roadmap.md",
+      "kind": "md"
+    },
+    {
+      "id": "plan_repo_analysis_report_2026-02-08",
+      "title": "Repo Analysis Report - 2026-02-08",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_repo_analysis_report_2026-02-08.md",
       "kind": "md"
     },
     {
