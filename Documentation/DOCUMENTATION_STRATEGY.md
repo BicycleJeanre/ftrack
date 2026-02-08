@@ -1,7 +1,7 @@
 # Documentation Strategy: Unified, Minimal Approach
 
-**Version**: 1.0.0  
-**Last Updated**: February 7, 2026  
+**Version**: 1.1.0  
+**Last Updated**: February 8, 2026  
 **Principle**: One embedded master doc + minimal supporting files. Separate AI workflows maintained independently.
 
 ---
@@ -17,6 +17,49 @@
 
 **Why Here**: Single reference point. App links to each section. No duplication.
 
+### 1.1 Repository Docs Panel (Web-Hosted)
+
+**Goal**: Make repo documentation readable from the hosted documentation page without duplicating content.
+
+**UI Location**: `pages/documentation.html` → **Repository Docs** panel
+
+**Navigation Design**:
+- Sidebar shows **main sections only** (categories)
+- Clicking a main section **expands/collapses** its list of subsections (documents)
+- Selecting a subsection loads the document in the content area
+
+**Static Hosting Constraint**:
+- The hosted page cannot enumerate folders at runtime
+- Add/remove/rename docs requires updating a manifest file (see 1.2)
+- Editing an existing doc is reflected by runtime fetch
+
+### 1.2 Repository Docs Manifest (Build Step)
+
+**Files**:
+- `assets/docs-manifest.json` (generated)
+- `scripts/generate-docs-manifest.mjs` (generator)
+
+**Purpose**:
+- Defines the list of repository docs and their categories
+- Enables deterministic navigation for static hosting
+
+**Update Rules**:
+- When docs are added/removed/renamed in `Documentation/`, run `npm run docs:manifest`
+- The `assets/docs-manifest.json` output is committed so hosting stays in sync
+
+### 1.3 Repository Docs Rendering (Runtime)
+
+**File**: `js/doc-repo-manifest.js`
+
+**Behavior**:
+- Loads `assets/docs-manifest.json`
+- Fetches doc content at runtime and renders Markdown → HTML
+- Uses safe link handling (blocks `javascript:` links)
+
+**Design Requirement**:
+- Repo-doc content should reuse existing `documentation.html` visual patterns
+- Main vs subsection hierarchy must match the established typography and spacing
+
 ---
 
 ## 2.0 Supporting Files (Minimal)
@@ -29,6 +72,8 @@
 | `.github/copilot-instructions.md` | Core rules only (code reuse, patterns, brevity) | Rarely |
 
 **Total**: 4 files. Everything lives in the application or version control.
+
+**Note**: Repository docs in `Documentation/` may exist for development and are surfaced in-app via the Repository Docs panel; the UI remains the user-facing entry point.
 
 ---
 

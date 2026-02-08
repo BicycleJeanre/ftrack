@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "generatedAt": "2026-02-08T09:03:33.416Z",
+  "items": [
+    {
+      "id": "AI_ANALYSIS_PROMPT",
+      "title": "AI Analysis Prompt for ftrack Repository",
+      "category": "AI",
+      "file": "Documentation/AI_ANALYSIS_PROMPT.md",
+      "kind": "md"
+    },
+    {
+      "id": "DEBT_REPAYMENT_ARCHITECTURE",
+      "title": "Debt Repayment - Architecture Diagram",
+      "category": "Debt Repayment",
+      "file": "Documentation/DEBT_REPAYMENT_ARCHITECTURE.md",
+      "kind": "md"
+    },
+    {
+      "id": "DEBT_REPAYMENT_FINAL_DESIGN",
+      "title": "Debt Repayment - Final Design Summary",
+      "category": "Debt Repayment",
+      "file": "Documentation/DEBT_REPAYMENT_FINAL_DESIGN.md",
+      "kind": "md"
+    },
+    {
+      "id": "DEBT_REPAYMENT_IMPLEMENTATION_PLAN",
+      "title": "Debt Repayment - Minimal Implementation Plan",
+      "category": "Debt Repayment",
+      "file": "Documentation/DEBT_REPAYMENT_IMPLEMENTATION_PLAN.md",
+      "kind": "md"
+    },
+    {
+      "id": "DEBT_REPAYMENT_PACKAGE",
+      "title": "Debt Repayment Implementation - Complete Planning Package",
+      "category": "Debt Repayment",
+      "file": "Documentation/DEBT_REPAYMENT_PACKAGE.md",
+      "kind": "md"
+    },
+    {
+      "id": "DEBT_REPAYMENT_QUICKREF",
+      "title": "Debt Repayment Implementation - Quick Reference",
+      "category": "Debt Repayment",
+      "file": "Documentation/DEBT_REPAYMENT_QUICKREF.md",
+      "kind": "md"
+    },
+    {
+      "id": "GOAL_PLANNING_PLAN",
+      "title": "Goal-Based Planning: Implementation Plan",
+      "category": "Goal Planning",
+      "file": "Documentation/GOAL_PLANNING_PLAN.md",
+      "kind": "md"
+    },
+    {
+      "id": "GOAL_SCENARIO_DESIGN",
+      "title": "Goal-Based Scenario Type: Conceptual Design (Final)",
+      "category": "Goal Planning",
+      "file": "Documentation/GOAL_SCENARIO_DESIGN.md",
+      "kind": "md"
+    },
+    {
+      "id": "GRID_STATE_IMPLEMENTATION_ROADMAP",
+      "title": "Grid State Preservation - Implementation Roadmap",
+      "category": "Grid State",
+      "file": "Documentation/GRID_STATE_IMPLEMENTATION_ROADMAP.md",
+      "kind": "md"
+    },
+    {
+      "id": "DOCUMENTATION_STRATEGY",
+      "title": "Documentation Strategy: Unified, Minimal Approach",
+      "category": "Other",
+      "file": "Documentation/DOCUMENTATION_STRATEGY.md",
+      "kind": "md"
+    },
+    {
+      "id": "FUND_SCENARIO_IMPLEMENTATION_PLAN",
+      "title": "Fund Scenario - Minimal Implementation Plan",
+      "category": "Other",
+      "file": "Documentation/FUND_SCENARIO_IMPLEMENTATION_PLAN.md",
+      "kind": "md"
+    },
+    {
+      "id": "FUND_SCENARIO_CONCEPT",
+      "title": "Fund Scenario Concept Design",
+      "category": "Other",
+      "file": "Documentation/FUND_SCENARIO_CONCEPT.md",
+      "kind": "md"
+    },
+    {
+      "id": "GENERAL_SCENARIO_IMPLEMENTATION_PLAN",
+      "title": "General Scenario - Minimal Implementation Plan",
+      "category": "Other",
+      "file": "Documentation/GENERAL_SCENARIO_IMPLEMENTATION_PLAN.md",
+      "kind": "md"
+    },
+    {
+      "id": "GENERAL_SCENARIO_CONCEPT",
+      "title": "General Scenario Concept Design",
+      "category": "Other",
+      "file": "Documentation/GENERAL_SCENARIO_CONCEPT.md",
+      "kind": "md"
+    },
+    {
+      "id": "project-notes",
+      "title": "Project-notes",
+      "category": "Other",
+      "file": "Documentation/project-notes.ipynb",
+      "kind": "ipynb"
+    },
+    {
+      "id": "TECHNICAL_OVERVIEW",
+      "title": "Technical Overview & Index",
+      "category": "Other",
+      "file": "Documentation/TECHNICAL_OVERVIEW.md",
+      "kind": "md"
+    },
+    {
+      "id": "PERIODIC_CHANGE_QUICK_GUIDE",
+      "title": "Periodic Change - Quick Summary",
+      "category": "Periodic Change",
+      "file": "Documentation/PERIODIC_CHANGE_QUICK_GUIDE.md",
+      "kind": "md"
+    },
+    {
+      "id": "RELEASE_WORKFLOW",
+      "title": "Production Release Workflow",
+      "category": "Release",
+      "file": "Documentation/RELEASE_WORKFLOW.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_GOAL_PLANNING",
+      "title": "Goal-Based Planning (Design Plan)",
+      "category": "Technical",
+      "file": "Documentation/TECH_GOAL_PLANNING.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_ARCHITECTURE",
+      "title": "Technical Architecture",
+      "category": "Technical",
+      "file": "Documentation/TECH_ARCHITECTURE.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_UI_LAYER",
+      "title": "UI Layer & Components",
+      "category": "Technical",
+      "file": "Documentation/TECH_UI_LAYER.md",
+      "kind": "md"
+    },
+    {
+      "id": "USAGE_GUIDE",
+      "title": "FTrack Usage Guide",
+      "category": "User",
+      "file": "Documentation/USAGE_GUIDE.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_FEATURES",
+      "title": "FTrack User Features",
+      "category": "User",
+      "file": "Documentation/USER_FEATURES.md",
+      "kind": "md"
+    }
+  ]
+}

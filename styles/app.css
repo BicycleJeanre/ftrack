@@ -2340,6 +2340,48 @@ html[data-theme="light"] .home-page {
   background: var(--bg-secondary);
 }
 
+.doc-panel-heading {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.85em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.doc-panel-link.repo-doc-category {
+  cursor: pointer;
+  user-select: none;
+}
+
+.doc-panel-link.repo-doc-category:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.doc-panel-link.repo-doc-category:focus {
+  outline: 2px solid var(--border-accent);
+  outline-offset: -2px;
+}
+
+.repo-doc-group.expanded > .doc-panel-link.repo-doc-category {
+  color: var(--accent-primary);
+  background: var(--bg-tertiary);
+  border-left-color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.doc-panel-sublink {
+  padding-left: calc(var(--spacing-md) + 14px);
+  font-size: 0.92em;
+}
+
+.doc-panel-link.doc-panel-sublink {
+  padding-top: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+}
+
 .doc-panel-link {
   display: block;
   padding: var(--spacing-md);
@@ -2369,6 +2411,50 @@ html[data-theme="light"] .home-page {
   font-weight: 600;
 }
 
+/* Rendered Markdown Content */
+.md-content {
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.md-content h4 {
+  color: var(--text-primary);
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+}
+
+.md-content p:not(.section-text) {
+  margin: 0 0 1em 0;
+}
+
+.md-content a {
+  color: var(--accent-primary);
+}
+
+.md-content pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  overflow-x: auto;
+}
+
+.md-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.md-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.md-content th,
+.md-content td {
+  border: 1px solid var(--border-primary);
+  padding: 0.6em;
+}
+
 .doc-panel-content {
   flex: 1;
   overflow-y: auto;
@@ -2388,6 +2474,17 @@ html[data-theme="light"] .home-page {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+.embedded-pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 /* Home Page Hero */
