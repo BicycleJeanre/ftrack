@@ -12,6 +12,10 @@ import {
 } from '../grid-factory.js';
 import { openPeriodicChangeModal } from '../modal-periodic-change.js';
 import { getPeriodicChangeDescription } from '../periodic-change-utils.js';
+import { GridStateManager } from '../grid-state.js';
+
+const accountsGridState = new GridStateManager('accounts');
+let lastAccountsTable = null;
 
 export function buildAccountsGridColumns({
   lookupData,
@@ -107,6 +111,14 @@ export async function loadAccountsGrid({
   if (!currentScenario) {
     logger?.warn?.('[Forecast] loadAccountsGrid: No current scenario');
     return;
+  }
+
+  try {
+    accountsGridState.capture(lastAccountsTable, {
+      groupBy: '#account-grouping-select'
+    });
+  } catch (_) {
+    // Keep existing behavior: ignore state capture errors.
   }
 
   const typeConfig = getScenarioTypeConfig?.();
@@ -251,6 +263,17 @@ export async function loadAccountsGrid({
           accountsTable.setGroupBy(false);
         }
       });
+    }
+
+    lastAccountsTable = accountsTable;
+
+    try {
+      accountsGridState.restore(accountsTable, { restoreGroupBy: false });
+      accountsGridState.restoreDropdowns({
+        groupBy: '#account-grouping-select'
+      });
+    } catch (_) {
+      // Keep existing behavior: ignore state restore errors.
     }
   } catch (err) {
     logger?.error?.('[Forecast] Failed to load accounts grid:', err);

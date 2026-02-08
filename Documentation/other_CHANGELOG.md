@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- General scenarios show a compact Summary card at the top (Money In, Money Out, Net)
-- Funds scenarios show a Summary section with NAV, shares, share price, and investor breakdown
 
-## [0.7.1-beta] - 2026-02-02
+### 1.1 Improvements
+
+1.1.1 Forecast grids preserve `Group By` selection (and scroll/sort where supported) across reloads.
 
 ### Added
 - Debt Repayment scenario type with Summary Cards component
