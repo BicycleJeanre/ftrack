@@ -35,6 +35,8 @@ An open exploration scenario with more flexibility. General scenarios provide th
 
 General scenarios also include a compact Summary section at the top showing Money In, Money Out, and Net totals.
 
+Note: The Budget grid is hidden in General scenarios.
+
 Best for: Long-term financial planning, exploratory what-if analysis, modeling without strict budget constraints.
 
 ### 1.3.3 Debt Repayment Scenarios
@@ -69,6 +71,20 @@ Example: Paying off two debts.
 - Visa CC: 5,000 dollars at 18 percent APR
 - Student Loan: 10,000 dollars at 5 percent APR
 - Payment Strategy: 250 dollars per month to Visa, 100 dollars per month to Student Loan
+
+### 1.3.4 Funds Scenarios
+
+Funds scenarios model a shared pool of assets with ownership expressed as shares per investor.
+
+Funds scenarios include a Summary section at the top with.
+
+- NAV, total shares, and share price.
+- Money In, Money Out, and Net totals.
+- A scope selector to view All, Asset, Liability, Equity, Income, or Expense views.
+
+Equity scope shows an investor breakdown including shares, ownership percent, and implied value.
+
+Note: The Budget grid is hidden in Funds scenarios.
 
 ## 1.4 Creating A Scenario
 

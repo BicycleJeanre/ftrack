@@ -54,6 +54,16 @@ import { expandTransactions } from './transaction-expander.js';
 import { getRecurrenceDescription } from './recurrence-utils.js';
 import { calculateCategoryTotals, calculateBudgetTotals } from './financial-utils.js';
 import { calculateContributionAmount, calculateMonthsToGoal, calculateFutureValue, calculateMonthsBetweenDates, getFrequencyName, getFrequencyInMonths, convertContributionFrequency, getGoalSummary } from './goal-calculation-utils.js';
+import {
+  getDefaultFundSettings,
+  buildProjectionsIndex,
+  getBalanceAsOf,
+  computeNav,
+  computeMoneyTotalsFromTransactions,
+  computeLockedSharesByAccountId,
+  computeAutomaticSharesByAccountId,
+  computeInvestorFlows
+} from './fund-utils.js';
 
 import {
   getScenarios,
@@ -91,6 +101,13 @@ function isDebtScenario(typeConfig) {
 function isGeneralScenario(typeConfig) {
   return typeConfig?.name === 'General';
 }
+
+function isFundsScenario(typeConfig) {
+  return typeConfig?.name === 'Funds';
+}
+
+let fundSummaryScope = 'All';
+let fundSummaryAsOfDate = '';
 
 // Update transaction totals in toolbar based on current filtered data
 function updateTransactionTotals(filteredRows = null) {
@@ -736,6 +753,314 @@ async function loadDebtSummaryCards(container) {
   container.appendChild(groupWrapper);
 }
 
+async function ensureFundSettingsInitialized() {
+  const typeConfig = getScenarioTypeConfig();
+  if (!isFundsScenario(typeConfig)) {
+    return;
+  }
+
+  const current = currentScenario?.fundSettings;
+  const hasLocked = current && typeof current.lockedSharesByAccountId === 'object';
+  const hasMode = current && typeof current.shareMode === 'string';
+
+  if (hasLocked && hasMode) {
+    return;
+  }
+
+  const nextFundSettings = {
+    ...getDefaultFundSettings(),
+    ...(current || {})
+  };
+
+  await ScenarioManager.update(currentScenario.id, { fundSettings: nextFundSettings });
+  currentScenario = await getScenario(currentScenario.id);
+}
+
+async function loadFundsSummaryCards(container) {
+  if (!container) {
+    return;
+  }
+
+  if (!currentScenario) {
+    container.innerHTML = '';
+    return;
+  }
+
+  await ensureFundSettingsInitialized();
+
+  const accounts = currentScenario.accounts || [];
+  const projectionsIndex = buildProjectionsIndex(currentScenario.projections || []);
+  const fundSettings = currentScenario.fundSettings || getDefaultFundSettings();
+
+  const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
+
+  container.innerHTML = '';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar summary-cards-toolbar';
+
+  const scopeItem = document.createElement('div');
+  scopeItem.className = 'toolbar-item';
+  scopeItem.innerHTML = `
+    <label for="fund-summary-scope" class="text-muted control-label">Scope:</label>
+    <select id="fund-summary-scope" class="input-select control-select">
+      ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+    </select>
+  `;
+
+  const modeItem = document.createElement('div');
+  modeItem.className = 'toolbar-item';
+  modeItem.innerHTML = `
+    <label for="fund-share-mode" class="text-muted control-label">Shares:</label>
+    <select id="fund-share-mode" class="input-select control-select">
+      <option value="Locked">Locked</option>
+      <option value="Automatic">Automatic</option>
+    </select>
+  `;
+
+  const asOfItem = document.createElement('div');
+  asOfItem.className = 'toolbar-item';
+  asOfItem.innerHTML = `
+    <label for="fund-asof-date" class="text-muted control-label">As of:</label>
+    <input id="fund-asof-date" class="input control-input" type="date" />
+  `;
+
+  const effectiveItem = document.createElement('div');
+  effectiveItem.className = 'toolbar-item';
+  effectiveItem.innerHTML = `
+    <label for="fund-auto-effective" class="text-muted control-label">Auto from:</label>
+    <input id="fund-auto-effective" class="input control-input" type="date" />
+  `;
+
+  const refreshItem = document.createElement('div');
+  refreshItem.className = 'toolbar-item';
+  const refreshButton = document.createElement('button');
+  refreshButton.className = 'btn btn-primary';
+  refreshButton.textContent = 'Refresh';
+
+  refreshButton.addEventListener('click', async () => {
+    await loadFundsSummaryCards(container);
+  });
+
+  refreshItem.appendChild(refreshButton);
+
+  toolbar.appendChild(scopeItem);
+  toolbar.appendChild(modeItem);
+  toolbar.appendChild(asOfItem);
+  toolbar.appendChild(effectiveItem);
+  toolbar.appendChild(refreshItem);
+  container.appendChild(toolbar);
+
+  const scopeSelect = scopeItem.querySelector('#fund-summary-scope');
+  const modeSelect = modeItem.querySelector('#fund-share-mode');
+  const asOfInput = asOfItem.querySelector('#fund-asof-date');
+  const effectiveInput = effectiveItem.querySelector('#fund-auto-effective');
+
+  if (scopeSelect) {
+    scopeSelect.value = scopeOptions.includes(fundSummaryScope) ? fundSummaryScope : 'All';
+    scopeSelect.addEventListener('change', async () => {
+      fundSummaryScope = scopeSelect.value;
+      await loadFundsSummaryCards(container);
+    });
+  }
+
+  if (modeSelect) {
+    modeSelect.value = fundSettings.shareMode || 'Locked';
+    modeSelect.addEventListener('change', async () => {
+      const nextMode = modeSelect.value;
+      const next = {
+        ...getDefaultFundSettings(),
+        ...(currentScenario.fundSettings || {}),
+        shareMode: nextMode
+      };
+      if (nextMode === 'Automatic' && !next.automaticEffectiveDate) {
+        next.automaticEffectiveDate = currentScenario.startDate || null;
+      }
+      await ScenarioManager.update(currentScenario.id, { fundSettings: next });
+      currentScenario = await getScenario(currentScenario.id);
+      await loadFundsSummaryCards(container);
+    });
+  }
+
+  if (asOfInput) {
+    asOfInput.value = fundSummaryAsOfDate || '';
+    asOfInput.addEventListener('change', async () => {
+      fundSummaryAsOfDate = asOfInput.value || '';
+      await loadFundsSummaryCards(container);
+    });
+  }
+
+  if (effectiveInput) {
+    effectiveInput.value = fundSettings.automaticEffectiveDate || '';
+    const isAuto = (fundSettings.shareMode || 'Locked') === 'Automatic';
+    effectiveInput.disabled = !isAuto;
+
+    effectiveInput.addEventListener('change', async () => {
+      const next = {
+        ...getDefaultFundSettings(),
+        ...(currentScenario.fundSettings || {}),
+        automaticEffectiveDate: effectiveInput.value || null
+      };
+      await ScenarioManager.update(currentScenario.id, { fundSettings: next });
+      currentScenario = await getScenario(currentScenario.id);
+      await loadFundsSummaryCards(container);
+    });
+  }
+
+  const asOfDate = fundSummaryAsOfDate ? parseDateOnly(fundSummaryAsOfDate) : null;
+  const { nav } = computeNav({ accounts, projectionsIndex, asOfDate });
+
+  const equityAccounts = accounts.filter(a => a?.type?.name === 'Equity');
+  const sharesById = (fundSettings.shareMode === 'Automatic')
+    ? computeAutomaticSharesByAccountId({ scenario: currentScenario, accounts, projectionsIndex, asOfDate, fundSettings })
+    : computeLockedSharesByAccountId({ equityAccounts, fundSettings });
+
+  const totalShares = Object.values(sharesById).reduce((sum, v) => sum + Number(v || 0), 0);
+  const sharePrice = totalShares > 0 ? (nav / totalShares) : null;
+
+  const moneyTotals = computeMoneyTotalsFromTransactions({
+    transactions: currentScenario.transactions || [],
+    accounts,
+    scope: fundSummaryScope
+  });
+
+  const totalsCard = document.createElement('div');
+  totalsCard.className = 'summary-card overall-total';
+  totalsCard.innerHTML = `
+    <div class="summary-card-title">FUND TOTALS</div>
+    <div class="summary-card-row"><span class="label">NAV:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
+    <div class="summary-card-row"><span class="label">Total shares:</span><span class="value">${Number.isFinite(totalShares) ? totalShares.toFixed(4) : '0.0000'}</span></div>
+    <div class="summary-card-row"><span class="label">Share price:</span><span class="value">${sharePrice === null ? 'N/A' : formatMoneyDisplay(sharePrice)}</span></div>
+    <div class="summary-card-row"><span class="label">Money In:</span><span class="value">${formatMoneyDisplay(moneyTotals.moneyIn)}</span></div>
+    <div class="summary-card-row"><span class="label">Money Out:</span><span class="value">${formatMoneyDisplay(moneyTotals.moneyOut)}</span></div>
+    <div class="summary-card-row"><span class="label">Net:</span><span class="value">${formatMoneyDisplay(moneyTotals.net)}</span></div>
+  `;
+  container.appendChild(totalsCard);
+
+  const detailWrap = document.createElement('div');
+  detailWrap.className = 'summary-cards-group';
+  const detailTitle = document.createElement('div');
+  detailTitle.className = 'summary-cards-group-title';
+  detailTitle.textContent = fundSummaryScope === 'All' ? 'All Accounts' : `${fundSummaryScope} Accounts`;
+  detailWrap.appendChild(detailTitle);
+
+  const detailGrid = document.createElement('div');
+  detailGrid.className = 'grid-container';
+  detailWrap.appendChild(detailGrid);
+  container.appendChild(detailWrap);
+
+  if (fundSummaryScope === 'Equity') {
+    const flows = computeInvestorFlows({ scenario: currentScenario, accounts, asOfDate });
+    const rows = equityAccounts.map(a => {
+      const shares = Number(sharesById[a.id] || 0);
+      const ownership = totalShares > 0 ? (shares / totalShares) : 0;
+      const impliedValue = sharePrice === null ? 0 : shares * sharePrice;
+      const f = flows[a.id] || { contributions: 0, redemptions: 0 };
+      return {
+        accountId: a.id,
+        name: a.name || 'Unnamed',
+        shares,
+        ownershipPct: ownership * 100,
+        impliedValue,
+        contributions: f.contributions,
+        redemptions: f.redemptions
+      };
+    });
+
+    const isLocked = (fundSettings.shareMode || 'Locked') === 'Locked';
+
+    await createGrid(detailGrid, {
+      data: rows,
+      headerWordWrap: false,
+      columns: [
+        { title: 'Investor', field: 'name', headerSort: false },
+        {
+          title: 'Shares',
+          field: 'shares',
+          headerSort: false,
+          hozAlign: 'right',
+          editor: isLocked ? 'number' : false,
+          editorParams: isLocked ? { step: 0.0001 } : undefined,
+          formatter: (cell) => {
+            const v = Number(cell.getValue() || 0);
+            return v.toFixed(4);
+          }
+        },
+        {
+          title: 'Ownership %',
+          field: 'ownershipPct',
+          headerSort: false,
+          hozAlign: 'right',
+          formatter: (cell) => {
+            const v = Number(cell.getValue() || 0);
+            return v.toFixed(2) + '%';
+          }
+        },
+        {
+          title: 'Implied Value',
+          field: 'impliedValue',
+          headerSort: false,
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+        },
+        {
+          title: 'Net Contributions',
+          field: 'contributions',
+          headerSort: false,
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+        },
+        {
+          title: 'Net Redemptions',
+          field: 'redemptions',
+          headerSort: false,
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+        }
+      ],
+      cellEdited: async (cell) => {
+        if (!isLocked) return;
+        if (cell.getField() !== 'shares') return;
+
+        const row = cell.getRow().getData();
+        const nextShares = Number(cell.getValue() || 0);
+
+        const next = {
+          ...getDefaultFundSettings(),
+          ...(currentScenario.fundSettings || {})
+        };
+        next.lockedSharesByAccountId = { ...(next.lockedSharesByAccountId || {}) };
+        next.lockedSharesByAccountId[row.accountId] = Number.isFinite(nextShares) ? nextShares : 0;
+
+        await ScenarioManager.update(currentScenario.id, { fundSettings: next });
+        currentScenario = await getScenario(currentScenario.id);
+        await loadFundsSummaryCards(container);
+      }
+    });
+  } else {
+    const filteredAccounts = fundSummaryScope === 'All'
+      ? accounts
+      : accounts.filter(a => a?.type?.name === fundSummaryScope);
+
+    const data = filteredAccounts.map(a => {
+      const balance = getBalanceAsOf({ account: a, projectionsIndex, asOfDate });
+      return {
+        name: a.name || 'Unnamed',
+        type: a?.type?.name || '',
+        balance
+      };
+    });
+
+    await createGrid(detailGrid, {
+      data,
+      headerWordWrap: false,
+      ...(fundSummaryScope === 'All' ? { groupBy: 'type' } : {}),
+      columns: [
+        { title: 'Account', field: 'name', headerSort: false },
+        ...(fundSummaryScope === 'All' ? [{ title: 'Type', field: 'type', headerSort: false }] : []),
+        { title: 'Balance', field: 'balance', headerSort: false, formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0) }
+      ]
+    });
+  }
+}
+
 async function loadGeneralSummaryCards(container) {
   if (!container) {
     return;
@@ -807,6 +1132,11 @@ async function loadSummaryCards(container) {
     await loadGeneralSummaryCards(container);
     return;
   }
+
+  if (isFundsScenario(typeConfig)) {
+    await loadFundsSummaryCards(container);
+    return;
+  }
 }
 
 async function refreshSummaryCards() {
@@ -815,8 +1145,8 @@ async function refreshSummaryCards() {
     return;
   }
 
-  // Minimal plan requirement: General summary refreshes after edits.
-  if (!isGeneralScenario(typeConfig)) {
+  // Minimal plan requirement: General + Funds summaries refresh after edits.
+  if (!isGeneralScenario(typeConfig) && !isFundsScenario(typeConfig)) {
     return;
   }
 
@@ -921,6 +1251,10 @@ async function loadScenarioData() {
   };
 
   const typeConfig = getScenarioTypeConfig();
+
+  if (typeConfig?.name === 'Funds') {
+    await ensureFundSettingsInitialized();
+  }
   
   // Show/hide sections based on scenario type
   const accountsSection = getEl('accountsTable').closest('.bg-main');
@@ -953,8 +1287,12 @@ async function loadScenarioData() {
   // Load transactions grid initially (filtering will be applied by account selection)
   // Period calculation happens inside each grid load function
   await loadMasterTransactionsGrid(containers.transactionsTable);
-  
-  await loadBudgetGrid(containers.budgetTable);
+
+  if (typeConfig.showBudget !== false) {
+    await loadBudgetGrid(containers.budgetTable);
+  } else {
+    containers.budgetTable.innerHTML = '';
+  }
   await loadProjectionsSection(containers.projectionsContent);
   
   // Load summary cards AFTER projections so they have data to work with
@@ -987,6 +1325,14 @@ async function init() {
   // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
   
   initializeKeyboardShortcuts();
+
+  document.addEventListener('forecast:accountsUpdated', async () => {
+    try {
+      await refreshSummaryCards();
+    } catch (e) {
+      // keep existing behavior: ignore
+    }
+  });
   
 }
 

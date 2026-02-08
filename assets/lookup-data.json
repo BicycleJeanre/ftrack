@@ -17,6 +17,7 @@
       "showPlannedTransactions": true,
       "showActualTransactions": false,
       "showProjections": true,
+      "showBudget": false,
       "showSummaryCards": true
     },
     {
@@ -26,7 +27,9 @@
       "showAccounts": true,
       "showPlannedTransactions": true,
       "showActualTransactions": false,
-      "showProjections": true
+      "showProjections": true,
+      "showBudget": false,
+      "showSummaryCards": true
     },
     {
       "id": 4,

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - General scenarios show a compact Summary card at the top (Money In, Money Out, Net)
+- Funds scenarios show a Summary section with NAV, shares, share price, and investor breakdown
 
 ## [0.7.1-beta] - 2026-02-02
 

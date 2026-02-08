@@ -90,6 +90,13 @@ General scenario summary cards.
 - **Type**: Single overall total card.
 - **Behavior**: Displays Money In, Money Out, and Net using the same conventions as transaction totals.
 
+Funds scenario summary cards.
+
+- **Type**: Totals card plus a small detail grid.
+- **Behavior**: Displays NAV, total shares, share price, and scoped Money In, Money Out, Net.
+- **Scope Selector**: All, Asset, Liability, Equity, Income, Expense.
+- **Equity Detail**: Investor breakdown with shares, ownership percent, and implied value.
+
 ## 3.0 Interactive Patterns
 
 ### 3.1 Single Selection Logic

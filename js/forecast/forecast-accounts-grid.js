@@ -29,6 +29,7 @@ export function buildAccountsGridColumns({
         await AccountManager.remove(currentScenario.id, rowData.id);
         await reloadAccountsGrid(document.getElementById('accountsTable'));
         await reloadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+        document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
       },
       { confirmMessage: (rowData) => `Delete account: ${rowData.name}?` }
     ),
@@ -233,6 +234,7 @@ export async function loadAccountsGrid({
 
         const scenario = scenarioState?.get?.();
         await AccountManager.update(scenario.id, account.id, account);
+        document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
       }
     });
 
