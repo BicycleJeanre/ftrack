@@ -76,6 +76,7 @@
   },
   "dependencies": {
     "financejs": "^4.1.0",
+    "javascript-lp-solver": "^0.4.24",
     "tabulator-tables": "^6.3.1"
   }
 }

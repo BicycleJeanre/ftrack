@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Advanced Goal Solver scenario type with a multi-goal Generate Plan flow
+
 ### 1.1 Improvements
 
 1.1.1 Forecast grids preserve `Group By` selection (and scroll/sort where supported) across reloads.
