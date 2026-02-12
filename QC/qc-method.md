@@ -1,6 +1,6 @@
 # AI-Driven QC Method
 
-**Version**: 1.1.2  
+**Version**: 1.1.3  
 **Last Updated**: February 12, 2026  
 **Purpose**: Framework for functionality-driven QC using AI verification with minimal manual testing
 
@@ -12,7 +12,7 @@ This QC method shifts from exhaustive manual testing to a **functionality-driven
 - **AI verifies** internal logic, calculations, and data integrity
 - **Users test** critical user workflows and acceptance criteria only
 - **QC data** uses a single representative dataset for verification
-- Focus is on **what features do** not exhaustive use case permutations
+- Focus is on **what features do**, not exhaustive use case permutations
 
 ---
 
@@ -34,15 +34,15 @@ This QC method shifts from exhaustive manual testing to a **functionality-driven
 
 ### 3.1 Test Data Management
 Maintain a single representative QC dataset:
-- **File**: `/QC/ftrack-qc-data.json` (existing file)
+- **File**: `/QC/Archive/ftrack-qc-data.json` (current location)
 - **Contains**: Multiple scenarios, account types, transactions, projections
 - **Usage**: Primary dataset for all verification testing
 - **Updates**: Add to this file when testing new scenario types
 
 ### 3.2 Test Execution Script
 
-Create a lightweight Node.js script (`QC/verify.js`) that:
-1. **Loads test data** from ftrack-qc-data.json
+Create a lightweight Node.js script (`QC/verify.js`) when you are ready to automate QC:
+1. **Loads test data** from QC/Archive/ftrack-qc-data.json
 2. **Loads configuration** from assets/lookup-data.json
 3. **Runs deterministic checks** (data structure, calculations, config)
 4. **Generates readable reports** (console output + JSON archive)
@@ -57,7 +57,7 @@ QC/verify.js          (Main runner - loads data, executes checks, outputs report
     └── utils/ (report generators, loaders, etc.)
 ```
 
-**npm Scripts** (in package.json):
+**Suggested npm Scripts** (add to package.json when ready):
 ```json
 {
   "scripts": {
@@ -71,10 +71,10 @@ QC/verify.js          (Main runner - loads data, executes checks, outputs report
 ### 3.3 Test Execution Flow
 
 ```
-User: npm run qc:verify
+User: node QC/verify.js (or npm run qc:verify after adding scripts)
   ↓
 Script loads:
-  - /QC/ftrack-qc-data.json (test data)
+  - /QC/Archive/ftrack-qc-data.json (test data)
   - /assets/lookup-data.json (configuration)
   ↓
 Script runs checks:
@@ -84,7 +84,7 @@ Script runs checks:
   ↓
 Script outputs:
   - Console report (human readable)
-  - JSON report saved to /QC/reports/ (machine readable + archival)
+  - JSON report saved to /QC/reports/ (create if needed; machine readable + archival)
   ↓
 AI analyzes outputs:
   - Compares JSON report to expected outputs
@@ -94,32 +94,25 @@ AI analyzes outputs:
 
 ---
 
-## 4.0 Hybrid AI-Run Verification
+## 4.0 AI-Run Verification Workflow
 
-### 4.1 Single Hybrid Approach
+4.1 **Automated Execution**: Run deterministic checks (data structure, config, calculations) and produce machine-readable output (JSON report + diff summaries).
 
-All validation is performed by automated scripts, but the scripts are executed through the AI workflow. The AI then analyzes outputs and generates a user-facing report.
+4.2 **AI Analysis**: Read script outputs, compare to expected values, identify failures and likely causes, then generate a concise report with pass/fail status and next actions.
 
-**Automated Execution**
-- Run deterministic checks (data structure, config, calculations)
-- Produce machine-readable output (JSON report + diff summaries)
+4.3 **Instructions File**: Define QC command entry points, expected report locations, and require analysis and summary of failures and next actions.
 
-**AI Analysis**
-- Read the script outputs and compare to expected values
-- Identify failures, likely causes, and impacted features
-- Generate a concise report with pass/fail status and next actions
+4.4 **User Flow**:
+1. User asks the AI to run QC.
+2. AI executes QC scripts, analyzes outputs, and generates the report.
+3. User reviews the report and addresses any failures.
 
-**Required Inputs to AI**
-- QC dataset and expected outputs
-- Script JSON report
-- Any diff summaries or error logs
-
-### 4.2 Sample AI Report Format
+4.5 **Sample AI Report Format**
 
 ```
 QC Report
 Run: 2026-02-12T18:42:10Z
-Dataset: QC/ftrack-qc-data.json
+Dataset: QC/Archive/ftrack-qc-data.json
 Seed: 893214
 
 Overall Status: FAIL (2 of 24 checks failed)
@@ -175,7 +168,7 @@ AI generates three aligned artifacts per feature area:
 
 ## 6.0 Test Execution Options
 
-This section describes available execution options and when to use each. The goal is to start lightweight and only add heavier tooling when needed.
+This section lists the only supported execution options for QC.
 
 ### 6.1 Option A: Plain Node.js Script (Lightest)
 - **How it works**: `node QC/verify.js` loads QC data and expected outputs, calls logic modules, and asserts results.
@@ -186,53 +179,18 @@ This section describes available execution options and when to use each. The goa
 ### 6.2 Option B: Node Built-In Test Runner
 - **How it works**: Use `node:test` and `assert` to structure checks without extra dependencies.
 - **Pros**: Simple, structured reporting, still lightweight.
-- **Cons**: Smaller ecosystem vs. Jest/Vitest.
+- **Cons**: Smaller ecosystem than full-featured test runners.
 - **Use when**: You want organized suites but still prefer minimal tooling.
-
-### 6.3 Option C: Vitest or Jest (Full Unit Test Runner)
-- **How it works**: Full unit test suites with mocks, snapshots, and reporters.
-- **Pros**: Rich tooling, watch mode, coverage.
-- **Cons**: More setup and config.
-- **Use when**: You need mocks, coverage, or broad unit coverage at scale.
-
-### 6.4 Option D: Playwright (UI and Workflow Testing)
-- **How it works**: Launches the app UI, runs user workflow checks, and compares rendered output or exported data.
-- **Pros**: Best for end-to-end UI verification.
-- **Cons**: Heaviest setup, slower, less deterministic for calc-only checks.
-- **Use when**: Validating user journeys and UI integration.
-
-### 6.5 Option E: Electron Harness
-- **How it works**: Launches Electron with a test hook to run logic in the app context.
-- **Pros**: Real runtime and file paths.
-- **Cons**: Custom wiring needed.
-- **Use when**: You must verify behavior tied to Electron APIs.
 
 ---
 
 ## 7.0 Recommended Starting Point
 
-7.1 Start with Option A or B for calculation and data validation.
+7.1 Use Option A for the lightest possible checks.
 
-7.2 Add Option C only after the core method is stable.
+7.2 Use Option B when you want organized suites and structured reporting.
 
-7.3 Add Option D or E only for user-facing workflow checks.
-
-7.4 Keep QC artifacts small, seeded, and versioned for reproducibility.
+7.3 Keep QC artifacts small, seeded, and versioned for reproducibility.
 
 ---
 
-## 8.0 AI Instructions Workflow
-
-This method is designed to be executed through an AI instructions file so the user only needs to request a QC run and review the report.
-
-### 8.1 User Experience
-1. User asks the AI to run QC.
-2. AI executes QC scripts, analyzes outputs, and generates the report.
-3. User reviews the report and addresses any failures.
-
-### 8.2 Requirements for the Instructions File
-8.2.1 Define the QC command entry points to run.
-
-8.2.2 Define the expected report output location.
-
-8.2.3 Require the AI to analyze outputs and summarize failures and next actions.
