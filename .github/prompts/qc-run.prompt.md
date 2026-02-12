@@ -18,7 +18,7 @@ User requests QC run with optional filters:
 - `--all` - Run QC for all scenarios
 - `--verbose` - Show detailed output
 
-If no filter provided, default to General scenario.
+If no filter provided, ask the user which scope to run. Recommend the full QC run (`npm run qc:full`) and wait for confirmation before executing.
 
 ---
 
