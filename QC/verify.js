@@ -212,11 +212,8 @@ function validateScenario(scenario, lookup) {
   if (typeof scenario.name !== 'string' || !scenario.name.trim()) {
     errors.push(`${label} missing name.`);
   }
-  if (!scenario.type || typeof scenario.type.id !== 'number') {
+  if (typeof scenario.type !== 'number') {
     errors.push(`${label} missing scenario type id.`);
-  }
-  if (!scenario.type || typeof scenario.type.name !== 'string') {
-    errors.push(`${label} missing scenario type name.`);
   }
 
   if (!isValidDate(scenario.startDate)) {
@@ -234,14 +231,14 @@ function validateScenario(scenario, lookup) {
   }
 
   const scenarioTypeIds = toIdSet(lookup.scenarioTypes);
-  if (scenario.type && scenario.type.id !== undefined && !scenarioTypeIds.has(scenario.type.id)) {
+  if (typeof scenario.type === 'number' && !scenarioTypeIds.has(scenario.type)) {
     errors.push(`${label} scenario type id not found in lookup data.`);
   }
 
   const periodTypeIds = toIdSet(lookup.periodTypes);
-  if (!scenario.projectionPeriod || typeof scenario.projectionPeriod.id !== 'number') {
+  if (typeof scenario.projectionPeriod !== 'number') {
     errors.push(`${label} missing projectionPeriod id.`);
-  } else if (!periodTypeIds.has(scenario.projectionPeriod.id)) {
+  } else if (!periodTypeIds.has(scenario.projectionPeriod)) {
     errors.push(`${label} projectionPeriod id not found in lookup data.`);
   }
 
@@ -281,9 +278,9 @@ function validateScenario(scenario, lookup) {
         accountNameSet.add(account.name);
       }
 
-      if (!account.type || typeof account.type.id !== 'number') {
+      if (typeof account.type !== 'number') {
         errors.push(`${label} account ${account.name || account.id || '?'} missing type id.`);
-      } else if (!accountTypeIds.has(account.type.id)) {
+      } else if (!accountTypeIds.has(account.type)) {
         errors.push(`${label} account ${account.name || account.id || '?'} type id not in lookup data.`);
       }
 

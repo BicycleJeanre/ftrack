@@ -7,7 +7,7 @@ const qcData = getQcData();
 
 describe('Goal-Based Planning Validation', () => {
   describe('Goal-Based scenario structure', () => {
-    const scenario = qcData.scenarios.find((s) => s.type.id === 5);
+    const scenario = qcData.scenarios.find((s) => s.type === 5);
 
     it('has Goal-Based scenario in QC data', () => {
       assert.ok(scenario, 'Goal-Based scenario not found');
@@ -20,7 +20,7 @@ describe('Goal-Based Planning Validation', () => {
 
     it('has recurring transaction to goal account', () => {
       const goalTx = scenario.transactions.find((tx) =>
-        tx.secondaryAccount?.id === scenario.accounts[1]?.id
+        tx.secondaryAccount?.id === scenario.accounts[1]?.id || tx.secondaryAccountId === scenario.accounts[1]?.id
       );
       assert.ok(goalTx, 'Missing transaction to goal account');
       assert.ok(goalTx.recurrence, 'Recurrence required for goal funding');
@@ -51,7 +51,7 @@ describe('Goal-Based Planning Validation', () => {
 
   describe('Goal-Based calculation semantics', () => {
     it('calculates goal reachability with monthly contributions', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 5);
+      const scenario = qcData.scenarios.find((s) => s.type === 5);
 
       const monthlyContribution = scenario.transactions[0]?.amount || 0;
       assert.ok(monthlyContribution > 0, 'Monthly contribution required');
@@ -72,7 +72,7 @@ describe('Goal-Based Planning Validation', () => {
     });
 
     it('validates goal parameters (amount, date, account)', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 5);
+      const scenario = qcData.scenarios.find((s) => s.type === 5);
 
       const relationshipTx = scenario.transactions[0];
       assert.ok(relationshipTx.secondaryAccount, 'Goal transaction missing secondary account');
@@ -83,14 +83,14 @@ describe('Goal-Based Planning Validation', () => {
     });
 
     it('handles edge case: goal already achieved at start', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 5);
+      const scenario = qcData.scenarios.find((s) => s.type === 5);
       const goalAccount = scenario.accounts[1];
 
       assert.ok(goalAccount.startingBalance !== undefined, 'Goal account missing starting balance');
     });
 
     it('validates goal date is after scenario start', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 5);
+      const scenario = qcData.scenarios.find((s) => s.type === 5);
 
       const scenarioStart = new Date(scenario.startDate);
       const scenarioEnd = new Date(scenario.endDate);

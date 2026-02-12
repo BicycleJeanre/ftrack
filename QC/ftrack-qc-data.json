@@ -3901,13 +3901,19 @@
           "transactionTypeId": null,
           "amount": 2000,
           "description": "Monthly goal contribution",
+          "primaryAccountId": 701,
+          "secondaryAccountId": 702,
+          "secondaryAccount": {
+            "id": 702,
+            "name": "GoalAccount700"
+          },
           "recurrence": {
-            "recurrenceType": null,
+            "recurrenceType": 4,
             "startDate": "2026-02-01",
             "endDate": null,
-            "interval": null,
+            "interval": 1,
             "dayOfWeek": null,
-            "dayOfMonth": null,
+            "dayOfMonth": 1,
             "weekOfMonth": null,
             "dayOfWeekInMonth": null,
             "dayOfQuarter": null,
@@ -3947,10 +3953,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-02-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 2000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 1
         },
         {
@@ -3971,10 +3977,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-03-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 4000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 2
         },
         {
@@ -3995,10 +4001,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-04-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 6000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 3
         },
         {
@@ -4019,10 +4025,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-05-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 8000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 4
         },
         {
@@ -4043,10 +4049,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-06-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 10000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 5
         },
         {
@@ -4067,10 +4073,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-07-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 12000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 6
         },
         {
@@ -4091,10 +4097,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-08-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 14000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 7
         },
         {
@@ -4115,10 +4121,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-09-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 16000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 8
         },
         {
@@ -4139,10 +4145,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-10-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 18000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 9
         },
         {
@@ -4163,10 +4169,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-11-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 20000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 10
         },
         {
@@ -4187,10 +4193,10 @@
           "accountId": 702,
           "account": "GoalAccount700",
           "date": "2026-12-01",
-          "balance": 0,
-          "income": 0,
+          "balance": 22000,
+          "income": 2000,
           "expenses": 0,
-          "netChange": 0,
+          "netChange": 2000,
           "period": 11
         }
       ],

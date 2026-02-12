@@ -123,7 +123,7 @@ describe('Scenario-Level Validation', () => {
         it('Budget scenario type has budgets or budget-suitable accounts', () => {
           if (scenario.type.id === 1) {
             const hasBudgets = scenario.budgets && scenario.budgets.length > 0;
-            const hasIncomeOrExpense = scenario.accounts.some((a) => [4, 5].includes(a.type.id));
+            const hasIncomeOrExpense = scenario.accounts.some((a) => [4, 5].includes(a.type));
             assert.ok(hasBudgets || hasIncomeOrExpense, 'Budget scenario should have budgets or income/expense accounts');
           }
         });
@@ -147,7 +147,7 @@ describe('Scenario-Level Validation', () => {
 describe('Calculation Verification Checklist', () => {
   describe('Recurrence expansion accuracy', () => {
     it('Monthly recurrence generates correct occurrence dates', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 1 || s.type.id === 2);
+      const scenario = qcData.scenarios.find((s) => s.type === 1 || s.type === 2);
       const tx = scenario?.transactions.find((t) => t.recurrence?.name === 'Monthly' || t.recurrence?.name === 'Weekly');
 
       if (tx && tx.recurrence) {
@@ -157,7 +157,7 @@ describe('Calculation Verification Checklist', () => {
     });
 
     it('Quarterly and yearly recurrences defined correctly', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 3);
+      const scenario = qcData.scenarios.find((s) => s.type === 3);
       const txs = scenario?.transactions || [];
 
       txs.forEach((tx) => {
@@ -173,7 +173,7 @@ describe('Calculation Verification Checklist', () => {
 
   describe('Periodic change application rules', () => {
     it('Accounts with periodic change have valid change types', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id !== 1);
+      const scenario = qcData.scenarios.find((s) => s.type !== 1);
 
       scenario?.accounts.forEach((account) => {
         if (account.periodicChange) {
@@ -190,7 +190,7 @@ describe('Calculation Verification Checklist', () => {
     });
 
     it('Custom compounding settings preserved when defined', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 2);
+      const scenario = qcData.scenarios.find((s) => s.type === 2);
       const accountWithCustom = scenario?.accounts.find((a) => a.periodicChange?.customCompounding);
 
       if (accountWithCustom) {
@@ -219,10 +219,10 @@ describe('Calculation Verification Checklist', () => {
     });
 
     it('Debt repayment scenario tracks liability reduction', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 4);
+      const scenario = qcData.scenarios.find((s) => s.type === 4);
 
       if (scenario) {
-        const liabilityAccount = scenario.accounts.find((a) => a.type.id === 2);
+        const liabilityAccount = scenario.accounts.find((a) => a.type === 2);
         assert.ok(liabilityAccount, 'Debt repayment scenario should have liability account');
 
         const payments = scenario.transactions.filter(
@@ -233,7 +233,7 @@ describe('Calculation Verification Checklist', () => {
     });
 
     it('Goal-based scenario tracks goal accounts separately', () => {
-      const scenario = qcData.scenarios.find((s) => s.type.id === 5);
+      const scenario = qcData.scenarios.find((s) => s.type === 5);
 
       if (scenario && scenario.accounts.length > 1) {
         const goalAccounts = scenario.accounts.filter(
