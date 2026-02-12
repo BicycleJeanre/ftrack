@@ -88,6 +88,10 @@ function compareWithTolerance(actual, expected, tolerance) {
   return Math.abs(actual - expected) <= tolerance;
 }
 
+function ensureArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 function validateAgainstExpected(scenario, expectedOutputs, report) {
   const label = `scenario-${scenario.id}-expected`;
   const expected = expectedOutputs.scenarios.find(s => s.id === scenario.id);
@@ -98,24 +102,29 @@ function validateAgainstExpected(scenario, expectedOutputs, report) {
   
   const exp = expected.expectedOutputs;
   const errors = [];
+
+  const accounts = ensureArray(scenario.accounts);
+  const transactions = ensureArray(scenario.transactions);
+  const projections = ensureArray(scenario.projections);
+  const budgets = ensureArray(scenario.budgets);
   
   // Validate counts
-  if (scenario.accounts.length !== exp.accountCount) {
-    errors.push(`Account count: expected ${exp.accountCount}, got ${scenario.accounts.length}`);
+  if (accounts.length !== exp.accountCount) {
+    errors.push(`Account count: expected ${exp.accountCount}, got ${accounts.length}`);
   }
-  if (scenario.transactions.length !== exp.transactionCount) {
-    errors.push(`Transaction count: expected ${exp.transactionCount}, got ${scenario.transactions.length}`);
+  if (transactions.length !== exp.transactionCount) {
+    errors.push(`Transaction count: expected ${exp.transactionCount}, got ${transactions.length}`);
   }
-  if (scenario.projections.length !== exp.projectionCount) {
-    errors.push(`Projection count: expected ${exp.projectionCount}, got ${scenario.projections.length}`);
+  if (projections.length !== exp.projectionCount) {
+    errors.push(`Projection count: expected ${exp.projectionCount}, got ${projections.length}`);
   }
-  if (scenario.budgets.length !== exp.budgetCount) {
-    errors.push(`Budget count: expected ${exp.budgetCount}, got ${scenario.budgets.length}`);
+  if (budgets.length !== exp.budgetCount) {
+    errors.push(`Budget count: expected ${exp.budgetCount}, got ${budgets.length}`);
   }
   
   // Validate first projection
-  if (exp.firstProjection && scenario.projections.length > 0) {
-    const first = scenario.projections[0];
+  if (exp.firstProjection && projections.length > 0) {
+    const first = projections[0];
     const expFirst = exp.firstProjection;
     
     if (first.date !== expFirst.date) {
@@ -142,8 +151,8 @@ function validateAgainstExpected(scenario, expectedOutputs, report) {
   }
   
   // Validate last projection
-  if (exp.lastProjection && scenario.projections.length > 0) {
-    const last = scenario.projections[scenario.projections.length - 1];
+  if (exp.lastProjection && projections.length > 0) {
+    const last = projections[projections.length - 1];
     const expLast = exp.lastProjection;
     
     if (last.date !== expLast.date) {
