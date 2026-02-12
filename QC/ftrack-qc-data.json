@@ -4,56 +4,22 @@
     {
       "id": 2,
       "name": "QC Scenario",
-      "type": {
-        "id": 2,
-        "name": "General",
-        "description": "General financial planning scenario",
-        "showAccounts": true,
-        "showPlannedTransactions": true,
-        "showActualTransactions": false,
-        "showProjections": true,
-        "accountColumns": [
-          "name",
-          "type",
-          "currency",
-          "balance",
-          "openDate",
-          "interestRate",
-          "periodicChange"
-        ],
-        "transactionColumns": [
-          "primaryAccount",
-          "secondaryAccount",
-          "transactionType",
-          "amount",
-          "description",
-          "recurrence",
-          "periodicChange",
-          "tags"
-        ]
-      },
+      "type": 2,
       "description": "QC Scenario ",
       "startDate": "2026-02-01",
       "endDate": "2026-12-01",
-      "projectionPeriod": {
-        "id": 4,
-        "name": "Quarter"
-      },
+      "projectionPeriod": 4,
       "accounts": [
         {
           "id": 1,
           "name": "A1",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 10000,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "periodicChangeSummary": "",
-          "description": "first main primary mfuckin' account!"
+          "goalAmount": null,
+          "goalDate": null
         }
       ],
       "transactions": [],
@@ -196,49 +162,16 @@
     {
       "id": 3,
       "name": "QC Scenario (Copy)",
-      "type": {
-        "id": 2,
-        "name": "General",
-        "description": "General financial planning scenario",
-        "showAccounts": true,
-        "showPlannedTransactions": true,
-        "showActualTransactions": false,
-        "showProjections": true,
-        "accountColumns": [
-          "name",
-          "type",
-          "currency",
-          "balance",
-          "openDate",
-          "interestRate",
-          "periodicChange"
-        ],
-        "transactionColumns": [
-          "primaryAccount",
-          "secondaryAccount",
-          "transactionType",
-          "amount",
-          "description",
-          "recurrence",
-          "periodicChange",
-          "tags"
-        ]
-      },
+      "type": 2,
       "description": "QC Scenario ",
       "startDate": "2026-02-01",
       "endDate": "2026-12-01",
-      "projectionPeriod": {
-        "id": 4,
-        "name": "Quarter"
-      },
+      "projectionPeriod": 4,
       "accounts": [
         {
           "id": 1,
           "name": "A1",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 10000,
           "openDate": "2026-02-01",
@@ -247,17 +180,13 @@
             "changeMode": 1,
             "changeType": 2
           },
-          "accountType": "Unknown",
-          "periodicChangeSummary": "",
-          "description": "first main primary mfuckin' account!"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 2,
           "name": "A2",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
@@ -266,17 +195,13 @@
             "changeMode": 1,
             "changeType": 1
           },
-          "accountType": "Expense",
-          "periodicChangeSummary": "",
-          "description": "expenses bruh"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 3,
           "name": "A3",
-          "type": {
-            "id": 4,
-            "name": "Income"
-          },
+          "type": 4,
           "currency": null,
           "startingBalance": 100000000,
           "openDate": "2026-02-01",
@@ -285,15 +210,13 @@
             "changeMode": 1,
             "changeType": 2
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 4,
           "name": "A4",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
@@ -302,15 +225,13 @@
             "changeMode": 1,
             "changeType": 3
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 5,
           "name": "A5",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
@@ -319,15 +240,13 @@
             "changeMode": 1,
             "changeType": 4
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 6,
           "name": "A6",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
@@ -336,15 +255,13 @@
             "changeMode": 1,
             "changeType": 5
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 7,
           "name": "A7",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
@@ -357,15 +274,13 @@
               "period": 1
             }
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 8,
           "name": "A8",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
@@ -378,127 +293,104 @@
               "period": 2
             }
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 9,
           "name": "A9",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
             "value": 10,
             "changeMode": 2,
-            "changeType": 1,
-            "frequency": 1
+            "changeType": 1
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 10,
           "name": "A10",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
             "value": 10,
             "changeMode": 2,
-            "changeType": 1,
-            "frequency": 2
+            "changeType": 1
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 11,
           "name": "A11",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
             "value": 10,
             "changeMode": 2,
-            "changeType": 1,
-            "frequency": 3,
-            "dayOfMonth": 1
+            "changeType": 1
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 12,
           "name": "A12",
-          "type": {
-            "id": 2,
-            "name": "Liability"
-          },
+          "type": 2,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
             "value": 10,
             "changeMode": 2,
-            "changeType": 1,
-            "frequency": 4
+            "changeType": 1
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 13,
           "name": "A13",
-          "type": {
-            "id": 2,
-            "name": "Liability"
-          },
+          "type": 2,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
             "value": 10,
             "changeMode": 2,
-            "changeType": 1,
-            "frequency": 5
+            "changeType": 1
           },
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 14,
           "name": "A14",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown"
+          "goalAmount": null,
+          "goalDate": null
         }
       ],
       "transactions": [
         {
           "id": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
+          "transactionTypeId": null,
           "amount": 500,
-          "effectiveDate": "2026-02-01",
           "description": "duh it is going out... ",
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": "2026-02-01",
             "endDate": null,
             "interval": 1,
@@ -522,17 +414,11 @@
         },
         {
           "id": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
+          "transactionTypeId": null,
           "amount": 10000,
-          "effectiveDate": "2026-02-01",
           "description": "money in bruh",
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": "2026-02-01",
             "endDate": null,
             "interval": 1,
@@ -556,17 +442,11 @@
         },
         {
           "id": 3,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 4,
-          "transactionTypeId": 2,
+          "transactionTypeId": null,
           "amount": 50000,
-          "effectiveDate": "2026-03-01",
           "description": "fuck hookers are expensive!",
           "recurrence": {
-            "recurrenceType": {
-              "id": 1,
-              "name": "One Time"
-            },
+            "recurrenceType": 1,
             "startDate": "2026-03-01",
             "endDate": null,
             "interval": null,
@@ -2805,45 +2685,27 @@
     {
       "id": 4,
       "name": "QC Budget Scenario",
-      "type": {
-        "id": 1,
-        "name": "Budget",
-        "description": "Budget tracking scenario",
-        "showAccounts": true,
-        "showPlannedTransactions": true,
-        "showActualTransactions": true,
-        "showProjections": true
-      },
+      "type": 1,
       "description": "Minimal QC scenario for Budget type validation",
       "startDate": "2026-02-01",
       "endDate": "2026-12-01",
-      "projectionPeriod": {
-        "id": 3,
-        "name": "Month"
-      },
+      "projectionPeriod": 3,
       "accounts": [
         {
           "id": 401,
           "name": "A401",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "periodicChangeSummary": "",
-          "description": "Primary asset for Budget scenario"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 402,
           "name": "Income400",
-          "type": {
-            "id": 4,
-            "name": "Income"
-          },
+          "type": 4,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
@@ -2852,16 +2714,13 @@
             "changeMode": 2,
             "changeType": 1
           },
-          "accountType": "Income",
-          "description": "Monthly income"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 403,
           "name": "Expense400",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
+          "type": 5,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
@@ -2870,58 +2729,37 @@
             "changeMode": 2,
             "changeType": 1
           },
-          "accountType": "Expense",
-          "description": "Monthly expenses"
+          "goalAmount": null,
+          "goalDate": null
         }
       ],
       "transactions": [
         {
           "id": 401,
-          "sourceId": 401,
-          "baseName": "Budget Transfer 400",
-          "primaryAccount": {
-            "id": 401,
-            "name": "A401",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": null,
-            "startingBalance": 50000,
-            "openDate": "2026-02-01",
-            "periodicChange": null,
-            "accountType": "Unknown",
-            "periodicChangeSummary": "",
-            "description": "Primary asset for Budget scenario"
-          },
-          "secondaryAccount": {
-            "id": 402,
-            "name": "Income400",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": null,
-            "startingBalance": 0,
-            "openDate": "2026-02-01",
-            "periodicChange": {
-              "value": 5000,
-              "changeMode": 2,
-              "changeType": 1
-            },
-            "accountType": "Income",
-            "description": "Monthly income"
-          },
-          "transactionType": 1,
+          "transactionTypeId": null,
           "amount": 5000,
           "description": "Monthly income transfer",
           "recurrence": {
-            "id": 2,
-            "name": "Monthly",
-            "frequency": 1,
-            "startDate": "2026-02-01"
+            "recurrenceType": null,
+            "startDate": "2026-02-01",
+            "endDate": null,
+            "interval": null,
+            "dayOfWeek": null,
+            "dayOfMonth": null,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
           },
           "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
           "tags": [
             "income"
           ]
@@ -3355,47 +3193,27 @@
     {
       "id": 5,
       "name": "QC Funds Scenario",
-      "type": {
-        "id": 3,
-        "name": "Funds",
-        "description": "Investment funds tracking scenario",
-        "showAccounts": true,
-        "showPlannedTransactions": true,
-        "showActualTransactions": false,
-        "showProjections": true,
-        "showBudget": false,
-        "showSummaryCards": true
-      },
+      "type": 3,
       "description": "Minimal QC scenario for Funds type validation",
       "startDate": "2026-02-01",
       "endDate": "2026-12-01",
-      "projectionPeriod": {
-        "id": 3,
-        "name": "Month"
-      },
+      "projectionPeriod": 3,
       "accounts": [
         {
           "id": 501,
           "name": "A501",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "periodicChangeSummary": "",
-          "description": "Primary asset for Funds scenario"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 502,
           "name": "Fund500",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 100000,
           "openDate": "2026-02-01",
@@ -3404,58 +3222,37 @@
             "changeMode": 1,
             "changeType": 2
           },
-          "accountType": "Unknown",
-          "description": "Investment fund with 7% monthly compound interest"
+          "goalAmount": null,
+          "goalDate": null
         }
       ],
       "transactions": [
         {
           "id": 501,
-          "sourceId": 501,
-          "baseName": "Fund Withdrawal 500",
-          "primaryAccount": {
-            "id": 502,
-            "name": "Fund500",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": null,
-            "startingBalance": 100000,
-            "openDate": "2026-02-01",
-            "periodicChange": {
-              "value": 7,
-              "changeMode": 1,
-              "changeType": 2
-            },
-            "accountType": "Unknown",
-            "description": "Investment fund with 7% monthly compound interest"
-          },
-          "secondaryAccount": {
-            "id": 501,
-            "name": "A501",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": null,
-            "startingBalance": 50000,
-            "openDate": "2026-02-01",
-            "periodicChange": null,
-            "accountType": "Unknown",
-            "periodicChangeSummary": "",
-            "description": "Primary asset for Funds scenario"
-          },
-          "transactionType": 2,
+          "transactionTypeId": null,
           "amount": 5000,
           "description": "Quarterly fund withdrawal",
           "recurrence": {
-            "id": 4,
-            "name": "Quarterly",
-            "frequency": 3,
-            "startDate": "2026-02-01"
+            "recurrenceType": null,
+            "startDate": "2026-02-01",
+            "endDate": null,
+            "interval": null,
+            "dayOfWeek": null,
+            "dayOfMonth": null,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
           },
           "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
           "tags": [
             "withdrawal"
           ]
@@ -3732,47 +3529,27 @@
     {
       "id": 6,
       "name": "QC Debt Repayment Scenario",
-      "type": {
-        "id": 4,
-        "name": "Debt Repayment",
-        "description": "Track and model debt payoff scenarios",
-        "showAccounts": true,
-        "showPlannedTransactions": true,
-        "showActualTransactions": false,
-        "showBudget": false,
-        "showProjections": true,
-        "showSummaryCards": true
-      },
+      "type": 4,
       "description": "Minimal QC scenario for Debt Repayment type validation",
       "startDate": "2026-02-01",
       "endDate": "2026-12-01",
-      "projectionPeriod": {
-        "id": 3,
-        "name": "Month"
-      },
+      "projectionPeriod": 3,
       "accounts": [
         {
           "id": 601,
           "name": "A601",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "periodicChangeSummary": "",
-          "description": "Primary asset for Debt Repayment scenario"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 602,
           "name": "Debt600",
-          "type": {
-            "id": 2,
-            "name": "Liability"
-          },
+          "type": 2,
           "currency": null,
           "startingBalance": 25000,
           "openDate": "2026-02-01",
@@ -3781,58 +3558,37 @@
             "changeMode": 1,
             "changeType": 1
           },
-          "accountType": "Unknown",
-          "description": "Debt with 2% monthly interest"
+          "goalAmount": null,
+          "goalDate": null
         }
       ],
       "transactions": [
         {
           "id": 601,
-          "sourceId": 601,
-          "baseName": "Debt Payment 600",
-          "primaryAccount": {
-            "id": 601,
-            "name": "A601",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": null,
-            "startingBalance": 50000,
-            "openDate": "2026-02-01",
-            "periodicChange": null,
-            "accountType": "Unknown",
-            "periodicChangeSummary": "",
-            "description": "Primary asset for Debt Repayment scenario"
-          },
-          "secondaryAccount": {
-            "id": 602,
-            "name": "Debt600",
-            "type": {
-              "id": 2,
-              "name": "Liability"
-            },
-            "currency": null,
-            "startingBalance": 25000,
-            "openDate": "2026-02-01",
-            "periodicChange": {
-              "value": 2,
-              "changeMode": 1,
-              "changeType": 1
-            },
-            "accountType": "Unknown",
-            "description": "Debt with 2% monthly interest"
-          },
-          "transactionType": 2,
+          "transactionTypeId": null,
           "amount": 1000,
           "description": "Monthly debt repayment",
           "recurrence": {
-            "id": 2,
-            "name": "Monthly",
-            "frequency": 1,
-            "startDate": "2026-02-01"
+            "recurrenceType": null,
+            "startDate": "2026-02-01",
+            "endDate": null,
+            "interval": null,
+            "dayOfWeek": null,
+            "dayOfMonth": null,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
           },
           "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
           "tags": [
             "payment",
             "debt"
@@ -4110,98 +3866,62 @@
     {
       "id": 7,
       "name": "QC Goal-Based Scenario",
-      "type": {
-        "id": 5,
-        "name": "Goal-Based",
-        "description": "Goal-based planning with automatic transaction generation",
-        "showAccounts": true,
-        "showPlannedTransactions": true,
-        "showActualTransactions": false,
-        "showProjections": true,
-        "showGeneratePlan": true
-      },
+      "type": 5,
       "description": "Minimal QC scenario for Goal-Based type validation",
       "startDate": "2026-02-01",
       "endDate": "2026-12-01",
-      "projectionPeriod": {
-        "id": 3,
-        "name": "Month"
-      },
+      "projectionPeriod": 3,
       "accounts": [
         {
           "id": 701,
           "name": "A701",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "periodicChangeSummary": "",
-          "description": "Primary asset for Goal-Based scenario"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 702,
           "name": "GoalAccount700",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "description": "Goal-based savings target"
+          "goalAmount": null,
+          "goalDate": null
         }
       ],
       "transactions": [
         {
           "id": 701,
-          "sourceId": 701,
-          "baseName": "Goal Contribution 700",
-          "primaryAccount": {
-            "id": 701,
-            "name": "A701",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": null,
-            "startingBalance": 50000,
-            "openDate": "2026-02-01",
-            "periodicChange": null,
-            "accountType": "Unknown",
-            "periodicChangeSummary": "",
-            "description": "Primary asset for Goal-Based scenario"
-          },
-          "secondaryAccount": {
-            "id": 702,
-            "name": "GoalAccount700",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": null,
-            "startingBalance": 0,
-            "openDate": "2026-02-01",
-            "periodicChange": null,
-            "accountType": "Unknown",
-            "description": "Goal-based savings target"
-          },
-          "transactionType": 1,
+          "transactionTypeId": null,
           "amount": 2000,
           "description": "Monthly goal contribution",
           "recurrence": {
-            "id": 2,
-            "name": "Monthly",
-            "frequency": 1,
-            "startDate": "2026-02-01"
+            "recurrenceType": null,
+            "startDate": "2026-02-01",
+            "endDate": null,
+            "interval": null,
+            "dayOfWeek": null,
+            "dayOfMonth": null,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
           },
           "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
           "tags": [
             "goal",
             "savings"
@@ -4479,127 +4199,84 @@
     {
       "id": 8,
       "name": "QC Advanced Goal Solver Scenario",
-      "type": {
-        "id": 6,
-        "name": "Advanced Goal Solver",
-        "description": "Multi-goal planning with constraints and solver-driven suggestions",
-        "showAccounts": true,
-        "showPlannedTransactions": true,
-        "showActualTransactions": false,
-        "showProjections": true,
-        "showGeneratePlan": true,
-        "showBudget": false
-      },
+      "type": 6,
       "description": "Minimal QC scenario for Advanced Goal Solver type validation",
       "startDate": "2026-02-01",
       "endDate": "2026-12-01",
-      "projectionPeriod": {
-        "id": 3,
-        "name": "Month"
-      },
+      "projectionPeriod": 3,
       "accounts": [
         {
           "id": 801,
           "name": "A801",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "periodicChangeSummary": "",
-          "description": "Primary asset for Advanced Goal Solver scenario"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 802,
           "name": "Goal1-800",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "description": "Goal 1 for advanced solver"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 803,
           "name": "Goal2-800",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "description": "Goal 2 for advanced solver"
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 804,
           "name": "Goal3-800",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
+          "type": 1,
           "currency": null,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
-          "accountType": "Unknown",
-          "description": "Goal 3 for advanced solver"
+          "goalAmount": null,
+          "goalDate": null
         }
       ],
       "transactions": [
         {
           "id": 801,
-          "sourceId": 801,
-          "baseName": "Goal1 Fund 800",
-          "primaryAccount": {
-            "id": 801,
-            "name": "A801",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": null,
-            "startingBalance": 50000,
-            "openDate": "2026-02-01",
-            "periodicChange": null,
-            "accountType": "Unknown",
-            "periodicChangeSummary": "",
-            "description": "Primary asset for Advanced Goal Solver scenario"
-          },
-          "secondaryAccount": {
-            "id": 802,
-            "name": "Goal1-800",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": null,
-            "startingBalance": 0,
-            "openDate": "2026-02-01",
-            "periodicChange": null,
-            "accountType": "Unknown",
-            "description": "Goal 1 for advanced solver"
-          },
-          "transactionType": 1,
+          "transactionTypeId": null,
           "amount": 1000,
           "description": "Goal 1 funding",
           "recurrence": {
-            "id": 2,
-            "name": "Monthly",
-            "frequency": 1,
-            "startDate": "2026-02-01"
+            "recurrenceType": null,
+            "startDate": "2026-02-01",
+            "endDate": null,
+            "interval": null,
+            "dayOfWeek": null,
+            "dayOfMonth": null,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
           },
           "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
           "tags": [
             "goal1",
             "solver"
@@ -5137,6 +4814,392 @@
         }
       ],
       "budgets": []
+    },
+    {
+      "id": 8,
+      "name": "All Account Types",
+      "type": 2,
+      "description": "Test scenario with all 5 account types",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        {
+          "id": 801,
+          "name": "Asset Account",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 50000,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 802,
+          "name": "Liability Account",
+          "type": 2,
+          "currency": 1,
+          "startingBalance": -10000,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 803,
+          "name": "Income Account",
+          "type": 3,
+          "currency": 1,
+          "startingBalance": 0,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 804,
+          "name": "Expense Account",
+          "type": 4,
+          "currency": 1,
+          "startingBalance": 0,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 805,
+          "name": "Debt Account",
+          "type": 5,
+          "currency": 1,
+          "startingBalance": -25000,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null
+        }
+      ],
+      "transactions": [
+        {
+          "id": 1,
+          "primaryAccountId": 803,
+          "secondaryAccountId": 801,
+          "transactionTypeId": 1,
+          "amount": 5000,
+          "description": "Monthly Salary",
+          "recurrence": {
+            "recurrenceType": 4,
+            "startDate": "2026-01-01",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
+          },
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "salary"
+          ]
+        },
+        {
+          "id": 2,
+          "primaryAccountId": 801,
+          "secondaryAccountId": 804,
+          "transactionTypeId": 2,
+          "amount": 1500,
+          "description": "Monthly Rent",
+          "recurrence": {
+            "recurrenceType": 4,
+            "startDate": "2026-01-01",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 5,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
+          },
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "housing"
+          ]
+        }
+      ],
+      "projections": []
+    },
+    {
+      "id": 9,
+      "name": "PeriodicChange Variations",
+      "type": 2,
+      "description": "Test all periodicChange modes and types",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        {
+          "id": 901,
+          "name": "Percentage Annual Simple",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 10000,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "value": 5,
+            "changeMode": 1,
+            "changeType": 1,
+            "ratePeriod": 1
+          },
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 902,
+          "name": "Percentage Compound Monthly",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 10000,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "value": 6,
+            "changeMode": 1,
+            "changeType": 2,
+            "ratePeriod": 1
+          },
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 903,
+          "name": "Percentage Compound Daily",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 10000,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "value": 4,
+            "changeMode": 1,
+            "changeType": 3,
+            "ratePeriod": 1
+          },
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 904,
+          "name": "Fixed Daily",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 1000,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "value": 10,
+            "changeMode": 2,
+            "period": 1
+          },
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 905,
+          "name": "Fixed Weekly",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 1000,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "value": 70,
+            "changeMode": 2,
+            "period": 2
+          },
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 906,
+          "name": "Fixed Monthly",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 1000,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "value": 100,
+            "changeMode": 2,
+            "period": 3
+          },
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 907,
+          "name": "Fixed Quarterly",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 1000,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "value": 250,
+            "changeMode": 2,
+            "period": 4
+          },
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 908,
+          "name": "Fixed Yearly",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 1000,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "value": 500,
+            "changeMode": 2,
+            "period": 5
+          },
+          "goalAmount": null,
+          "goalDate": null
+        }
+      ],
+      "transactions": [],
+      "projections": []
+    },
+    {
+      "id": 10,
+      "name": "Transaction Types Test",
+      "type": 2,
+      "description": "Test income and expense transactions",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        {
+          "id": 1001,
+          "name": "Main Checking",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 20000,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 1002,
+          "name": "Income Source",
+          "type": 3,
+          "currency": 1,
+          "startingBalance": 0,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null
+        },
+        {
+          "id": 1003,
+          "name": "Expenses",
+          "type": 4,
+          "currency": 1,
+          "startingBalance": 0,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null
+        }
+      ],
+      "transactions": [
+        {
+          "id": 1,
+          "primaryAccountId": 1002,
+          "secondaryAccountId": 1001,
+          "transactionTypeId": 1,
+          "amount": 4000,
+          "description": "Biweekly Paycheck",
+          "recurrence": {
+            "recurrenceType": 3,
+            "startDate": "2026-01-01",
+            "endDate": null,
+            "interval": 2,
+            "dayOfWeek": 5,
+            "dayOfMonth": null,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
+          },
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "income",
+            "recurring"
+          ]
+        },
+        {
+          "id": 2,
+          "primaryAccountId": 1001,
+          "secondaryAccountId": 1003,
+          "transactionTypeId": 2,
+          "amount": 800,
+          "description": "Grocery Shopping",
+          "recurrence": {
+            "recurrenceType": 2,
+            "startDate": "2026-01-01",
+            "endDate": "2026-08-31",
+            "interval": 7,
+            "dayOfWeek": null,
+            "dayOfMonth": null,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
+          },
+          "periodicChange": {
+            "value": 50,
+            "changeMode": 2,
+            "period": 3
+          },
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "groceries",
+            "recurring"
+          ]
+        }
+      ],
+      "projections": []
     }
   ],
   "migrationVersion": 3

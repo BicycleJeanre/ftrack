@@ -177,6 +177,92 @@
           "balance": 0
         }
       }
+    },
+    {
+      "id": 8,
+      "name": "All Account Types",
+      "expectedOutputs": {
+        "accountCount": 5,
+        "transactionCount": 2,
+        "projectionCount": 12,
+        "budgetCount": 0,
+        "firstProjection": {
+          "date": "2026-01-01",
+          "accountId": 801,
+          "balance": 50000
+        },
+        "lastProjection": {
+          "date": "2026-12-01",
+          "accountId": 801,
+          "balance": 50000
+        }
+      }
+    },
+    {
+      "id": 9,
+      "name": "PeriodicChange Variations",
+      "expectedOutputs": {
+        "accountCount": 8,
+        "transactionCount": 0,
+        "projectionCount": 12,
+        "budgetCount": 0,
+        "accountTypes": {
+          "percentageSimple": {
+            "type": 1,
+            "changeMode": 1,
+            "changeType": 1
+          },
+          "percentageMonthly": {
+            "type": 1,
+            "changeMode": 1,
+            "changeType": 2
+          },
+          "percentageDaily": {
+            "type": 1,
+            "changeMode": 1,
+            "changeType": 3
+          },
+          "fixedDaily": {
+            "type": 1,
+            "changeMode": 2,
+            "period": 1
+          },
+          "fixedWeekly": {
+            "type": 1,
+            "changeMode": 2,
+            "period": 2
+          },
+          "fixedMonthly": {
+            "type": 1,
+            "changeMode": 2,
+            "period": 3
+          },
+          "fixedQuarterly": {
+            "type": 1,
+            "changeMode": 2,
+            "period": 4
+          },
+          "fixedYearly": {
+            "type": 1,
+            "changeMode": 2,
+            "period": 5
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "name": "Transaction Types Test",
+      "expectedOutputs": {
+        "accountCount": 3,
+        "transactionCount": 2,
+        "projectionCount": 12,
+        "budgetCount": 0,
+        "transactionTypes": {
+          "income": 1,
+          "expense": 2
+        }
+      }
     }
   ],
   "functionTests": {
@@ -799,7 +885,12 @@
             "id": 2,
             "name": "Fixed Amount"
           },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
           "period": {
+            "id": 1,
             "name": "Daily"
           }
         },
@@ -815,7 +906,12 @@
             "id": 2,
             "name": "Fixed Amount"
           },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
           "period": {
+            "id": 2,
             "name": "Weekly"
           }
         },
@@ -831,7 +927,12 @@
             "id": 2,
             "name": "Fixed Amount"
           },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
           "period": {
+            "id": 3,
             "name": "Monthly"
           }
         },
@@ -847,7 +948,12 @@
             "id": 2,
             "name": "Fixed Amount"
           },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
           "period": {
+            "id": 4,
             "name": "Quarterly"
           }
         },
@@ -863,7 +969,12 @@
             "id": 2,
             "name": "Fixed Amount"
           },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
           "period": {
+            "id": 5,
             "name": "Yearly"
           }
         },
