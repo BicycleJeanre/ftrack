@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "seed": 893214,
-  "description": "Golden expected outputs for QC dataset validation. Values are checked with 0.01 tolerance for currency amounts.",
+  "description": "Golden expected outputs for QC dataset validation. Includes scenarios for all 6 scenario types.",
   "scenarios": [
     {
       "id": 2,
@@ -14,7 +14,7 @@
         "firstProjection": {
           "date": "2026-02-01",
           "accountId": 1,
-          "balance": 10000.00,
+          "balance": 10000,
           "income": 0,
           "expenses": 0,
           "netChange": 0
@@ -22,13 +22,13 @@
         "lastProjection": {
           "date": "2026-12-01",
           "accountId": 1,
-          "balance": 10000.00,
+          "balance": 10000,
           "income": 0,
           "expenses": 0,
           "netChange": 0
         },
-        "totalBalanceFirst": 10000.00,
-        "totalBalanceLast": 10000.00
+        "totalBalanceFirst": 10000,
+        "totalBalanceLast": 10000
       }
     },
     {
@@ -42,19 +42,17 @@
         "firstProjection": {
           "date": "2026-02-01",
           "accountId": 1,
-          "balance": 19507.59,
-          "tolerance": 0.01
+          "balance": 19507.59
         },
         "lastProjection": {
           "date": "2026-12-01",
           "accountId": 14,
-          "balance": 0,
-          "tolerance": 0.01
+          "balance": 0
         },
         "accountBalances": {
           "A1": {
             "openDate": "2026-02-01",
-            "startingBalance": 10000.00,
+            "startingBalance": 10000,
             "firstProjectionBalance": 19507.59,
             "periodicChange": {
               "value": 6,
@@ -62,6 +60,121 @@
               "changeType": 2
             }
           }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "QC Budget Scenario",
+      "expectedOutputs": {
+        "accountCount": 3,
+        "transactionCount": 1,
+        "projectionCount": 33,
+        "budgetCount": 2,
+        "firstProjection": {
+          "date": "2026-02-01",
+          "accountId": 401,
+          "balance": 50000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0
+        },
+        "lastProjection": {
+          "date": "2026-12-01",
+          "accountId": 403,
+          "balance": 0
+        }
+      }
+    },
+    {
+      "id": 5,
+      "name": "QC Funds Scenario",
+      "expectedOutputs": {
+        "accountCount": 2,
+        "transactionCount": 1,
+        "projectionCount": 22,
+        "budgetCount": 0,
+        "firstProjection": {
+          "date": "2026-02-01",
+          "accountId": 501,
+          "balance": 50000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0
+        },
+        "lastProjection": {
+          "date": "2026-12-01",
+          "accountId": 502,
+          "balance": 100000
+        }
+      }
+    },
+    {
+      "id": 6,
+      "name": "QC Debt Repayment Scenario",
+      "expectedOutputs": {
+        "accountCount": 2,
+        "transactionCount": 1,
+        "projectionCount": 22,
+        "budgetCount": 0,
+        "firstProjection": {
+          "date": "2026-02-01",
+          "accountId": 601,
+          "balance": 50000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0
+        },
+        "lastProjection": {
+          "date": "2026-12-01",
+          "accountId": 602,
+          "balance": 25000
+        }
+      }
+    },
+    {
+      "id": 7,
+      "name": "QC Goal-Based Scenario",
+      "expectedOutputs": {
+        "accountCount": 2,
+        "transactionCount": 1,
+        "projectionCount": 22,
+        "budgetCount": 0,
+        "firstProjection": {
+          "date": "2026-02-01",
+          "accountId": 701,
+          "balance": 50000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0
+        },
+        "lastProjection": {
+          "date": "2026-12-01",
+          "accountId": 702,
+          "balance": 0
+        }
+      }
+    },
+    {
+      "id": 8,
+      "name": "QC Advanced Goal Solver Scenario",
+      "expectedOutputs": {
+        "accountCount": 4,
+        "transactionCount": 1,
+        "projectionCount": 44,
+        "budgetCount": 0,
+        "firstProjection": {
+          "date": "2026-02-01",
+          "accountId": 801,
+          "balance": 50000,
+          "income": 0,
+          "expenses": 0,
+          "netChange": 0
+        },
+        "lastProjection": {
+          "date": "2026-12-01",
+          "accountId": 804,
+          "balance": 0
         }
       }
     }
@@ -76,83 +189,1954 @@
         "expected": 10000
       },
       {
-        "description": "Simple interest (no compounding)",
+        "description": "Nominal Annual (No Compounding)",
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": { "id": 1, "name": "Percentage Rate" },
-          "changeType": { "id": 1, "name": "Nominal Annual (No Compounding)" }
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          }
         },
         "periods": 1,
-        "expected": 10600,
-        "tolerance": 0.01
+        "expected": 10600
       },
       {
-        "description": "Monthly compounding",
+        "description": "Nominal Annual, Compounded Monthly",
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": { "id": 1, "name": "Percentage Rate" },
-          "changeType": { "id": 2, "name": "Nominal Annual, Compounded Monthly" }
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 2,
+            "name": "Nominal Annual, Compounded Monthly"
+          }
         },
         "periods": 1,
-        "expected": 10616.78,
-        "tolerance": 0.01
+        "expected": 10616.78
       },
       {
-        "description": "Daily compounding",
+        "description": "Nominal Annual, Compounded Daily",
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": { "id": 1, "name": "Percentage Rate" },
-          "changeType": { "id": 3, "name": "Nominal Annual, Compounded Daily" }
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 3,
+            "name": "Nominal Annual, Compounded Daily"
+          }
         },
         "periods": 1,
-        "expected": 10618.31,
-        "tolerance": 0.01
+        "expected": 10618.31
       },
       {
-        "description": "Quarterly compounding",
+        "description": "Nominal Annual, Compounded Quarterly",
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": { "id": 1, "name": "Percentage Rate" },
-          "changeType": { "id": 4, "name": "Nominal Annual, Compounded Quarterly" }
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 4,
+            "name": "Nominal Annual, Compounded Quarterly"
+          }
         },
         "periods": 1,
-        "expected": 10613.64,
-        "tolerance": 0.01
+        "expected": 10613.64
       },
       {
-        "description": "Annual compounding",
+        "description": "Nominal Annual, Compounded Annually",
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": { "id": 1, "name": "Percentage Rate" },
-          "changeType": { "id": 5, "name": "Nominal Annual, Compounded Annually" }
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 5,
+            "name": "Nominal Annual, Compounded Annually"
+          }
         },
         "periods": 1,
-        "expected": 10600,
-        "tolerance": 0.01
+        "expected": 10600
+      },
+      {
+        "description": "Nominal Annual, Continuous Compounding",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 6,
+            "name": "Nominal Annual, Continuous Compounding"
+          }
+        },
+        "periods": 1,
+        "expected": 10618.37
+      },
+      {
+        "description": "Custom compounding Annual rate, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 1,
+            "name": "Annual"
+          },
+          "frequency": {
+            "id": 1,
+            "name": "Daily"
+          }
+        },
+        "periods": 1,
+        "expected": 10618.31
+      },
+      {
+        "description": "Custom compounding Annual rate, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 1,
+            "name": "Annual"
+          },
+          "frequency": {
+            "id": 2,
+            "name": "Weekly"
+          }
+        },
+        "periods": 1,
+        "expected": 10618
+      },
+      {
+        "description": "Custom compounding Annual rate, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 1,
+            "name": "Annual"
+          },
+          "frequency": {
+            "id": 3,
+            "name": "Monthly"
+          }
+        },
+        "periods": 1,
+        "expected": 10616.78
+      },
+      {
+        "description": "Custom compounding Annual rate, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 1,
+            "name": "Annual"
+          },
+          "frequency": {
+            "id": 4,
+            "name": "Quarterly"
+          }
+        },
+        "periods": 1,
+        "expected": 10613.64
+      },
+      {
+        "description": "Custom compounding Annual rate, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 1,
+            "name": "Annual"
+          },
+          "frequency": {
+            "id": 5,
+            "name": "Yearly"
+          }
+        },
+        "periods": 1,
+        "expected": 10600
+      },
+      {
+        "description": "Custom compounding Monthly rate, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 2,
+            "name": "Monthly"
+          },
+          "frequency": {
+            "id": 1,
+            "name": "Daily"
+          }
+        },
+        "periods": 1,
+        "expected": 20529.77
+      },
+      {
+        "description": "Custom compounding Monthly rate, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 2,
+            "name": "Monthly"
+          },
+          "frequency": {
+            "id": 2,
+            "name": "Weekly"
+          }
+        },
+        "periods": 1,
+        "expected": 20443.11
+      },
+      {
+        "description": "Custom compounding Monthly rate, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 2,
+            "name": "Monthly"
+          },
+          "frequency": {
+            "id": 3,
+            "name": "Monthly"
+          }
+        },
+        "periods": 1,
+        "expected": 20121.96
+      },
+      {
+        "description": "Custom compounding Monthly rate, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 2,
+            "name": "Monthly"
+          },
+          "frequency": {
+            "id": 4,
+            "name": "Quarterly"
+          }
+        },
+        "periods": 1,
+        "expected": 19387.78
+      },
+      {
+        "description": "Custom compounding Monthly rate, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 2,
+            "name": "Monthly"
+          },
+          "frequency": {
+            "id": 5,
+            "name": "Yearly"
+          }
+        },
+        "periods": 1,
+        "expected": 17200
+      },
+      {
+        "description": "Custom compounding Quarterly rate, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 3,
+            "name": "Quarterly"
+          },
+          "frequency": {
+            "id": 1,
+            "name": "Daily"
+          }
+        },
+        "periods": 1,
+        "expected": 12711.49
+      },
+      {
+        "description": "Custom compounding Quarterly rate, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 3,
+            "name": "Quarterly"
+          },
+          "frequency": {
+            "id": 2,
+            "name": "Weekly"
+          }
+        },
+        "periods": 1,
+        "expected": 12705.47
+      },
+      {
+        "description": "Custom compounding Quarterly rate, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 3,
+            "name": "Quarterly"
+          },
+          "frequency": {
+            "id": 3,
+            "name": "Monthly"
+          }
+        },
+        "periods": 1,
+        "expected": 12682.42
+      },
+      {
+        "description": "Custom compounding Quarterly rate, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 3,
+            "name": "Quarterly"
+          },
+          "frequency": {
+            "id": 4,
+            "name": "Quarterly"
+          }
+        },
+        "periods": 1,
+        "expected": 12624.77
+      },
+      {
+        "description": "Custom compounding Quarterly rate, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 3,
+            "name": "Quarterly"
+          },
+          "frequency": {
+            "id": 5,
+            "name": "Yearly"
+          }
+        },
+        "periods": 1,
+        "expected": 12400
+      },
+      {
+        "description": "Custom compounding Daily rate, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 4,
+            "name": "Daily"
+          },
+          "frequency": {
+            "id": 1,
+            "name": "Daily"
+          }
+        },
+        "periods": 1,
+        "expected": 17244111472713.99
+      },
+      {
+        "description": "Custom compounding Daily rate, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 4,
+            "name": "Daily"
+          },
+          "frequency": {
+            "id": 2,
+            "name": "Weekly"
+          }
+        },
+        "periods": 1,
+        "expected": 865639224963.63
+      },
+      {
+        "description": "Custom compounding Daily rate, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 4,
+            "name": "Daily"
+          },
+          "frequency": {
+            "id": 3,
+            "name": "Monthly"
+          }
+        },
+        "periods": 1,
+        "expected": 2583577096.58
+      },
+      {
+        "description": "Custom compounding Daily rate, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 4,
+            "name": "Daily"
+          },
+          "frequency": {
+            "id": 4,
+            "name": "Quarterly"
+          }
+        },
+        "periods": 1,
+        "expected": 17577580.32
+      },
+      {
+        "description": "Custom compounding Daily rate, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "ratePeriod": {
+            "id": 4,
+            "name": "Daily"
+          },
+          "frequency": {
+            "id": 5,
+            "name": "Yearly"
+          }
+        },
+        "periods": 1,
+        "expected": 229000
+      },
+      {
+        "description": "Fixed amount daily",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "period": {
+            "name": "Daily"
+          }
+        },
+        "periods": 1,
+        "expected": 46500
+      },
+      {
+        "description": "Fixed amount weekly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "period": {
+            "name": "Weekly"
+          }
+        },
+        "periods": 1,
+        "expected": 15200
       },
       {
         "description": "Fixed amount monthly",
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": { "id": 2, "name": "Fixed Amount" },
-          "period": { "id": 3, "name": "Monthly" }
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "period": {
+            "name": "Monthly"
+          }
         },
         "periods": 1,
-        "expected": 11200,
-        "tolerance": 0.01
+        "expected": 11200
+      },
+      {
+        "description": "Fixed amount quarterly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "period": {
+            "name": "Quarterly"
+          }
+        },
+        "periods": 1,
+        "expected": 10400
+      },
+      {
+        "description": "Fixed amount yearly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "period": {
+            "name": "Yearly"
+          }
+        },
+        "periods": 1,
+        "expected": 10100
+      }
+    ],
+    "applyPeriodicChangeAccounts": [
+      {
+        "description": "Nominal Annual (No Compounding)",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          }
+        },
+        "periods": 1,
+        "expected": 10600
+      },
+      {
+        "description": "Nominal Annual, Compounded Monthly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 2,
+            "name": "Nominal Annual, Compounded Monthly"
+          }
+        },
+        "periods": 1,
+        "expected": 10050
+      },
+      {
+        "description": "Nominal Annual, Compounded Daily",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 3,
+            "name": "Nominal Annual, Compounded Daily"
+          }
+        },
+        "periods": 1,
+        "expected": 10001.64
+      },
+      {
+        "description": "Nominal Annual, Compounded Quarterly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 4,
+            "name": "Nominal Annual, Compounded Quarterly"
+          }
+        },
+        "periods": 1,
+        "expected": 10150
+      },
+      {
+        "description": "Nominal Annual, Compounded Annually",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 5,
+            "name": "Nominal Annual, Compounded Annually"
+          }
+        },
+        "periods": 1,
+        "expected": 10600
+      },
+      {
+        "description": "Nominal Annual, Continuous Compounding",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 6,
+            "name": "Nominal Annual, Continuous Compounding"
+          }
+        },
+        "periods": 1,
+        "expected": 10600
+      },
+      {
+        "description": "Custom compounding Annual period, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 365
+          }
+        },
+        "periods": 1,
+        "expected": 10001.64
+      },
+      {
+        "description": "Custom compounding Annual period, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 52
+          }
+        },
+        "periods": 1,
+        "expected": 10011.54
+      },
+      {
+        "description": "Custom compounding Annual period, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 12
+          }
+        },
+        "periods": 1,
+        "expected": 10050
+      },
+      {
+        "description": "Custom compounding Annual period, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 4
+          }
+        },
+        "periods": 1,
+        "expected": 10150
+      },
+      {
+        "description": "Custom compounding Annual period, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 1
+          }
+        },
+        "periods": 1,
+        "expected": 10600
+      },
+      {
+        "description": "Custom compounding Monthly period, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 365
+          }
+        },
+        "periods": 1,
+        "expected": 10019.74
+      },
+      {
+        "description": "Custom compounding Monthly period, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 52
+          }
+        },
+        "periods": 1,
+        "expected": 10139.34
+      },
+      {
+        "description": "Custom compounding Monthly period, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 12
+          }
+        },
+        "periods": 1,
+        "expected": 10616.78
+      },
+      {
+        "description": "Custom compounding Monthly period, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 4
+          }
+        },
+        "periods": 1,
+        "expected": 11956.18
+      },
+      {
+        "description": "Custom compounding Monthly period, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 1
+          }
+        },
+        "periods": 1,
+        "expected": 20121.96
+      },
+      {
+        "description": "Custom compounding Quarterly period, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 365
+          }
+        },
+        "periods": 1,
+        "expected": 10006.58
+      },
+      {
+        "description": "Custom compounding Quarterly period, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 52
+          }
+        },
+        "periods": 1,
+        "expected": 10046.23
+      },
+      {
+        "description": "Custom compounding Quarterly period, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 12
+          }
+        },
+        "periods": 1,
+        "expected": 10201.51
+      },
+      {
+        "description": "Custom compounding Quarterly period, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 4
+          }
+        },
+        "periods": 1,
+        "expected": 10613.64
+      },
+      {
+        "description": "Custom compounding Quarterly period, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 1
+          }
+        },
+        "periods": 1,
+        "expected": 12624.77
+      },
+      {
+        "description": "Custom compounding Daily period, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 365
+          }
+        },
+        "periods": 1,
+        "expected": 10618.31
+      },
+      {
+        "description": "Custom compounding Daily period, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 52
+          }
+        },
+        "periods": 1,
+        "expected": 15233.49
+      },
+      {
+        "description": "Custom compounding Daily period, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 12
+          }
+        },
+        "periods": 1,
+        "expected": 61746.53
+      },
+      {
+        "description": "Custom compounding Daily period, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 4
+          }
+        },
+        "periods": 1,
+        "expected": 2291423.81
+      },
+      {
+        "description": "Custom compounding Daily period, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 1
+          }
+        },
+        "periods": 1,
+        "expected": 17244111472713.99
+      },
+      {
+        "description": "Fixed amount daily",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 1,
+            "name": "Daily"
+          }
+        },
+        "periods": 1,
+        "expected": 46500
+      },
+      {
+        "description": "Fixed amount weekly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 2,
+            "name": "Weekly"
+          }
+        },
+        "periods": 1,
+        "expected": 15200
+      },
+      {
+        "description": "Fixed amount monthly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 3,
+            "name": "Monthly"
+          }
+        },
+        "periods": 1,
+        "expected": 11200
+      },
+      {
+        "description": "Fixed amount quarterly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 4,
+            "name": "Quarterly"
+          }
+        },
+        "periods": 1,
+        "expected": 10400
+      },
+      {
+        "description": "Fixed amount yearly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 5,
+            "name": "Yearly"
+          }
+        },
+        "periods": 1,
+        "expected": 10100
+      }
+    ],
+    "applyPeriodicChangeTransactions": [
+      {
+        "description": "Nominal Annual (No Compounding)",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10295.63
+      },
+      {
+        "description": "Nominal Annual, Compounded Monthly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 2,
+            "name": "Nominal Annual, Compounded Monthly"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10024.97
+      },
+      {
+        "description": "Nominal Annual, Compounded Daily",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 3,
+            "name": "Nominal Annual, Compounded Daily"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10000.82
+      },
+      {
+        "description": "Nominal Annual, Compounded Quarterly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 4,
+            "name": "Nominal Annual, Compounded Quarterly"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10074.72
+      },
+      {
+        "description": "Nominal Annual, Compounded Annually",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 5,
+            "name": "Nominal Annual, Compounded Annually"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10295.63
+      },
+      {
+        "description": "Nominal Annual, Continuous Compounding",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 6,
+            "name": "Nominal Annual, Continuous Compounding"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10295.63
+      },
+      {
+        "description": "Custom compounding Annual period, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 365
+          }
+        },
+        "periods": 0.5,
+        "expected": 10000.82
+      },
+      {
+        "description": "Custom compounding Annual period, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 52
+          }
+        },
+        "periods": 0.5,
+        "expected": 10005.77
+      },
+      {
+        "description": "Custom compounding Annual period, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 12
+          }
+        },
+        "periods": 0.5,
+        "expected": 10024.97
+      },
+      {
+        "description": "Custom compounding Annual period, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 4
+          }
+        },
+        "periods": 0.5,
+        "expected": 10074.72
+      },
+      {
+        "description": "Custom compounding Annual period, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 1,
+            "frequency": 1
+          }
+        },
+        "periods": 0.5,
+        "expected": 10295.63
+      },
+      {
+        "description": "Custom compounding Monthly period, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 365
+          }
+        },
+        "periods": 0.5,
+        "expected": 10009.87
+      },
+      {
+        "description": "Custom compounding Monthly period, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 52
+          }
+        },
+        "periods": 0.5,
+        "expected": 10069.43
+      },
+      {
+        "description": "Custom compounding Monthly period, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 12
+          }
+        },
+        "periods": 0.5,
+        "expected": 10303.78
+      },
+      {
+        "description": "Custom compounding Monthly period, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 4
+          }
+        },
+        "periods": 0.5,
+        "expected": 10934.43
+      },
+      {
+        "description": "Custom compounding Monthly period, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 2,
+            "frequency": 1
+          }
+        },
+        "periods": 0.5,
+        "expected": 14185.19
+      },
+      {
+        "description": "Custom compounding Quarterly period, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 365
+          }
+        },
+        "periods": 0.5,
+        "expected": 10003.29
+      },
+      {
+        "description": "Custom compounding Quarterly period, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 52
+          }
+        },
+        "periods": 0.5,
+        "expected": 10023.09
+      },
+      {
+        "description": "Custom compounding Quarterly period, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 12
+          }
+        },
+        "periods": 0.5,
+        "expected": 10100.25
+      },
+      {
+        "description": "Custom compounding Quarterly period, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 4
+          }
+        },
+        "periods": 0.5,
+        "expected": 10302.25
+      },
+      {
+        "description": "Custom compounding Quarterly period, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 3,
+            "frequency": 1
+          }
+        },
+        "periods": 0.5,
+        "expected": 11236
+      },
+      {
+        "description": "Custom compounding Daily period, Daily frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 365
+          }
+        },
+        "periods": 0.5,
+        "expected": 10304.52
+      },
+      {
+        "description": "Custom compounding Daily period, Weekly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 52
+          }
+        },
+        "periods": 0.5,
+        "expected": 12342.4
+      },
+      {
+        "description": "Custom compounding Daily period, Monthly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 12
+          }
+        },
+        "periods": 0.5,
+        "expected": 24848.85
+      },
+      {
+        "description": "Custom compounding Daily period, Quarterly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 4
+          }
+        },
+        "periods": 0.5,
+        "expected": 151374.5
+      },
+      {
+        "description": "Custom compounding Daily period, Yearly frequency",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 6,
+          "changeMode": {
+            "id": 1,
+            "name": "Percentage Rate"
+          },
+          "changeType": {
+            "id": 7,
+            "name": "Custom"
+          },
+          "customCompounding": {
+            "period": 4,
+            "frequency": 1
+          }
+        },
+        "periods": 0.5,
+        "expected": 415260297.56
+      },
+      {
+        "description": "Fixed amount daily",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 1,
+            "name": "Daily"
+          }
+        },
+        "periods": 0.5,
+        "expected": 28250
+      },
+      {
+        "description": "Fixed amount weekly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 2,
+            "name": "Weekly"
+          }
+        },
+        "periods": 0.5,
+        "expected": 12600
+      },
+      {
+        "description": "Fixed amount monthly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 3,
+            "name": "Monthly"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10600
+      },
+      {
+        "description": "Fixed amount quarterly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 4,
+            "name": "Quarterly"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10200
+      },
+      {
+        "description": "Fixed amount yearly",
+        "principal": 10000,
+        "periodicChange": {
+          "value": 100,
+          "changeMode": {
+            "id": 2,
+            "name": "Fixed Amount"
+          },
+          "changeType": {
+            "id": 1,
+            "name": "Nominal Annual (No Compounding)"
+          },
+          "frequency": {
+            "id": 5,
+            "name": "Yearly"
+          }
+        },
+        "periods": 0.5,
+        "expected": 10050
       }
     ],
     "recurrenceDates": [
       {
         "description": "One time recurrence",
         "recurrence": {
-          "recurrenceType": { "id": 1, "name": "One Time" },
+          "recurrenceType": {
+            "id": 1,
+            "name": "One Time"
+          },
           "startDate": "2026-02-15"
         },
         "projectionStart": "2026-02-01",
@@ -163,7 +2147,10 @@
       {
         "description": "Daily recurrence",
         "recurrence": {
-          "recurrenceType": { "id": 2, "name": "Daily" },
+          "recurrenceType": {
+            "id": 2,
+            "name": "Daily"
+          },
           "startDate": "2026-02-01",
           "interval": 1
         },
@@ -176,26 +2163,144 @@
       {
         "description": "Weekly recurrence",
         "recurrence": {
-          "recurrenceType": { "id": 3, "name": "Weekly" },
+          "recurrenceType": {
+            "id": 3,
+            "name": "Weekly"
+          },
           "startDate": "2026-02-01",
           "interval": 1,
-          "dayOfWeek": { "id": 1, "name": "Monday" }
+          "dayOfWeek": {
+            "id": 1,
+            "name": "Monday"
+          }
         },
         "projectionStart": "2026-02-01",
         "projectionEnd": "2026-03-01",
-        "expectedCount": 4
+        "expectedCount": 4,
+        "expectedFirstDate": "2026-02-02",
+        "expectedLastDate": "2026-02-23"
       },
       {
-        "description": "Monthly day of month recurrence",
+        "description": "Monthly recurrence",
         "recurrence": {
-          "recurrenceType": { "id": 4, "name": "Monthly - Day of Month" },
+          "recurrenceType": {
+            "id": 8,
+            "name": "Monthly"
+          },
           "startDate": "2026-02-01",
-          "dayOfMonth": 15
+          "interval": 1
         },
         "projectionStart": "2026-02-01",
-        "projectionEnd": "2026-05-01",
+        "projectionEnd": "2026-05-15",
+        "expectedCount": 4,
+        "expectedFirstDate": "2026-02-01",
+        "expectedLastDate": "2026-05-01"
+      },
+      {
+        "description": "Monthly day of month recurrence (31st)",
+        "recurrence": {
+          "recurrenceType": {
+            "id": 4,
+            "name": "Monthly - Day of Month"
+          },
+          "startDate": "2026-02-01",
+          "dayOfMonth": 31
+        },
+        "projectionStart": "2026-02-01",
+        "projectionEnd": "2026-05-31",
+        "expectedCount": 4,
+        "expectedFirstDate": "2026-02-28",
+        "expectedLastDate": "2026-05-31"
+      },
+      {
+        "description": "Monthly day of month recurrence (last day)",
+        "recurrence": {
+          "recurrenceType": {
+            "id": 4,
+            "name": "Monthly - Day of Month"
+          },
+          "startDate": "2026-01-01",
+          "dayOfMonth": -1
+        },
+        "projectionStart": "2026-01-01",
+        "projectionEnd": "2026-03-31",
         "expectedCount": 3,
-        "expectedFirstDate": "2026-02-15"
+        "expectedFirstDate": "2026-01-31",
+        "expectedLastDate": "2026-03-31"
+      },
+      {
+        "description": "Monthly week of month recurrence",
+        "recurrence": {
+          "recurrenceType": {
+            "id": 5,
+            "name": "Monthly - Week of Month"
+          },
+          "startDate": "2026-02-01",
+          "weekOfMonth": {
+            "id": 3,
+            "name": "Third"
+          },
+          "dayOfWeekInMonth": {
+            "id": 5,
+            "name": "Friday"
+          }
+        },
+        "projectionStart": "2026-02-01",
+        "projectionEnd": "2026-04-30",
+        "expectedCount": 3,
+        "expectedFirstDate": "2026-02-20",
+        "expectedLastDate": "2026-04-17"
+      },
+      {
+        "description": "Quarterly recurrence",
+        "recurrence": {
+          "recurrenceType": {
+            "id": 6,
+            "name": "Quarterly"
+          },
+          "startDate": "2026-01-01",
+          "dayOfQuarter": 90
+        },
+        "projectionStart": "2026-01-01",
+        "projectionEnd": "2026-12-31",
+        "expectedCount": 4,
+        "expectedFirstDate": "2026-03-31",
+        "expectedLastDate": "2026-12-29"
+      },
+      {
+        "description": "Yearly recurrence (leap day)",
+        "recurrence": {
+          "recurrenceType": {
+            "id": 7,
+            "name": "Yearly"
+          },
+          "startDate": "2028-02-29",
+          "month": {
+            "id": 2,
+            "name": "February"
+          },
+          "dayOfYear": 29
+        },
+        "projectionStart": "2028-01-01",
+        "projectionEnd": "2029-12-31",
+        "expectedCount": 2,
+        "expectedFirstDate": "2028-02-29",
+        "expectedLastDate": "2029-03-01"
+      },
+      {
+        "description": "Custom date recurrence",
+        "recurrence": {
+          "recurrenceType": {
+            "id": 11,
+            "name": "Custom Dates"
+          },
+          "customDates": "2026-02-10, 2026-04-15, 2026-06-01"
+        },
+        "projectionStart": "2026-03-01",
+        "projectionEnd": "2026-05-01",
+        "expectedCount": 1,
+        "expectedFirstDate": "2026-04-15",
+        "expectedLastDate": "2026-04-15"
       }
     ],
     "dateUtils": [

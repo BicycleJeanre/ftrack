@@ -1,0 +1,360 @@
+{
+  "version": "1.0.0",
+  "description": "Test scenarios for Goal-Based and Advanced Goal Solver validation",
+  "goalBasedScenarios": [
+    {
+      "name": "Simple Goal - Reach Savings Target",
+      "description": "Single account with monthly contribution to reach target by date",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "accounts": [
+        {
+          "id": "checking",
+          "name": "Checking",
+          "type": "Asset",
+          "startingBalance": 5000
+        },
+        {
+          "id": "savings_goal",
+          "name": "Vacation Fund",
+          "type": "Asset",
+          "startingBalance": 0
+        }
+      ],
+      "transactions": [
+        {
+          "id": 1,
+          "primaryAccountId": "checking",
+          "secondaryAccountId": "savings_goal",
+          "type": "transfer",
+          "amount": 500,
+          "recurrence": "monthly"
+        }
+      ],
+      "goals": [
+        {
+          "id": "vacation_goal",
+          "type": "reach_balance_by_date",
+          "accountId": "savings_goal",
+          "targetAmount": 6000,
+          "targetDate": "2026-12-31"
+        }
+      ],
+      "expectedOutcome": {
+        "goalAchievable": true,
+        "requiredMonthlyAmount": 500,
+        "finalBalance": 6000
+      }
+    },
+    {
+      "name": "Impossible Goal",
+      "description": "Goal that cannot be reached with available resources",
+      "startDate": "2026-01-01",
+      "endDate": "2026-03-31",
+      "accounts": [
+        {
+          "id": "checking",
+          "name": "Checking",
+          "type": "Asset",
+          "startingBalance": 1000
+        },
+        {
+          "id": "investment",
+          "name": "Investment",
+          "type": "Asset",
+          "startingBalance": 0
+        }
+      ],
+      "transactions": [
+        {
+          "id": 1,
+          "primaryAccountId": "checking",
+          "secondaryAccountId": "investment",
+          "type": "transfer",
+          "amount": 100,
+          "recurrence": "monthly"
+        }
+      ],
+      "goals": [
+        {
+          "id": "impossible",
+          "type": "reach_balance_by_date",
+          "accountId": "investment",
+          "targetAmount": 50000,
+          "targetDate": "2026-03-31"
+        }
+      ],
+      "expectedOutcome": {
+        "goalAchievable": false,
+        "shortfall": 49700
+      }
+    },
+    {
+      "name": "Multiple Goals Same Account",
+      "description": "Multiple goals targeting same account with sequential milestones",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "accounts": [
+        {
+          "id": "checking",
+          "name": "Checking",
+          "type": "Asset",
+          "startingBalance": 10000
+        },
+        {
+          "id": "savings",
+          "name": "Savings",
+          "type": "Asset",
+          "startingBalance": 0
+        }
+      ],
+      "transactions": [
+        {
+          "id": 1,
+          "primaryAccountId": "checking",
+          "secondaryAccountId": "savings",
+          "type": "transfer",
+          "amount": 500,
+          "recurrence": "monthly"
+        }
+      ],
+      "goals": [
+        {
+          "id": "goal_1",
+          "type": "reach_balance_by_date",
+          "accountId": "savings",
+          "targetAmount": 2000,
+          "targetDate": "2026-06-30"
+        },
+        {
+          "id": "goal_2",
+          "type": "reach_balance_by_date",
+          "accountId": "savings",
+          "targetAmount": 6000,
+          "targetDate": "2026-12-31"
+        }
+      ],
+      "expectedOutcome": {
+        "goalAchievable": true,
+        "finalBalance": 6000
+      }
+    }
+  ],
+  "advancedGoalScenarios": [
+    {
+      "name": "Multi-Goal with Constraints",
+      "description": "Multiple goals with funding and movement constraints",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "accounts": [
+        {
+          "id": "salary",
+          "name": "Salary",
+          "type": "Asset",
+          "startingBalance": 60000,
+          "projectedIncome": 5000
+        },
+        {
+          "id": "checking",
+          "name": "Checking",
+          "type": "Asset",
+          "startingBalance": 5000
+        },
+        {
+          "id": "car_loan",
+          "name": "Car Loan",
+          "type": "Liability",
+          "startingBalance": 15000
+        },
+        {
+          "id": "vacation",
+          "name": "Vacation Fund",
+          "type": "Asset",
+          "startingBalance": 0
+        },
+        {
+          "id": "retirement",
+          "name": "Retirement",
+          "type": "Asset",
+          "startingBalance": 50000
+        }
+      ],
+      "goals": [
+        {
+          "id": "pay_off_car",
+          "type": "pay_down_by_date",
+          "accountId": "car_loan",
+          "targetAmount": 0,
+          "targetDate": "2026-12-31"
+        },
+        {
+          "id": "vacation",
+          "type": "reach_balance_by_date",
+          "accountId": "vacation",
+          "targetAmount": 3000,
+          "targetDate": "2026-12-31"
+        },
+        {
+          "id": "retirement",
+          "type": "increase_by_delta",
+          "accountId": "retirement",
+          "deltaAmount": 5000,
+          "targetDate": "2026-12-31"
+        }
+      ],
+      "constraints": {
+        "fundingAccountId": "salary",
+        "maxOutflowPerMonth": 2000,
+        "maxMovementByAccountId": {
+          "salary": 2000,
+          "checking": 500
+        },
+        "lockedAccountIds": [],
+        "floorConstraints": {
+          "checking": 1000
+        }
+      },
+      "expectedOutcome": {
+        "solutionExists": true,
+        "satisfiesConstraints": true,
+        "suggestedTransactions": 3,
+        "goalStatus": {
+          "pay_off_car": "likely_achievable",
+          "vacation": "achievable",
+          "retirement": "achievable"
+        }
+      }
+    },
+    {
+      "name": "Goal with Floor Constraint",
+      "description": "Goal achievement must maintain account floor/minimum balance",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "accounts": [
+        {
+          "id": "cash",
+          "name": "Cash",
+          "type": "Asset",
+          "startingBalance": 10000,
+          "projectedIncome": 2000
+        },
+        {
+          "id": "savings",
+          "name": "Savings",
+          "type": "Asset",
+          "startingBalance": 0
+        }
+      ],
+      "goals": [
+        {
+          "id": "savings_target",
+          "type": "reach_balance_by_date",
+          "accountId": "savings",
+          "targetAmount": 15000,
+          "targetDate": "2026-12-31"
+        }
+      ],
+      "constraints": {
+        "fundingAccountId": "cash",
+        "maxOutflowPerMonth": 300,
+        "floorConstraints": {
+          "cash": 3000
+        }
+      },
+      "expectedOutcome": {
+        "solutionExists": true,
+        "checksFloorConstraint": true,
+        "finalCashBalance": 3000,
+        "finalSavingsBalance": 15000
+      }
+    },
+    {
+      "name": "Conflicting Goals",
+      "description": "Goals that compete for limited resources",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "accounts": [
+        {
+          "id": "income",
+          "name": "Income",
+          "type": "Asset",
+          "startingBalance": 24000,
+          "projectedIncome": 2000
+        },
+        {
+          "id": "debt",
+          "name": "Debt",
+          "type": "Liability",
+          "startingBalance": 10000
+        },
+        {
+          "id": "investment",
+          "name": "Investment",
+          "type": "Asset",
+          "startingBalance": 0
+        }
+      ],
+      "goals": [
+        {
+          "id": "payoff_debt",
+          "type": "pay_down_by_date",
+          "accountId": "debt",
+          "targetAmount": 0,
+          "targetDate": "2026-12-31"
+        },
+        {
+          "id": "invest",
+          "type": "reach_balance_by_date",
+          "accountId": "investment",
+          "targetAmount": 15000,
+          "targetDate": "2026-12-31"
+        }
+      ],
+      "constraints": {
+        "fundingAccountId": "income",
+        "maxOutflowPerMonth": 800
+      },
+      "expectedOutcome": {
+        "solutionExists": true,
+        "priorityOrder": ["payoff_debt", "invest"],
+        "bothGoalsAchievable": true
+      }
+    },
+    {
+      "name": "No Funding Account",
+      "description": "Error case: missing funding account should fail gracefully",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "accounts": [
+        {
+          "id": "checking",
+          "name": "Checking",
+          "type": "Asset",
+          "startingBalance": 5000
+        },
+        {
+          "id": "goal",
+          "name": "Goal Account",
+          "type": "Asset",
+          "startingBalance": 0
+        }
+      ],
+      "goals": [
+        {
+          "id": "reach",
+          "type": "reach_balance_by_date",
+          "accountId": "goal",
+          "targetAmount": 5000,
+          "targetDate": "2026-12-31"
+        }
+      ],
+      "constraints": {
+        "fundingAccountId": null
+      },
+      "expectedOutcome": {
+        "solutionExists": false,
+        "errorMessage": "Funding account is required"
+      }
+    }
+  ]
+}

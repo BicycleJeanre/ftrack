@@ -82,7 +82,7 @@ function recordCheck(report, status, id, message, details) {
 }
 
 function compareWithTolerance(actual, expected, tolerance) {
-  if (tolerance === undefined || tolerance === null) {
+  if (!tolerance) {
     return actual === expected;
   }
   return Math.abs(actual - expected) <= tolerance;
@@ -125,7 +125,7 @@ function validateAgainstExpected(scenario, expectedOutputs, report) {
       errors.push(`First projection accountId: expected ${expFirst.accountId}, got ${first.accountId}`);
     }
     
-    const tolerance = expFirst.tolerance || 0.01;
+    const tolerance = expFirst.tolerance ?? 0;
     if (!compareWithTolerance(first.balance, expFirst.balance, tolerance)) {
       errors.push(`First projection balance: expected ${expFirst.balance} ± ${tolerance}, got ${first.balance}`);
     }
@@ -153,7 +153,7 @@ function validateAgainstExpected(scenario, expectedOutputs, report) {
       errors.push(`Last projection accountId: expected ${expLast.accountId}, got ${last.accountId}`);
     }
     
-    const tolerance = expLast.tolerance || 0.01;
+    const tolerance = expLast.tolerance ?? 0;
     if (!compareWithTolerance(last.balance, expLast.balance, tolerance)) {
       errors.push(`Last projection balance: expected ${expLast.balance} ± ${tolerance}, got ${last.balance}`);
     }

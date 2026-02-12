@@ -65,19 +65,24 @@ Return exactly one command the user can run.
 
 ### 4.1 Minor commit command
 ```bash
-git add -A && git commit -m "<one-sentence description>"
+git commit -m "<one-sentence description>"
 ```
+
+Notes:
+- User must selectively stage files before committing (see section 6.0 below).
+- Do not use `git add -A`; let the user choose which files to stage.
 
 ### 4.2 Major commit command
 Use a single command that includes a title + bullet list body.
 
 ```bash
-git add -A && git commit -m "<overview sentence>" -m $'- <point 1>\n- <point 2>\n- <point 3>'
+git commit -m "<overview sentence>" -m $'- <point 1>\n- <point 2>\n- <point 3>'
 ```
 
 Notes:
 - The `$'...'` form is supported by `zsh` (macOS default) and allows `\n` newlines inside a single `-m`.
 - Keep the bullet list to 10–15 points maximum.
+- User must selectively stage files before committing (see section 6.0 below).
 
 ---
 
@@ -85,4 +90,27 @@ Notes:
 - Minor: message is one sentence (no bullets).
 - Major: has one overview sentence + 10–15 bullets max.
 - Bullets describe behavior/changes, not a file list.
-- Output includes exactly one combined staging+commit command.
+- Output includes exactly one commit command (no `git add -A`).
+
+## 6.0 File Staging Control
+
+6.1 Do not auto-stage all files
+- The user must selectively stage the files they want to commit.
+- Different AI work sessions may touch different files; the user decides what to include in each commit.
+
+6.2 List files before committing
+- Before providing the commit command, list all files that are currently staged/unstaged.
+- Show which files are part of this work session vs. pre-existing changes.
+
+6.3 User chooses staging strategy
+Provide guidance on selective staging:
+```bash
+git status                    # See all changes
+git add <file1> <file2>       # Stage specific files
+git add :<filename>           # Remove file from staging if needed
+git commit -m "..."
+```
+
+6.4 Conflicting changes
+- If the same file was changed by multiple AI sessions or the user, surface the conflict.
+- Do not commit conflicting changes; ask the user to resolve first.

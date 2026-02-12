@@ -195,7 +195,21 @@ Provide a single markdown response using this exact, short layout.
 
 ---
 
-## 5.0 Validation Checks
+## 5.0 File Modification Scope
+
+5.1 Analysis-only by default
+- This prompt performs analysis and recommendations only.
+- Do not modify, delete, or create files unless explicitly requested.
+- Present findings and let the user decide which recommendations to implement.
+
+5.2 User approval required
+- Propose cleanup actions but do not execute them.
+- If cleanup requires file deletions or major refactors, ask for explicit user approval first.
+- Surface conflicts: if multiple sessions touch the same file, defer to user.
+
+---
+
+## 6.0 Validation Checks
 - Recommendations are grounded in actual code, not assumptions.
 - Suggestions preserve the existing architecture.
 - Avoid unrelated refactors.
@@ -207,4 +221,4 @@ Provide a single markdown response using this exact, short layout.
 - Runs or references data model drift checks when persisted data may change.
 - Includes a styles and UI consistency pass.
 - Includes an explicit cleanup candidates pass (unused/duplicated/obsolete files and modules).
-- Flags user-facing feature removals or regressions as issues (do not bury them under “nice-to-have cleanup”).
+- Flags user-facing feature removals or regressions as issues (do not bury them under “nice-to-have cleanup”).- Respects file modification scope (analysis only unless explicitly requested).

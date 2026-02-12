@@ -46,9 +46,24 @@ Return:
 - A table of impacted entities and fields
 - Compatibility notes (safe / needs migration)
 - Required documentation updates (if any)
+- Clearly flag any breaking changes requiring migration or user approval
 
 ---
 
-## 5.0 Validation Checks
+## 5.0 File Modification Scope
+
+5.1 Analysis and recommendations only
+- This prompt reviews data model changes and identifies compatibility issues.
+- Do not automatically apply migrations or modify data files.
+- Present findings and let the user decide how to proceed.
+
+5.2 Migration requires explicit approval
+- If a migration script or data transformation is needed, propose it but do not execute it.
+- Ask for explicit user approval before running any data modifications.
+
+---
+
+## 6.0 Validation Checks
 - No breaking changes to stored JSON without a migration plan.
 - All new fields have defaults.
+- Recommendations respect file modification scope (analysis only unless explicitly requested).
