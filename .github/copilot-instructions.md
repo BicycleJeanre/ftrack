@@ -1,7 +1,7 @@
 # GitHub Copilot Instructions
 
-**Version**: 4.2.1  
-**Last Updated**: February 8, 2026  
+**Version**: 4.3.0  
+**Last Updated**: February 12, 2026  
 **Purpose**: Lightweight, high-importance rules for working in this repo
 
 ---
@@ -20,6 +20,7 @@
 
 2.1 Repeatable workflows live as prompt files in `.github/prompts/`.
 2.2 Keep this file lightweight; do not paste workflow checklists here.
+2.3 QC workflow: When user requests QC run, follow `.github/prompts/qc-run.prompt.md`.
 
 ## 3.0 Documentation Standards
 

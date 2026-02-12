@@ -11,6 +11,11 @@
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
+    "qc:verify": "node QC/verify.js --scenario=General",
+    "qc:verify:all": "node QC/verify.js --all",
+    "qc:verify:verbose": "node QC/verify.js --scenario=General --verbose",
+    "qc:test": "node --test QC/qc-tests.js",
+    "qc:full": "npm run qc:verify && npm run qc:test",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

@@ -1,6 +1,6 @@
 # AI-Driven QC Method
 
-**Version**: 1.1.3  
+**Version**: 1.1.4  
 **Last Updated**: February 12, 2026  
 **Purpose**: Framework for functionality-driven QC using AI verification with minimal manual testing
 
@@ -34,7 +34,7 @@ This QC method shifts from exhaustive manual testing to a **functionality-driven
 
 ### 3.1 Test Data Management
 Maintain a single representative QC dataset:
-- **File**: `/QC/Archive/ftrack-qc-data.json` (current location)
+- **File**: `/QC/ftrack-qc-data.json` (current location)
 - **Contains**: Multiple scenarios, account types, transactions, projections
 - **Usage**: Primary dataset for all verification testing
 - **Updates**: Add to this file when testing new scenario types
@@ -42,7 +42,7 @@ Maintain a single representative QC dataset:
 ### 3.2 Test Execution Script
 
 Create a lightweight Node.js script (`QC/verify.js`) when you are ready to automate QC:
-1. **Loads test data** from QC/Archive/ftrack-qc-data.json
+1. **Loads test data** from QC/ftrack-qc-data.json
 2. **Loads configuration** from assets/lookup-data.json
 3. **Runs deterministic checks** (data structure, calculations, config)
 4. **Generates readable reports** (console output + JSON archive)
@@ -74,7 +74,7 @@ QC/verify.js          (Main runner - loads data, executes checks, outputs report
 User: node QC/verify.js (or npm run qc:verify after adding scripts)
   ↓
 Script loads:
-  - /QC/Archive/ftrack-qc-data.json (test data)
+  - /QC/ftrack-qc-data.json (test data)
   - /assets/lookup-data.json (configuration)
   ↓
 Script runs checks:
@@ -112,7 +112,7 @@ AI analyzes outputs:
 ```
 QC Report
 Run: 2026-02-12T18:42:10Z
-Dataset: QC/Archive/ftrack-qc-data.json
+Dataset: QC/ftrack-qc-data.json
 Seed: 893214
 
 Overall Status: FAIL (2 of 24 checks failed)
