@@ -12,7 +12,7 @@ function run(command, args) {
   return result.status === 0;
 }
 
-const verifyOk = run('node', [path.join(__dirname, 'verify.js'), '--all']);
+const verifyOk = run('node', [path.join(__dirname, 'verify.js'), '--all', '--no-report']);
 const testsOk = run('node', [path.join(__dirname, 'run-tests.js')]);
 
 if (!verifyOk || !testsOk) {

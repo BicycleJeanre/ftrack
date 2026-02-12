@@ -81,9 +81,10 @@ If no filter provided, default to General scenario.
 ## 3.0 Scripts And Locations
 
 ### 3.1 One Script For Everything
-- `npm run qc:full` runs `QC/run-all.js`
+- `npm run qc:full` runs `QC/generate-qc-report.js`
   - Runs verification for all scenarios
   - Runs every module test in QC/tests
+  - Produces a single markdown report in QC/reports
 
 ### 3.2 Module Scripts
 Each module has a dedicated runner in QC/:

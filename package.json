@@ -30,7 +30,7 @@
     "qc:test:qc-data": "node QC/run-qc-data.js",
     "qc:test:goal-based": "node QC/run-goal-based.js",
     "qc:test:advanced-goal-solver": "node QC/run-advanced-goal-solver.js",
-    "qc:full": "node QC/run-all.js",
+    "qc:full": "node QC/generate-qc-report.js",
     "qc:expand": "node QC/generators/expand-qc-dataset.js",
     "qc:report": "node QC/generate-qc-report.js",
     "qc:report:output": "node QC/generate-qc-report.js --output",

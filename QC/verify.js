@@ -402,6 +402,8 @@ function main() {
     summary: { passed: 0, failed: 0 }
   };
 
+  const shouldWriteReport = !args['no-report'];
+
   if (!datasetPath) {
     recordCheck(report, 'fail', 'dataset-path', 'QC dataset file not found.', [
       'Provide --data=/absolute/or/relative/path.json',
@@ -494,12 +496,15 @@ function main() {
     recordCheck(report, 'fail', 'dataset-structure', 'QC dataset missing scenarios array.');
   }
 
-  fs.mkdirSync(reportDir, { recursive: true });
-  const reportPath = path.join(reportDir, buildReportFileName(report.runId));
-  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
-
-  printReport(report, Boolean(args.verbose));
-  console.log(`Report saved: ${reportPath}`);
+  if (shouldWriteReport) {
+    fs.mkdirSync(reportDir, { recursive: true });
+    const reportPath = path.join(reportDir, buildReportFileName(report.runId));
+    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+    printReport(report, Boolean(args.verbose));
+    console.log(`Report saved: ${reportPath}`);
+  } else {
+    printReport(report, Boolean(args.verbose));
+  }
 
   if (report.summary.failed > 0) {
     process.exitCode = 1;

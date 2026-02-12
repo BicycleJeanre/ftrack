@@ -34,7 +34,10 @@ function parseArgs() {
  */
 function runVerification() {
   try {
-    const output = execSync('npm run qc:verify:all', { encoding: 'utf8', cwd: path.join(__dirname, '..') });
+    const output = execSync('node QC/verify.js --all --no-report', {
+      encoding: 'utf8',
+      cwd: path.join(__dirname, '..')
+    });
     
     // Parse verification output
     const lines = output.split('\n');
@@ -363,6 +366,10 @@ function main() {
   console.log(`  Verification: ${verificationResult.status} (${verificationResult.failed} failed, ${verificationResult.passed} passed)`);
   console.log(`  Function Tests: ${testResult.status} (${testResult.failed} failed, ${testResult.passed} passed)`);
   console.log(`  Overall: ${verificationResult.status === 'PASS' && testResult.status === 'PASS' ? '✅ PASS' : '❌ FAIL'}`);
+
+  if (verificationResult.status !== 'PASS' || testResult.status !== 'PASS') {
+    process.exitCode = 1;
+  }
 }
 
 main();
