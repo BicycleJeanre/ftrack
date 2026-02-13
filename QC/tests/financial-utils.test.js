@@ -1,21 +1,27 @@
 const { describe, it, before } = require('node:test');
 const assert = require('node:assert');
 
-const { getExpectedOutputs, loadCoreModules, roundToCents } = require('./helpers');
+const { getExpectedOutputs, getLookupData, loadCoreModules, roundToCents } = require('./helpers');
 
 const expectedOutputs = getExpectedOutputs();
+const lookupData = getLookupData();
 let financialUtils;
+let periodicChangeUtils;
 
 before(async () => {
-  ({ financialUtils } = await loadCoreModules());
+  ({ financialUtils, periodicChangeUtils } = await loadCoreModules());
 });
 
 describe('Financial Utils - Apply Periodic Change (Accounts)', () => {
   expectedOutputs.functionTests.applyPeriodicChangeAccounts.forEach((testCase) => {
     it(testCase.description, () => {
+      const expandedPeriodicChange = testCase.periodicChange
+        ? periodicChangeUtils.expandPeriodicChangeForCalculation(testCase.periodicChange, lookupData)
+        : null;
+
       const result = financialUtils.applyPeriodicChange(
         testCase.principal,
-        testCase.periodicChange,
+        expandedPeriodicChange,
         testCase.periods
       );
 
@@ -31,9 +37,13 @@ describe('Financial Utils - Apply Periodic Change (Accounts)', () => {
 describe('Financial Utils - Apply Periodic Change (Transactions)', () => {
   expectedOutputs.functionTests.applyPeriodicChangeTransactions.forEach((testCase) => {
     it(testCase.description, () => {
+      const expandedPeriodicChange = testCase.periodicChange
+        ? periodicChangeUtils.expandPeriodicChangeForCalculation(testCase.periodicChange, lookupData)
+        : null;
+
       const result = financialUtils.applyPeriodicChange(
         testCase.principal,
-        testCase.periodicChange,
+        expandedPeriodicChange,
         testCase.periods
       );
 

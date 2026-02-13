@@ -1,14 +1,16 @@
 const { describe, it, before } = require('node:test');
 const assert = require('node:assert');
 
-const { getExpectedOutputs, loadCoreModules, roundToCents } = require('./helpers');
+const { expandRecurrenceForCalculation, getExpectedOutputs, getLookupData, loadCoreModules, roundToCents } = require('./helpers');
 
 const expectedOutputs = getExpectedOutputs();
+const lookupData = getLookupData();
 let calculationUtils;
 let dateUtils;
+let periodicChangeUtils;
 
 before(async () => {
-  ({ calculationUtils, dateUtils } = await loadCoreModules());
+  ({ calculationUtils, dateUtils, periodicChangeUtils } = await loadCoreModules());
 });
 
 describe('Calculation Utils - Periodic Change', () => {
@@ -19,9 +21,13 @@ describe('Calculation Utils - Periodic Change', () => {
 
   expectedOutputs.functionTests.periodicChange.forEach((testCase) => {
     it(testCase.description, () => {
+      const expandedPeriodicChange = testCase.periodicChange
+        ? periodicChangeUtils.expandPeriodicChangeForCalculation(testCase.periodicChange, lookupData)
+        : null;
+
       const result = calculationUtils.calculatePeriodicChange(
         testCase.principal,
-        testCase.periodicChange,
+        expandedPeriodicChange,
         testCase.periods
       );
 
@@ -40,8 +46,10 @@ describe('Calculation Utils - Recurrence Dates', () => {
       const projectionStart = dateUtils.parseDateOnly(testCase.projectionStart);
       const projectionEnd = dateUtils.parseDateOnly(testCase.projectionEnd);
 
+      const expandedRecurrence = expandRecurrenceForCalculation(testCase.recurrence);
+
       const dates = calculationUtils.generateRecurrenceDates(
-        testCase.recurrence,
+        expandedRecurrence,
         projectionStart,
         projectionEnd
       );

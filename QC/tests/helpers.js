@@ -89,6 +89,52 @@ function toPeriodicChangeIds(periodicChange) {
   return result;
 }
 
+const RECURRENCE_TYPE_NAMES = {
+  1: 'One Time',
+  2: 'Daily',
+  3: 'Weekly',
+  4: 'Monthly - Day of Month',
+  5: 'Monthly - Week of Month',
+  6: 'Quarterly',
+  7: 'Yearly',
+  8: 'Monthly',
+  11: 'Custom Dates'
+};
+
+function expandRecurrenceForCalculation(recurrence) {
+  if (!recurrence || !recurrence.recurrenceType) return null;
+
+  // If recurrenceType is already an object, return as-is (already expanded)
+  if (typeof recurrence.recurrenceType === 'object') {
+    return recurrence;
+  }
+
+  const typeId = recurrence.recurrenceType;
+  const typeName = RECURRENCE_TYPE_NAMES[typeId];
+
+  if (!typeName) return null;
+
+  return {
+    ...recurrence,
+    recurrenceType: {
+      id: typeId,
+      name: typeName
+    },
+    dayOfWeek: recurrence.dayOfWeek && typeof recurrence.dayOfWeek === 'number' 
+      ? { id: recurrence.dayOfWeek } 
+      : recurrence.dayOfWeek,
+    weekOfMonth: recurrence.weekOfMonth && typeof recurrence.weekOfMonth === 'number'
+      ? { id: recurrence.weekOfMonth }
+      : recurrence.weekOfMonth,
+    dayOfWeekInMonth: recurrence.dayOfWeekInMonth && typeof recurrence.dayOfWeekInMonth === 'number'
+      ? { id: recurrence.dayOfWeekInMonth }
+      : recurrence.dayOfWeekInMonth,
+    month: recurrence.month && typeof recurrence.month === 'number'
+      ? { id: recurrence.month }
+      : recurrence.month
+  };
+}
+
 function buildScenario({
   startDate,
   endDate,
@@ -138,6 +184,7 @@ function setupGoalSolverEnv() {
 module.exports = {
   MS_PER_YEAR,
   buildScenario,
+  expandRecurrenceForCalculation,
   getAccountProjections,
   getExpectedOutputs,
   getLookupData,
