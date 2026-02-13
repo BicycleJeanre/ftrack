@@ -179,7 +179,7 @@
       }
     },
     {
-      "id": 8,
+      "id": 11,
       "name": "All Account Types",
       "expectedOutputs": {
         "accountCount": 5,
@@ -279,14 +279,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          }
+          "changeMode": 1,
+          "changeType": 1
         },
         "periods": 1,
         "expected": 10600
@@ -296,14 +290,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 2,
-            "name": "Nominal Annual, Compounded Monthly"
-          }
+          "changeMode": 1,
+          "changeType": 2
         },
         "periods": 1,
         "expected": 10616.78
@@ -313,14 +301,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 3,
-            "name": "Nominal Annual, Compounded Daily"
-          }
+          "changeMode": 1,
+          "changeType": 3
         },
         "periods": 1,
         "expected": 10618.31
@@ -330,14 +312,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 4,
-            "name": "Nominal Annual, Compounded Quarterly"
-          }
+          "changeMode": 1,
+          "changeType": 4
         },
         "periods": 1,
         "expected": 10613.64
@@ -347,14 +323,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 5,
-            "name": "Nominal Annual, Compounded Annually"
-          }
+          "changeMode": 1,
+          "changeType": 5
         },
         "periods": 1,
         "expected": 10600
@@ -364,14 +334,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 6,
-            "name": "Nominal Annual, Continuous Compounding"
-          }
+          "changeMode": 1,
+          "changeType": 6
         },
         "periods": 1,
         "expected": 10618.37
@@ -381,22 +345,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 1,
-            "name": "Annual"
-          },
-          "frequency": {
-            "id": 1,
-            "name": "Daily"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 1,
+          "frequency": 1
         },
         "periods": 1,
         "expected": 10618.31
@@ -406,22 +358,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 1,
-            "name": "Annual"
-          },
-          "frequency": {
-            "id": 2,
-            "name": "Weekly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 1,
+          "frequency": 2
         },
         "periods": 1,
         "expected": 10618
@@ -431,22 +371,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 1,
-            "name": "Annual"
-          },
-          "frequency": {
-            "id": 3,
-            "name": "Monthly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 1,
+          "frequency": 3
         },
         "periods": 1,
         "expected": 10616.78
@@ -456,22 +384,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 1,
-            "name": "Annual"
-          },
-          "frequency": {
-            "id": 4,
-            "name": "Quarterly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 1,
+          "frequency": 4
         },
         "periods": 1,
         "expected": 10613.64
@@ -481,22 +397,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 1,
-            "name": "Annual"
-          },
-          "frequency": {
-            "id": 5,
-            "name": "Yearly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 1,
+          "frequency": 5
         },
         "periods": 1,
         "expected": 10600
@@ -506,22 +410,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 2,
-            "name": "Monthly"
-          },
-          "frequency": {
-            "id": 1,
-            "name": "Daily"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 2,
+          "frequency": 1
         },
         "periods": 1,
         "expected": 20529.77
@@ -531,22 +423,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 2,
-            "name": "Monthly"
-          },
-          "frequency": {
-            "id": 2,
-            "name": "Weekly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 2,
+          "frequency": 2
         },
         "periods": 1,
         "expected": 20443.11
@@ -556,22 +436,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 2,
-            "name": "Monthly"
-          },
-          "frequency": {
-            "id": 3,
-            "name": "Monthly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 2,
+          "frequency": 3
         },
         "periods": 1,
         "expected": 20121.96
@@ -581,22 +449,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 2,
-            "name": "Monthly"
-          },
-          "frequency": {
-            "id": 4,
-            "name": "Quarterly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 2,
+          "frequency": 4
         },
         "periods": 1,
         "expected": 19387.78
@@ -606,22 +462,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 2,
-            "name": "Monthly"
-          },
-          "frequency": {
-            "id": 5,
-            "name": "Yearly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 2,
+          "frequency": 5
         },
         "periods": 1,
         "expected": 17200
@@ -631,22 +475,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 3,
-            "name": "Quarterly"
-          },
-          "frequency": {
-            "id": 1,
-            "name": "Daily"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 3,
+          "frequency": 1
         },
         "periods": 1,
         "expected": 12711.49
@@ -656,22 +488,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 3,
-            "name": "Quarterly"
-          },
-          "frequency": {
-            "id": 2,
-            "name": "Weekly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 3,
+          "frequency": 2
         },
         "periods": 1,
         "expected": 12705.47
@@ -681,22 +501,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 3,
-            "name": "Quarterly"
-          },
-          "frequency": {
-            "id": 3,
-            "name": "Monthly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 3,
+          "frequency": 3
         },
         "periods": 1,
         "expected": 12682.42
@@ -706,22 +514,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 3,
-            "name": "Quarterly"
-          },
-          "frequency": {
-            "id": 4,
-            "name": "Quarterly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 3,
+          "frequency": 4
         },
         "periods": 1,
         "expected": 12624.77
@@ -731,22 +527,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 3,
-            "name": "Quarterly"
-          },
-          "frequency": {
-            "id": 5,
-            "name": "Yearly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 3,
+          "frequency": 5
         },
         "periods": 1,
         "expected": 12400
@@ -756,22 +540,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 4,
-            "name": "Daily"
-          },
-          "frequency": {
-            "id": 1,
-            "name": "Daily"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 4,
+          "frequency": 1
         },
         "periods": 1,
         "expected": 17244111472713.99
@@ -781,22 +553,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 4,
-            "name": "Daily"
-          },
-          "frequency": {
-            "id": 2,
-            "name": "Weekly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 4,
+          "frequency": 2
         },
         "periods": 1,
         "expected": 865639224963.63
@@ -806,22 +566,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 4,
-            "name": "Daily"
-          },
-          "frequency": {
-            "id": 3,
-            "name": "Monthly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 4,
+          "frequency": 3
         },
         "periods": 1,
         "expected": 2583577096.58
@@ -831,22 +579,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 4,
-            "name": "Daily"
-          },
-          "frequency": {
-            "id": 4,
-            "name": "Quarterly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 4,
+          "frequency": 4
         },
         "periods": 1,
         "expected": 17577580.32
@@ -856,22 +592,10 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
-          "ratePeriod": {
-            "id": 4,
-            "name": "Daily"
-          },
-          "frequency": {
-            "id": 5,
-            "name": "Yearly"
-          }
+          "changeMode": 1,
+          "changeType": 7,
+          "ratePeriod": 4,
+          "frequency": 5
         },
         "periods": 1,
         "expected": 229000
@@ -881,18 +605,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "period": {
-            "id": 1,
-            "name": "Daily"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "period": 1
         },
         "periods": 1,
         "expected": 46500
@@ -902,18 +617,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "period": {
-            "id": 2,
-            "name": "Weekly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "period": 2
         },
         "periods": 1,
         "expected": 15200
@@ -923,18 +629,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "period": {
-            "id": 3,
-            "name": "Monthly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "period": 3
         },
         "periods": 1,
         "expected": 11200
@@ -944,18 +641,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "period": {
-            "id": 4,
-            "name": "Quarterly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "period": 4
         },
         "periods": 1,
         "expected": 10400
@@ -965,18 +653,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "period": {
-            "id": 5,
-            "name": "Yearly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "period": 5
         },
         "periods": 1,
         "expected": 10100
@@ -988,14 +667,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          }
+          "changeMode": 1,
+          "changeType": 1
         },
         "periods": 1,
         "expected": 10600
@@ -1005,14 +678,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 2,
-            "name": "Nominal Annual, Compounded Monthly"
-          }
+          "changeMode": 1,
+          "changeType": 2
         },
         "periods": 1,
         "expected": 10050
@@ -1022,14 +689,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 3,
-            "name": "Nominal Annual, Compounded Daily"
-          }
+          "changeMode": 1,
+          "changeType": 3
         },
         "periods": 1,
         "expected": 10001.64
@@ -1039,14 +700,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 4,
-            "name": "Nominal Annual, Compounded Quarterly"
-          }
+          "changeMode": 1,
+          "changeType": 4
         },
         "periods": 1,
         "expected": 10150
@@ -1056,14 +711,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 5,
-            "name": "Nominal Annual, Compounded Annually"
-          }
+          "changeMode": 1,
+          "changeType": 5
         },
         "periods": 1,
         "expected": 10600
@@ -1073,14 +722,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 6,
-            "name": "Nominal Annual, Continuous Compounding"
-          }
+          "changeMode": 1,
+          "changeType": 6
         },
         "periods": 1,
         "expected": 10600
@@ -1090,17 +733,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
-            "frequency": 365
+            "frequency": 1
           }
         },
         "periods": 1,
@@ -1111,17 +748,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
-            "frequency": 52
+            "frequency": 2
           }
         },
         "periods": 1,
@@ -1132,17 +763,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
-            "frequency": 12
+            "frequency": 3
           }
         },
         "periods": 1,
@@ -1153,14 +778,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
             "frequency": 4
@@ -1174,17 +793,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
-            "frequency": 1
+            "frequency": 5
           }
         },
         "periods": 1,
@@ -1195,17 +808,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
-            "frequency": 365
+            "frequency": 1
           }
         },
         "periods": 1,
@@ -1216,17 +823,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
-            "frequency": 52
+            "frequency": 2
           }
         },
         "periods": 1,
@@ -1237,17 +838,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
-            "frequency": 12
+            "frequency": 3
           }
         },
         "periods": 1,
@@ -1258,14 +853,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
             "frequency": 4
@@ -1279,17 +868,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
-            "frequency": 1
+            "frequency": 5
           }
         },
         "periods": 1,
@@ -1300,17 +883,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
-            "frequency": 365
+            "frequency": 1
           }
         },
         "periods": 1,
@@ -1321,17 +898,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
-            "frequency": 52
+            "frequency": 2
           }
         },
         "periods": 1,
@@ -1342,17 +913,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
-            "frequency": 12
+            "frequency": 3
           }
         },
         "periods": 1,
@@ -1363,14 +928,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
             "frequency": 4
@@ -1384,17 +943,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
-            "frequency": 1
+            "frequency": 5
           }
         },
         "periods": 1,
@@ -1405,17 +958,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
-            "frequency": 365
+            "frequency": 1
           }
         },
         "periods": 1,
@@ -1426,17 +973,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
-            "frequency": 52
+            "frequency": 2
           }
         },
         "periods": 1,
@@ -1447,17 +988,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
-            "frequency": 12
+            "frequency": 3
           }
         },
         "periods": 1,
@@ -1468,14 +1003,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
             "frequency": 4
@@ -1489,17 +1018,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
-            "frequency": 1
+            "frequency": 5
           }
         },
         "periods": 1,
@@ -1510,18 +1033,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 1,
-            "name": "Daily"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 1
         },
         "periods": 1,
         "expected": 46500
@@ -1531,18 +1045,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 2,
-            "name": "Weekly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 2
         },
         "periods": 1,
         "expected": 15200
@@ -1552,18 +1057,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 3,
-            "name": "Monthly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 3
         },
         "periods": 1,
         "expected": 11200
@@ -1573,18 +1069,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 4,
-            "name": "Quarterly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 4
         },
         "periods": 1,
         "expected": 10400
@@ -1594,18 +1081,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 5,
-            "name": "Yearly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 5
         },
         "periods": 1,
         "expected": 10100
@@ -1617,14 +1095,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          }
+          "changeMode": 1,
+          "changeType": 1
         },
         "periods": 0.5,
         "expected": 10295.63
@@ -1634,14 +1106,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 2,
-            "name": "Nominal Annual, Compounded Monthly"
-          }
+          "changeMode": 1,
+          "changeType": 2
         },
         "periods": 0.5,
         "expected": 10024.97
@@ -1651,14 +1117,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 3,
-            "name": "Nominal Annual, Compounded Daily"
-          }
+          "changeMode": 1,
+          "changeType": 3
         },
         "periods": 0.5,
         "expected": 10000.82
@@ -1668,14 +1128,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 4,
-            "name": "Nominal Annual, Compounded Quarterly"
-          }
+          "changeMode": 1,
+          "changeType": 4
         },
         "periods": 0.5,
         "expected": 10074.72
@@ -1685,14 +1139,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 5,
-            "name": "Nominal Annual, Compounded Annually"
-          }
+          "changeMode": 1,
+          "changeType": 5
         },
         "periods": 0.5,
         "expected": 10295.63
@@ -1702,14 +1150,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 6,
-            "name": "Nominal Annual, Continuous Compounding"
-          }
+          "changeMode": 1,
+          "changeType": 6
         },
         "periods": 0.5,
         "expected": 10295.63
@@ -1719,17 +1161,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
-            "frequency": 365
+            "frequency": 1
           }
         },
         "periods": 0.5,
@@ -1740,17 +1176,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
-            "frequency": 52
+            "frequency": 2
           }
         },
         "periods": 0.5,
@@ -1761,17 +1191,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
-            "frequency": 12
+            "frequency": 3
           }
         },
         "periods": 0.5,
@@ -1782,14 +1206,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
             "frequency": 4
@@ -1803,17 +1221,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 1,
-            "frequency": 1
+            "frequency": 5
           }
         },
         "periods": 0.5,
@@ -1824,17 +1236,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
-            "frequency": 365
+            "frequency": 1
           }
         },
         "periods": 0.5,
@@ -1845,17 +1251,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
-            "frequency": 52
+            "frequency": 2
           }
         },
         "periods": 0.5,
@@ -1866,17 +1266,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
-            "frequency": 12
+            "frequency": 3
           }
         },
         "periods": 0.5,
@@ -1887,14 +1281,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
             "frequency": 4
@@ -1908,17 +1296,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 2,
-            "frequency": 1
+            "frequency": 5
           }
         },
         "periods": 0.5,
@@ -1929,17 +1311,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
-            "frequency": 365
+            "frequency": 1
           }
         },
         "periods": 0.5,
@@ -1950,17 +1326,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
-            "frequency": 52
+            "frequency": 2
           }
         },
         "periods": 0.5,
@@ -1971,17 +1341,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
-            "frequency": 12
+            "frequency": 3
           }
         },
         "periods": 0.5,
@@ -1992,14 +1356,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
             "frequency": 4
@@ -2013,17 +1371,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 3,
-            "frequency": 1
+            "frequency": 5
           }
         },
         "periods": 0.5,
@@ -2034,17 +1386,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
-            "frequency": 365
+            "frequency": 1
           }
         },
         "periods": 0.5,
@@ -2055,17 +1401,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
-            "frequency": 52
+            "frequency": 2
           }
         },
         "periods": 0.5,
@@ -2076,17 +1416,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
-            "frequency": 12
+            "frequency": 3
           }
         },
         "periods": 0.5,
@@ -2097,14 +1431,8 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
             "frequency": 4
@@ -2118,17 +1446,11 @@
         "principal": 10000,
         "periodicChange": {
           "value": 6,
-          "changeMode": {
-            "id": 1,
-            "name": "Percentage Rate"
-          },
-          "changeType": {
-            "id": 7,
-            "name": "Custom"
-          },
+          "changeMode": 1,
+          "changeType": 7,
           "customCompounding": {
             "period": 4,
-            "frequency": 1
+            "frequency": 5
           }
         },
         "periods": 0.5,
@@ -2139,18 +1461,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 1,
-            "name": "Daily"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 1
         },
         "periods": 0.5,
         "expected": 28250
@@ -2160,18 +1473,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 2,
-            "name": "Weekly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 2
         },
         "periods": 0.5,
         "expected": 12600
@@ -2181,18 +1485,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 3,
-            "name": "Monthly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 3
         },
         "periods": 0.5,
         "expected": 10600
@@ -2202,18 +1497,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 4,
-            "name": "Quarterly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 4
         },
         "periods": 0.5,
         "expected": 10200
@@ -2223,18 +1509,9 @@
         "principal": 10000,
         "periodicChange": {
           "value": 100,
-          "changeMode": {
-            "id": 2,
-            "name": "Fixed Amount"
-          },
-          "changeType": {
-            "id": 1,
-            "name": "Nominal Annual (No Compounding)"
-          },
-          "frequency": {
-            "id": 5,
-            "name": "Yearly"
-          }
+          "changeMode": 2,
+          "changeType": 1,
+          "frequency": 5
         },
         "periods": 0.5,
         "expected": 10050
@@ -2244,10 +1521,7 @@
       {
         "description": "One time recurrence",
         "recurrence": {
-          "recurrenceType": {
-            "id": 1,
-            "name": "One Time"
-          },
+          "recurrenceType": 1,
           "startDate": "2026-02-15"
         },
         "projectionStart": "2026-02-01",
@@ -2258,10 +1532,7 @@
       {
         "description": "Daily recurrence",
         "recurrence": {
-          "recurrenceType": {
-            "id": 2,
-            "name": "Daily"
-          },
+          "recurrenceType": 2,
           "startDate": "2026-02-01",
           "interval": 1
         },
@@ -2274,16 +1545,10 @@
       {
         "description": "Weekly recurrence",
         "recurrence": {
-          "recurrenceType": {
-            "id": 3,
-            "name": "Weekly"
-          },
+          "recurrenceType": 3,
           "startDate": "2026-02-01",
           "interval": 1,
-          "dayOfWeek": {
-            "id": 1,
-            "name": "Monday"
-          }
+          "dayOfWeek": 1
         },
         "projectionStart": "2026-02-01",
         "projectionEnd": "2026-03-01",
@@ -2294,10 +1559,7 @@
       {
         "description": "Monthly recurrence",
         "recurrence": {
-          "recurrenceType": {
-            "id": 8,
-            "name": "Monthly"
-          },
+          "recurrenceType": 8,
           "startDate": "2026-02-01",
           "interval": 1
         },
@@ -2310,10 +1572,7 @@
       {
         "description": "Monthly day of month recurrence (31st)",
         "recurrence": {
-          "recurrenceType": {
-            "id": 4,
-            "name": "Monthly - Day of Month"
-          },
+          "recurrenceType": 4,
           "startDate": "2026-02-01",
           "dayOfMonth": 31
         },
@@ -2326,10 +1585,7 @@
       {
         "description": "Monthly day of month recurrence (last day)",
         "recurrence": {
-          "recurrenceType": {
-            "id": 4,
-            "name": "Monthly - Day of Month"
-          },
+          "recurrenceType": 4,
           "startDate": "2026-01-01",
           "dayOfMonth": -1
         },
@@ -2342,10 +1598,7 @@
       {
         "description": "Monthly week of month recurrence",
         "recurrence": {
-          "recurrenceType": {
-            "id": 5,
-            "name": "Monthly - Week of Month"
-          },
+          "recurrenceType": 5,
           "startDate": "2026-02-01",
           "weekOfMonth": {
             "id": 3,
@@ -2365,10 +1618,7 @@
       {
         "description": "Quarterly recurrence",
         "recurrence": {
-          "recurrenceType": {
-            "id": 6,
-            "name": "Quarterly"
-          },
+          "recurrenceType": 6,
           "startDate": "2026-01-01",
           "dayOfQuarter": 90
         },
@@ -2381,10 +1631,7 @@
       {
         "description": "Yearly recurrence (leap day)",
         "recurrence": {
-          "recurrenceType": {
-            "id": 7,
-            "name": "Yearly"
-          },
+          "recurrenceType": 7,
           "startDate": "2028-02-29",
           "month": {
             "id": 2,
@@ -2401,10 +1648,7 @@
       {
         "description": "Custom date recurrence",
         "recurrence": {
-          "recurrenceType": {
-            "id": 11,
-            "name": "Custom Dates"
-          },
+          "recurrenceType": 11,
           "customDates": "2026-02-10, 2026-04-15, 2026-06-01"
         },
         "projectionStart": "2026-03-01",

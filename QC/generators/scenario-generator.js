@@ -22,18 +22,15 @@ function createScenarioForType(scenarioTypeId, baseScenarioId) {
 
   const baseId = baseScenarioId * 100;
   
-  // Common structure for all scenarios
+  // Common structure for all scenarios (schema-compliant)
   const scenario = {
     id: baseScenarioId,
     name: `QC ${scenarioType.name} Scenario`,
-    type: scenarioType,
+    type: scenarioType.id,
     description: `Minimal QC scenario for ${scenarioType.name} type validation`,
     startDate: '2026-02-01',
     endDate: '2026-12-01',
-    projectionPeriod: {
-      id: 3,  // Monthly
-      name: 'Month'
-    },
+    projectionPeriod: 3,  // Monthly
     accounts: [],
     transactions: [],
     projections: [],
@@ -63,112 +60,106 @@ function createScenarioForType(scenarioTypeId, baseScenarioId) {
 function generateAccountsForType(scenarioTypeId, baseId) {
   const accounts = [];
 
-  // Add a primary asset account for all types
+  // Add a primary asset account for all types (schema-compliant)
   accounts.push({
     id: baseId + 1,
     name: `A${baseId + 1}`,
-    type: { id: 1, name: 'Asset' },
-    currency: null,
+    type: 1,  // Asset
+    currency: 1,  // ZAR
     startingBalance: 50000,
     openDate: '2026-02-01',
     periodicChange: null,
-    accountType: 'Unknown',
-    periodicChangeSummary: '',
-    description: `Primary asset for ${['Budget', 'General', 'Funds', 'Debt Repayment', 'Goal-Based', 'Advanced Goal Solver'][scenarioTypeId - 1]} scenario`
+    goalAmount: null,
+    goalDate: null
   });
 
   // Type-specific accounts
   switch (scenarioTypeId) {
     case 1: // Budget
-      // Add income and expense accounts
+      // Add income a (schema-compliant)
       accounts.push({
         id: baseId + 2,
         name: `Income${baseId}`,
-        type: { id: 4, name: 'Income' },
-        currency: null,
+        type: 4,  // Income
+        currency: 1,  // ZAR
         startingBalance: 0,
         openDate: '2026-02-01',
-        periodicChange: { value: 5000, changeMode: 2, changeType: 1 },
-        accountType: 'Income',
-        description: 'Monthly income'
+        periodicChange: { value: 5000, changeMode: 2, period: 3 },  // Fixed monthly
+        goalAmount: null,
+        goalDate: null
       });
       accounts.push({
         id: baseId + 3,
         name: `Expense${baseId}`,
-        type: { id: 5, name: 'Expense' },
-        currency: null,
+        type: 5,  // Expense
+        currency: 1,  // ZAR
         startingBalance: 0,
         openDate: '2026-02-01',
-        periodicChange: { value: 1000, changeMode: 2, changeType: 1 },
-        accountType: 'Expense',
-        description: 'Monthly expenses'
-      });
+        periodicChange: { value: 1000, changeMode: 2, period: 3 },
+        goalAmount: null,
+        goalDate: null
       break;
 
     case 2: // General - already covered by main asset
       break;
 
     case 3: // Funds
-      // Add investment fund accounts
+      // Add investm (schema-compliant)
       accounts.push({
         id: baseId + 2,
         name: `Fund${baseId}`,
-        type: { id: 1, name: 'Asset' },
-        currency: null,
+        type: 1,  // Asset
+        currency: 1,  // ZAR
         startingBalance: 100000,
         openDate: '2026-02-01',
         periodicChange: { value: 7, changeMode: 1, changeType: 2 },
-        accountType: 'Unknown',
-        description: 'Investment fund with 7% monthly compound interest'
-      });
+        goalAmount: null,
+        goalDate: null
       break;
 
     case 4: // Debt Repayment
       // Add liability and payment accounts
+      accounts.push({ (schema-compliant)
       accounts.push({
         id: baseId + 2,
         name: `Debt${baseId}`,
-        type: { id: 2, name: 'Liability' },
-        currency: null,
+        type: 2,  // Liability
+        currency: 1,  // ZAR
         startingBalance: 25000,
         openDate: '2026-02-01',
         periodicChange: { value: 2, changeMode: 1, changeType: 1 },
-        accountType: 'Unknown',
-        description: 'Debt with 2% monthly interest'
-      });
-      break;
+        goalAmount: null,
+        goalDate: null
 
     case 5: // Goal-Based
       // Add goal tracking account
       accounts.push({
+        id: baseId + 2, (schema-compliant)
+      accounts.push({
         id: baseId + 2,
         name: `GoalAccount${baseId}`,
-        type: { id: 1, name: 'Asset' },
-        currency: null,
+        type: 1,  // Asset
+        currency: 1,  // ZAR
         startingBalance: 0,
         openDate: '2026-02-01',
         periodicChange: null,
-        accountType: 'Unknown',
-        description: 'Goal-based savings target'
-      });
-      break;
-
+        goalAmount: null,
+        goalDate: null
     case 6: // Advanced Goal Solver
       // Add multiple goal accounts
+      for (let i = 1; i <= 3; i++) {
+        accounts.push({ (schema-compliant)
       for (let i = 1; i <= 3; i++) {
         accounts.push({
           id: baseId + 1 + i,
           name: `Goal${i}-${baseId}`,
-          type: { id: 1, name: 'Asset' },
-          currency: null,
+          type: 1,  // Asset
+          currency: 1,  // ZAR
           startingBalance: 0,
           openDate: '2026-02-01',
           periodicChange: null,
-          accountType: 'Unknown',
-          description: `Goal ${i} for advanced solver`
-        });
-      }
-      break;
+          goalAmount: null,
+          goalDate: null
   }
 
   return accounts;
@@ -185,37 +176,102 @@ function generateTransactionsForType(scenarioTypeId, baseId, accounts) {
       if (accounts.length >= 3) {
         transactions.push({
           id: baseId + 1,
-          sourceId: baseId + 1,
-          baseName: `Budget Transfer ${baseId}`,
-          primaryAccount: accounts[0],
-          secondaryAccount: accounts[1],
-          transactionType: 1,
+          sourceId: ba(schema-compliant)
+      if (accounts.length >= 3) {
+        transactions.push({
+          id: baseId + 1,
+          primaryAccountId: accounts[0].id,
+          secondaryAccountId: accounts[1].id,
+          transactionTypeId: 1,  // Income
           amount: 5000,
           description: 'Monthly income transfer',
-          recurrence: { id: 2, name: 'Monthly', frequency: 1, startDate: '2026-02-01' },
-          periodicChange: null,
-          tags: ['income']
-        });
-      }
-      break;
-
-    case 3: // Funds - periodic withdrawals
+          recurrence: {
+            recurrenceType: 4,  // Monthly - Day of Month
+            startDate: '2026-02-01',
+            endDate: null,
+            interval: 1,
+            dayOfWeek: null,
+            dayOfMonth: 1,
+            weekOfMonth: null,
+            dayOfWeek(schema-compliant)
       if (accounts.length >= 2) {
         transactions.push({
           id: baseId + 1,
-          sourceId: baseId + 1,
-          baseName: `Fund Withdrawal ${baseId}`,
-          primaryAccount: accounts[1],
-          secondaryAccount: accounts[0],
-          transactionType: 2,
+          primaryAccountId: accounts[1].id,
+          secondAccountId: accounts[0].id,
+          transactionTypeId: 2,  // Expense
           amount: 5000,
           description: 'Quarterly fund withdrawal',
-          recurrence: { id: 4, name: 'Quarterly', frequency: 3, startDate: '2026-02-01' },
+          recurrence: {
+            recurrenceType: 6,  // Quarterly
+            startDate: '2026-02-01',
+            endDate: null,
+            interval: null,
+            dayOfWeek: null,
+            dayOfMonth: null,
+            weekOfMonth: null,
+            dayOfWeekInMonth: null,
+            dayOfQuarter: 1,(schema-compliant)
+      if (accounts.length >= 2) {
+        transactions.push({
+          id: baseId + 1,
+          primaryAccountId: accounts[0].id,
+          secondaryAccountId: accounts[1].id,
+          transactionTypeId: 2,  // Expense
+          amount: 1000,
+          description: 'Monthly debt repayment',
+          recurrence: {
+            recurrenceType: 4,  // Monthly - Day of Month
+            startDate: '2026-02-01',
+            endDate: null,
+            interval: 1,
+            dayOfWeek: null,
+            dayOfMonth: 1,
+            weekOfMonth: null,
+            dayOfWeekInMon(schema-compliant)
+      if (accounts.length >= 2) {
+        transactions.push({
+          id: baseId + 1,
+          primaryAccountId: accounts[0].id,
+          secondaryAccountId: accounts[1].id,
+          transactionTypeId: 1,  // Income
+          amount: 2000,
+          description: 'Monthly goal contribution',
+          recurrence: {
+            recurrenceType: 4,  // Monthly - Day of Month
+            startDate: '2026-02-01',
+            endDate: null,
+            interval: 1,
+            dayOfWeek: null,
+            dayOfMonth: 1,
+            weekOfMonth: null,
+            dayOfWeekInMonth: null,
+            dayOfQuarter: null,(schema-compliant)
+      if (accounts.length >= 3) {
+        transactions.push({
+          id: baseId + 1,
+          primaryAccountId: accounts[0].id,
+          secondaryAccountId: accounts[1].id,
+          transactionTypeId: 1,  // Income
+          amount: 1000,
+          description: 'Goal 1 funding',
+          recurrence: {
+            recurrenceType: 4,  // Monthly - Day of Month
+            startDate: '2026-02-01',
+            endDate: null,
+            interval: 1,
+            dayOfWeek: null,
+            dayOfMonth: 1,
+            weekOfMonth: null,
+            dayOfWeekInMonth: null,
+            dayOfQuarter: null,
+            month: null,
+            dayOfYear: null,
+            customDates: null,
+            id: null
+          },
           periodicChange: null,
-          tags: ['withdrawal']
-        });
-      }
-      break;
+          status: { name: 'planned', actualAmount: null, actualDate: null }
 
     case 4: // Debt Repayment - monthly payments
       if (accounts.length >= 2) {
@@ -244,33 +300,33 @@ function generateTransactionsForType(scenarioTypeId, baseId, accounts) {
           primaryAccount: accounts[0],
           secondaryAccount: accounts[1],
           transactionType: 1,
-          amount: 2000,
-          description: 'Monthly goal contribution',
-          recurrence: { id: 2, name: 'Monthly', frequency: 1, startDate: '2026-02-01' },
-          periodicChange: null,
-          tags: ['goal', 'savings']
-        });
-      }
-      break;
+          amount: 2000, (schema-compliant)
+ */
+function generateBudgetsForBudgetScenario(baseId, accounts) {
+  const budgets = [];
+  
+  const incomeAccount = accounts.find(a => a.type === 4);
+  const expenseAccount = accounts.find(a => a.type === 5);
 
-    case 6: // Advanced Goal Solver - multi-goal funding
-      if (accounts.length >= 3) {
-        transactions.push({
-          id: baseId + 1,
-          sourceId: baseId + 1,
-          baseName: `Goal1 Fund ${baseId}`,
-          primaryAccount: accounts[0],
-          secondaryAccount: accounts[1],
-          transactionType: 1,
-          amount: 1000,
-          description: 'Goal 1 funding',
-          recurrence: { id: 2, name: 'Monthly', frequency: 1, startDate: '2026-02-01' },
-          periodicChange: null,
-          tags: ['goal1', 'solver']
-        });
-      }
-      break;
+  if (incomeAccount) {
+    budgets.push({
+      id: baseId + 1,
+      name: `Income Budget ${baseId}`,
+      accountId: incomeAccount.id,
+      amount: 5000,
+      period: 3,  // Monthly
+      startDate: '2026-02-01',
+      endDate: '2026-12-01'
+    });
   }
+
+  if (expenseAccount) {
+    budgets.push({
+      id: baseId + 2,
+      name: `Expense Budget ${baseId}`,
+      accountId: expenseAccount.id,
+      amount: 1000,
+      period: 3,  // Monthly
 
   return transactions;
 }

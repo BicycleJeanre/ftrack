@@ -16,22 +16,33 @@ describe('Transaction Expander', () => {
     const end = dateUtils.parseDateOnly('2026-02-01');
 
     const recurrence = {
-      recurrenceType: { id: 3, name: 'Weekly' },
+      recurrenceType: 3,  // Weekly
       startDate: '2026-01-05',
+      endDate: null,
       interval: 2,
-      dayOfWeek: { id: 1, name: 'Monday' }
+      dayOfWeek: 1,  // Monday
+      dayOfMonth: null,
+      weekOfMonth: null,
+      dayOfWeekInMonth: null,
+      dayOfQuarter: null,
+      month: null,
+      dayOfYear: null,
+      customDates: null,
+      id: null
     };
 
     const tx = {
       id: 1,
       primaryAccountId: 1,
-      secondaryAccountId: null,
+      secondaryAccountId: 1,
       transactionTypeId: 1,
       amount: 100,
       effectiveDate: '2026-01-05',
       description: 'Recurring weekly',
       recurrence,
-      status: { name: 'planned' }
+      periodicChange: null,
+      status: { name: 'planned', actualAmount: null, actualDate: null },
+      tags: []
     };
 
     const expanded = transactionExpander.expandTransactions([tx], start, end);
@@ -47,13 +58,15 @@ describe('Transaction Expander', () => {
     const tx = {
       id: 2,
       primaryAccountId: 1,
-      secondaryAccountId: null,
+      secondaryAccountId: 1,
       transactionTypeId: 2,
       amount: 50,
       effectiveDate: '2026-01-15',
       description: 'One-off',
       recurrence: null,
-      status: { name: 'planned' }
+      periodicChange: null,
+      status: { name: 'planned', actualAmount: null, actualDate: null },
+      tags: []
     };
 
     const expanded = transactionExpander.expandTransactions([tx], start, end);
@@ -68,19 +81,30 @@ describe('Transaction Expander', () => {
     const actualInRange = {
       id: 3,
       primaryAccountId: 1,
+      secondaryAccountId: 1,
       transactionTypeId: 1,
       amount: 200,
       effectiveDate: '2026-01-10',
-      status: { name: 'actual', actualDate: '2026-01-10' }
+      description: 'Actual in range',
+      recurrence: null,
+      periodicChange: null,
+      status: { name: 'actual', actualAmount: 200, actualDate: '2026-01-10' },
+      tags: []
     };
 
     const actualOutRange = {
       id: 4,
       primaryAccountId: 1,
+      secondaryAccountId: 1,
       transactionTypeId: 1,
       amount: 200,
       effectiveDate: '2026-02-10',
-      status: { name: 'actual', actualDate: '2026-02-10' }
+      description: 'Actual out of range',
+      recurrence: null,
+      periodicChange: null,
+      status: { name: 'actual', actualAmount: 200, actualDate: '2026-02-10' },
+      tags: []
+
     };
 
     const expanded = transactionExpander.expandTransactions([actualInRange, actualOutRange], start, end);

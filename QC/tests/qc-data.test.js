@@ -72,19 +72,20 @@ describe('QC Dataset Validation', () => {
 
 describe('Scenario-Level Validation', () => {
   describe('All scenario types have required structure', () => {
-    const scenarioTypes = ['General', 'Budget', 'Funds', 'Debt Repayment', 'Goal-Based', 'Advanced Goal Solver'];
+    const scenarioTypeIds = [2, 1, 3, 4, 5, 6];  // General, Budget, Funds, Debt Repayment, Goal-Based, Advanced Goal Solver
+    const scenarioTypeNames = ['General', 'Budget', 'Funds', 'Debt Repayment', 'Goal-Based', 'Advanced Goal Solver'];
 
-    scenarioTypes.forEach((typeName) => {
-      it(`${typeName} scenario exists and has valid structure`, () => {
-        const scenario = qcData.scenarios.find((s) => s.type.name === typeName);
-        assert.ok(scenario, `${typeName} scenario not found in QC data`);
-        assert.ok(scenario.accounts, `${typeName} scenario missing accounts`);
-        assert.ok(Array.isArray(scenario.accounts), `${typeName} accounts must be an array`);
-        assert.ok(scenario.transactions !== undefined, `${typeName} scenario missing transactions`);
-        assert.ok(Array.isArray(scenario.transactions), `${typeName} transactions must be an array`);
-        assert.ok(scenario.projections !== undefined, `${typeName} scenario missing projections`);
-        assert.ok(Array.isArray(scenario.projections), `${typeName} projections must be an array`);
-        assert.strictEqual(scenario.type.name, typeName, 'Scenario type name mismatch');
+    scenarioTypeIds.forEach((typeId, idx) => {
+      it(`${scenarioTypeNames[idx]} scenario exists and has valid structure`, () => {
+        const scenario = qcData.scenarios.find((s) => s.type === typeId);
+        assert.ok(scenario, `${scenarioTypeNames[idx]} scenario not found in QC data`);
+        assert.ok(scenario.accounts, `${scenarioTypeNames[idx]} scenario missing accounts`);
+        assert.ok(Array.isArray(scenario.accounts), `${scenarioTypeNames[idx]} accounts must be an array`);
+        assert.ok(scenario.transactions !== undefined, `${scenarioTypeNames[idx]} scenario missing transactions`);
+        assert.ok(Array.isArray(scenario.transactions), `${scenarioTypeNames[idx]} transactions must be an array`);
+        assert.ok(scenario.projections !== undefined, `${scenarioTypeNames[idx]} scenario missing projections`);
+        assert.ok(Array.isArray(scenario.projections), `${scenarioTypeNames[idx]} projections must be an array`);
+        assert.strictEqual(scenario.type, typeId, 'Scenario type ID mismatch');
       });
     });
   });
@@ -104,8 +105,8 @@ describe('Scenario-Level Validation', () => {
 
         it('transaction primary/secondary accounts exist', () => {
           scenario.transactions.forEach((tx) => {
-            const primaryExists = scenario.accounts.some((a) => a.id === tx.primaryAccount?.id);
-            const secondaryExists = scenario.accounts.some((a) => a.id === tx.secondaryAccount?.id);
+            const primaryExists = scenario.accounts.some((a) => a.id === tx.primaryAccountId);
+            const secondaryExists = scenario.accounts.some((a) => a.id === tx.secondaryAccountId);
             assert.ok(primaryExists, `Transaction ${tx.id} references non-existent primary account`);
             assert.ok(secondaryExists, `Transaction ${tx.id} references non-existent secondary account`);
           });
@@ -163,8 +164,8 @@ describe('Calculation Verification Checklist', () => {
       txs.forEach((tx) => {
         if (tx.recurrence) {
           assert.ok(
-            ['Weekly', 'Monthly', 'Quarterly', 'Yearly', 'One-time'].includes(tx.recurrence.name),
-            `Unknown recurrence type: ${tx.recurrence.name}`
+            [1, 2, 3, 4, 5, 6, 7, 8].includes(tx.recurrence.recurrenceType),
+            `Invalid recurrence type ID: ${tx.recurrence.recurrenceType}`
           );
         }
       });
@@ -208,11 +209,11 @@ describe('Calculation Verification Checklist', () => {
 
       if (scenario) {
         scenario.transactions.forEach((tx) => {
-          assert.ok(tx.primaryAccount, `Transaction ${tx.id} missing primary account`);
-          assert.ok(tx.secondaryAccount, `Transaction ${tx.id} missing secondary account`);
+          assert.ok(tx.primaryAccountId, `Transaction ${tx.id} missing primary account ID`);
+          assert.ok(tx.secondaryAccountId, `Transaction ${tx.id} missing secondary account ID`);
           assert.ok(
-            [1, 2, 3, 4, 5].includes(tx.transactionType),
-            `Invalid transaction type: ${tx.transactionType}`
+            [1, 2].includes(tx.transactionTypeId),
+            `Invalid transaction type: ${tx.transactionTypeId}`
           );
         });
       }
@@ -226,7 +227,7 @@ describe('Calculation Verification Checklist', () => {
         assert.ok(liabilityAccount, 'Debt repayment scenario should have liability account');
 
         const payments = scenario.transactions.filter(
-          (t) => t.primaryAccount?.id === liabilityAccount?.id || t.secondaryAccount?.id === liabilityAccount?.id
+          (t) => t.primaryAccountId === liabilityAccount?.id || t.secondaryAccountId === liabilityAccount?.id
         );
         assert.ok(payments.length > 0, 'Debt repayment scenario should have payment transactions');
       }

@@ -103,25 +103,27 @@ describe('Projection Engine - Recurrence Integration', () => {
           {
             id: 1,
             name: 'A1',
-            type: { id: 1, name: 'Asset' },
-            currency: null,
+            type: 1,  // Asset
+            currency: 1,  // ZAR
             startingBalance: 0,
             openDate: startDate,
-            periodicChange: null
+            periodicChange: null,
+            goalAmount: null,
+            goalDate: null
           }
         ],
         transactions: [
           {
             id: 1,
             primaryAccountId: 1,
-            secondaryAccountId: null,
+            secondaryAccountId: 1,
             transactionTypeId: 1,
             amount: 100,
             effectiveDate: startDate,
             description: 'QC recurrence integration',
             recurrence,
             periodicChange: null,
-            status: { name: 'planned' },
+            status: { name: 'planned', actualAmount: null, actualDate: null },
             tags: []
           }
         ]

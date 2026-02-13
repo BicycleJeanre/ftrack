@@ -257,7 +257,6 @@ function validateScenario(scenario, lookup) {
   const changeTypeIds = toIdSet(lookup.periodicChangeTypes);
   const frequencyIds = toIdSet(lookup.frequencies);
   const currencyIds = toIdSet(lookup.currencies);
-  const currencyNames = toNameSet(lookup.currencies);
 
   const accountIdSet = new Set();
   const accountNameSet = new Set();
@@ -285,12 +284,8 @@ function validateScenario(scenario, lookup) {
       }
 
       if (account.currency !== null && account.currency !== undefined) {
-        const currencyKey = resolveAccountKey(account.currency);
-        if (typeof currencyKey === 'number' && !currencyIds.has(currencyKey)) {
+        if (typeof account.currency !== 'number' || !currencyIds.has(account.currency)) {
           errors.push(`${label} account ${account.name || account.id || '?'} currency id not in lookup data.`);
-        }
-        if (typeof currencyKey === 'string' && !currencyNames.has(currencyKey)) {
-          errors.push(`${label} account ${account.name || account.id || '?'} currency name not in lookup data.`);
         }
       }
 
@@ -299,7 +294,8 @@ function validateScenario(scenario, lookup) {
         if (typeof changeMode !== 'number' || !changeModeIds.has(changeMode)) {
           errors.push(`${label} account ${account.name || account.id || '?'} invalid changeMode.`);
         }
-        if (typeof changeType !== 'number' || !changeTypeIds.has(changeType)) {
+        // changeType is required only for percentage mode (changeMode 1), should be null for fixed amount (changeMode 2)
+        if (changeMode === 1 && (typeof changeType !== 'number' || !changeTypeIds.has(changeType))) {
           errors.push(`${label} account ${account.name || account.id || '?'} invalid changeType.`);
         }
         if (frequency !== undefined && !frequencyIds.has(frequency)) {
@@ -311,13 +307,13 @@ function validateScenario(scenario, lookup) {
 
   if (Array.isArray(scenario.transactions)) {
     scenario.transactions.forEach((tx) => {
-      const primaryKey = resolveAccountKey(tx.primaryAccount);
-      if (primaryKey !== null && !accountIdSet.has(primaryKey) && !accountNameSet.has(primaryKey)) {
-        errors.push(`${label} transaction primaryAccount not found.`);
+      const primaryId = tx.primaryAccountId;
+      if (primaryId !== null && primaryId !== undefined && !accountIdSet.has(primaryId)) {
+        errors.push(`${label} transaction ${tx.id} primaryAccountId not found.`);
       }
-      const secondaryKey = resolveAccountKey(tx.secondaryAccount);
-      if (secondaryKey !== null && !accountIdSet.has(secondaryKey) && !accountNameSet.has(secondaryKey)) {
-        errors.push(`${label} transaction secondaryAccount not found.`);
+      const secondaryId = tx.secondaryAccountId;
+      if (secondaryId !== null && secondaryId !== undefined && !accountIdSet.has(secondaryId)) {
+        errors.push(`${label} transaction ${tx.id} secondaryAccountId not found.`);
       }
     });
   }
@@ -471,7 +467,8 @@ function main() {
       scenarios = scenarios.filter((scenario) => {
         const matchesId = String(scenario.id) === needle;
         const matchesName = (scenario.name || '').toLowerCase() === needle;
-        const matchesType = (scenario.type && scenario.type.name || '').toLowerCase() === needle;
+        const lookupScenarioType = lookup.scenarioTypes.find((st) => st.id === scenario.type);
+        const matchesType = lookupScenarioType && lookupScenarioType.name.toLowerCase() === needle;
         return matchesId || matchesName || matchesType;
       });
     }

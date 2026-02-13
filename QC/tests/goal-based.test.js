@@ -11,7 +11,7 @@ describe('Goal-Based Planning Validation', () => {
 
     it('has Goal-Based scenario in QC data', () => {
       assert.ok(scenario, 'Goal-Based scenario not found');
-      assert.strictEqual(scenario.type.id, 5, 'Incorrect scenario type');
+      assert.strictEqual(scenario.type, 5, 'Incorrect scenario type');
     });
 
     it('has primary and goal accounts', () => {
@@ -20,7 +20,7 @@ describe('Goal-Based Planning Validation', () => {
 
     it('has recurring transaction to goal account', () => {
       const goalTx = scenario.transactions.find((tx) =>
-        tx.secondaryAccount?.id === scenario.accounts[1]?.id || tx.secondaryAccountId === scenario.accounts[1]?.id
+        tx.secondaryAccountId === scenario.accounts[1]?.id
       );
       assert.ok(goalTx, 'Missing transaction to goal account');
       assert.ok(goalTx.recurrence, 'Recurrence required for goal funding');
@@ -75,9 +75,9 @@ describe('Goal-Based Planning Validation', () => {
       const scenario = qcData.scenarios.find((s) => s.type === 5);
 
       const relationshipTx = scenario.transactions[0];
-      assert.ok(relationshipTx.secondaryAccount, 'Goal transaction missing secondary account');
+      assert.ok(relationshipTx.secondaryAccountId, 'Goal transaction missing secondary account ID');
 
-      const goalAccountId = relationshipTx.secondaryAccount.id;
+      const goalAccountId = relationshipTx.secondaryAccountId;
       const goalAccount = scenario.accounts.find((a) => a.id === goalAccountId);
       assert.ok(goalAccount, `Goal account ${goalAccountId} not found in scenario`);
     });

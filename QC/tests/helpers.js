@@ -99,11 +99,11 @@ function buildScenario({
   return {
     id: 999,
     name: 'QC Integration Scenario',
-    type: { id: 2, name: 'General' },
+    type: 2,  // General
     description: 'QC projection engine integration checks',
     startDate,
     endDate,
-    projectionPeriod: { id: 3, name: projectionPeriodName },
+    projectionPeriod: 3,  // Monthly
     accounts,
     transactions,
     projections: [],

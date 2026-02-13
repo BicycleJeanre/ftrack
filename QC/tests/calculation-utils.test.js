@@ -74,8 +74,19 @@ describe('Calculation Utils - Recurrence Dates', () => {
 
   it('excludes one-time recurrence outside projection range', () => {
     const recurrence = {
-      recurrenceType: { id: 1, name: 'One Time' },
-      startDate: '2026-05-01'
+      recurrenceType: 1,  // One Time
+      startDate: '2026-05-01',
+      endDate: null,
+      interval: null,
+      dayOfWeek: null,
+      dayOfMonth: null,
+      weekOfMonth: null,
+      dayOfWeekInMonth: null,
+      dayOfQuarter: null,
+      month: null,
+      dayOfYear: null,
+      customDates: null,
+      id: null
     };
     const projectionStart = dateUtils.parseDateOnly('2026-06-01');
     const projectionEnd = dateUtils.parseDateOnly('2026-06-30');

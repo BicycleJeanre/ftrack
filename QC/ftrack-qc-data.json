@@ -14,7 +14,7 @@
           "id": 1,
           "name": "A1",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 10000,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -23,6 +23,7 @@
         }
       ],
       "transactions": [],
+      "budgets": [],
       "projections": [
         {
           "id": 1,
@@ -156,8 +157,7 @@
           "netChange": 0,
           "period": 11
         }
-      ],
-      "budgets": []
+      ]
     },
     {
       "id": 3,
@@ -172,7 +172,7 @@
           "id": 1,
           "name": "A1",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 10000,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -187,7 +187,7 @@
           "id": 2,
           "name": "A2",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -202,7 +202,7 @@
           "id": 3,
           "name": "A3",
           "type": 4,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 100000000,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -217,7 +217,7 @@
           "id": 4,
           "name": "A4",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -232,7 +232,7 @@
           "id": 5,
           "name": "A5",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -247,7 +247,7 @@
           "id": 6,
           "name": "A6",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -262,7 +262,7 @@
           "id": 7,
           "name": "A7",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -270,8 +270,8 @@
             "changeMode": 1,
             "changeType": 7,
             "customCompounding": {
-              "frequency": 12,
-              "period": 1
+              "period": 1,
+              "frequency": 12
             }
           },
           "goalAmount": null,
@@ -281,7 +281,7 @@
           "id": 8,
           "name": "A8",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -289,8 +289,8 @@
             "changeMode": 1,
             "changeType": 7,
             "customCompounding": {
-              "frequency": 6,
-              "period": 2
+              "period": 2,
+              "frequency": 6
             }
           },
           "goalAmount": null,
@@ -300,7 +300,7 @@
           "id": 9,
           "name": "A9",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -315,7 +315,7 @@
           "id": 10,
           "name": "A10",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -330,7 +330,7 @@
           "id": 11,
           "name": "A11",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -345,7 +345,7 @@
           "id": 12,
           "name": "A12",
           "type": 2,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -360,7 +360,7 @@
           "id": 13,
           "name": "A13",
           "type": 2,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -375,7 +375,7 @@
           "id": 14,
           "name": "A14",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -386,7 +386,9 @@
       "transactions": [
         {
           "id": 1,
-          "transactionTypeId": null,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
           "amount": 500,
           "description": "duh it is going out... ",
           "recurrence": {
@@ -414,7 +416,9 @@
         },
         {
           "id": 2,
-          "transactionTypeId": null,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
           "amount": 10000,
           "description": "money in bruh",
           "recurrence": {
@@ -442,7 +446,9 @@
         },
         {
           "id": 3,
-          "transactionTypeId": null,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
           "amount": 50000,
           "description": "fuck hookers are expensive!",
           "recurrence": {
@@ -467,6 +473,108 @@
             "actualDate": null
           },
           "tags": []
+        }
+      ],
+      "budgets": [
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 500,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
+        },
+        {
+          "id": 0,
+          "amount": 10000,
+          "period": null
         }
       ],
       "projections": [
@@ -2318,368 +2426,6 @@
           "netChange": 0,
           "period": 11
         }
-      ],
-      "budgets": [
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-03-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-04-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-05-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-06-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-07-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-08-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-09-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-10-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-11-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 1,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 2,
-          "transactionTypeId": 2,
-          "amount": 500,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-12-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-03-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-04-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-05-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-06-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-07-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-08-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-09-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-10-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-11-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        },
-        {
-          "id": 0,
-          "sourceTransactionId": 2,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 3,
-          "transactionTypeId": 1,
-          "amount": 10000,
-          "description": "",
-          "recurrenceDescription": "Every month on day 1",
-          "occurrenceDate": "2026-12-01",
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
-          "tags": []
-        }
       ]
     },
     {
@@ -2695,7 +2441,7 @@
           "id": 401,
           "name": "A401",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -2706,7 +2452,7 @@
           "id": 402,
           "name": "Income400",
           "type": 4,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -2721,7 +2467,7 @@
           "id": 403,
           "name": "Expense400",
           "type": 5,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -2736,7 +2482,9 @@
       "transactions": [
         {
           "id": 401,
-          "transactionTypeId": null,
+          "primaryAccountId": 401,
+          "secondaryAccountId": 402,
+          "transactionTypeId": 1,
           "amount": 5000,
           "description": "Monthly income transfer",
           "recurrence": {
@@ -2763,6 +2511,26 @@
           "tags": [
             "income"
           ]
+        }
+      ],
+      "budgets": [
+        {
+          "id": 401,
+          "name": "Income Budget 400",
+          "accountId": 402,
+          "amount": 5000,
+          "period": 3,
+          "startDate": "2026-02-01",
+          "endDate": "2026-12-01"
+        },
+        {
+          "id": 402,
+          "name": "Expense Budget 400",
+          "accountId": 403,
+          "amount": 1000,
+          "period": 3,
+          "startDate": "2026-02-01",
+          "endDate": "2026-12-01"
         }
       ],
       "projections": [
@@ -3162,32 +2930,6 @@
           "netChange": 0,
           "period": 11
         }
-      ],
-      "budgets": [
-        {
-          "id": 401,
-          "name": "Income Budget 400",
-          "accountId": 402,
-          "amount": 5000,
-          "period": {
-            "id": 3,
-            "name": "Month"
-          },
-          "startDate": "2026-02-01",
-          "endDate": "2026-12-01"
-        },
-        {
-          "id": 402,
-          "name": "Expense Budget 400",
-          "accountId": 403,
-          "amount": 1000,
-          "period": {
-            "id": 3,
-            "name": "Month"
-          },
-          "startDate": "2026-02-01",
-          "endDate": "2026-12-01"
-        }
       ]
     },
     {
@@ -3203,7 +2945,7 @@
           "id": 501,
           "name": "A501",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -3214,7 +2956,7 @@
           "id": 502,
           "name": "Fund500",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 100000,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -3229,7 +2971,9 @@
       "transactions": [
         {
           "id": 501,
-          "transactionTypeId": null,
+          "primaryAccountId": 501,
+          "secondaryAccountId": 502,
+          "transactionTypeId": 2,
           "amount": 5000,
           "description": "Quarterly fund withdrawal",
           "recurrence": {
@@ -3258,6 +3002,7 @@
           ]
         }
       ],
+      "budgets": [],
       "projections": [
         {
           "id": 1,
@@ -3523,8 +3268,7 @@
           "netChange": 0,
           "period": 11
         }
-      ],
-      "budgets": []
+      ]
     },
     {
       "id": 6,
@@ -3539,7 +3283,7 @@
           "id": 601,
           "name": "A601",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -3550,7 +3294,7 @@
           "id": 602,
           "name": "Debt600",
           "type": 2,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 25000,
           "openDate": "2026-02-01",
           "periodicChange": {
@@ -3565,7 +3309,9 @@
       "transactions": [
         {
           "id": 601,
-          "transactionTypeId": null,
+          "primaryAccountId": 601,
+          "secondaryAccountId": 602,
+          "transactionTypeId": 2,
           "amount": 1000,
           "description": "Monthly debt repayment",
           "recurrence": {
@@ -3595,6 +3341,7 @@
           ]
         }
       ],
+      "budgets": [],
       "projections": [
         {
           "id": 1,
@@ -3860,8 +3607,7 @@
           "netChange": 0,
           "period": 11
         }
-      ],
-      "budgets": []
+      ]
     },
     {
       "id": 7,
@@ -3876,7 +3622,7 @@
           "id": 701,
           "name": "A701",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -3887,7 +3633,7 @@
           "id": 702,
           "name": "GoalAccount700",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -3898,15 +3644,11 @@
       "transactions": [
         {
           "id": 701,
-          "transactionTypeId": null,
-          "amount": 2000,
-          "description": "Monthly goal contribution",
           "primaryAccountId": 701,
           "secondaryAccountId": 702,
-          "secondaryAccount": {
-            "id": 702,
-            "name": "GoalAccount700"
-          },
+          "transactionTypeId": 2,
+          "amount": 2000,
+          "description": "Monthly goal contribution",
           "recurrence": {
             "recurrenceType": 4,
             "startDate": "2026-02-01",
@@ -3934,6 +3676,7 @@
           ]
         }
       ],
+      "budgets": [],
       "projections": [
         {
           "id": 1,
@@ -4199,8 +3942,7 @@
           "netChange": 2000,
           "period": 11
         }
-      ],
-      "budgets": []
+      ]
     },
     {
       "id": 8,
@@ -4215,7 +3957,7 @@
           "id": 801,
           "name": "A801",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 50000,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -4226,7 +3968,7 @@
           "id": 802,
           "name": "Goal1-800",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -4237,7 +3979,7 @@
           "id": 803,
           "name": "Goal2-800",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -4248,7 +3990,7 @@
           "id": 804,
           "name": "Goal3-800",
           "type": 1,
-          "currency": null,
+          "currency": 1,
           "startingBalance": 0,
           "openDate": "2026-02-01",
           "periodicChange": null,
@@ -4259,7 +4001,9 @@
       "transactions": [
         {
           "id": 801,
-          "transactionTypeId": null,
+          "primaryAccountId": 801,
+          "secondaryAccountId": 802,
+          "transactionTypeId": 2,
           "amount": 1000,
           "description": "Goal 1 funding",
           "recurrence": {
@@ -4289,6 +4033,7 @@
           ]
         }
       ],
+      "budgets": [],
       "projections": [
         {
           "id": 1,
@@ -4818,11 +4563,10 @@
           "netChange": 0,
           "period": 11
         }
-      ],
-      "budgets": []
+      ]
     },
     {
-      "id": 8,
+      "id": 11,
       "name": "All Account Types",
       "type": 2,
       "description": "Test scenario with all 5 account types",
@@ -4952,6 +4696,7 @@
           ]
         }
       ],
+      "budgets": [],
       "projections": []
     },
     {
@@ -5021,6 +4766,7 @@
           "periodicChange": {
             "value": 10,
             "changeMode": 2,
+            "changeType": null,
             "period": 1
           },
           "goalAmount": null,
@@ -5036,6 +4782,7 @@
           "periodicChange": {
             "value": 70,
             "changeMode": 2,
+            "changeType": null,
             "period": 2
           },
           "goalAmount": null,
@@ -5051,6 +4798,7 @@
           "periodicChange": {
             "value": 100,
             "changeMode": 2,
+            "changeType": null,
             "period": 3
           },
           "goalAmount": null,
@@ -5066,6 +4814,7 @@
           "periodicChange": {
             "value": 250,
             "changeMode": 2,
+            "changeType": null,
             "period": 4
           },
           "goalAmount": null,
@@ -5081,6 +4830,7 @@
           "periodicChange": {
             "value": 500,
             "changeMode": 2,
+            "changeType": null,
             "period": 5
           },
           "goalAmount": null,
@@ -5088,6 +4838,7 @@
         }
       ],
       "transactions": [],
+      "budgets": [],
       "projections": []
     },
     {
@@ -5192,6 +4943,7 @@
           "periodicChange": {
             "value": 50,
             "changeMode": 2,
+            "changeType": null,
             "period": 3
           },
           "status": {
@@ -5205,8 +4957,8 @@
           ]
         }
       ],
+      "budgets": [],
       "projections": []
     }
-  ],
-  "migrationVersion": 3
+  ]
 }
