@@ -95,15 +95,15 @@ let masterBudgetTable = null; // Store budget table instance for filtering
 let summaryCardsAccountTypeFilter = 'All';
 
 function isDebtScenario(typeConfig) {
-  return typeConfig?.name === 'Debt Repayment';
+  return typeConfig?.id === 4; // Debt Repayment scenario type
 }
 
 function isGeneralScenario(typeConfig) {
-  return typeConfig?.name === 'General';
+  return typeConfig?.id === 2; // General scenario type
 }
 
 function isFundsScenario(typeConfig) {
-  return typeConfig?.name === 'Funds';
+  return typeConfig?.id === 3; // Funds scenario type
 }
 
 let fundSummaryScope = 'All';
@@ -360,7 +360,11 @@ function getScenarioTypeConfig() {
   if (!currentScenario || !scenarioTypes) return null;
   if (!currentScenario.type) return null;
   
-  return scenarioTypes.find(st => st.name === currentScenario.type.name);
+  const typeId = typeof currentScenario.type === 'number' 
+    ? currentScenario.type 
+    : currentScenario.type?.id;
+  
+  return scenarioTypes.find(st => st.id === typeId);
 }
 
 /**
@@ -1252,7 +1256,7 @@ async function loadScenarioData() {
 
   const typeConfig = getScenarioTypeConfig();
 
-  if (typeConfig?.name === 'Funds') {
+  if (typeConfig?.id === 3) { // Funds scenario type
     await ensureFundSettingsInitialized();
   }
   

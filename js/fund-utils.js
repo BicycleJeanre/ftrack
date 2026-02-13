@@ -10,9 +10,20 @@ function safeNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function getAccountTypeName(account) {
-  return account?.type?.name || 'Unknown';
+function getAccountTypeId(account) {
+  return typeof account?.type === 'number' 
+    ? account.type 
+    : account?.type?.id || 0;
 }
+
+// Map account type names to IDs for scope lookups
+const ACCOUNT_TYPE_ID_MAP = {
+  'Asset': 1,
+  'Liability': 2,
+  'Equity': 3,
+  'Income': 4,
+  'Expense': 5
+};
 
 function toDateOrNull(dateStr) {
   if (!dateStr) return null;
@@ -82,8 +93,8 @@ export function getBalanceAsOf({ account, projectionsIndex, asOfDate = null }) {
 }
 
 export function computeNav({ accounts = [], projectionsIndex, asOfDate = null }) {
-  const assets = accounts.filter(a => getAccountTypeName(a) === 'Asset');
-  const liabilities = accounts.filter(a => getAccountTypeName(a) === 'Liability');
+  const assets = accounts.filter(a => getAccountTypeId(a) === 1); // Asset ID
+  const liabilities = accounts.filter(a => getAccountTypeId(a) === 2); // Liability ID
 
   const totalAssets = assets.reduce((sum, a) => sum + safeNumber(getBalanceAsOf({ account: a, projectionsIndex, asOfDate })), 0);
   const totalLiabilitiesMagnitude = liabilities.reduce(
@@ -105,12 +116,13 @@ export function computeMoneyTotalsFromTransactions({
 }) {
   // Minimal, scope-aware inclusion: include a tx if either side is in-scope.
   const accountById = new Map((accounts || []).map(a => [a.id, a]));
+  const scopeTypeId = ACCOUNT_TYPE_ID_MAP[scope];
 
   const isInScope = (accountId) => {
     if (!accountId) return false;
     if (scope === 'All') return true;
     const account = accountById.get(accountId);
-    return getAccountTypeName(account) === scope;
+    return getAccountTypeId(account) === scopeTypeId;
   };
 
   let moneyIn = 0;
@@ -145,7 +157,7 @@ export function computeAutomaticSharesByAccountId({
   asOfDate = null,
   fundSettings
 }) {
-  const equityAccounts = accounts.filter(a => getAccountTypeName(a) === 'Equity');
+  const equityAccounts = accounts.filter(a => getAccountTypeId(a) === 3); // Equity ID
 
   const effectiveDate = toDateOrNull(fundSettings?.automaticEffectiveDate);
   if (!effectiveDate) {
@@ -214,7 +226,7 @@ export function computeInvestorFlows({
   accounts = [],
   asOfDate = null
 }) {
-  const equityAccounts = accounts.filter(a => getAccountTypeName(a) === 'Equity');
+  const equityAccounts = accounts.filter(a => getAccountTypeId(a) === 3); // Equity ID
   const start = toDateOrNull(scenario?.startDate) || new Date(0);
   const end = asOfDate || toDateOrNull(scenario?.endDate) || new Date();
 

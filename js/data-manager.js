@@ -810,6 +810,14 @@ export async function clearBudget(scenarioId) {
 import { parseDateOnly } from './date-utils.js';
 
 export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
+  const PERIOD_ID_TO_NAME = {
+    1: 'Day',
+    2: 'Week',
+    3: 'Month',
+    4: 'Quarter',
+    5: 'Year'
+  };
+
   const scenario = await getScenario(scenarioId);
   
   if (!scenario) {
@@ -819,7 +827,15 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   const periods = [];
   const start = typeof scenario.startDate === 'string' ? parseDateOnly(scenario.startDate) : new Date(scenario.startDate);
   const end = typeof scenario.endDate === 'string' ? parseDateOnly(scenario.endDate) : new Date(scenario.endDate);
-  const periodType = customPeriodType || scenario.projectionPeriod?.name || 'Month';
+  
+  // Get period type name from ID: first check customPeriodType (string), then projectionPeriod.id → name
+  let periodType = customPeriodType;
+  if (!periodType) {
+    const projectionPeriodId = typeof scenario.projectionPeriod === 'number'
+      ? scenario.projectionPeriod
+      : scenario.projectionPeriod?.id || 3; // Default to 3 (Month)
+    periodType = PERIOD_ID_TO_NAME[projectionPeriodId] || 'Month';
+  }
   
   let current = new Date(start);
   

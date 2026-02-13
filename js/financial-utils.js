@@ -118,70 +118,112 @@ export function calculatePayment(rate, nper, pv, fv = 0) {
  * @param {number} periods - Number of periods to apply
  * @returns {number} - Value after periodic change
  */
+/**
+ * Apply periodic change to a value using ID-only references.
+ * Change mode IDs: 1 = PercentageRate, 2 = FixedAmount
+ * Change type IDs: 1=Nominal, 2=Monthly, 3=Daily, 4=Quarterly, 5=Annual, 6=Continuous, 7=Custom
+ * Frequency IDs: 1=Daily, 2=Weekly, 3=Monthly, 4=Quarterly, 5=Yearly
+ * @param {number} value - Initial value
+ * @param {Object} periodicChange - Periodic change configuration (ID-based)
+ * @param {number} periods - Number of periods to apply (in years)
+ * @returns {number} - Value after periodic change
+ */
 export function applyPeriodicChange(value, periodicChange, periods) {
-    if (!periodicChange || !periodicChange.value) {
+    if (!periodicChange || periodicChange.value === null || periodicChange.value === undefined || periodicChange.value === 0) {
         return value;
     }
     
-    const changeMode = periodicChange.changeMode?.name || 'Percentage Rate';
+    // Extract IDs from periodicChange
+    const changeModeId = typeof periodicChange.changeMode === 'number'
+        ? periodicChange.changeMode
+        : periodicChange.changeMode?.id || 1; // Default to PercentageRate (ID 1)
     const changeValue = periodicChange.value;
     
-    if (changeMode === 'Fixed Amount') {
-        // Fixed amount change - need to consider frequency
-        // periods is in years, so convert based on frequency
-        const frequency = periodicChange.frequency?.name || 'Monthly';
-        let periodsPerYear = 12; // Default to monthly
+    // Change mode ID 2 = Fixed Amount
+    if (changeModeId === 2) {
+        // Extract frequency ID (period of application)
+        const frequencyId = typeof periodicChange.frequency === 'number'
+            ? periodicChange.frequency
+            : periodicChange.frequency?.id || 3; // Default to Monthly (ID 3)
         
-        if (frequency === 'Daily') periodsPerYear = 365;
-        else if (frequency === 'Weekly') periodsPerYear = 52;
-        else if (frequency === 'Monthly') periodsPerYear = 12;
-        else if (frequency === 'Quarterly') periodsPerYear = 4;
-        else if (frequency === 'Yearly') periodsPerYear = 1;
+        let periodsPerYear = 12; // Default
+        switch (frequencyId) {
+            case 1: // Daily
+                periodsPerYear = 365;
+                break;
+            case 2: // Weekly
+                periodsPerYear = 52;
+                break;
+            case 3: // Monthly
+                periodsPerYear = 12;
+                break;
+            case 4: // Quarterly
+                periodsPerYear = 4;
+                break;
+            case 5: // Yearly
+                periodsPerYear = 1;
+                break;
+        }
         
         const totalApplications = periods * periodsPerYear;
         return value + (changeValue * totalApplications);
-    } else {
-        // Percentage rate change
-        const changeType = periodicChange.changeType?.name || 'Nominal Annual (No Compounding)';
-        
-        // Handle custom compounding
-        if (changeType.includes('Custom') && periodicChange.customCompounding?.frequency) {
-            const frequency = periodicChange.customCompounding.frequency;
-            const periodId = periodicChange.customCompounding.period || 1; // Default to Annual
+    } 
+    
+    // Default to change mode ID 1 = Percentage Rate
+    const changeTypeId = typeof periodicChange.changeType === 'number'
+        ? periodicChange.changeType
+        : periodicChange.changeType?.id || 1; // Default to Nominal (ID 1)
+    
+    switch (changeTypeId) {
+        case 1: // Nominal Annual (No Compounding)
+            // Simple interest: FV = PV * (1 + r)^t
+            if (isElectron && finance) {
+                return finance.FV(changeValue, periods, 0, -value, 0);
+            }
+            // Fallback: V_final = V_initial * (1 + r)^n (in years, r is percent)
+            return value * Math.pow(1 + changeValue / 100, periods);
+            
+        case 2: // Nominal Annual, Compounded Monthly
+            // Frequency 12 per year: periods/12 with frequency 12 compounds annually for 12 months
+            return calculateCompoundInterest(value, changeValue, periods / 12, 12);
+            
+        case 3: // Nominal Annual, Compounded Daily
+            // Frequency 365 per year
+            return calculateCompoundInterest(value, changeValue, periods / 365, 365);
+            
+        case 4: // Nominal Annual, Compounded Quarterly
+            // Frequency 4 per year
+            return calculateCompoundInterest(value, changeValue, periods / 4, 4);
+            
+        case 5: // Nominal Annual, Compounded Annually
+            // Frequency 1 per year
+            return calculateCompoundInterest(value, changeValue, periods, 1);
+            
+        case 6: // Nominal Annual, Continuous Compounding
+            // e^(r*t)
+            const rate = changeValue / 100;
+            return value * Math.exp(rate * periods);
+            
+        case 7: // Custom
+            // Extract custom compounding configuration - originallogic uses customCompounding.frequency directly
+            const customFrequency = periodicChange.customCompounding?.frequency || 1;
+            const customPeriodId = periodicChange.customCompounding?.period || 1; // Default to Annual
             
             // Convert periods (in years) to the specified period type
             let adjustedPeriods = periods;
-            if (periodId === 2) { // Monthly
+            if (customPeriodId === 2) { // Monthly
                 adjustedPeriods = periods * 12;
-            } else if (periodId === 3) { // Quarterly
+            } else if (customPeriodId === 3) { // Quarterly
                 adjustedPeriods = periods * 4;
-            } else if (periodId === 4) { // Daily
+            } else if (customPeriodId === 4) { // Daily
                 adjustedPeriods = periods * 365;
             }
-            // periodId === 1 (Annual) uses periods as-is
+            // customPeriodId === 1 (Annual) uses periods as-is
             
-            return calculateCompoundInterest(value, changeValue, adjustedPeriods / frequency, frequency);
-        }
-        
-        if (changeType.includes('Compounded')) {
-            // Compound interest
-            let frequency = 1; // Annual by default
+            return calculateCompoundInterest(value, changeValue, adjustedPeriods / customFrequency, customFrequency);
             
-            if (changeType.includes('Monthly')) frequency = 12;
-            else if (changeType.includes('Quarterly')) frequency = 4;
-            else if (changeType.includes('Daily')) frequency = 365;
-            
-            return calculateCompoundInterest(value, changeValue, periods / frequency, frequency);
-        } else {
-            // Simple interest / nominal rate (Exponential growth without intra-year compounding steps)
-            // Equivalent to FV with periods, rate, 0 pmt
-            if (isElectron && finance) {
-                // finance.FV(rate, nper, pmt, pv)
-                return finance.FV(changeValue, periods, 0, -value, 0);
-            }
-            // Fallback: V_final = V_initial * (1 + r)^n
-            return value * Math.pow(1 + changeValue / 100, periods);
-        }
+        default:
+            return value;
     }
 }
 

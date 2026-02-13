@@ -1462,9 +1462,10 @@
       {
         "description": "Monthly recurrence",
         "recurrence": {
-          "recurrenceType": 8,
+          "recurrenceType": 4,
           "startDate": "2026-02-01",
-          "interval": 1
+          "interval": 1,
+          "dayOfMonth": 1
         },
         "projectionStart": "2026-02-01",
         "projectionEnd": "2026-05-15",
@@ -1551,7 +1552,7 @@
       {
         "description": "Custom date recurrence",
         "recurrence": {
-          "recurrenceType": 11,
+          "recurrenceType": 8,
           "customDates": "2026-02-10, 2026-04-15, 2026-06-01"
         },
         "projectionStart": "2026-03-01",

@@ -39,15 +39,36 @@ export function expandPeriodicChangeForCalculation(pc, lookupData) {
     changeType: type
   };
   
-  // Preserve frequency for Fixed Amount mode
-  if (pc.frequency) {
-    const freq = lookupData.frequencies.find(f => f.id === pc.frequency);
-    expanded.frequency = freq;
+  // For Fixed Amount mode: period defines the application frequency
+  if (pc.period) {
+    const period = lookupData.frequencies.find(f => f.id === pc.period);
+    expanded.period = period;
   }
   
-  // Preserve custom compounding settings
-  if (pc.customCompounding) {
-    expanded.customCompounding = pc.customCompounding;
+  // For custom compounding (changeType ID 7): frequency and ratePeriod define compounding
+  if (pc.changeType === 7) {
+    // Extract rate period if provided
+    if (pc.ratePeriod) {
+      const ratePeriod = lookupData.ratePeriods.find(rp => rp.id === pc.ratePeriod);
+      expanded.ratePeriod = ratePeriod;
+    }
+    
+    // For custom compounding, 'frequency' at top level becomes customCompounding.frequency
+    if (pc.frequency !== undefined) {
+      expanded.customCompounding = {
+        period: pc.ratePeriod || 1, // Rate period becomes compounding period (usually Annual)
+        frequency: pc.frequency // Compounding frequency per period
+      };
+    } else if (pc.customCompounding) {
+      // Or use explicitly provided customCompounding structure
+      expanded.customCompounding = pc.customCompounding;
+    }
+  }
+  
+  // For legacy/compatibility: preserve frequency if provided (but not for custom type)
+  if (pc.frequency && pc.changeType !== 7) {
+    const freq = lookupData.frequencies.find(f => f.id === pc.frequency);
+    expanded.frequency = freq;
   }
   
   return expanded;

@@ -92,15 +92,21 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
   transactionOccurrences.sort((a, b) => a.dateKey - b.dateKey);
 
   const projections = [];
-  const scenarioPeriodType = scenario.projectionPeriod?.name || 'Month';
-  const periodMap = {
-    Day: 'daily',
-    Week: 'weekly',
-    Month: 'monthly',
-    Quarter: 'quarterly',
-    Year: 'yearly'
+  
+  // Extract period type ID (1=Day, 2=Week, 3=Month, 4=Quarter, 5=Year)
+  const periodTypeId = typeof scenario.projectionPeriod === 'number'
+    ? scenario.projectionPeriod
+    : scenario.projectionPeriod?.id || 3; // Default to Month (ID 3)
+  
+  const periodIdToString = {
+    1: 'daily',
+    2: 'weekly',
+    3: 'monthly',
+    4: 'quarterly',
+    5: 'yearly'
   };
-  const periodicity = options.periodicity || periodMap[scenarioPeriodType] || 'monthly';
+  
+  const periodicity = options.periodicity || periodIdToString[periodTypeId] || 'monthly';
   const periods = generatePeriods(startDate, endDate, periodicity);
 
   accounts.forEach((account) => {
