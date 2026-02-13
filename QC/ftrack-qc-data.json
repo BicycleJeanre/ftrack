@@ -2488,7 +2488,7 @@
           "amount": 5000,
           "description": "Monthly income transfer",
           "recurrence": {
-            "recurrenceType": null,
+            "recurrenceType": 4,
             "startDate": "2026-02-01",
             "endDate": null,
             "interval": null,
@@ -2977,7 +2977,7 @@
           "amount": 5000,
           "description": "Quarterly fund withdrawal",
           "recurrence": {
-            "recurrenceType": null,
+            "recurrenceType": 6,
             "startDate": "2026-02-01",
             "endDate": null,
             "interval": null,
@@ -3315,7 +3315,7 @@
           "amount": 1000,
           "description": "Monthly debt repayment",
           "recurrence": {
-            "recurrenceType": null,
+            "recurrenceType": 4,
             "startDate": "2026-02-01",
             "endDate": null,
             "interval": null,
@@ -4007,7 +4007,7 @@
           "amount": 1000,
           "description": "Goal 1 funding",
           "recurrence": {
-            "recurrenceType": null,
+            "recurrenceType": 4,
             "startDate": "2026-02-01",
             "endDate": null,
             "interval": null,
