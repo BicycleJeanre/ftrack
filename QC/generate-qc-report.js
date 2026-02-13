@@ -36,41 +36,43 @@ function runVerification() {
   try {
     const output = execSync('node QC/verify.js --all --no-report', {
       encoding: 'utf8',
-      cwd: path.join(__dirname, '..')
+      cwd: path.join(__dirname, '..'),
+      stdio: ['pipe', 'pipe', 'pipe']
     });
     
-    // Parse verification output
-    const lines = output.split('\n');
-    const statusLine = lines.find(l => l.includes('Status:'));
-    const runLine = lines.find(l => l.includes('Run:'));
-    const reportLine = lines.find(l => l.includes('Report saved:'));
-    
-    const status = statusLine?.match(/Status: (\w+)/)?.[1] || 'UNKNOWN';
-    const passFailMatch = statusLine?.match(/\((\d+) failed, (\d+) passed\)/);
-    const failed = passFailMatch?.[1] || '0';
-    const passed = passFailMatch?.[2] || '0';
-    const timestamp = runLine?.match(/Run: (.+)/)?.[1] || new Date().toISOString();
-    const reportPath = reportLine?.match(/Report saved: (.+)/)?.[1]?.trim() || '';
-
-    return {
-      status,
-      failed: parseInt(failed),
-      passed: parseInt(passed),
-      timestamp,
-      reportPath,
-      output
-    };
+    return parseVerificationOutput(output);
   } catch (err) {
-    return {
-      status: 'ERROR',
-      failed: 0,
-      passed: 0,
-      timestamp: new Date().toISOString(),
-      reportPath: '',
-      output: err.message,
-      error: err.message
-    };
+    // execSync throws on non-zero exit code, but verification script still produces output
+    // stdout is available in err.stdout or err.message
+    const output = err.stdout?.toString() || err.message || '';
+    return parseVerificationOutput(output);
   }
+}
+
+/**
+ * Parse verification script output
+ */
+function parseVerificationOutput(output) {
+  const lines = output.split('\n');
+  const statusLine = lines.find(l => l.includes('Status:'));
+  const runLine = lines.find(l => l.includes('Run:'));
+  const reportLine = lines.find(l => l.includes('Report saved:'));
+  
+  const status = statusLine?.match(/Status: (\w+)/)?.[1] || 'UNKNOWN';
+  const passFailMatch = statusLine?.match(/\((\d+) failed, (\d+) passed\)/);
+  const failed = passFailMatch?.[1] || '0';
+  const passed = passFailMatch?.[2] || '0';
+  const timestamp = runLine?.match(/Run: (.+)/)?.[1] || new Date().toISOString();
+  const reportPath = reportLine?.match(/Report saved: (.+)/)?.[1]?.trim() || '';
+
+  return {
+    status,
+    failed: parseInt(failed),
+    passed: parseInt(passed),
+    timestamp,
+    reportPath,
+    output
+  };
 }
 
 /**

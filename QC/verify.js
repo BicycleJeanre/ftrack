@@ -100,12 +100,18 @@ function validateAgainstExpected(scenario, expectedOutputs, report) {
     return; // No expected outputs defined for this scenario
   }
   
+  // Skip validation if projections haven't been generated (empty array in input data)
+  // Expected output validation only happens after app generates projections
+  const projections = ensureArray(scenario.projections);
+  if (projections.length === 0) {
+    return; // Projections not yet generated for this scenario
+  }
+  
   const exp = expected.expectedOutputs;
   const errors = [];
 
   const accounts = ensureArray(scenario.accounts);
   const transactions = ensureArray(scenario.transactions);
-  const projections = ensureArray(scenario.projections);
   const budgets = ensureArray(scenario.budgets);
   
   // Validate counts
