@@ -266,11 +266,6 @@ function generateReport(verificationResult, testResult) {
         report += `\n`;
       });
     }
-    
-    report += `4.3 **Known Issues**\n`;
-    report += `- Projection engine integration tests: Expected values need alignment with per-period rounding\n`;
-    report += `- Weekly period boundaries: Alignment logic produces extra Monday boundary\n`;
-    report += `- Lookup mapping validation: Some test cases have undefined changeType\n\n`;
   }
   
   // Scenario Coverage
@@ -295,9 +290,6 @@ function generateReport(verificationResult, testResult) {
     report += `6.1 **Fix Failing Tests**\n`;
     if (testResult.failures.length > 0) {
       report += `- Address ${testResult.failed} function test failures\n`;
-      report += `- Update projection engine integration expected values\n`;
-      report += `- Fix weekly boundary alignment expectations\n`;
-      report += `- Harden lookup mapping validation for edge cases\n`;
     }
     if (verificationResult.failed > 0) {
       report += `- Review verification failures in detail\n`;
@@ -308,11 +300,6 @@ function generateReport(verificationResult, testResult) {
     report += `- QC suite is healthy\n`;
     report += `- Continue monitoring for regressions\n\n`;
   }
-  
-  report += `6.2 **Expand Coverage**\n`;
-  report += `- Add integration tests using test-data/goal-scenarios.json\n`;
-  report += `- Test solver with realistic multi-goal scenarios\n`;
-  report += `- Add performance benchmarks for goal solving\n\n`;
   
   // References
   report += `---\n\n`;
