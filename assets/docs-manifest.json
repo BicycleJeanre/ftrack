@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-08T14:35:27.355Z",
+  "generatedAt": "2026-02-13T14:59:08.414Z",
   "items": [
     {
       "id": "concepts_accounts",
@@ -52,6 +52,13 @@
       "kind": "md"
     },
     {
+      "id": "ARCHITECTURE_PROPOSAL_WEB",
+      "title": "FTrack Web-Only Architecture Proposal",
+      "category": "Other",
+      "file": "Documentation/ARCHITECTURE_PROPOSAL_WEB.md",
+      "kind": "md"
+    },
+    {
       "id": "other_glossary",
       "title": "Glossary",
       "category": "Other",
@@ -77,6 +84,20 @@
       "title": "Advanced Goal Solver Scenario Concept Design",
       "category": "Plan",
       "file": "Documentation/Plans/plan_advanced_goal_solver_concept.md",
+      "kind": "md"
+    },
+    {
+      "id": "plan_refactor_web_only",
+      "title": "Refactor Plan: Web-Only Architecture",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_refactor_web_only.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_DATA_SCHEMA",
+      "title": "Data Schema",
+      "category": "Technical",
+      "file": "Documentation/TECH_DATA_SCHEMA.md",
       "kind": "md"
     },
     {
