@@ -17,16 +17,16 @@
 
 ## 2.0 Component Architecture
 
-### 2.1 The Grid Factory (`js/grid-factory.js`)
+### 2.1 The Grid Factory (`js/ui/components/grids/grid-factory.js`)
 To maintain consistency, all Tabulator instances are created via `GridFactory`.
 - **Purpose**: Centralizes theme, default options, and instantiation.
 - **Usage**:
 ```javascript
-import { GridFactory } from './grid-factory.js';
+import { GridFactory } from './ui/components/grids/grid-factory.js';
 const grid = GridFactory.createGrid('#elementId', options);
 ```
 
-### 2.2 Main View Controller (`js/forecast.js`)
+### 2.2 Main View Controller (`js/ui/controllers/forecast-controller.js`)
 This is the heart of the "Forecast" page. It orchestrates the interaction between five main sections.
 
 #### A. Scenario Grid
@@ -43,7 +43,7 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
 - **Type**: Multi-row, Editable.
 - **Behavior**: Displays transactions matching the Active Scenario AND Active Account.
 - **Features**:
-  - Cell Editing: Calls `TransactionManager.saveAll`.
+  - Cell Editing: Calls `TransactionManager.saveAll()` via application layer.
   - Status tracking: Planned vs Actual transactions.
   - Recurrence configuration via modal.
   - New Transaction Defaults: Uses the active account filter as the primary account (fallback: first account) and sets `effectiveDate` to the selected period start or scenario start date.
@@ -56,7 +56,7 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
   - **Editing**: Budget occurrences can be edited (amount, date, description, accounts).
   - **Actuals Tracking**: Each occurrence can have plannedAmount and actualAmount.
   - **Projection Source**: "Project from Budget" button generates new projections using budget.
-  - Cell Editing: Calls `BudgetManager.saveAll`.
+  - Cell Editing: Calls `BudgetManager.saveAll()` via application layer.
 
 #### E. Projection Grid
 - **Type**: Read-only display.
@@ -107,7 +107,7 @@ Scenarios and Accounts enforce single selection behavior.
 
 ### 3.2 Dynamic Re-rendering
 1. User selects a Scenario.
-2. `forecast.js` captures `rowSelectionChanged`.
+2. `forecast-controller.js` captures `rowSelectionChanged`.
 3. All grids (Accounts, Transactions, Budget, Projections) reload with scenario data.
 4. User selects an Account.
 5. Transaction, Budget, and Projection grids filter to show only that account's data.
