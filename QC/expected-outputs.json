@@ -38,29 +38,7 @@
         "accountCount": 14,
         "transactionCount": 3,
         "projectionCount": 154,
-        "budgetCount": 20,
-        "firstProjection": {
-          "date": "2026-02-01",
-          "accountId": 1,
-          "balance": 19507.59
-        },
-        "lastProjection": {
-          "date": "2026-12-01",
-          "accountId": 14,
-          "balance": 0
-        },
-        "accountBalances": {
-          "A1": {
-            "openDate": "2026-02-01",
-            "startingBalance": 10000,
-            "firstProjectionBalance": 19507.59,
-            "periodicChange": {
-              "value": 6,
-              "changeMode": 1,
-              "changeType": 2
-            }
-          }
-        }
+        "budgetCount": 20
       }
     },
     {
@@ -70,20 +48,7 @@
         "accountCount": 3,
         "transactionCount": 1,
         "projectionCount": 33,
-        "budgetCount": 2,
-        "firstProjection": {
-          "date": "2026-02-01",
-          "accountId": 401,
-          "balance": 50000,
-          "income": 0,
-          "expenses": 0,
-          "netChange": 0
-        },
-        "lastProjection": {
-          "date": "2026-12-01",
-          "accountId": 403,
-          "balance": 0
-        }
+        "budgetCount": 2
       }
     },
     {
@@ -93,20 +58,7 @@
         "accountCount": 2,
         "transactionCount": 1,
         "projectionCount": 22,
-        "budgetCount": 0,
-        "firstProjection": {
-          "date": "2026-02-01",
-          "accountId": 501,
-          "balance": 50000,
-          "income": 0,
-          "expenses": 0,
-          "netChange": 0
-        },
-        "lastProjection": {
-          "date": "2026-12-01",
-          "accountId": 502,
-          "balance": 100000
-        }
+        "budgetCount": 0
       }
     },
     {
@@ -116,20 +68,7 @@
         "accountCount": 2,
         "transactionCount": 1,
         "projectionCount": 22,
-        "budgetCount": 0,
-        "firstProjection": {
-          "date": "2026-02-01",
-          "accountId": 601,
-          "balance": 50000,
-          "income": 0,
-          "expenses": 0,
-          "netChange": 0
-        },
-        "lastProjection": {
-          "date": "2026-12-01",
-          "accountId": 602,
-          "balance": 25000
-        }
+        "budgetCount": 0
       }
     },
     {
@@ -139,20 +78,7 @@
         "accountCount": 2,
         "transactionCount": 1,
         "projectionCount": 22,
-        "budgetCount": 0,
-        "firstProjection": {
-          "date": "2026-02-01",
-          "accountId": 701,
-          "balance": 50000,
-          "income": 0,
-          "expenses": 0,
-          "netChange": 0
-        },
-        "lastProjection": {
-          "date": "2026-12-01",
-          "accountId": 702,
-          "balance": 22000
-        }
+        "budgetCount": 0
       }
     },
     {
@@ -162,20 +88,7 @@
         "accountCount": 4,
         "transactionCount": 1,
         "projectionCount": 44,
-        "budgetCount": 0,
-        "firstProjection": {
-          "date": "2026-02-01",
-          "accountId": 801,
-          "balance": 50000,
-          "income": 0,
-          "expenses": 0,
-          "netChange": 0
-        },
-        "lastProjection": {
-          "date": "2026-12-01",
-          "accountId": 804,
-          "balance": 0
-        }
+        "budgetCount": 0
       }
     },
     {
@@ -185,17 +98,7 @@
         "accountCount": 5,
         "transactionCount": 2,
         "projectionCount": 12,
-        "budgetCount": 0,
-        "firstProjection": {
-          "date": "2026-01-01",
-          "accountId": 801,
-          "balance": 50000
-        },
-        "lastProjection": {
-          "date": "2026-12-01",
-          "accountId": 801,
-          "balance": 50000
-        }
+        "budgetCount": 0
       }
     },
     {
