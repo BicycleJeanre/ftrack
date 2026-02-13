@@ -2,13 +2,12 @@
 // Generates financial projections for a scenario based on accounts and planned transactions
 // Uses scenario-scoped data and calculation utilities
 
-import { generateRecurrenceDates } from './calculation-utils.js';
-import { applyPeriodicChange } from './financial-utils.js';
+import { generateRecurrenceDates, calculatePeriodicChange } from './calculation-engine.js';
 import { expandPeriodicChangeForCalculation } from './periodic-change-utils.js';
-import { getScenario, saveProjections } from './data-manager.js';
-import { parseDateOnly, formatDateOnly } from './date-utils.js';
+import { getScenario, saveProjections } from '../../app/services/data-service.js';
+import { parseDateOnly, formatDateOnly } from '../../shared/date-utils.js';
 import { expandTransactions } from './transaction-expander.js';
-import { loadLookup } from './lookup-loader.js';
+import { loadLookup } from '../../app/services/lookup-service.js';
 
 /**
  * Generate projections for a scenario
@@ -73,7 +72,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
       if (expandedPC) {
         const txnStartDate = txn.recurrence?.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
         const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
-        amount = applyPeriodicChange(txn.amount, expandedPC, yearsDiff);
+        amount = calculatePeriodicChange(txn.amount, expandedPC, yearsDiff);
       }
     }
 
@@ -131,7 +130,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
           const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
           if (yearsDiffToStart !== 0) {
             const beforeBalance = currentBalance;
-            currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffToStart);
+            currentBalance = calculatePeriodicChange(currentBalance, expandedPC, yearsDiffToStart);
             const interestDelta = currentBalance - beforeBalance;
             periodInterest += interestDelta;
             if (interestDelta >= 0) periodIncome += interestDelta;
@@ -172,7 +171,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
           const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
           if (yearsDiffPeriod !== 0) {
             const beforeBalance = currentBalance;
-            currentBalance = applyPeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
+            currentBalance = calculatePeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
             const interestDelta = currentBalance - beforeBalance;
             periodInterest += interestDelta;
             if (interestDelta >= 0) periodIncome += interestDelta;

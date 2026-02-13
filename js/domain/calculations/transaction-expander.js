@@ -1,8 +1,8 @@
 // transaction-expander.js
 // Shared utility for expanding transactions based on recurrence patterns
 
-import { generateRecurrenceDates } from './calculation-utils.js';
-import { parseDateOnly, formatDateOnly } from './date-utils.js';
+import { generateRecurrenceDates } from './calculation-engine.js';
+import { parseDateOnly, formatDateOnly } from '../../shared/date-utils.js';
 
 /**
  * Expand transactions by their recurrence patterns within a date range

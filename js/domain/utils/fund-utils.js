@@ -1,9 +1,9 @@
 // fund-utils.js
 // Minimal Funds scenario summary helpers
 
-import { parseDateOnly } from './date-utils.js';
-import { expandTransactions } from './transaction-expander.js';
-import { normalizeCanonicalTransaction, transformTransactionToRows } from './transaction-row-transformer.js';
+import { parseDateOnly } from '../../shared/date-utils.js';
+import { expandTransactions } from '../calculations/transaction-expander.js';
+import { normalizeCanonicalTransaction, transformTransactionToRows } from '../../ui/transforms/transaction-row-transformer.js';
 
 function safeNumber(value) {
   const n = Number(value);

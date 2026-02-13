@@ -116,7 +116,7 @@ describe('Projection Engine - Recurrence Integration', () => {
           {
             id: 1,
             primaryAccountId: 1,
-            secondaryAccountId: 1,
+            secondaryAccountId: null,
             transactionTypeId: 1,
             amount: 100,
             effectiveDate: startDate,

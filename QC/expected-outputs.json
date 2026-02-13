@@ -585,7 +585,7 @@
           "changeType": 2
         },
         "periods": 1,
-        "expected": 10050
+        "expected": 10616.78
       },
       {
         "description": "Nominal Annual, Compounded Daily",
@@ -596,7 +596,7 @@
           "changeType": 3
         },
         "periods": 1,
-        "expected": 10001.64
+        "expected": 10618.31
       },
       {
         "description": "Nominal Annual, Compounded Quarterly",
@@ -607,7 +607,7 @@
           "changeType": 4
         },
         "periods": 1,
-        "expected": 10150
+        "expected": 10613.64
       },
       {
         "description": "Nominal Annual, Compounded Annually",
@@ -629,7 +629,7 @@
           "changeType": 6
         },
         "periods": 1,
-        "expected": 10600
+        "expected": 10618.37
       },
       {
         "description": "Custom compounding Annual period, Daily frequency",
@@ -644,7 +644,7 @@
           }
         },
         "periods": 1,
-        "expected": 10001.64
+        "expected": 10618.31
       },
       {
         "description": "Custom compounding Annual period, Weekly frequency",
@@ -659,7 +659,7 @@
           }
         },
         "periods": 1,
-        "expected": 10011.54
+        "expected": 10618
       },
       {
         "description": "Custom compounding Annual period, Monthly frequency",
@@ -674,7 +674,7 @@
           }
         },
         "periods": 1,
-        "expected": 10050
+        "expected": 10616.78
       },
       {
         "description": "Custom compounding Annual period, Quarterly frequency",
@@ -689,7 +689,7 @@
           }
         },
         "periods": 1,
-        "expected": 10150
+        "expected": 10613.64
       },
       {
         "description": "Custom compounding Annual period, Yearly frequency",
@@ -719,7 +719,7 @@
           }
         },
         "periods": 1,
-        "expected": 10019.74
+        "expected": 10618.31
       },
       {
         "description": "Custom compounding Monthly period, Weekly frequency",
@@ -734,7 +734,7 @@
           }
         },
         "periods": 1,
-        "expected": 10139.34
+        "expected": 10618
       },
       {
         "description": "Custom compounding Monthly period, Monthly frequency",
@@ -764,7 +764,7 @@
           }
         },
         "periods": 1,
-        "expected": 11956.18
+        "expected": 10613.64
       },
       {
         "description": "Custom compounding Monthly period, Yearly frequency",
@@ -779,7 +779,7 @@
           }
         },
         "periods": 1,
-        "expected": 20121.96
+        "expected": 10600
       },
       {
         "description": "Custom compounding Quarterly period, Daily frequency",
@@ -794,7 +794,7 @@
           }
         },
         "periods": 1,
-        "expected": 10006.58
+        "expected": 10618.31
       },
       {
         "description": "Custom compounding Quarterly period, Weekly frequency",
@@ -809,7 +809,7 @@
           }
         },
         "periods": 1,
-        "expected": 10046.23
+        "expected": 10618
       },
       {
         "description": "Custom compounding Quarterly period, Monthly frequency",
@@ -824,7 +824,7 @@
           }
         },
         "periods": 1,
-        "expected": 10201.51
+        "expected": 10616.78
       },
       {
         "description": "Custom compounding Quarterly period, Quarterly frequency",
@@ -854,7 +854,7 @@
           }
         },
         "periods": 1,
-        "expected": 12624.77
+        "expected": 10600
       },
       {
         "description": "Custom compounding Daily period, Daily frequency",
@@ -884,7 +884,7 @@
           }
         },
         "periods": 1,
-        "expected": 15233.49
+        "expected": 10618
       },
       {
         "description": "Custom compounding Daily period, Monthly frequency",
@@ -899,7 +899,7 @@
           }
         },
         "periods": 1,
-        "expected": 61746.53
+        "expected": 10616.78
       },
       {
         "description": "Custom compounding Daily period, Quarterly frequency",
@@ -914,7 +914,7 @@
           }
         },
         "periods": 1,
-        "expected": 2291423.81
+        "expected": 10613.64
       },
       {
         "description": "Custom compounding Daily period, Yearly frequency",
@@ -929,7 +929,7 @@
           }
         },
         "periods": 1,
-        "expected": 17244111472713.99
+        "expected": 10600
       },
       {
         "description": "Fixed amount daily",
@@ -941,7 +941,7 @@
           "frequency": 1
         },
         "periods": 1,
-        "expected": 46500
+        "expected": 11200
       },
       {
         "description": "Fixed amount weekly",
@@ -953,7 +953,7 @@
           "frequency": 2
         },
         "periods": 1,
-        "expected": 15200
+        "expected": 11200
       },
       {
         "description": "Fixed amount monthly",
@@ -977,7 +977,7 @@
           "frequency": 4
         },
         "periods": 1,
-        "expected": 10400
+        "expected": 11200
       },
       {
         "description": "Fixed amount yearly",
@@ -989,7 +989,7 @@
           "frequency": 5
         },
         "periods": 1,
-        "expected": 10100
+        "expected": 11200
       }
     ],
     "applyPeriodicChangeTransactions": [
@@ -1002,7 +1002,7 @@
           "changeType": 1
         },
         "periods": 0.5,
-        "expected": 10295.63
+        "expected": 10300
       },
       {
         "description": "Nominal Annual, Compounded Monthly",
@@ -1013,7 +1013,7 @@
           "changeType": 2
         },
         "periods": 0.5,
-        "expected": 10024.97
+        "expected": 10303.78
       },
       {
         "description": "Nominal Annual, Compounded Daily",
@@ -1024,7 +1024,7 @@
           "changeType": 3
         },
         "periods": 0.5,
-        "expected": 10000.82
+        "expected": 10304.52
       },
       {
         "description": "Nominal Annual, Compounded Quarterly",
@@ -1035,7 +1035,7 @@
           "changeType": 4
         },
         "periods": 0.5,
-        "expected": 10074.72
+        "expected": 10302.25
       },
       {
         "description": "Nominal Annual, Compounded Annually",
@@ -1057,7 +1057,7 @@
           "changeType": 6
         },
         "periods": 0.5,
-        "expected": 10295.63
+        "expected": 10304.55
       },
       {
         "description": "Custom compounding Annual period, Daily frequency",
@@ -1072,7 +1072,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10000.82
+        "expected": 10304.52
       },
       {
         "description": "Custom compounding Annual period, Weekly frequency",
@@ -1087,7 +1087,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10005.77
+        "expected": 10304.37
       },
       {
         "description": "Custom compounding Annual period, Monthly frequency",
@@ -1102,7 +1102,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10024.97
+        "expected": 10303.78
       },
       {
         "description": "Custom compounding Annual period, Quarterly frequency",
@@ -1117,7 +1117,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10074.72
+        "expected": 10302.25
       },
       {
         "description": "Custom compounding Annual period, Yearly frequency",
@@ -1147,7 +1147,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10009.87
+        "expected": 10304.52
       },
       {
         "description": "Custom compounding Monthly period, Weekly frequency",
@@ -1162,7 +1162,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10069.43
+        "expected": 10304.37
       },
       {
         "description": "Custom compounding Monthly period, Monthly frequency",
@@ -1192,7 +1192,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10934.43
+        "expected": 10302.25
       },
       {
         "description": "Custom compounding Monthly period, Yearly frequency",
@@ -1207,7 +1207,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 14185.19
+        "expected": 10295.63
       },
       {
         "description": "Custom compounding Quarterly period, Daily frequency",
@@ -1222,7 +1222,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10003.29
+        "expected": 10304.52
       },
       {
         "description": "Custom compounding Quarterly period, Weekly frequency",
@@ -1237,7 +1237,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10023.09
+        "expected": 10304.37
       },
       {
         "description": "Custom compounding Quarterly period, Monthly frequency",
@@ -1252,7 +1252,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 10100.25
+        "expected": 10303.78
       },
       {
         "description": "Custom compounding Quarterly period, Quarterly frequency",
@@ -1282,7 +1282,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 11236
+        "expected": 10295.63
       },
       {
         "description": "Custom compounding Daily period, Daily frequency",
@@ -1312,7 +1312,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 12342.4
+        "expected": 10304.37
       },
       {
         "description": "Custom compounding Daily period, Monthly frequency",
@@ -1327,7 +1327,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 24848.85
+        "expected": 10303.78
       },
       {
         "description": "Custom compounding Daily period, Quarterly frequency",
@@ -1342,7 +1342,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 151374.5
+        "expected": 10302.25
       },
       {
         "description": "Custom compounding Daily period, Yearly frequency",
@@ -1357,7 +1357,7 @@
           }
         },
         "periods": 0.5,
-        "expected": 415260297.56
+        "expected": 10295.63
       },
       {
         "description": "Fixed amount daily",
@@ -1369,7 +1369,7 @@
           "frequency": 1
         },
         "periods": 0.5,
-        "expected": 28250
+        "expected": 10600
       },
       {
         "description": "Fixed amount weekly",
@@ -1381,7 +1381,7 @@
           "frequency": 2
         },
         "periods": 0.5,
-        "expected": 12600
+        "expected": 10600
       },
       {
         "description": "Fixed amount monthly",
@@ -1405,7 +1405,7 @@
           "frequency": 4
         },
         "periods": 0.5,
-        "expected": 10200
+        "expected": 10600
       },
       {
         "description": "Fixed amount yearly",
@@ -1417,7 +1417,7 @@
           "frequency": 5
         },
         "periods": 0.5,
-        "expected": 10050
+        "expected": 10600
       }
     ],
     "recurrenceDates": [

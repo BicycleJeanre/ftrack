@@ -1,7 +1,7 @@
 // recurrence-utils.js
 // Utilities for rendering recurrence descriptions
 
-import { parseDateOnly } from './date-utils.js';
+import { parseDateOnly } from '../../shared/date-utils.js';
 
 // Generate human-readable recurrence description from recurrence object
 export function getRecurrenceDescription(recurrence) {

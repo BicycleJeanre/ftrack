@@ -1,7 +1,7 @@
 // advanced-goal-solver.js
 
-import { calculateContributionAmount, calculateMonthsBetweenDates } from './goal-calculation-utils.js';
-import { formatDateOnly, parseDateOnly } from './date-utils.js';
+import { calculateContributionAmount, calculateMonthsBetweenDates } from '../calculations/goal-calculations.js';
+import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
 
 let projectionEngineModulePromise = null;
 

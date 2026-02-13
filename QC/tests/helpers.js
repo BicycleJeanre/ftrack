@@ -41,15 +41,21 @@ function moduleUrl(modulePath) {
 async function loadCoreModules() {
   if (!moduleCache) {
     moduleCache = {
-      calculationUtils: await import(moduleUrl('js/calculation-utils.js').href),
-      dateUtils: await import(moduleUrl('js/date-utils.js').href),
-      periodicChangeUtils: await import(moduleUrl('js/periodic-change-utils.js').href),
-      recurrenceUtils: await import(moduleUrl('js/recurrence-utils.js').href),
-      financialUtils: await import(moduleUrl('js/financial-utils.js').href),
-      projectionEngine: await import(moduleUrl('js/projection-engine.js').href),
-      transactionExpander: await import(moduleUrl('js/transaction-expander.js').href),
-      goalCalculationUtils: await import(moduleUrl('js/goal-calculation-utils.js').href),
-      advancedGoalSolver: await import(moduleUrl('js/advanced-goal-solver.js').href)
+      calculationEngine: await import(moduleUrl('js/domain/calculations/calculation-engine.js').href),
+      dateUtils: await import(moduleUrl('js/shared/date-utils.js').href),
+      periodicChangeUtils: await import(moduleUrl('js/domain/calculations/periodic-change-utils.js').href),
+      recurrenceUtils: await import(moduleUrl('js/domain/calculations/recurrence-utils.js').href),
+      financialCalculations: await import(moduleUrl('js/domain/calculations/financial-calculations.js').href),
+      projectionEngine: await import(moduleUrl('js/domain/calculations/projection-engine.js').href),
+      transactionExpander: await import(moduleUrl('js/domain/calculations/transaction-expander.js').href),
+      goalCalculations: await import(moduleUrl('js/domain/calculations/goal-calculations.js').href),
+      advancedGoalSolver: await import(moduleUrl('js/domain/utils/advanced-goal-solver.js').href),
+      formatUtils: await import(moduleUrl('js/shared/format-utils.js').href),
+      
+      // Legacy aliases for backward compatibility with existing tests
+      calculationUtils: await import(moduleUrl('js/domain/calculations/calculation-engine.js').href),
+      financialUtils: await import(moduleUrl('js/domain/calculations/financial-calculations.js').href),
+      goalCalculationUtils: await import(moduleUrl('js/domain/calculations/goal-calculations.js').href)
     };
   }
 

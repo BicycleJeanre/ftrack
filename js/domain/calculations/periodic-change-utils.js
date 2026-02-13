@@ -1,7 +1,7 @@
 // periodic-change-utils.js
 // Utilities for periodic change display and ID expansion
 
-import { loadLookup } from './lookup-loader.js';
+import { loadLookup } from '../../app/services/lookup-service.js';
 
 // Cache for lookup data
 let lookupDataCache = null;
