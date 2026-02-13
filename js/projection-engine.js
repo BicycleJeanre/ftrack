@@ -302,8 +302,8 @@ function generatePeriods(start, end, periodicity) {
           currentStart.setDate(currentStart.getDate() + 1);
           // Align to Monday (start of week)
           const day = currentStart.getDay();
-          const diff = (day + 6) % 7; // days since Monday
-          currentStart.setDate(currentStart.getDate() - diff);
+          const daysToMonday = (1 - day + 7) % 7; // days forward to reach Monday
+          currentStart.setDate(currentStart.getDate() + daysToMonday);
           break;
         case 'monthly':
           currentStart = new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 1);
