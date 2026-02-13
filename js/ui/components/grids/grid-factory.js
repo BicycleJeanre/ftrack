@@ -2,27 +2,16 @@
 // Utility wrapper for creating Tabulator grids with consistent configuration
 
 import { createLogger } from '../../../shared/logger.js';
-import { isElectronEnv } from '../../../core/platform.js';
 import { notifyError } from '../../../shared/notifications.js';
 
 const logger = createLogger('GridFactory');
 
-// Platform detection for Tabulator
-const isElectron = isElectronEnv();
-
-// Get Tabulator - from node_modules in Electron, from global CDN in web
+// Get Tabulator - from global CDN (loaded in forecast.html as UMD)
 async function getTabulatorLib() {
-  if (isElectron) {
-    // Electron: import from node_modules
-    const tabulatorModule = await import('../node_modules/tabulator-tables/dist/js/tabulator_esm.min.js');
-    return tabulatorModule.TabulatorFull;
-  } else {
-    // Web: use global Tabulator from CDN (loaded in forecast.html as UMD)
-    if (!window.Tabulator) {
-      throw new Error('Tabulator library not loaded. Check if CDN script is included.');
-    }
-    return window.Tabulator;
+  if (!window.Tabulator) {
+    throw new Error('Tabulator library not loaded. Check if CDN script is included.');
   }
+  return window.Tabulator;
 }
 
 /**

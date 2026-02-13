@@ -13,7 +13,7 @@ function safeNumber(value) {
 function getAccountTypeId(account) {
   return typeof account?.type === 'number' 
     ? account.type 
-    : account?.type?.id || 0;
+    : account?.type || 0;
 }
 
 // Map account type names to IDs for scope lookups

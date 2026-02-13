@@ -13,7 +13,7 @@ export function openRecurrenceModal(currentValue, onSave) {
     const { modal, close } = createModal({ contentClass: 'modal-recurrence' });
 
     // Extract current values or use defaults
-    const recurrenceTypeId = currentValue?.recurrenceType?.id || 1;
+    const recurrenceTypeId = currentValue?.recurrenceType || 1;
     const startDate = currentValue?.startDate || formatDateOnly(new Date());
     const endDate = currentValue?.endDate || '';
     const interval = currentValue?.interval || 1;

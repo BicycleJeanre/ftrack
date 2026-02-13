@@ -1,13 +1,9 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 import { downloadAppData, uploadAppData } from '../../app/services/export-service.js';
-import { isElectronEnv } from '../../core/platform.js';
 import { notifyError, notifySuccess } from '../../shared/notifications.js';
 
-// Platform detection
-const isElectron = isElectronEnv();
-
-// Add clear data button only for web
-const clearDataBtn = !isElectron ? '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>' : '';
+// Web-only: Show clear data button for browser storage management
+const clearDataBtn = '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>';
 
 // Determine the correct path to assets based on current location
 const logoPath = (function() {

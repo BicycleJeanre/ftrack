@@ -830,7 +830,7 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   if (!periodType) {
     const projectionPeriodId = typeof scenario.projectionPeriod === 'number'
       ? scenario.projectionPeriod
-      : scenario.projectionPeriod?.id || 3; // Default to 3 (Month)
+      : scenario.projectionPeriod || 3; // Default to 3 (Month)
     periodType = PERIOD_ID_TO_NAME[projectionPeriodId] || 'Month';
   }
   

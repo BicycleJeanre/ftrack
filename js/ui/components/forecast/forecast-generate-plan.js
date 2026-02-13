@@ -39,7 +39,7 @@ function escapeHtml(str) {
 
 function getDefaultAdvancedGoalSettings(scenario) {
   const accounts = scenario?.accounts || [];
-  const defaultFunding = accounts.find((a) => a.type?.name === 'Asset')?.id || null;
+  const defaultFunding = accounts.find((a) => a.type === 1)?.id || null;
   return {
     goals: [],
     constraints: {

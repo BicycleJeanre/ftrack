@@ -2,13 +2,10 @@
 // Centralized data management for scenario-centric architecture
 // All operations read/write from assets/app-data.json (Electron) or localStorage (Web)
 
-import { generateRecurrenceDates } from './calculation-utils.js';
-import { formatDateOnly } from './date-utils.js';
-import * as DataStore from './core/data-store.js';
-import { isElectronEnv, getPlatformInfo as getPlatformInfoCore } from './core/platform.js';
-import { notifyError } from './notifications.js';
-
-const isElectron = isElectronEnv();
+import { generateRecurrenceDates } from './domain/calculations/calculation-engine.js';
+import { formatDateOnly } from './shared/date-utils.js';
+import * as StorageService from './app/services/storage-service.js';
+import { notifyError } from './shared/notifications.js';
 
 // Web storage constants
 const WEB_MIGRATION_KEY = 'ftrack:migration-version';
@@ -18,30 +15,26 @@ const WEB_MIGRATION_KEY = 'ftrack:migration-version';
 // ============================================================================
 
 /**
- * Read the entire app-data.json file (Electron) or localStorage (Web)
+ * Read the entire app-data.json file (Web only)
  * @returns {Promise<Object>} - The app data object
  */
 async function readAppData() {
   try {
-    const data = await DataStore.read();
+    const data = await StorageService.read();
 
     if (!data || !data.scenarios) {
       return getSampleData();
     }
 
     // For web users with no stored data, provide sample content
-    if (!isElectron && (!data.scenarios.length || data.scenarios.length === 0)) {
+    if (!data.scenarios.length || data.scenarios.length === 0) {
       return getSampleData();
     }
 
     return data;
   } catch (err) {
-    if (isElectron) {
-      throw err;
-    } else {
-      // For web, return sample data on error
-      return getSampleData();
-    }
+    // For web, return sample data on error
+    return getSampleData();
   }
 }
 
@@ -147,11 +140,11 @@ async function writeAppData(data) {
   try {
     await DataStore.write(data);
 
-    if (!isElectron && data.migrationVersion !== undefined) {
+    if (data.migrationVersion !== undefined) {
       localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
     }
   } catch (err) {
-    if (!isElectron && err.name === 'QuotaExceededError') {
+    if (err.name === 'QuotaExceededError') {
       notifyError('Storage quota exceeded. Please export your data and clear some scenarios.');
     }
     throw err;
@@ -302,7 +295,7 @@ export async function getAccounts(scenarioId) {
  * @returns {Promise<Object>} - The created account
  */
 
-import * as AccountManager from './managers/account-manager.js';
+import * as AccountManager from './app/managers/account-manager.js';
 
 export async function createAccount(scenarioId, accountData) {
   // Delegate to the single canonical AccountManager implementation
@@ -807,7 +800,7 @@ export async function clearBudget(scenarioId) {
  * @param {string} customPeriodType - Optional period type override (Day, Week, Month, Quarter, Year)
  * @returns {Promise<Array>} - Array of period objects
  */
-import { parseDateOnly } from './date-utils.js';
+import { parseDateOnly } from './shared/date-utils.js';
 
 export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   const PERIOD_ID_TO_NAME = {
@@ -833,7 +826,7 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   if (!periodType) {
     const projectionPeriodId = typeof scenario.projectionPeriod === 'number'
       ? scenario.projectionPeriod
-      : scenario.projectionPeriod?.id || 3; // Default to 3 (Month)
+      : scenario.projectionPeriod || 3; // Default to 3 (Month)
     periodType = PERIOD_ID_TO_NAME[projectionPeriodId] || 'Month';
   }
   

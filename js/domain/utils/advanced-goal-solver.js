@@ -127,7 +127,6 @@ function getAccountById(accounts, id) {
 function getStartingBalance(account) {
   if (!account) return 0;
   if (account.startingBalance !== undefined && account.startingBalance !== null) return asNumber(account.startingBalance, 0);
-  if (account.balance !== undefined && account.balance !== null) return asNumber(account.balance, 0);
   return 0;
 }
 

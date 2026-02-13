@@ -95,7 +95,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
   // Extract period type ID (1=Day, 2=Week, 3=Month, 4=Quarter, 5=Year)
   const periodTypeId = typeof scenario.projectionPeriod === 'number'
     ? scenario.projectionPeriod
-    : scenario.projectionPeriod?.id || 3; // Default to Month (ID 3)
+    : scenario.projectionPeriod || 3; // Default to Month (ID 3)
   
   const periodIdToString = {
     1: 'daily',

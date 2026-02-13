@@ -253,11 +253,12 @@ export function migrateAccountBalanceField(scenario) {
         const updated = { ...account };
         let migrated = false;
         
-        // Migrate balance to startingBalance if needed
-        if (account.balance !== undefined && account.startingBalance === undefined) {
-            updated.startingBalance = account.balance;
+        // Ensure startingBalance exists (balance is now deprecated)
+        if (updated.startingBalance === undefined && updated.startingBalance !== null) {
+            updated.startingBalance = 0;
+        }
+        if (updated.balance !== undefined) {
             delete updated.balance;
-            migrated = true;
         }
         
         // Ensure currency is always an object, default to ZAR if null

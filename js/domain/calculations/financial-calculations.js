@@ -119,29 +119,21 @@ export function calculatePeriodicChange(principal, periodicChange, periods) {
     return principal;
   }
   
-  // Extract IDs from periodicChange, supporting both numeric and object forms
-  const changeModeId = typeof periodicChange.changeMode === 'number'
-    ? periodicChange.changeMode
-    : periodicChange.changeMode?.id;
-  
-  const changeTypeId = typeof periodicChange.changeType === 'number'
-    ? periodicChange.changeType
-    : periodicChange.changeType?.id || 1; // Default to Nominal (ID 1)
-  
-  const ratePeriodId = typeof periodicChange.ratePeriod === 'number'
-    ? periodicChange.ratePeriod
-    : periodicChange.ratePeriod?.id || 1; // Default to Annual (ID 1)
+  // Extract IDs from periodicChange - handle both numeric IDs and expanded objects
+  const changeModeId = typeof periodicChange.changeMode === 'object' ? periodicChange.changeMode.id : periodicChange.changeMode;
+  const changeTypeId = typeof periodicChange.changeType === 'object' ? periodicChange.changeType.id : (periodicChange.changeType || 1);
+  const ratePeriodId = typeof periodicChange.ratePeriod === 'object' ? periodicChange.ratePeriod.id : (periodicChange.ratePeriod || 1);
   
   // Extract custom compounding settings for custom change type
-  const compoundingFrequency = periodicChange.customCompounding?.frequency || 1;
+  const compoundingFrequency = typeof periodicChange.customCompounding?.frequency === 'object' 
+    ? periodicChange.customCompounding.frequency.id 
+    : (periodicChange.customCompounding?.frequency || 1);
   
   const value = periodicChange.value;
   
   // Change mode ID 2 = Fixed Amount
   if (changeModeId === 2) {
-    const periodId = typeof periodicChange.period === 'number'
-      ? periodicChange.period
-      : periodicChange.period?.id || 3; // Default to Monthly (ID 3)
+    const periodId = typeof periodicChange.period === 'object' ? periodicChange.period.id : (periodicChange.period || 3);
     
     // Calculate number of periods based on period type ID
     let numPeriods;
