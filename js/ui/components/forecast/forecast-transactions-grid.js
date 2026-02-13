@@ -23,7 +23,7 @@ import {
   createTransaction,
   createAccount,
   getScenarioPeriods
-} from '../data-manager.js';
+} from '../../../data-manager.js';
 
 const transactionsGridState = new GridStateManager('transactions');
 

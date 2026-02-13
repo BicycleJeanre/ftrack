@@ -267,14 +267,17 @@ export async function loadAccountsGrid({
 
     lastAccountsTable = accountsTable;
 
-    try {
-      accountsGridState.restore(accountsTable, { restoreGroupBy: false });
-      accountsGridState.restoreDropdowns({
-        groupBy: '#account-grouping-select'
-      });
-    } catch (_) {
-      // Keep existing behavior: ignore state restore errors.
-    }
+    // Wait for table to be built before restoring state
+    accountsTable.on('tableBuilt', () => {
+      try {
+        accountsGridState.restore(accountsTable, { restoreGroupBy: false });
+        accountsGridState.restoreDropdowns({
+          groupBy: '#account-grouping-select'
+        });
+      } catch (_) {
+        // Keep existing behavior: ignore state restore errors.
+      }
+    });
   } catch (err) {
     logger?.error?.('[Forecast] Failed to load accounts grid:', err);
   }

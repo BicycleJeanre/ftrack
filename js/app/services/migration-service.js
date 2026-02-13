@@ -3,8 +3,6 @@
 // Web-only implementation
 
 import { parseDateOnly } from '../../shared/date-utils.js';
-  oldDataPath = path.join(path.dirname(path.dirname(dataPath)), 'app-data.json');
-}
 
 /**
  * Migrate scenario data from old plannedTransactions/actualTransactions format to unified transactions
@@ -98,42 +96,9 @@ export function ensureGoalFields(scenario) {
  * @returns {Promise<void>}
  */
 export async function migrateAllScenarios() {
-    if (!isElectron) {
-        return;
-    }
-    if (!fs || !dataPath) {
-        throw new Error('[Migration] Filesystem unavailable for migration');
-    }
-    try {
-        // Read current data
-        const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-        
-        
-        // Check if migration is needed
-        if (data.migrationVersion >= 4) {
-            return;
-        }
-        
-        
-        if (data.scenarios) {
-            data.scenarios = data.scenarios.map((scenario, idx) => {
-                // Apply all migrations in sequence
-                scenario = migrateScenarioTransactions(scenario);
-                scenario = ensureBudgetsArray(scenario);
-                scenario = migrateAccountBalanceField(scenario);
-                scenario = ensureGoalFields(scenario);
-                return scenario;
-            });
-        }
-        
-        // Mark migration as complete
-        data.migrationVersion = 4;
-        
-        // Write back
-        await fs.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf8');
-    } catch (err) {
-        throw err;
-    }
+    // Web-only: No file-based migration needed
+    // Data is migrated on-the-fly when loaded from localStorage
+    return;
 }
 
 /**
@@ -141,18 +106,8 @@ export async function migrateAllScenarios() {
  * @returns {Promise<boolean>}
  */
 export async function needsMigration() {
-    if (!isElectron) {
-        return false;
-    }
-    if (!fs || !dataPath) {
-        return false;
-    }
-    try {
-        const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
-        return !data.migrationVersion || data.migrationVersion < 4;
-    } catch (err) {
-        return false;
-    }
+    // Web-only: Always return false (migrations happen on-the-fly)
+    return false;
 }
 
 /**

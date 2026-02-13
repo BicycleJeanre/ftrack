@@ -52,7 +52,7 @@ function highlightActive() {
 // Attach export/import handlers
 async function attachDataHandlers() {
   // Dynamically import theme functions to avoid top-level dependency
-  const { getTheme, setTheme } = await import('./config.js');
+  const { getTheme, setTheme } = await import('../../config.js');
   
   var themeBtn = document.getElementById('nav-theme');
   var exportBtn = document.getElementById('nav-export');

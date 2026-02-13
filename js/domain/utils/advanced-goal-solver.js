@@ -35,7 +35,7 @@ function getProjectionEngineModule() {
   if (projectionEngineModulePromise) return projectionEngineModulePromise;
 
   const version = globalThis.__ftrackModuleVersion || Date.now();
-  projectionEngineModulePromise = import(`./projection-engine.js?v=${version}`);
+  projectionEngineModulePromise = import(`../calculations/projection-engine.js?v=${version}`);
   return projectionEngineModulePromise;
 }
 

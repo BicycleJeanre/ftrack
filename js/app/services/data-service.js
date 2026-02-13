@@ -27,18 +27,14 @@ async function readAppData() {
     }
 
     // For web users with no stored data, provide sample content
-    if (!isElectron && (!data.scenarios.length || data.scenarios.length === 0)) {
+    if (!data.scenarios.length || data.scenarios.length === 0) {
       return getSampleData();
     }
 
     return data;
   } catch (err) {
-    if (isElectron) {
-      throw err;
-    } else {
-      // For web, return sample data on error
-      return getSampleData();
-    }
+    // For web, return sample data on error
+    return getSampleData();
   }
 }
 
@@ -144,11 +140,11 @@ async function writeAppData(data) {
   try {
     await DataStore.write(data);
 
-    if (!isElectron && data.migrationVersion !== undefined) {
+    if (data.migrationVersion !== undefined) {
       localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
     }
   } catch (err) {
-    if (!isElectron && err.name === 'QuotaExceededError') {
+    if (err.name === 'QuotaExceededError') {
       notifyError('Storage quota exceeded. Please export your data and clear some scenarios.');
     }
     throw err;

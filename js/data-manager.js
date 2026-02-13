@@ -138,7 +138,7 @@ function getSampleData() {
  */
 async function writeAppData(data) {
   try {
-    await DataStore.write(data);
+    await StorageService.write(data);
 
     if (data.migrationVersion !== undefined) {
       localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());

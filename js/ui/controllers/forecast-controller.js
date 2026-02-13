@@ -1312,7 +1312,7 @@ async function init() {
   
   // Run data migration if needed
   try {
-    const { needsMigration, migrateAllScenarios } = await import('./data-migration.js');
+    const { needsMigration, migrateAllScenarios } = await import('../../app/services/migration-service.js');
     if (await needsMigration()) {
       await migrateAllScenarios();
     }
