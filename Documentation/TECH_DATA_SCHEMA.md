@@ -72,8 +72,8 @@ An account represents a place where money lives or is owed.
 |-------|------|----------|-------|
 | `id` | number | Yes | Unique within scenario |
 | `name` | string | Yes | Display name (e.g., "Checking Account") |
-| `type` | number | Yes | Account type ID: 1=Asset, 2=Liability, 3=Income, 4=Expense, 5=Debt |
-| `currency` | number | Yes | Currency ID (1=USD, 2=ZAR, 3=GBP, 4=EUR, etc.) |
+| `type` | number | Yes | Account type ID: 1=Asset, 2=Liability, 3=Equity, 4=Income, 5=Expense |
+| `currency` | number | Yes | Currency ID (1=ZAR, 2=USD, 3=EUR, 4=GBP) |
 | `startingBalance` | number | Yes | Opening balance in currency units |
 | `openDate` | string | Yes | Date account opened |
 | `periodicChange` | PeriodicChange \| null | No | Growth/decay applied to account balance (interest, inflation) |
