@@ -1,0 +1,867 @@
+{
+  "version": "1.1.0",
+  "generatedAt": "2026-02-14T13:19:22.238Z",
+  "sourceDataset": "QC/qc-input-data.json",
+  "focus": "Scenario-end balances plus totals/summary assertions derived from QC input data",
+  "assertions": {
+    "scenarios": [
+      {
+        "scenarioId": 101,
+        "scenarioName": "QC Budget Baseline",
+        "scenarioType": 1,
+        "timeline": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "projectionPeriod": 3
+        },
+        "expectedTotals": {
+          "accountCount": 7,
+          "transactionCount": 5,
+          "projectionCount": 84,
+          "scenarioEndingBalanceTotal": 1500
+        },
+        "expectedEndingAccountBalances": [
+          {
+            "accountId": 1,
+            "accountName": "Checking",
+            "expectedEndingBalance": -38320,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 2,
+            "accountName": "Savings",
+            "expectedEndingBalance": 1700,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 3,
+            "accountName": "Salary Income",
+            "expectedEndingBalance": 26000,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 4,
+            "accountName": "Rent Expense",
+            "expectedEndingBalance": 9600,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 5,
+            "accountName": "Groceries Expense",
+            "expectedEndingBalance": 2400,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 6,
+            "accountName": "Utilities Expense",
+            "expectedEndingBalance": 120,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 7,
+            "accountName": "Transfer Bucket",
+            "expectedEndingBalance": 0,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          }
+        ]
+      },
+      {
+        "scenarioId": 102,
+        "scenarioName": "QC General Recurrence Coverage",
+        "scenarioType": 2,
+        "timeline": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "projectionPeriod": 3
+        },
+        "expectedTotals": {
+          "accountCount": 3,
+          "transactionCount": 8,
+          "projectionCount": 36,
+          "scenarioEndingBalanceTotal": 2000
+        },
+        "expectedEndingAccountBalances": [
+          {
+            "accountId": 21,
+            "accountName": "General Checking",
+            "expectedEndingBalance": -2365,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 22,
+            "accountName": "General Income",
+            "expectedEndingBalance": 120,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 23,
+            "accountName": "General Expense",
+            "expectedEndingBalance": 4245,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          }
+        ]
+      },
+      {
+        "scenarioId": 103,
+        "scenarioName": "QC General Periodic Change Coverage",
+        "scenarioType": 2,
+        "timeline": {
+          "startDate": "2026-01-01",
+          "endDate": "2028-12-31",
+          "projectionPeriod": 3
+        },
+        "expectedTotals": {
+          "accountCount": 14,
+          "transactionCount": 4,
+          "projectionCount": 504,
+          "scenarioEndingBalanceTotal": 3754.94
+        },
+        "expectedEndingAccountBalances": [
+          {
+            "accountId": 31,
+            "accountName": "Periodic Checking",
+            "expectedEndingBalance": -55623.41,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 32,
+            "accountName": "Periodic Savings",
+            "expectedEndingBalance": -3186.7,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 33,
+            "accountName": "Periodic Income",
+            "expectedEndingBalance": 45365.48,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 34,
+            "accountName": "Periodic Expense",
+            "expectedEndingBalance": 15382.07,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 35,
+            "accountName": "Pct Daily Account",
+            "expectedEndingBalance": 103.05,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 36,
+            "accountName": "Pct Quarterly Account",
+            "expectedEndingBalance": 103.04,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 37,
+            "accountName": "Pct Annual Account",
+            "expectedEndingBalance": 103.03,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 38,
+            "accountName": "Pct Continuous Account",
+            "expectedEndingBalance": 103.05,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 39,
+            "accountName": "Pct Custom Account",
+            "expectedEndingBalance": 103.03,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 40,
+            "accountName": "Fixed Daily Account",
+            "expectedEndingBalance": 1095.25,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 41,
+            "accountName": "Fixed Weekly Account",
+            "expectedEndingBalance": 156.04,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 42,
+            "accountName": "Fixed Monthly Account",
+            "expectedEndingBalance": 36.01,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 43,
+            "accountName": "Fixed Quarterly Account",
+            "expectedEndingBalance": 12,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 44,
+            "accountName": "Fixed Yearly Account",
+            "expectedEndingBalance": 3,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          }
+        ]
+      },
+      {
+        "scenarioId": 104,
+        "scenarioName": "QC Debt Repayment",
+        "scenarioType": 4,
+        "timeline": {
+          "startDate": "2026-01-01",
+          "endDate": "2027-12-31",
+          "projectionPeriod": 3
+        },
+        "expectedTotals": {
+          "accountCount": 3,
+          "transactionCount": 2,
+          "projectionCount": 72,
+          "scenarioEndingBalanceTotal": 2256.7
+        },
+        "expectedEndingAccountBalances": [
+          {
+            "accountId": 51,
+            "accountName": "Debt Checking",
+            "expectedEndingBalance": -3100,
+            "lastProjectionDate": "2027-12-01",
+            "projectionPoints": 24
+          },
+          {
+            "accountId": 52,
+            "accountName": "Credit Card Liability",
+            "expectedEndingBalance": 5356.7,
+            "lastProjectionDate": "2027-12-01",
+            "projectionPoints": 24
+          },
+          {
+            "accountId": 53,
+            "accountName": "Debt Expense",
+            "expectedEndingBalance": 0,
+            "lastProjectionDate": "2027-12-01",
+            "projectionPoints": 24
+          }
+        ]
+      },
+      {
+        "scenarioId": 105,
+        "scenarioName": "QC Funds Scenario",
+        "scenarioType": 3,
+        "timeline": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "projectionPeriod": 3
+        },
+        "expectedTotals": {
+          "accountCount": 3,
+          "transactionCount": 1,
+          "projectionCount": 36,
+          "scenarioEndingBalanceTotal": 61677.99
+        },
+        "expectedEndingAccountBalances": [
+          {
+            "accountId": 61,
+            "accountName": "Funds Cash",
+            "expectedEndingBalance": 4000,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 62,
+            "accountName": "Fund Asset Pool",
+            "expectedEndingBalance": 27677.99,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          },
+          {
+            "accountId": 63,
+            "accountName": "Fund Equity",
+            "expectedEndingBalance": 30000,
+            "lastProjectionDate": "2026-12-01",
+            "projectionPoints": 12
+          }
+        ]
+      },
+      {
+        "scenarioId": 106,
+        "scenarioName": "QC Goal-Based Scenario",
+        "scenarioType": 5,
+        "timeline": {
+          "startDate": "2026-01-01",
+          "endDate": "2027-12-31",
+          "projectionPeriod": 3
+        },
+        "expectedTotals": {
+          "accountCount": 3,
+          "transactionCount": 2,
+          "projectionCount": 72,
+          "scenarioEndingBalanceTotal": 3000
+        },
+        "expectedEndingAccountBalances": [
+          {
+            "accountId": 71,
+            "accountName": "Goal Source Checking",
+            "expectedEndingBalance": -27000,
+            "lastProjectionDate": "2027-12-01",
+            "projectionPoints": 24
+          },
+          {
+            "accountId": 72,
+            "accountName": "Goal Account Car",
+            "expectedEndingBalance": 6000,
+            "lastProjectionDate": "2027-12-01",
+            "projectionPoints": 24
+          },
+          {
+            "accountId": 73,
+            "accountName": "Goal Income",
+            "expectedEndingBalance": 24000,
+            "lastProjectionDate": "2027-12-01",
+            "projectionPoints": 24
+          }
+        ]
+      },
+      {
+        "scenarioId": 107,
+        "scenarioName": "QC Advanced Goal Solver Scenario",
+        "scenarioType": 6,
+        "timeline": {
+          "startDate": "2026-01-01",
+          "endDate": "2028-12-31",
+          "projectionPeriod": 3
+        },
+        "expectedTotals": {
+          "accountCount": 3,
+          "transactionCount": 2,
+          "projectionCount": 108,
+          "scenarioEndingBalanceTotal": 5000
+        },
+        "expectedEndingAccountBalances": [
+          {
+            "accountId": 81,
+            "accountName": "AGS Checking",
+            "expectedEndingBalance": -63400,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 82,
+            "accountName": "AGS Income",
+            "expectedEndingBalance": 43200,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          },
+          {
+            "accountId": 83,
+            "accountName": "AGS Expense",
+            "expectedEndingBalance": 25200,
+            "lastProjectionDate": "2028-12-01",
+            "projectionPoints": 36
+          }
+        ]
+      },
+      {
+        "scenarioId": 108,
+        "scenarioName": "QC Date Boundary and Isolation",
+        "scenarioType": 2,
+        "timeline": {
+          "startDate": "2027-12-01",
+          "endDate": "2028-03-31",
+          "projectionPeriod": 3
+        },
+        "expectedTotals": {
+          "accountCount": 3,
+          "transactionCount": 4,
+          "projectionCount": 12,
+          "scenarioEndingBalanceTotal": 1200
+        },
+        "expectedEndingAccountBalances": [
+          {
+            "accountId": 91,
+            "accountName": "Boundary Checking",
+            "expectedEndingBalance": 460,
+            "lastProjectionDate": "2028-03-01",
+            "projectionPoints": 4
+          },
+          {
+            "accountId": 92,
+            "accountName": "Boundary Expense",
+            "expectedEndingBalance": 210,
+            "lastProjectionDate": "2028-03-01",
+            "projectionPoints": 4
+          },
+          {
+            "accountId": 93,
+            "accountName": "Boundary Savings",
+            "expectedEndingBalance": 530,
+            "lastProjectionDate": "2028-03-01",
+            "projectionPoints": 4
+          }
+        ]
+      }
+    ],
+    "useCases": [
+      {
+        "useCaseId": "UC-S1",
+        "assertionType": "scenario-money-in-total",
+        "sourceScenarioIds": [
+          101,
+          102
+        ],
+        "expected": {
+          "totalMoneyIn": 26120
+        }
+      },
+      {
+        "useCaseId": "UC-S2",
+        "assertionType": "scenario-money-out-total",
+        "sourceScenarioIds": [
+          101,
+          102,
+          103,
+          104
+        ],
+        "expected": {
+          "totalMoneyOut": 36547.07
+        }
+      },
+      {
+        "useCaseId": "UC-S3",
+        "assertionType": "scenario-net-total",
+        "sourceScenarioIds": [
+          101,
+          102,
+          103,
+          104
+        ],
+        "expected": {
+          "netTotal": -10427.07,
+          "formula": "UC-S1.totalMoneyIn - UC-S2.totalMoneyOut"
+        }
+      },
+      {
+        "useCaseId": "UC-S4",
+        "assertionType": "account-ending-balance-summary",
+        "sourceScenarioIds": [
+          101,
+          103,
+          104
+        ],
+        "expected": {
+          "source": "assertions.scenarios[].expectedEndingAccountBalances"
+        }
+      },
+      {
+        "useCaseId": "UC-S5",
+        "assertionType": "interest-earned-paid-totals",
+        "sourceScenarioIds": [
+          103,
+          104
+        ],
+        "expected": {
+          "totalInterestEarned": 2081.61,
+          "totalInterestPaid": 69.92
+        }
+      },
+      {
+        "useCaseId": "UC-S6",
+        "assertionType": "transfer-neutral-net-worth",
+        "sourceScenarioIds": [
+          101
+        ],
+        "expected": {
+          "transferOccurrenceCount": 12,
+          "netWorthDeltaFromTransfers": 0
+        }
+      },
+      {
+        "useCaseId": "UC-S7",
+        "assertionType": "debt-payoff-summary-metrics",
+        "sourceScenarioIds": [
+          104
+        ],
+        "expected": {
+          "totalDebtPayments": 3600,
+          "endingDebtBalance": 5356.7,
+          "payoffAchievedByEndDate": false
+        }
+      },
+      {
+        "useCaseId": "UC-S8",
+        "assertionType": "funds-summary-metrics",
+        "sourceScenarioIds": [
+          105
+        ],
+        "expected": {
+          "endingNav": 31677.99,
+          "endingEquityBalance": 30000
+        }
+      },
+      {
+        "useCaseId": "UC-S9",
+        "assertionType": "goal-solver-summary-metrics",
+        "sourceScenarioIds": [
+          107
+        ],
+        "expected": {
+          "totalPlannedInflow": 43200,
+          "totalPlannedOutflow": 25200,
+          "plannedNet": 18000
+        }
+      },
+      {
+        "useCaseId": "UC-S10",
+        "assertionType": "period-filter-summary-consistency",
+        "sourceScenarioIds": [
+          105,
+          106,
+          107,
+          108
+        ],
+        "expected": {
+          "scenarios": [
+            {
+              "scenarioId": 105,
+              "scenarioName": "QC Funds Scenario",
+              "allAccountsConsistent": false,
+              "accountChecks": [
+                {
+                  "accountId": 61,
+                  "accountName": "Funds Cash",
+                  "netFromPeriods": -6000,
+                  "endMinusStart": -6000,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                },
+                {
+                  "accountId": 62,
+                  "accountName": "Fund Asset Pool",
+                  "netFromPeriods": 7678.01,
+                  "endMinusStart": 7677.99,
+                  "deltaGap": 0.02,
+                  "consistentWithin1Cent": false
+                },
+                {
+                  "accountId": 63,
+                  "accountName": "Fund Equity",
+                  "netFromPeriods": 0,
+                  "endMinusStart": 0,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                }
+              ]
+            },
+            {
+              "scenarioId": 106,
+              "scenarioName": "QC Goal-Based Scenario",
+              "allAccountsConsistent": true,
+              "accountChecks": [
+                {
+                  "accountId": 71,
+                  "accountName": "Goal Source Checking",
+                  "netFromPeriods": -30000,
+                  "endMinusStart": -30000,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                },
+                {
+                  "accountId": 72,
+                  "accountName": "Goal Account Car",
+                  "netFromPeriods": 6000,
+                  "endMinusStart": 6000,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                },
+                {
+                  "accountId": 73,
+                  "accountName": "Goal Income",
+                  "netFromPeriods": 24000,
+                  "endMinusStart": 24000,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                }
+              ]
+            },
+            {
+              "scenarioId": 107,
+              "scenarioName": "QC Advanced Goal Solver Scenario",
+              "allAccountsConsistent": true,
+              "accountChecks": [
+                {
+                  "accountId": 81,
+                  "accountName": "AGS Checking",
+                  "netFromPeriods": -68400,
+                  "endMinusStart": -68400,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                },
+                {
+                  "accountId": 82,
+                  "accountName": "AGS Income",
+                  "netFromPeriods": 43200,
+                  "endMinusStart": 43200,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                },
+                {
+                  "accountId": 83,
+                  "accountName": "AGS Expense",
+                  "netFromPeriods": 25200,
+                  "endMinusStart": 25200,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                }
+              ]
+            },
+            {
+              "scenarioId": 108,
+              "scenarioName": "QC Date Boundary and Isolation",
+              "allAccountsConsistent": true,
+              "accountChecks": [
+                {
+                  "accountId": 91,
+                  "accountName": "Boundary Checking",
+                  "netFromPeriods": -540,
+                  "endMinusStart": -540,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                },
+                {
+                  "accountId": 92,
+                  "accountName": "Boundary Expense",
+                  "netFromPeriods": 210,
+                  "endMinusStart": 210,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                },
+                {
+                  "accountId": 93,
+                  "accountName": "Boundary Savings",
+                  "netFromPeriods": 330,
+                  "endMinusStart": 330,
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "useCaseAssertionTracker": [
+    {
+      "useCaseId": "UC-A1",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-A2",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-A3",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-A4",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-A5",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-B1",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-B2",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-B3",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-B4",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-B5",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-C1",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-C2",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-C3",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-C4",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-C5",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-D1",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-D2",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-D3",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-D4",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-E1",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-E2",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-E3",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-E4",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-E5",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-F1",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-F2",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-F3",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-F4",
+      "assertionStatus": "covered",
+      "assertionType": "ending-account-balance"
+    },
+    {
+      "useCaseId": "UC-S1",
+      "assertionStatus": "covered",
+      "assertionType": "scenario-money-in-total"
+    },
+    {
+      "useCaseId": "UC-S2",
+      "assertionStatus": "covered",
+      "assertionType": "scenario-money-out-total"
+    },
+    {
+      "useCaseId": "UC-S3",
+      "assertionStatus": "covered",
+      "assertionType": "scenario-net-total"
+    },
+    {
+      "useCaseId": "UC-S4",
+      "assertionStatus": "covered",
+      "assertionType": "account-ending-balance-summary"
+    },
+    {
+      "useCaseId": "UC-S5",
+      "assertionStatus": "covered",
+      "assertionType": "interest-earned-paid-totals"
+    },
+    {
+      "useCaseId": "UC-S6",
+      "assertionStatus": "covered",
+      "assertionType": "transfer-neutral-net-worth"
+    },
+    {
+      "useCaseId": "UC-S7",
+      "assertionStatus": "covered",
+      "assertionType": "debt-payoff-summary-metrics"
+    },
+    {
+      "useCaseId": "UC-S8",
+      "assertionStatus": "covered",
+      "assertionType": "funds-summary-metrics"
+    },
+    {
+      "useCaseId": "UC-S9",
+      "assertionStatus": "covered",
+      "assertionType": "goal-solver-summary-metrics"
+    },
+    {
+      "useCaseId": "UC-S10",
+      "assertionStatus": "covered",
+      "assertionType": "period-filter-summary-consistency"
+    }
+  ]
+}

@@ -1,0 +1,504 @@
+{
+  "profile": "QC Regression Dataset",
+  "scenarios": [
+    {
+      "id": 101,
+      "name": "QC Budget Baseline",
+      "type": 1,
+      "description": "Covers UC-A1..UC-A5, UC-E1, UC-S1, UC-S2, UC-S3, UC-S4, UC-S6",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        { "id": 1, "name": "Checking", "type": 1, "currency": 1, "startingBalance": 1000, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 2, "name": "Savings", "type": 1, "currency": 1, "startingBalance": 500, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 3, "name": "Salary Income", "type": 4, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 4, "name": "Rent Expense", "type": 5, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 5, "name": "Groceries Expense", "type": 5, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 6, "name": "Utilities Expense", "type": 5, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 7, "name": "Transfer Bucket", "type": 1, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null }
+      ],
+      "transactions": [
+        {
+          "id": 1001,
+          "primaryAccountId": 3,
+          "secondaryAccountId": 1,
+          "transactionTypeId": 1,
+          "amount": 500,
+          "description": "UC-A1 Weekly salary",
+          "recurrence": { "recurrenceType": 3, "startDate": "2026-01-02", "endDate": null, "interval": 1, "dayOfWeek": 5, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-A1", "UC-S1", "income"]
+        },
+        {
+          "id": 1002,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2,
+          "amount": 800,
+          "description": "UC-A2 Monthly rent",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-01", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 1, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-A2", "UC-S2", "expense"]
+        },
+        {
+          "id": 1003,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 5,
+          "transactionTypeId": 2,
+          "amount": 200,
+          "description": "UC-A3 Monthly groceries",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-05", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 5, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-A3", "UC-S2", "expense"]
+        },
+        {
+          "id": 1004,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 6,
+          "transactionTypeId": 2,
+          "amount": 120,
+          "description": "UC-A4 One-time utility spike",
+          "recurrence": { "recurrenceType": 1, "startDate": "2026-02-15", "endDate": null, "interval": null, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-A4", "UC-S2", "expense"]
+        },
+        {
+          "id": 1005,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": 100,
+          "description": "UC-A5 Internal transfer checking to savings",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-10", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 10, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-A5", "UC-S6", "transfer"]
+        }
+      ],
+      "budgets": [
+        { "id": 1011, "name": "Rent Budget", "accountId": 4, "amount": 800, "period": 3, "startDate": "2026-01-01", "endDate": "2026-12-31" },
+        { "id": 1012, "name": "Groceries Budget", "accountId": 5, "amount": 200, "period": 3, "startDate": "2026-01-01", "endDate": "2026-12-31" }
+      ],
+      "projections": []
+    },
+    {
+      "id": 102,
+      "name": "QC General Recurrence Coverage",
+      "type": 2,
+      "description": "Covers UC-B1..UC-B5, recurrence types including daily, month-week and custom dates",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        { "id": 21, "name": "General Checking", "type": 1, "currency": 1, "startingBalance": 2000, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 22, "name": "General Income", "type": 4, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 23, "name": "General Expense", "type": 5, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null }
+      ],
+      "transactions": [
+        {
+          "id": 2001,
+          "primaryAccountId": 21,
+          "secondaryAccountId": 23,
+          "transactionTypeId": 2,
+          "amount": 25,
+          "description": "UC-B1 Weekly recurrence",
+          "recurrence": { "recurrenceType": 3, "startDate": "2026-01-05", "endDate": null, "interval": 1, "dayOfWeek": 1, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-B1", "recurrence-weekly"]
+        },
+        {
+          "id": 2002,
+          "primaryAccountId": 21,
+          "secondaryAccountId": 23,
+          "transactionTypeId": 2,
+          "amount": 75,
+          "description": "UC-B2 Monthly day-of-month recurrence",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-15", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 15, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-B2", "recurrence-month-day"]
+        },
+        {
+          "id": 2003,
+          "primaryAccountId": 21,
+          "secondaryAccountId": 23,
+          "transactionTypeId": 2,
+          "amount": 50,
+          "description": "Monthly week-of-month recurrence coverage",
+          "recurrence": { "recurrenceType": 5, "startDate": "2026-01-01", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": 1, "dayOfWeekInMonth": 1, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["recurrence-month-week"]
+        },
+        {
+          "id": 2004,
+          "primaryAccountId": 21,
+          "secondaryAccountId": 23,
+          "transactionTypeId": 2,
+          "amount": 300,
+          "description": "UC-B3 Quarterly recurrence",
+          "recurrence": { "recurrenceType": 6, "startDate": "2026-01-01", "endDate": null, "interval": null, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": 15, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-B3", "recurrence-quarterly"]
+        },
+        {
+          "id": 2005,
+          "primaryAccountId": 21,
+          "secondaryAccountId": 23,
+          "transactionTypeId": 2,
+          "amount": 120,
+          "description": "UC-B4 Yearly recurrence",
+          "recurrence": { "recurrenceType": 7, "startDate": "2026-01-01", "endDate": null, "interval": null, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": 6, "dayOfYear": 152, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-B4", "recurrence-yearly"]
+        },
+        {
+          "id": 2006,
+          "primaryAccountId": 21,
+          "secondaryAccountId": 23,
+          "transactionTypeId": 2,
+          "amount": 90,
+          "description": "UC-B5 One-time transaction",
+          "recurrence": { "recurrenceType": 1, "startDate": "2026-04-10", "endDate": null, "interval": null, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-B5", "recurrence-onetime"]
+        },
+        {
+          "id": 2007,
+          "primaryAccountId": 21,
+          "secondaryAccountId": 23,
+          "transactionTypeId": 2,
+          "amount": 5,
+          "description": "Daily recurrence coverage",
+          "recurrence": { "recurrenceType": 2, "startDate": "2026-01-01", "endDate": "2026-01-07", "interval": 1, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["recurrence-daily"]
+        },
+        {
+          "id": 2008,
+          "primaryAccountId": 22,
+          "secondaryAccountId": 21,
+          "transactionTypeId": 1,
+          "amount": 60,
+          "description": "Custom dates recurrence coverage",
+          "recurrence": { "recurrenceType": 8, "startDate": "2026-01-01", "endDate": null, "interval": null, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": "2026-03-10,2026-06-10", "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["recurrence-custom", "UC-S1"]
+        }
+      ],
+      "budgets": [],
+      "projections": []
+    },
+    {
+      "id": 103,
+      "name": "QC General Periodic Change Coverage",
+      "type": 2,
+      "description": "Covers UC-C1..UC-C5 and UC-S5 with simple manually verifiable values",
+      "startDate": "2026-01-01",
+      "endDate": "2028-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        { "id": 31, "name": "Periodic Checking", "type": 1, "currency": 1, "startingBalance": 1000, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 32, "name": "Periodic Savings", "type": 1, "currency": 1, "startingBalance": 1000, "openDate": "2026-01-01", "periodicChange": { "value": 2, "changeMode": 1, "changeType": 2 }, "goalAmount": null, "goalDate": null },
+        { "id": 33, "name": "Periodic Income", "type": 4, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 34, "name": "Periodic Expense", "type": 5, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 35, "name": "Pct Daily Account", "type": 1, "currency": 1, "startingBalance": 100, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 1, "changeType": 3 }, "goalAmount": null, "goalDate": null },
+        { "id": 36, "name": "Pct Quarterly Account", "type": 1, "currency": 1, "startingBalance": 100, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 1, "changeType": 4 }, "goalAmount": null, "goalDate": null },
+        { "id": 37, "name": "Pct Annual Account", "type": 1, "currency": 1, "startingBalance": 100, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 1, "changeType": 5 }, "goalAmount": null, "goalDate": null },
+        { "id": 38, "name": "Pct Continuous Account", "type": 1, "currency": 1, "startingBalance": 100, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 1, "changeType": 6 }, "goalAmount": null, "goalDate": null },
+        { "id": 39, "name": "Pct Custom Account", "type": 1, "currency": 1, "startingBalance": 100, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 1, "changeType": 7, "customCompounding": { "period": 3, "frequency": 12 } }, "goalAmount": null, "goalDate": null },
+        { "id": 40, "name": "Fixed Daily Account", "type": 1, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 2, "changeType": 1, "period": 1 }, "goalAmount": null, "goalDate": null },
+        { "id": 41, "name": "Fixed Weekly Account", "type": 1, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 2, "changeType": 1, "period": 2 }, "goalAmount": null, "goalDate": null },
+        { "id": 42, "name": "Fixed Monthly Account", "type": 1, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 2, "changeType": 1, "period": 3 }, "goalAmount": null, "goalDate": null },
+        { "id": 43, "name": "Fixed Quarterly Account", "type": 1, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 2, "changeType": 1, "period": 4 }, "goalAmount": null, "goalDate": null },
+        { "id": 44, "name": "Fixed Yearly Account", "type": 1, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": { "value": 1, "changeMode": 2, "changeType": 1, "period": 5 }, "goalAmount": null, "goalDate": null }
+      ],
+      "transactions": [
+        {
+          "id": 3001,
+          "primaryAccountId": 33,
+          "secondaryAccountId": 31,
+          "transactionTypeId": 1,
+          "amount": 1000,
+          "description": "UC-C1 Salary with annual percentage raise",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-01", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 1, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": { "value": 10, "changeMode": 1, "changeType": 1, "ratePeriod": 1 },
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-C1", "UC-S1"]
+        },
+        {
+          "id": 3002,
+          "primaryAccountId": 31,
+          "secondaryAccountId": 34,
+          "transactionTypeId": 2,
+          "amount": 300,
+          "description": "UC-C2 Expense with annual inflation",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-02", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 2, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": { "value": 5, "changeMode": 1, "changeType": 1, "ratePeriod": 1 },
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-C2", "UC-S2"]
+        },
+        {
+          "id": 3003,
+          "primaryAccountId": 33,
+          "secondaryAccountId": 32,
+          "transactionTypeId": 1,
+          "amount": 100,
+          "description": "UC-C3 Fixed amount increase schedule",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-10", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 10, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": { "value": 10, "changeMode": 2, "changeType": 1, "period": 5 },
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-C3", "UC-S1"]
+        },
+        {
+          "id": 3004,
+          "primaryAccountId": 31,
+          "secondaryAccountId": 34,
+          "transactionTypeId": 2,
+          "amount": 120,
+          "description": "UC-C4 Fixed amount decrease schedule",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-20", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 20, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": { "value": -10, "changeMode": 2, "changeType": 1, "period": 5 },
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-C4", "UC-S2"]
+        }
+      ],
+      "budgets": [],
+      "projections": []
+    },
+    {
+      "id": 104,
+      "name": "QC Debt Repayment",
+      "type": 4,
+      "description": "Covers UC-D1..UC-D4, UC-S5, UC-S7",
+      "startDate": "2026-01-01",
+      "endDate": "2027-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        { "id": 51, "name": "Debt Checking", "type": 1, "currency": 1, "startingBalance": 500, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 52, "name": "Credit Card Liability", "type": 2, "currency": 1, "startingBalance": 1000, "openDate": "2026-01-01", "periodicChange": { "value": 12, "changeMode": 1, "changeType": 2 }, "goalAmount": null, "goalDate": null },
+        { "id": 53, "name": "Debt Expense", "type": 5, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null }
+      ],
+      "transactions": [
+        {
+          "id": 4001,
+          "primaryAccountId": 51,
+          "secondaryAccountId": 52,
+          "transactionTypeId": 2,
+          "amount": 100,
+          "description": "UC-D2 Minimum payment flow",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-05", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 5, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-D2", "UC-D4", "UC-S7"]
+        },
+        {
+          "id": 4002,
+          "primaryAccountId": 51,
+          "secondaryAccountId": 52,
+          "transactionTypeId": 2,
+          "amount": 50,
+          "description": "UC-D3 Extra principal payment",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-20", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 20, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-D3", "UC-D4", "UC-S7"]
+        }
+      ],
+      "budgets": [],
+      "projections": []
+    },
+    {
+      "id": 105,
+      "name": "QC Funds Scenario",
+      "type": 3,
+      "description": "Covers UC-E3 and UC-S8",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        { "id": 61, "name": "Funds Cash", "type": 1, "currency": 1, "startingBalance": 10000, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 62, "name": "Fund Asset Pool", "type": 1, "currency": 1, "startingBalance": 20000, "openDate": "2026-01-01", "periodicChange": { "value": 7, "changeMode": 1, "changeType": 2 }, "goalAmount": null, "goalDate": null },
+        { "id": 63, "name": "Fund Equity", "type": 3, "currency": 1, "startingBalance": 30000, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null }
+      ],
+      "transactions": [
+        {
+          "id": 5001,
+          "primaryAccountId": 61,
+          "secondaryAccountId": 62,
+          "transactionTypeId": 2,
+          "amount": 500,
+          "description": "Funds recurring contribution",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-15", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 15, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-E3", "UC-S8"]
+        }
+      ],
+      "budgets": [],
+      "projections": []
+    },
+    {
+      "id": 106,
+      "name": "QC Goal-Based Scenario",
+      "type": 5,
+      "description": "Covers goal-based scenario type presence and goal account behavior",
+      "startDate": "2026-01-01",
+      "endDate": "2027-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        { "id": 71, "name": "Goal Source Checking", "type": 1, "currency": 1, "startingBalance": 3000, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 72, "name": "Goal Account Car", "type": 1, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": 6000, "goalDate": "2027-12-31" },
+        { "id": 73, "name": "Goal Income", "type": 4, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null }
+      ],
+      "transactions": [
+        {
+          "id": 6001,
+          "primaryAccountId": 73,
+          "secondaryAccountId": 71,
+          "transactionTypeId": 1,
+          "amount": 1000,
+          "description": "Goal scenario monthly income",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-01", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 1, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["goal-income"]
+        },
+        {
+          "id": 6002,
+          "primaryAccountId": 71,
+          "secondaryAccountId": 72,
+          "transactionTypeId": 2,
+          "amount": 250,
+          "description": "Goal contribution",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-02", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 2, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["goal-contribution"]
+        }
+      ],
+      "budgets": [],
+      "projections": []
+    },
+    {
+      "id": 107,
+      "name": "QC Advanced Goal Solver Scenario",
+      "type": 6,
+      "description": "Covers UC-E4 and UC-S9",
+      "startDate": "2026-01-01",
+      "endDate": "2028-12-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        { "id": 81, "name": "AGS Checking", "type": 1, "currency": 1, "startingBalance": 5000, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 82, "name": "AGS Income", "type": 4, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 83, "name": "AGS Expense", "type": 5, "currency": 1, "startingBalance": 0, "openDate": "2026-01-01", "periodicChange": null, "goalAmount": null, "goalDate": null }
+      ],
+      "transactions": [
+        {
+          "id": 7001,
+          "primaryAccountId": 82,
+          "secondaryAccountId": 81,
+          "transactionTypeId": 1,
+          "amount": 1200,
+          "description": "UC-E4 AGS baseline income",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-01", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 1, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-E4", "UC-S9"]
+        },
+        {
+          "id": 7002,
+          "primaryAccountId": 81,
+          "secondaryAccountId": 83,
+          "transactionTypeId": 2,
+          "amount": 700,
+          "description": "UC-E4 AGS baseline expense",
+          "recurrence": { "recurrenceType": 4, "startDate": "2026-01-03", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 3, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-E4", "UC-S9"]
+        }
+      ],
+      "budgets": [],
+      "projections": []
+    },
+    {
+      "id": 108,
+      "name": "QC Date Boundary and Isolation",
+      "type": 2,
+      "description": "Covers UC-F1..UC-F4 and UC-S10; includes copy-like data with changed values for isolation checks",
+      "startDate": "2027-12-01",
+      "endDate": "2028-03-31",
+      "projectionPeriod": 3,
+      "accounts": [
+        { "id": 91, "name": "Boundary Checking", "type": 1, "currency": 1, "startingBalance": 1000, "openDate": "2027-12-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 92, "name": "Boundary Expense", "type": 5, "currency": 1, "startingBalance": 0, "openDate": "2027-12-01", "periodicChange": null, "goalAmount": null, "goalDate": null },
+        { "id": 93, "name": "Boundary Savings", "type": 1, "currency": 1, "startingBalance": 200, "openDate": "2027-12-01", "periodicChange": null, "goalAmount": null, "goalDate": null }
+      ],
+      "transactions": [
+        {
+          "id": 8001,
+          "primaryAccountId": 91,
+          "secondaryAccountId": 92,
+          "transactionTypeId": 2,
+          "amount": 30,
+          "description": "UC-F1 Month-end boundary case",
+          "recurrence": { "recurrenceType": 4, "startDate": "2027-12-31", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 31, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-F1", "UC-S10"]
+        },
+        {
+          "id": 8002,
+          "primaryAccountId": 91,
+          "secondaryAccountId": 92,
+          "transactionTypeId": 2,
+          "amount": 40,
+          "description": "UC-F2 Leap-year case",
+          "recurrence": { "recurrenceType": 7, "startDate": "2028-01-01", "endDate": null, "interval": null, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": 2, "dayOfYear": 60, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-F2", "UC-S10"]
+        },
+        {
+          "id": 8003,
+          "primaryAccountId": 91,
+          "secondaryAccountId": 92,
+          "transactionTypeId": 2,
+          "amount": 50,
+          "description": "UC-F3 Year rollover one-time",
+          "recurrence": { "recurrenceType": 1, "startDate": "2027-12-31", "endDate": null, "interval": null, "dayOfWeek": null, "dayOfMonth": null, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-F3", "UC-S10"]
+        },
+        {
+          "id": 8004,
+          "primaryAccountId": 91,
+          "secondaryAccountId": 93,
+          "transactionTypeId": 2,
+          "amount": 110,
+          "description": "UC-F4 Isolation variant of transfer (different amount than UC-A5)",
+          "recurrence": { "recurrenceType": 4, "startDate": "2028-01-10", "endDate": null, "interval": 1, "dayOfWeek": null, "dayOfMonth": 10, "weekOfMonth": null, "dayOfWeekInMonth": null, "dayOfQuarter": null, "month": null, "dayOfYear": null, "customDates": null, "id": null },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["UC-F4", "isolation-check"]
+        }
+      ],
+      "budgets": [],
+      "projections": []
+    }
+  ],
+  "migrationVersion": 3
+}
