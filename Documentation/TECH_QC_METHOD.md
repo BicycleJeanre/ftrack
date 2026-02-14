@@ -24,18 +24,60 @@ Generate a markdown report that includes:
 - Failure overview count
 - Detailed mismatch entries with expected value vs actual value
 
-## 3.0 Proposed QC Files and Purpose
-### 3.1 Data Files
-- `QC/qc-input-data.json`: Master input cases covering all supported use cases.
-- `QC/qc-expected-outputs.json`: Manually verified expected results keyed by case id.
+## 3.0 Planned QC Files and Purpose
+### 3.1 Core Data Files
+- `QC/qc-input-data.json`: Scenario, account, and transaction source data for all QC use cases.
+- `QC/qc-expected-outputs.json`: Assertions by scenario and by use case id.
 
-### 3.2 Runner and Utilities
-- `QC/run-qc.js`: Main QC orchestrator that runs all enabled module checks.
-- `QC/lib/compare-results.js`: Shared comparator and tolerance helpers.
-- `QC/lib/extract-actuals.js`: Output normalizer per module so comparisons are stable.
+### 3.2 Shared Utilities
+- `QC/lib/load-qc-data.js`: Loads input and expected data.
+- `QC/lib/extract-actuals.js`: Produces normalized actual values from module outputs.
+- `QC/lib/compare-results.js`: Compares actual vs expected with tolerance support.
+### 3.3 Scenario-Type QC Test Files
+Each scenario-type file should do only these steps:
+1. Get generated actual values from the relevant application modules.
+2. Compare actual values to expected values for mapped use cases.
+3. Return pass or fail results with mismatch details.
 
-### 3.3 Reports
-- `QC/reports/qc-report-YYYY-MM-DD.md`: Generated QC report for each run.
+| Scenario Type | Test File | Input Selection | Use Case Scope |
+|---|---|---|---|
+| Budget | `QC/tests/scenario-types/budget.test.js` | Scenario type `Budget` from `qc-input-data.json` | `UC-A*`, `UC-E1`, plus Budget summary assertions |
+| General | `QC/tests/scenario-types/general.test.js` | Scenario type `General` from `qc-input-data.json` | `UC-B*`, `UC-C*`, `UC-F*`, `UC-E2`, plus General summary assertions |
+| Funds | `QC/tests/scenario-types/funds.test.js` | Scenario type `Funds` from `qc-input-data.json` | `UC-E3`, plus Funds summary assertions |
+| Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | Scenario type `Debt Repayment` from `qc-input-data.json` | `UC-D*`, plus Debt summary assertions |
+| Goal-Based | `QC/tests/scenario-types/goal-based.test.js` | Scenario type `Goal-Based` from `qc-input-data.json` | Goal-based scenario assertions |
+| Advanced Goal Solver | `QC/tests/scenario-types/advanced-goal-solver.test.js` | Scenario type `Advanced Goal Solver` from `qc-input-data.json` | `UC-E4`, plus solver summary assertions |
+
+### 3.4 Universal Actions In Every Scenario-Type File
+Universal checks are included by import and execution inside each scenario-type file, not as separate runner files.
+
+- `QC/tests/universal/recurrence-assertions.js`: Shared recurrence checks.
+- `QC/tests/universal/periodic-change-assertions.js`: Shared periodic change checks.
+- `QC/tests/universal/date-boundary-assertions.js`: Shared date-boundary checks.
+
+### 3.5 Script-Based QC Execution
+Use scripts in project configuration (`package.json`) for scenario-type execution instead of dedicated runner files.
+
+- `qc:test:budget` -> runs `QC/tests/scenario-types/budget.test.js`
+- `qc:test:general` -> runs `QC/tests/scenario-types/general.test.js`
+- `qc:test:funds` -> runs `QC/tests/scenario-types/funds.test.js`
+- `qc:test:debt` -> runs `QC/tests/scenario-types/debt-repayment.test.js`
+- `qc:test:goal-based` -> runs `QC/tests/scenario-types/goal-based.test.js`
+- `qc:test:advanced-goal-solver` -> runs `QC/tests/scenario-types/advanced-goal-solver.test.js`
+- `qc:test:all-scenario-types` -> runs all scenario-type scripts
+
+### 3.6 Use Case Mapping File
+- `QC/mappings/use-case-to-scenario-type.json`: Declares use case ids per scenario type, including summary assertions.
+
+### 3.7 Reporting Files
+- `QC/reports/qc-report-YYYY-MM-DD.md`: Human-readable combined report.
+- `QC/reports/qc-report-<scenario-type>-YYYY-MM-DD.md`: Scenario-type specific report.
+
+### 3.8 Execution Rule
+For every scenario-type run, execute:
+1. Universal assertion actions inside the scenario-type test file.
+2. Scenario-type specific extraction and comparison.
+3. Unified report generation with pass/fail by use case id.
 
 ## 4.0 Test Strategy Recommendation
 Use QC dataset regression as the primary strategy for now:
@@ -56,142 +98,54 @@ Keep the QC model simple:
 6. Avoid unnecessarily complex decimals unless a specific edge case requires them.
 
 ## 6.0 QC Input Use Case Catalog
-This section defines the human-readable use cases to include in `QC/qc-input-data.json`.
-Each use case should map to one expected-results entry in `QC/qc-expected-outputs.json`.
+This section is the single structured mapping for all QC use cases in `QC/qc-input-data.json` and expected assertions in `QC/qc-expected-outputs.json`.
 
-### 6.1 Scenario Group A - Baseline Budget Behavior
-1. **UC-A1 Salary Income Weekly**
-	Transaction: recurring Money In to checking every week.
-	Represents: normal paycheck flow and base cash inflow.
-2. **UC-A2 Rent Monthly Fixed Expense**
-	Transaction: recurring Money Out from checking on monthly due date.
-	Represents: mandatory housing cost and fixed obligations.
-3. **UC-A3 Groceries Monthly Variable Expense**
-	Transaction: recurring Money Out from checking with moderate amount.
-	Represents: essential variable living cost.
-4. **UC-A4 Utility Bill One-Time Spike**
-	Transaction: one-time Money Out in a single period.
-	Represents: unexpected but realistic short-term expense shock.
-5. **UC-A5 Internal Transfer Checking To Savings**
-	Transaction: transfer between two asset accounts.
-	Represents: cash movement with no net-worth change.
+### 6.1 Unified Use Case Mapping Grid
+| Use Case ID | Category | Scenario Type | Scenario-Type Test File | Input Group | Input Setup Summary | Expected Assertion Focus |
+|---|---|---|---|---|---|---|
+| `UC-A1` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Recurring weekly Money In to checking | Salary inflow recurrence and ending balance effect |
+| `UC-A2` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Recurring monthly rent expense | Fixed obligation outflow and ending balance effect |
+| `UC-A3` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Recurring monthly grocery expense | Variable essential outflow and ending balance effect |
+| `UC-A4` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | One-time utility expense spike | One-time shock handling and projection impact |
+| `UC-A5` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Internal transfer between asset accounts | Transfer handling and net-worth neutrality inputs |
+| `UC-B1` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | Weekly recurrence on specific day | Weekly schedule expansion correctness |
+| `UC-B2` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | Monthly day-of-month recurrence | Monthly schedule expansion correctness |
+| `UC-B3` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | Quarterly recurrence | Quarterly schedule expansion correctness |
+| `UC-B4` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | Yearly recurrence | Yearly schedule expansion correctness |
+| `UC-B5` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | One-time transaction | One-time occurrence handling |
+| `UC-C1` | Periodic Change | General | `QC/tests/scenario-types/general.test.js` | C | Income with annual percentage raise | Percentage periodic change on transactions |
+| `UC-C2` | Periodic Change | General | `QC/tests/scenario-types/general.test.js` | C | Expense with annual inflation increase | Percentage periodic change on expenses |
+| `UC-C3` | Periodic Change | General | `QC/tests/scenario-types/general.test.js` | C | Fixed amount increase schedule | Fixed-amount periodic increase behavior |
+| `UC-C4` | Periodic Change | General | `QC/tests/scenario-types/general.test.js` | C | Fixed amount decrease schedule | Fixed-amount periodic decrease behavior |
+| `UC-C5` | Periodic Change | General | `QC/tests/scenario-types/general.test.js` | C | Account-level compounding setup | Account periodic change compounding behavior |
+| `UC-D1` | Debt Behavior | Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | D | Liability account with interest behavior | Debt interest accrual handling |
+| `UC-D2` | Debt Behavior | Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | D | Recurring minimum payment | Baseline debt servicing flow |
+| `UC-D3` | Debt Behavior | Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | D | Extra principal payment | Accelerated payoff behavior |
+| `UC-D4` | Debt Behavior | Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | D | Combined debt repayment strategy | Payoff and interest tradeoff behavior |
+| `UC-E1` | Scenario Type | Budget | `QC/tests/scenario-types/budget.test.js` | E | Budget scenario configuration | Budget-type extraction and comparison flow |
+| `UC-E2` | Scenario Type | General | `QC/tests/scenario-types/general.test.js` | E | General scenario configuration | General-type extraction and comparison flow |
+| `UC-E3` | Scenario Type | Funds | `QC/tests/scenario-types/funds.test.js` | E | Funds scenario configuration | Funds-type extraction and comparison flow |
+| `UC-E4` | Scenario Type | Advanced Goal Solver | `QC/tests/scenario-types/advanced-goal-solver.test.js` | E | Advanced Goal Solver configuration | Solver-type extraction and comparison flow |
+| `UC-E5` | Scenario Type | General | `QC/tests/scenario-types/general.test.js` | E | Short, medium, long horizon variants | Horizon sensitivity and period-span handling |
+| `UC-F1` | Date Boundary | General | `QC/tests/scenario-types/general.test.js` | F | Month-end recurrence case | Month-end rollover correctness |
+| `UC-F2` | Date Boundary | General | `QC/tests/scenario-types/general.test.js` | F | Leap-year date recurrence case | Leap-year recurrence correctness |
+| `UC-F3` | Date Boundary | General | `QC/tests/scenario-types/general.test.js` | F | Year rollover one-time case | Year boundary continuity correctness |
+| `UC-F4` | Data Integrity | General | `QC/tests/scenario-types/general.test.js` | F | Similar scenarios with edited values | Cross-scenario data isolation correctness |
+| `UC-S1` | Summary | Budget, General | `budget.test.js`, `general.test.js` | A, B | Income transactions aggregated from mapped inputs | Scenario Money In totals |
+| `UC-S2` | Summary | Budget, General | `budget.test.js`, `general.test.js` | A, B, C, D | Expense transactions aggregated from mapped inputs | Scenario Money Out totals |
+| `UC-S3` | Summary | Budget, General | `budget.test.js`, `general.test.js` | A, B, C, D | Derived from UC-S1 and UC-S2 | Scenario Net totals |
+| `UC-S4` | Summary | Budget, General, Debt Repayment, Goal-Based | `budget.test.js`, `general.test.js`, `debt-repayment.test.js`, `goal-based.test.js` | A, C, D | Account ending balances across mapped scenarios | Ending balance summary by account |
+| `UC-S5` | Summary | General, Debt Repayment | `general.test.js`, `debt-repayment.test.js` | C, D | Interest effects from periodic changes and liabilities | Interest earned and paid totals |
+| `UC-S6` | Summary | Budget | `QC/tests/scenario-types/budget.test.js` | A | Transfer use case from UC-A5 | Transfer-neutral net-worth assertion |
+| `UC-S7` | Summary | Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | D | Debt repayment scenario aggregates | Debt payoff summary metrics |
+| `UC-S8` | Summary | Funds | `QC/tests/scenario-types/funds.test.js` | E | Funds scenario summary aggregates | NAV and share-related summary values |
+| `UC-S9` | Summary | Advanced Goal Solver | `QC/tests/scenario-types/advanced-goal-solver.test.js` | E | Solver plan and projection aggregates | Solver plan summary consistency |
+| `UC-S10` | Summary | General | `QC/tests/scenario-types/general.test.js` | E, F | Period and boundary scenario aggregates | Period filter summary consistency |
 
-### 6.2 Scenario Group B - Recurrence Pattern Coverage
-1. **UC-B1 Weekly Recurrence On Specific Day**
-	Transaction: recurring weekly charge on configured weekday.
-	Represents: subscriptions or regular weekly commitments.
-2. **UC-B2 Monthly Recurrence On Day Of Month**
-	Transaction: recurring monthly event on fixed day.
-	Represents: rent, insurance, or standard bill cycles.
-3. **UC-B3 Quarterly Recurrence**
-	Transaction: recurring quarterly payment.
-	Represents: estimated taxes or quarterly fees.
-4. **UC-B4 Yearly Recurrence**
-	Transaction: recurring yearly expense.
-	Represents: annual renewals, memberships, or property fees.
-5. **UC-B5 One-Time Transaction**
-	Transaction: non-recurring event.
-	Represents: purchase, bonus, or ad hoc correction.
-
-### 6.3 Scenario Group C - Periodic Change Coverage
-1. **UC-C1 Salary With Annual Percentage Raise**
-	Transaction: recurring income with yearly percentage increase.
-	Represents: compensation growth over time.
-2. **UC-C2 Expense With Annual Inflation Increase**
-	Transaction: recurring expense with yearly percentage increase.
-	Represents: inflation-adjusted living costs.
-3. **UC-C3 Fixed Amount Increase Schedule**
-	Transaction: recurring amount with fixed increment each cycle.
-	Represents: planned savings step-up or staged contribution plan.
-4. **UC-C4 Fixed Amount Decrease Schedule**
-	Transaction: recurring amount with fixed decrement each cycle.
-	Represents: declining payment plans or tapering obligations.
-5. **UC-C5 Account-Level Compounding Growth**
-	Transaction setup: account periodic change using rate/compound behavior.
-	Represents: savings or investment growth mechanics.
-
-### 6.4 Scenario Group D - Liability and Debt Behavior
-1. **UC-D1 Credit Card Interest Accrual**
-	Transaction setup: liability account with interest effects across periods.
-	Represents: revolving debt cost when balance is carried.
-2. **UC-D2 Minimum Payment Flow**
-	Transaction: recurring payment from checking to liability account.
-	Represents: baseline debt servicing behavior.
-3. **UC-D3 Extra Principal Payment**
-	Transaction: additional one-time or recurring payment.
-	Represents: accelerated payoff strategy.
-4. **UC-D4 Debt Repayment Scenario Comparison**
-	Scenario setup: debt-focused scenario with planned payment strategy.
-	Represents: payoff date and total interest tradeoff analysis.
-
-### 6.5 Scenario Group E - Scenario Type and Horizon Coverage
-1. **UC-E1 Budget Scenario Core Flow**
-	Scenario type: Budget.
-	Represents: strict planning with standard income and expense tracking.
-2. **UC-E2 General Scenario What-If Flow**
-	Scenario type: General.
-	Represents: flexible what-if modeling without budget-grid constraints.
-3. **UC-E3 Funds Scenario Shared Pool Flow**
-	Scenario type: Funds.
-	Represents: pooled assets and ownership-based valuation behavior.
-4. **UC-E4 Advanced Goal Solver Flow**
-	Scenario type: Advanced Goal Solver.
-	Represents: multi-goal plan generation and projection validation.
-5. **UC-E5 Horizon Variants**
-	Period setup: short, medium, and long windows.
-	Represents: sensitivity of outcomes across time horizons.
-
-### 6.6 Scenario Group F - Date Boundary and Integrity Cases
-1. **UC-F1 Month-End Boundary Case**
-	Transaction timing: recurrence near end of month.
-	Represents: date rollover correctness.
-2. **UC-F2 Leap-Year Date Case**
-	Transaction timing: includes February leap-day handling.
-	Represents: calendar correctness for annual and monthly rules.
-3. **UC-F3 Year Rollover Case**
-	Transaction timing: spans December to January.
-	Represents: continuity of projections across calendar years.
-4. **UC-F4 Data Isolation Across Scenarios**
-	Scenario setup: similar data in two scenarios with different edits.
-	Represents: no cross-scenario data contamination.
-
-### 6.7 Totals And Summary Use Cases
-These are separate QC use cases, but they are derived from the same scenario input data above.
-
-1. **UC-S1 Scenario Money In Total**
-	Source: Scenario Group A and B income transactions.
-	Represents: total inflow aggregation correctness per period and full horizon.
-2. **UC-S2 Scenario Money Out Total**
-	Source: Scenario Group A, B, C, and D expense transactions.
-	Represents: total outflow aggregation correctness per period and full horizon.
-3. **UC-S3 Scenario Net Total**
-	Source: same inputs as UC-S1 and UC-S2.
-	Represents: net value correctness where Net = Money In - Money Out.
-4. **UC-S4 Account Ending Balance Summary**
-	Source: Scenario Groups A, C, and D account plus transaction flows.
-	Represents: final projected balance summary per account.
-5. **UC-S5 Interest Earned And Interest Paid Totals**
-	Source: Scenario Groups C and D with periodic change and liability behavior.
-	Represents: aggregate interest tracking correctness in projections and summaries.
-6. **UC-S6 Transfer-Neutral Net Worth Check**
-	Source: Scenario Group A transfer use case UC-A5.
-	Represents: internal transfers do not change total net worth.
-7. **UC-S7 Debt Payoff Summary Metrics**
-	Source: Scenario Group D debt repayment use cases.
-	Represents: payoff date, remaining balance, and total interest summary correctness.
-8. **UC-S8 Funds Scenario Summary Metrics**
-	Source: Scenario Group E funds scenario use case UC-E3.
-	Represents: NAV, share price, and ownership summary correctness.
-9. **UC-S9 Goal Solver Plan Summary Metrics**
-	Source: Scenario Group E advanced goal solver use case UC-E4.
-	Represents: generated-plan totals and projection summary consistency.
-10. **UC-S10 Period Filter Summary Consistency**
-	Source: Scenario Groups E and F with different horizon and boundary cases.
-	Represents: totals and summaries remain correct when changing period filters.
-
-### 6.8 Reporting Expectations Per Use Case
+### 6.2 Reporting Expectations Per Use Case
 1. Each use case must have a stable `useCaseId` and clear business label.
 2. Each expected output must define the key verification fields for that use case.
 3. QC report output must show pass or fail by `useCaseId` and include mismatch details.
 4. Expected outputs must also include all relevant totals and summary values produced by the application.
 5. Totals and summaries should be QC validated using the same input use cases, not a separate dataset.
+
