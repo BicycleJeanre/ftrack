@@ -416,17 +416,10 @@ describe('Projection Engine - Interest Timing', () => {
 
     const periodStart = dateUtils.parseDateOnly(startDate);
     const periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0);
-    periodEnd.setHours(23, 59, 59, 999);
+    const daysInPeriod = Math.floor((periodEnd - periodStart) / (1000 * 60 * 60 * 24)) + 1;
+    const yearsInPeriod = daysInPeriod / 365.25;
 
-    const startMinusDay = new Date(periodStart);
-    startMinusDay.setDate(startMinusDay.getDate() - 1);
-    startMinusDay.setHours(0, 0, 0, 0);
-
-    const yearsToStart = (periodStart - startMinusDay) / MS_PER_YEAR;
-    const yearsInPeriod = (periodEnd - periodStart) / MS_PER_YEAR;
-
-    const beforeTx = financialUtils.applyPeriodicChange(1000, expandedPC, yearsToStart);
-    const afterTx = beforeTx + 100;
+    const afterTx = 1000 + 100;
     const expected = roundToCents(
       financialUtils.applyPeriodicChange(afterTx, expandedPC, yearsInPeriod)
     );

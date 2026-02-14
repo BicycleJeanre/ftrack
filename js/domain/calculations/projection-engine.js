@@ -9,6 +9,19 @@ import { parseDateOnly, formatDateOnly } from '../../shared/date-utils.js';
 import { expandTransactions } from './transaction-expander.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const DAYS_PER_YEAR = 365.25;
+
+function getInclusiveDayCount(startDate, endDate) {
+  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  return Math.floor((end - start) / MS_PER_DAY) + 1;
+}
+
+function getId(value) {
+  return typeof value === 'object' ? value?.id : value;
+}
+
 /**
  * Generate projections for a scenario
  * @param {number} scenarioId - The scenario ID to generate projections for
@@ -110,8 +123,10 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
 
   accounts.forEach((account) => {
     let currentBalance = account.startingBalance || 0;
-    let lastPeriodEnd = new Date(startDate);
-    lastPeriodEnd.setDate(lastPeriodEnd.getDate() - 1);
+    const simpleInterestState = {
+      principalBase: account.startingBalance || 0,
+      elapsedYears: 0
+    };
 
     periods.forEach((period, periodIndex) => {
       const periodStart = period.start;
@@ -123,21 +138,6 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
       let periodIncome = 0;
       let periodExpenses = 0;
       let periodInterest = 0;
-
-      if (account.periodicChange) {
-        const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
-        if (expandedPC) {
-          const yearsDiffToStart = (periodStart - lastPeriodEnd) / (1000 * 60 * 60 * 24 * 365.25);
-          if (yearsDiffToStart !== 0) {
-            const beforeBalance = currentBalance;
-            currentBalance = calculatePeriodicChange(currentBalance, expandedPC, yearsDiffToStart);
-            const interestDelta = currentBalance - beforeBalance;
-            periodInterest += interestDelta;
-            if (interestDelta >= 0) periodIncome += interestDelta;
-            else periodExpenses += Math.abs(interestDelta);
-          }
-        }
-      }
 
       transactionOccurrences.forEach((txn) => {
         if (txn.dateKey >= periodStartKey && txn.dateKey <= periodEndKey) {
@@ -168,10 +168,24 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
       if (account.periodicChange) {
         const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
         if (expandedPC) {
-          const yearsDiffPeriod = (periodEnd - periodStart) / (1000 * 60 * 60 * 24 * 365.25);
+          const yearsDiffPeriod = getInclusiveDayCount(periodStart, periodEnd) / DAYS_PER_YEAR;
           if (yearsDiffPeriod !== 0) {
             const beforeBalance = currentBalance;
-            currentBalance = calculatePeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
+            const changeModeId = getId(expandedPC.changeMode);
+            const changeTypeId = getId(expandedPC.changeType);
+
+            if (changeModeId === 1 && changeTypeId === 1) {
+              const rate = (expandedPC.value || 0) / 100;
+              const previousInterest = simpleInterestState.principalBase * rate * simpleInterestState.elapsedYears;
+              const nextElapsedYears = simpleInterestState.elapsedYears + yearsDiffPeriod;
+              const nextInterest = simpleInterestState.principalBase * rate * nextElapsedYears;
+              const simpleInterestDelta = nextInterest - previousInterest;
+              currentBalance += simpleInterestDelta;
+              simpleInterestState.elapsedYears = nextElapsedYears;
+            } else {
+              currentBalance = calculatePeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
+            }
+
             const interestDelta = currentBalance - beforeBalance;
             periodInterest += interestDelta;
             if (interestDelta >= 0) periodIncome += interestDelta;
@@ -193,8 +207,6 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
         interest: Math.round(periodInterest * 100) / 100,
         period: periodIndex + 1
       });
-
-      lastPeriodEnd = periodEnd;
     });
   });
 
@@ -279,7 +291,7 @@ function generatePeriods(start, end, periodicity) {
     const ps = new Date(periodStart);
     ps.setHours(0, 0, 0, 0);
     const pe = new Date(periodEnd);
-    pe.setHours(23, 59, 59, 999);
+    pe.setHours(0, 0, 0, 0);
 
     // Only include if periodStart is within the scenario window
     if (ps <= end) {
