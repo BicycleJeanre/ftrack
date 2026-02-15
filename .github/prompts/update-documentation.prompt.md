@@ -51,7 +51,20 @@ Return:
 
 ---
 
-## 5.0 Validation Checks
+## 5.0 File Modification Scope
+
+5.1 Only update docs for explicitly changed features
+- Do not update documentation for features that were not modified in this session.
+- If review identifies outdated or missing documentation unrelated to current changes, flag it as a separate issue but do not update it unless explicitly requested.
+
+5.2 Document only what changed
+- Keep updates minimal and targeted.
+- Do not bundle unrelated documentation improvements into the same update.
+
+---
+
+## 6.0 Validation Checks
 - The described steps match the actual UI.
 - New documentation files are added only when required, and follow the naming/display rules.
 - The documentation remains concise and non-repetitive.
+- Documentation updates are scoped to the explicitly changed features only.

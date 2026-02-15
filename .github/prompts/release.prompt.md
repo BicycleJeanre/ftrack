@@ -34,6 +34,8 @@ Provide:
 3.4 Propose merge/push
 - Provide exact commands.
 - Do not push or merge to `main` without explicit user confirmation.
+- Do not auto-commit release changes; ask user which files to include.
+- User decides if release changes are committed alone or bundled with other work.
 
 ---
 

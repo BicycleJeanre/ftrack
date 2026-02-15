@@ -3,13 +3,30 @@
 **Start Here.** This document serves as the entry point for AI Agents and Developers understanding the `ftrack` codebase.
 
 ## 1.0 Project Scope
-`ftrack` is a specialized financial tracking application running on Electron. It focuses on Scenario-based transactions (e.g., separating "Actuals" from "Forecasts") to allow for financial modeling.
+
+FTrack is a web-based financial tracking and forecasting application. It focuses on scenario-based planning, allowing users to model multiple financial futures ("What if I save $500/month?") without affecting their baseline data.
+
+**Core Features**:
+- Multi-scenario financial modeling
+- Transaction planning (planned vs. actual)
+- Automated projections with periodic changes
+- Goal-based scenario planning
+- Budget tracking
+- Data export/import
 
 ## 2.0 Core Tech Stack
-- **Runtime**: Electron
-- **Language**: JavaScript (ES6 Modules)
-- **UI Component Library**: Tabulator 6.3 (strictly used for all data grids)
-- **Data persistence**: Local JSON files (No SQL/Cloud).
+
+**Runtime**: Modern web browser (Chrome, Firefox, Safari, Edge)  
+**Language**: JavaScript (ES6 Modules)  
+**UI Framework**: Tabulator 6.3 (data grids)  
+**Storage**: Browser localStorage  
+**Dependencies**: Minimal (2 libraries)
+
+**No External Dependencies For**:
+- Financial calculations (pure JavaScript)
+- Date manipulation (native Date API)
+- State management (in-memory objects)
+- Persistence (localStorage API)
 
 ## 3.0 User Documentation
 The application includes comprehensive user-facing documentation accessible from the navbar and home page. The documentation uses a single-page panel system for smooth navigation.
@@ -62,7 +79,7 @@ The technical documentation is modularized. Read the specific section required f
 *Covers: JSON Schemas, Entity Relationships, `DataStore` API.*
 
 ### [3. UI & Workflow >](TECH_UI_LAYER.md)
-**Read this if:** You are changing the Grid visualizations, editing `forecast.js`, or working on the frontend logic.
+**Read this if:** You are changing the Grid visualizations, editing the Forecast controller, or working on the frontend logic.
 *Covers: Tabulator implementation, GridFactory, Event Handling.*
 
 ### [4. Goal-Based Planning >](TECH_GOAL_PLANNING.md)
@@ -93,15 +110,37 @@ FTrack uses versioned data migrations to evolve the schema while preserving user
 4. Test with old data format to ensure backward compatibility
 
 ## 6.0 Quick Start Reference
-- **Entry Point**: `main.js` (Electron Main Process).
-- **Frontend Entry**: `pages/forecast.html` -> `js/global-app.js`.
-- **Primary Logic**: `js/forecast.js`.
-- **Key Asset**: `assets/lookup-data.json` (Static definitions).
+
+**Entry Point**: `index.html` → redirects to `pages/forecast.html`  
+**Main Controller**: `js/ui/controllers/forecast-controller.js`  
+**Calculation Engine**: `js/domain/calculations/calculation-engine.js`  
+**Storage**: `js/app/services/storage-service.js`  
+**Configuration**: `assets/lookup-data.json`
+
+**Development Server**:
+```bash
+npm start                    # Start development server on port 3000
+npm run qc:full             # Run full QC verification and tests
+```
 
 ## 7.0 Development Rules
-1. **No External Databases**: Keep `DataStore` logic.
-2. **Tabulator Only**: Do not introduce new UI libraries for tables.
-3. **Manager Pattern**: Do not write file I/O code in UI files. Use a Manager.
+
+**Architecture**:
+1. Follow clean layered architecture (see [TECH_ARCHITECTURE.md](TECH_ARCHITECTURE.md))
+2. All calculations must go through the Calculation Engine
+3. UI code never contains business logic
+4. Use managers for business operations
+
+**Code Organization**:
+1. **No calculations in UI layer** - use `domain/calculations/`
+2. **Tabulator only** - do not introduce alternative grid libraries
+3. **Pure functions** - domain calculations must be pure (no side effects)
+4. **Single responsibility** - each module has one clear purpose
+
+**Data**:
+1. **Browser localStorage only** - no external databases
+2. **localStorage quota** - monitor and manage storage limits
+3. **Atomic writes** - all data updates are complete or rolled back
 
 ## 8.0 Styling System
 - **Single Source**: All UI theming lives in `styles/app.css`; inline styles are forbidden.

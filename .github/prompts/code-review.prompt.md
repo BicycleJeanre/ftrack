@@ -54,3 +54,18 @@ Return:
 - Recommendations do not invent new architecture.
 - Fixes preserve existing behavior unless explicitly changing it.
 - No unrelated refactors.
+
+## 6.0 Scope Limitations
+
+6.1 Review only, user decides
+- This prompt performs analysis and recommendations only.
+- Do not apply code changes unless explicitly requested by the user.
+- Present findings and let the user decide which recommendations to implement.
+
+6.2 Conflicting recommendations
+- If multiple recommendations affect the same code section, present the conflict.
+- Recommend the minimal fix; avoid over-engineering solutions.
+
+6.3 Out-of-scope changes
+- If review identifies unrelated improvements (e.g., "this module could be refactored"), flag them as separate concerns.
+- Do not bundle them with the current review unless explicitly requested.
