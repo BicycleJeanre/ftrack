@@ -4,289 +4,200 @@
     {
       "id": 0,
       "name": "2026 Budget Test",
-      "type": {
-        "id": 1,
-        "name": "Budget"
-      },
+      "type": 1,
       "description": "Testing budget updated",
       "startDate": "2026-01-01",
       "endDate": "2026-12-31",
-      "projectionPeriod": {
-        "id": 3,
-        "name": "Month"
-      },
+      "projectionPeriod": 3,
       "accounts": [
         {
           "name": "Primary Salary",
-          "type": {
-            "id": 4,
-            "name": "Income"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 4,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 1
+          "periodicChange": null,
+          "id": 1,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "name": "Side business",
-          "type": {
-            "id": 4,
-            "name": "Income"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 4,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 2
+          "periodicChange": null,
+          "id": 2,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "name": "Investment Returns",
-          "type": {
-            "id": 4,
-            "name": "Income"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 4,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 3
+          "periodicChange": null,
+          "id": 3,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "name": "Checking Account",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 5000,
+          "type": 1,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 4
+          "periodicChange": null,
+          "id": 4,
+          "startingBalance": 5000,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "name": "Savings Account",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 15000,
+          "type": 1,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 5
+          "periodicChange": null,
+          "id": 5,
+          "startingBalance": 15000,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "name": "Investment Account",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 25000,
+          "type": 1,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 6
+          "periodicChange": null,
+          "id": 6,
+          "startingBalance": 25000,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "name": "Credit Card",
-          "type": {
-            "id": 2,
-            "name": "Liability"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 2500,
+          "type": 2,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 7
+          "periodicChange": null,
+          "id": 7,
+          "startingBalance": 2500,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "name": "Car Loan",
-          "type": {
-            "id": 2,
-            "name": "Liability"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 18000,
+          "type": 2,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 8
+          "periodicChange": null,
+          "id": 8,
+          "startingBalance": 18000,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "name": "Student Loan",
-          "type": {
-            "id": 2,
-            "name": "Liability"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 35000,
+          "type": 2,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 9
+          "periodicChange": null,
+          "id": 9,
+          "startingBalance": 35000,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 10,
           "name": "Groceries",
-          "type": {
-            "id": 5,
-            "name": "Expense"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 5,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": ""
+          "periodicChange": null,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 11,
           "name": "Rent",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 5,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": null
+          "periodicChange": null,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 12,
           "name": "Utilities",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 5,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": null
+          "periodicChange": null,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 13,
           "name": "Insurance",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 5,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": null
+          "periodicChange": null,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 14,
           "name": "Transportation",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 5,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": null
+          "periodicChange": null,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 15,
           "name": "Tax Refund",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 5,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": null
+          "periodicChange": null,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         },
         {
           "id": 16,
           "name": "Entertainment",
-          "type": {
-            "id": 1,
-            "name": "Asset"
-          },
-          "currency": {
-            "id": 1,
-            "name": "ZAR"
-          },
-          "balance": 0,
+          "type": 5,
+          "currency": 1,
           "openDate": "2026-01-08",
-          "periodicChange": null
-        },
-        {
-          "name": "gfgffg",
-          "type": null,
-          "currency": null,
-          "balance": 0,
-          "openDate": "2026-01-08",
-          "periodicChange": "",
-          "id": 17
+          "periodicChange": null,
+          "startingBalance": 0,
+          "goalAmount": null,
+          "goalDate": null
         }
       ],
-      "accountOverrides": [],
-      "transactionOverrides": [],
-      "createdDate": "",
-      "lastCalculated": "",
       "tags": [],
       "plannedTransactions": [
         {
           "amount": 150,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 3,
-              "name": "Weekly"
-            },
+            "recurrenceType": 3,
             "startDate": "2026-01-06",
             "endDate": null,
             "interval": 1,
-            "dayOfWeek": {
-              "id": 1,
-              "name": "Monday"
-            },
+            "dayOfWeek": 1,
             "dayOfMonth": 1,
             "weekOfMonth": null,
             "dayOfWeekInMonth": null,
@@ -296,44 +207,22 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 1,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 10,
-            "name": "Groceries",
-            "type": {
-              "id": 5,
-              "name": "Expense"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": ""
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 10,
+          "transactionTypeId": 2
         },
         {
           "amount": 3200,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 3,
-              "name": "Weekly"
-            },
+            "recurrenceType": 3,
             "startDate": null,
             "endDate": null,
             "interval": 2,
-            "dayOfWeek": {
-              "id": 1,
-              "name": "Monday"
-            },
+            "dayOfWeek": 1,
             "dayOfMonth": 1,
             "weekOfMonth": null,
             "dayOfWeekInMonth": null,
@@ -343,37 +232,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 2,
-          "debitAccount": {
-            "name": "Primary Salary",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": "",
-            "id": 1
-          },
-          "creditAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          }
+          "primaryAccountId": 1,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2
         },
         {
           "amount": 1500,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": null,
             "endDate": null,
             "interval": 1,
@@ -387,37 +257,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 3,
-          "debitAccount": {
-            "name": "Side business",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": "",
-            "id": 2
-          },
-          "creditAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          }
+          "primaryAccountId": 2,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2
         },
         {
           "amount": 1500,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": null,
             "endDate": null,
             "interval": 1,
@@ -431,37 +282,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 4,
-          "debitAccount": {
-            "name": "Side business",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": "",
-            "id": 2
-          },
-          "creditAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          }
+          "primaryAccountId": 2,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2
         },
         {
           "amount": 2200,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": null,
             "endDate": null,
             "interval": 1,
@@ -475,37 +307,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 5,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 11,
-            "name": "Rent",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 11,
+          "transactionTypeId": 2
         },
         {
           "amount": 250,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": null,
             "endDate": null,
             "interval": 1,
@@ -519,37 +332,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 6,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 12,
-            "name": "Utilities",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 12,
+          "transactionTypeId": 2
         },
         {
           "amount": 425,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": null,
             "endDate": null,
             "interval": 1,
@@ -563,37 +357,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 7,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "name": "Car Loan",
-            "type": {
-              "id": 2,
-              "name": "Liability"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 18000,
-            "openDate": "2026-01-08",
-            "periodicChange": "",
-            "id": 8
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 8,
+          "transactionTypeId": 2
         },
         {
           "amount": 350,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": null,
             "endDate": null,
             "interval": 1,
@@ -607,37 +382,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 8,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 13,
-            "name": "Insurance",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 13,
+          "transactionTypeId": 2
         },
         {
           "amount": 500,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 4,
-              "name": "Monthly - Day of Month"
-            },
+            "recurrenceType": 4,
             "startDate": null,
             "endDate": null,
             "interval": 1,
@@ -651,37 +407,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 9,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "name": "Savings Account",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 15000,
-            "openDate": "2026-01-08",
-            "periodicChange": "",
-            "id": 5
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 5,
+          "transactionTypeId": 2
         },
         {
           "amount": 425,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 6,
-              "name": "Quarterly"
-            },
+            "recurrenceType": 6,
             "startDate": "2026-03-01",
             "endDate": null,
             "interval": 1,
@@ -695,37 +432,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 10,
-          "debitAccount": {
-            "name": "Investment Returns",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": "",
-            "id": 3
-          },
-          "creditAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          }
+          "primaryAccountId": 3,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2
         },
         {
           "amount": 200,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 6,
-              "name": "Quarterly"
-            },
+            "recurrenceType": 6,
             "startDate": "2026-03-01",
             "endDate": null,
             "interval": 1,
@@ -739,37 +457,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 11,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 14,
-            "name": "Transportation",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 14,
+          "transactionTypeId": 2
         },
         {
           "amount": 1800,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 7,
-              "name": "Yearly"
-            },
+            "recurrenceType": 7,
             "startDate": "2026-01-15",
             "endDate": null,
             "interval": 2,
@@ -783,37 +482,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 12,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 11,
-            "name": "Rent",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 11,
+          "transactionTypeId": 2
         },
         {
           "amount": 650,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 7,
-              "name": "Yearly"
-            },
+            "recurrenceType": 7,
             "startDate": "2026-01-15",
             "endDate": null,
             "interval": 2,
@@ -827,37 +507,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 13,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 14,
-            "name": "Transportation",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 14,
+          "transactionTypeId": 2
         },
         {
           "amount": 2500,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 7,
-              "name": "Yearly"
-            },
+            "recurrenceType": 7,
             "startDate": "2026-04-15",
             "endDate": null,
             "interval": 1,
@@ -871,37 +532,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 14,
-          "debitAccount": {
-            "id": 15,
-            "name": "Tax Refund",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          },
-          "creditAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          }
+          "primaryAccountId": 15,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2
         },
         {
           "amount": 120,
           "description": null,
           "recurrence": {
-            "recurrenceType": {
-              "id": 7,
-              "name": "Yearly"
-            },
+            "recurrenceType": 7,
             "startDate": "2026-02-01",
             "endDate": null,
             "interval": 1,
@@ -915,37 +557,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 15,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 16,
-            "name": "Entertainment",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 16,
+          "transactionTypeId": 2
         },
         {
           "amount": 3500,
           "description": "Vacation!",
           "recurrence": {
-            "recurrenceType": {
-              "id": 1,
-              "name": "One Time"
-            },
+            "recurrenceType": 1,
             "startDate": "2026-07-03",
             "endDate": null,
             "interval": 1,
@@ -959,37 +582,18 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 16,
-          "debitAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          },
-          "creditAccount": {
-            "id": 16,
-            "name": "Entertainment",
-            "type": {
-              "id": 1,
-              "name": "Asset"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": null
-          }
+          "primaryAccountId": 4,
+          "secondaryAccountId": 16,
+          "transactionTypeId": 2
         },
         {
           "amount": 5000,
           "description": "Bonus!",
           "recurrence": {
-            "recurrenceType": {
-              "id": 1,
-              "name": "One Time"
-            },
+            "recurrenceType": 1,
             "startDate": "2026-12-15",
             "endDate": null,
             "interval": 1,
@@ -1003,28 +607,12 @@
             "customDates": null,
             "id": null
           },
-          "periodicChange": "",
+          "periodicChange": null,
           "tags": [],
           "id": 17,
-          "debitAccount": {
-            "name": "Primary Salary",
-            "type": {
-              "id": 4,
-              "name": "Income"
-            },
-            "currency": {
-              "id": 1,
-              "name": "ZAR"
-            },
-            "balance": 0,
-            "openDate": "2026-01-08",
-            "periodicChange": "",
-            "id": 1
-          },
-          "creditAccount": {
-            "id": 4,
-            "name": "Checking Account"
-          }
+          "primaryAccountId": 1,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2
         }
       ],
       "actualTransactions": [

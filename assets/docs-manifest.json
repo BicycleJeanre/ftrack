@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "generatedAt": "2026-02-13T14:59:08.414Z",
+  "items": [
+    {
+      "id": "concepts_accounts",
+      "title": "Accounts Guide",
+      "category": "Concepts",
+      "file": "Documentation/concepts_accounts.md",
+      "kind": "md"
+    },
+    {
+      "id": "concepts_periodic_changes",
+      "title": "Periodic Changes",
+      "category": "Concepts",
+      "file": "Documentation/concepts_periodic_changes.md",
+      "kind": "md"
+    },
+    {
+      "id": "concepts_projections",
+      "title": "Projections Guide",
+      "category": "Concepts",
+      "file": "Documentation/concepts_projections.md",
+      "kind": "md"
+    },
+    {
+      "id": "concepts_recurrence",
+      "title": "Recurrence And Scheduling",
+      "category": "Concepts",
+      "file": "Documentation/concepts_recurrence.md",
+      "kind": "md"
+    },
+    {
+      "id": "concepts_scenarios",
+      "title": "Scenario Planning",
+      "category": "Concepts",
+      "file": "Documentation/concepts_scenarios.md",
+      "kind": "md"
+    },
+    {
+      "id": "concepts_transactions",
+      "title": "Transactions Guide",
+      "category": "Concepts",
+      "file": "Documentation/concepts_transactions.md",
+      "kind": "md"
+    },
+    {
+      "id": "other_CHANGELOG",
+      "title": "Changelog",
+      "category": "Other",
+      "file": "Documentation/other_CHANGELOG.md",
+      "kind": "md"
+    },
+    {
+      "id": "ARCHITECTURE_PROPOSAL_WEB",
+      "title": "FTrack Web-Only Architecture Proposal",
+      "category": "Other",
+      "file": "Documentation/ARCHITECTURE_PROPOSAL_WEB.md",
+      "kind": "md"
+    },
+    {
+      "id": "other_glossary",
+      "title": "Glossary",
+      "category": "Other",
+      "file": "Documentation/other_glossary.md",
+      "kind": "md"
+    },
+    {
+      "id": "other_shortcuts",
+      "title": "Keyboard Shortcuts",
+      "category": "Other",
+      "file": "Documentation/other_shortcuts.md",
+      "kind": "md"
+    },
+    {
+      "id": "other_LICENSE",
+      "title": "License",
+      "category": "Other",
+      "file": "Documentation/other_LICENSE.md",
+      "kind": "md"
+    },
+    {
+      "id": "plan_advanced_goal_solver_concept",
+      "title": "Advanced Goal Solver Scenario Concept Design",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_advanced_goal_solver_concept.md",
+      "kind": "md"
+    },
+    {
+      "id": "plan_refactor_web_only",
+      "title": "Refactor Plan: Web-Only Architecture",
+      "category": "Plan",
+      "file": "Documentation/Plans/plan_refactor_web_only.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_DATA_SCHEMA",
+      "title": "Data Schema",
+      "category": "Technical",
+      "file": "Documentation/TECH_DATA_SCHEMA.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_ARCHITECTURE",
+      "title": "Technical Architecture",
+      "category": "Technical",
+      "file": "Documentation/TECH_ARCHITECTURE.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_OVERVIEW",
+      "title": "Technical Overview & Index",
+      "category": "Technical",
+      "file": "Documentation/TECH_OVERVIEW.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_UI_LAYER",
+      "title": "UI Layer & Components",
+      "category": "Technical",
+      "file": "Documentation/TECH_UI_LAYER.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_GUIDE",
+      "title": "FTrack Usage Guide",
+      "category": "User",
+      "file": "Documentation/USER_GUIDE.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_FEATURES",
+      "title": "FTrack User Features",
+      "category": "User",
+      "file": "Documentation/USER_FEATURES.md",
+      "kind": "md"
+    },
+    {
+      "id": "user_getting_started",
+      "title": "Getting Started",
+      "category": "User",
+      "file": "Documentation/user_getting_started.md",
+      "kind": "md"
+    },
+    {
+      "id": "user_overview",
+      "title": "Overview",
+      "category": "User",
+      "file": "Documentation/user_overview.md",
+      "kind": "md"
+    }
+  ]
+}

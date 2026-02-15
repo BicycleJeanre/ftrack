@@ -7,9 +7,7 @@
       "showAccounts": true,
       "showPlannedTransactions": true,
       "showActualTransactions": true,
-      "showProjections": true,
-      "accountColumns": ["name", "type", "currency", "balance", "openDate"],
-      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "tags"]
+      "showProjections": true
     },
     {
       "id": 2,
@@ -19,8 +17,8 @@
       "showPlannedTransactions": true,
       "showActualTransactions": false,
       "showProjections": true,
-      "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange"],
-      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
+      "showBudget": false,
+      "showSummaryCards": true
     },
     {
       "id": 3,
@@ -30,8 +28,8 @@
       "showPlannedTransactions": true,
       "showActualTransactions": false,
       "showProjections": true,
-      "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange"],
-      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
+      "showBudget": false,
+      "showSummaryCards": true
     },
     {
       "id": 4,
@@ -42,9 +40,28 @@
       "showActualTransactions": false,
       "showBudget": false,
       "showProjections": true,
-      "showSummaryCards": true,
-      "accountColumns": ["name", "type", "currency", "balance", "openDate", "interestRate", "periodicChange", "description"],
-      "transactionColumns": ["primaryAccount", "secondaryAccount", "transactionType", "amount", "description", "recurrence", "periodicChange", "tags"]
+      "showSummaryCards": true
+    },
+    {
+      "id": 5,
+      "name": "Goal-Based",
+      "description": "Goal-based planning with automatic transaction generation",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": false,
+      "showProjections": true,
+      "showGeneratePlan": true
+    },
+    {
+      "id": 6,
+      "name": "Advanced Goal Solver",
+      "description": "Multi-goal planning with constraints and solver-driven suggestions",
+      "showAccounts": true,
+      "showPlannedTransactions": true,
+      "showActualTransactions": false,
+      "showProjections": true,
+      "showGeneratePlan": true,
+      "showBudget": false
     }
   ],
   "periodTypes": [
