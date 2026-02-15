@@ -24,7 +24,7 @@
 - Ensure focus is applied after the accordion is expanded and DOM is stable.
 - Validate keyboard navigation still works (tab order, screen scroll, and focus visibility).
 
-### 2.2 duplicate accounts and transactions.
+### 2.2 duplicate accounts and transactions.[Done]
 
 - Add a Duplicate button for Accounts and Transactions, matching the existing Scenario duplicate behavior.
 - Duplicate behavior:

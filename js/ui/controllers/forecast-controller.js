@@ -138,6 +138,180 @@ async function buildScenarioGrid(container) {
   try {
     const lookupData = await loadLookup('lookup-data.json');
 
+    const pad2 = (n) => String(n).padStart(2, '0');
+
+    const parseDateOnlySafe = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const d = new Date(`${value}T00:00:00`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+
+    const startOfYear = (year) => new Date(year, 0, 1);
+    const endOfYear = (year) => new Date(year, 11, 31);
+
+    const startOfQuarter = (year, quarter) => new Date(year, (quarter - 1) * 3, 1);
+    const endOfQuarter = (year, quarter) => new Date(year, quarter * 3, 0);
+
+    const startOfMonth = (year, month1Based) => new Date(year, month1Based - 1, 1);
+    const endOfMonth = (year, month1Based) => new Date(year, month1Based, 0);
+
+    const previousOrSameMonday = (date) => {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = (day + 6) % 7; // Mon=0 ... Sun=6
+      d.setDate(d.getDate() - diff);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const startOfWeekMonday = (date) => previousOrSameMonday(date);
+    const endOfWeekSunday = (date) => {
+      const monday = previousOrSameMonday(date);
+      const sunday = new Date(monday);
+      sunday.setDate(sunday.getDate() + 6);
+      return sunday;
+    };
+
+    const getPeriodTypeName = (rowData) => {
+      const p = rowData?.projectionPeriod;
+      if (!p) return null;
+      if (typeof p === 'string') return p;
+      if (typeof p === 'number') {
+        const found = lookupData.periodTypes.find((pt) => pt.id === p);
+        return found?.name || null;
+      }
+      return p?.name || null;
+    };
+
+    const getOptionYearBounds = (rowData) => {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const start = parseDateOnlySafe(rowData?.startDate);
+      const end = parseDateOnlySafe(rowData?.endDate);
+      const years = [
+        currentYear - 5,
+        currentYear + 5,
+        start ? start.getFullYear() : currentYear,
+        end ? end.getFullYear() : currentYear
+      ];
+      const minYear = Math.min(...years);
+      const maxYear = Math.max(...years);
+      return { minYear, maxYear };
+    };
+
+    const buildPeriodOptions = (rowData, mode) => {
+      const periodType = getPeriodTypeName(rowData);
+      const { minYear, maxYear } = getOptionYearBounds(rowData);
+
+      const options = [];
+
+      if (!periodType) {
+        return options;
+      }
+
+      if (periodType === 'Year') {
+        for (let y = minYear; y <= maxYear; y++) {
+          const boundary = mode === 'start' ? startOfYear(y) : endOfYear(y);
+          options.push({ label: String(y), value: formatDateOnly(boundary) });
+        }
+        return options;
+      }
+
+      if (periodType === 'Quarter') {
+        for (let y = minYear; y <= maxYear; y++) {
+          for (let q = 1; q <= 4; q++) {
+            const boundary = mode === 'start' ? startOfQuarter(y, q) : endOfQuarter(y, q);
+            options.push({ label: `${y} Q${q}`, value: formatDateOnly(boundary) });
+          }
+        }
+        return options;
+      }
+
+      if (periodType === 'Month') {
+        for (let y = minYear; y <= maxYear; y++) {
+          for (let m = 1; m <= 12; m++) {
+            const boundary = mode === 'start' ? startOfMonth(y, m) : endOfMonth(y, m);
+            options.push({ label: `${y}-${pad2(m)}`, value: formatDateOnly(boundary) });
+          }
+        }
+        return options;
+      }
+
+      if (periodType === 'Week') {
+        for (let y = minYear; y <= maxYear; y++) {
+          const jan1 = new Date(y, 0, 1);
+          const dec31 = new Date(y, 11, 31);
+          let monday = previousOrSameMonday(jan1);
+          // Generate until the week start passes the end of the year.
+          while (monday <= dec31) {
+            const sunday = new Date(monday);
+            sunday.setDate(sunday.getDate() + 6);
+            const boundary = mode === 'start' ? monday : sunday;
+            options.push({ label: `Week of ${formatDateOnly(monday)}`, value: formatDateOnly(boundary) });
+            monday = new Date(monday);
+            monday.setDate(monday.getDate() + 7);
+          }
+        }
+        return options;
+      }
+
+      // Day
+      const startDate = parseDateOnlySafe(rowData?.startDate);
+      const endDate = parseDateOnlySafe(rowData?.endDate);
+      const now = new Date();
+      const fallbackStart = new Date(now.getFullYear() - 1, 0, 1);
+      const fallbackEnd = new Date(now.getFullYear() + 1, 11, 31);
+      const minDate = startDate && endDate ? startDate : fallbackStart;
+      const maxDate = startDate && endDate ? endDate : fallbackEnd;
+
+      const d = new Date(minDate);
+      d.setHours(0, 0, 0, 0);
+      const endD = new Date(maxDate);
+      endD.setHours(0, 0, 0, 0);
+      while (d <= endD) {
+        options.push({ label: formatDateOnly(d), value: formatDateOnly(d) });
+        d.setDate(d.getDate() + 1);
+      }
+
+      return options;
+    };
+
+    const formatPeriodLabel = (dateOnly, periodType, mode) => {
+      const d = parseDateOnlySafe(dateOnly);
+      if (!d || !periodType) return dateOnly || '';
+
+      if (periodType === 'Year') return String(d.getFullYear());
+      if (periodType === 'Quarter') return `${d.getFullYear()} Q${Math.floor(d.getMonth() / 3) + 1}`;
+      if (periodType === 'Month') return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+      if (periodType === 'Week') {
+        const monday = mode === 'start' ? startOfWeekMonday(d) : startOfWeekMonday(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 6));
+        return `Week of ${formatDateOnly(monday)}`;
+      }
+      return formatDateOnly(d);
+    };
+
+    const snapToPeriodBoundary = (dateOnly, periodType, mode) => {
+      const d = parseDateOnlySafe(dateOnly);
+      if (!d || !periodType) return dateOnly;
+
+      if (periodType === 'Year') {
+        return formatDateOnly(mode === 'start' ? startOfYear(d.getFullYear()) : endOfYear(d.getFullYear()));
+      }
+      if (periodType === 'Quarter') {
+        const q = Math.floor(d.getMonth() / 3) + 1;
+        return formatDateOnly(mode === 'start' ? startOfQuarter(d.getFullYear(), q) : endOfQuarter(d.getFullYear(), q));
+      }
+      if (periodType === 'Month') {
+        const m = d.getMonth() + 1;
+        return formatDateOnly(mode === 'start' ? startOfMonth(d.getFullYear(), m) : endOfMonth(d.getFullYear(), m));
+      }
+      if (periodType === 'Week') {
+        return formatDateOnly(mode === 'start' ? startOfWeekMonday(d) : endOfWeekSunday(d));
+      }
+      // Day
+      return formatDateOnly(d);
+    };
+
     // Add "Add Scenario" button
     // Remove any existing add buttons (defensive)
     const existingScenarioAdds = container.querySelectorAll('.btn-add');
@@ -147,13 +321,17 @@ async function buildScenarioGrid(container) {
     addScenarioBtn.className = 'btn btn-primary btn-add';
     addScenarioBtn.textContent = '+ Add New';
     addScenarioBtn.addEventListener('click', async () => {
+      const now = new Date();
+      const defaultPeriod = lookupData.periodTypes.find((p) => p.name === 'Year') || lookupData.periodTypes[0] || null;
+      const defaultStart = formatDateOnly(startOfYear(now.getFullYear()));
+      const defaultEnd = formatDateOnly(endOfYear(now.getFullYear()));
       const newScenario = await ScenarioManager.create({
         name: 'New Scenario',
         type: null,
         description: '',
-        startDate: formatDateOnly(new Date()),
-          endDate: formatDateOnly(new Date()),
-        projectionPeriod: null
+        startDate: defaultStart,
+        endDate: defaultEnd,
+        projectionPeriod: defaultPeriod
       });
       await buildScenarioGrid(container);
     });
@@ -205,8 +383,44 @@ async function buildScenarioGrid(container) {
           headerHozAlign: "left"
         },
         createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true, responsive: 3 }),
-        createDateColumn('Start Date', 'startDate', { widthGrow: 2, editor: "date", responsive: 1 }),
-        createDateColumn('End Date', 'endDate', { widthGrow: 2, editor: "date", responsive: 2 }),
+        {
+          title: 'Start',
+          field: 'startDate',
+          widthGrow: 2,
+          responsive: 1,
+          editable: (cell) => !!getPeriodTypeName(cell.getRow().getData()),
+          editor: 'list',
+          editorParams: (cell) => ({
+            values: buildPeriodOptions(cell.getRow().getData(), 'start'),
+            placeholderLoading: 'Loading...',
+            placeholderEmpty: 'Select Period Type first'
+          }),
+          formatter: (cell) => {
+            const rowData = cell.getRow().getData();
+            const periodType = getPeriodTypeName(rowData);
+            return formatPeriodLabel(cell.getValue(), periodType, 'start');
+          },
+          headerTooltip: 'Start of the selected period'
+        },
+        {
+          title: 'End',
+          field: 'endDate',
+          widthGrow: 2,
+          responsive: 2,
+          editable: (cell) => !!getPeriodTypeName(cell.getRow().getData()),
+          editor: 'list',
+          editorParams: (cell) => ({
+            values: buildPeriodOptions(cell.getRow().getData(), 'end'),
+            placeholderLoading: 'Loading...',
+            placeholderEmpty: 'Select Period Type first'
+          }),
+          formatter: (cell) => {
+            const rowData = cell.getRow().getData();
+            const periodType = getPeriodTypeName(rowData);
+            return formatPeriodLabel(cell.getValue(), periodType, 'end');
+          },
+          headerTooltip: 'End of the selected period'
+        },
         {
           title: "Period Type",
           field: "projectionPeriod",
@@ -305,6 +519,40 @@ async function buildScenarioGrid(container) {
       const scenario = row.getData();
       
       try {
+        const field = cell.getColumn()?.getField?.();
+        const periodType = getPeriodTypeName(scenario);
+
+        // Snap boundaries when the period type changes, and keep ranges valid.
+        if (field === 'projectionPeriod' && periodType) {
+          const nextStart = snapToPeriodBoundary(scenario.startDate, periodType, 'start');
+          const nextEnd = snapToPeriodBoundary(scenario.endDate, periodType, 'end');
+          scenario.startDate = nextStart;
+          scenario.endDate = nextEnd;
+          row.update({ startDate: nextStart, endDate: nextEnd });
+        }
+
+        // Keep start/end aligned and ordered.
+        if ((field === 'startDate' || field === 'endDate') && periodType) {
+          const snappedStart = snapToPeriodBoundary(scenario.startDate, periodType, 'start');
+          const snappedEnd = snapToPeriodBoundary(scenario.endDate, periodType, 'end');
+          scenario.startDate = snappedStart;
+          scenario.endDate = snappedEnd;
+
+          if (snappedStart && snappedEnd && snappedStart > snappedEnd) {
+            if (field === 'startDate') {
+              // Move end forward to the end of the start period.
+              const inferredEnd = snapToPeriodBoundary(snappedStart, periodType, 'end');
+              scenario.endDate = inferredEnd;
+              row.update({ endDate: inferredEnd });
+            } else {
+              // Move start back to the start of the end period.
+              const inferredStart = snapToPeriodBoundary(snappedEnd, periodType, 'start');
+              scenario.startDate = inferredStart;
+              row.update({ startDate: inferredStart });
+            }
+          }
+        }
+
         // Extract only the fields that should be saved (exclude Tabulator-specific fields)
         const updates = {
           name: scenario.name,
