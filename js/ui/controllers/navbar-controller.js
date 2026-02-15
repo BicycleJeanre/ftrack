@@ -5,24 +5,20 @@ import { notifyError, notifySuccess } from '../../shared/notifications.js';
 // Web-only: Show clear data button for browser storage management
 const clearDataBtn = '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>';
 
-// Determine the correct path to assets based on current location
-const logoPath = (function() {
-  var logoPath = 'assets/ftrack-logo.svg';
-  var path = window.location.pathname;
-  if (path.includes('/pages/')) {
-    logoPath = '../assets/ftrack-logo.svg';
-  }
-  return logoPath;
-})();
+// Use literal paths for navigation targets
+const logoPath = '/assets/ftrack-logo.svg';
+const homeHref = '/index.html';
+const forecastHref = '/pages/forecast.html';
+const documentationHref = '/pages/documentation.html';
 
 const navLinks = `
   <div class="navbar-brand">
     <img src="${logoPath}" alt="FTrack" class="navbar-logo" />
     <span class="navbar-title">FTrack</span>
   </div>
-  <a href="home.html" id="nav-home">Home</a>
-  <a href="forecast.html" id="nav-forecast">Forecast</a>
-  <a href="documentation.html" id="nav-documentation">Documentation</a>
+  <a href="${homeHref}" id="nav-home">Home</a>
+  <a href="${forecastHref}" id="nav-forecast">Forecast</a>
+  <a href="${documentationHref}" id="nav-documentation">Documentation</a>
   <div class="nav-spacer"></div>
   <button id="nav-theme" class="btn btn-ghost" title="Toggle theme"></button>
   <button id="nav-export" class="btn btn-secondary" title="Export data to file">Export Data</button>
@@ -31,14 +27,16 @@ const navLinks = `
 `;
 
 function getPage() {
-  var path = window.location.pathname.split('/').pop();
-  if (path === '' || path === 'index.html') return 'home.html';
-  return path;
+  var pathname = window.location.pathname;
+  var file = pathname.split('/').pop();
+  if (file === '' || file === 'index.html') return 'index.html';
+  if (pathname.includes('/pages/')) return file;
+  return file;
 }
 
 function highlightActive() {
   var navMap = {
-    'home.html': 'nav-home',
+    'index.html': 'nav-home',
     'forecast.html': 'nav-forecast',
     'documentation.html': 'nav-documentation'
   };
