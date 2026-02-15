@@ -9,7 +9,7 @@
 
 ## 2.0 Todo Items
 
-### 2.1 Move home to index .html
+### 2.1 Move home to index .html [Done] 
 
 - Combine `index.html` and the Home page so there is only one page (`index.html`) containing the full current homepage content.
 - Remove the separate Home page route/page and update navigation links to point to `index.html`.
@@ -18,7 +18,7 @@
   - refresh on the landing page,
   - navigation links that previously pointed at Home.
 
-#### 2.1.1 Move focus to opened accordion.
+#### 2.1.1 Move focus to opened accordion. [Done]
 
 - Confirm which accordion should receive focus (the newly opened one vs the section container).
 - Ensure focus is applied after the accordion is expanded and DOM is stable.
