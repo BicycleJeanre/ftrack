@@ -32,7 +32,7 @@
   - only the ID is incremented/assigned as a new unique ID.
 - Ensure the duplicated record appears immediately in the relevant grid with the same scenario association.
 
-### 2.3 Dates to start on scenario start date by default.
+### 2.3 Dates to start on scenario start date by default. [Done]
 
 - Implement scenario date boundary alignment on the scenario grid itself (only).
 - Rule: scenario boundaries align with the selected period type.

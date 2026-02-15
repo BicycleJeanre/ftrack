@@ -199,81 +199,191 @@ async function buildScenarioGrid(container) {
       return { minYear, maxYear };
     };
 
-    const buildPeriodOptions = (rowData, mode) => {
-      const periodType = getPeriodTypeName(rowData);
-      const { minYear, maxYear } = getOptionYearBounds(rowData);
+    const parseIsoWeekInput = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const match = value.match(/^(\d{4})-W(\d{2})$/);
+      if (!match) return null;
+      const year = Number(match[1]);
+      const week = Number(match[2]);
+      if (!Number.isFinite(year) || !Number.isFinite(week)) return null;
+      if (week < 1 || week > 53) return null;
+      return { year, week };
+    };
 
-      const options = [];
+    const getIsoWeekStartMonday = (isoYear, isoWeek) => {
+      // ISO week 1 is the week containing Jan 4. Weeks start on Monday.
+      const jan4 = new Date(Date.UTC(isoYear, 0, 4));
+      const jan4Day = jan4.getUTCDay() || 7; // 1..7 (Mon..Sun)
+      const mondayWeek1 = new Date(jan4);
+      mondayWeek1.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+      const monday = new Date(mondayWeek1);
+      monday.setUTCDate(mondayWeek1.getUTCDate() + (isoWeek - 1) * 7);
+      return new Date(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate());
+    };
 
-      if (!periodType) {
-        return options;
-      }
+    const getIsoWeekInputValue = (date) => {
+      // Returns YYYY-Www for the ISO week containing `date`.
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - day); // shift to Thursday
+      const isoYear = d.getUTCFullYear();
+      const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+      const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      return `${isoYear}-W${String(weekNo).padStart(2, '0')}`;
+    };
 
-      if (periodType === 'Year') {
-        for (let y = minYear; y <= maxYear; y++) {
-          const boundary = mode === 'start' ? startOfYear(y) : endOfYear(y);
-          options.push({ label: String(y), value: formatDateOnly(boundary) });
+    const createScenarioBoundaryEditor = (mode) => {
+      return function(cell, onRendered, success, cancel) {
+        const rowData = cell.getRow().getData();
+        const periodType = getPeriodTypeName(rowData);
+        if (!periodType) {
+          cancel();
+          return;
         }
-        return options;
-      }
 
-      if (periodType === 'Quarter') {
-        for (let y = minYear; y <= maxYear; y++) {
-          for (let q = 1; q <= 4; q++) {
-            const boundary = mode === 'start' ? startOfQuarter(y, q) : endOfQuarter(y, q);
-            options.push({ label: `${y} Q${q}`, value: formatDateOnly(boundary) });
+        const currentRaw = cell.getValue();
+        const currentDate = parseDateOnlySafe(currentRaw);
+        const now = new Date();
+        const currentYear = (currentDate || now).getFullYear();
+
+        const input = document.createElement('input');
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+        input.className = 'tabulator-editing';
+
+        const { minYear, maxYear } = getOptionYearBounds(rowData);
+
+        if (periodType === 'Week') {
+          input.type = 'week';
+          const base = currentDate || new Date(currentYear, 0, 1);
+          input.value = getIsoWeekInputValue(base);
+        } else if (periodType === 'Quarter') {
+          // Use the same native month picker UI as Month, but restrict selection to quarter-start months.
+          // Many browsers honor step for month inputs.
+          input.type = 'month';
+          input.step = '3';
+          input.min = `${minYear}-01`;
+          input.max = `${maxYear}-10`;
+
+          const base = currentDate || (mode === 'start' ? startOfYear(currentYear) : endOfYear(currentYear));
+          const quarterStartMonth = Math.floor(base.getMonth() / 3) * 3 + 1; // 1,4,7,10
+          input.value = `${base.getFullYear()}-${pad2(quarterStartMonth)}`;
+        } else if (periodType === 'Month') {
+          input.type = 'month';
+          const base = currentDate || (mode === 'start' ? startOfYear(currentYear) : endOfYear(currentYear));
+          input.value = `${base.getFullYear()}-${pad2(base.getMonth() + 1)}`;
+        } else if (periodType === 'Year') {
+          // Use the same native month picker UI, but restrict to January so it behaves like a year picker.
+          input.type = 'month';
+          input.step = '12';
+          input.min = `${minYear}-01`;
+          input.max = `${maxYear}-01`;
+          input.value = `${currentYear}-01`;
+        } else {
+          // Day (and any unknown types) use a standard date picker.
+          input.type = 'date';
+          const fallback = mode === 'start' ? formatDateOnly(startOfYear(currentYear)) : formatDateOnly(endOfYear(currentYear));
+          input.value = typeof currentRaw === 'string' && currentRaw ? currentRaw : fallback;
+        }
+
+        const commit = () => {
+          try {
+            if (periodType === 'Week') {
+              const parsed = parseIsoWeekInput(input.value);
+              if (!parsed) {
+                cancel();
+                return;
+              }
+              const monday = getIsoWeekStartMonday(parsed.year, parsed.week);
+              const boundary = mode === 'start' ? monday : new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+              success(formatDateOnly(boundary));
+              return;
+            }
+
+            if (periodType === 'Month') {
+              const match = String(input.value || '').match(/^(\d{4})-(\d{2})$/);
+              if (!match) {
+                cancel();
+                return;
+              }
+              const year = Number(match[1]);
+              const month = Number(match[2]);
+              if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+                cancel();
+                return;
+              }
+              const boundary = mode === 'start' ? startOfMonth(year, month) : endOfMonth(year, month);
+              success(formatDateOnly(boundary));
+              return;
+            }
+
+            if (periodType === 'Quarter') {
+              const match = String(input.value || '').match(/^(\d{4})-(\d{2})$/);
+              if (!match) {
+                cancel();
+                return;
+              }
+              const year = Number(match[1]);
+              const month = Number(match[2]);
+              if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+                cancel();
+                return;
+              }
+              if (year < minYear || year > maxYear) {
+                cancel();
+                return;
+              }
+              const quarter = Math.floor((month - 1) / 3) + 1;
+              const boundary = mode === 'start' ? startOfQuarter(year, quarter) : endOfQuarter(year, quarter);
+              success(formatDateOnly(boundary));
+              return;
+            }
+
+            if (periodType === 'Year') {
+              const match = String(input.value || '').match(/^(\d{4})-(\d{2})$/);
+              if (!match) {
+                cancel();
+                return;
+              }
+              const year = Number(match[1]);
+              if (!Number.isFinite(year)) {
+                cancel();
+                return;
+              }
+              if (year < minYear || year > maxYear) {
+                cancel();
+                return;
+              }
+              const boundary = mode === 'start' ? startOfYear(year) : endOfYear(year);
+              success(formatDateOnly(boundary));
+              return;
+            }
+
+            // Day
+            if (!input.value) {
+              cancel();
+              return;
+            }
+            success(input.value);
+          } catch (err) {
+            cancel();
           }
-        }
-        return options;
-      }
+        };
 
-      if (periodType === 'Month') {
-        for (let y = minYear; y <= maxYear; y++) {
-          for (let m = 1; m <= 12; m++) {
-            const boundary = mode === 'start' ? startOfMonth(y, m) : endOfMonth(y, m);
-            options.push({ label: `${y}-${pad2(m)}`, value: formatDateOnly(boundary) });
-          }
-        }
-        return options;
-      }
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') cancel();
+        });
 
-      if (periodType === 'Week') {
-        for (let y = minYear; y <= maxYear; y++) {
-          const jan1 = new Date(y, 0, 1);
-          const dec31 = new Date(y, 11, 31);
-          let monday = previousOrSameMonday(jan1);
-          // Generate until the week start passes the end of the year.
-          while (monday <= dec31) {
-            const sunday = new Date(monday);
-            sunday.setDate(sunday.getDate() + 6);
-            const boundary = mode === 'start' ? monday : sunday;
-            options.push({ label: `Week of ${formatDateOnly(monday)}`, value: formatDateOnly(boundary) });
-            monday = new Date(monday);
-            monday.setDate(monday.getDate() + 7);
-          }
-        }
-        return options;
-      }
+        input.addEventListener('blur', commit);
 
-      // Day
-      const startDate = parseDateOnlySafe(rowData?.startDate);
-      const endDate = parseDateOnlySafe(rowData?.endDate);
-      const now = new Date();
-      const fallbackStart = new Date(now.getFullYear() - 1, 0, 1);
-      const fallbackEnd = new Date(now.getFullYear() + 1, 11, 31);
-      const minDate = startDate && endDate ? startDate : fallbackStart;
-      const maxDate = startDate && endDate ? endDate : fallbackEnd;
+        onRendered(() => {
+          input.focus();
+          try { input.select(); } catch (e) { /* noop */ }
+        });
 
-      const d = new Date(minDate);
-      d.setHours(0, 0, 0, 0);
-      const endD = new Date(maxDate);
-      endD.setHours(0, 0, 0, 0);
-      while (d <= endD) {
-        options.push({ label: formatDateOnly(d), value: formatDateOnly(d) });
-        d.setDate(d.getDate() + 1);
-      }
-
-      return options;
+        return input;
+      };
     };
 
     const formatPeriodLabel = (dateOnly, periodType, mode) => {
@@ -389,12 +499,7 @@ async function buildScenarioGrid(container) {
           widthGrow: 2,
           responsive: 1,
           editable: (cell) => !!getPeriodTypeName(cell.getRow().getData()),
-          editor: 'list',
-          editorParams: (cell) => ({
-            values: buildPeriodOptions(cell.getRow().getData(), 'start'),
-            placeholderLoading: 'Loading...',
-            placeholderEmpty: 'Select Period Type first'
-          }),
+          editor: createScenarioBoundaryEditor('start'),
           formatter: (cell) => {
             const rowData = cell.getRow().getData();
             const periodType = getPeriodTypeName(rowData);
@@ -408,12 +513,7 @@ async function buildScenarioGrid(container) {
           widthGrow: 2,
           responsive: 2,
           editable: (cell) => !!getPeriodTypeName(cell.getRow().getData()),
-          editor: 'list',
-          editorParams: (cell) => ({
-            values: buildPeriodOptions(cell.getRow().getData(), 'end'),
-            placeholderLoading: 'Loading...',
-            placeholderEmpty: 'Select Period Type first'
-          }),
+          editor: createScenarioBoundaryEditor('end'),
           formatter: (cell) => {
             const rowData = cell.getRow().getData();
             const periodType = getPeriodTypeName(rowData);
