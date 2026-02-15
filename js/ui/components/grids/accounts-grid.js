@@ -5,6 +5,7 @@ import * as AccountManager from '../../../app/managers/account-manager.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import {
   createGrid,
+  createDuplicateColumn,
   createDeleteColumn,
   createTextColumn,
   createMoneyColumn,
@@ -26,6 +27,24 @@ export function buildAccountsGridColumns({
   logger
 }) {
   const columns = [
+    createDuplicateColumn(
+      async (cell) => {
+        const currentScenario = scenarioState?.get?.();
+        if (!currentScenario) return;
+
+        const rowData = cell.getRow().getData();
+        const allAccounts = await AccountManager.getAll(currentScenario.id);
+        const source = allAccounts.find((a) => a.id === rowData.id) || rowData;
+
+        const { id, accountType, periodicChangeSummary, ...payload } = JSON.parse(JSON.stringify(source));
+        await AccountManager.create(currentScenario.id, payload);
+
+        await reloadAccountsGrid(document.getElementById('accountsTable'));
+        await reloadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+        document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
+      },
+      { headerTooltip: 'Duplicate Account' }
+    ),
     createDeleteColumn(
       async (cell) => {
         const currentScenario = scenarioState?.get?.();

@@ -1,7 +1,7 @@
 // forecast-transactions-grid.js
 // Master transactions grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn } from './grid-factory.js';
+import { createGrid, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
@@ -388,6 +388,29 @@ export async function loadMasterTransactionsGrid({
       headerWordWrap: false,
       autoResize: true,
       columns: [
+        createDuplicateColumn(
+          async (cell) => {
+            const scenario = scenarioState?.get?.();
+            if (!scenario) return;
+
+            const rowData = cell.getRow().getData();
+            const actualTxId = String(rowData.id).includes('_flipped')
+              ? String(rowData.id).replace('_flipped', '')
+              : rowData.id;
+
+            const allTxs = await getTransactions(scenario.id);
+            const source = allTxs.find((tx) => tx.id === Number(actualTxId));
+            if (!source) return;
+
+            const cloned = JSON.parse(JSON.stringify(source));
+            cloned.id = 0;
+            allTxs.push(cloned);
+
+            await TransactionManager.saveAll(scenario.id, allTxs);
+            await rerun();
+          },
+          { headerTooltip: 'Duplicate Transaction' }
+        ),
         createDeleteColumn(
           async (cell) => {
             const scenario = scenarioState?.get?.();
