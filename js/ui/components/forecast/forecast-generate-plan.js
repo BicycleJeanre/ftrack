@@ -561,7 +561,8 @@ export async function loadGeneratePlanSection({
   }
 
   const accounts = currentScenario.accounts || [];
-  const displayAccounts = accounts.filter(a => a.name !== 'Select Account' && (a.goalAmount !== null || a.goalAmount !== undefined));
+  const displayAccounts = accounts.filter(a => a.name !== 'Select Account' && a.goalAmount !== null && a.goalAmount !== undefined);
+  const selectableAccounts = accounts.filter(a => a.name !== 'Select Account');
 
   if (displayAccounts.length === 0) {
     container.innerHTML = '<div class="empty-message">No accounts with goals found. Set goal amounts and dates on accounts to generate plans.</div>';
@@ -579,13 +580,24 @@ export async function loadGeneratePlanSection({
   // Account selector
   const accountRowDiv = document.createElement('div');
   accountRowDiv.innerHTML = `
-    <label for="goal-account-select" class="control-label">Select Account:</label>
+    <label for="goal-account-select" class="control-label">Goal Account:</label>
     <select id="goal-account-select" class="input-select">
       <option value="">-- Choose an account --</option>
       ${displayAccounts.map(acc => `<option value="${acc.id}">${acc.name} (Goal: ${formatMoneyDisplay(acc.goalAmount)} by ${acc.goalDate})</option>`).join('')}
     </select>
   `;
   window.add(formContainer, accountRowDiv);
+
+  // Income account selector (source)
+  const incomeRowDiv = document.createElement('div');
+  incomeRowDiv.innerHTML = `
+    <label for="goal-income-account-select" class="control-label">Income Account:</label>
+    <select id="goal-income-account-select" class="input-select">
+      <option value="">-- Choose an account --</option>
+      ${selectableAccounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('')}
+    </select>
+  `;
+  window.add(formContainer, incomeRowDiv);
 
   // Solve For selector
   const solveForDiv = document.createElement('div');
@@ -649,6 +661,7 @@ export async function loadGeneratePlanSection({
   // Store state for generate plan
   let generatePlanState = {
     selectedAccountId: null,
+    incomeAccountId: null,
     solveFor: 'contribution',
     frequency: 3, // Monthly
     contribution: 0,
@@ -657,6 +670,7 @@ export async function loadGeneratePlanSection({
 
   // Attach event listeners
   const accountSelect = document.getElementById('goal-account-select');
+  const incomeAccountSelect = document.getElementById('goal-income-account-select');
   const solveForSelect = document.getElementById('goal-solve-for');
   const frequencySelect = document.getElementById('goal-frequency');
   const contributionInput = document.getElementById('goal-contribution');
@@ -667,8 +681,17 @@ export async function loadGeneratePlanSection({
   // Recalculate display whenever inputs change
   async function updateSummary() {
     const selectedId = parseInt(accountSelect.value);
+    const incomeAccountId = parseInt(incomeAccountSelect.value);
+
+    if (!incomeAccountId) {
+      summaryEl.innerHTML = '<p class="text-muted">Select an income account to begin</p>';
+      generateBtnEl.disabled = true;
+      return;
+    }
+
     if (!selectedId) {
       summaryEl.innerHTML = '<p class="text-muted">Select an account to begin</p>';
+      generateBtnEl.disabled = true;
       return;
     }
 
@@ -683,6 +706,7 @@ export async function loadGeneratePlanSection({
     const contribution = parseFloat(contributionInput.value) || 0;
 
     generatePlanState.selectedAccountId = selectedId;
+    generatePlanState.incomeAccountId = incomeAccountId;
     generatePlanState.solveFor = solveFor;
     generatePlanState.frequency = frequency;
     generatePlanState.contribution = contribution;
@@ -703,7 +727,7 @@ export async function loadGeneratePlanSection({
         const calculatedContribution = calculateContributionAmount(startingBalance, goalAmount, monthsToGoal, annualRate);
         const displayContribution = convertContributionFrequency(calculatedContribution, 3, frequency); // Convert from monthly
         contributionInput.value = displayContribution.toFixed(2);
-        summary = `<p><strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution: <strong>${formatMoneyDisplay(displayContribution)}</strong> · to reach <strong>${formatMoneyDisplay(goalAmount)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
+        summary = `<p><strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution: <strong>${formatMoneyDisplay(displayContribution)}</strong> · from <strong>${escapeHtml(selectableAccounts.find(a => a.id === incomeAccountId)?.name || '')}</strong> · to reach <strong>${formatMoneyDisplay(goalAmount)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
       }
     } else if (solveFor === 'date') {
       if (contribution <= 0) {
@@ -718,7 +742,7 @@ export async function loadGeneratePlanSection({
           const futureDate = new Date();
           futureDate.setMonth(futureDate.getMonth() + daysInMonths);
           const formattedDate = formatDateOnly(futureDate);
-          summary = `<p><strong>Target date:</strong> <strong>${formattedDate}</strong> · at <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong></p>`;
+          summary = `<p><strong>Target date:</strong> <strong>${formattedDate}</strong> · from <strong>${escapeHtml(selectableAccounts.find(a => a.id === incomeAccountId)?.name || '')}</strong> · at <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong></p>`;
         }
       }
     } else if (solveFor === 'amount') {
@@ -729,7 +753,7 @@ export async function loadGeneratePlanSection({
       } else {
         const monthlyContribution = convertContributionFrequency(contribution, frequency, 3); // Convert to monthly
         const projectedAmount = calculateFutureValue(startingBalance, monthlyContribution, monthsToGoal, annualRate);
-        summary = `<p><strong>Projected goal:</strong> <strong>${formatMoneyDisplay(projectedAmount)}</strong> · with <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
+        summary = `<p><strong>Projected goal:</strong> <strong>${formatMoneyDisplay(projectedAmount)}</strong> · from <strong>${escapeHtml(selectableAccounts.find(a => a.id === incomeAccountId)?.name || '')}</strong> · with <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
       }
     }
 
@@ -743,6 +767,7 @@ export async function loadGeneratePlanSection({
   }
 
   accountSelect.addEventListener('change', updateSummary);
+  incomeAccountSelect.addEventListener('change', updateSummary);
   solveForSelect.addEventListener('change', () => {
     // Reset contribution when changing solve-for
     if (solveForSelect.value !== 'contribution') {
@@ -761,6 +786,12 @@ export async function loadGeneratePlanSection({
     const selectedId = parseInt(accountSelect.value);
     if (!selectedId) {
       notifyError('Please select an account');
+      return;
+    }
+
+    const incomeAccountId = parseInt(incomeAccountSelect.value);
+    if (!incomeAccountId) {
+      notifyError('Please select an income account');
       return;
     }
 
@@ -786,6 +817,8 @@ export async function loadGeneratePlanSection({
     } else {
       monthlyContribution = convertContributionFrequency(contribution, frequency, 3);
     }
+
+    const scheduledContribution = convertContributionFrequency(monthlyContribution, 3, frequency);
 
     // Create the transaction
     try {
@@ -816,9 +849,9 @@ export async function loadGeneratePlanSection({
       const newTransaction = {
         id: 0, // Will be assigned by manager
         primaryAccountId: selectedId,
-        secondaryAccountId: null,
+        secondaryAccountId: incomeAccountId,
         transactionTypeId: 1, // Money In
-        amount: Math.abs(monthlyContribution),
+        amount: Math.abs(scheduledContribution),
         effectiveDate: startDateStr,
         description: `Goal: ${selectedAccount.name}`,
         recurrence: {
@@ -858,12 +891,13 @@ export async function loadGeneratePlanSection({
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       });
-      const formattedAmount = currencyFormatter.format(Math.abs(monthlyContribution));
+      const formattedAmount = currencyFormatter.format(Math.abs(scheduledContribution));
 
       notifySuccess(`Goal plan generated! ${getFrequencyName(frequency).toLowerCase()} transaction of ${formattedAmount} created.`);
 
       // Reset form
       accountSelect.value = '';
+      incomeAccountSelect.value = '';
       contributionInput.value = '';
       await updateSummary();
     } catch (err) {
@@ -875,6 +909,7 @@ export async function loadGeneratePlanSection({
   // Handle Reset button
   resetBtnEl.addEventListener('click', () => {
     accountSelect.value = '';
+    incomeAccountSelect.value = '';
     solveForSelect.value = 'contribution';
     frequencySelect.value = '3';
     contributionInput.value = '';
@@ -885,4 +920,5 @@ export async function loadGeneratePlanSection({
 
   // Set initial state
   contributionInput.disabled = true;
+  generateBtnEl.disabled = true;
 }
