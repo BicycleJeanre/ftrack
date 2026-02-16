@@ -205,7 +205,7 @@ export function convertContributionFrequency(amount, fromFrequencyId, toFrequenc
     const fromMonths = getFrequencyInMonths(fromFrequencyId);
     const toMonths = getFrequencyInMonths(toFrequencyId);
     
-    return amount * (fromMonths / toMonths);
+    return amount * (toMonths / fromMonths);
 }
 
 /**
