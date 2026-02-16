@@ -94,6 +94,8 @@ Funds scenario summary cards.
 
 - **Type**: Totals card plus a small detail grid.
 - **Behavior**: Displays NAV, total shares, share price, and scoped Money In, Money Out, Net.
+- **NAV**: Assets minus Liabilities.
+- **Shares**: User enters Total shares. Investor shares and ownership derive from net contributions.
 - **Scope Selector**: All, Asset, Liability, Equity, Income, Expense.
 - **Equity Detail**: Investor breakdown with shares, ownership percent, and implied value.
 

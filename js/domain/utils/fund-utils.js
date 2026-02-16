@@ -11,9 +11,13 @@ function safeNumber(value) {
 }
 
 function getAccountTypeId(account) {
-  return typeof account?.type === 'number' 
-    ? account.type 
-    : account?.type || 0;
+  const raw = account?.type;
+  if (raw && typeof raw === 'object') {
+    const id = Number(raw?.id);
+    return Number.isFinite(id) ? id : 0;
+  }
+  const id = Number(raw);
+  return Number.isFinite(id) ? id : 0;
 }
 
 // Map account type names to IDs for scope lookups
@@ -34,17 +38,28 @@ function toDateOrNull(dateStr) {
   }
 }
 
+function previousDay(dateStr) {
+  const d = toDateOrNull(dateStr);
+  if (!d) return null;
+  return new Date(d.getTime() - 24 * 60 * 60 * 1000);
+}
+
 function sortByDateAsc(a, b) {
   const da = toDateOrNull(a?.effectiveDate)?.getTime() || 0;
   const db = toDateOrNull(b?.effectiveDate)?.getTime() || 0;
   return da - db;
 }
 
+function getStatusName(tx) {
+  const raw = tx?.status;
+  if (!raw) return 'planned';
+  if (typeof raw === 'object') return raw?.name || 'planned';
+  return String(raw);
+}
+
 export function getDefaultFundSettings() {
   return {
-    shareMode: 'Locked',
-    lockedSharesByAccountId: {},
-    automaticEffectiveDate: null
+    totalShares: null
   };
 }
 
@@ -93,61 +108,115 @@ export function getBalanceAsOf({ account, projectionsIndex, asOfDate = null }) {
 }
 
 export function computeNav({ accounts = [], projectionsIndex, asOfDate = null }) {
+  // Standard NAV: assets - liabilities.
+  // Use absolute value for liability balances so NAV decreases regardless of sign convention.
   const assets = accounts.filter(a => getAccountTypeId(a) === 1); // Asset ID
   const liabilities = accounts.filter(a => getAccountTypeId(a) === 2); // Liability ID
 
-  const totalAssets = assets.reduce((sum, a) => sum + safeNumber(getBalanceAsOf({ account: a, projectionsIndex, asOfDate })), 0);
-  const totalLiabilitiesMagnitude = liabilities.reduce(
+  const totalAssets = assets.reduce(
+    (sum, a) => sum + safeNumber(getBalanceAsOf({ account: a, projectionsIndex, asOfDate })),
+    0
+  );
+  const totalLiabilities = liabilities.reduce(
     (sum, a) => sum + Math.abs(safeNumber(getBalanceAsOf({ account: a, projectionsIndex, asOfDate }))),
     0
   );
 
-  return {
-    nav: totalAssets - totalLiabilitiesMagnitude,
-    totalAssets,
-    totalLiabilities: totalLiabilitiesMagnitude
-  };
+  return { nav: totalAssets - totalLiabilities, totalAssets, totalLiabilities };
 }
 
 export function computeMoneyTotalsFromTransactions({
+  scenario,
   transactions = [],
   accounts = [],
-  scope = 'All'
+  scope = 'All',
+  asOfDate = null
 }) {
-  // Minimal, scope-aware inclusion: include a tx if either side is in-scope.
-  const accountById = new Map((accounts || []).map(a => [a.id, a]));
+  const sourceTransactions = scenario?.transactions || transactions || [];
+
+  const start = toDateOrNull(scenario?.startDate) || new Date(0);
+  const end = asOfDate || toDateOrNull(scenario?.endDate) || new Date();
+
+  const occurrences = expandTransactions(sourceTransactions, start, end, accounts)
+    .map(normalizeCanonicalTransaction)
+    .sort(sortByDateAsc);
+
+  // Scope-aware totals:
+  // - Scope = All: compute fund-level Money In/Out from the Asset-side flow (cross-type only).
+  //   This avoids relying on the stored transactionTypeId convention, which can vary by entry style.
+  // - Scoped: include only cross-scope flows and compute direction from the in-scope perspective row.
+  const accountById = new Map((accounts || []).map(a => [Number(a.id), a]));
   const scopeTypeId = ACCOUNT_TYPE_ID_MAP[scope];
 
+  const getAccount = (accountId) => {
+    const id = Number(accountId);
+    if (!Number.isFinite(id) || id === 0) return null;
+    return accountById.get(id) || null;
+  };
+
   const isInScope = (accountId) => {
-    if (!accountId) return false;
+    const id = Number(accountId);
+    if (!Number.isFinite(id) || id === 0) return false;
     if (scope === 'All') return true;
-    const account = accountById.get(accountId);
+    const account = accountById.get(id);
     return getAccountTypeId(account) === scopeTypeId;
   };
 
   let moneyIn = 0;
   let moneyOut = 0;
 
-  for (const tx of transactions || []) {
-    const typeId = tx?.transactionTypeId ?? tx?.transactionType?.id;
-    const include = isInScope(tx?.primaryAccountId) || isInScope(tx?.secondaryAccountId);
-    if (!include) continue;
+  for (const tx of occurrences) {
+    const primaryId = Number(tx?.primaryAccountId);
+    const secondaryId = Number(tx?.secondaryAccountId);
+    const inPrimary = isInScope(primaryId);
+    const inSecondary = isInScope(secondaryId);
 
-    const amt = Math.abs(safeNumber(tx?.amount ?? tx?.plannedAmount ?? 0));
-    if (typeId === 1) moneyIn += amt;
-    else if (typeId === 2) moneyOut += amt;
+    if (scope === 'All') {
+      const typeId = Number(tx?.transactionTypeId ?? tx?.transactionType?.id);
+      const amt = Math.abs(safeNumber(tx?.amount ?? tx?.plannedAmount ?? 0));
+      if (typeId === 1) moneyIn += amt;
+      else if (typeId === 2) moneyOut += amt;
+      continue;
+    }
+
+    // Only count cross-scope flows.
+    if (inPrimary === inSecondary) continue;
+
+    const rows = transformTransactionToRows(tx, accounts);
+    const inScopeAccountId = inPrimary ? primaryId : secondaryId;
+    const row = rows.find(r => Number(r?.perspectiveAccountId) === Number(inScopeAccountId));
+    if (!row) continue;
+
+    const flow = safeNumber(row.amount);
+    const amt = Math.abs(flow);
+    if (amt === 0) continue;
+    if (flow > 0) moneyIn += amt;
+    else if (flow < 0) moneyOut += amt;
   }
 
   return { moneyIn, moneyOut, net: moneyIn - moneyOut };
 }
 
-export function computeLockedSharesByAccountId({ equityAccounts = [], fundSettings }) {
-  const locked = fundSettings?.lockedSharesByAccountId || {};
-  const result = {};
-  for (const a of equityAccounts) {
-    result[a.id] = safeNumber(locked[a.id] ?? locked[String(a.id)] ?? 0);
+export function computeContributionRedemptionTotals({
+  scenario,
+  accounts = [],
+  asOfDate = null
+}) {
+  const flowsByInvestorId = computeInvestorFlows({ scenario, accounts, asOfDate });
+
+  let contributions = 0;
+  let redemptions = 0;
+
+  for (const f of Object.values(flowsByInvestorId || {})) {
+    contributions += safeNumber(f?.contributions);
+    redemptions += safeNumber(f?.redemptions);
   }
-  return result;
+
+  return {
+    contributions,
+    redemptions,
+    net: contributions - redemptions
+  };
 }
 
 export function computeAutomaticSharesByAccountId({
@@ -157,68 +226,47 @@ export function computeAutomaticSharesByAccountId({
   asOfDate = null,
   fundSettings
 }) {
+  throw new Error('computeAutomaticSharesByAccountId was removed; use computeFixedSharesReport');
+}
+
+export function computeFixedSharesReport({
+  scenario,
+  accounts = [],
+  projectionsIndex,
+  asOfDate = null,
+  fundSettings
+}) {
   const equityAccounts = accounts.filter(a => getAccountTypeId(a) === 3); // Equity ID
+  const totalShares = safeNumber(fundSettings?.totalShares);
+  const sharesById = Object.fromEntries(equityAccounts.map(a => [a.id, 0]));
 
-  const effectiveDate = toDateOrNull(fundSettings?.automaticEffectiveDate);
-  if (!effectiveDate) {
-    return computeLockedSharesByAccountId({ equityAccounts, fundSettings });
+  const flows = computeInvestorFlows({ scenario, accounts, asOfDate });
+  const netById = {};
+  let totalNet = 0;
+
+  for (const a of equityAccounts) {
+    const f = flows?.[a.id] || { contributions: 0, redemptions: 0 };
+    const net = safeNumber(f.contributions) - safeNumber(f.redemptions);
+    const netPositive = Math.max(0, net);
+    netById[a.id] = netPositive;
+    totalNet += netPositive;
   }
 
-  const cutoff = asOfDate || toDateOrNull(scenario?.endDate) || new Date();
-  if (cutoff.getTime() < effectiveDate.getTime()) {
-    return computeLockedSharesByAccountId({ equityAccounts, fundSettings });
-  }
-
-  // Start from locked shares as of effective date.
-  const shares = computeLockedSharesByAccountId({ equityAccounts, fundSettings });
-
-  const start = effectiveDate;
-  const end = cutoff;
-
-  const expanded = expandTransactions(scenario?.transactions || [], start, end, accounts)
-    .map(normalizeCanonicalTransaction)
-    .sort(sortByDateAsc);
-
-  const navCache = new Map();
-  const navAt = (dateStr) => {
-    if (navCache.has(dateStr)) return navCache.get(dateStr);
-    const d = toDateOrNull(dateStr);
-    const computed = computeNav({ accounts, projectionsIndex, asOfDate: d });
-    navCache.set(dateStr, computed);
-    return computed;
+  const debug = {
+    model: 'net-contributions',
+    totalShares,
+    totalNetContributions: totalNet
   };
 
-  for (const occurrence of expanded) {
-    const txDate = occurrence?.effectiveDate;
-    if (!txDate) continue;
-
-    const totalShares = Object.values(shares).reduce((sum, v) => sum + safeNumber(v), 0);
-    if (totalShares <= 0) {
-      // Cannot price new shares without a share base.
-      continue;
-    }
-
-    const { nav } = navAt(txDate);
-    const price = nav / totalShares;
-    if (!Number.isFinite(price) || price === 0) continue;
-
-    const rows = transformTransactionToRows(occurrence, accounts);
-    for (const investor of equityAccounts) {
-      const row = rows.find(r => Number(r?.perspectiveAccountId) === Number(investor.id));
-      if (!row) continue;
-
-      const flow = safeNumber(row.amount);
-      if (flow === 0) continue;
-
-      // Shares increase when investor pays into the fund (Money Out => negative flow).
-      // Shares decrease when investor receives value (Money In => positive flow).
-      const deltaShares = (-flow) / price;
-      const next = Math.max(0, safeNumber(shares[investor.id]) + deltaShares);
-      shares[investor.id] = next;
-    }
+  if (totalShares <= 0 || equityAccounts.length === 0 || totalNet <= 0) {
+    return { sharesById, debug };
   }
 
-  return shares;
+  for (const a of equityAccounts) {
+    sharesById[a.id] = (totalShares * safeNumber(netById[a.id])) / totalNet;
+  }
+
+  return { sharesById, debug };
 }
 
 export function computeInvestorFlows({
@@ -230,7 +278,9 @@ export function computeInvestorFlows({
   const start = toDateOrNull(scenario?.startDate) || new Date(0);
   const end = asOfDate || toDateOrNull(scenario?.endDate) || new Date();
 
-  const expanded = expandTransactions(scenario?.transactions || [], start, end, accounts)
+  // Authoritative model: scenario.transactions with status.name = planned.
+  const planned = (scenario?.transactions || []).filter((tx) => getStatusName(tx) === 'planned');
+  const expanded = expandTransactions(planned, start, end, accounts)
     .map(normalizeCanonicalTransaction)
     .sort(sortByDateAsc);
 
@@ -241,14 +291,39 @@ export function computeInvestorFlows({
 
   for (const occurrence of expanded) {
     const rows = transformTransactionToRows(occurrence, accounts);
-    for (const investor of equityAccounts) {
-      const row = rows.find(r => Number(r?.perspectiveAccountId) === Number(investor.id));
-      if (!row) continue;
 
-      const flow = safeNumber(row.amount);
-      if (flow < 0) flowsById[investor.id].contributions += Math.abs(flow);
-      if (flow > 0) flowsById[investor.id].redemptions += Math.abs(flow);
-    }
+    const primaryAccount = accounts.find(a => Number(a?.id) === Number(occurrence?.primaryAccountId)) || null;
+    const secondaryAccount = accounts.find(a => Number(a?.id) === Number(occurrence?.secondaryAccountId)) || null;
+    const primaryTypeId = getAccountTypeId(primaryAccount);
+    const secondaryTypeId = getAccountTypeId(secondaryAccount);
+
+    const primaryIsEquity = primaryTypeId === 3;
+    const secondaryIsEquity = secondaryTypeId === 3;
+    if (primaryIsEquity === secondaryIsEquity) continue;
+
+    const investorId = primaryIsEquity ? Number(primaryAccount?.id) : Number(secondaryAccount?.id);
+    if (!Number.isFinite(investorId) || investorId === 0) continue;
+    if (!flowsById[investorId]) continue;
+
+    const primaryIsAsset = primaryTypeId === 1;
+    const secondaryIsAsset = secondaryTypeId === 1;
+
+    // Strict definition: contributions/redemptions are ONLY Equity ↔ Asset flows.
+    // This keeps investor flows separate from operating flows and liability movements.
+    if (primaryIsAsset === secondaryIsAsset) continue;
+
+    const assetAccountId = primaryIsAsset ? Number(primaryAccount?.id) : Number(secondaryAccount?.id);
+    if (!Number.isFinite(assetAccountId) || assetAccountId === 0) continue;
+
+    const assetRow = rows.find(r => Number(r?.perspectiveAccountId) === Number(assetAccountId));
+    if (!assetRow) continue;
+
+    const assetFlow = safeNumber(assetRow.amount);
+    const absFlow = Math.abs(assetFlow);
+    if (absFlow === 0) continue;
+
+    if (assetFlow > 0) flowsById[investorId].contributions += absFlow;
+    else if (assetFlow < 0) flowsById[investorId].redemptions += absFlow;
   }
 
   return flowsById;

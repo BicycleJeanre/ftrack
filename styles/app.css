@@ -2966,6 +2966,14 @@ html[data-theme="light"] .home-hero {
   font-family: inherit;
 }
 
+.summary-card-row .value.negative {
+  color: var(--danger);
+}
+
+.summary-card-row .value.neutral {
+  color: var(--accent-primary);
+}
+
 .summary-card-row .value.interest-paid {
   color: var(--danger);
 }

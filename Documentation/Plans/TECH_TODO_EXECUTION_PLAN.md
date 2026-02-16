@@ -49,7 +49,7 @@
 - Boundary rules derive start/end from the selected range (Week start = Monday).
 - Ensure behavior is correct when the period type is changed on the scenario grid (picker changes + boundaries update accordingly).
 
-### 2.5 Hey, We have nominal month, yearly, but we still need nominal monthly, weekly, quarterly, etc.
+### 2.5 Hey, We have nominal month, yearly, but we still need nominal monthly, weekly, quarterly, etc. [Done]
 
 - Scope: periodic changes only (not recurrence).
 - Location: periodic change “change type” when percentage rate is selected.
@@ -70,7 +70,7 @@
     with clear descriptions so users understand what each means
 - Keep Custom as-is.
 
-### 2.6 Fund totals are not calculated correctly. It seems like it is simply aggregating all transactions per account. For some reason, it is overwriting or aggregating and summarizing across the actual or the store transactions and the generated transactions for the view.
+### 2.6 Fund totals are not calculated correctly. It seems like it is simply aggregating all transactions per account. For some reason, it is overwriting or aggregating and summarizing across the actual or the store transactions and the generated transactions for the view. [Done]
 
 - Observed behavior to investigate:
   - balances in the summary section show zero for all accounts,
