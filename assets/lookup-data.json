@@ -50,7 +50,8 @@
       "showPlannedTransactions": true,
       "showActualTransactions": false,
       "showProjections": true,
-      "showGeneratePlan": true
+      "showGeneratePlan": true,
+      "showBudget": false
     },
     {
       "id": 6,
