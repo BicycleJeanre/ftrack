@@ -1,7 +1,7 @@
 # FTrack User Features
 
-**Version**: 1.2.0  
-**Last Updated**: February 1, 2026  
+**Version**: 1.2.1  
+**Last Updated**: February 17, 2026  
 **Purpose**: Complete list of implemented user functionality
 
 ---
@@ -12,9 +12,12 @@
 1.2 Edit scenario properties (name, type, description, dates, frequency)  
 1.3 Delete scenarios  
 1.4 Select active scenario from dropdown  
-1.5 Set scenario type: Budget, General, or Funds  
+1.5 Set scenario type: Budget, General, Funds, Debt Repayment, Goal-Based, or Advanced Goal Solver  
 1.6 Define scenario date range (start/end)  
 1.7 Set scenario frequency (Weekly, Monthly, Quarterly, Yearly)
+1.8 Generate Plan features
+  - 1.8.1 Goal-Based Generate Plan for single-account goal contributions
+  - 1.8.2 Advanced Goal Solver Generate Plan for multi-goal planning with constraints
 
 ## 2.0 Account Management
 
@@ -24,6 +27,8 @@
 2.4 Set account types (Cash, Checking, Savings, Credit Card, etc.)  
 2.5 Set opening balance for each account  
 2.6 View all accounts in tabular format
+2.7 Set per-account goal fields (Goal Amount, Goal Date) for Goal-Based planning
+2.8 Configure account-level periodic changes including date-bounded schedules for variable rates
 
 ## 3.0 Planned Transactions
 
@@ -85,7 +90,7 @@
 
 ## 8.0 Data Management
 
-8.1 Automatic data persistence to local JSON file  
+8.1 Automatic data persistence to browser storage (localStorage)  
 8.2 Load existing data on application startup  
 8.3 First-run initialization with sample data  
 8.4 Schema-driven data validation  

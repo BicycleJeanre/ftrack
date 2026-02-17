@@ -99,6 +99,11 @@ Funds scenario summary cards.
 - **Scope Selector**: All, Asset, Liability, Equity, Income, Expense.
 - **Equity Detail**: Investor breakdown with shares, ownership percent, and implied value.
 
+#### G. Generate Plan
+
+- **Type**: Scenario-gated configuration section.
+- **Behavior**: Renders a Goal-Based planner for account goals, or an Advanced Goal Solver planner for multi-goal planning with constraints.
+
 ## 3.0 Interactive Patterns
 
 ### 3.1 Single Selection Logic
@@ -169,12 +174,12 @@ Each budget occurrence supports dual-amount tracking to compare planned vs. actu
 
 **Use Case**: User budgets $500/month for groceries (plannedAmount), then tracks actual grocery spending each month (actualAmount) to identify overspending trends.
 
-### 2.3 Home Page Hero (`pages/home.html`)
+### 2.3 Home Page Hero (`index.html`)
 The home hero uses a layered background to keep the CTA readable while adding visual depth.
 - **Background Asset**: `assets/home-hero-bg.svg`
 - **Styling**: `styles/app.css` applies a gradient overlay plus SVG background on `.home-hero`.
 
-### 2.4 Home Page Background (`pages/home.html`)
+### 2.4 Home Page Background (`index.html`)
 The full home page uses a separate SVG background for the overall layout.
 - **Background Asset**: `assets/home-page-bg.svg`
 - **Styling**: `styles/app.css` applies a gradient overlay plus SVG background on `.home-page`.

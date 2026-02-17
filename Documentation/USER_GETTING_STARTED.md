@@ -10,7 +10,7 @@ A scenario is a financial plan. You might have a baseline scenario showing your 
 
 ## 1.2 Step By Step Build Your First Budget
 
-1. **Create a scenario**: Click the Forecast button, then create a new scenario named "My Budget" and set the type to Budget.
+1. **Create a scenario**: Click the Forecast button, then create a new scenario named "My Budget". Set **Type** to Budget and **Period Type** to Month.
 2. **Add your accounts**: List the accounts where your money lives such as Checking, Savings, Credit Card. Enter each account current balance.
 3. **Add your income**: Create a Planned Transaction for your paycheck. Set it to recur weekly or monthly depending on your pay schedule.
 4. **Add your expenses**: Add Planned Transactions for recurring expenses like rent, utilities, groceries, and subscriptions. Use recurrence for monthly or weekly bills.
@@ -34,3 +34,18 @@ A scenario is a financial plan. You might have a baseline scenario showing your 
 3. Add Planned Transactions for income and recurring expenses.
 4. Generate Projections to see future balances.
 5. Log Actual Transactions to keep forecasts accurate.
+
+## 1.5 Troubleshooting
+
+### 1.5.1 Accounts and Transactions are disabled
+
+If you see a message asking you to select a Scenario Type and Period Type, go to the scenario grid at the top of Forecast and set.
+
+1. **Type**
+2. **Period Type**
+
+These fields enable the Accounts and Transactions grids for that scenario.
+
+### 1.5.2 First run shows no data
+
+If you are starting with no saved data, create a new scenario first, then set Type and Period Type before adding accounts.

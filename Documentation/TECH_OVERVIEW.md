@@ -74,17 +74,17 @@ The technical documentation is modularized. Read the specific section required f
 **Read this if:** You are refactoring, adding new managers, or need to understand the data flow between UI and Disk.
 *Covers: Layered pattern, Manager classes, Directory structure.*
 
-### [2. Data Model >](TECH_DATA_MODEL.md)
-**Read this if:** You are modifying database schemas, dealing with `app-data.json`, or changing lookups (Currencies/Types).
-*Covers: JSON Schemas, Entity Relationships, `DataStore` API.*
+### [2. Data Schema >](TECH_DATA_SCHEMA.md)
+**Read this if:** You are modifying scenario/account/transaction structures or lookup-backed fields.
+*Covers: JSON schema fields, required vs optional properties, lookup references.*
 
 ### [3. UI & Workflow >](TECH_UI_LAYER.md)
 **Read this if:** You are changing the Grid visualizations, editing the Forecast controller, or working on the frontend logic.
 *Covers: Tabulator implementation, GridFactory, Event Handling.*
 
-### [4. Goal-Based Planning >](TECH_GOAL_PLANNING.md)
-**Read this if:** You are adding or refining the goal-based scenario type and calculations.
-*Covers: Parameters, calculation modes, and formulas.*
+### [4. Advanced Goal Solver >](USER_ADVANCED_GOAL_SOLVER.md)
+**Read this if:** You are working on multi-goal planning, constraints, or solver outputs.
+*Covers: Definitions and guided use cases for solver configuration.*
 
 ## 5.0 Data Migration Strategy
 FTrack uses versioned data migrations to evolve the schema while preserving user data. The migration system automatically detects and applies necessary updates when the application starts.
@@ -116,6 +116,11 @@ FTrack uses versioned data migrations to evolve the schema while preserving user
 **Calculation Engine**: `js/domain/calculations/calculation-engine.js`  
 **Storage**: `js/app/services/storage-service.js`  
 **Configuration**: `assets/lookup-data.json`
+
+### 6.1 Hosting Notes
+
+1. **GitHub Pages**: When hosted under a repository subpath, asset URLs must be resolved relative to the current page to avoid dropping the base path.
+2. **Empty or corrupt storage**: On startup, storage reads should fall back to an empty scenarios list so the UI can render and allow creating the first scenario.
 
 **Development Server**:
 ```bash
