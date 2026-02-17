@@ -86,7 +86,7 @@
   - Confirm whether each logical transaction is counted once (and with the correct sign) vs being double-counted across sources.
   - Decide and enforce a single source for these summary computations.
 
-### 2.7 Generate Plan - Goal-Based
+### 2.7 Generate Plan - Goal-Based [Done]
 
 - Fix contribution frequency conversion issues in Goal-Based Generate Plan:
   - when switching contribution frequency (weekly/quarterly/etc.), contribution amounts currently appear backwards/incorrect.
