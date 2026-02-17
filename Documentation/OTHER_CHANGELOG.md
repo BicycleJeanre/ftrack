@@ -47,6 +47,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scenario selection on first load
 - Documentation navigation defaults updated to match renamed document IDs
 
+## [0.8.4-beta] - 2026-02-17
+
+### Added
+
+- User documentation for Budget workflow, Funds scenarios, and Import and Export
+- Overview guidance for choosing scenario types and goal planning modes
+
+### Changed
+
+- Documentation navigation and deep links standardized to `#repo-docs/<docId>`
+
+## [0.8.3-beta] - 2026-02-17
+
+### Fixed
+
+- Scenario setup reliability and grid refresh after scenario type and period type changes
+- Safer bootstrap when storage is empty or corrupt
+- GitHub Pages asset loading when hosted under a repo subpath
+
+## [0.8.2-beta] - 2026-02-17
+
+### Added
+
+- Variable-rate debt modeling using an account rate schedule
+
+### Changed
+
+- Forecast UI stability improvements for scenario-based modeling
+
 ## [0.7.0-beta] - 2026-02-01
 
 ### Added
