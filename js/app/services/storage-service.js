@@ -16,11 +16,23 @@ let transactionQueue = Promise.resolve(); // serialize transactions (read-modify
  * @returns {Promise<Object>} - The complete app data object
  */
 export async function read() {
-    const dataString = localStorage.getItem(STORAGE_KEY);
-    if (!dataString) {
+    try {
+        const dataString = localStorage.getItem(STORAGE_KEY);
+        if (!dataString) {
+            return { scenarios: [] };
+        }
+
+        const parsed = JSON.parse(dataString);
+        if (!parsed || typeof parsed !== 'object') {
+            return { scenarios: [] };
+        }
+        if (!Array.isArray(parsed.scenarios)) {
+            parsed.scenarios = [];
+        }
+        return parsed;
+    } catch (_) {
         return { scenarios: [] };
     }
-    return JSON.parse(dataString);
 }
 
 /**
