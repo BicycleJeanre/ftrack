@@ -137,6 +137,10 @@ async function loadAdvancedGoalSolverSection({
   const constraintsDiv = document.createElement('div');
   constraintsDiv.innerHTML = `
     <h3 class="section-title text-main">Constraints</h3>
+    <div class="text-muted" style="margin-top:4px;">
+      Add limits and rules for the solver. Start with <strong>Funding account</strong> so the solver knows where payments come from.
+      Optional constraints can cap monthly outflow, lock accounts, or enforce minimum balances.
+    </div>
     <div id="adv-constraints-grid" style="margin-top:8px;"></div>
     <div class="generate-plan-buttons" style="margin-top:8px;">
       <button id="adv-constraint-add" class="btn btn-secondary">+ Add Constraint</button>
@@ -147,6 +151,10 @@ async function loadAdvancedGoalSolverSection({
   const goalsDiv = document.createElement('div');
   goalsDiv.innerHTML = `
     <h3 class="section-title text-main">Goals</h3>
+    <div class="text-muted" style="margin-top:4px;">
+      Add one or more goals for specific accounts. The solver tries to satisfy lower <strong>Priority</strong> numbers first.
+      For a home loan payoff, use <strong>Pay down to target</strong> with target amount <strong>0</strong> and set the end date to your desired payoff date.
+    </div>
     <div id="adv-goals-grid" style="margin-top:8px;"></div>
     <div class="generate-plan-buttons">
       <button id="adv-goal-add" class="btn btn-secondary">+ Add Goal</button>
@@ -157,7 +165,11 @@ async function loadAdvancedGoalSolverSection({
   const resultsDiv = document.createElement('div');
   resultsDiv.innerHTML = `
     <h3 class="section-title text-main">Solution</h3>
-    <div id="adv-goal-solution" class="text-muted">Configure goals and click Solve.</div>
+    <div class="text-muted" style="margin-top:4px;">
+      Click <strong>Solve</strong> to calculate suggested monthly planned transactions.
+      Click <strong>Apply</strong> to write those transactions into this scenario (replacing any previous solver-generated transactions).
+    </div>
+    <div id="adv-goal-solution" class="text-muted" style="margin-top:8px;">Configure goals and click Solve.</div>
     <div class="generate-plan-buttons">
       <button id="adv-goal-solve" class="btn btn-primary">Solve</button>
       <button id="adv-goal-apply" class="btn btn-secondary" disabled>Apply</button>
@@ -604,6 +616,18 @@ export async function loadGeneratePlanSection({
   const formContainer = document.createElement('div');
   formContainer.className = 'generate-plan-form';
 
+  const introDiv = document.createElement('div');
+  introDiv.className = 'text-muted';
+  introDiv.style.marginBottom = '10px';
+  introDiv.innerHTML = `
+    Use this section to estimate a contribution plan for an account goal and then generate planned transactions.
+    <br />
+    <strong>Prerequisite:</strong> set <strong>Goal Amount</strong> and <strong>Goal Date</strong> on an account in the Accounts grid.
+    <br />
+    <span class="text-muted">Note: this simple planner uses the account’s base periodic change rate (it does not use a rate schedule).</span>
+  `;
+  window.add(formContainer, introDiv);
+
   // Account selector
   const accountRowDiv = document.createElement('div');
   accountRowDiv.innerHTML = `
@@ -612,6 +636,7 @@ export async function loadGeneratePlanSection({
       <option value="">-- Choose an account --</option>
       ${displayAccounts.map(acc => `<option value="${acc.id}">${acc.name} (Goal: ${formatMoneyDisplay(acc.goalAmount)} by ${acc.goalDate})</option>`).join('')}
     </select>
+    <div class="text-muted" style="margin-top:4px;">This is the account you want to reach a target balance on by the goal date.</div>
   `;
   window.add(formContainer, accountRowDiv);
 
@@ -623,6 +648,7 @@ export async function loadGeneratePlanSection({
       <option value="">-- Choose an account --</option>
       ${selectableAccounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('')}
     </select>
+    <div class="text-muted" style="margin-top:4px;">Source account used when generating the planned contribution transactions.</div>
   `;
   window.add(formContainer, incomeRowDiv);
 
@@ -635,6 +661,7 @@ export async function loadGeneratePlanSection({
       <option value="date">Goal Date</option>
       <option value="amount">Goal Amount</option>
     </select>
+    <div class="text-muted" style="margin-top:4px;">Choose what to calculate. Changing this may enable the Contribution Amount field below.</div>
   `;
   window.add(formContainer, solveForDiv);
 
@@ -648,6 +675,7 @@ export async function loadGeneratePlanSection({
       <option value="4">Quarterly</option>
       <option value="5">Yearly</option>
     </select>
+    <div class="text-muted" style="margin-top:4px;">Controls how often the planned contribution transaction will occur.</div>
   `;
   window.add(formContainer, frequencyDiv);
 
@@ -656,6 +684,7 @@ export async function loadGeneratePlanSection({
   contributionDiv.innerHTML = `
     <label for="goal-contribution" class="control-label">Contribution Amount:</label>
     <input type="number" id="goal-contribution" class="input-text" placeholder="0.00" step="0.01" />
+    <div class="text-muted" style="margin-top:4px;">Used when solving for Goal Date or Goal Amount. Disabled when solving for Contribution Amount.</div>
   `;
   window.add(formContainer, contributionDiv);
 
