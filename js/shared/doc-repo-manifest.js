@@ -362,10 +362,10 @@ function getInitialDocId(items) {
 
   // Prefer Getting Started when present.
   const preferredIds = [
-    'user_getting_started',
-    'concepts_getting_started',
-    'user_overview',
-    'concepts_overview',
+    'USER_GETTING_STARTED',
+    'CONCEPTS_GETTING_STARTED',
+    'USER_OVERVIEW',
+    'CONCEPTS_OVERVIEW',
     'TECH_OVERVIEW'
   ];
   for (const id of preferredIds) {

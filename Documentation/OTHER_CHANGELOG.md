@@ -11,11 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Advanced Goal Solver scenario type with a multi-goal Generate Plan flow
 
-### 1.1 Improvements
+- Documentation coverage for goal planning and debt repayment
+  - Goal Planning user guide
+  - Debt Repayment user guide
+  - Goal Planning and Debt Repayment concept references
 
-1.1.1 Forecast grids preserve `Group By` selection (and scroll/sort where supported) across reloads.
-
-### Added
 - Debt Repayment scenario type with Summary Cards component
   - Per-account summary cards showing starting balance, projected end, interest earned/paid
   - Zero crossing date tracking (when debt balance reaches $0)
@@ -36,12 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Interest earned displays in green, interest paid in red (negative)
 - First scenario auto-selects on app load
 - Projection expenses now show as negative values in red
+- Forecast grids preserve Group By selection (and scroll or sort where supported) across reloads
+- Documentation file naming normalized to consistent category prefixes
+- Home page documentation links use the docs viewer deep links
 
 ### Fixed
 - Interest calculation accuracy in summary cards
 - Projection interest tracking as income/expense
 - Summary cards display timing on initial load
 - Scenario selection on first load
+- Documentation navigation defaults updated to match renamed document IDs
 
 ## [0.7.0-beta] - 2026-02-01
 
