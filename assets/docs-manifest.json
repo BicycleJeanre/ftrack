@@ -1,12 +1,26 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-17T16:12:15.869Z",
+  "generatedAt": "2026-02-17T16:35:25.331Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
       "title": "Accounts Guide",
       "category": "Concepts",
       "file": "Documentation/CONCEPTS_ACCOUNTS.md",
+      "kind": "md"
+    },
+    {
+      "id": "CONCEPTS_DEBT_REPAYMENT",
+      "title": "Debt Repayment Concepts",
+      "category": "Concepts",
+      "file": "Documentation/CONCEPTS_DEBT_REPAYMENT.md",
+      "kind": "md"
+    },
+    {
+      "id": "CONCEPTS_GOAL_PLANNING",
+      "title": "Goal Planning",
+      "category": "Concepts",
+      "file": "Documentation/CONCEPTS_GOAL_PLANNING.md",
       "kind": "md"
     },
     {
@@ -129,6 +143,20 @@
       "kind": "md"
     },
     {
+      "id": "USER_BUDGET_WORKFLOW",
+      "title": "Budget Workflow",
+      "category": "User",
+      "file": "Documentation/USER_BUDGET_WORKFLOW.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_DEBT_REPAYMENT",
+      "title": "Debt Repayment",
+      "category": "User",
+      "file": "Documentation/USER_DEBT_REPAYMENT.md",
+      "kind": "md"
+    },
+    {
       "id": "USER_GUIDE",
       "title": "FTrack Usage Guide",
       "category": "User",
@@ -143,10 +171,31 @@
       "kind": "md"
     },
     {
+      "id": "USER_FUNDS",
+      "title": "Funds Scenarios",
+      "category": "User",
+      "file": "Documentation/USER_FUNDS.md",
+      "kind": "md"
+    },
+    {
       "id": "USER_GETTING_STARTED",
       "title": "Getting Started",
       "category": "User",
       "file": "Documentation/USER_GETTING_STARTED.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_GOAL_PLANNING",
+      "title": "Goal Planning",
+      "category": "User",
+      "file": "Documentation/USER_GOAL_PLANNING.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_DATA_IMPORT_EXPORT",
+      "title": "Import And Export",
+      "category": "User",
+      "file": "Documentation/USER_DATA_IMPORT_EXPORT.md",
       "kind": "md"
     },
     {

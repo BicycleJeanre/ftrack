@@ -155,3 +155,9 @@
 4.2 Amount fields are type-specific. If a row is Funding account or Locked account, Amount is intentionally unused.
 
 4.3 The solver validates by running projections with suggested transactions included.
+
+## 5.0 Related Documents
+
+5.1 Goal Planning explains the Goal-Based Generate Plan flow and how account goal fields work.
+
+5.2 Debt Repayment explains debt-focused modeling and variable-rate schedules.

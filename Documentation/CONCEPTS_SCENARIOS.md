@@ -72,6 +72,8 @@ Example: Paying off two debts.
 - Student Loan: 10,000 dollars at 5 percent APR
 - Payment Strategy: 250 dollars per month to Visa, 100 dollars per month to Student Loan
 
+For a step-by-step guide, see the Debt Repayment document.
+
 ### 1.3.4 Funds Scenarios
 
 Funds scenarios model a shared pool of assets with ownership expressed as shares per investor.
@@ -98,6 +100,19 @@ Advanced Goal Solver scenarios include.
 
 - **Generate Plan**: Define multiple goals and constraints, then solve and apply suggested transactions.
 - **Projections**: Validate results by generating projections after applying a solution.
+
+For a step-by-step guide, see the Advanced Goal Solver document.
+
+### 1.3.6 Goal-Based Scenarios
+
+Goal-Based scenarios support simple per-account goal planning.
+
+Goal-Based scenarios include.
+
+- **Account goals**: Set Goal Amount and Goal Date on an account.
+- **Generate Plan**: Estimate a contribution plan and generate a planned transaction tagged as goal-generated.
+
+For a step-by-step guide, see the Goal Planning document.
 
 ## 1.4 Creating A Scenario
 
