@@ -71,8 +71,7 @@
     "win": {
       "target": [
         "portable"
-      ],
-      "icon": "assets/icon.ico"
+      ]
     },
     "mac": {
       "target": [
@@ -80,7 +79,6 @@
         "zip"
       ],
       "category": "public.app-category.finance",
-      "icon": "assets/icon.icns",
       "identity": null
     },
     "linux": {
@@ -88,8 +86,7 @@
         "AppImage",
         "deb"
       ],
-      "category": "Finance",
-      "icon": "assets/icon.png"
+      "category": "Finance"
     },
     "nsis": {
       "oneClick": false,
