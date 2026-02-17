@@ -1,96 +1,89 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-13T14:59:08.414Z",
+  "generatedAt": "2026-02-17T16:12:15.869Z",
   "items": [
     {
-      "id": "concepts_accounts",
+      "id": "CONCEPTS_ACCOUNTS",
       "title": "Accounts Guide",
       "category": "Concepts",
-      "file": "Documentation/concepts_accounts.md",
+      "file": "Documentation/CONCEPTS_ACCOUNTS.md",
       "kind": "md"
     },
     {
-      "id": "concepts_periodic_changes",
+      "id": "CONCEPTS_MORTGAGE_PAYMENTS",
+      "title": "Mortgage and Loan Repayment Use Cases",
+      "category": "Concepts",
+      "file": "Documentation/CONCEPTS_MORTGAGE_PAYMENTS.md",
+      "kind": "md"
+    },
+    {
+      "id": "CONCEPTS_PERIODIC_CHANGES",
       "title": "Periodic Changes",
       "category": "Concepts",
-      "file": "Documentation/concepts_periodic_changes.md",
+      "file": "Documentation/CONCEPTS_PERIODIC_CHANGES.md",
       "kind": "md"
     },
     {
-      "id": "concepts_projections",
+      "id": "CONCEPTS_PROJECTIONS",
       "title": "Projections Guide",
       "category": "Concepts",
-      "file": "Documentation/concepts_projections.md",
+      "file": "Documentation/CONCEPTS_PROJECTIONS.md",
       "kind": "md"
     },
     {
-      "id": "concepts_recurrence",
+      "id": "CONCEPTS_RECURRENCE",
       "title": "Recurrence And Scheduling",
       "category": "Concepts",
-      "file": "Documentation/concepts_recurrence.md",
+      "file": "Documentation/CONCEPTS_RECURRENCE.md",
       "kind": "md"
     },
     {
-      "id": "concepts_scenarios",
+      "id": "CONCEPTS_SCENARIOS",
       "title": "Scenario Planning",
       "category": "Concepts",
-      "file": "Documentation/concepts_scenarios.md",
+      "file": "Documentation/CONCEPTS_SCENARIOS.md",
       "kind": "md"
     },
     {
-      "id": "concepts_transactions",
+      "id": "CONCEPTS_TRANSACTIONS",
       "title": "Transactions Guide",
       "category": "Concepts",
-      "file": "Documentation/concepts_transactions.md",
+      "file": "Documentation/CONCEPTS_TRANSACTIONS.md",
       "kind": "md"
     },
     {
-      "id": "other_CHANGELOG",
+      "id": "OTHER_CHANGELOG",
       "title": "Changelog",
       "category": "Other",
-      "file": "Documentation/other_CHANGELOG.md",
+      "file": "Documentation/OTHER_CHANGELOG.md",
       "kind": "md"
     },
     {
-      "id": "ARCHITECTURE_PROPOSAL_WEB",
-      "title": "FTrack Web-Only Architecture Proposal",
-      "category": "Other",
-      "file": "Documentation/ARCHITECTURE_PROPOSAL_WEB.md",
-      "kind": "md"
-    },
-    {
-      "id": "other_glossary",
+      "id": "OTHER_GLOSSARY",
       "title": "Glossary",
       "category": "Other",
-      "file": "Documentation/other_glossary.md",
+      "file": "Documentation/OTHER_GLOSSARY.md",
       "kind": "md"
     },
     {
-      "id": "other_shortcuts",
+      "id": "OTHER_SHORTCUTS",
       "title": "Keyboard Shortcuts",
       "category": "Other",
-      "file": "Documentation/other_shortcuts.md",
+      "file": "Documentation/OTHER_SHORTCUTS.md",
       "kind": "md"
     },
     {
-      "id": "other_LICENSE",
+      "id": "OTHER_LICENSE",
       "title": "License",
       "category": "Other",
-      "file": "Documentation/other_LICENSE.md",
+      "file": "Documentation/OTHER_LICENSE.md",
       "kind": "md"
     },
     {
-      "id": "plan_advanced_goal_solver_concept",
-      "title": "Advanced Goal Solver Scenario Concept Design",
-      "category": "Plan",
-      "file": "Documentation/Plans/plan_advanced_goal_solver_concept.md",
-      "kind": "md"
-    },
-    {
-      "id": "plan_refactor_web_only",
-      "title": "Refactor Plan: Web-Only Architecture",
-      "category": "Plan",
-      "file": "Documentation/Plans/plan_refactor_web_only.md",
+      "id": "OTHER_MONETIZATION_OPTIONS",
+      "title": "Monetization Options",
+      "category": "Other",
+      "file": "Documentation/OTHER_MONETIZATION_OPTIONS.md",
       "kind": "md"
     },
     {
@@ -98,6 +91,13 @@
       "title": "Data Schema",
       "category": "Technical",
       "file": "Documentation/TECH_DATA_SCHEMA.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_QC_METHOD",
+      "title": "QC Method Summary",
+      "category": "Technical",
+      "file": "Documentation/TECH_QC_METHOD.md",
       "kind": "md"
     },
     {
@@ -122,6 +122,13 @@
       "kind": "md"
     },
     {
+      "id": "USER_ADVANCED_GOAL_SOLVER",
+      "title": "Advanced Goal Solver",
+      "category": "User",
+      "file": "Documentation/USER_ADVANCED_GOAL_SOLVER.md",
+      "kind": "md"
+    },
+    {
       "id": "USER_GUIDE",
       "title": "FTrack Usage Guide",
       "category": "User",
@@ -136,17 +143,17 @@
       "kind": "md"
     },
     {
-      "id": "user_getting_started",
+      "id": "USER_GETTING_STARTED",
       "title": "Getting Started",
       "category": "User",
-      "file": "Documentation/user_getting_started.md",
+      "file": "Documentation/USER_GETTING_STARTED.md",
       "kind": "md"
     },
     {
-      "id": "user_overview",
+      "id": "USER_OVERVIEW",
       "title": "Overview",
       "category": "User",
-      "file": "Documentation/user_overview.md",
+      "file": "Documentation/USER_OVERVIEW.md",
       "kind": "md"
     }
   ]

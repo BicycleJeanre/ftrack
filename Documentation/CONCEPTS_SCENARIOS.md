@@ -104,9 +104,12 @@ Advanced Goal Solver scenarios include.
 1. Click the Forecast button in the navbar.
 2. Click Create Scenario.
 3. Enter a descriptive name such as Baseline 2025.
-4. Choose the type: Budget or General.
-5. Optionally set start and end dates for the scenario window.
-6. Click Create.
+4. Choose the type: Budget, General, Funds, Debt Repayment, Goal-Based, or Advanced Goal Solver.
+5. Choose the period type (Day, Week, Month, Quarter, or Year).
+6. Optionally set start and end dates for the scenario window.
+7. Click Create.
+
+Note: Accounts and Transactions are enabled after the scenario has both a Type and a Period Type.
 
 ## 1.5 Building Your Scenarios
 
