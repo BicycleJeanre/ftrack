@@ -1,14 +1,21 @@
 // forecast-projections-section.js
 // Projections section/grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, createDateColumn, createTextColumn, createMoneyColumn } from '../grids/grid-factory.js';
-import { formatDateOnly } from '../../../shared/date-utils.js';
+import { createGrid, refreshGridData, createDateColumn, createTextColumn, createMoneyColumn, formatMoneyDisplay } from '../grids/grid-factory.js';
+import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
-
-import * as BudgetManager from '../../../app/managers/budget-manager.js';
+import { loadLookup } from '../../../app/services/lookup-service.js';
+import { GridStateManager } from '../grids/grid-state.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
+
+import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
+import { calculatePeriodicChange } from '../../../domain/calculations/calculation-engine.js';
+import { expandPeriodicChangeForCalculation } from '../../../domain/calculations/periodic-change-utils.js';
+
+const projectionsGridState = new GridStateManager('projections');
+let lastProjectionsTable = null;
 
 export async function loadProjectionsSection({
   container,
@@ -22,7 +29,26 @@ export async function loadProjectionsSection({
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
-  container.innerHTML = '';
+  try {
+    projectionsGridState.capture(lastProjectionsTable, {
+      groupBy: '#projections-grouping-select',
+      account: '#projections-account-filter-select'
+    });
+  } catch (_) {
+    // ignore
+  }
+
+  // Keep the grid container stable to reduce scroll jumps.
+  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
+  existingToolbars.forEach((el) => el.remove());
+
+  let projectionsGridContainer = container.querySelector('#projectionsGrid');
+  if (!projectionsGridContainer) {
+    projectionsGridContainer = document.createElement('div');
+    projectionsGridContainer.id = 'projectionsGrid';
+    projectionsGridContainer.className = 'grid-container projections-grid';
+    window.add(container, projectionsGridContainer);
+  }
 
   const toolbar = document.createElement('div');
   toolbar.className = 'grid-toolbar';
@@ -99,41 +125,6 @@ export async function loadProjectionsSection({
   });
   window.add(buttonContainer, clearButton);
 
-  const saveBudgetButton = document.createElement('button');
-  saveBudgetButton.className = 'btn btn-primary';
-  saveBudgetButton.textContent = 'Save as Budget';
-  saveBudgetButton.addEventListener('click', async () => {
-    try {
-      currentScenario = scenarioState?.get?.();
-
-      if (!currentScenario.projections || currentScenario.projections.length === 0) {
-        notifyError('No projections to save as budget. Generate projections first.');
-        return;
-      }
-
-      const confirmed = confirm('Save current projection as Budget? This will replace any existing budget.');
-      if (!confirmed) return;
-
-      saveBudgetButton.textContent = 'Saving...';
-      saveBudgetButton.disabled = true;
-
-      await BudgetManager.createFromProjections(currentScenario.id, currentScenario.projections);
-
-      const refreshed = await getScenario(currentScenario.id);
-      scenarioState?.set?.(refreshed);
-
-      await callbacks?.loadBudgetGrid?.(callbacks?.getEl?.('budgetTable'));
-
-      notifySuccess('Budget saved successfully!');
-    } catch (err) {
-      notifyError('Failed to save budget: ' + err.message);
-    } finally {
-      saveBudgetButton.textContent = 'Save as Budget';
-      saveBudgetButton.disabled = false;
-    }
-  });
-  window.add(buttonContainer, saveBudgetButton);
-
   window.add(toolbar, buttonContainer);
 
   const accountFilter = document.createElement('div');
@@ -152,7 +143,8 @@ export async function loadProjectionsSection({
     <label for="projections-grouping-select" class="text-muted control-label">Group By:</label>
     <select id="projections-grouping-select" class="input-select control-select">
       <option value="">None</option>
-      <option value="account">Account</option>
+      <option value="accountType">Account Type</option>
+      <option value="secondaryAccount">Secondary Account</option>
     </select>
   `;
   window.add(toolbar, groupingControl);
@@ -185,7 +177,8 @@ export async function loadProjectionsSection({
   totalsInline.className = 'toolbar-item toolbar-totals';
   toolbar.appendChild(totalsInline);
 
-  window.add(container, toolbar);
+  // Insert toolbar above the grid so it doesn't jump to the bottom on refresh.
+  container.insertBefore(toolbar, projectionsGridContainer);
 
   const periodTypeSelect = document.getElementById('projections-period-type-select');
   if (periodTypeSelect) {
@@ -281,47 +274,22 @@ export async function loadProjectionsSection({
     });
 
     const firstAccountId = currentScenario.accounts?.[0]?.id;
-    const currentTxFilter = state?.getTransactionFilterAccountId?.();
+    const currentProjectionAccountFilter = state?.getProjectionAccountFilterId?.();
 
-    projectionsAccountFilterSelect.value = currentTxFilter || firstAccountId || '';
+    const isValidAccountId = (id) => (currentScenario.accounts || []).some((a) => Number(a.id) === Number(id));
+    const initialAccountId = isValidAccountId(currentProjectionAccountFilter)
+      ? currentProjectionAccountFilter
+      : (firstAccountId || null);
 
-    if (!currentTxFilter && firstAccountId) {
-      state?.setTransactionFilterAccountId?.(firstAccountId);
+    projectionsAccountFilterSelect.value = initialAccountId || '';
+
+    if (!isValidAccountId(currentProjectionAccountFilter)) {
+      state?.setProjectionAccountFilterId?.(initialAccountId);
     }
 
     projectionsAccountFilterSelect.addEventListener('change', async (e) => {
       const nextId = e.target.value ? Number(e.target.value) : null;
-      state?.setTransactionFilterAccountId?.(nextId);
-
-      const masterTransactionsTable = tables?.getMasterTransactionsTable?.();
-      if (masterTransactionsTable) {
-        if (nextId) {
-          masterTransactionsTable.setFilter((data) => {
-            if (!data.perspectiveAccountId) return true;
-            return Number(data.perspectiveAccountId) === nextId;
-          });
-        } else {
-          masterTransactionsTable.setFilter((data) => {
-            return !String(data.id).includes('_flipped');
-          });
-        }
-        callbacks?.updateTransactionTotals?.();
-      }
-
-      const masterBudgetTable = tables?.getMasterBudgetTable?.();
-      if (masterBudgetTable) {
-        if (nextId) {
-          masterBudgetTable.setFilter((data) => {
-            if (!data.perspectiveAccountId) return true;
-            return Number(data.perspectiveAccountId) === nextId;
-          });
-        } else {
-          masterBudgetTable.setFilter((data) => {
-            return !String(data.id).includes('_flipped');
-          });
-        }
-        callbacks?.updateBudgetTotals?.();
-      }
+      state?.setProjectionAccountFilterId?.(nextId);
 
       const gridContainer = document.getElementById('projectionsGrid');
       if (gridContainer) {
@@ -338,11 +306,6 @@ export async function loadProjectionsSection({
     });
   }
 
-  const projectionsGridContainer = document.createElement('div');
-  projectionsGridContainer.id = 'projectionsGrid';
-  projectionsGridContainer.className = 'grid-container projections-grid';
-  window.add(container, projectionsGridContainer);
-
   await loadProjectionsGrid({
     container: projectionsGridContainer,
     scenarioState,
@@ -351,60 +314,382 @@ export async function loadProjectionsSection({
     callbacks,
     logger
   });
+
+  try {
+    projectionsGridState.restore(lastProjectionsTable, { restoreGroupBy: false });
+    projectionsGridState.restoreDropdowns({
+      groupBy: '#projections-grouping-select',
+      account: '#projections-account-filter-select'
+    }, { dispatchChange: false });
+
+    const projectionsAccountFilterSelect = document.getElementById('projections-account-filter-select');
+    if (projectionsAccountFilterSelect) {
+      const nextId = projectionsAccountFilterSelect.value ? Number(projectionsAccountFilterSelect.value) : null;
+      state?.setProjectionAccountFilterId?.(nextId);
+    }
+  } catch (_) {
+    // ignore
+  }
 }
 
 export async function loadProjectionsGrid({ container, scenarioState, state, tables, callbacks, logger }) {
   const currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
-  container.innerHTML = '';
+  // Keep the grid container stable to reduce scroll jumps.
+  // (We refresh Tabulator data instead of rebuilding DOM.)
 
   try {
     const filteredProjections = callbacks?.getFilteredProjections?.();
 
+    const projectionsGroupingSelect = document.getElementById('projections-grouping-select');
+    const groupField = projectionsGroupingSelect?.value || '';
+    const isCounterpartyMode = groupField === 'secondaryAccount';
+    const groupFieldAtBuildTime = groupField;
+    const isCounterpartyModeAtBuildTime = isCounterpartyMode;
+
+    const getId = (value) => (typeof value === 'object' ? value?.id : value);
+    const getStatusName = (record) => (typeof record?.status === 'object' ? record?.status?.name : record?.status);
+
+    const lookupData = await loadLookup('lookup-data.json');
+    const accountTypeIdToName = new Map((lookupData?.accountTypes || []).map((t) => [Number(t.id), String(t.name || '')]));
+
     const accountMap = new Map((currentScenario.accounts || []).map((a) => [a.id, a]));
 
-    const transformedData = (filteredProjections || []).map((p) => ({
-      date: p.date,
-      account: accountMap.get(p.accountId)?.name || '',
-      balance: p.balance || 0,
-      income: p.income || 0,
-      expenses: -Math.abs(p.expenses || 0),
-      netChange: p.netChange || 0
-    }));
+    const normalizeDateOnly = (value) => {
+      if (!value) return null;
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const d = new Date(value);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      }
+      if (typeof value === 'string') return parseDateOnly(value);
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return null;
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
 
-    const projectionsTable = await createGrid(container, {
-      data: transformedData,
-      layout: 'fitColumns',
-      columns: [
-        createDateColumn('Date', 'date', { widthGrow: 1 }),
-        createTextColumn('Account', 'account', { widthGrow: 2 }),
-        createMoneyColumn('Projected Balance', 'balance', { widthGrow: 2 }),
-        createMoneyColumn('Projected Income', 'income', { widthGrow: 2 }),
-        createMoneyColumn('Projected Expenses', 'expenses', { widthGrow: 2 }),
-        {
-          title: 'Net Change',
-          field: 'netChange',
-          widthGrow: 2,
-          formatter: function (cell) {
-            const value = cell.getValue();
-            const formatted = new Intl.NumberFormat('en-ZA', {
-              style: 'currency',
-              currency: 'ZAR',
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            }).format(value);
+    const formatDateKey = (dateValue) => {
+      if (!dateValue) return '';
+      if (typeof dateValue === 'string') return dateValue;
+      const d = new Date(dateValue);
+      if (Number.isNaN(d.getTime())) return String(dateValue);
+      return formatDateOnly(d);
+    };
 
-            const cls = value >= 0 ? 'status-netchange positive' : 'status-netchange negative';
-            return `<span class="${cls}">${formatted}</span>`;
-          },
-          headerHozAlign: 'right',
-          hozAlign: 'right'
+    const projectionPeriods = state?.getProjectionPeriods?.() || [];
+    const normalizedPeriods = (projectionPeriods || [])
+      .map((p) => {
+        const start = normalizeDateOnly(p?.startDate);
+        const end = normalizeDateOnly(p?.endDate);
+        if (!start || !end) return null;
+        return {
+          ...p,
+          _start: start,
+          _end: end,
+          _labelDate: formatDateOnly(start)
+        };
+      })
+      .filter(Boolean);
+
+    const findPeriodLabelForDate = (dateObj) => {
+      if (!dateObj) return null;
+      for (const period of normalizedPeriods) {
+        if (dateObj >= period._start && dateObj <= period._end) return period._labelDate;
+      }
+      return null;
+    };
+
+    const round2 = (value) => {
+      const rounded = Math.round(Number(value || 0) * 100) / 100;
+      return Object.is(rounded, -0) ? 0 : rounded;
+    };
+
+    const formatCurrency = (value) => {
+      const safe = round2(value);
+      return new Intl.NumberFormat('en-ZA', {
+        style: 'currency',
+        currency: 'ZAR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(safe);
+    };
+
+    const formatBalanceHtml = (value) => {
+      return formatMoneyDisplay(round2(value));
+    };
+
+    const formatNetChangeHtml = (value) => {
+      return formatMoneyDisplay(round2(value));
+    };
+
+    const buildAccountLevelRows = () => {
+      return (filteredProjections || []).map((p) => {
+        const account = accountMap.get(p.accountId) || null;
+        const accountTypeId = typeof account?.type === 'object' ? Number(account?.type?.id) : Number(account?.type);
+        const accountType = accountTypeIdToName.get(accountTypeId) || '';
+
+        return {
+          date: p.date,
+          account: account?.name || '',
+          accountType,
+          balance: p.balance || 0,
+          income: p.income || 0,
+          expenses: -Math.abs(p.expenses || 0),
+          netChange: p.netChange || 0
+        };
+      });
+    };
+
+    const buildCounterpartyRowsForSelectedAccount = () => {
+      const selectedAccountId = state?.getProjectionAccountFilterId?.();
+      if (!selectedAccountId) {
+        notifyError('Select an Account to group by Secondary Account.');
+        return [];
+      }
+
+      const selectedAccountProjections = (filteredProjections || []).filter((p) => Number(p.accountId) === Number(selectedAccountId));
+      const allowedPeriodLabels = new Set(selectedAccountProjections.map((p) => String(p.date || '')));
+      const balanceByPeriodLabel = new Map(selectedAccountProjections.map((p) => [String(p.date || ''), Number(p.balance || 0)]));
+      const interestByPeriodLabel = new Map(selectedAccountProjections.map((p) => [String(p.date || ''), Number(p.interest || 0)]));
+
+      const plannedTransactions = (currentScenario.transactions || []).filter((tx) => getStatusName(tx) === 'planned');
+      const startDate = normalizeDateOnly(currentScenario.startDate);
+      const endDate = normalizeDateOnly(currentScenario.endDate);
+      const accounts = currentScenario.accounts || [];
+
+      if (!startDate || !endDate) {
+        notifyError('Scenario start/end dates are missing or invalid.');
+        return [];
+      }
+
+      const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
+
+      const transactionOccurrences = expandedTransactions.map((txn) => {
+        const occDate = txn._occurrenceDate || normalizeDateOnly(txn.effectiveDate);
+        let amount = Number(txn.amount || 0);
+        if (txn.periodicChange) {
+          const expandedPC = expandPeriodicChangeForCalculation(txn.periodicChange, lookupData);
+          if (expandedPC) {
+            const txnStartDate = txn.recurrence?.startDate ? normalizeDateOnly(txn.recurrence.startDate) : startDate;
+            const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
+            amount = calculatePeriodicChange(amount, expandedPC, yearsDiff);
+          }
         }
-      ]
-    });
 
-    const projectionsGroupingSelect = document.getElementById('projections-grouping-select');
+        return {
+          date: occDate,
+          periodLabel: findPeriodLabelForDate(occDate),
+          primaryAccountId: txn.primaryAccountId,
+          secondaryAccountId: txn.secondaryAccountId,
+          transactionTypeId: txn.transactionTypeId,
+          amount
+        };
+      });
+
+      const totalsByKey = new Map();
+
+      const getOrCreate = (periodLabel, secondaryAccount) => {
+        const key = `${periodLabel}::${secondaryAccount}`;
+        let existing = totalsByKey.get(key);
+        if (!existing) {
+          existing = {
+            date: periodLabel,
+            secondaryAccount,
+            balance: Number(balanceByPeriodLabel.get(periodLabel) || 0),
+            _income: 0,
+            _expenses: 0
+          };
+          totalsByKey.set(key, existing);
+        }
+        return existing;
+      };
+
+      transactionOccurrences.forEach((txn) => {
+        const periodLabel = txn.periodLabel;
+        if (!periodLabel || !allowedPeriodLabels.has(String(periodLabel))) return;
+
+        const absAmount = Math.abs(Number(txn.amount || 0));
+        if (!absAmount) return;
+
+        const isMoneyIn = Number(txn.transactionTypeId) === 1;
+
+        let counterpartyAccountId = null;
+        let incomeDelta = 0;
+        let expenseDelta = 0;
+
+        if (Number(txn.primaryAccountId) === Number(selectedAccountId)) {
+          counterpartyAccountId = txn.secondaryAccountId || null;
+          if (isMoneyIn) incomeDelta = absAmount;
+          else expenseDelta = absAmount;
+        } else if (Number(txn.secondaryAccountId) === Number(selectedAccountId)) {
+          counterpartyAccountId = txn.primaryAccountId || null;
+          if (isMoneyIn) expenseDelta = absAmount;
+          else incomeDelta = absAmount;
+        } else {
+          return;
+        }
+
+        const counterpartyAccount = counterpartyAccountId ? accountMap.get(counterpartyAccountId) : null;
+        const secondaryAccount = counterpartyAccount?.name || 'Unassigned';
+
+        const row = getOrCreate(periodLabel, secondaryAccount);
+        row._income += incomeDelta;
+        row._expenses += expenseDelta;
+      });
+
+      // Add periodic-change interest as its own counterparty bucket so totals reconcile.
+      for (const [periodLabel, interest] of interestByPeriodLabel.entries()) {
+        if (!periodLabel || !allowedPeriodLabels.has(String(periodLabel))) continue;
+        const interestValue = Number(interest || 0);
+        if (!interestValue) continue;
+
+        const row = getOrCreate(periodLabel, 'Interest');
+        if (interestValue >= 0) row._income += interestValue;
+        else row._expenses += Math.abs(interestValue);
+      }
+
+      return Array.from(totalsByKey.values())
+        .map((r) => {
+          const income = round2(r._income);
+          const expensesAbs = round2(r._expenses);
+          const netChange = round2(income - expensesAbs);
+          return {
+            date: r.date,
+            secondaryAccount: r.secondaryAccount,
+            balance: round2(r.balance),
+            income,
+            expenses: -Math.abs(expensesAbs),
+            netChange
+          };
+        })
+        .filter((r) => r.income !== 0 || r.expenses !== 0 || r.netChange !== 0);
+    };
+
+    const transformedData = isCounterpartyMode ? buildCounterpartyRowsForSelectedAccount() : buildAccountLevelRows();
+
+    const computeEndingBalance = (rows) => {
+      if (!Array.isArray(rows) || rows.length === 0) return 0;
+      let maxDate = null;
+      rows.forEach((r) => {
+        const key = formatDateKey(r?.date);
+        if (!key) return;
+        if (!maxDate || key > maxDate) maxDate = key;
+      });
+      if (!maxDate) return 0;
+      return rows
+        .filter((r) => formatDateKey(r?.date) === maxDate)
+        .reduce((sum, r) => sum + Number(r?.balance || 0), 0);
+    };
+
+    const computeEndingBalanceSingleAccount = (rows) => {
+      if (!Array.isArray(rows) || rows.length === 0) return 0;
+      let maxDate = null;
+      rows.forEach((r) => {
+        const key = formatDateKey(r?.date);
+        if (!key) return;
+        if (!maxDate || key > maxDate) maxDate = key;
+      });
+      if (!maxDate) return 0;
+      const row = rows.find((r) => formatDateKey(r?.date) === maxDate);
+      return Number(row?.balance || 0);
+    };
+
+    const endingBalanceCalc = isCounterpartyMode ? computeEndingBalanceSingleAccount : computeEndingBalance;
+
+    const netChangeBottomCalc = (values) => {
+      const sum = (Array.isArray(values) ? values : []).reduce((acc, v) => acc + Number(v || 0), 0);
+      return round2(sum);
+    };
+
+    const columns = isCounterpartyMode
+      ? [
+          createDateColumn('Date', 'date', { widthGrow: 1 }),
+          createTextColumn('Secondary Account', 'secondaryAccount', { widthGrow: 2 }),
+          createMoneyColumn('Projected Balance', 'balance', {
+            widthGrow: 2,
+            bottomCalc: (values, data) => endingBalanceCalc(data),
+            bottomCalcFormatter: (cell) => {
+              const value = Number(cell.getValue() || 0);
+              return formatBalanceHtml(value);
+            }
+          }),
+          createMoneyColumn('Projected Income', 'income', { widthGrow: 2 }),
+          createMoneyColumn('Projected Expenses', 'expenses', { widthGrow: 2 }),
+          {
+            title: 'Net Change',
+            field: 'netChange',
+            widthGrow: 2,
+            bottomCalc: netChangeBottomCalc,
+            bottomCalcFormatter: (cell) => formatNetChangeHtml(cell.getValue()),
+            formatter: function (cell) {
+              const value = cell.getValue();
+              return formatNetChangeHtml(value);
+            },
+            headerHozAlign: 'right',
+            hozAlign: 'right'
+          }
+        ]
+      : [
+          createDateColumn('Date', 'date', { widthGrow: 1 }),
+          createTextColumn('Account', 'account', { widthGrow: 2 }),
+          createMoneyColumn('Projected Balance', 'balance', {
+            widthGrow: 2,
+            bottomCalc: (values, data) => endingBalanceCalc(data),
+            bottomCalcFormatter: (cell) => {
+              const value = Number(cell.getValue() || 0);
+              return formatBalanceHtml(value);
+            }
+          }),
+          createMoneyColumn('Projected Income', 'income', { widthGrow: 2 }),
+          createMoneyColumn('Projected Expenses', 'expenses', { widthGrow: 2 }),
+          {
+            title: 'Net Change',
+            field: 'netChange',
+            widthGrow: 2,
+            bottomCalc: netChangeBottomCalc,
+            bottomCalcFormatter: (cell) => formatNetChangeHtml(cell.getValue()),
+            formatter: function (cell) {
+              const value = cell.getValue();
+              return formatNetChangeHtml(value);
+            },
+            headerHozAlign: 'right',
+            hozAlign: 'right'
+          }
+        ];
+
+    const columnsKey = isCounterpartyModeAtBuildTime ? 'projections-counterparty' : 'projections-default';
+
+    let projectionsTable = lastProjectionsTable;
+    const shouldRebuildTable =
+      !projectionsTable ||
+      projectionsTable?.element !== container ||
+      projectionsTable?.__ftrackColumnsKey !== columnsKey;
+
+    let didCreateNewTable = false;
+
+    if (shouldRebuildTable) {
+      didCreateNewTable = true;
+      try {
+        projectionsTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      projectionsTable = await createGrid(container, {
+        data: transformedData,
+        layout: 'fitColumns',
+        columns
+      });
+
+      projectionsTable.__ftrackColumnsKey = columnsKey;
+      lastProjectionsTable = projectionsTable;
+    } else {
+      await refreshGridData(projectionsTable, transformedData);
+      lastProjectionsTable = projectionsTable;
+    }
+
     if (projectionsGroupingSelect) {
       const formatGroupLabel = (val) => {
         if (val === null || val === undefined || val === '') return 'Unspecified';
@@ -412,24 +697,58 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
         return String(val);
       };
 
-      projectionsGroupingSelect.addEventListener('change', (e) => {
-        const groupField = e.target.value;
-        if (groupField) {
-          projectionsTable.setGroupBy(groupField);
-          projectionsTable.setGroupHeader((value, count, data, group) => {
-            const totalBalance = data.reduce((sum, row) => sum + Number(row.balance || 0), 0);
-            const label = formatGroupLabel(value);
-            const formatted = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(totalBalance);
-            return `${label} (${count} periods, Total Balance: ${formatted})`;
-          });
-        } else {
+      const applyGrouping = () => {
+        const nextGroupField = groupFieldAtBuildTime;
+        if (!nextGroupField) {
           projectionsTable.setGroupBy(false);
+          return;
         }
-      });
+
+        projectionsTable.setGroupBy(nextGroupField);
+        projectionsTable.setGroupHeader((value, count, data, group) => {
+          const netChangeSubtotal = round2(data.reduce((sum, row) => sum + Number(row.netChange || 0), 0));
+          const formattedNet = formatNetChangeHtml(netChangeSubtotal);
+
+          const label = formatGroupLabel(value);
+
+          if (isCounterpartyModeAtBuildTime) {
+            return `${label} (${count} periods, Net Change: ${formattedNet})`;
+          }
+
+          const endingBalance = endingBalanceCalc(data);
+          const formattedEnding = formatBalanceHtml(endingBalance);
+
+          let maxDate = null;
+          data.forEach((r) => {
+            const key = formatDateKey(r?.date);
+            if (!key) return;
+            if (!maxDate || key > maxDate) maxDate = key;
+          });
+
+          const dateSuffix = maxDate ? ` (${maxDate})` : '';
+          return `${label} (${count} periods, Ending Balance${dateSuffix}: ${formattedEnding}, Net Change: ${formattedNet})`;
+        });
+      };
+
+      // Avoid accumulating listeners across reloads.
+      projectionsGroupingSelect.onchange = async () => {
+        await loadProjectionsGrid({ container, scenarioState, state, tables, callbacks, logger });
+      };
+
+      if (didCreateNewTable) {
+        // Tabulator isn't guaranteed to be built at this point.
+        // Apply grouping after table initialization to avoid initGuard warnings/errors.
+        projectionsTable.on('tableBuilt', () => {
+          applyGrouping();
+        });
+      } else {
+        applyGrouping();
+      }
     }
 
     callbacks?.updateProjectionTotals?.(callbacks?.getEl?.('projectionsContent'), filteredProjections);
   } catch (err) {
     logger?.error?.('[Forecast] loadProjectionsGrid failed', err);
+    notifyError(`Failed to load projections: ${err?.message || String(err)}`);
   }
 }

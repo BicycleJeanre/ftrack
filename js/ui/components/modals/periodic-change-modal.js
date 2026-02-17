@@ -25,6 +25,8 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
     const weekOfMonth = currentValue?.weekOfMonth || null;
     const customCompoundingFrequency = currentValue?.customCompounding?.frequency || 12; // Default to 12 times
     const customCompoundingPeriod = currentValue?.customCompounding?.period || 1; // Default to per year
+    const nominalPeriodId = currentValue?.ratePeriod || 1; // Default to Annual
+    const nominalCompoundingPeriodId = currentValue?.frequency || 3; // Default to Monthly
 
     modal.innerHTML = `
         <h2 class="modal-periodic-title">Edit Periodic Change</h2>
@@ -104,6 +106,26 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
             <div class="modal-periodic-hint">Per what time period?</div>
         </div>
 
+        <div class="modal-periodic-form-group" id="nominalPeriodGroup" style="display: none;">
+            <label class="modal-periodic-label">Nominal Period:</label>
+            <select id="nominalPeriod" class="modal-periodic-select">
+                ${lookupData.ratePeriods.map(period =>
+                    `<option value="${period.id}" ${nominalPeriodId === period.id ? 'selected' : ''}>${period.name}</option>`
+                ).join('')}
+            </select>
+            <div class="modal-periodic-hint">What time period does the entered rate apply to?</div>
+        </div>
+
+        <div class="modal-periodic-form-group" id="nominalCompoundingPeriodGroup" style="display: none;">
+            <label class="modal-periodic-label">Compounding Period:</label>
+            <select id="nominalCompoundingPeriod" class="modal-periodic-select">
+                ${lookupData.frequencies.map(freq =>
+                    `<option value="${freq.id}" ${nominalCompoundingPeriodId === freq.id ? 'selected' : ''}>${freq.name}</option>`
+                ).join('')}
+            </select>
+            <div class="modal-periodic-hint">How often should the nominal rate compound?</div>
+        </div>
+
         <div class="modal-periodic-form-group">
             <label class="modal-periodic-label">Value:</label>
             <input type="number" id="value" class="modal-periodic-input" value="${value}" step="0.01">
@@ -143,6 +165,8 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
     const weekOfMonthGroup = modal.querySelector('#weekOfMonthGroup');
     const customCompoundingGroup = modal.querySelector('#customCompoundingGroup');
     const customCompoundingPeriodGroup = modal.querySelector('#customCompoundingPeriodGroup');
+    const nominalPeriodGroup = modal.querySelector('#nominalPeriodGroup');
+    const nominalCompoundingPeriodGroup = modal.querySelector('#nominalCompoundingPeriodGroup');
     const examplesList = modal.querySelector('#examplesList');
     const frequencySelect = modal.querySelector('#frequency');
     
@@ -196,6 +220,8 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
             dayOfMonthGroup.style.display = 'none';
             dayOfWeekGroup.style.display = 'none';
             weekOfMonthGroup.style.display = 'none';
+            nominalPeriodGroup.style.display = 'none';
+            nominalCompoundingPeriodGroup.style.display = 'none';
             
             if (typeId === 7) {
                 // Custom change type selected
@@ -205,6 +231,17 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
                     <li>3% compounded 12 times per year: Custom, Frequency = 12, Period = Annual</li>
                     <li>5% compounded 30 times per month: Custom, Frequency = 30, Period = Monthly</li>
                     <li>2% compounded 4 times per quarter: Custom, Frequency = 4, Period = Quarterly</li>
+                `;
+            } else if (typeId === 8) {
+                // Custom nominal + compounding selection
+                customCompoundingGroup.style.display = 'none';
+                customCompoundingPeriodGroup.style.display = 'none';
+                nominalPeriodGroup.style.display = 'block';
+                nominalCompoundingPeriodGroup.style.display = 'block';
+                examplesList.innerHTML = `
+                    <li>1% per month, compounded monthly: Nominal Period = Monthly, Compounding Period = Monthly</li>
+                    <li>0.25% per week, compounded weekly: Nominal Period = Weekly, Compounding Period = Weekly</li>
+                    <li>3% per quarter, compounded monthly: Nominal Period = Quarterly, Compounding Period = Monthly</li>
                 `;
             } else {
                 customCompoundingGroup.style.display = 'none';
@@ -277,6 +314,12 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
                 frequency: parseInt(modal.querySelector('#customCompounding').value),
                 period: parseInt(modal.querySelector('#customCompoundingPeriod').value)
             };
+        }
+
+        // Add nominal + compounding selection for Custom nominal/compounding type
+        if (changeModeId === 1 && changeTypeId === 8) {
+            periodicChange.ratePeriod = parseInt(modal.querySelector('#nominalPeriod').value);
+            periodicChange.frequency = parseInt(modal.querySelector('#nominalCompoundingPeriod').value);
         }
 
         onSave(periodicChange);

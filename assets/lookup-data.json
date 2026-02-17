@@ -50,7 +50,8 @@
       "showPlannedTransactions": true,
       "showActualTransactions": false,
       "showProjections": true,
-      "showGeneratePlan": true
+      "showGeneratePlan": true,
+      "showBudget": false
     },
     {
       "id": 6,
@@ -85,13 +86,14 @@
     { "id": 4, "name": "GBP" }
   ],
   "periodicChangeTypes": [
-    { "id": 1, "name": "Nominal Annual (No Compounding)" },
+    { "id": 1, "name": "Simple Interest" },
     { "id": 2, "name": "Nominal Annual, Compounded Monthly" },
     { "id": 3, "name": "Nominal Annual, Compounded Daily" },
     { "id": 4, "name": "Nominal Annual, Compounded Quarterly" },
     { "id": 5, "name": "Nominal Annual, Compounded Annually" },
     { "id": 6, "name": "Nominal Annual, Continuous Compounding" },
-    { "id": 7, "name": "Custom" }
+    { "id": 7, "name": "Custom" },
+    { "id": 8, "name": "Custom nominal/compounding" }
   ],
   "changeModes": [
     { "id": 1, "name": "Percentage Rate" },
@@ -101,7 +103,8 @@
     { "id": 1, "name": "Annual" },
     { "id": 2, "name": "Monthly" },
     { "id": 3, "name": "Quarterly" },
-    { "id": 4, "name": "Daily" }
+    { "id": 4, "name": "Daily" },
+    { "id": 5, "name": "Weekly" }
   ],
   "frequencies": [
     { "id": 1, "name": "Daily" },

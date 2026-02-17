@@ -38,6 +38,16 @@ export function expandPeriodicChangeForCalculation(pc, lookupData) {
     changeMode: mode,
     changeType: type
   };
+
+  // Rate period is used for nominal-period-aware change types.
+  // - changeType=7 stores its settings in customCompounding (kept below)
+  // - changeType=8 uses ratePeriod as the nominal period selector
+  if (pc.ratePeriod && (pc.changeType === 7 || pc.changeType === 8)) {
+    const ratePeriod = lookupData.ratePeriods.find((rp) => rp.id === pc.ratePeriod);
+    if (ratePeriod) {
+      expanded.ratePeriod = ratePeriod;
+    }
+  }
   
   // For Fixed Amount mode: period defines the application frequency
   if (pc.period) {
@@ -86,6 +96,7 @@ export async function getPeriodicChangeDescription(pc) {
   const mode = lookupData.changeModes.find(m => m.id === pc.changeMode);
   const type = lookupData.periodicChangeTypes.find(t => t.id === pc.changeType);
   const freq = pc.frequency ? lookupData.frequencies.find(f => f.id === pc.frequency) : null;
+  const nominalRatePeriod = pc.ratePeriod ? lookupData.ratePeriods.find(rp => rp.id === pc.ratePeriod) : null;
   
   const value = pc.value;
   const modeName = mode?.name;
@@ -116,6 +127,13 @@ export async function getPeriodicChangeDescription(pc) {
     return `$${value.toFixed(2)} ${frequencyText}${scheduleText}`;
   }
   
+  // Custom nominal/compounding
+  if (type?.id === 8) {
+    const nominalName = nominalRatePeriod?.name?.toLowerCase() || 'annual';
+    const compName = freq?.name?.toLowerCase() || 'monthly';
+    return `${value}% nominal ${nominalName}, compounded ${compName}`;
+  }
+
   // Handle custom compounding
   if (typeName?.includes('Custom') && pc.customCompounding?.frequency) {
     const compFreq = pc.customCompounding.frequency;
@@ -151,6 +169,9 @@ export async function getPeriodicChangeDescription(pc) {
   if (typeName?.includes('Quarterly')) {
     return `${value}% annual, compounded quarterly`;
   }
+  if (typeName?.includes('Compounded Annually')) {
+    return `${value}% annual, compounded annually`;
+  }
   if (typeName?.includes('Semi-Annually')) {
     return `${value}% annual, compounded semi-annually`;
   }
@@ -160,7 +181,7 @@ export async function getPeriodicChangeDescription(pc) {
   if (typeName?.includes('Effective')) {
     return `${value}% effective annual`;
   }
-  if (typeName?.includes('No Compounding')) {
+  if (typeName?.includes('Simple Interest') || typeName?.includes('No Compounding')) {
     return `${value}% simple interest`;
   }
   
