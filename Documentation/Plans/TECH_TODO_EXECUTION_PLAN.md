@@ -113,7 +113,7 @@
   - label becomes "Regenerate Budget from Projections."
 - Do not add overwrite/new snapshot/prompt behavior (use existing behavior as-is).
 
-#### 2.9.1 On the budget, let's add something to mark as completed that should automatically fill out the actual amount and date (default to the current date). Then make sure that actual amount and actual dates also update properly. You give this to. Lock the row with ability to mark it as incomplete.
+#### 2.9.1 On the budget, let's add something to mark as completed that should automatically fill out the actual amount and date (default to the current date). Then make sure that actual amount and actual dates also update properly. You give this to. Lock the row with ability to mark it as incomplete. [Done]
 
 - Add a new “completed” column control (checkbox or icon) on the budget grid.
 - On mark completed:

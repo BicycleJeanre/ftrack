@@ -1389,6 +1389,16 @@ body .tabulator .tabulator-footer .tabulator-col {
   color: var(--text-primary) !important;
 }
 
+/* Budget grid: completed rows appear visually frozen */
+.tabulator .tabulator-row.budget-row-frozen,
+body .tabulator .tabulator-row.budget-row-frozen {
+  opacity: 0.65;
+}
+
+body .tabulator .tabulator-row.budget-row-frozen .tabulator-cell {
+  cursor: not-allowed;
+}
+
 .modal-close-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);

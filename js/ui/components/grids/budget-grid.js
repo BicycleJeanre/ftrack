@@ -16,6 +16,17 @@ import { getScenario, getScenarioPeriods, getBudget } from '../../../app/service
 
 const budgetGridState = new GridStateManager('budget');
 
+function hasValue(value) {
+  return value !== null && value !== undefined && value !== '';
+}
+
+function isCompletedRow(rowData) {
+  const statusName = rowData?.status?.name;
+  if (typeof statusName === 'string') return statusName.toLowerCase() === 'actual';
+  if (rowData?.completed === true) return true;
+  return false;
+}
+
 export async function loadBudgetGrid({
   container,
   scenarioState,
@@ -41,6 +52,19 @@ export async function loadBudgetGrid({
   const budgetPeriodSnapshot = state?.getBudgetPeriod?.();
   const selIdNum = transactionFilterAccountIdSnapshot != null ? Number(transactionFilterAccountIdSnapshot) : null;
 
+  container.innerHTML = '';
+
+  // Allow the accordion to paint immediately before doing heavy work
+  // (storage read/parse + transform + Tabulator build).
+  const loadingEl = document.createElement('div');
+  loadingEl.className = 'text-muted';
+  loadingEl.style.padding = '12px 0';
+  loadingEl.textContent = 'Loading budget…';
+  container.appendChild(loadingEl);
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  if (loadToken !== state?.getBudgetGridLoadToken?.()) {
+    return;
+  }
   container.innerHTML = '';
 
   try {
@@ -346,6 +370,7 @@ export async function loadBudgetGrid({
         plannedAmount: budget.amount,
         actualAmount: statusObj.actualAmount,
         actualDate: statusObj.actualDate,
+        completed: String(statusObj?.name || '').toLowerCase() === 'actual',
         amount:
           statusObj.actualAmount !== null && statusObj.actualAmount !== undefined
             ? statusObj.actualAmount
@@ -418,27 +443,131 @@ export async function loadBudgetGrid({
     gridContainer.className = 'grid-container budget-grid';
     window.add(container, gridContainer);
 
+    const setBudgetCompletedState = async ({ rowId, markCompleted }) => {
+      currentScenario = scenarioState?.get?.();
+
+      const canonicalId = String(rowId).replace('_flipped', '');
+      const allBudgets = (await getBudget(currentScenario.id)).map(normalizeCanonicalTransaction);
+      const budgetIndex = allBudgets.findIndex((b) => String(b.id) === canonicalId);
+      if (budgetIndex < 0) return;
+
+      const target = { ...allBudgets[budgetIndex] };
+      const nextStatus = typeof target.status === 'object'
+        ? { ...target.status }
+        : { name: target.status || 'planned', actualAmount: null, actualDate: null };
+
+      if (markCompleted) {
+        nextStatus.name = 'actual';
+
+        if (!hasValue(nextStatus.actualAmount) && !hasValue(target.actualAmount)) {
+          const planned = Math.abs(Number(target.plannedAmount ?? target.amount ?? 0) || 0);
+          nextStatus.actualAmount = planned;
+          target.actualAmount = planned;
+        }
+
+        if (!hasValue(nextStatus.actualDate) && !hasValue(target.actualDate)) {
+          const today = formatDateOnly(new Date());
+          nextStatus.actualDate = today;
+          target.actualDate = today;
+        }
+      } else {
+        nextStatus.name = 'planned';
+      }
+
+      if (hasValue(nextStatus.actualAmount)) {
+        nextStatus.actualAmount = Math.abs(Number(nextStatus.actualAmount) || 0);
+        target.actualAmount = nextStatus.actualAmount;
+      }
+
+      target.status = {
+        name: nextStatus.name || 'planned',
+        actualAmount: hasValue(nextStatus.actualAmount) ? nextStatus.actualAmount : null,
+        actualDate: hasValue(nextStatus.actualDate) ? nextStatus.actualDate : null
+      };
+
+      allBudgets[budgetIndex] = target;
+      await BudgetManager.saveAll(currentScenario.id, allBudgets);
+
+      const refreshed = await getScenario(currentScenario.id);
+      scenarioState?.set?.(refreshed);
+
+      await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+    };
+
+    const readOnlyIfCompleted = (cell) => {
+      const rowData = cell?.getRow?.()?.getData?.();
+      return !isCompletedRow(rowData);
+    };
+
+    const deleteColumn = createDeleteColumn(
+      async (cell) => {
+        currentScenario = scenarioState?.get?.();
+
+        await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
+
+        const refreshed = await getScenario(currentScenario.id);
+        scenarioState?.set?.(refreshed);
+
+        await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+      },
+      { confirmMessage: () => 'Delete this budget occurrence?' }
+    );
+    const originalDeleteCellClick = deleteColumn.cellClick;
+    deleteColumn.cellClick = async function (e, cell) {
+      const rowData = cell.getRow().getData();
+      if (isCompletedRow(rowData)) return;
+      return originalDeleteCellClick(e, cell);
+    };
+
+    const completedColumn = {
+      title: 'Completed',
+      field: 'completed',
+      width: 110,
+      minWidth: 110,
+      hozAlign: 'center',
+      headerSort: false,
+      formatter: function (cell) {
+        const completed = isCompletedRow(cell.getRow().getData());
+        return `<input type="checkbox" ${completed ? 'checked' : ''} aria-label="Completed" />`;
+      },
+      cellClick: async function (e, cell) {
+        const input = e?.target;
+        if (input && input.tagName === 'INPUT') {
+          e.preventDefault();
+        }
+
+        const rowData = cell.getRow().getData();
+        const markCompleted = !isCompletedRow(rowData);
+        await setBudgetCompletedState({ rowId: rowData.id, markCompleted });
+      }
+    };
+
     const budgetTable = await createGrid(gridContainer, {
       data: transformedData,
+      rowFormatter: function (row) {
+        try {
+          const data = row.getData();
+          const el = row.getElement();
+          if (!el || !el.classList) return;
+
+          if (isCompletedRow(data)) {
+            el.classList.add('budget-row-frozen');
+          } else {
+            el.classList.remove('budget-row-frozen');
+          }
+        } catch (_) {
+          // Ignore row format errors.
+        }
+      },
       columns: [
-        createDeleteColumn(
-          async (cell) => {
-            currentScenario = scenarioState?.get?.();
-
-            await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
-
-            const refreshed = await getScenario(currentScenario.id);
-            scenarioState?.set?.(refreshed);
-
-            await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
-          },
-          { confirmMessage: () => 'Delete this budget occurrence?' }
-        ),
+        deleteColumn,
+        completedColumn,
         {
           title: 'Secondary Account',
           field: 'secondaryAccount',
           minWidth: 150,
           widthGrow: 1.5,
+          editable: readOnlyIfCompleted,
           formatter: function (cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -461,6 +590,7 @@ export async function loadBudgetGrid({
           field: 'transactionType',
           minWidth: 100,
           widthGrow: 1,
+          editable: readOnlyIfCompleted,
           formatter: function (cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -481,9 +611,9 @@ export async function loadBudgetGrid({
             return aVal.localeCompare(bVal);
           }
         },
-        createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
+        createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1, editable: readOnlyIfCompleted }),
         ...(showBudgetDateColumn
-          ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 })]
+          ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1, editable: readOnlyIfCompleted })]
           : []),
         {
           title: 'Recurrence',
@@ -494,9 +624,9 @@ export async function loadBudgetGrid({
             return cell.getValue() || 'One time';
           }
         },
-        createTextColumn('Description', 'description', { widthGrow: 2 }),
-        createMoneyColumn('Actual Amount', 'actualAmount', { minWidth: 100, widthGrow: 1 }),
-        createDateColumn('Actual Date', 'actualDate', { minWidth: 110, widthGrow: 1 })
+        createTextColumn('Description', 'description', { widthGrow: 2, editable: readOnlyIfCompleted }),
+        createMoneyColumn('Actual Amount', 'actualAmount', { minWidth: 100, widthGrow: 1, editable: readOnlyIfCompleted }),
+        createDateColumn('Actual Date', 'actualDate', { minWidth: 110, widthGrow: 1, editable: readOnlyIfCompleted })
       ],
       cellEdited: async function (cell) {
         currentScenario = scenarioState?.get?.();
@@ -504,6 +634,10 @@ export async function loadBudgetGrid({
         const rowData = cell.getRow().getData();
         const field = cell.getColumn().getField();
         const newValue = cell.getValue();
+
+        if (isCompletedRow(rowData)) {
+          return;
+        }
 
         const isFlipped = String(rowData.id).includes('_flipped');
         const canonicalId = String(rowData.id).replace('_flipped', '');
@@ -528,8 +662,14 @@ export async function loadBudgetGrid({
             if (hasActualData) {
               updatedBudget.status = {
                 name: 'actual',
-                actualAmount: updatedBudget.actualAmount || null,
-                actualDate: updatedBudget.actualDate || null
+                actualAmount:
+                  updatedBudget.actualAmount !== null && updatedBudget.actualAmount !== undefined
+                    ? updatedBudget.actualAmount
+                    : null,
+                actualDate:
+                  updatedBudget.actualDate !== null && updatedBudget.actualDate !== undefined
+                    ? updatedBudget.actualDate
+                    : null
               };
             }
           }
