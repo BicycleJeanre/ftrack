@@ -459,19 +459,23 @@ async function buildScenarioGrid(container) {
     addScenarioBtn.className = 'btn btn-primary btn-add';
     addScenarioBtn.textContent = '+ Add New';
     addScenarioBtn.addEventListener('click', async () => {
-      const now = new Date();
-      const defaultPeriod = lookupData.periodTypes.find((p) => p.name === 'Year') || lookupData.periodTypes[0] || null;
-      const defaultStart = formatDateOnly(startOfYear(now.getFullYear()));
-      const defaultEnd = formatDateOnly(endOfYear(now.getFullYear()));
-      const newScenario = await ScenarioManager.create({
-        name: 'New Scenario',
-        type: null,
-        description: '',
-        startDate: defaultStart,
-        endDate: defaultEnd,
-        projectionPeriod: defaultPeriod
-      });
-      await buildScenarioGrid(container);
+      try {
+        const now = new Date();
+        const defaultPeriod = lookupData.periodTypes.find((p) => p.name === 'Year') || lookupData.periodTypes[0] || null;
+        const defaultStart = formatDateOnly(startOfYear(now.getFullYear()));
+        const defaultEnd = formatDateOnly(endOfYear(now.getFullYear()));
+        await ScenarioManager.create({
+          name: 'New Scenario',
+          type: null,
+          description: '',
+          startDate: defaultStart,
+          endDate: defaultEnd,
+          projectionPeriod: defaultPeriod
+        });
+        await buildScenarioGrid(container);
+      } catch (err) {
+        notifyError('Failed to create scenario: ' + (err?.message || 'Unknown error'));
+      }
     });
     window.add(container, addScenarioBtn);
 
@@ -506,6 +510,7 @@ async function buildScenarioGrid(container) {
       scenariosTable = await createGrid(gridContainer, {
         data: scenarios,
         selectable: 1, // Only allow single row selection
+        placeholder: 'No scenarios yet. Click + Add New to create your first scenario.',
         columns: [
         createDuplicateColumn(async (cell) => {
           const rowData = cell.getRow().getData();
@@ -719,6 +724,19 @@ async function buildScenarioGrid(container) {
         
         // Update just the edited scenario
         await ScenarioManager.update(scenario.id, updates);
+
+        // If the edited scenario is currently selected, refresh downstream grids.
+        // Without this, accounts/transactions can stay in a disabled placeholder state.
+        if (currentScenario?.id === scenario.id) {
+          // Re-fetch to keep currentScenario in sync with persisted shapes.
+          currentScenario = await getScenario(scenario.id);
+          // Small delay avoids Tabulator edit/selection race conditions.
+          setTimeout(() => {
+            loadScenarioData().catch((err) => {
+              logger.error('[Forecast] loadScenarioData failed after scenario edit:', err);
+            });
+          }, 0);
+        }
       } catch (err) {
         notifyError('Failed to save scenario: ' + err.message);
       }
@@ -1992,24 +2010,32 @@ async function loadScenarioData() {
   const budgetSection = getEl('budgetSection');
   const projectionsSection = getEl('projectionsSection');
   const summaryCardsSection = getEl('summaryCardsSection');
+
+  // When a scenario is newly created, it may not have a type selected yet.
+  // Keep the UI stable and allow grids to render placeholders rather than throwing.
+  const showAccounts = typeConfig ? !!typeConfig.showAccounts : true;
+  const showGeneratePlan = typeConfig ? !!typeConfig.showGeneratePlan : false;
+  const showTransactions = typeConfig ? !!(typeConfig.showPlannedTransactions || typeConfig.showActualTransactions) : true;
+  const showProjections = typeConfig ? !!typeConfig.showProjections : true;
+  const showBudget = typeConfig ? typeConfig.showBudget !== false : true;
+  const showSummaryCards = typeConfig ? !!typeConfig.showSummaryCards : false;
   
-  if (typeConfig) {
-    if (typeConfig.showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
-    if (typeConfig.showGeneratePlan) generatePlanSection.style.display = 'block'; else generatePlanSection.style.display = 'none';
-    if (typeConfig.showPlannedTransactions || typeConfig.showActualTransactions) txSection.classList.remove('hidden'); else txSection.classList.add('hidden');
-    if (typeConfig.showProjections) projectionsSection.classList.remove('hidden'); else projectionsSection.classList.add('hidden');
-    if (typeConfig.showBudget !== false) budgetSection.classList.remove('hidden'); else budgetSection.classList.add('hidden');
-    if (typeConfig.showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
-  }
+  if (showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
+  if (showGeneratePlan) generatePlanSection.style.display = 'block'; else generatePlanSection.style.display = 'none';
+  if (showTransactions) txSection.classList.remove('hidden'); else txSection.classList.add('hidden');
+  if (showProjections) projectionsSection.classList.remove('hidden'); else projectionsSection.classList.add('hidden');
+  if (showBudget) budgetSection.classList.remove('hidden'); else budgetSection.classList.add('hidden');
+  if (showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
 
   // Clear any stale placeholders without destroying stable grid containers.
+  containers.accountsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
   containers.transactionsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
   containers.budgetTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
   await loadAccountsGrid(containers.accountsTable);
   
   // Load Generate Plan section if applicable
-  if (typeConfig && typeConfig.showGeneratePlan) {
+  if (showGeneratePlan) {
     await loadGeneratePlanSection(getEl('generatePlanContent'));
   }
   
@@ -2017,7 +2043,7 @@ async function loadScenarioData() {
   // Period calculation happens inside each grid load function
   await loadMasterTransactionsGrid(containers.transactionsTable);
 
-  if (typeConfig.showBudget !== false) {
+  if (showBudget) {
     await loadBudgetGrid(containers.budgetTable);
   } else {
     containers.budgetTable.innerHTML = '';
@@ -2025,7 +2051,7 @@ async function loadScenarioData() {
   await loadProjectionsSection(containers.projectionsContent);
   
   // Load summary cards AFTER projections so they have data to work with
-  if (typeConfig.showSummaryCards) {
+  if (showSummaryCards) {
     await loadSummaryCards(containers.summaryCardsContent);
   }
 }
