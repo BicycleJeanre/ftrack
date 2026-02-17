@@ -12,6 +12,20 @@ import { loadLookup } from '../../app/services/lookup-service.js';
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const DAYS_PER_YEAR = 365.25;
 
+function toDateOnly(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date, days) {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function isValidDate(value) {
+  return value instanceof Date && !Number.isNaN(value.valueOf());
+}
+
 function getInclusiveDayCount(startDate, endDate) {
   const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
   const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
@@ -20,6 +34,37 @@ function getInclusiveDayCount(startDate, endDate) {
 
 function getId(value) {
   return typeof value === 'object' ? value?.id : value;
+}
+
+function normalizePeriodicChangeScheduleEntries(scheduleEntries = []) {
+  if (!Array.isArray(scheduleEntries)) return [];
+
+  const normalized = scheduleEntries
+    .map((entry) => {
+      const startDate = entry?.startDate ? parseDateOnly(entry.startDate) : null;
+      const endDate = entry?.endDate ? parseDateOnly(entry.endDate) : null;
+
+      return {
+        startDate,
+        endDate,
+        periodicChange: entry?.periodicChange ?? null,
+        _raw: entry
+      };
+    })
+    .filter((entry) => isValidDate(entry.startDate));
+
+  normalized.sort((a, b) => a.startDate - b.startDate);
+  return normalized;
+}
+
+function getScheduledPeriodicChangeForDate({ account, normalizedScheduleEntries, date }) {
+  for (const entry of normalizedScheduleEntries) {
+    if (date < entry.startDate) break;
+    if (!entry.endDate || date <= entry.endDate) {
+      return entry.periodicChange;
+    }
+  }
+  return account.periodicChange ?? null;
 }
 
 /**
@@ -128,6 +173,8 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
       elapsedYears: 0
     };
 
+    const normalizedScheduleEntries = normalizePeriodicChangeScheduleEntries(account.periodicChangeSchedule);
+
     periods.forEach((period, periodIndex) => {
       const periodStart = period.start;
       const periodEnd = period.end;
@@ -165,7 +212,62 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
         }
       });
 
-      if (account.periodicChange) {
+      if (normalizedScheduleEntries.length > 0) {
+        const changePoints = [toDateOnly(periodStart)];
+
+        normalizedScheduleEntries.forEach((entry) => {
+          if (entry.startDate > periodStart && entry.startDate <= periodEnd) {
+            changePoints.push(toDateOnly(entry.startDate));
+          }
+          if (entry.endDate) {
+            const nextDay = addDays(entry.endDate, 1);
+            if (nextDay > periodStart && nextDay <= periodEnd) {
+              changePoints.push(toDateOnly(nextDay));
+            }
+          }
+        });
+
+        const uniquePoints = Array.from(
+          new Map(changePoints.map((d) => [d.valueOf(), d])).values()
+        ).sort((a, b) => a - b);
+
+        uniquePoints.forEach((segmentStart, idx) => {
+          const segmentEnd =
+            idx + 1 < uniquePoints.length ? addDays(uniquePoints[idx + 1], -1) : toDateOnly(periodEnd);
+
+          if (segmentStart > segmentEnd) return;
+
+          const pcForSegment = getScheduledPeriodicChangeForDate({
+            account,
+            normalizedScheduleEntries,
+            date: segmentStart
+          });
+          if (!pcForSegment) return;
+
+          const expandedPC = expandPeriodicChangeForCalculation(pcForSegment, lookupData);
+          if (!expandedPC) return;
+
+          const yearsDiff = getInclusiveDayCount(segmentStart, segmentEnd) / DAYS_PER_YEAR;
+          if (yearsDiff === 0) return;
+
+          const beforeBalance = currentBalance;
+          const changeModeId = getId(expandedPC.changeMode);
+          const changeTypeId = getId(expandedPC.changeType);
+
+          if (changeModeId === 1 && changeTypeId === 1) {
+            const rate = (expandedPC.value || 0) / 100;
+            const simpleInterestDelta = simpleInterestState.principalBase * rate * yearsDiff;
+            currentBalance += simpleInterestDelta;
+          } else {
+            currentBalance = calculatePeriodicChange(currentBalance, expandedPC, yearsDiff);
+          }
+
+          const interestDelta = currentBalance - beforeBalance;
+          periodInterest += interestDelta;
+          if (interestDelta >= 0) periodIncome += interestDelta;
+          else periodExpenses += Math.abs(interestDelta);
+        });
+      } else if (account.periodicChange) {
         const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
         if (expandedPC) {
           const yearsDiffPeriod = getInclusiveDayCount(periodStart, periodEnd) / DAYS_PER_YEAR;

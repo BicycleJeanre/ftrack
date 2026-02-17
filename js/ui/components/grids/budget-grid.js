@@ -721,8 +721,8 @@ export async function loadBudgetGrid({
         return String(val);
       };
 
-      budgetGroupingSelect.addEventListener('change', (e) => {
-        const groupField = e.target.value;
+      budgetGroupingSelect.onchange = (e) => {
+        const groupField = e?.target?.value;
         if (groupField) {
           budgetTable.setGroupBy(groupField);
           budgetTable.setGroupHeader((value, count, data, group) => {
@@ -737,30 +737,35 @@ export async function loadBudgetGrid({
         } else {
           budgetTable.setGroupBy(false);
         }
-      });
+      };
     }
 
-    try {
-      budgetGridState.restore(budgetTable, { restoreGroupBy: false });
-      budgetGridState.restoreDropdowns({
-        groupBy: '#budget-grouping-select'
-      });
-    } catch (_) {
-      // Keep existing behavior: ignore state restore errors.
-    }
-
-    setTimeout(() => {
-      if (transactionFilterAccountIdSnapshot) {
-        budgetTable.setFilter((data) => {
-          if (!data.perspectiveAccountId) return true;
-          return Number(data.perspectiveAccountId) === transactionFilterAccountIdSnapshot;
-        });
-      } else {
-        budgetTable.setFilter((data) => {
-          return !String(data.id).includes('_flipped');
-        });
+    const applyStateAndFilters = () => {
+      try {
+        budgetGridState.restore(budgetTable, { restoreGroupBy: false });
+        budgetGridState.restoreDropdowns(
+          {
+            groupBy: '#budget-grouping-select'
+          },
+          { dispatchChange: true }
+        );
+      } catch (_) {
+        // Keep existing behavior: ignore state restore errors.
       }
-    }, 0);
+
+      setTimeout(() => {
+        if (transactionFilterAccountIdSnapshot) {
+          budgetTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === transactionFilterAccountIdSnapshot;
+          });
+        } else {
+          budgetTable.setFilter((data) => {
+            return !String(data.id).includes('_flipped');
+          });
+        }
+      }, 0);
+    };
 
     const handleBudgetFiltered = function (filters, rows) {
       callbacks?.updateBudgetTotals?.(rows);
@@ -768,6 +773,7 @@ export async function loadBudgetGrid({
 
     const handleBudgetBuilt = function () {
       callbacks?.updateBudgetTotals?.();
+      applyStateAndFilters();
     };
 
     if (didCreateNewTable) {
@@ -775,6 +781,8 @@ export async function loadBudgetGrid({
         dataFiltered: handleBudgetFiltered,
         tableBuilt: handleBudgetBuilt
       });
+    } else {
+      applyStateAndFilters();
     }
 
     // Totals should reflect the post-filter view on every refresh.

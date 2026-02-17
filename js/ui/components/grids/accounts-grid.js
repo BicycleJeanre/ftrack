@@ -13,6 +13,7 @@ import {
   createDateColumn
 } from './grid-factory.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
+import { openPeriodicChangeScheduleModal } from '../modals/periodic-change-schedule-modal.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
 import { GridStateManager } from './grid-state.js';
 
@@ -114,6 +115,40 @@ export function buildAccountsGridColumns({
       });
     }
   });
+
+  if (typeConfig?.id === 4) {
+    columns.push({
+      title: 'Periodic Change Schedule',
+      field: 'periodicChangeScheduleSummary',
+      minWidth: 210,
+      widthGrow: 1.2,
+      formatter: function (cell) {
+        const summary = cell.getValue() || 'None';
+        const icon =
+          '<svg class="periodic-change-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v8h-8v2h8v8h2v-8h8v-2h-8V3z"/></svg>';
+        return `<span class="periodic-change-cell">${icon}<span class="periodic-change-text">${summary}</span></span>`;
+      },
+      cellClick: function (e, cell) {
+        const rowData = cell.getRow().getData();
+        openPeriodicChangeScheduleModal(
+          {
+            basePeriodicChange: rowData.periodicChange ?? null,
+            schedule: rowData.periodicChangeSchedule ?? []
+          },
+          async (newSchedule) => {
+            const currentScenario = scenarioState?.get?.();
+            const allAccts = await AccountManager.getAll(currentScenario.id);
+            const acctIndex = allAccts.findIndex((ac) => ac.id === rowData.id);
+            if (acctIndex >= 0) {
+              allAccts[acctIndex].periodicChangeSchedule = newSchedule;
+              await AccountManager.saveAll(currentScenario.id, allAccts);
+              await reloadAccountsGrid(document.getElementById('accountsTable'));
+            }
+          }
+        );
+      }
+    });
+  }
 
   columns.push(createTextColumn('Description', 'description', { widthGrow: 2 }));
 
@@ -231,7 +266,11 @@ export async function loadAccountsGrid({
       displayAccounts.map(async (a) => ({
         ...a,
         accountType: a.type?.name || 'Unknown',
-        periodicChangeSummary: await getPeriodicChangeDescription(a.periodicChange)
+        periodicChangeSummary: await getPeriodicChangeDescription(a.periodicChange),
+        periodicChangeScheduleSummary:
+          Array.isArray(a.periodicChangeSchedule) && a.periodicChangeSchedule.length
+            ? `${a.periodicChangeSchedule.length} scheduled change${a.periodicChangeSchedule.length === 1 ? '' : 's'}`
+            : 'None'
       }))
     );
 
@@ -251,7 +290,8 @@ export async function loadAccountsGrid({
         logger
       });
 
-    const columnsKey = typeConfig?.showGeneratePlan ? 'accounts-with-plan' : 'accounts-base';
+    const typeIdForKey = typeConfig?.id ?? 'unknown';
+    const columnsKey = `accounts-${typeIdForKey}-${typeConfig?.showGeneratePlan ? 'with-plan' : 'base'}`;
     const shouldRebuildTable =
       !accountsTable ||
       accountsTable?.element !== gridContainer ||

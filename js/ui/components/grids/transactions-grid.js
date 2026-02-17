@@ -646,8 +646,8 @@ export async function loadMasterTransactionsGrid({
         return String(val);
       };
 
-      groupingSelect.addEventListener('change', (e) => {
-        const groupField = e.target.value;
+      groupingSelect.onchange = (e) => {
+        const groupField = e?.target?.value;
         if (groupField) {
           masterTransactionsTable.setGroupBy(groupField);
           masterTransactionsTable.setGroupHeader((value, count, data, group) => {
@@ -661,31 +661,37 @@ export async function loadMasterTransactionsGrid({
         } else {
           masterTransactionsTable.setGroupBy(false);
         }
-      });
+      };
     }
 
-    try {
-      transactionsGridState.restore(masterTransactionsTable, { restoreGroupBy: false });
-      transactionsGridState.restoreDropdowns({
-        groupBy: '#tx-grouping-select'
-      });
-    } catch (_) {
-      // Keep existing behavior: ignore state restore errors.
-    }
-
-    setTimeout(() => {
-      const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
-      if (transactionFilterAccountId) {
-        masterTransactionsTable.setFilter((data) => {
-          if (!data.perspectiveAccountId) return true;
-          return Number(data.perspectiveAccountId) === transactionFilterAccountId;
-        });
-      } else {
-        masterTransactionsTable.setFilter((data) => {
-          return !String(data.id).includes('_flipped');
-        });
+    const applyStateAndFilters = () => {
+      try {
+        transactionsGridState.restore(masterTransactionsTable, { restoreGroupBy: false });
+        transactionsGridState.restoreDropdowns(
+          {
+            groupBy: '#tx-grouping-select'
+          },
+          { dispatchChange: true }
+        );
+      } catch (_) {
+        // Keep existing behavior: ignore state restore errors.
       }
-    }, 0);
+
+      // Filters depend on the flipped-row view state.
+      setTimeout(() => {
+        const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+        if (transactionFilterAccountId) {
+          masterTransactionsTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === transactionFilterAccountId;
+          });
+        } else {
+          masterTransactionsTable.setFilter((data) => {
+            return !String(data.id).includes('_flipped');
+          });
+        }
+      }, 0);
+    };
 
     const handleTransactionsFiltered = function (filters, rows) {
       callbacks?.updateTransactionTotals?.(rows);
@@ -693,6 +699,7 @@ export async function loadMasterTransactionsGrid({
 
     const handleTransactionsBuilt = function () {
       callbacks?.updateTransactionTotals?.();
+      applyStateAndFilters();
     };
 
     if (didCreateNewTable) {
@@ -700,6 +707,9 @@ export async function loadMasterTransactionsGrid({
         dataFiltered: handleTransactionsFiltered,
         tableBuilt: handleTransactionsBuilt
       });
+    } else {
+      // Table already exists/built; state restore is safe immediately.
+      applyStateAndFilters();
     }
 
     // Totals should reflect the post-filter view on every refresh.

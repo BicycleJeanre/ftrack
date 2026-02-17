@@ -61,6 +61,7 @@ An account represents a place where money lives or is owed.
   startingBalance: number,
   openDate: string,
   periodicChange?: PeriodicChange | null,
+  periodicChangeSchedule?: PeriodicChangeScheduleEntry[] | null,
   goalAmount?: number | null,
   goalDate?: string | null
 }
@@ -77,8 +78,52 @@ An account represents a place where money lives or is owed.
 | `startingBalance` | number | Yes | Opening balance in currency units |
 | `openDate` | string | Yes | Date account opened |
 | `periodicChange` | PeriodicChange \| null | No | Growth/decay applied to account balance (interest, inflation) |
+| `periodicChangeSchedule` | PeriodicChangeScheduleEntry[] \| null | No | Optional date-bounded overrides for `periodicChange` (variable rates) |
 | `goalAmount` | number \| null | No | Target balance (for goal-based scenarios) |
 | `goalDate` | string \| null | No | Date when goal should be reached |
+
+### 3.3 Periodic Change Schedule
+
+`periodicChangeSchedule` is an optional array of date-bounded overrides for an account's `periodicChange`.
+
+3.3.1 Rules
+
+- Entries are evaluated by date; at most one entry may apply to any given date (no overlaps).
+- If no schedule entry applies on a date, the engine falls back to the account's `periodicChange`.
+- If an entry has `endDate = null`, it is open-ended and should typically be the last entry.
+
+3.3.2 Structure
+
+```typescript
+type PeriodicChangeScheduleEntry = {
+  startDate: string,
+  endDate: string | null,
+  periodicChange: PeriodicChange | null
+}
+```
+
+3.3.3 Example
+
+```json
+{
+  "id": 12,
+  "name": "Mortgage",
+  "startingBalance": -250000,
+  "periodicChange": { "value": 7.5, "changeMode": 1, "changeType": 2 },
+  "periodicChangeSchedule": [
+    {
+      "startDate": "2026-06-01",
+      "endDate": "2026-12-31",
+      "periodicChange": { "value": 8.25, "changeMode": 1, "changeType": 2 }
+    },
+    {
+      "startDate": "2027-01-01",
+      "endDate": null,
+      "periodicChange": { "value": 7.9, "changeMode": 1, "changeType": 2 }
+    }
+  ]
+}
+```
 
 ---
 
@@ -128,6 +173,12 @@ A transaction represents movement of money between accounts.
 |----|------|---------|
 | 1 | Income | Money flowing in |
 | 2 | Expense | Money flowing out |
+
+---
+
+### 4.4 Variable Interest Rates
+
+FTrack supports variable interest rates on accounts by using `Account.periodicChangeSchedule` (see 3.3). Transactions remain the correct model for payments, fees, and other cashflow events.
 
 
 ---
