@@ -10,7 +10,8 @@ import { formatDateOnly } from '../../shared/date-utils.js';
  * @returns {Promise<Array>} - Array of scenarios
  */
 export async function getAll() {
-    return await DataStore.query('scenarios') || [];
+    const scenarios = await DataStore.query('scenarios');
+    return Array.isArray(scenarios) ? scenarios : [];
 }
 
 /**
@@ -30,7 +31,10 @@ export async function getById(scenarioId) {
  */
 export async function create(scenarioData) {
     return await DataStore.transaction(async (data) => {
-        if (!data.scenarios) {
+        if (!data || typeof data !== 'object') {
+            data = { scenarios: [] };
+        }
+        if (!Array.isArray(data.scenarios)) {
             data.scenarios = [];
         }
         
@@ -68,6 +72,9 @@ export async function create(scenarioData) {
 export async function update(scenarioId, updates) {
     
     return await DataStore.transaction(async (data) => {
+        if (!data || typeof data !== 'object' || !Array.isArray(data.scenarios)) {
+            throw new Error('No scenario data exists yet. Create a scenario first.');
+        }
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
         
         if (scenarioIndex === -1) {
@@ -92,6 +99,9 @@ export async function update(scenarioId, updates) {
  */
 export async function remove(scenarioId) {
     return await DataStore.transaction(async (data) => {
+        if (!data || typeof data !== 'object' || !Array.isArray(data.scenarios)) {
+            return { scenarios: [] };
+        }
         data.scenarios = data.scenarios.filter(s => s.id !== scenarioId);
         return data;
     });
@@ -105,6 +115,9 @@ export async function remove(scenarioId) {
  */
 export async function duplicate(scenarioId, newName) {
     return await DataStore.transaction(async (data) => {
+        if (!data || typeof data !== 'object' || !Array.isArray(data.scenarios) || data.scenarios.length === 0) {
+            throw new Error('No scenarios exist yet to duplicate. Create a scenario first.');
+        }
         const sourceScenario = data.scenarios.find(s => s.id === scenarioId);
         
         if (!sourceScenario) {
