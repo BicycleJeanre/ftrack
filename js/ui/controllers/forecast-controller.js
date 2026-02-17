@@ -94,7 +94,10 @@ let scenariosTable = null; // Store scenarios table instance to preserve selecti
 let masterTransactionsTable = null; // Store transactions table instance for filtering
 let masterBudgetTable = null; // Store budget table instance for filtering
 let fundSummaryTable = null; // Store fund summary table instance to reduce jumping
+let generalSummaryTable = null; // Store general summary table instance to reduce jumping
 let summaryCardsAccountTypeFilter = 'All';
+let generalSummaryScope = 'All';
+let generalSummaryAccountId = 0;
 
 function getPageScrollSnapshot() {
   try {
@@ -1524,55 +1527,321 @@ async function loadGeneralSummaryCards(container) {
     return;
   }
 
-  if (!masterTransactionsTable) {
-    container.innerHTML = '<div class="empty-message">No transactions to summarize yet.</div>';
+  const accounts = currentScenario.accounts || [];
+  if (!accounts.length) {
+    container.innerHTML = '<div class="empty-message">No accounts to summarize yet.</div>';
     return;
   }
 
-  const rows = masterTransactionsTable.getData('active') || [];
-  if (!rows.length) {
-    container.innerHTML = '<div class="empty-message">No transactions to summarize yet.</div>';
-    return;
-  }
+  const lookupData = await loadLookup('lookup-data.json');
+  const accountTypeNameById = new Map((lookupData?.accountTypes || []).map((t) => [Number(t.id), t.name]));
+  const getAccountTypeId = (account) => {
+    const raw = account?.type;
+    if (raw && typeof raw === 'object') {
+      const id = Number(raw?.id);
+      return Number.isFinite(id) ? id : 0;
+    }
+    const id = Number(raw);
+    return Number.isFinite(id) ? id : 0;
+  };
+  const getAccountTypeName = (account) => accountTypeNameById.get(getAccountTypeId(account)) || '';
+  const scopeTypeId = (scopeName) => {
+    if (!scopeName || scopeName === 'All') return 0;
+    const found = (lookupData?.accountTypes || []).find((t) => t.name === scopeName);
+    return found ? Number(found.id) : 0;
+  };
 
-  const totals = calculateCategoryTotals(rows, {
-    amountField: 'amount',
-    typeField: 'transactionType',
-    typeNameField: 'transactionTypeName',
-    typeIdField: 'transactionTypeId'
-  });
-
+  const projectionsIndex = buildProjectionsIndex(currentScenario.projections || []);
   const scrollSnapshot = getPageScrollSnapshot();
 
-  let wrapper = container.querySelector(':scope > .summary-cards-groups');
-  if (!wrapper) {
+  const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
+
+  // Keep toolbar stable (avoid losing focus/scroll between refreshes).
+  // If a different summary type was previously rendered, rebuild once.
+  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
+  let typeSelect = container.querySelector('#general-summary-type-filter');
+  let accountSelect = container.querySelector('#general-summary-account');
+  const isGeneralToolbar = !!typeSelect && !!accountSelect;
+  if (!toolbar || !isGeneralToolbar) {
     container.innerHTML = '';
-    wrapper = document.createElement('div');
-    wrapper.className = 'summary-cards-groups';
-    container.appendChild(wrapper);
+
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar summary-cards-toolbar';
+
+    const typeItem = document.createElement('div');
+    typeItem.className = 'toolbar-item';
+    typeItem.innerHTML = `
+      <label for="general-summary-type-filter" class="text-muted control-label">Account Type:</label>
+      <select id="general-summary-type-filter" class="input-select control-select">
+        ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    `;
+
+    const accountItem = document.createElement('div');
+    accountItem.className = 'toolbar-item';
+    accountItem.innerHTML = `
+      <label for="general-summary-account" class="text-muted control-label">Account:</label>
+      <select id="general-summary-account" class="input-select control-select"></select>
+    `;
+
+    toolbar.appendChild(typeItem);
+    toolbar.appendChild(accountItem);
+    container.appendChild(toolbar);
   }
 
-  wrapper.innerHTML = '';
+  typeSelect = container.querySelector('#general-summary-type-filter');
+  accountSelect = container.querySelector('#general-summary-account');
 
-  const card = document.createElement('div');
-  card.className = 'summary-card overall-total';
-  card.innerHTML = `
+  if (typeSelect) {
+    typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
+    typeSelect.onchange = async () => {
+      generalSummaryScope = typeSelect.value;
+      await loadGeneralSummaryCards(container);
+    };
+  }
+
+  if (accountSelect) {
+    const selectedId = Number(generalSummaryAccountId) || 0;
+    const options = ['<option value="0">All</option>']
+      .concat(
+        accounts
+          .slice()
+          .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+          .map((a) => `<option value="${Number(a.id)}">${String(a.name || 'Unnamed')}</option>`)
+      )
+      .join('');
+
+    if (accountSelect.__ftrackLastOptions !== options) {
+      accountSelect.innerHTML = options;
+      accountSelect.__ftrackLastOptions = options;
+    }
+
+    const currentHasSelected = Array.from(accountSelect.options || []).some((o) => Number(o.value) === selectedId);
+    accountSelect.value = currentHasSelected ? String(selectedId) : '0';
+    generalSummaryAccountId = Number(accountSelect.value) || 0;
+
+    accountSelect.onchange = async () => {
+      generalSummaryAccountId = Number(accountSelect.value) || 0;
+      await loadGeneralSummaryCards(container);
+    };
+  }
+
+  // Clear any previous empty messages.
+  container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
+
+  const selectedScopeTypeId = scopeTypeId(generalSummaryScope);
+  let filteredAccounts = generalSummaryScope === 'All'
+    ? accounts
+    : accounts.filter((a) => getAccountTypeId(a) === selectedScopeTypeId);
+
+  if (Number(generalSummaryAccountId) > 0) {
+    filteredAccounts = filteredAccounts.filter((a) => Number(a.id) === Number(generalSummaryAccountId));
+  }
+
+  if (!filteredAccounts.length) {
+    let emptyMessage = container.querySelector(':scope > .empty-message');
+    if (!emptyMessage) {
+      emptyMessage = document.createElement('div');
+      emptyMessage.className = 'empty-message';
+      container.appendChild(emptyMessage);
+    }
+    emptyMessage.textContent = 'No accounts match this filter.';
+
+    const existingGroups = container.querySelector(':scope > .summary-cards-groups');
+    if (existingGroups) existingGroups.innerHTML = '';
+
+    const existingDetail = container.querySelector(':scope > .general-summary-details');
+    if (existingDetail) existingDetail.remove();
+
+    restorePageScroll(scrollSnapshot);
+    return;
+  }
+
+  // Build Debt-style grouped account cards (excluding Zero Date).
+  let groupWrapper = container.querySelector(':scope > .summary-cards-groups');
+  if (!groupWrapper) {
+    groupWrapper = document.createElement('div');
+    groupWrapper.className = 'summary-cards-groups';
+
+    // Insert after toolbar, before the detail grid.
+    if (toolbar && toolbar.parentNode === container) {
+      if (toolbar.nextSibling) container.insertBefore(groupWrapper, toolbar.nextSibling);
+      else container.appendChild(groupWrapper);
+    } else {
+      container.appendChild(groupWrapper);
+    }
+  }
+
+  groupWrapper.innerHTML = '';
+
+  const groupedAccounts = filteredAccounts.reduce((groups, account) => {
+    const typeName = getAccountTypeName(account) || 'Unknown';
+    if (!groups[typeName]) {
+      groups[typeName] = [];
+    }
+    groups[typeName].push(account);
+    return groups;
+  }, {});
+
+  const orderedGroupKeys = (() => {
+    const preferredOrder = ['Liability', 'Asset', 'Equity', 'Income', 'Expense'];
+    const remaining = Object.keys(groupedAccounts).filter(key => !preferredOrder.includes(key)).sort();
+    if (generalSummaryScope !== 'All') {
+      return Object.keys(groupedAccounts);
+    }
+    return [...preferredOrder.filter(key => groupedAccounts[key]), ...remaining];
+  })();
+
+  let totalStarting = 0;
+  let totalProjectedEnd = 0;
+  let totalInterestEarned = 0;
+  let totalInterestPaid = 0;
+
+  const getAccountProjections = (accountId) => projectionsIndex?.byAccountId?.get?.(accountId) || [];
+
+  for (const groupKey of orderedGroupKeys) {
+    const groupContainer = document.createElement('div');
+    groupContainer.className = 'summary-cards-group';
+
+    const groupTitle = document.createElement('div');
+    groupTitle.className = 'summary-cards-group-title';
+    groupTitle.textContent = groupKey;
+    groupContainer.appendChild(groupTitle);
+
+    const grid = document.createElement('div');
+    grid.className = 'summary-cards-grid';
+
+    for (const account of groupedAccounts[groupKey] || []) {
+      const startingBalance = account?.startingBalance ?? account?.balance ?? 0;
+      totalStarting += Number(startingBalance || 0);
+
+      const accountProjections = getAccountProjections(account?.id);
+      const projectedEnd = accountProjections.length
+        ? (accountProjections[accountProjections.length - 1]?.balance ?? startingBalance)
+        : startingBalance;
+      totalProjectedEnd += Number(projectedEnd || 0);
+
+      let interestEarned = 0;
+      let interestPaid = 0;
+      for (const p of accountProjections) {
+        const interest = Number(p?.interest || 0);
+        if (interest >= 0) interestEarned += interest;
+        else interestPaid += interest;
+      }
+      totalInterestEarned += interestEarned;
+      totalInterestPaid += interestPaid;
+
+      const card = document.createElement('div');
+      card.className = 'summary-card';
+      card.innerHTML = `
+        <div class="summary-card-title">${account?.name || 'Unnamed'}</div>
+        <div class="summary-card-row"><span class="label">Starting Balance:</span><span class="value">${formatMoneyDisplay(startingBalance)}</span></div>
+        <div class="summary-card-row"><span class="label">Projected End:</span><span class="value">${formatMoneyDisplay(projectedEnd)}</span></div>
+        <div class="summary-card-row"><span class="label">Interest Earned:</span><span class="value interest-earned">${formatMoneyDisplay(interestEarned)}</span></div>
+        <div class="summary-card-row"><span class="label">Interest Paid:</span><span class="value interest-paid">${formatMoneyDisplay(interestPaid)}</span></div>
+      `;
+      grid.appendChild(card);
+    }
+
+    groupContainer.appendChild(grid);
+    groupWrapper.appendChild(groupContainer);
+  }
+
+  const { nav, totalAssets, totalLiabilities } = computeNav({ accounts: filteredAccounts, projectionsIndex, asOfDate: null });
+  const totalCard = document.createElement('div');
+  totalCard.className = 'summary-card overall-total';
+  totalCard.innerHTML = `
     <div class="summary-card-title">OVERALL TOTAL</div>
-    <div class="summary-card-row">
-      <span class="label">Money In:</span>
-      <span class="value positive">${formatMoneyDisplay(totals.moneyIn || 0)}</span>
-    </div>
-    <div class="summary-card-row">
-      <span class="label">Money Out:</span>
-      <span class="value negative">${formatMoneyDisplay(totals.moneyOut || 0)}</span>
-    </div>
-    <div class="summary-card-row">
-      <span class="label">Net:</span>
-      <span class="value ${totals.net >= 0 ? 'positive' : 'negative'}">${formatMoneyDisplay(totals.net || 0)}</span>
-    </div>
+    <div class="summary-card-row"><span class="label">Starting Balance:</span><span class="value">${formatMoneyDisplay(totalStarting)}</span></div>
+    <div class="summary-card-row"><span class="label">Projected End:</span><span class="value">${formatMoneyDisplay(totalProjectedEnd)}</span></div>
+    <div class="summary-card-row"><span class="label">Interest Earned:</span><span class="value interest-earned">${formatMoneyDisplay(totalInterestEarned)}</span></div>
+    <div class="summary-card-row"><span class="label">Interest Paid:</span><span class="value interest-paid">${formatMoneyDisplay(totalInterestPaid)}</span></div>
+    <div class="summary-card-row"><span class="label">Net Worth:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
+    <div class="summary-card-row"><span class="label">Total Assets:</span><span class="value positive">${formatMoneyDisplay(totalAssets)}</span></div>
+    <div class="summary-card-row"><span class="label">Total Liabilities:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(totalLiabilities || 0))}</span></div>
+    <div class="summary-card-row"><span class="label">Accounts:</span><span class="value">${filteredAccounts.length}</span></div>
   `;
+  groupWrapper.appendChild(totalCard);
 
-  wrapper.appendChild(card);
+  // Funds-style detail grid (stable DOM node so Tabulator instance can be reused).
+  let detailWrap = container.querySelector(':scope > .general-summary-details');
+  let detailTitle = detailWrap?.querySelector(':scope > .summary-cards-group-title') || null;
+  let detailGrid = detailWrap?.querySelector(':scope > .grid-container') || null;
+
+  if (!detailWrap || !detailTitle || !detailGrid) {
+    if (detailWrap) detailWrap.remove();
+
+    detailWrap = document.createElement('div');
+    detailWrap.className = 'summary-cards-group general-summary-details';
+    detailTitle = document.createElement('div');
+    detailTitle.className = 'summary-cards-group-title';
+    detailWrap.appendChild(detailTitle);
+
+    detailGrid = document.createElement('div');
+    detailGrid.className = 'grid-container';
+    detailWrap.appendChild(detailGrid);
+
+    container.appendChild(detailWrap);
+  }
+
+  const selectedAccountName = Number(generalSummaryAccountId) > 0
+    ? (accounts.find((a) => Number(a.id) === Number(generalSummaryAccountId))?.name || 'Account')
+    : null;
+  detailTitle.textContent = selectedAccountName
+    ? selectedAccountName
+    : (generalSummaryScope === 'All' ? 'All Accounts' : `${generalSummaryScope} Accounts`);
+
+  const data = filteredAccounts.map((a) => {
+    const balance = getBalanceAsOf({ account: a, projectionsIndex, asOfDate: null });
+    return {
+      accountId: Number(a.id) || 0,
+      name: a.name || 'Unnamed',
+      type: getAccountTypeName(a),
+      balance
+    };
+  });
+
+  const shouldGroup = generalSummaryScope === 'All' && Number(generalSummaryAccountId) === 0;
+  const columnsKey = shouldGroup ? 'general-accounts-grouped' : 'general-accounts-flat';
+  const shouldRebuild = !generalSummaryTable || generalSummaryTable?.element !== detailGrid || generalSummaryTable?.__ftrackColumnsKey !== columnsKey;
+
+  if (shouldRebuild) {
+    try {
+      generalSummaryTable?.destroy?.();
+    } catch (_) {
+      // ignore
+    }
+
+    generalSummaryTable = await createGrid(detailGrid, {
+      data,
+      headerWordWrap: false,
+      ...(shouldGroup ? { groupBy: 'type' } : {}),
+      columns: [
+        { title: 'Account', field: 'name', headerSort: false },
+        ...(shouldGroup ? [{ title: 'Type', field: 'type', headerSort: false }] : []),
+        {
+          title: 'Balance',
+          field: 'balance',
+          headerSort: false,
+          bottomCalc: 'sum',
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
+          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+        }
+      ]
+    });
+
+    generalSummaryTable.__ftrackColumnsKey = columnsKey;
+  } else {
+    await refreshGridData(generalSummaryTable, data);
+  }
+
+  if (shouldGroup && generalSummaryTable?.setGroupHeader) {
+    generalSummaryTable.setGroupHeader((value, count, rows) => {
+      const subtotal = (rows || []).reduce((sum, row) => sum + Number(row?.balance || 0), 0);
+      return `${value} (${count} items, Subtotal: ${formatMoneyDisplay(subtotal)})`;
+    });
+  }
+
   restorePageScroll(scrollSnapshot);
 }
 
