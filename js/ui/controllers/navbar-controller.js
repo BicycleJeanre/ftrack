@@ -5,11 +5,14 @@ import { notifyError, notifySuccess } from '../../shared/notifications.js';
 // Web-only: Show clear data button for browser storage management
 const clearDataBtn = '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>';
 
-// Use literal paths for navigation targets
-const logoPath = '/assets/ftrack-logo.svg';
-const homeHref = '/index.html';
-const forecastHref = '/pages/forecast.html';
-const documentationHref = '/pages/documentation.html';
+// Build navigation hrefs relative to this module's URL so it works when hosted
+// under a sub-path (e.g., GitHub Pages /<repo>/...) and in local dev.
+const repoRootUrl = new URL('../../../', import.meta.url);
+
+const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;
+const homeHref = new URL('index.html', repoRootUrl).href;
+const forecastHref = new URL('pages/forecast.html', repoRootUrl).href;
+const documentationHref = new URL('pages/documentation.html', repoRootUrl).href;
 
 const navLinks = `
   <div class="navbar-brand">
