@@ -82,6 +82,10 @@ Funds scenarios include a Summary section at the top with.
 - Money In, Money Out, and Net totals.
 - A scope selector to view All, Asset, Liability, Equity, Income, or Expense views.
 
+NAV uses standard accounting: Assets minus Liabilities.
+
+Shares are always calculated automatically from transactions and are read-only.
+
 Equity scope shows an investor breakdown including shares, ownership percent, and implied value.
 
 Note: The Budget grid is hidden in Funds scenarios.

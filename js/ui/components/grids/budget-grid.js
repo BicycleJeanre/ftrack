@@ -1,11 +1,11 @@
 // forecast-budget-grid.js
 // Budget grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn } from './grid-factory.js';
+import { createGrid, refreshGridData, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
-import { notifyError } from '../../../shared/notifications.js';
+import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
@@ -15,6 +15,17 @@ import * as BudgetManager from '../../../app/managers/budget-manager.js';
 import { getScenario, getScenarioPeriods, getBudget } from '../../../app/services/data-service.js';
 
 const budgetGridState = new GridStateManager('budget');
+
+function hasValue(value) {
+  return value !== null && value !== undefined && value !== '';
+}
+
+function isCompletedRow(rowData) {
+  const statusName = rowData?.status?.name;
+  if (typeof statusName === 'string') return statusName.toLowerCase() === 'actual';
+  if (rowData?.completed === true) return true;
+  return false;
+}
 
 export async function loadBudgetGrid({
   container,
@@ -27,8 +38,9 @@ export async function loadBudgetGrid({
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
+  const existingTable = tables?.getMasterBudgetTable?.();
+
   try {
-    const existingTable = tables?.getMasterBudgetTable?.();
     budgetGridState.capture(existingTable, {
       groupBy: '#budget-grouping-select'
     });
@@ -41,7 +53,39 @@ export async function loadBudgetGrid({
   const budgetPeriodSnapshot = state?.getBudgetPeriod?.();
   const selIdNum = transactionFilterAccountIdSnapshot != null ? Number(transactionFilterAccountIdSnapshot) : null;
 
-  container.innerHTML = '';
+  // Keep the grid container stable to reduce scroll jumps.
+  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
+  existingToolbars.forEach((el) => el.remove());
+
+  // Remove any stale placeholders inserted by higher-level controllers.
+  container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
+
+  let gridContainer = container.querySelector(':scope > .grid-container.budget-grid');
+  if (!gridContainer) {
+    gridContainer = document.createElement('div');
+    gridContainer.className = 'grid-container budget-grid';
+    window.add(container, gridContainer);
+  }
+
+  // Allow the accordion to paint immediately before doing heavy work
+  // (storage read/parse + transform + Tabulator build/refresh).
+  // Only show the loading placeholder when building the grid for the first time.
+  let loadingEl = null;
+  if (!existingTable) {
+    loadingEl = document.createElement('div');
+    loadingEl.className = 'text-muted';
+    loadingEl.style.padding = '12px 0';
+    loadingEl.textContent = 'Loading budget…';
+    container.insertBefore(loadingEl, gridContainer);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    if (loadToken !== state?.getBudgetGridLoadToken?.()) {
+      try { loadingEl.remove(); } catch (_) { /* noop */ }
+      return;
+    }
+
+    try { loadingEl.remove(); } catch (_) { /* noop */ }
+    loadingEl = null;
+  }
 
   try {
     let budgetOccurrences = await getBudget(currentScenario.id);
@@ -132,6 +176,41 @@ export async function loadBudgetGrid({
     });
     window.add(buttonContainer, clearButton);
 
+    const regenerateFromProjectionsButton = document.createElement('button');
+    regenerateFromProjectionsButton.className = 'btn btn-primary';
+    regenerateFromProjectionsButton.textContent = 'Regenerate Budget from Projections';
+    regenerateFromProjectionsButton.addEventListener('click', async () => {
+      try {
+        currentScenario = scenarioState?.get?.();
+
+        if (!currentScenario.projections || currentScenario.projections.length === 0) {
+          notifyError('No projections to save as budget. Generate projections first.');
+          return;
+        }
+
+        const confirmed = confirm('Save current projection as Budget? This will replace any existing budget.');
+        if (!confirmed) return;
+
+        regenerateFromProjectionsButton.textContent = 'Saving...';
+        regenerateFromProjectionsButton.disabled = true;
+
+        await BudgetManager.createFromProjections(currentScenario.id, currentScenario.projections);
+
+        const refreshed = await getScenario(currentScenario.id);
+        scenarioState?.set?.(refreshed);
+
+        await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+
+        notifySuccess('Budget saved successfully!');
+      } catch (err) {
+        notifyError('Failed to save budget: ' + err.message);
+      } finally {
+        regenerateFromProjectionsButton.textContent = 'Regenerate Budget from Projections';
+        regenerateFromProjectionsButton.disabled = false;
+      }
+    });
+    window.add(buttonContainer, regenerateFromProjectionsButton);
+
     window.add(toolbar, buttonContainer);
 
     const periodTypeControl = document.createElement('div');
@@ -168,7 +247,8 @@ export async function loadBudgetGrid({
     `;
     window.add(toolbar, accountFilter);
 
-    window.add(container, toolbar);
+    // Insert toolbar above the grid so it doesn't jump to the bottom on refresh.
+    container.insertBefore(toolbar, gridContainer);
 
     const periodTypeSelect = document.getElementById('budget-period-type-select');
     if (periodTypeSelect) {
@@ -268,7 +348,7 @@ export async function loadBudgetGrid({
           callbacks?.updateTransactionTotals?.();
         }
 
-        await callbacks?.loadProjectionsSection?.(callbacks?.getEl?.('projectionsContent'));
+        // Projections account filtering is independent of budget.
       });
     }
 
@@ -311,6 +391,7 @@ export async function loadBudgetGrid({
         plannedAmount: budget.amount,
         actualAmount: statusObj.actualAmount,
         actualDate: statusObj.actualDate,
+        completed: String(statusObj?.name || '').toLowerCase() === 'actual',
         amount:
           statusObj.actualAmount !== null && statusObj.actualAmount !== undefined
             ? statusObj.actualAmount
@@ -377,40 +458,151 @@ export async function loadBudgetGrid({
       <span class="toolbar-total-item"><span class="label">Unplanned:</span> <span class="value negative">${formatCurrency(0)}</span></span>
     `;
     window.add(toolbar, totalsInline);
-    window.add(container, toolbar);
 
-    const gridContainer = document.createElement('div');
-    gridContainer.className = 'grid-container budget-grid';
-    window.add(container, gridContainer);
+    const setBudgetCompletedState = async ({ rowId, markCompleted }) => {
+      currentScenario = scenarioState?.get?.();
 
-    const budgetTable = await createGrid(gridContainer, {
-      data: transformedData,
-      columns: [
-        createDeleteColumn(
-          async (cell) => {
-            currentScenario = scenarioState?.get?.();
+      const canonicalId = String(rowId).replace('_flipped', '');
+      const allBudgets = (await getBudget(currentScenario.id)).map(normalizeCanonicalTransaction);
+      const budgetIndex = allBudgets.findIndex((b) => String(b.id) === canonicalId);
+      if (budgetIndex < 0) return;
 
-            await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
+      const target = { ...allBudgets[budgetIndex] };
+      const nextStatus = typeof target.status === 'object'
+        ? { ...target.status }
+        : { name: target.status || 'planned', actualAmount: null, actualDate: null };
 
-            const refreshed = await getScenario(currentScenario.id);
-            scenarioState?.set?.(refreshed);
+      if (markCompleted) {
+        nextStatus.name = 'actual';
 
-            await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
-          },
-          { confirmMessage: () => 'Delete this budget occurrence?' }
-        ),
+        if (!hasValue(nextStatus.actualAmount) && !hasValue(target.actualAmount)) {
+          const planned = Math.abs(Number(target.plannedAmount ?? target.amount ?? 0) || 0);
+          nextStatus.actualAmount = planned;
+          target.actualAmount = planned;
+        }
+
+        if (!hasValue(nextStatus.actualDate) && !hasValue(target.actualDate)) {
+          const today = formatDateOnly(new Date());
+          nextStatus.actualDate = today;
+          target.actualDate = today;
+        }
+      } else {
+        nextStatus.name = 'planned';
+      }
+
+      if (hasValue(nextStatus.actualAmount)) {
+        nextStatus.actualAmount = Math.abs(Number(nextStatus.actualAmount) || 0);
+        target.actualAmount = nextStatus.actualAmount;
+      }
+
+      target.status = {
+        name: nextStatus.name || 'planned',
+        actualAmount: hasValue(nextStatus.actualAmount) ? nextStatus.actualAmount : null,
+        actualDate: hasValue(nextStatus.actualDate) ? nextStatus.actualDate : null
+      };
+
+      allBudgets[budgetIndex] = target;
+      await BudgetManager.saveAll(currentScenario.id, allBudgets);
+
+      const refreshed = await getScenario(currentScenario.id);
+      scenarioState?.set?.(refreshed);
+
+      await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+    };
+
+    const readOnlyIfCompleted = (cell) => {
+      const rowData = cell?.getRow?.()?.getData?.();
+      return !isCompletedRow(rowData);
+    };
+
+    const deleteColumn = createDeleteColumn(
+      async (cell) => {
+        currentScenario = scenarioState?.get?.();
+
+        await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
+
+        const refreshed = await getScenario(currentScenario.id);
+        scenarioState?.set?.(refreshed);
+
+        await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+      },
+      { confirmMessage: () => 'Delete this budget occurrence?' }
+    );
+    const originalDeleteCellClick = deleteColumn.cellClick;
+    deleteColumn.cellClick = async function (e, cell) {
+      const rowData = cell.getRow().getData();
+      if (isCompletedRow(rowData)) return;
+      return originalDeleteCellClick(e, cell);
+    };
+
+    const completedColumn = {
+      title: 'Completed',
+      field: 'completed',
+      width: 110,
+      minWidth: 110,
+      hozAlign: 'center',
+      headerSort: false,
+      formatter: function (cell) {
+        const completed = isCompletedRow(cell.getRow().getData());
+        return `<input type="checkbox" ${completed ? 'checked' : ''} aria-label="Completed" />`;
+      },
+      cellClick: async function (e, cell) {
+        const input = e?.target;
+        if (input && input.tagName === 'INPUT') {
+          e.preventDefault();
+        }
+
+        const rowData = cell.getRow().getData();
+        const markCompleted = !isCompletedRow(rowData);
+        await setBudgetCompletedState({ rowId: rowData.id, markCompleted });
+      }
+    };
+
+    let budgetTable = tables?.getMasterBudgetTable?.();
+    const shouldRebuildTable = !budgetTable || budgetTable?.element !== gridContainer;
+    let didCreateNewTable = false;
+
+    if (shouldRebuildTable) {
+      didCreateNewTable = true;
+      try {
+        budgetTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      budgetTable = await createGrid(gridContainer, {
+        data: transformedData,
+        rowFormatter: function (row) {
+        try {
+          const data = row.getData();
+          const el = row.getElement();
+          if (!el || !el.classList) return;
+
+          if (isCompletedRow(data)) {
+            el.classList.add('budget-row-frozen');
+          } else {
+            el.classList.remove('budget-row-frozen');
+          }
+        } catch (_) {
+          // Ignore row format errors.
+        }
+        },
+        columns: [
+        deleteColumn,
+        completedColumn,
         {
           title: 'Secondary Account',
           field: 'secondaryAccount',
           minWidth: 150,
           widthGrow: 1.5,
+          editable: readOnlyIfCompleted,
           formatter: function (cell) {
             const value = cell.getValue();
             return value?.name || '';
           },
           editor: 'list',
           editorParams: {
-            values: (currentScenario.accounts || []).map((acc) => ({ label: acc.name, value: acc })),
+            values: () => (scenarioState?.get?.()?.accounts || []).map((acc) => ({ label: acc.name, value: acc })),
             listItemFormatter: function (value, title) {
               return title;
             }
@@ -426,6 +618,7 @@ export async function loadBudgetGrid({
           field: 'transactionType',
           minWidth: 100,
           widthGrow: 1,
+          editable: readOnlyIfCompleted,
           formatter: function (cell) {
             const value = cell.getValue();
             return value?.name || '';
@@ -446,9 +639,9 @@ export async function loadBudgetGrid({
             return aVal.localeCompare(bVal);
           }
         },
-        createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
+        createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1, editable: readOnlyIfCompleted }),
         ...(showBudgetDateColumn
-          ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 })]
+          ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1, editable: readOnlyIfCompleted })]
           : []),
         {
           title: 'Recurrence',
@@ -459,16 +652,20 @@ export async function loadBudgetGrid({
             return cell.getValue() || 'One time';
           }
         },
-        createTextColumn('Description', 'description', { widthGrow: 2 }),
-        createMoneyColumn('Actual Amount', 'actualAmount', { minWidth: 100, widthGrow: 1 }),
-        createDateColumn('Actual Date', 'actualDate', { minWidth: 110, widthGrow: 1 })
-      ],
-      cellEdited: async function (cell) {
+        createTextColumn('Description', 'description', { widthGrow: 2, editable: readOnlyIfCompleted }),
+        createMoneyColumn('Actual Amount', 'actualAmount', { minWidth: 100, widthGrow: 1, editable: readOnlyIfCompleted }),
+        createDateColumn('Actual Date', 'actualDate', { minWidth: 110, widthGrow: 1, editable: readOnlyIfCompleted })
+        ],
+        cellEdited: async function (cell) {
         currentScenario = scenarioState?.get?.();
 
         const rowData = cell.getRow().getData();
         const field = cell.getColumn().getField();
         const newValue = cell.getValue();
+
+        if (isCompletedRow(rowData)) {
+          return;
+        }
 
         const isFlipped = String(rowData.id).includes('_flipped');
         const canonicalId = String(rowData.id).replace('_flipped', '');
@@ -493,8 +690,14 @@ export async function loadBudgetGrid({
             if (hasActualData) {
               updatedBudget.status = {
                 name: 'actual',
-                actualAmount: updatedBudget.actualAmount || null,
-                actualDate: updatedBudget.actualDate || null
+                actualAmount:
+                  updatedBudget.actualAmount !== null && updatedBudget.actualAmount !== undefined
+                    ? updatedBudget.actualAmount
+                    : null,
+                actualDate:
+                  updatedBudget.actualDate !== null && updatedBudget.actualDate !== undefined
+                    ? updatedBudget.actualDate
+                    : null
               };
             }
           }
@@ -502,8 +705,11 @@ export async function loadBudgetGrid({
           allBudgets[budgetIndex] = updatedBudget;
           await BudgetManager.saveAll(currentScenario.id, allBudgets);
         }
-      }
-    });
+        }
+      });
+    } else {
+      await refreshGridData(budgetTable, transformedData);
+    }
 
     tables?.setMasterBudgetTable?.(budgetTable);
 
@@ -515,8 +721,8 @@ export async function loadBudgetGrid({
         return String(val);
       };
 
-      budgetGroupingSelect.addEventListener('change', (e) => {
-        const groupField = e.target.value;
+      budgetGroupingSelect.onchange = (e) => {
+        const groupField = e?.target?.value;
         if (groupField) {
           budgetTable.setGroupBy(groupField);
           budgetTable.setGroupHeader((value, count, data, group) => {
@@ -531,30 +737,35 @@ export async function loadBudgetGrid({
         } else {
           budgetTable.setGroupBy(false);
         }
-      });
+      };
     }
 
-    try {
-      budgetGridState.restore(budgetTable, { restoreGroupBy: false });
-      budgetGridState.restoreDropdowns({
-        groupBy: '#budget-grouping-select'
-      });
-    } catch (_) {
-      // Keep existing behavior: ignore state restore errors.
-    }
-
-    setTimeout(() => {
-      if (transactionFilterAccountIdSnapshot) {
-        budgetTable.setFilter((data) => {
-          if (!data.perspectiveAccountId) return true;
-          return Number(data.perspectiveAccountId) === transactionFilterAccountIdSnapshot;
-        });
-      } else {
-        budgetTable.setFilter((data) => {
-          return !String(data.id).includes('_flipped');
-        });
+    const applyStateAndFilters = () => {
+      try {
+        budgetGridState.restore(budgetTable, { restoreGroupBy: false });
+        budgetGridState.restoreDropdowns(
+          {
+            groupBy: '#budget-grouping-select'
+          },
+          { dispatchChange: true }
+        );
+      } catch (_) {
+        // Keep existing behavior: ignore state restore errors.
       }
-    }, 0);
+
+      setTimeout(() => {
+        if (transactionFilterAccountIdSnapshot) {
+          budgetTable.setFilter((data) => {
+            if (!data.perspectiveAccountId) return true;
+            return Number(data.perspectiveAccountId) === transactionFilterAccountIdSnapshot;
+          });
+        } else {
+          budgetTable.setFilter((data) => {
+            return !String(data.id).includes('_flipped');
+          });
+        }
+      }, 0);
+    };
 
     const handleBudgetFiltered = function (filters, rows) {
       callbacks?.updateBudgetTotals?.(rows);
@@ -562,12 +773,24 @@ export async function loadBudgetGrid({
 
     const handleBudgetBuilt = function () {
       callbacks?.updateBudgetTotals?.();
+      applyStateAndFilters();
     };
 
-    attachGridHandlers(budgetTable, {
-      dataFiltered: handleBudgetFiltered,
-      tableBuilt: handleBudgetBuilt
-    });
+    if (didCreateNewTable) {
+      attachGridHandlers(budgetTable, {
+        dataFiltered: handleBudgetFiltered,
+        tableBuilt: handleBudgetBuilt
+      });
+    } else {
+      applyStateAndFilters();
+    }
+
+    // Totals should reflect the post-filter view on every refresh.
+    try {
+      callbacks?.updateBudgetTotals?.();
+    } catch (_) {
+      // ignore
+    }
   } catch (err) {
     logger?.error?.('[Forecast] loadBudgetGrid failed', err);
   }

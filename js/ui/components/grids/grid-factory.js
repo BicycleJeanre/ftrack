@@ -20,6 +20,7 @@ async function getTabulatorLib() {
 const defaultConfig = {
     layout: "fitColumns",
     responsiveLayout: "hide",
+    index: "id",
     selectable: false, // Disable by default - grids can override if needed
     selectableRangeMode: false, // Disable to allow cell editing
     // Allow grids to decide if a row is selectable. Log calls for debugging.
@@ -131,6 +132,73 @@ export async function createGrid(element, options = {}) {
     }
     
     return table;
+}
+
+/**
+ * Refresh an existing Tabulator table in-place.
+ *
+ * This avoids destroying/recreating the table DOM, which helps prevent page jumps
+ * and allows GridStateManager to restore selection/scroll.
+ */
+export async function refreshGridData(table, nextData = []) {
+    if (!table) return;
+
+    const indexField = table?.options?.index || 'id';
+    const safeNextData = Array.isArray(nextData) ? nextData : [];
+
+    const nextIds = new Set(
+        safeNextData
+            .map((row) => row && row[indexField])
+            .filter((id) => id !== null && id !== undefined)
+            .map((id) => String(id))
+    );
+
+    const currentData = table?.getData?.() || [];
+    const currentIds = new Set(
+        currentData
+            .map((row) => row && row[indexField])
+            .filter((id) => id !== null && id !== undefined)
+            .map((id) => String(id))
+    );
+
+    const deleteIds = [];
+    currentIds.forEach((id) => {
+        if (!nextIds.has(id)) deleteIds.push(id);
+    });
+
+    // If we can't reliably match rows by ID, fallback to replaceData.
+    const hasAnyId = safeNextData.some((row) => row && row[indexField] !== null && row[indexField] !== undefined);
+    if (!hasAnyId || typeof table.updateOrAddData !== 'function') {
+        if (typeof table.replaceData === 'function') {
+            await table.replaceData(safeNextData);
+        }
+        return;
+    }
+
+    try {
+        await table.updateOrAddData(safeNextData);
+    } catch (err) {
+        // Conservative fallback for any Tabulator mismatch.
+        try {
+            if (typeof table.replaceData === 'function') {
+                await table.replaceData(safeNextData);
+            }
+        } catch (_) {
+            // ignore
+        }
+        return;
+    }
+
+    // Remove rows that no longer exist.
+    if (deleteIds.length > 0 && typeof table.deleteRow === 'function') {
+        deleteIds.forEach((id) => {
+            try {
+                table.deleteRow(id);
+            } catch (_) {
+                // ignore
+            }
+        });
+    }
 }
 
 /**

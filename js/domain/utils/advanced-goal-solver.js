@@ -131,13 +131,14 @@ function getStartingBalance(account) {
 }
 
 function buildMonthlyRecurrence({ startDate, endDate }) {
+  const anchor = startDate ? parseDateOnly(startDate) : new Date();
   return {
     recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
     startDate,
     endDate,
     interval: 1,
     dayOfWeek: null,
-    dayOfMonth: new Date().getDate(),
+    dayOfMonth: anchor.getDate(),
     weekOfMonth: null,
     dayOfWeekInMonth: null,
     dayOfQuarter: null,
@@ -186,6 +187,8 @@ function buildGoalRequirements({ scenario, goals }) {
   const accounts = scenario?.accounts || [];
   const scenarioStart = scenario?.startDate || formatDateOnly(new Date());
   const scenarioEnd = scenario?.endDate || scenarioStart;
+  const scenarioStartKey = toDateKey(scenarioStart);
+  const scenarioEndKey = toDateKey(scenarioEnd);
 
   const requirements = [];
   const issues = [];
@@ -204,6 +207,22 @@ function buildGoalRequirements({ scenario, goals }) {
 
     const startDate = goal.startDate || scenarioStart;
     const endDate = goal.endDate || scenarioEnd;
+
+    // Goals must be solvable within the scenario projection window.
+    // If goal dates fall outside the scenario range, projections cannot validate the goal correctly.
+    if (toDateKey(startDate) < scenarioStartKey) {
+      issues.push(
+        `Goal start date (${startDate}) is before the scenario start date (${scenarioStart}) for account: ${account.name}`
+      );
+      continue;
+    }
+    if (toDateKey(endDate) > scenarioEndKey) {
+      issues.push(
+        `Goal end date (${endDate}) is after the scenario end date (${scenarioEnd}) for account: ${account.name}`
+      );
+      continue;
+    }
+
     const monthsToGoal = calculateMonthsBetweenDates(startDate, endDate);
     if (!monthsToGoal || monthsToGoal <= 0) {
       issues.push(`Goal end date must be after start date for account: ${account.name}`);
@@ -230,8 +249,10 @@ function buildGoalRequirements({ scenario, goals }) {
       requiredMonthly = calculateContributionAmount(startingBalance, target, monthsToGoal, annualRate);
     } else if (goal.type === 'pay_down_by_date') {
       const target = goal.targetAmount != null ? goal.targetAmount : 0;
-      const toPay = Math.max(0, startingBalance - target);
-      requiredMonthly = toPay / monthsToGoal;
+      // Accounts are often modeled with negative balances for liabilities.
+      // "Pay down" means move the balance toward the target from whichever side it's on.
+      const toMove = Math.max(0, startingBalance < target ? target - startingBalance : startingBalance - target);
+      requiredMonthly = toMove / monthsToGoal;
     } else {
       issues.push(`Unknown goal type: ${goal.type}`);
       continue;
@@ -315,28 +336,15 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
     const recurrence = buildMonthlyRecurrence({ startDate, endDate });
 
     if (req.goal.type === 'pay_down_by_date') {
-      // Reduce funding (cash) and reduce liability separately, due to the current transaction model.
-      if (fundingAccountId) {
-        suggested.push({
-          id: 0,
-          primaryAccountId: fundingAccountId,
-          secondaryAccountId: null,
-          transactionTypeId: 2,
-          amount: Math.abs(amt),
-          effectiveDate: startDate,
-          description: `Advanced Goal: Funding for payoff ${req.account.name}`,
-          recurrence,
-          periodicChange: null,
-          status: { name: 'planned' },
-          tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`]
-        });
-      }
+      // Model paydown as a transfer from the funding account to the goal account.
+      // This reduces the funding account and moves the goal account toward the target.
+      if (!fundingAccountId) continue;
 
       suggested.push({
         id: 0,
         primaryAccountId: req.goal.accountId,
-        secondaryAccountId: null,
-        transactionTypeId: 2,
+        secondaryAccountId: fundingAccountId,
+        transactionTypeId: 1,
         amount: Math.abs(amt),
         effectiveDate: startDate,
         description: `Advanced Goal: Pay down ${req.account.name}`,
@@ -410,6 +418,7 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
     const records = projectionsByAccountId.get(Number(goal.accountId)) || [];
     const startDate = goal.startDate || scenarioStart;
     const endDate = goal.endDate || scenarioEnd;
+    const startBal = getBalanceAtOrBefore(records, startDate, startingBalance);
     const endBal = getBalanceAtOrBefore(records, endDate, startingBalance);
 
     if (goal.type === 'reach_balance_by_date') {
@@ -419,12 +428,20 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
       }
     } else if (goal.type === 'pay_down_by_date') {
       const target = goal.targetAmount != null ? goal.targetAmount : 0;
-      if (endBal - 1e-6 > target) {
-        failures.push({ goalId: goal.id, type: goal.type, shortfall: endBal - target });
+      // "Pay down" means move the balance toward the target.
+      // If balance starts below target (common for negative liabilities), success means end balance >= target.
+      // If balance starts above target, success means end balance <= target.
+      if (startBal < target) {
+        if (endBal + 1e-6 < target) {
+          failures.push({ goalId: goal.id, type: goal.type, shortfall: target - endBal });
+        }
+      } else {
+        if (endBal - 1e-6 > target) {
+          failures.push({ goalId: goal.id, type: goal.type, shortfall: endBal - target });
+        }
       }
     } else if (goal.type === 'increase_by_delta') {
       if (goal.deltaAmount == null) continue;
-      const startBal = getBalanceAtOrBefore(records, startDate, startingBalance);
       const delta = endBal - startBal;
       if (delta + 1e-6 < goal.deltaAmount) {
         failures.push({ goalId: goal.id, type: goal.type, shortfall: goal.deltaAmount - delta });
@@ -509,25 +526,16 @@ export async function solveAdvancedGoals({ scenario, settings }) {
       issues.push('Funding account is required to solve. Select a funding account under Constraints.');
     }
 
-    const floorsByAccountId = mergeFloorConstraints({ goals, constraints });
+    let floorsByAccountId = mergeFloorConstraints({ goals, constraints });
 
-    // Baseline projections for floor-derived outflow cap (funding account only)
-    let effectiveMaxOutflowPerMonth = constraints.maxOutflowPerMonth != null ? asNumber(constraints.maxOutflowPerMonth, null) : null;
-    if (fundingAccountId && floorsByAccountId[String(fundingAccountId)] != null) {
-      const baselineProjections = await generateProjectionsForScenarioSafe(scenario);
-      const idx = indexProjectionsByAccountId(baselineProjections);
-      const fundingAcc = getAccountById(scenario.accounts || [], fundingAccountId);
-      const startingBalance = getStartingBalance(fundingAcc);
-      const records = idx.get(fundingAccountId) || [];
-      const minBaseline = Math.min(startingBalance, ...records.map((r) => asNumber(r.balance, startingBalance)));
-      const floor = asNumber(floorsByAccountId[String(fundingAccountId)], 0);
-      const derivedCap = Math.max(0, minBaseline - floor);
-      effectiveMaxOutflowPerMonth = effectiveMaxOutflowPerMonth == null ? derivedCap : Math.min(effectiveMaxOutflowPerMonth, derivedCap);
-
-      if (derivedCap <= 0) {
-        issues.push('Funding account floor leaves no room for additional outflow. Reduce the floor or extend the goal dates.');
-      }
+    // Funding account is treated as an infinite source for solving/validation.
+    // That means we ignore any min-balance floor on the funding account.
+    if (fundingAccountId != null && floorsByAccountId[String(fundingAccountId)] != null) {
+      warnings.push('Funding account min-balance floor is ignored (funding treated as infinite).');
+      delete floorsByAccountId[String(fundingAccountId)];
     }
+
+    let effectiveMaxOutflowPerMonth = constraints.maxOutflowPerMonth != null ? asNumber(constraints.maxOutflowPerMonth, null) : null;
 
     const { requirements, issues: requirementIssues } = buildGoalRequirements({ scenario, goals });
     issues.push(...requirementIssues);
@@ -670,6 +678,9 @@ export async function solveAdvancedGoals({ scenario, settings }) {
     if (Object.keys(constraints.maxMovementByAccountId || {}).length > 0) explanation.push('Applied per-account movement caps.');
     if (Object.keys(floorsByAccountId || {}).length > 0) explanation.push('Validated min-balance floors against projections.');
     if (validationFailures.length > 0) {
+      if (effectiveMaxOutflowPerMonth != null) {
+        explanation.push('One or more goals could not be fully met under the current max outflow cap once projections (including interest and existing scenario transactions) were applied.');
+      }
       explanation.push('Validation issues:');
       validationFailures.slice(0, 10).forEach((f) => explanation.push(`- ${f.type} shortfall: ${asNumber(f.shortfall, 0).toFixed(2)}`));
       explanation.push('');

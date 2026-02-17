@@ -163,9 +163,43 @@ export function calculatePeriodicChange(principal, periodicChange, periods) {
   
   // Default to change mode ID 1 = Percentage Rate
   const rate = value / 100; // Convert percentage to decimal
+
+  const ratePeriodsPerYear = (periodId) => {
+    switch (periodId) {
+      case 1: // Annual
+        return 1;
+      case 2: // Monthly
+        return 12;
+      case 3: // Quarterly
+        return 4;
+      case 4: // Daily
+        return 365;
+      case 5: // Weekly
+        return 52;
+      default:
+        return 1;
+    }
+  };
+
+  const frequencyIdToPerYear = (frequencyId) => {
+    switch (frequencyId) {
+      case 1: // Daily
+        return 365;
+      case 2: // Weekly
+        return 52;
+      case 3: // Monthly
+        return 12;
+      case 4: // Quarterly
+        return 4;
+      case 5: // Yearly
+        return 1;
+      default:
+        return 1;
+    }
+  };
   
   switch (changeTypeId) {
-    case 1: // Nominal Annual (No Compounding)
+    case 1: // Simple Interest
       // Simple interest: FV = PV * (1 + r * t)
       return principal * (1 + rate * periods);
       
@@ -190,50 +224,43 @@ export function calculatePeriodicChange(principal, periodicChange, periods) {
       return principal * Math.exp(rate * periods);
       
     case 7: // Custom
-      // Custom: convert rate based on rate period ID, compound at custom frequency
-      // Rate period IDs: 1=Annual, 2=Monthly, 3=Quarterly, 4=Daily
-      let annualRate;
-      switch (ratePeriodId) {
-        case 1: // Annual
-          annualRate = rate;
-          break;
-        case 2: // Monthly: multiply by 12 to convert to annual
-          annualRate = rate * 12;
-          break;
-        case 3: // Quarterly: multiply by 4 to convert to annual
-          annualRate = rate * 4;
-          break;
-        case 4: // Daily: multiply by 365 to convert to annual
-          annualRate = rate * 365;
-          break;
-        default:
-          annualRate = rate;
+      // Custom (as implemented in the modal): user provides a nominal rate per selected period,
+      // and a number of compounding events within that same period.
+      // Example: value=3, period=Annual, frequency=12 -> 3% nominal annual, compounded monthly.
+      {
+        const customPeriodId = typeof periodicChange.customCompounding?.period === 'object'
+          ? periodicChange.customCompounding.period.id
+          : (periodicChange.customCompounding?.period || 1);
+
+        const customFrequencyCount = typeof periodicChange.customCompounding?.frequency === 'object'
+          ? periodicChange.customCompounding.frequency.id
+          : periodicChange.customCompounding?.frequency;
+
+        if (!customFrequencyCount || !Number.isFinite(customFrequencyCount) || customFrequencyCount <= 0) {
+          return principal;
+        }
+
+        const basePerYear = ratePeriodsPerYear(customPeriodId);
+        const annualRate = rate * basePerYear;
+        const compoundingPerYear = customFrequencyCount * basePerYear;
+
+        return principal * Math.pow(1 + annualRate / compoundingPerYear, compoundingPerYear * periods);
       }
-      
-      // Convert compounding frequency ID to count per year
-      let compoundingPerYear;
-      switch (compoundingFrequency) {
-        case 1: // Daily
-          compoundingPerYear = 365;
-          break;
-        case 2: // Weekly
-          compoundingPerYear = 52;
-          break;
-        case 3: // Monthly
-          compoundingPerYear = 12;
-          break;
-        case 4: // Quarterly
-          compoundingPerYear = 4;
-          break;
-        case 5: // Yearly
-          compoundingPerYear = 1;
-          break;
-        default:
-          compoundingPerYear = 1;
+
+    case 8: // Custom nominal/compounding
+      // User provides a nominal rate per selected nominal period,
+      // and selects the compounding period (daily/weekly/monthly/quarterly/yearly).
+      {
+        const nominalPeriodId = ratePeriodId || 1;
+        const compPeriodId = typeof periodicChange.frequency === 'object'
+          ? periodicChange.frequency.id
+          : (periodicChange.frequency || 3);
+
+        const annualRate = rate * ratePeriodsPerYear(nominalPeriodId);
+        const compoundingPerYear = frequencyIdToPerYear(compPeriodId);
+
+        return principal * Math.pow(1 + annualRate / compoundingPerYear, compoundingPerYear * periods);
       }
-      
-      // FV = PV * (1 + r / n)^(n*t), where n = compounding frequency per year
-      return principal * Math.pow(1 + annualRate / compoundingPerYear, compoundingPerYear * periods);
       
     default:
       return principal;

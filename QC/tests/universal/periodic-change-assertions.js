@@ -5,7 +5,7 @@ function pushMismatch(mismatches, check, details) {
 function runPeriodicChangeAssertions({ scenarios }) {
   const mismatches = [];
   const allowedChangeModes = new Set([1, 2]);
-  const allowedChangeTypes = new Set([1, 2, 3, 4, 5, 6, 7]);
+  const allowedChangeTypes = new Set([1, 2, 3, 4, 5, 6, 7, 8]);
   const allowedPeriods = new Set([1, 2, 3, 4, 5]);
 
   const accountPeriodicChanges = (scenarios || []).flatMap((scenario) =>
@@ -55,7 +55,7 @@ function runPeriodicChangeAssertions({ scenarios }) {
           scenarioId,
           scenarioName,
           objectId,
-          expected: 'changeType in [1..7]',
+          expected: 'changeType in [1..8]',
           actual: type
         });
       }

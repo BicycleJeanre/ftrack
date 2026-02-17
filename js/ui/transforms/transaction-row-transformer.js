@@ -25,7 +25,9 @@ function findAccount(accounts = [], id) {
  * Normalize a transaction-like object to canonical storage form (unsigned amounts).
  */
 export function normalizeCanonicalTransaction(tx) {
-  const transactionTypeId = tx.transactionTypeId ?? tx.transactionType?.id ?? MONEY_OUT;
+  const rawTypeId = tx.transactionTypeId ?? tx.transactionType?.id ?? MONEY_OUT;
+  const parsedTypeId = Number(rawTypeId);
+  const transactionTypeId = (parsedTypeId === MONEY_IN || parsedTypeId === MONEY_OUT) ? parsedTypeId : MONEY_OUT;
   const statusObj = typeof tx.status === 'object'
     ? { name: tx.status.name || 'planned', actualAmount: tx.status.actualAmount ?? tx.actualAmount ?? null, actualDate: tx.status.actualDate ?? tx.actualDate ?? null }
     : { name: tx.status || 'planned', actualAmount: tx.actualAmount ?? null, actualDate: tx.actualDate ?? null };
@@ -45,7 +47,9 @@ export function normalizeCanonicalTransaction(tx) {
  * Transform a canonical transaction to primary + flipped display rows.
  */
 export function transformTransactionToRows(tx, accounts = []) {
-  const typeId = tx.transactionTypeId ?? tx.transactionType?.id ?? MONEY_OUT;
+  const rawTypeId = tx.transactionTypeId ?? tx.transactionType?.id ?? MONEY_OUT;
+  const parsedTypeId = Number(rawTypeId);
+  const typeId = (parsedTypeId === MONEY_IN || parsedTypeId === MONEY_OUT) ? parsedTypeId : MONEY_OUT;
   const typeObj = tx.transactionType || buildType(typeId);
 
   const primaryAccount = findAccount(accounts, tx.primaryAccountId);

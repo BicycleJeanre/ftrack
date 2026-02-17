@@ -3,7 +3,7 @@
 // Displays accounts, planned transactions, actual transactions, and projections based on scenario type
 
 
-import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
+import { createGrid, refreshGridData, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
 import { attachGridHandlers } from '../components/grids/grid-handlers.js';
 import * as ScenarioManager from '../../app/managers/scenario-manager.js';
 import * as AccountManager from '../../app/managers/account-manager.js';
@@ -59,9 +59,8 @@ import {
   buildProjectionsIndex,
   getBalanceAsOf,
   computeNav,
-  computeMoneyTotalsFromTransactions,
-  computeLockedSharesByAccountId,
-  computeAutomaticSharesByAccountId,
+  computeContributionRedemptionTotals,
+  computeFixedSharesReport,
   computeInvestorFlows
 } from '../../domain/utils/fund-utils.js';
 
@@ -81,6 +80,7 @@ import { generateProjections, clearProjections } from '../../domain/calculations
 let currentScenario = null;
 let scenarioTypes = null;
 let transactionFilterAccountId = null; // Track account filter for transactions view (independent of account grid selection)
+let projectionsAccountFilterId = null; // Track account filter for projections view (independent of transactions filter)
 let actualPeriod = null; // Selected period for actual transactions
 let actualPeriodType = 'Month'; // Selected period type for transactions view
 let projectionPeriod = null; // Selected period for projections view
@@ -90,9 +90,40 @@ let budgetPeriodType = 'Month'; // Selected period type for budget view
 let periods = []; // Calculated periods for current scenario
 let projectionPeriods = []; // Calculated periods for projections view
 let budgetGridLoadToken = 0; // Prevent stale budget renders
+let scenariosTable = null; // Store scenarios table instance to preserve selection/scroll
 let masterTransactionsTable = null; // Store transactions table instance for filtering
 let masterBudgetTable = null; // Store budget table instance for filtering
+let fundSummaryTable = null; // Store fund summary table instance to reduce jumping
+let generalSummaryTable = null; // Store general summary table instance to reduce jumping
 let summaryCardsAccountTypeFilter = 'All';
+let generalSummaryScope = 'All';
+let generalSummaryAccountId = 0;
+
+function getPageScrollSnapshot() {
+  try {
+    return {
+      x: window.scrollX || 0,
+      y: window.scrollY || 0
+    };
+  } catch (_) {
+    return { x: 0, y: 0 };
+  }
+}
+
+function restorePageScroll(snapshot) {
+  if (!snapshot) return;
+  try {
+    requestAnimationFrame(() => {
+      try {
+        window.scrollTo(snapshot.x || 0, snapshot.y || 0);
+      } catch (_) {
+        // ignore
+      }
+    });
+  } catch (_) {
+    // ignore
+  }
+}
 
 function isDebtScenario(typeConfig) {
   return typeConfig?.id === 4; // Debt Repayment scenario type
@@ -107,7 +138,6 @@ function isFundsScenario(typeConfig) {
 }
 
 let fundSummaryScope = 'All';
-let fundSummaryAsOfDate = '';
 
 // Update transaction totals in toolbar based on current filtered data
 function updateTransactionTotals(filteredRows = null) {
@@ -122,7 +152,7 @@ function updateBudgetTotals(filteredRows = null) {
 function getFilteredProjections() {
   return getFilteredProjectionsCore({
     currentScenario,
-    transactionFilterAccountId,
+    projectionsAccountFilterId,
     projectionPeriod,
     projectionPeriods
   });
@@ -133,8 +163,6 @@ function updateProjectionTotals(container, projections = null) {
   updateProjectionTotalsCore(container, data);
 }
 async function buildScenarioGrid(container) {
-  container.innerHTML = '';
-
   try {
     const lookupData = await loadLookup('lookup-data.json');
 
@@ -199,81 +227,191 @@ async function buildScenarioGrid(container) {
       return { minYear, maxYear };
     };
 
-    const buildPeriodOptions = (rowData, mode) => {
-      const periodType = getPeriodTypeName(rowData);
-      const { minYear, maxYear } = getOptionYearBounds(rowData);
+    const parseIsoWeekInput = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const match = value.match(/^(\d{4})-W(\d{2})$/);
+      if (!match) return null;
+      const year = Number(match[1]);
+      const week = Number(match[2]);
+      if (!Number.isFinite(year) || !Number.isFinite(week)) return null;
+      if (week < 1 || week > 53) return null;
+      return { year, week };
+    };
 
-      const options = [];
+    const getIsoWeekStartMonday = (isoYear, isoWeek) => {
+      // ISO week 1 is the week containing Jan 4. Weeks start on Monday.
+      const jan4 = new Date(Date.UTC(isoYear, 0, 4));
+      const jan4Day = jan4.getUTCDay() || 7; // 1..7 (Mon..Sun)
+      const mondayWeek1 = new Date(jan4);
+      mondayWeek1.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+      const monday = new Date(mondayWeek1);
+      monday.setUTCDate(mondayWeek1.getUTCDate() + (isoWeek - 1) * 7);
+      return new Date(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate());
+    };
 
-      if (!periodType) {
-        return options;
-      }
+    const getIsoWeekInputValue = (date) => {
+      // Returns YYYY-Www for the ISO week containing `date`.
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - day); // shift to Thursday
+      const isoYear = d.getUTCFullYear();
+      const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+      const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      return `${isoYear}-W${String(weekNo).padStart(2, '0')}`;
+    };
 
-      if (periodType === 'Year') {
-        for (let y = minYear; y <= maxYear; y++) {
-          const boundary = mode === 'start' ? startOfYear(y) : endOfYear(y);
-          options.push({ label: String(y), value: formatDateOnly(boundary) });
+    const createScenarioBoundaryEditor = (mode) => {
+      return function(cell, onRendered, success, cancel) {
+        const rowData = cell.getRow().getData();
+        const periodType = getPeriodTypeName(rowData);
+        if (!periodType) {
+          cancel();
+          return;
         }
-        return options;
-      }
 
-      if (periodType === 'Quarter') {
-        for (let y = minYear; y <= maxYear; y++) {
-          for (let q = 1; q <= 4; q++) {
-            const boundary = mode === 'start' ? startOfQuarter(y, q) : endOfQuarter(y, q);
-            options.push({ label: `${y} Q${q}`, value: formatDateOnly(boundary) });
+        const currentRaw = cell.getValue();
+        const currentDate = parseDateOnlySafe(currentRaw);
+        const now = new Date();
+        const currentYear = (currentDate || now).getFullYear();
+
+        const input = document.createElement('input');
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+        input.className = 'tabulator-editing';
+
+        const { minYear, maxYear } = getOptionYearBounds(rowData);
+
+        if (periodType === 'Week') {
+          input.type = 'week';
+          const base = currentDate || new Date(currentYear, 0, 1);
+          input.value = getIsoWeekInputValue(base);
+        } else if (periodType === 'Quarter') {
+          // Use the same native month picker UI as Month, but restrict selection to quarter-start months.
+          // Many browsers honor step for month inputs.
+          input.type = 'month';
+          input.step = '3';
+          input.min = `${minYear}-01`;
+          input.max = `${maxYear}-10`;
+
+          const base = currentDate || (mode === 'start' ? startOfYear(currentYear) : endOfYear(currentYear));
+          const quarterStartMonth = Math.floor(base.getMonth() / 3) * 3 + 1; // 1,4,7,10
+          input.value = `${base.getFullYear()}-${pad2(quarterStartMonth)}`;
+        } else if (periodType === 'Month') {
+          input.type = 'month';
+          const base = currentDate || (mode === 'start' ? startOfYear(currentYear) : endOfYear(currentYear));
+          input.value = `${base.getFullYear()}-${pad2(base.getMonth() + 1)}`;
+        } else if (periodType === 'Year') {
+          // Use the same native month picker UI, but restrict to January so it behaves like a year picker.
+          input.type = 'month';
+          input.step = '12';
+          input.min = `${minYear}-01`;
+          input.max = `${maxYear}-01`;
+          input.value = `${currentYear}-01`;
+        } else {
+          // Day (and any unknown types) use a standard date picker.
+          input.type = 'date';
+          const fallback = mode === 'start' ? formatDateOnly(startOfYear(currentYear)) : formatDateOnly(endOfYear(currentYear));
+          input.value = typeof currentRaw === 'string' && currentRaw ? currentRaw : fallback;
+        }
+
+        const commit = () => {
+          try {
+            if (periodType === 'Week') {
+              const parsed = parseIsoWeekInput(input.value);
+              if (!parsed) {
+                cancel();
+                return;
+              }
+              const monday = getIsoWeekStartMonday(parsed.year, parsed.week);
+              const boundary = mode === 'start' ? monday : new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+              success(formatDateOnly(boundary));
+              return;
+            }
+
+            if (periodType === 'Month') {
+              const match = String(input.value || '').match(/^(\d{4})-(\d{2})$/);
+              if (!match) {
+                cancel();
+                return;
+              }
+              const year = Number(match[1]);
+              const month = Number(match[2]);
+              if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+                cancel();
+                return;
+              }
+              const boundary = mode === 'start' ? startOfMonth(year, month) : endOfMonth(year, month);
+              success(formatDateOnly(boundary));
+              return;
+            }
+
+            if (periodType === 'Quarter') {
+              const match = String(input.value || '').match(/^(\d{4})-(\d{2})$/);
+              if (!match) {
+                cancel();
+                return;
+              }
+              const year = Number(match[1]);
+              const month = Number(match[2]);
+              if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+                cancel();
+                return;
+              }
+              if (year < minYear || year > maxYear) {
+                cancel();
+                return;
+              }
+              const quarter = Math.floor((month - 1) / 3) + 1;
+              const boundary = mode === 'start' ? startOfQuarter(year, quarter) : endOfQuarter(year, quarter);
+              success(formatDateOnly(boundary));
+              return;
+            }
+
+            if (periodType === 'Year') {
+              const match = String(input.value || '').match(/^(\d{4})-(\d{2})$/);
+              if (!match) {
+                cancel();
+                return;
+              }
+              const year = Number(match[1]);
+              if (!Number.isFinite(year)) {
+                cancel();
+                return;
+              }
+              if (year < minYear || year > maxYear) {
+                cancel();
+                return;
+              }
+              const boundary = mode === 'start' ? startOfYear(year) : endOfYear(year);
+              success(formatDateOnly(boundary));
+              return;
+            }
+
+            // Day
+            if (!input.value) {
+              cancel();
+              return;
+            }
+            success(input.value);
+          } catch (err) {
+            cancel();
           }
-        }
-        return options;
-      }
+        };
 
-      if (periodType === 'Month') {
-        for (let y = minYear; y <= maxYear; y++) {
-          for (let m = 1; m <= 12; m++) {
-            const boundary = mode === 'start' ? startOfMonth(y, m) : endOfMonth(y, m);
-            options.push({ label: `${y}-${pad2(m)}`, value: formatDateOnly(boundary) });
-          }
-        }
-        return options;
-      }
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') cancel();
+        });
 
-      if (periodType === 'Week') {
-        for (let y = minYear; y <= maxYear; y++) {
-          const jan1 = new Date(y, 0, 1);
-          const dec31 = new Date(y, 11, 31);
-          let monday = previousOrSameMonday(jan1);
-          // Generate until the week start passes the end of the year.
-          while (monday <= dec31) {
-            const sunday = new Date(monday);
-            sunday.setDate(sunday.getDate() + 6);
-            const boundary = mode === 'start' ? monday : sunday;
-            options.push({ label: `Week of ${formatDateOnly(monday)}`, value: formatDateOnly(boundary) });
-            monday = new Date(monday);
-            monday.setDate(monday.getDate() + 7);
-          }
-        }
-        return options;
-      }
+        input.addEventListener('blur', commit);
 
-      // Day
-      const startDate = parseDateOnlySafe(rowData?.startDate);
-      const endDate = parseDateOnlySafe(rowData?.endDate);
-      const now = new Date();
-      const fallbackStart = new Date(now.getFullYear() - 1, 0, 1);
-      const fallbackEnd = new Date(now.getFullYear() + 1, 11, 31);
-      const minDate = startDate && endDate ? startDate : fallbackStart;
-      const maxDate = startDate && endDate ? endDate : fallbackEnd;
+        onRendered(() => {
+          input.focus();
+          try { input.select(); } catch (e) { /* noop */ }
+        });
 
-      const d = new Date(minDate);
-      d.setHours(0, 0, 0, 0);
-      const endD = new Date(maxDate);
-      endD.setHours(0, 0, 0, 0);
-      while (d <= endD) {
-        options.push({ label: formatDateOnly(d), value: formatDateOnly(d) });
-        d.setDate(d.getDate() + 1);
-      }
-
-      return options;
+        return input;
+      };
     };
 
     const formatPeriodLabel = (dateOnly, periodType, mode) => {
@@ -312,7 +450,7 @@ async function buildScenarioGrid(container) {
       return formatDateOnly(d);
     };
 
-    // Add "Add Scenario" button
+    // Keep the scenario grid container stable to reduce scroll jumps.
     // Remove any existing add buttons (defensive)
     const existingScenarioAdds = container.querySelectorAll('.btn-add');
     existingScenarioAdds.forEach(el => el.remove());
@@ -337,19 +475,38 @@ async function buildScenarioGrid(container) {
     });
     window.add(container, addScenarioBtn);
 
-    // Create grid container
-    const gridContainer = document.createElement('div');
-    gridContainer.id = 'scenariosTable'; // explicit ID for logging and testing
-    gridContainer.className = 'grid-container scenarios-grid';
-    window.add(container, gridContainer);
+    // Create/reuse grid container
+    let gridContainer = container.querySelector('#scenariosTable');
+    if (!gridContainer) {
+      gridContainer = document.createElement('div');
+      gridContainer.id = 'scenariosTable'; // explicit ID for logging and testing
+      gridContainer.className = 'grid-container scenarios-grid';
+      window.add(container, gridContainer);
+    }
 
     // Load all scenarios
     const scenarios = await ScenarioManager.getAll();
 
-    const scenariosTable = await createGrid(gridContainer, {
-      data: scenarios,
-      selectable: 1, // Only allow single row selection
-      columns: [
+    const selectedScenarioIdSnapshot =
+      scenariosTable?.getSelectedData?.()?.[0]?.id ??
+      currentScenario?.id ??
+      null;
+
+    const shouldRebuildTable = !scenariosTable || scenariosTable?.element !== gridContainer;
+    let didCreateNewTable = false;
+
+    if (shouldRebuildTable) {
+      didCreateNewTable = true;
+      try {
+        scenariosTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      scenariosTable = await createGrid(gridContainer, {
+        data: scenarios,
+        selectable: 1, // Only allow single row selection
+        columns: [
         createDuplicateColumn(async (cell) => {
           const rowData = cell.getRow().getData();
           await ScenarioManager.duplicate(rowData.id);
@@ -389,12 +546,7 @@ async function buildScenarioGrid(container) {
           widthGrow: 2,
           responsive: 1,
           editable: (cell) => !!getPeriodTypeName(cell.getRow().getData()),
-          editor: 'list',
-          editorParams: (cell) => ({
-            values: buildPeriodOptions(cell.getRow().getData(), 'start'),
-            placeholderLoading: 'Loading...',
-            placeholderEmpty: 'Select Period Type first'
-          }),
+          editor: createScenarioBoundaryEditor('start'),
           formatter: (cell) => {
             const rowData = cell.getRow().getData();
             const periodType = getPeriodTypeName(rowData);
@@ -408,12 +560,7 @@ async function buildScenarioGrid(container) {
           widthGrow: 2,
           responsive: 2,
           editable: (cell) => !!getPeriodTypeName(cell.getRow().getData()),
-          editor: 'list',
-          editorParams: (cell) => ({
-            values: buildPeriodOptions(cell.getRow().getData(), 'end'),
-            placeholderLoading: 'Loading...',
-            placeholderEmpty: 'Select Period Type first'
-          }),
+          editor: createScenarioBoundaryEditor('end'),
           formatter: (cell) => {
             const rowData = cell.getRow().getData();
             const periodType = getPeriodTypeName(rowData);
@@ -439,21 +586,28 @@ async function buildScenarioGrid(container) {
           },
           headerHozAlign: "left"
         }
-      ],
-      rowSelectionChanged: async function(data, rows) {
-        // logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
-        if (rows.length > 0) {
-          const scenario = rows[0].getData();
-          currentScenario = await getScenario(scenario.id);
-          transactionFilterAccountId = null; // Clear transaction filter when switching scenarios
-          await loadScenarioData();
+        ],
+        rowSelectionChanged: async function(data, rows) {
+          // logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
+          if (rows.length > 0) {
+            const scenario = rows[0].getData();
+            if (currentScenario && currentScenario.id === scenario.id) return;
+
+            currentScenario = await getScenario(scenario.id);
+            transactionFilterAccountId = null; // Clear transaction filter when switching scenarios
+            projectionsAccountFilterId = null; // Clear projections filter when switching scenarios
+            await loadScenarioData();
+          }
         }
-      }
-    });
+      });
+    } else {
+      await refreshGridData(scenariosTable, scenarios);
+    }
 
     const handleScenarioRowSelectedPrimary = async function(row) {
       try {
         const scenario = row.getData();
+        if (currentScenario && currentScenario.id === scenario.id) return;
         currentScenario = await getScenario(scenario.id);
         transactionFilterAccountId = null;
         await loadScenarioData();
@@ -570,11 +724,21 @@ async function buildScenarioGrid(container) {
       }
     };
 
-    attachGridHandlers(scenariosTable, {
-      rowSelected: [handleScenarioRowSelectedPrimary, handleScenarioRowSelectedEnforce],
-      rowClick: handleScenarioRowClick,
-      cellEdited: handleScenarioCellEdited
-    });
+    if (didCreateNewTable) {
+      attachGridHandlers(scenariosTable, {
+        rowSelected: [handleScenarioRowSelectedPrimary, handleScenarioRowSelectedEnforce],
+        rowClick: handleScenarioRowClick,
+        cellEdited: handleScenarioCellEdited
+      });
+    }
+
+    if (selectedScenarioIdSnapshot != null) {
+      try {
+        scenariosTable.selectRow(selectedScenarioIdSnapshot);
+      } catch (_) {
+        // ignore
+      }
+    }
 
     // Set initial scenario if not set and load its data
     if (!currentScenario && scenarios.length > 0) {
@@ -814,32 +978,43 @@ async function loadDebtSummaryCards(container) {
     return;
   }
 
-  container.innerHTML = '';
+  const scrollSnapshot = getPageScrollSnapshot();
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'grid-toolbar summary-cards-toolbar';
+  // Keep toolbar stable (avoid losing focus/scroll between refreshes).
+  // If a different summary type was previously rendered, rebuild once.
+  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
+  let filterSelect = container.querySelector('#summary-cards-type-filter');
+  const isDebtToolbar = !!filterSelect;
+  if (!toolbar || !isDebtToolbar) {
+    container.innerHTML = '';
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar summary-cards-toolbar';
 
-  const filterItem = document.createElement('div');
-  filterItem.className = 'toolbar-item';
-  filterItem.innerHTML = `
-    <label for="summary-cards-type-filter" class="text-muted control-label">Account Type:</label>
-    <select id="summary-cards-type-filter" class="input-select control-select">
-      <option value="All">All</option>
-      <option value="Liability">Liability</option>
-      <option value="Asset">Asset</option>
-    </select>
-  `;
-  toolbar.appendChild(filterItem);
-  container.appendChild(toolbar);
+    const filterItem = document.createElement('div');
+    filterItem.className = 'toolbar-item';
+    filterItem.innerHTML = `
+      <label for="summary-cards-type-filter" class="text-muted control-label">Account Type:</label>
+      <select id="summary-cards-type-filter" class="input-select control-select">
+        <option value="All">All</option>
+        <option value="Liability">Liability</option>
+        <option value="Asset">Asset</option>
+      </select>
+    `;
+    toolbar.appendChild(filterItem);
+    container.appendChild(toolbar);
+    filterSelect = filterItem.querySelector('#summary-cards-type-filter');
+  }
 
-  const filterSelect = filterItem.querySelector('#summary-cards-type-filter');
   if (filterSelect) {
     filterSelect.value = summaryCardsAccountTypeFilter;
-    filterSelect.addEventListener('change', () => {
+    filterSelect.onchange = () => {
       summaryCardsAccountTypeFilter = filterSelect.value;
       loadDebtSummaryCards(container);
-    });
+    };
   }
+
+  // Clear any previous empty message
+  container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
   const getAccountTypeName = (account) => account?.type?.name || 'Unknown';
   const filteredAccounts = summaryCardsAccountTypeFilter === 'All'
@@ -847,10 +1022,18 @@ async function loadDebtSummaryCards(container) {
     : accounts.filter(account => getAccountTypeName(account) === summaryCardsAccountTypeFilter);
 
   if (!filteredAccounts.length) {
-    const emptyMessage = document.createElement('div');
-    emptyMessage.className = 'empty-message';
+    let emptyMessage = container.querySelector(':scope > .empty-message');
+    if (!emptyMessage) {
+      emptyMessage = document.createElement('div');
+      emptyMessage.className = 'empty-message';
+      container.appendChild(emptyMessage);
+    }
     emptyMessage.textContent = 'No accounts match this filter.';
-    container.appendChild(emptyMessage);
+
+    const existingGroups = container.querySelector(':scope > .summary-cards-groups');
+    if (existingGroups) existingGroups.remove();
+
+    restorePageScroll(scrollSnapshot);
     return;
   }
 
@@ -878,8 +1061,14 @@ async function loadDebtSummaryCards(container) {
     return [...preferredOrder.filter(key => groupedAccounts[key]), ...remaining];
   })();
 
-  const groupWrapper = document.createElement('div');
-  groupWrapper.className = 'summary-cards-groups';
+  let groupWrapper = container.querySelector(':scope > .summary-cards-groups');
+  if (!groupWrapper) {
+    groupWrapper = document.createElement('div');
+    groupWrapper.className = 'summary-cards-groups';
+    container.appendChild(groupWrapper);
+  }
+
+  groupWrapper.innerHTML = '';
 
   for (const groupKey of orderedGroupKeys) {
     const groupContainer = document.createElement('div');
@@ -1002,7 +1191,7 @@ async function loadDebtSummaryCards(container) {
     groupWrapper.appendChild(totalCard);
   }
 
-  container.appendChild(groupWrapper);
+  restorePageScroll(scrollSnapshot);
 }
 
 async function ensureFundSettingsInitialized() {
@@ -1012,12 +1201,8 @@ async function ensureFundSettingsInitialized() {
   }
 
   const current = currentScenario?.fundSettings;
-  const hasLocked = current && typeof current.lockedSharesByAccountId === 'object';
-  const hasMode = current && typeof current.shareMode === 'string';
-
-  if (hasLocked && hasMode) {
-    return;
-  }
+  const hasAutoDate = current && (current.automaticEffectiveDate === null || typeof current.automaticEffectiveDate === 'string');
+  if (hasAutoDate) return;
 
   const nextFundSettings = {
     ...getDefaultFundSettings(),
@@ -1040,152 +1225,137 @@ async function loadFundsSummaryCards(container) {
 
   await ensureFundSettingsInitialized();
 
+  const lookupData = await loadLookup('lookup-data.json');
+  const accountTypeNameById = new Map((lookupData?.accountTypes || []).map((t) => [Number(t.id), t.name]));
+  const getAccountTypeId = (account) => {
+    const raw = account?.type;
+    if (raw && typeof raw === 'object') {
+      const id = Number(raw?.id);
+      return Number.isFinite(id) ? id : 0;
+    }
+    const id = Number(raw);
+    return Number.isFinite(id) ? id : 0;
+  };
+  const getAccountTypeName = (account) => accountTypeNameById.get(getAccountTypeId(account)) || '';
+  const scopeTypeId = (scopeName) => {
+    if (!scopeName || scopeName === 'All') return 0;
+    const found = (lookupData?.accountTypes || []).find((t) => t.name === scopeName);
+    return found ? Number(found.id) : 0;
+  };
+
   const accounts = currentScenario.accounts || [];
   const projectionsIndex = buildProjectionsIndex(currentScenario.projections || []);
   const fundSettings = currentScenario.fundSettings || getDefaultFundSettings();
 
   const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
 
-  container.innerHTML = '';
+  const scrollSnapshot = getPageScrollSnapshot();
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'grid-toolbar summary-cards-toolbar';
+  // Keep toolbar stable. If a different summary type was previously rendered, rebuild once.
+  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
+  let scopeSelect = container.querySelector('#fund-summary-scope');
+  const isFundsToolbar = !!scopeSelect;
+  if (!toolbar || !isFundsToolbar) {
+    container.innerHTML = '';
 
-  const scopeItem = document.createElement('div');
-  scopeItem.className = 'toolbar-item';
-  scopeItem.innerHTML = `
-    <label for="fund-summary-scope" class="text-muted control-label">Scope:</label>
-    <select id="fund-summary-scope" class="input-select control-select">
-      ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
-    </select>
-  `;
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar summary-cards-toolbar';
 
-  const modeItem = document.createElement('div');
-  modeItem.className = 'toolbar-item';
-  modeItem.innerHTML = `
-    <label for="fund-share-mode" class="text-muted control-label">Shares:</label>
-    <select id="fund-share-mode" class="input-select control-select">
-      <option value="Locked">Locked</option>
-      <option value="Automatic">Automatic</option>
-    </select>
-  `;
+    const scopeItem = document.createElement('div');
+    scopeItem.className = 'toolbar-item';
+    scopeItem.innerHTML = `
+      <label for="fund-summary-scope" class="text-muted control-label">Scope:</label>
+      <select id="fund-summary-scope" class="input-select control-select">
+        ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    `;
 
-  const asOfItem = document.createElement('div');
-  asOfItem.className = 'toolbar-item';
-  asOfItem.innerHTML = `
-    <label for="fund-asof-date" class="text-muted control-label">As of:</label>
-    <input id="fund-asof-date" class="input control-input" type="date" />
-  `;
+    const sharesItem = document.createElement('div');
+    sharesItem.className = 'toolbar-item';
+    sharesItem.innerHTML = `
+      <label for="fund-total-shares" class="text-muted control-label">Total shares:</label>
+      <input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" />
+    `;
 
-  const effectiveItem = document.createElement('div');
-  effectiveItem.className = 'toolbar-item';
-  effectiveItem.innerHTML = `
-    <label for="fund-auto-effective" class="text-muted control-label">Auto from:</label>
-    <input id="fund-auto-effective" class="input control-input" type="date" />
-  `;
+    const refreshItem = document.createElement('div');
+    refreshItem.className = 'toolbar-item';
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'btn btn-primary';
+    refreshButton.textContent = 'Refresh';
+    refreshButton.onclick = async () => {
+      await loadFundsSummaryCards(container);
+    };
+    refreshItem.appendChild(refreshButton);
 
-  const refreshItem = document.createElement('div');
-  refreshItem.className = 'toolbar-item';
-  const refreshButton = document.createElement('button');
-  refreshButton.className = 'btn btn-primary';
-  refreshButton.textContent = 'Refresh';
+    toolbar.appendChild(scopeItem);
+    toolbar.appendChild(sharesItem);
+    toolbar.appendChild(refreshItem);
+    container.appendChild(toolbar);
+  }
 
-  refreshButton.addEventListener('click', async () => {
-    await loadFundsSummaryCards(container);
-  });
-
-  refreshItem.appendChild(refreshButton);
-
-  toolbar.appendChild(scopeItem);
-  toolbar.appendChild(modeItem);
-  toolbar.appendChild(asOfItem);
-  toolbar.appendChild(effectiveItem);
-  toolbar.appendChild(refreshItem);
-  container.appendChild(toolbar);
-
-  const scopeSelect = scopeItem.querySelector('#fund-summary-scope');
-  const modeSelect = modeItem.querySelector('#fund-share-mode');
-  const asOfInput = asOfItem.querySelector('#fund-asof-date');
-  const effectiveInput = effectiveItem.querySelector('#fund-auto-effective');
+  scopeSelect = container.querySelector('#fund-summary-scope');
+  const totalSharesInput = container.querySelector('#fund-total-shares');
 
   if (scopeSelect) {
     scopeSelect.value = scopeOptions.includes(fundSummaryScope) ? fundSummaryScope : 'All';
-    scopeSelect.addEventListener('change', async () => {
+    scopeSelect.onchange = async () => {
       fundSummaryScope = scopeSelect.value;
       await loadFundsSummaryCards(container);
-    });
+    };
   }
 
-  if (modeSelect) {
-    modeSelect.value = fundSettings.shareMode || 'Locked';
-    modeSelect.addEventListener('change', async () => {
-      const nextMode = modeSelect.value;
+
+  // No As-of date control.
+
+  if (totalSharesInput) {
+    const currentTotalShares = Number(fundSettings?.totalShares);
+    totalSharesInput.value = Number.isFinite(currentTotalShares) && currentTotalShares > 0 ? String(currentTotalShares) : '';
+    totalSharesInput.onchange = async () => {
+      const nextValue = Number(totalSharesInput.value);
       const next = {
         ...getDefaultFundSettings(),
         ...(currentScenario.fundSettings || {}),
-        shareMode: nextMode
-      };
-      if (nextMode === 'Automatic' && !next.automaticEffectiveDate) {
-        next.automaticEffectiveDate = currentScenario.startDate || null;
-      }
-      await ScenarioManager.update(currentScenario.id, { fundSettings: next });
-      currentScenario = await getScenario(currentScenario.id);
-      await loadFundsSummaryCards(container);
-    });
-  }
-
-  if (asOfInput) {
-    asOfInput.value = fundSummaryAsOfDate || '';
-    asOfInput.addEventListener('change', async () => {
-      fundSummaryAsOfDate = asOfInput.value || '';
-      await loadFundsSummaryCards(container);
-    });
-  }
-
-  if (effectiveInput) {
-    effectiveInput.value = fundSettings.automaticEffectiveDate || '';
-    const isAuto = (fundSettings.shareMode || 'Locked') === 'Automatic';
-    effectiveInput.disabled = !isAuto;
-
-    effectiveInput.addEventListener('change', async () => {
-      const next = {
-        ...getDefaultFundSettings(),
-        ...(currentScenario.fundSettings || {}),
-        automaticEffectiveDate: effectiveInput.value || null
+        totalShares: Number.isFinite(nextValue) ? nextValue : null
       };
       await ScenarioManager.update(currentScenario.id, { fundSettings: next });
       currentScenario = await getScenario(currentScenario.id);
       await loadFundsSummaryCards(container);
-    });
+    };
   }
 
-  const asOfDate = fundSummaryAsOfDate ? parseDateOnly(fundSummaryAsOfDate) : null;
-  const { nav } = computeNav({ accounts, projectionsIndex, asOfDate });
+  // Shares are always automatic; no share mode or manual share editing.
 
-  const equityAccounts = accounts.filter(a => a?.type?.name === 'Equity');
-  const sharesById = (fundSettings.shareMode === 'Automatic')
-    ? computeAutomaticSharesByAccountId({ scenario: currentScenario, accounts, projectionsIndex, asOfDate, fundSettings })
-    : computeLockedSharesByAccountId({ equityAccounts, fundSettings });
+  const asOfDate = null;
+  const { nav } = computeNav({ accounts, projectionsIndex, asOfDate: null });
+
+  const equityAccounts = accounts.filter((a) => getAccountTypeId(a) === 3);
+  const sharesReport = computeFixedSharesReport({ scenario: currentScenario, accounts, projectionsIndex, asOfDate, fundSettings });
+  const sharesById = sharesReport.sharesById;
 
   const totalShares = Object.values(sharesById).reduce((sum, v) => sum + Number(v || 0), 0);
   const sharePrice = totalShares > 0 ? (nav / totalShares) : null;
 
-  const moneyTotals = computeMoneyTotalsFromTransactions({
-    transactions: currentScenario.transactions || [],
+  const investorTotals = computeContributionRedemptionTotals({
+    scenario: currentScenario,
     accounts,
-    scope: fundSummaryScope
+    asOfDate
   });
+
+  // Clear any previous content below toolbar, but keep the toolbar itself stable.
+  Array.from(container.children)
+    .filter((child) => child !== toolbar)
+    .forEach((child) => child.remove());
 
   const totalsCard = document.createElement('div');
   totalsCard.className = 'summary-card overall-total';
   totalsCard.innerHTML = `
     <div class="summary-card-title">FUND TOTALS</div>
     <div class="summary-card-row"><span class="label">NAV:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
-    <div class="summary-card-row"><span class="label">Total shares:</span><span class="value">${Number.isFinite(totalShares) ? totalShares.toFixed(4) : '0.0000'}</span></div>
-    <div class="summary-card-row"><span class="label">Share price:</span><span class="value">${sharePrice === null ? 'N/A' : formatMoneyDisplay(sharePrice)}</span></div>
-    <div class="summary-card-row"><span class="label">Money In:</span><span class="value">${formatMoneyDisplay(moneyTotals.moneyIn)}</span></div>
-    <div class="summary-card-row"><span class="label">Money Out:</span><span class="value">${formatMoneyDisplay(moneyTotals.moneyOut)}</span></div>
-    <div class="summary-card-row"><span class="label">Net:</span><span class="value">${formatMoneyDisplay(moneyTotals.net)}</span></div>
+    <div class="summary-card-row"><span class="label">Total shares:</span><span class="value neutral">${Number.isFinite(totalShares) ? totalShares.toFixed(4) : '0.0000'}</span></div>
+    <div class="summary-card-row"><span class="label">Share price:</span><span class="value neutral">${sharePrice === null ? 'N/A' : formatMoneyDisplay(sharePrice)}</span></div>
+    <div class="summary-card-row"><span class="label">Contributions:</span><span class="value">${formatMoneyDisplay(investorTotals.contributions)}</span></div>
+    <div class="summary-card-row"><span class="label">Redemptions:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(investorTotals.redemptions || 0))}</span></div>
+    <div class="summary-card-row"><span class="label">Net:</span><span class="value">${formatMoneyDisplay(investorTotals.net)}</span></div>
   `;
   container.appendChild(totalsCard);
 
@@ -1219,21 +1389,31 @@ async function loadFundsSummaryCards(container) {
       };
     });
 
-    const isLocked = (fundSettings.shareMode || 'Locked') === 'Locked';
+    const columnsKey = 'funds-equity';
+    const shouldRebuild = !fundSummaryTable || fundSummaryTable?.element !== detailGrid || fundSummaryTable?.__ftrackColumnsKey !== columnsKey;
+    if (shouldRebuild) {
+      try {
+        fundSummaryTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
 
-    await createGrid(detailGrid, {
-      data: rows,
-      headerWordWrap: false,
-      columns: [
+      fundSummaryTable = await createGrid(detailGrid, {
+        data: rows,
+        headerWordWrap: false,
+        columns: [
         { title: 'Investor', field: 'name', headerSort: false },
         {
           title: 'Shares',
           field: 'shares',
           headerSort: false,
           hozAlign: 'right',
-          editor: isLocked ? 'number' : false,
-          editorParams: isLocked ? { step: 0.0001 } : undefined,
+          bottomCalc: 'sum',
           formatter: (cell) => {
+            const v = Number(cell.getValue() || 0);
+            return v.toFixed(4);
+          },
+          bottomCalcFormatter: (cell) => {
             const v = Number(cell.getValue() || 0);
             return v.toFixed(4);
           }
@@ -1252,65 +1432,89 @@ async function loadFundsSummaryCards(container) {
           title: 'Implied Value',
           field: 'impliedValue',
           headerSort: false,
-          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+          bottomCalc: 'sum',
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
+          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
         },
         {
           title: 'Net Contributions',
           field: 'contributions',
           headerSort: false,
-          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+          bottomCalc: 'sum',
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
+          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
         },
         {
           title: 'Net Redemptions',
           field: 'redemptions',
           headerSort: false,
-          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+          bottomCalc: 'sum',
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
+          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
         }
-      ],
-      cellEdited: async (cell) => {
-        if (!isLocked) return;
-        if (cell.getField() !== 'shares') return;
+        ]
+      });
 
-        const row = cell.getRow().getData();
-        const nextShares = Number(cell.getValue() || 0);
-
-        const next = {
-          ...getDefaultFundSettings(),
-          ...(currentScenario.fundSettings || {})
-        };
-        next.lockedSharesByAccountId = { ...(next.lockedSharesByAccountId || {}) };
-        next.lockedSharesByAccountId[row.accountId] = Number.isFinite(nextShares) ? nextShares : 0;
-
-        await ScenarioManager.update(currentScenario.id, { fundSettings: next });
-        currentScenario = await getScenario(currentScenario.id);
-        await loadFundsSummaryCards(container);
-      }
-    });
+      fundSummaryTable.__ftrackColumnsKey = columnsKey;
+    } else {
+      await refreshGridData(fundSummaryTable, rows);
+    }
   } else {
+    const selectedScopeTypeId = scopeTypeId(fundSummaryScope);
     const filteredAccounts = fundSummaryScope === 'All'
       ? accounts
-      : accounts.filter(a => a?.type?.name === fundSummaryScope);
+      : accounts.filter((a) => getAccountTypeId(a) === selectedScopeTypeId);
 
     const data = filteredAccounts.map(a => {
       const balance = getBalanceAsOf({ account: a, projectionsIndex, asOfDate });
       return {
         name: a.name || 'Unnamed',
-        type: a?.type?.name || '',
+        type: getAccountTypeName(a),
         balance
       };
     });
 
-    await createGrid(detailGrid, {
-      data,
-      headerWordWrap: false,
-      ...(fundSummaryScope === 'All' ? { groupBy: 'type' } : {}),
-      columns: [
+    const columnsKey = fundSummaryScope === 'All' ? 'funds-accounts-grouped' : 'funds-accounts-flat';
+    const shouldRebuild = !fundSummaryTable || fundSummaryTable?.element !== detailGrid || fundSummaryTable?.__ftrackColumnsKey !== columnsKey;
+    if (shouldRebuild) {
+      try {
+        fundSummaryTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      fundSummaryTable = await createGrid(detailGrid, {
+        data,
+        headerWordWrap: false,
+        ...(fundSummaryScope === 'All' ? { groupBy: 'type' } : {}),
+        columns: [
         { title: 'Account', field: 'name', headerSort: false },
         ...(fundSummaryScope === 'All' ? [{ title: 'Type', field: 'type', headerSort: false }] : []),
-        { title: 'Balance', field: 'balance', headerSort: false, formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0) }
-      ]
-    });
+        {
+          title: 'Balance',
+          field: 'balance',
+          headerSort: false,
+          bottomCalc: 'sum',
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
+          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+        }
+        ]
+      });
+
+      fundSummaryTable.__ftrackColumnsKey = columnsKey;
+    } else {
+      await refreshGridData(fundSummaryTable, data);
+    }
+
+    if (fundSummaryScope === 'All' && fundSummaryTable?.setGroupHeader) {
+      fundSummaryTable.setGroupHeader((value, count, data) => {
+        const subtotal = (data || []).reduce((sum, row) => sum + Number(row?.balance || 0), 0);
+        return `${value} (${count} items, Subtotal: ${formatMoneyDisplay(subtotal)})`;
+      });
+    }
   }
+
+  restorePageScroll(scrollSnapshot);
 }
 
 async function loadGeneralSummaryCards(container) {
@@ -1323,49 +1527,322 @@ async function loadGeneralSummaryCards(container) {
     return;
   }
 
-  if (!masterTransactionsTable) {
-    container.innerHTML = '<div class="empty-message">No transactions to summarize yet.</div>';
+  const accounts = currentScenario.accounts || [];
+  if (!accounts.length) {
+    container.innerHTML = '<div class="empty-message">No accounts to summarize yet.</div>';
     return;
   }
 
-  const rows = masterTransactionsTable.getData('active') || [];
-  if (!rows.length) {
-    container.innerHTML = '<div class="empty-message">No transactions to summarize yet.</div>';
+  const lookupData = await loadLookup('lookup-data.json');
+  const accountTypeNameById = new Map((lookupData?.accountTypes || []).map((t) => [Number(t.id), t.name]));
+  const getAccountTypeId = (account) => {
+    const raw = account?.type;
+    if (raw && typeof raw === 'object') {
+      const id = Number(raw?.id);
+      return Number.isFinite(id) ? id : 0;
+    }
+    const id = Number(raw);
+    return Number.isFinite(id) ? id : 0;
+  };
+  const getAccountTypeName = (account) => accountTypeNameById.get(getAccountTypeId(account)) || '';
+  const scopeTypeId = (scopeName) => {
+    if (!scopeName || scopeName === 'All') return 0;
+    const found = (lookupData?.accountTypes || []).find((t) => t.name === scopeName);
+    return found ? Number(found.id) : 0;
+  };
+
+  const projectionsIndex = buildProjectionsIndex(currentScenario.projections || []);
+  const scrollSnapshot = getPageScrollSnapshot();
+
+  const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
+
+  // Keep toolbar stable (avoid losing focus/scroll between refreshes).
+  // If a different summary type was previously rendered, rebuild once.
+  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
+  let typeSelect = container.querySelector('#general-summary-type-filter');
+  let accountSelect = container.querySelector('#general-summary-account');
+  const isGeneralToolbar = !!typeSelect && !!accountSelect;
+  if (!toolbar || !isGeneralToolbar) {
+    container.innerHTML = '';
+
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar summary-cards-toolbar';
+
+    const typeItem = document.createElement('div');
+    typeItem.className = 'toolbar-item';
+    typeItem.innerHTML = `
+      <label for="general-summary-type-filter" class="text-muted control-label">Account Type:</label>
+      <select id="general-summary-type-filter" class="input-select control-select">
+        ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    `;
+
+    const accountItem = document.createElement('div');
+    accountItem.className = 'toolbar-item';
+    accountItem.innerHTML = `
+      <label for="general-summary-account" class="text-muted control-label">Account:</label>
+      <select id="general-summary-account" class="input-select control-select"></select>
+    `;
+
+    toolbar.appendChild(typeItem);
+    toolbar.appendChild(accountItem);
+    container.appendChild(toolbar);
+  }
+
+  typeSelect = container.querySelector('#general-summary-type-filter');
+  accountSelect = container.querySelector('#general-summary-account');
+
+  if (typeSelect) {
+    typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
+    typeSelect.onchange = async () => {
+      generalSummaryScope = typeSelect.value;
+      await loadGeneralSummaryCards(container);
+    };
+  }
+
+  if (accountSelect) {
+    const selectedId = Number(generalSummaryAccountId) || 0;
+    const options = ['<option value="0">All</option>']
+      .concat(
+        accounts
+          .slice()
+          .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+          .map((a) => `<option value="${Number(a.id)}">${String(a.name || 'Unnamed')}</option>`)
+      )
+      .join('');
+
+    if (accountSelect.__ftrackLastOptions !== options) {
+      accountSelect.innerHTML = options;
+      accountSelect.__ftrackLastOptions = options;
+    }
+
+    const currentHasSelected = Array.from(accountSelect.options || []).some((o) => Number(o.value) === selectedId);
+    accountSelect.value = currentHasSelected ? String(selectedId) : '0';
+    generalSummaryAccountId = Number(accountSelect.value) || 0;
+
+    accountSelect.onchange = async () => {
+      generalSummaryAccountId = Number(accountSelect.value) || 0;
+      await loadGeneralSummaryCards(container);
+    };
+  }
+
+  // Clear any previous empty messages.
+  container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
+
+  const selectedScopeTypeId = scopeTypeId(generalSummaryScope);
+  let filteredAccounts = generalSummaryScope === 'All'
+    ? accounts
+    : accounts.filter((a) => getAccountTypeId(a) === selectedScopeTypeId);
+
+  if (Number(generalSummaryAccountId) > 0) {
+    filteredAccounts = filteredAccounts.filter((a) => Number(a.id) === Number(generalSummaryAccountId));
+  }
+
+  if (!filteredAccounts.length) {
+    let emptyMessage = container.querySelector(':scope > .empty-message');
+    if (!emptyMessage) {
+      emptyMessage = document.createElement('div');
+      emptyMessage.className = 'empty-message';
+      container.appendChild(emptyMessage);
+    }
+    emptyMessage.textContent = 'No accounts match this filter.';
+
+    const existingGroups = container.querySelector(':scope > .summary-cards-groups');
+    if (existingGroups) existingGroups.innerHTML = '';
+
+    const existingDetail = container.querySelector(':scope > .general-summary-details');
+    if (existingDetail) existingDetail.remove();
+
+    restorePageScroll(scrollSnapshot);
     return;
   }
 
-  const totals = calculateCategoryTotals(rows, {
-    amountField: 'amount',
-    typeField: 'transactionType',
-    typeNameField: 'transactionTypeName',
-    typeIdField: 'transactionTypeId'
+  // Build Debt-style grouped account cards (excluding Zero Date).
+  let groupWrapper = container.querySelector(':scope > .summary-cards-groups');
+  if (!groupWrapper) {
+    groupWrapper = document.createElement('div');
+    groupWrapper.className = 'summary-cards-groups';
+
+    // Insert after toolbar, before the detail grid.
+    if (toolbar && toolbar.parentNode === container) {
+      if (toolbar.nextSibling) container.insertBefore(groupWrapper, toolbar.nextSibling);
+      else container.appendChild(groupWrapper);
+    } else {
+      container.appendChild(groupWrapper);
+    }
+  }
+
+  groupWrapper.innerHTML = '';
+
+  const groupedAccounts = filteredAccounts.reduce((groups, account) => {
+    const typeName = getAccountTypeName(account) || 'Unknown';
+    if (!groups[typeName]) {
+      groups[typeName] = [];
+    }
+    groups[typeName].push(account);
+    return groups;
+  }, {});
+
+  const orderedGroupKeys = (() => {
+    const preferredOrder = ['Liability', 'Asset', 'Equity', 'Income', 'Expense'];
+    const remaining = Object.keys(groupedAccounts).filter(key => !preferredOrder.includes(key)).sort();
+    if (generalSummaryScope !== 'All') {
+      return Object.keys(groupedAccounts);
+    }
+    return [...preferredOrder.filter(key => groupedAccounts[key]), ...remaining];
+  })();
+
+  let totalStarting = 0;
+  let totalProjectedEnd = 0;
+  let totalInterestEarned = 0;
+  let totalInterestPaid = 0;
+
+  const getAccountProjections = (accountId) => projectionsIndex?.byAccountId?.get?.(accountId) || [];
+
+  for (const groupKey of orderedGroupKeys) {
+    const groupContainer = document.createElement('div');
+    groupContainer.className = 'summary-cards-group';
+
+    const groupTitle = document.createElement('div');
+    groupTitle.className = 'summary-cards-group-title';
+    groupTitle.textContent = groupKey;
+    groupContainer.appendChild(groupTitle);
+
+    const grid = document.createElement('div');
+    grid.className = 'summary-cards-grid';
+
+    for (const account of groupedAccounts[groupKey] || []) {
+      const startingBalance = account?.startingBalance ?? account?.balance ?? 0;
+      totalStarting += Number(startingBalance || 0);
+
+      const accountProjections = getAccountProjections(account?.id);
+      const projectedEnd = accountProjections.length
+        ? (accountProjections[accountProjections.length - 1]?.balance ?? startingBalance)
+        : startingBalance;
+      totalProjectedEnd += Number(projectedEnd || 0);
+
+      let interestEarned = 0;
+      let interestPaid = 0;
+      for (const p of accountProjections) {
+        const interest = Number(p?.interest || 0);
+        if (interest >= 0) interestEarned += interest;
+        else interestPaid += interest;
+      }
+      totalInterestEarned += interestEarned;
+      totalInterestPaid += interestPaid;
+
+      const card = document.createElement('div');
+      card.className = 'summary-card';
+      card.innerHTML = `
+        <div class="summary-card-title">${account?.name || 'Unnamed'}</div>
+        <div class="summary-card-row"><span class="label">Starting Balance:</span><span class="value">${formatMoneyDisplay(startingBalance)}</span></div>
+        <div class="summary-card-row"><span class="label">Projected End:</span><span class="value">${formatMoneyDisplay(projectedEnd)}</span></div>
+        <div class="summary-card-row"><span class="label">Interest Earned:</span><span class="value interest-earned">${formatMoneyDisplay(interestEarned)}</span></div>
+        <div class="summary-card-row"><span class="label">Interest Paid:</span><span class="value interest-paid">${formatMoneyDisplay(interestPaid)}</span></div>
+      `;
+      grid.appendChild(card);
+    }
+
+    groupContainer.appendChild(grid);
+    groupWrapper.appendChild(groupContainer);
+  }
+
+  const { nav, totalAssets, totalLiabilities } = computeNav({ accounts: filteredAccounts, projectionsIndex, asOfDate: null });
+  const totalCard = document.createElement('div');
+  totalCard.className = 'summary-card overall-total';
+  totalCard.innerHTML = `
+    <div class="summary-card-title">OVERALL TOTAL</div>
+    <div class="summary-card-row"><span class="label">Starting Balance:</span><span class="value">${formatMoneyDisplay(totalStarting)}</span></div>
+    <div class="summary-card-row"><span class="label">Projected End:</span><span class="value">${formatMoneyDisplay(totalProjectedEnd)}</span></div>
+    <div class="summary-card-row"><span class="label">Interest Earned:</span><span class="value interest-earned">${formatMoneyDisplay(totalInterestEarned)}</span></div>
+    <div class="summary-card-row"><span class="label">Interest Paid:</span><span class="value interest-paid">${formatMoneyDisplay(totalInterestPaid)}</span></div>
+    <div class="summary-card-row"><span class="label">Net Worth:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
+    <div class="summary-card-row"><span class="label">Total Assets:</span><span class="value positive">${formatMoneyDisplay(totalAssets)}</span></div>
+    <div class="summary-card-row"><span class="label">Total Liabilities:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(totalLiabilities || 0))}</span></div>
+    <div class="summary-card-row"><span class="label">Accounts:</span><span class="value">${filteredAccounts.length}</span></div>
+  `;
+  groupWrapper.appendChild(totalCard);
+
+  // Funds-style detail grid (stable DOM node so Tabulator instance can be reused).
+  let detailWrap = container.querySelector(':scope > .general-summary-details');
+  let detailTitle = detailWrap?.querySelector(':scope > .summary-cards-group-title') || null;
+  let detailGrid = detailWrap?.querySelector(':scope > .grid-container') || null;
+
+  if (!detailWrap || !detailTitle || !detailGrid) {
+    if (detailWrap) detailWrap.remove();
+
+    detailWrap = document.createElement('div');
+    detailWrap.className = 'summary-cards-group general-summary-details';
+    detailTitle = document.createElement('div');
+    detailTitle.className = 'summary-cards-group-title';
+    detailWrap.appendChild(detailTitle);
+
+    detailGrid = document.createElement('div');
+    detailGrid.className = 'grid-container';
+    detailWrap.appendChild(detailGrid);
+
+    container.appendChild(detailWrap);
+  }
+
+  const selectedAccountName = Number(generalSummaryAccountId) > 0
+    ? (accounts.find((a) => Number(a.id) === Number(generalSummaryAccountId))?.name || 'Account')
+    : null;
+  detailTitle.textContent = selectedAccountName
+    ? selectedAccountName
+    : (generalSummaryScope === 'All' ? 'All Accounts' : `${generalSummaryScope} Accounts`);
+
+  const data = filteredAccounts.map((a) => {
+    const balance = getBalanceAsOf({ account: a, projectionsIndex, asOfDate: null });
+    return {
+      accountId: Number(a.id) || 0,
+      name: a.name || 'Unnamed',
+      type: getAccountTypeName(a),
+      balance
+    };
   });
 
-  container.innerHTML = '';
+  const shouldGroup = generalSummaryScope === 'All' && Number(generalSummaryAccountId) === 0;
+  const columnsKey = shouldGroup ? 'general-accounts-grouped' : 'general-accounts-flat';
+  const shouldRebuild = !generalSummaryTable || generalSummaryTable?.element !== detailGrid || generalSummaryTable?.__ftrackColumnsKey !== columnsKey;
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'summary-cards-groups';
+  if (shouldRebuild) {
+    try {
+      generalSummaryTable?.destroy?.();
+    } catch (_) {
+      // ignore
+    }
 
-  const card = document.createElement('div');
-  card.className = 'summary-card overall-total';
-  card.innerHTML = `
-    <div class="summary-card-title">OVERALL TOTAL</div>
-    <div class="summary-card-row">
-      <span class="label">Money In:</span>
-      <span class="value positive">${formatMoneyDisplay(totals.moneyIn || 0)}</span>
-    </div>
-    <div class="summary-card-row">
-      <span class="label">Money Out:</span>
-      <span class="value negative">${formatMoneyDisplay(totals.moneyOut || 0)}</span>
-    </div>
-    <div class="summary-card-row">
-      <span class="label">Net:</span>
-      <span class="value ${totals.net >= 0 ? 'positive' : 'negative'}">${formatMoneyDisplay(totals.net || 0)}</span>
-    </div>
-  `;
+    generalSummaryTable = await createGrid(detailGrid, {
+      data,
+      headerWordWrap: false,
+      ...(shouldGroup ? { groupBy: 'type' } : {}),
+      columns: [
+        { title: 'Account', field: 'name', headerSort: false },
+        ...(shouldGroup ? [{ title: 'Type', field: 'type', headerSort: false }] : []),
+        {
+          title: 'Balance',
+          field: 'balance',
+          headerSort: false,
+          bottomCalc: 'sum',
+          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
+          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+        }
+      ]
+    });
 
-  wrapper.appendChild(card);
-  container.appendChild(wrapper);
+    generalSummaryTable.__ftrackColumnsKey = columnsKey;
+  } else {
+    await refreshGridData(generalSummaryTable, data);
+  }
+
+  if (shouldGroup && generalSummaryTable?.setGroupHeader) {
+    generalSummaryTable.setGroupHeader((value, count, rows) => {
+      const subtotal = (rows || []).reduce((sum, row) => sum + Number(row?.balance || 0), 0);
+      return `${value} (${count} items, Subtotal: ${formatMoneyDisplay(subtotal)})`;
+    });
+  }
+
+  restorePageScroll(scrollSnapshot);
 }
 
 async function loadSummaryCards(container) {
@@ -1417,9 +1894,9 @@ async function loadProjectionsSection(container) {
     },
     getScenarioTypeConfig,
     state: {
-      getTransactionFilterAccountId: () => transactionFilterAccountId,
-      setTransactionFilterAccountId: (nextId) => {
-        transactionFilterAccountId = nextId;
+      getProjectionAccountFilterId: () => projectionsAccountFilterId,
+      setProjectionAccountFilterId: (nextId) => {
+        projectionsAccountFilterId = nextId;
       },
       getProjectionPeriod: () => projectionPeriod,
       setProjectionPeriod: (nextPeriod) => {
@@ -1462,9 +1939,9 @@ async function loadProjectionsGrid(container) {
       }
     },
     state: {
-      getTransactionFilterAccountId: () => transactionFilterAccountId,
-      setTransactionFilterAccountId: (nextId) => {
-        transactionFilterAccountId = nextId;
+      getProjectionAccountFilterId: () => projectionsAccountFilterId,
+      setProjectionAccountFilterId: (nextId) => {
+        projectionsAccountFilterId = nextId;
       },
       getProjectionPeriod: () => projectionPeriod,
       setProjectionPeriod: (nextPeriod) => {
@@ -1525,9 +2002,9 @@ async function loadScenarioData() {
     if (typeConfig.showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
   }
 
-  // Clear downstream grids to prevent ghost data
-  containers.transactionsTable.innerHTML = '<div class="empty-message">Loading...</div>';
-  containers.budgetTable.innerHTML = '<div class="empty-message">Loading...</div>';
+  // Clear any stale placeholders without destroying stable grid containers.
+  containers.transactionsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
+  containers.budgetTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
   await loadAccountsGrid(containers.accountsTable);
   

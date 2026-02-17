@@ -1,6 +1,6 @@
 {
   "name": "ftrack",
-  "version": "0.8.1-alpha",
+  "version": "0.8.2-beta",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -71,8 +71,7 @@
     "win": {
       "target": [
         "portable"
-      ],
-      "icon": "assets/icon.ico"
+      ]
     },
     "mac": {
       "target": [
@@ -80,7 +79,6 @@
         "zip"
       ],
       "category": "public.app-category.finance",
-      "icon": "assets/icon.icns",
       "identity": null
     },
     "linux": {
@@ -88,8 +86,7 @@
         "AppImage",
         "deb"
       ],
-      "category": "Finance",
-      "icon": "assets/icon.png"
+      "category": "Finance"
     },
     "nsis": {
       "oneClick": false,
