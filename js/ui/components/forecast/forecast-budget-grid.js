@@ -5,7 +5,7 @@ import { createGrid, createDeleteColumn, createTextColumn, createMoneyColumn, cr
 import { attachGridHandlers } from '../grids/grid-handlers.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
-import { notifyError } from '../../../shared/notifications.js';
+import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from '../grids/grid-state.js';
@@ -131,6 +131,41 @@ export async function loadBudgetGrid({
       }
     });
     window.add(buttonContainer, clearButton);
+
+    const regenerateFromProjectionsButton = document.createElement('button');
+    regenerateFromProjectionsButton.className = 'btn btn-primary';
+    regenerateFromProjectionsButton.textContent = 'Regenerate Budget from Projections.';
+    regenerateFromProjectionsButton.addEventListener('click', async () => {
+      try {
+        currentScenario = scenarioState?.get?.();
+
+        if (!currentScenario.projections || currentScenario.projections.length === 0) {
+          notifyError('No projections to save as budget. Generate projections first.');
+          return;
+        }
+
+        const confirmed = confirm('Save current projection as Budget? This will replace any existing budget.');
+        if (!confirmed) return;
+
+        regenerateFromProjectionsButton.textContent = 'Saving...';
+        regenerateFromProjectionsButton.disabled = true;
+
+        await BudgetManager.createFromProjections(currentScenario.id, currentScenario.projections);
+
+        const refreshed = await getScenario(currentScenario.id);
+        scenarioState?.set?.(refreshed);
+
+        await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+
+        notifySuccess('Budget saved successfully!');
+      } catch (err) {
+        notifyError('Failed to save budget: ' + err.message);
+      } finally {
+        regenerateFromProjectionsButton.textContent = 'Regenerate Budget from Projections.';
+        regenerateFromProjectionsButton.disabled = false;
+      }
+    });
+    window.add(buttonContainer, regenerateFromProjectionsButton);
 
     window.add(toolbar, buttonContainer);
 

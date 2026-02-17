@@ -6,8 +6,6 @@ import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 
-import * as BudgetManager from '../../../app/managers/budget-manager.js';
-
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
 
@@ -103,41 +101,6 @@ export async function loadProjectionsSection({
     }
   });
   window.add(buttonContainer, clearButton);
-
-  const saveBudgetButton = document.createElement('button');
-  saveBudgetButton.className = 'btn btn-primary';
-  saveBudgetButton.textContent = 'Save as Budget';
-  saveBudgetButton.addEventListener('click', async () => {
-    try {
-      currentScenario = scenarioState?.get?.();
-
-      if (!currentScenario.projections || currentScenario.projections.length === 0) {
-        notifyError('No projections to save as budget. Generate projections first.');
-        return;
-      }
-
-      const confirmed = confirm('Save current projection as Budget? This will replace any existing budget.');
-      if (!confirmed) return;
-
-      saveBudgetButton.textContent = 'Saving...';
-      saveBudgetButton.disabled = true;
-
-      await BudgetManager.createFromProjections(currentScenario.id, currentScenario.projections);
-
-      const refreshed = await getScenario(currentScenario.id);
-      scenarioState?.set?.(refreshed);
-
-      await callbacks?.loadBudgetGrid?.(callbacks?.getEl?.('budgetTable'));
-
-      notifySuccess('Budget saved successfully!');
-    } catch (err) {
-      notifyError('Failed to save budget: ' + err.message);
-    } finally {
-      saveBudgetButton.textContent = 'Save as Budget';
-      saveBudgetButton.disabled = false;
-    }
-  });
-  window.add(buttonContainer, saveBudgetButton);
 
   window.add(toolbar, buttonContainer);
 

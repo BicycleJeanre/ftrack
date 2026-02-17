@@ -96,7 +96,7 @@
 - Ensure the generated plan is one-step and creates transactions:
   - the selected income account is automatically set as the secondary account.
 
-### 2.8 Projected balance total on projections should show lost value and first value. For projections, add group by for account type. For account, group by secondary account and not account. Rename to secondary account as well. To totals, I want a starting balance and an ending balance. The third one should be on the net change column. I need a subtotal for net changes. Also, ensure we obviously have subtotals on our group by section similar to all other grids.
+### 2.8 Projected balance total on projections should show lost value and first value. For projections, add group by for account type. For account, group by secondary account and not account. Rename to secondary account as well. To totals, I want a starting balance and an ending balance. The third one should be on the net change column. I need a subtotal for net changes. Also, ensure we obviously have subtotals on our group by section similar to all other grids. [Done]
 
 - Projections accordion totals updates:
   - current totals for income, expenses, and net remain unchanged (they are correct).
@@ -106,7 +106,7 @@
 - Subtotal behavior change:
   - projected balance column subtotal should show projected balance (final day) (not a sum total).
 
-### 2.9 Move the "Save as Budget" button from Projections to the Budget Grid as "Regenerate Budget from Projections."
+### 2.9 Move the "Save as Budget" button from Projections to the Budget Grid as "Regenerate Budget from Projections." [Done]
 
 - Move the button only (no behavior changes):
   - take the existing "Save as Budget" logic and move the entry point to the Budget grid
