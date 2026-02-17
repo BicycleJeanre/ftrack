@@ -5,6 +5,7 @@ import { parseDateOnly } from '../../../shared/date-utils.js';
 
 export function getFilteredProjections({
   currentScenario,
+  projectionsAccountFilterId,
   transactionFilterAccountId,
   projectionPeriod,
   projectionPeriods
@@ -13,10 +14,12 @@ export function getFilteredProjections({
 
   let filtered = currentScenario.projections || [];
 
-  if (transactionFilterAccountId) {
-    const accountExists = (currentScenario.accounts || []).some((a) => Number(a.id) === Number(transactionFilterAccountId));
+  const accountFilterId = projectionsAccountFilterId ?? transactionFilterAccountId;
+
+  if (accountFilterId) {
+    const accountExists = (currentScenario.accounts || []).some((a) => Number(a.id) === Number(accountFilterId));
     if (accountExists) {
-      filtered = filtered.filter((p) => Number(p.accountId) === Number(transactionFilterAccountId));
+      filtered = filtered.filter((p) => Number(p.accountId) === Number(accountFilterId));
     }
   }
 

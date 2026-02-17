@@ -1,10 +1,11 @@
 // forecast-projections-section.js
 // Projections section/grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, createDateColumn, createTextColumn, createMoneyColumn, formatMoneyDisplay } from '../grids/grid-factory.js';
+import { createGrid, refreshGridData, createDateColumn, createTextColumn, createMoneyColumn, formatMoneyDisplay } from '../grids/grid-factory.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
+import { GridStateManager } from '../grids/grid-state.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
@@ -12,6 +13,9 @@ import { generateProjections, clearProjections } from '../../../domain/calculati
 import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
 import { calculatePeriodicChange } from '../../../domain/calculations/calculation-engine.js';
 import { expandPeriodicChangeForCalculation } from '../../../domain/calculations/periodic-change-utils.js';
+
+const projectionsGridState = new GridStateManager('projections');
+let lastProjectionsTable = null;
 
 export async function loadProjectionsSection({
   container,
@@ -25,7 +29,26 @@ export async function loadProjectionsSection({
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
-  container.innerHTML = '';
+  try {
+    projectionsGridState.capture(lastProjectionsTable, {
+      groupBy: '#projections-grouping-select',
+      account: '#projections-account-filter-select'
+    });
+  } catch (_) {
+    // ignore
+  }
+
+  // Keep the grid container stable to reduce scroll jumps.
+  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
+  existingToolbars.forEach((el) => el.remove());
+
+  let projectionsGridContainer = container.querySelector('#projectionsGrid');
+  if (!projectionsGridContainer) {
+    projectionsGridContainer = document.createElement('div');
+    projectionsGridContainer.id = 'projectionsGrid';
+    projectionsGridContainer.className = 'grid-container projections-grid';
+    window.add(container, projectionsGridContainer);
+  }
 
   const toolbar = document.createElement('div');
   toolbar.className = 'grid-toolbar';
@@ -154,7 +177,8 @@ export async function loadProjectionsSection({
   totalsInline.className = 'toolbar-item toolbar-totals';
   toolbar.appendChild(totalsInline);
 
-  window.add(container, toolbar);
+  // Insert toolbar above the grid so it doesn't jump to the bottom on refresh.
+  container.insertBefore(toolbar, projectionsGridContainer);
 
   const periodTypeSelect = document.getElementById('projections-period-type-select');
   if (periodTypeSelect) {
@@ -250,50 +274,22 @@ export async function loadProjectionsSection({
     });
 
     const firstAccountId = currentScenario.accounts?.[0]?.id;
-    const currentTxFilter = state?.getTransactionFilterAccountId?.();
+    const currentProjectionAccountFilter = state?.getProjectionAccountFilterId?.();
 
     const isValidAccountId = (id) => (currentScenario.accounts || []).some((a) => Number(a.id) === Number(id));
-    const initialAccountId = isValidAccountId(currentTxFilter) ? currentTxFilter : (firstAccountId || null);
+    const initialAccountId = isValidAccountId(currentProjectionAccountFilter)
+      ? currentProjectionAccountFilter
+      : (firstAccountId || null);
 
     projectionsAccountFilterSelect.value = initialAccountId || '';
 
-    if (!isValidAccountId(currentTxFilter)) {
-      state?.setTransactionFilterAccountId?.(initialAccountId);
+    if (!isValidAccountId(currentProjectionAccountFilter)) {
+      state?.setProjectionAccountFilterId?.(initialAccountId);
     }
 
     projectionsAccountFilterSelect.addEventListener('change', async (e) => {
       const nextId = e.target.value ? Number(e.target.value) : null;
-      state?.setTransactionFilterAccountId?.(nextId);
-
-      const masterTransactionsTable = tables?.getMasterTransactionsTable?.();
-      if (masterTransactionsTable) {
-        if (nextId) {
-          masterTransactionsTable.setFilter((data) => {
-            if (!data.perspectiveAccountId) return true;
-            return Number(data.perspectiveAccountId) === nextId;
-          });
-        } else {
-          masterTransactionsTable.setFilter((data) => {
-            return !String(data.id).includes('_flipped');
-          });
-        }
-        callbacks?.updateTransactionTotals?.();
-      }
-
-      const masterBudgetTable = tables?.getMasterBudgetTable?.();
-      if (masterBudgetTable) {
-        if (nextId) {
-          masterBudgetTable.setFilter((data) => {
-            if (!data.perspectiveAccountId) return true;
-            return Number(data.perspectiveAccountId) === nextId;
-          });
-        } else {
-          masterBudgetTable.setFilter((data) => {
-            return !String(data.id).includes('_flipped');
-          });
-        }
-        callbacks?.updateBudgetTotals?.();
-      }
+      state?.setProjectionAccountFilterId?.(nextId);
 
       const gridContainer = document.getElementById('projectionsGrid');
       if (gridContainer) {
@@ -310,11 +306,6 @@ export async function loadProjectionsSection({
     });
   }
 
-  const projectionsGridContainer = document.createElement('div');
-  projectionsGridContainer.id = 'projectionsGrid';
-  projectionsGridContainer.className = 'grid-container projections-grid';
-  window.add(container, projectionsGridContainer);
-
   await loadProjectionsGrid({
     container: projectionsGridContainer,
     scenarioState,
@@ -323,13 +314,30 @@ export async function loadProjectionsSection({
     callbacks,
     logger
   });
+
+  try {
+    projectionsGridState.restore(lastProjectionsTable, { restoreGroupBy: false });
+    projectionsGridState.restoreDropdowns({
+      groupBy: '#projections-grouping-select',
+      account: '#projections-account-filter-select'
+    }, { dispatchChange: false });
+
+    const projectionsAccountFilterSelect = document.getElementById('projections-account-filter-select');
+    if (projectionsAccountFilterSelect) {
+      const nextId = projectionsAccountFilterSelect.value ? Number(projectionsAccountFilterSelect.value) : null;
+      state?.setProjectionAccountFilterId?.(nextId);
+    }
+  } catch (_) {
+    // ignore
+  }
 }
 
 export async function loadProjectionsGrid({ container, scenarioState, state, tables, callbacks, logger }) {
   const currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
-  container.innerHTML = '';
+  // Keep the grid container stable to reduce scroll jumps.
+  // (We refresh Tabulator data instead of rebuilding DOM.)
 
   try {
     const filteredProjections = callbacks?.getFilteredProjections?.();
@@ -435,7 +443,7 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
     };
 
     const buildCounterpartyRowsForSelectedAccount = () => {
-      const selectedAccountId = state?.getTransactionFilterAccountId?.();
+      const selectedAccountId = state?.getProjectionAccountFilterId?.();
       if (!selectedAccountId) {
         notifyError('Select an Account to group by Secondary Account.');
         return [];
@@ -651,11 +659,36 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
           }
         ];
 
-    const projectionsTable = await createGrid(container, {
-      data: transformedData,
-      layout: 'fitColumns',
-      columns
-    });
+    const columnsKey = isCounterpartyModeAtBuildTime ? 'projections-counterparty' : 'projections-default';
+
+    let projectionsTable = lastProjectionsTable;
+    const shouldRebuildTable =
+      !projectionsTable ||
+      projectionsTable?.element !== container ||
+      projectionsTable?.__ftrackColumnsKey !== columnsKey;
+
+    let didCreateNewTable = false;
+
+    if (shouldRebuildTable) {
+      didCreateNewTable = true;
+      try {
+        projectionsTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      projectionsTable = await createGrid(container, {
+        data: transformedData,
+        layout: 'fitColumns',
+        columns
+      });
+
+      projectionsTable.__ftrackColumnsKey = columnsKey;
+      lastProjectionsTable = projectionsTable;
+    } else {
+      await refreshGridData(projectionsTable, transformedData);
+      lastProjectionsTable = projectionsTable;
+    }
 
     if (projectionsGroupingSelect) {
       const formatGroupLabel = (val) => {
@@ -702,11 +735,15 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
         await loadProjectionsGrid({ container, scenarioState, state, tables, callbacks, logger });
       };
 
-      // Tabulator isn't guaranteed to be built at this point.
-      // Apply grouping after table initialization to avoid initGuard warnings/errors.
-      projectionsTable.on('tableBuilt', () => {
+      if (didCreateNewTable) {
+        // Tabulator isn't guaranteed to be built at this point.
+        // Apply grouping after table initialization to avoid initGuard warnings/errors.
+        projectionsTable.on('tableBuilt', () => {
+          applyGrouping();
+        });
+      } else {
         applyGrouping();
-      });
+      }
     }
 
     callbacks?.updateProjectionTotals?.(callbacks?.getEl?.('projectionsContent'), filteredProjections);

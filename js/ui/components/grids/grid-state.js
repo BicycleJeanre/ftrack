@@ -8,10 +8,22 @@ export class GridStateManager {
 
   capture(table, dropdownSelectors = {}) {
     const tableEl = table?.element || table?.getElement?.() || null;
+    const scrollEl =
+      tableEl?.querySelector?.('.tabulator-tableholder') ||
+      tableEl;
 
-    this.state.scrollTop = tableEl?.scrollTop || 0;
+    this.state.scrollTop = scrollEl?.scrollTop || 0;
     this.state.sorters = table?.getSorters?.() || [];
     this.state.groupBy = table?.getGroupBy?.() ?? table?.options?.groupBy ?? null;
+
+    try {
+      const selected = table?.getSelectedData?.() || [];
+      this.state.selectedRowIds = selected
+        .map((row) => row?.id)
+        .filter((id) => id !== null && id !== undefined);
+    } catch (_) {
+      this.state.selectedRowIds = [];
+    }
 
     Object.entries(dropdownSelectors).forEach(([key, selector]) => {
       const element = document.querySelector(selector);
@@ -25,7 +37,8 @@ export class GridStateManager {
     const {
       restoreSort = true,
       restoreGroupBy = true,
-      restoreScroll = true
+      restoreScroll = true,
+      restoreSelection = true
     } = options;
 
     if (restoreSort && this.state.sorters?.length > 0 && table.setSort) {
@@ -46,19 +59,31 @@ export class GridStateManager {
 
     if (restoreScroll && this.state.scrollTop > 0) {
       const tableEl = table?.element || table?.getElement?.() || null;
-      if (tableEl) {
+      const scrollEl =
+        tableEl?.querySelector?.('.tabulator-tableholder') ||
+        tableEl;
+      if (scrollEl) {
         setTimeout(() => {
           try {
-            tableEl.scrollTop = this.state.scrollTop;
+            scrollEl.scrollTop = this.state.scrollTop;
           } catch (_) {
             // ignore
           }
         }, 50);
       }
     }
+
+    if (restoreSelection && this.state.selectedRowIds?.length > 0 && table.selectRow) {
+      try {
+        table.selectRow(this.state.selectedRowIds);
+      } catch (_) {
+        // ignore
+      }
+    }
   }
 
-  restoreDropdowns(dropdownSelectors = {}) {
+  restoreDropdowns(dropdownSelectors = {}, options = {}) {
+    const { dispatchChange = true } = options;
     Object.entries(dropdownSelectors).forEach(([key, selector]) => {
       const element = document.querySelector(selector);
       const value = this.state.dropdowns[key];
@@ -66,7 +91,9 @@ export class GridStateManager {
       if (value === null || value === undefined) return;
 
       element.value = value;
-      element.dispatchEvent(new Event('change'));
+      if (dispatchChange) {
+        element.dispatchEvent(new Event('change'));
+      }
     });
   }
 
@@ -75,6 +102,7 @@ export class GridStateManager {
       scrollTop: 0,
       sorters: [],
       groupBy: null,
+      selectedRowIds: [],
       dropdowns: {}
     };
   }

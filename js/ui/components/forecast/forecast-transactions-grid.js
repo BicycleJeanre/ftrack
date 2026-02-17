@@ -1,7 +1,7 @@
 // forecast-transactions-grid.js
 // Master transactions grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn } from '../grids/grid-factory.js';
+import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn } from '../grids/grid-factory.js';
 import { attachGridHandlers } from '../grids/grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
@@ -61,7 +61,9 @@ export async function loadMasterTransactionsGrid({
     return;
   }
 
-  container.innerHTML = '';
+  // Keep the grid container stable to reduce scroll jumps.
+  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
+  existingToolbars.forEach((el) => el.remove());
 
   const rerun = async () => {
     await loadMasterTransactionsGrid({
@@ -299,9 +301,12 @@ export async function loadMasterTransactionsGrid({
     return normalized;
   });
 
-  const gridContainer = document.createElement('div');
-  gridContainer.className = 'grid-container master-transactions-grid';
-  window.add(container, gridContainer);
+  let gridContainer = container.querySelector(':scope > .grid-container.master-transactions-grid');
+  if (!gridContainer) {
+    gridContainer = document.createElement('div');
+    gridContainer.className = 'grid-container master-transactions-grid';
+    window.add(container, gridContainer);
+  }
 
   const showDateColumn = !!state?.getActualPeriod?.();
 
@@ -383,11 +388,27 @@ export async function loadMasterTransactionsGrid({
     `;
     toolbar.appendChild(totalsInline);
 
-    const masterTransactionsTable = await createGrid(gridContainer, {
-      data: flatTransformedData,
-      headerWordWrap: false,
-      autoResize: true,
-      columns: [
+    let masterTransactionsTable = tables?.getMasterTransactionsTable?.();
+    const shouldRebuildTable =
+      !masterTransactionsTable ||
+      masterTransactionsTable?.element !== gridContainer ||
+      masterTransactionsTable?.__ftrackShowDateColumn !== showDateColumn;
+
+    let didCreateNewTable = false;
+
+    if (shouldRebuildTable) {
+      didCreateNewTable = true;
+      try {
+        masterTransactionsTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      masterTransactionsTable = await createGrid(gridContainer, {
+        data: flatTransformedData,
+        headerWordWrap: false,
+        autoResize: true,
+        columns: [
         createDeleteColumn(
           async (cell) => {
             const scenario = scenarioState?.get?.();
@@ -438,8 +459,8 @@ export async function loadMasterTransactionsGrid({
           },
           editor: 'list',
           editorParams: {
-            values: [
-              ...((currentScenario.accounts || []).map((acc) => ({ label: acc.name, value: acc }))),
+            values: () => [
+              ...((scenarioState?.get?.()?.accounts || []).map((acc) => ({ label: acc.name, value: acc }))),
               { label: 'Insert New Account...', value: { __create__: true } }
             ],
             listItemFormatter: function (value, title) {
@@ -509,8 +530,8 @@ export async function loadMasterTransactionsGrid({
           ? [createDateColumn('Date', 'displayDate', { minWidth: 110, widthGrow: 1 })]
           : []),
         createTextColumn('Description', 'description', { widthGrow: 2 })
-      ],
-      cellEdited: async function (cell) {
+        ],
+        cellEdited: async function (cell) {
         const scenario = scenarioState?.get?.();
         const rowData = cell.getRow().getData();
         const field = cell.getColumn().getField();
@@ -580,8 +601,13 @@ export async function loadMasterTransactionsGrid({
           await TransactionManager.saveAll(scenario.id, allTxs);
           await rerun();
         }
-      }
-    });
+        }
+      });
+
+      masterTransactionsTable.__ftrackShowDateColumn = showDateColumn;
+    } else {
+      await refreshGridData(masterTransactionsTable, flatTransformedData);
+    }
 
     tables?.setMasterTransactionsTable?.(masterTransactionsTable);
 
@@ -634,18 +660,27 @@ export async function loadMasterTransactionsGrid({
       }
     }, 0);
 
-    const handleTransactionsFiltered = function (filters, rows) {
-      callbacks?.updateTransactionTotals?.(rows);
-    };
+    if (didCreateNewTable) {
+      const handleTransactionsFiltered = function (filters, rows) {
+        callbacks?.updateTransactionTotals?.(rows);
+      };
 
-    const handleTransactionsBuilt = function () {
+      const handleTransactionsBuilt = function () {
+        callbacks?.updateTransactionTotals?.();
+      };
+
+      attachGridHandlers(masterTransactionsTable, {
+        dataFiltered: handleTransactionsFiltered,
+        tableBuilt: handleTransactionsBuilt
+      });
+    }
+
+    // Totals should reflect the post-filter view on every refresh.
+    try {
       callbacks?.updateTransactionTotals?.();
-    };
-
-    attachGridHandlers(masterTransactionsTable, {
-      dataFiltered: handleTransactionsFiltered,
-      tableBuilt: handleTransactionsBuilt
-    });
+    } catch (_) {
+      // ignore
+    }
   } catch (err) {
     // Keep existing behavior: errors are swallowed here.
   }

@@ -1,7 +1,7 @@
 // forecast-budget-grid.js
 // Budget grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn } from '../grids/grid-factory.js';
+import { createGrid, refreshGridData, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn } from '../grids/grid-factory.js';
 import { attachGridHandlers } from '../grids/grid-handlers.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
@@ -41,7 +41,16 @@ export async function loadBudgetGrid({
   const budgetPeriodSnapshot = state?.getBudgetPeriod?.();
   const selIdNum = transactionFilterAccountIdSnapshot != null ? Number(transactionFilterAccountIdSnapshot) : null;
 
-  container.innerHTML = '';
+  // Keep the grid container stable to reduce scroll jumps.
+  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
+  existingToolbars.forEach((el) => el.remove());
+
+  let gridContainer = container.querySelector(':scope > .grid-container.budget-grid');
+  if (!gridContainer) {
+    gridContainer = document.createElement('div');
+    gridContainer.className = 'grid-container budget-grid';
+    window.add(container, gridContainer);
+  }
 
   try {
     let budgetOccurrences = await getBudget(currentScenario.id);
@@ -414,91 +423,103 @@ export async function loadBudgetGrid({
     window.add(toolbar, totalsInline);
     window.add(container, toolbar);
 
-    const gridContainer = document.createElement('div');
-    gridContainer.className = 'grid-container budget-grid';
-    window.add(container, gridContainer);
+    const existingTable = tables?.getMasterBudgetTable?.();
 
-    const budgetTable = await createGrid(gridContainer, {
-      data: transformedData,
-      columns: [
-        createDeleteColumn(
-          async (cell) => {
-            currentScenario = scenarioState?.get?.();
+    const columns = [
+      createDeleteColumn(
+        async (cell) => {
+          currentScenario = scenarioState?.get?.();
 
-            await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
+          await BudgetManager.remove(currentScenario.id, cell.getRow().getData().id);
 
-            const refreshed = await getScenario(currentScenario.id);
-            scenarioState?.set?.(refreshed);
+          const refreshed = await getScenario(currentScenario.id);
+          scenarioState?.set?.(refreshed);
 
-            await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
-          },
-          { confirmMessage: () => 'Delete this budget occurrence?' }
-        ),
-        {
-          title: 'Secondary Account',
-          field: 'secondaryAccount',
-          minWidth: 150,
-          widthGrow: 1.5,
-          formatter: function (cell) {
-            const value = cell.getValue();
-            return value?.name || '';
-          },
-          editor: 'list',
-          editorParams: {
-            values: (currentScenario.accounts || []).map((acc) => ({ label: acc.name, value: acc })),
-            listItemFormatter: function (value, title) {
-              return title;
-            }
-          },
-          sorter: function (a, b) {
-            const aVal = a?.name || '';
-            const bVal = b?.name || '';
-            return aVal.localeCompare(bVal);
+          await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+        },
+        { confirmMessage: () => 'Delete this budget occurrence?' }
+      ),
+      {
+        title: 'Secondary Account',
+        field: 'secondaryAccount',
+        minWidth: 150,
+        widthGrow: 1.5,
+        formatter: function (cell) {
+          const value = cell.getValue();
+          return value?.name || '';
+        },
+        editor: 'list',
+        editorParams: {
+          values: () => (scenarioState?.get?.()?.accounts || []).map((acc) => ({ label: acc.name, value: acc })),
+          listItemFormatter: function (value, title) {
+            return title;
           }
         },
-        {
-          title: 'Type',
-          field: 'transactionType',
-          minWidth: 100,
-          widthGrow: 1,
-          formatter: function (cell) {
-            const value = cell.getValue();
-            return value?.name || '';
-          },
-          editor: 'list',
-          editorParams: {
-            values: [
-              { label: 'Money In', value: { id: 1, name: 'Money In' } },
-              { label: 'Money Out', value: { id: 2, name: 'Money Out' } }
-            ],
-            listItemFormatter: function (value, title) {
-              return title;
-            }
-          },
-          sorter: function (a, b) {
-            const aVal = a?.name || '';
-            const bVal = b?.name || '';
-            return aVal.localeCompare(bVal);
+        sorter: function (a, b) {
+          const aVal = a?.name || '';
+          const bVal = b?.name || '';
+          return aVal.localeCompare(bVal);
+        }
+      },
+      {
+        title: 'Type',
+        field: 'transactionType',
+        minWidth: 100,
+        widthGrow: 1,
+        formatter: function (cell) {
+          const value = cell.getValue();
+          return value?.name || '';
+        },
+        editor: 'list',
+        editorParams: {
+          values: [
+            { label: 'Money In', value: { id: 1, name: 'Money In' } },
+            { label: 'Money Out', value: { id: 2, name: 'Money Out' } }
+          ],
+          listItemFormatter: function (value, title) {
+            return title;
           }
         },
-        createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
-        ...(showBudgetDateColumn
-          ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 })]
-          : []),
-        {
-          title: 'Recurrence',
-          field: 'recurrenceDescription',
-          minWidth: 130,
-          widthGrow: 1,
-          formatter: function (cell) {
-            return cell.getValue() || 'One time';
-          }
-        },
-        createTextColumn('Description', 'description', { widthGrow: 2 }),
-        createMoneyColumn('Actual Amount', 'actualAmount', { minWidth: 100, widthGrow: 1 }),
-        createDateColumn('Actual Date', 'actualDate', { minWidth: 110, widthGrow: 1 })
-      ],
-      cellEdited: async function (cell) {
+        sorter: function (a, b) {
+          const aVal = a?.name || '';
+          const bVal = b?.name || '';
+          return aVal.localeCompare(bVal);
+        }
+      },
+      createMoneyColumn('Planned Amount', 'plannedAmount', { minWidth: 100, widthGrow: 1 }),
+      ...(showBudgetDateColumn
+        ? [createDateColumn('Date', 'occurrenceDate', { minWidth: 110, widthGrow: 1 })]
+        : []),
+      {
+        title: 'Recurrence',
+        field: 'recurrenceDescription',
+        minWidth: 130,
+        widthGrow: 1,
+        formatter: function (cell) {
+          return cell.getValue() || 'One time';
+        }
+      },
+      createTextColumn('Description', 'description', { widthGrow: 2 }),
+      createMoneyColumn('Actual Amount', 'actualAmount', { minWidth: 100, widthGrow: 1 }),
+      createDateColumn('Actual Date', 'actualDate', { minWidth: 110, widthGrow: 1 })
+    ];
+
+    let budgetTable = existingTable;
+    const needsNewTable = !budgetTable || budgetTable?.element !== gridContainer;
+    let didCreateNewTable = false;
+
+    if (needsNewTable) {
+      didCreateNewTable = true;
+      try {
+        budgetTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      budgetTable = await createGrid(gridContainer, {
+        data: transformedData,
+        columns,
+        cellEdited: async function (cell) {
         currentScenario = scenarioState?.get?.();
 
         const rowData = cell.getRow().getData();
@@ -537,10 +558,28 @@ export async function loadBudgetGrid({
           allBudgets[budgetIndex] = updatedBudget;
           await BudgetManager.saveAll(currentScenario.id, allBudgets);
         }
-      }
-    });
+        }
+      });
+    } else {
+      await refreshGridData(budgetTable, transformedData);
+    }
 
     tables?.setMasterBudgetTable?.(budgetTable);
+
+    if (didCreateNewTable) {
+      const handleBudgetFiltered = function (filters, rows) {
+        callbacks?.updateBudgetTotals?.(rows);
+      };
+
+      const handleBudgetBuilt = function () {
+        callbacks?.updateBudgetTotals?.();
+      };
+
+      attachGridHandlers(budgetTable, {
+        dataFiltered: handleBudgetFiltered,
+        tableBuilt: handleBudgetBuilt
+      });
+    }
 
     const budgetGroupingSelect = document.getElementById('budget-grouping-select');
     if (budgetGroupingSelect) {
@@ -591,18 +630,12 @@ export async function loadBudgetGrid({
       }
     }, 0);
 
-    const handleBudgetFiltered = function (filters, rows) {
-      callbacks?.updateBudgetTotals?.(rows);
-    };
-
-    const handleBudgetBuilt = function () {
+    // Totals should reflect the post-filter view on every refresh.
+    try {
       callbacks?.updateBudgetTotals?.();
-    };
-
-    attachGridHandlers(budgetTable, {
-      dataFiltered: handleBudgetFiltered,
-      tableBuilt: handleBudgetBuilt
-    });
+    } catch (_) {
+      // ignore
+    }
   } catch (err) {
     logger?.error?.('[Forecast] loadBudgetGrid failed', err);
   }

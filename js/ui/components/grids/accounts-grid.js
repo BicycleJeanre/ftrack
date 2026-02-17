@@ -5,6 +5,7 @@ import * as AccountManager from '../../../app/managers/account-manager.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import {
   createGrid,
+  refreshGridData,
   createDuplicateColumn,
   createDeleteColumn,
   createTextColumn,
@@ -153,9 +154,19 @@ export async function loadAccountsGrid({
     return;
   }
 
-  container.innerHTML = '';
+  // Keep the grid container stable to reduce scroll jumps.
+  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
+  existingToolbars.forEach((el) => el.remove());
 
   try {
+    let gridContainer = container.querySelector('#accountsGrid');
+    if (!gridContainer) {
+      gridContainer = document.createElement('div');
+      gridContainer.id = 'accountsGrid';
+      gridContainer.className = 'grid-container accounts-grid';
+      window.add(container, gridContainer);
+    }
+
     const accounts = await AccountManager.getAll(currentScenario.id);
     const displayAccounts = accounts.filter((a) => a.name !== 'Select Account');
 
@@ -170,7 +181,7 @@ export async function loadAccountsGrid({
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'toolbar-item';
 
-    let accountsTable = null;
+    let accountsTable = lastAccountsTable;
 
     const addButton = document.createElement('button');
     addButton.className = 'btn btn-primary';
@@ -212,14 +223,9 @@ export async function loadAccountsGrid({
       </select>
     `;
     window.add(toolbar, accountGroupingControl);
-    window.add(container, toolbar);
 
-    const gridContainer = document.createElement('div');
-    gridContainer.id = 'accountsGrid';
-    gridContainer.className = 'grid-container accounts-grid';
-
-    const existingInner = container.querySelector('#accountsGrid');
-    if (existingInner) existingInner.remove();
+    // Insert toolbar above the grid so it doesn't jump to the bottom on refresh.
+    container.insertBefore(toolbar, gridContainer);
 
     const enrichedAccounts = await Promise.all(
       displayAccounts.map(async (a) => ({
@@ -229,11 +235,7 @@ export async function loadAccountsGrid({
       }))
     );
 
-    window.add(container, gridContainer);
-
-    accountsTable = await createGrid(gridContainer, {
-      data: enrichedAccounts,
-      columns: buildAccountsGridColumns({
+    const columns = buildAccountsGridColumns({
         lookupData,
         typeConfig,
         scenarioState,
@@ -247,27 +249,49 @@ export async function loadAccountsGrid({
           }),
         reloadMasterTransactionsGrid,
         logger
-      }),
-      cellEdited: async function (cell) {
-        const account = cell.getRow().getData();
-        try {
-          if (account.type && typeof account.type !== 'object') {
-            const foundType = lookupData.accountTypes.find((t) => t.id == account.type);
-            if (foundType) account.type = foundType;
-          }
-          if (account.currency && typeof account.currency !== 'object') {
-            const foundCurrency = lookupData.currencies.find((c) => c.id == account.currency);
-            if (foundCurrency) account.currency = foundCurrency;
-          }
-        } catch (e) {
-          logger?.error?.('[Forecast] Failed to normalize account object before save', e);
-        }
+      });
 
-        const scenario = scenarioState?.get?.();
-        await AccountManager.update(scenario.id, account.id, account);
-        document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
+    const columnsKey = typeConfig?.showGeneratePlan ? 'accounts-with-plan' : 'accounts-base';
+    const shouldRebuildTable =
+      !accountsTable ||
+      accountsTable?.element !== gridContainer ||
+      accountsTable?.__ftrackColumnsKey !== columnsKey;
+
+    if (shouldRebuildTable) {
+      try {
+        accountsTable?.destroy?.();
+      } catch (_) {
+        // ignore
       }
-    });
+
+      accountsTable = await createGrid(gridContainer, {
+        data: enrichedAccounts,
+        columns,
+        cellEdited: async function (cell) {
+          const account = cell.getRow().getData();
+          try {
+            if (account.type && typeof account.type !== 'object') {
+              const foundType = lookupData.accountTypes.find((t) => t.id == account.type);
+              if (foundType) account.type = foundType;
+            }
+            if (account.currency && typeof account.currency !== 'object') {
+              const foundCurrency = lookupData.currencies.find((c) => c.id == account.currency);
+              if (foundCurrency) account.currency = foundCurrency;
+            }
+          } catch (e) {
+            logger?.error?.('[Forecast] Failed to normalize account object before save', e);
+          }
+
+          const scenario = scenarioState?.get?.();
+          await AccountManager.update(scenario.id, account.id, account);
+          document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
+        }
+      });
+
+      accountsTable.__ftrackColumnsKey = columnsKey;
+    } else {
+      await refreshGridData(accountsTable, enrichedAccounts);
+    }
 
     const accountGroupingSelect = document.getElementById('account-grouping-select');
     if (accountGroupingSelect) {

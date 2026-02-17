@@ -82,6 +82,29 @@ function makeId() {
   return `g_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 }
 
+function snapshotWindowScroll() {
+  try {
+    return { x: window.scrollX || 0, y: window.scrollY || 0 };
+  } catch (_) {
+    return { x: 0, y: 0 };
+  }
+}
+
+function restoreWindowScroll(snapshot) {
+  if (!snapshot) return;
+  try {
+    requestAnimationFrame(() => {
+      try {
+        window.scrollTo(snapshot.x || 0, snapshot.y || 0);
+      } catch (_) {
+        // ignore
+      }
+    });
+  } catch (_) {
+    // ignore
+  }
+}
+
 async function loadAdvancedGoalSolverSection({
   container,
   scenarioState,
@@ -95,6 +118,7 @@ async function loadAdvancedGoalSolverSection({
     return;
   }
 
+  const scrollSnapshot = snapshotWindowScroll();
   container.innerHTML = '';
 
   const accounts = (scenario.accounts || []).filter((a) => a.name !== 'Select Account');
@@ -142,6 +166,8 @@ async function loadAdvancedGoalSolverSection({
   window.add(formContainer, resultsDiv);
 
   window.add(container, formContainer);
+
+  restoreWindowScroll(scrollSnapshot);
 
   const constraintsGridEl = document.getElementById('adv-constraints-grid');
   const addConstraintBtn = document.getElementById('adv-constraint-add');
@@ -569,6 +595,7 @@ export async function loadGeneratePlanSection({
     return;
   }
 
+  const scrollSnapshot = snapshotWindowScroll();
   container.innerHTML = '';
 
   const lookupData = await loadLookup('lookup-data.json');
@@ -657,6 +684,8 @@ export async function loadGeneratePlanSection({
   window.add(formContainer, buttonDiv);
 
   window.add(container, formContainer);
+
+  restoreWindowScroll(scrollSnapshot);
 
   // Store state for generate plan
   let generatePlanState = {

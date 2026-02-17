@@ -3,7 +3,7 @@
 // Displays accounts, planned transactions, actual transactions, and projections based on scenario type
 
 
-import { createGrid, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
+import { createGrid, refreshGridData, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
 import { attachGridHandlers } from '../components/grids/grid-handlers.js';
 import * as ScenarioManager from '../../app/managers/scenario-manager.js';
 import * as AccountManager from '../../app/managers/account-manager.js';
@@ -80,6 +80,7 @@ import { generateProjections, clearProjections } from '../../domain/calculations
 let currentScenario = null;
 let scenarioTypes = null;
 let transactionFilterAccountId = null; // Track account filter for transactions view (independent of account grid selection)
+let projectionsAccountFilterId = null; // Track account filter for projections view (independent of transactions filter)
 let actualPeriod = null; // Selected period for actual transactions
 let actualPeriodType = 'Month'; // Selected period type for transactions view
 let projectionPeriod = null; // Selected period for projections view
@@ -89,9 +90,37 @@ let budgetPeriodType = 'Month'; // Selected period type for budget view
 let periods = []; // Calculated periods for current scenario
 let projectionPeriods = []; // Calculated periods for projections view
 let budgetGridLoadToken = 0; // Prevent stale budget renders
+let scenariosTable = null; // Store scenarios table instance to preserve selection/scroll
 let masterTransactionsTable = null; // Store transactions table instance for filtering
 let masterBudgetTable = null; // Store budget table instance for filtering
+let fundSummaryTable = null; // Store fund summary table instance to reduce jumping
 let summaryCardsAccountTypeFilter = 'All';
+
+function getPageScrollSnapshot() {
+  try {
+    return {
+      x: window.scrollX || 0,
+      y: window.scrollY || 0
+    };
+  } catch (_) {
+    return { x: 0, y: 0 };
+  }
+}
+
+function restorePageScroll(snapshot) {
+  if (!snapshot) return;
+  try {
+    requestAnimationFrame(() => {
+      try {
+        window.scrollTo(snapshot.x || 0, snapshot.y || 0);
+      } catch (_) {
+        // ignore
+      }
+    });
+  } catch (_) {
+    // ignore
+  }
+}
 
 function isDebtScenario(typeConfig) {
   return typeConfig?.id === 4; // Debt Repayment scenario type
@@ -120,7 +149,7 @@ function updateBudgetTotals(filteredRows = null) {
 function getFilteredProjections() {
   return getFilteredProjectionsCore({
     currentScenario,
-    transactionFilterAccountId,
+    projectionsAccountFilterId,
     projectionPeriod,
     projectionPeriods
   });
@@ -131,8 +160,6 @@ function updateProjectionTotals(container, projections = null) {
   updateProjectionTotalsCore(container, data);
 }
 async function buildScenarioGrid(container) {
-  container.innerHTML = '';
-
   try {
     const lookupData = await loadLookup('lookup-data.json');
 
@@ -420,7 +447,7 @@ async function buildScenarioGrid(container) {
       return formatDateOnly(d);
     };
 
-    // Add "Add Scenario" button
+    // Keep the scenario grid container stable to reduce scroll jumps.
     // Remove any existing add buttons (defensive)
     const existingScenarioAdds = container.querySelectorAll('.btn-add');
     existingScenarioAdds.forEach(el => el.remove());
@@ -445,19 +472,38 @@ async function buildScenarioGrid(container) {
     });
     window.add(container, addScenarioBtn);
 
-    // Create grid container
-    const gridContainer = document.createElement('div');
-    gridContainer.id = 'scenariosTable'; // explicit ID for logging and testing
-    gridContainer.className = 'grid-container scenarios-grid';
-    window.add(container, gridContainer);
+    // Create/reuse grid container
+    let gridContainer = container.querySelector('#scenariosTable');
+    if (!gridContainer) {
+      gridContainer = document.createElement('div');
+      gridContainer.id = 'scenariosTable'; // explicit ID for logging and testing
+      gridContainer.className = 'grid-container scenarios-grid';
+      window.add(container, gridContainer);
+    }
 
     // Load all scenarios
     const scenarios = await ScenarioManager.getAll();
 
-    const scenariosTable = await createGrid(gridContainer, {
-      data: scenarios,
-      selectable: 1, // Only allow single row selection
-      columns: [
+    const selectedScenarioIdSnapshot =
+      scenariosTable?.getSelectedData?.()?.[0]?.id ??
+      currentScenario?.id ??
+      null;
+
+    const shouldRebuildTable = !scenariosTable || scenariosTable?.element !== gridContainer;
+    let didCreateNewTable = false;
+
+    if (shouldRebuildTable) {
+      didCreateNewTable = true;
+      try {
+        scenariosTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      scenariosTable = await createGrid(gridContainer, {
+        data: scenarios,
+        selectable: 1, // Only allow single row selection
+        columns: [
         createDuplicateColumn(async (cell) => {
           const rowData = cell.getRow().getData();
           await ScenarioManager.duplicate(rowData.id);
@@ -537,21 +583,28 @@ async function buildScenarioGrid(container) {
           },
           headerHozAlign: "left"
         }
-      ],
-      rowSelectionChanged: async function(data, rows) {
-        // logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
-        if (rows.length > 0) {
-          const scenario = rows[0].getData();
-          currentScenario = await getScenario(scenario.id);
-          transactionFilterAccountId = null; // Clear transaction filter when switching scenarios
-          await loadScenarioData();
+        ],
+        rowSelectionChanged: async function(data, rows) {
+          // logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
+          if (rows.length > 0) {
+            const scenario = rows[0].getData();
+            if (currentScenario && currentScenario.id === scenario.id) return;
+
+            currentScenario = await getScenario(scenario.id);
+            transactionFilterAccountId = null; // Clear transaction filter when switching scenarios
+            projectionsAccountFilterId = null; // Clear projections filter when switching scenarios
+            await loadScenarioData();
+          }
         }
-      }
-    });
+      });
+    } else {
+      await refreshGridData(scenariosTable, scenarios);
+    }
 
     const handleScenarioRowSelectedPrimary = async function(row) {
       try {
         const scenario = row.getData();
+        if (currentScenario && currentScenario.id === scenario.id) return;
         currentScenario = await getScenario(scenario.id);
         transactionFilterAccountId = null;
         await loadScenarioData();
@@ -668,11 +721,21 @@ async function buildScenarioGrid(container) {
       }
     };
 
-    attachGridHandlers(scenariosTable, {
-      rowSelected: [handleScenarioRowSelectedPrimary, handleScenarioRowSelectedEnforce],
-      rowClick: handleScenarioRowClick,
-      cellEdited: handleScenarioCellEdited
-    });
+    if (didCreateNewTable) {
+      attachGridHandlers(scenariosTable, {
+        rowSelected: [handleScenarioRowSelectedPrimary, handleScenarioRowSelectedEnforce],
+        rowClick: handleScenarioRowClick,
+        cellEdited: handleScenarioCellEdited
+      });
+    }
+
+    if (selectedScenarioIdSnapshot != null) {
+      try {
+        scenariosTable.selectRow(selectedScenarioIdSnapshot);
+      } catch (_) {
+        // ignore
+      }
+    }
 
     // Set initial scenario if not set and load its data
     if (!currentScenario && scenarios.length > 0) {
@@ -912,32 +975,43 @@ async function loadDebtSummaryCards(container) {
     return;
   }
 
-  container.innerHTML = '';
+  const scrollSnapshot = getPageScrollSnapshot();
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'grid-toolbar summary-cards-toolbar';
+  // Keep toolbar stable (avoid losing focus/scroll between refreshes).
+  // If a different summary type was previously rendered, rebuild once.
+  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
+  let filterSelect = container.querySelector('#summary-cards-type-filter');
+  const isDebtToolbar = !!filterSelect;
+  if (!toolbar || !isDebtToolbar) {
+    container.innerHTML = '';
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar summary-cards-toolbar';
 
-  const filterItem = document.createElement('div');
-  filterItem.className = 'toolbar-item';
-  filterItem.innerHTML = `
-    <label for="summary-cards-type-filter" class="text-muted control-label">Account Type:</label>
-    <select id="summary-cards-type-filter" class="input-select control-select">
-      <option value="All">All</option>
-      <option value="Liability">Liability</option>
-      <option value="Asset">Asset</option>
-    </select>
-  `;
-  toolbar.appendChild(filterItem);
-  container.appendChild(toolbar);
+    const filterItem = document.createElement('div');
+    filterItem.className = 'toolbar-item';
+    filterItem.innerHTML = `
+      <label for="summary-cards-type-filter" class="text-muted control-label">Account Type:</label>
+      <select id="summary-cards-type-filter" class="input-select control-select">
+        <option value="All">All</option>
+        <option value="Liability">Liability</option>
+        <option value="Asset">Asset</option>
+      </select>
+    `;
+    toolbar.appendChild(filterItem);
+    container.appendChild(toolbar);
+    filterSelect = filterItem.querySelector('#summary-cards-type-filter');
+  }
 
-  const filterSelect = filterItem.querySelector('#summary-cards-type-filter');
   if (filterSelect) {
     filterSelect.value = summaryCardsAccountTypeFilter;
-    filterSelect.addEventListener('change', () => {
+    filterSelect.onchange = () => {
       summaryCardsAccountTypeFilter = filterSelect.value;
       loadDebtSummaryCards(container);
-    });
+    };
   }
+
+  // Clear any previous empty message
+  container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
   const getAccountTypeName = (account) => account?.type?.name || 'Unknown';
   const filteredAccounts = summaryCardsAccountTypeFilter === 'All'
@@ -945,10 +1019,18 @@ async function loadDebtSummaryCards(container) {
     : accounts.filter(account => getAccountTypeName(account) === summaryCardsAccountTypeFilter);
 
   if (!filteredAccounts.length) {
-    const emptyMessage = document.createElement('div');
-    emptyMessage.className = 'empty-message';
+    let emptyMessage = container.querySelector(':scope > .empty-message');
+    if (!emptyMessage) {
+      emptyMessage = document.createElement('div');
+      emptyMessage.className = 'empty-message';
+      container.appendChild(emptyMessage);
+    }
     emptyMessage.textContent = 'No accounts match this filter.';
-    container.appendChild(emptyMessage);
+
+    const existingGroups = container.querySelector(':scope > .summary-cards-groups');
+    if (existingGroups) existingGroups.remove();
+
+    restorePageScroll(scrollSnapshot);
     return;
   }
 
@@ -976,8 +1058,14 @@ async function loadDebtSummaryCards(container) {
     return [...preferredOrder.filter(key => groupedAccounts[key]), ...remaining];
   })();
 
-  const groupWrapper = document.createElement('div');
-  groupWrapper.className = 'summary-cards-groups';
+  let groupWrapper = container.querySelector(':scope > .summary-cards-groups');
+  if (!groupWrapper) {
+    groupWrapper = document.createElement('div');
+    groupWrapper.className = 'summary-cards-groups';
+    container.appendChild(groupWrapper);
+  }
+
+  groupWrapper.innerHTML = '';
 
   for (const groupKey of orderedGroupKeys) {
     const groupContainer = document.createElement('div');
@@ -1100,7 +1188,7 @@ async function loadDebtSummaryCards(container) {
     groupWrapper.appendChild(totalCard);
   }
 
-  container.appendChild(groupWrapper);
+  restorePageScroll(scrollSnapshot);
 }
 
 async function ensureFundSettingsInitialized() {
@@ -1158,57 +1246,59 @@ async function loadFundsSummaryCards(container) {
 
   const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
 
-  container.innerHTML = '';
+  const scrollSnapshot = getPageScrollSnapshot();
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'grid-toolbar summary-cards-toolbar';
+  // Keep toolbar stable. If a different summary type was previously rendered, rebuild once.
+  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
+  let scopeSelect = container.querySelector('#fund-summary-scope');
+  const isFundsToolbar = !!scopeSelect;
+  if (!toolbar || !isFundsToolbar) {
+    container.innerHTML = '';
 
-  const scopeItem = document.createElement('div');
-  scopeItem.className = 'toolbar-item';
-  scopeItem.innerHTML = `
-    <label for="fund-summary-scope" class="text-muted control-label">Scope:</label>
-    <select id="fund-summary-scope" class="input-select control-select">
-      ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
-    </select>
-  `;
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar summary-cards-toolbar';
 
-  const asOfItem = document.createElement('div');
-  // Funds summary is always current; no As-of date selector.
+    const scopeItem = document.createElement('div');
+    scopeItem.className = 'toolbar-item';
+    scopeItem.innerHTML = `
+      <label for="fund-summary-scope" class="text-muted control-label">Scope:</label>
+      <select id="fund-summary-scope" class="input-select control-select">
+        ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    `;
 
-  const sharesItem = document.createElement('div');
-  sharesItem.className = 'toolbar-item';
-  sharesItem.innerHTML = `
-    <label for="fund-total-shares" class="text-muted control-label">Total shares:</label>
-    <input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" />
-  `;
+    const sharesItem = document.createElement('div');
+    sharesItem.className = 'toolbar-item';
+    sharesItem.innerHTML = `
+      <label for="fund-total-shares" class="text-muted control-label">Total shares:</label>
+      <input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" />
+    `;
 
+    const refreshItem = document.createElement('div');
+    refreshItem.className = 'toolbar-item';
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'btn btn-primary';
+    refreshButton.textContent = 'Refresh';
+    refreshButton.onclick = async () => {
+      await loadFundsSummaryCards(container);
+    };
+    refreshItem.appendChild(refreshButton);
 
-  const refreshItem = document.createElement('div');
-  refreshItem.className = 'toolbar-item';
-  const refreshButton = document.createElement('button');
-  refreshButton.className = 'btn btn-primary';
-  refreshButton.textContent = 'Refresh';
+    toolbar.appendChild(scopeItem);
+    toolbar.appendChild(sharesItem);
+    toolbar.appendChild(refreshItem);
+    container.appendChild(toolbar);
+  }
 
-  refreshButton.addEventListener('click', async () => {
-    await loadFundsSummaryCards(container);
-  });
-
-  refreshItem.appendChild(refreshButton);
-
-  toolbar.appendChild(scopeItem);
-  toolbar.appendChild(sharesItem);
-  toolbar.appendChild(refreshItem);
-  container.appendChild(toolbar);
-
-  const scopeSelect = scopeItem.querySelector('#fund-summary-scope');
-  const totalSharesInput = sharesItem.querySelector('#fund-total-shares');
+  scopeSelect = container.querySelector('#fund-summary-scope');
+  const totalSharesInput = container.querySelector('#fund-total-shares');
 
   if (scopeSelect) {
     scopeSelect.value = scopeOptions.includes(fundSummaryScope) ? fundSummaryScope : 'All';
-    scopeSelect.addEventListener('change', async () => {
+    scopeSelect.onchange = async () => {
       fundSummaryScope = scopeSelect.value;
       await loadFundsSummaryCards(container);
-    });
+    };
   }
 
 
@@ -1217,7 +1307,7 @@ async function loadFundsSummaryCards(container) {
   if (totalSharesInput) {
     const currentTotalShares = Number(fundSettings?.totalShares);
     totalSharesInput.value = Number.isFinite(currentTotalShares) && currentTotalShares > 0 ? String(currentTotalShares) : '';
-    totalSharesInput.addEventListener('change', async () => {
+    totalSharesInput.onchange = async () => {
       const nextValue = Number(totalSharesInput.value);
       const next = {
         ...getDefaultFundSettings(),
@@ -1227,7 +1317,7 @@ async function loadFundsSummaryCards(container) {
       await ScenarioManager.update(currentScenario.id, { fundSettings: next });
       currentScenario = await getScenario(currentScenario.id);
       await loadFundsSummaryCards(container);
-    });
+    };
   }
 
   // Shares are always automatic; no share mode or manual share editing.
@@ -1247,6 +1337,11 @@ async function loadFundsSummaryCards(container) {
     accounts,
     asOfDate
   });
+
+  // Clear any previous content below toolbar, but keep the toolbar itself stable.
+  Array.from(container.children)
+    .filter((child) => child !== toolbar)
+    .forEach((child) => child.remove());
 
   const totalsCard = document.createElement('div');
   totalsCard.className = 'summary-card overall-total';
@@ -1291,10 +1386,19 @@ async function loadFundsSummaryCards(container) {
       };
     });
 
-    await createGrid(detailGrid, {
-      data: rows,
-      headerWordWrap: false,
-      columns: [
+    const columnsKey = 'funds-equity';
+    const shouldRebuild = !fundSummaryTable || fundSummaryTable?.element !== detailGrid || fundSummaryTable?.__ftrackColumnsKey !== columnsKey;
+    if (shouldRebuild) {
+      try {
+        fundSummaryTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      fundSummaryTable = await createGrid(detailGrid, {
+        data: rows,
+        headerWordWrap: false,
+        columns: [
         { title: 'Investor', field: 'name', headerSort: false },
         {
           title: 'Shares',
@@ -1345,8 +1449,13 @@ async function loadFundsSummaryCards(container) {
           formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
           bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
         }
-      ]
-    });
+        ]
+      });
+
+      fundSummaryTable.__ftrackColumnsKey = columnsKey;
+    } else {
+      await refreshGridData(fundSummaryTable, rows);
+    }
   } else {
     const selectedScopeTypeId = scopeTypeId(fundSummaryScope);
     const filteredAccounts = fundSummaryScope === 'All'
@@ -1362,11 +1471,20 @@ async function loadFundsSummaryCards(container) {
       };
     });
 
-    const accountsTable = await createGrid(detailGrid, {
-      data,
-      headerWordWrap: false,
-      ...(fundSummaryScope === 'All' ? { groupBy: 'type' } : {}),
-      columns: [
+    const columnsKey = fundSummaryScope === 'All' ? 'funds-accounts-grouped' : 'funds-accounts-flat';
+    const shouldRebuild = !fundSummaryTable || fundSummaryTable?.element !== detailGrid || fundSummaryTable?.__ftrackColumnsKey !== columnsKey;
+    if (shouldRebuild) {
+      try {
+        fundSummaryTable?.destroy?.();
+      } catch (_) {
+        // ignore
+      }
+
+      fundSummaryTable = await createGrid(detailGrid, {
+        data,
+        headerWordWrap: false,
+        ...(fundSummaryScope === 'All' ? { groupBy: 'type' } : {}),
+        columns: [
         { title: 'Account', field: 'name', headerSort: false },
         ...(fundSummaryScope === 'All' ? [{ title: 'Type', field: 'type', headerSort: false }] : []),
         {
@@ -1377,16 +1495,23 @@ async function loadFundsSummaryCards(container) {
           formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
           bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
         }
-      ]
-    });
+        ]
+      });
 
-    if (fundSummaryScope === 'All' && accountsTable?.setGroupHeader) {
-      accountsTable.setGroupHeader((value, count, data) => {
+      fundSummaryTable.__ftrackColumnsKey = columnsKey;
+    } else {
+      await refreshGridData(fundSummaryTable, data);
+    }
+
+    if (fundSummaryScope === 'All' && fundSummaryTable?.setGroupHeader) {
+      fundSummaryTable.setGroupHeader((value, count, data) => {
         const subtotal = (data || []).reduce((sum, row) => sum + Number(row?.balance || 0), 0);
         return `${value} (${count} items, Subtotal: ${formatMoneyDisplay(subtotal)})`;
       });
     }
   }
+
+  restorePageScroll(scrollSnapshot);
 }
 
 async function loadGeneralSummaryCards(container) {
@@ -1417,10 +1542,17 @@ async function loadGeneralSummaryCards(container) {
     typeIdField: 'transactionTypeId'
   });
 
-  container.innerHTML = '';
+  const scrollSnapshot = getPageScrollSnapshot();
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'summary-cards-groups';
+  let wrapper = container.querySelector(':scope > .summary-cards-groups');
+  if (!wrapper) {
+    container.innerHTML = '';
+    wrapper = document.createElement('div');
+    wrapper.className = 'summary-cards-groups';
+    container.appendChild(wrapper);
+  }
+
+  wrapper.innerHTML = '';
 
   const card = document.createElement('div');
   card.className = 'summary-card overall-total';
@@ -1441,7 +1573,7 @@ async function loadGeneralSummaryCards(container) {
   `;
 
   wrapper.appendChild(card);
-  container.appendChild(wrapper);
+  restorePageScroll(scrollSnapshot);
 }
 
 async function loadSummaryCards(container) {
@@ -1493,9 +1625,9 @@ async function loadProjectionsSection(container) {
     },
     getScenarioTypeConfig,
     state: {
-      getTransactionFilterAccountId: () => transactionFilterAccountId,
-      setTransactionFilterAccountId: (nextId) => {
-        transactionFilterAccountId = nextId;
+      getProjectionAccountFilterId: () => projectionsAccountFilterId,
+      setProjectionAccountFilterId: (nextId) => {
+        projectionsAccountFilterId = nextId;
       },
       getProjectionPeriod: () => projectionPeriod,
       setProjectionPeriod: (nextPeriod) => {
@@ -1538,9 +1670,9 @@ async function loadProjectionsGrid(container) {
       }
     },
     state: {
-      getTransactionFilterAccountId: () => transactionFilterAccountId,
-      setTransactionFilterAccountId: (nextId) => {
-        transactionFilterAccountId = nextId;
+      getProjectionAccountFilterId: () => projectionsAccountFilterId,
+      setProjectionAccountFilterId: (nextId) => {
+        projectionsAccountFilterId = nextId;
       },
       getProjectionPeriod: () => projectionPeriod,
       setProjectionPeriod: (nextPeriod) => {
@@ -1601,9 +1733,9 @@ async function loadScenarioData() {
     if (typeConfig.showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
   }
 
-  // Clear downstream grids to prevent ghost data
-  containers.transactionsTable.innerHTML = '<div class="empty-message">Loading...</div>';
-  containers.budgetTable.innerHTML = '<div class="empty-message">Loading...</div>';
+  // Clear any stale placeholders without destroying stable grid containers.
+  containers.transactionsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
+  containers.budgetTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
   await loadAccountsGrid(containers.accountsTable);
   
