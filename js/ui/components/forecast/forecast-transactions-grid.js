@@ -78,6 +78,14 @@ export async function loadMasterTransactionsGrid({
     await callbacks?.refreshSummaryCards?.();
   };
 
+  const refreshFromDisk = async () => {
+    const scenario = scenarioState?.get?.();
+    if (!scenario?.id) return;
+    const refreshed = await getScenario(scenario.id);
+    scenarioState?.set?.(refreshed);
+    await rerun();
+  };
+
   const toolbar = document.createElement('div');
   toolbar.className = 'grid-toolbar';
 
@@ -136,6 +144,26 @@ export async function loadMasterTransactionsGrid({
     }
   });
   window.add(addButtonContainer, addButton);
+
+  const refreshButton = document.createElement('button');
+  refreshButton.className = 'btn';
+  refreshButton.textContent = 'Refresh';
+  refreshButton.addEventListener('click', async () => {
+    const prevText = refreshButton.textContent;
+    try {
+      refreshButton.textContent = 'Refreshing...';
+      refreshButton.disabled = true;
+      await refreshFromDisk();
+    } catch (err) {
+      notifyError('Failed to refresh transactions: ' + (err?.message || String(err)));
+    } finally {
+      if (refreshButton.isConnected) {
+        refreshButton.textContent = prevText;
+        refreshButton.disabled = false;
+      }
+    }
+  });
+  window.add(addButtonContainer, refreshButton);
   window.add(toolbar, addButtonContainer);
 
   const groupingControl = document.createElement('div');
@@ -181,7 +209,6 @@ export async function loadMasterTransactionsGrid({
   accountFilter.innerHTML = `
     <label for="account-filter-select" class="text-muted control-label">Account:</label>
     <select id="account-filter-select" class="input-select control-select">
-      <option value="">-- All Accounts --</option>
     </select>
   `;
   window.add(toolbar, accountFilter);
@@ -242,20 +269,30 @@ export async function loadMasterTransactionsGrid({
 
   const accountFilterSelect = document.getElementById('account-filter-select');
   if (accountFilterSelect) {
-    accountFilterSelect.innerHTML = '<option value="">-- All Accounts --</option>';
-    (currentScenario.accounts || []).forEach((account) => {
+    const accounts = currentScenario.accounts || [];
+    accountFilterSelect.innerHTML = '';
+    accounts.forEach((account) => {
       const option = document.createElement('option');
       option.value = account.id;
       option.textContent = account.name;
       accountFilterSelect.appendChild(option);
     });
 
-    accountFilterSelect.value = state?.getTransactionFilterAccountId?.() || '';
+    const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
+    const firstAccountId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
+    const currentFilter = state?.getTransactionFilterAccountId?.();
+    const initialFilter = isValidAccountId(currentFilter) ? Number(currentFilter) : firstAccountId;
 
-    accountFilterSelect.addEventListener('change', async (e) => {
-      const nextFilter = e.target.value ? Number(e.target.value) : null;
-      state?.setTransactionFilterAccountId?.(nextFilter);
+    if (initialFilter != null) {
+      accountFilterSelect.value = String(initialFilter);
+      if (!isValidAccountId(currentFilter)) {
+        state?.setTransactionFilterAccountId?.(initialFilter);
+      }
+    } else {
+      accountFilterSelect.value = '';
+    }
 
+    const applyAccountFilter = (nextFilter) => {
       const masterTransactionsTable = tables?.getMasterTransactionsTable?.();
       if (masterTransactionsTable) {
         if (nextFilter) {
@@ -285,6 +322,14 @@ export async function loadMasterTransactionsGrid({
         }
         callbacks?.updateBudgetTotals?.();
       }
+    };
+
+    applyAccountFilter(initialFilter);
+
+    accountFilterSelect.addEventListener('change', async (e) => {
+      const nextFilter = e.target.value ? Number(e.target.value) : null;
+      state?.setTransactionFilterAccountId?.(nextFilter);
+      applyAccountFilter(nextFilter);
 
       await callbacks?.loadProjectionsSection?.(callbacks?.getEl?.('projectionsContent'));
     });
@@ -309,6 +354,16 @@ export async function loadMasterTransactionsGrid({
   }
 
   const showDateColumn = !!state?.getActualPeriod?.();
+
+  // Tabulator list editor expects a concrete values array (function values are not supported
+  // in our current Tabulator build), so precompute account options per render.
+  const editorAccounts = (currentScenario.accounts || []).filter((a) => a?.name !== 'Select Account');
+  const secondaryAccountValues = editorAccounts.map((acc) => ({
+    label: acc.name,
+    value: acc
+  }));
+  const secondaryAccountsKey = editorAccounts.map((a) => `${a.id}:${a.name}`).join('|');
+  const scenarioId = Number(currentScenario.id);
 
   try {
     let allTransactions = await getTransactions(currentScenario.id);
@@ -392,7 +447,9 @@ export async function loadMasterTransactionsGrid({
     const shouldRebuildTable =
       !masterTransactionsTable ||
       masterTransactionsTable?.element !== gridContainer ||
-      masterTransactionsTable?.__ftrackShowDateColumn !== showDateColumn;
+      masterTransactionsTable?.__ftrackShowDateColumn !== showDateColumn ||
+      masterTransactionsTable?.__ftrackScenarioId !== scenarioId ||
+      masterTransactionsTable?.__ftrackSecondaryAccountsKey !== secondaryAccountsKey;
 
     let didCreateNewTable = false;
 
@@ -459,8 +516,8 @@ export async function loadMasterTransactionsGrid({
           },
           editor: 'list',
           editorParams: {
-            values: () => [
-              ...((scenarioState?.get?.()?.accounts || []).map((acc) => ({ label: acc.name, value: acc }))),
+            values: [
+              ...secondaryAccountValues,
               { label: 'Insert New Account...', value: { __create__: true } }
             ],
             listItemFormatter: function (value, title) {
@@ -605,6 +662,8 @@ export async function loadMasterTransactionsGrid({
       });
 
       masterTransactionsTable.__ftrackShowDateColumn = showDateColumn;
+      masterTransactionsTable.__ftrackScenarioId = scenarioId;
+      masterTransactionsTable.__ftrackSecondaryAccountsKey = secondaryAccountsKey;
     } else {
       await refreshGridData(masterTransactionsTable, flatTransformedData);
     }
@@ -684,4 +743,8 @@ export async function loadMasterTransactionsGrid({
   } catch (err) {
     // Keep existing behavior: errors are swallowed here.
   }
+}
+
+export async function refreshMasterTransactionsGrid(args) {
+  return loadMasterTransactionsGrid(args);
 }
