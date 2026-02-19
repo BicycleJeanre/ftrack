@@ -93,6 +93,15 @@ export async function create(scenarioId, accountData) {
             periodicChange: accountData.periodicChange || null,
             ...accountData
         };
+
+        // Ensure goal fields persist consistently for new accounts.
+        // (Used by goal-based scenarios and should be stable regardless of where the account was created.)
+        if (newAccount.goalAmount === undefined || newAccount.goalAmount === '') {
+            newAccount.goalAmount = 0;
+        }
+        if (newAccount.goalDate === undefined) {
+            newAccount.goalDate = null;
+        }
         
         scenario.accounts.push(newAccount);
         
@@ -119,6 +128,18 @@ export async function update(scenarioId, accountId, updates) {
         
         if (accountIndex === -1) {
             throw new Error(`Account ${accountId} not found`);
+        }
+
+        // If a goal date is being set, ensure goalAmount is persisted as a number (default 0)
+        // even when the user doesn't touch the goal amount input.
+        if (updates && Object.prototype.hasOwnProperty.call(updates, 'goalDate')) {
+            const nextGoalDate = updates.goalDate;
+            const nextGoalAmount = updates.goalAmount;
+            const isSettingGoalDate = nextGoalDate !== null && nextGoalDate !== undefined && String(nextGoalDate) !== '';
+            const goalAmountBlank = nextGoalAmount === null || nextGoalAmount === undefined || nextGoalAmount === '';
+            if (isSettingGoalDate && goalAmountBlank) {
+                updates = { ...updates, goalAmount: 0 };
+            }
         }
         
         scenario.accounts[accountIndex] = {

@@ -15,6 +15,7 @@ import {
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openPeriodicChangeScheduleModal } from '../modals/periodic-change-schedule-modal.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
+import { notifyError } from '../../../shared/notifications.js';
 import { GridStateManager } from './grid-state.js';
 
 const accountsGridState = new GridStateManager('accounts');
@@ -246,6 +247,33 @@ export async function loadAccountsGrid({
     });
 
     window.add(buttonContainer, addButton);
+
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'btn';
+    refreshButton.textContent = 'Refresh';
+    refreshButton.addEventListener('click', async () => {
+      const prevText = refreshButton.textContent;
+      try {
+        refreshButton.textContent = 'Refreshing...';
+        refreshButton.disabled = true;
+
+        await loadAccountsGrid({
+          container,
+          scenarioState,
+          getScenarioTypeConfig,
+          reloadMasterTransactionsGrid,
+          logger
+        });
+      } catch (err) {
+        notifyError('Failed to refresh accounts: ' + (err?.message || String(err)));
+      } finally {
+        if (refreshButton.isConnected) {
+          refreshButton.textContent = prevText;
+          refreshButton.disabled = false;
+        }
+      }
+    });
+    window.add(buttonContainer, refreshButton);
     window.add(toolbar, buttonContainer);
 
     const accountGroupingControl = document.createElement('div');
@@ -364,4 +392,8 @@ export async function loadAccountsGrid({
   } catch (err) {
     logger?.error?.('[Forecast] Failed to load accounts grid:', err);
   }
+}
+
+export async function refreshAccountsGrid(args) {
+  return loadAccountsGrid(args);
 }

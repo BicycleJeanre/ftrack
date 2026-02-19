@@ -105,6 +105,42 @@ function restoreWindowScroll(snapshot) {
   }
 }
 
+function renderGeneratePlanToolbar({ container, onRefresh }) {
+  if (!container) return;
+
+  // Keep a single toolbar at the top of the accordion content.
+  container.querySelectorAll(':scope > .grid-toolbar').forEach((el) => el.remove());
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar';
+
+  const buttonContainer = document.createElement('div');
+  buttonContainer.className = 'toolbar-item';
+
+  const refreshButton = document.createElement('button');
+  refreshButton.className = 'btn';
+  refreshButton.textContent = 'Refresh';
+  refreshButton.addEventListener('click', async () => {
+    const prevText = refreshButton.textContent;
+    try {
+      refreshButton.textContent = 'Refreshing...';
+      refreshButton.disabled = true;
+      await onRefresh?.();
+    } finally {
+      if (refreshButton.isConnected) {
+        refreshButton.textContent = prevText;
+        refreshButton.disabled = false;
+      }
+    }
+  });
+
+  window.add(buttonContainer, refreshButton);
+  window.add(toolbar, buttonContainer);
+
+  // Insert toolbar at the very top.
+  container.insertBefore(toolbar, container.firstChild);
+}
+
 async function loadAdvancedGoalSolverSection({
   container,
   scenarioState,
@@ -114,16 +150,46 @@ async function loadAdvancedGoalSolverSection({
 }) {
   const scenario = scenarioState?.get?.();
   if (!scenario) {
-    container.innerHTML = '<div class="empty-message">No scenario selected</div>';
+    container.innerHTML = '';
+    renderGeneratePlanToolbar({
+      container,
+      onRefresh: async () => {
+        const current = scenarioState?.get?.();
+        if (current?.id) {
+          const refreshed = await getScenario(current.id);
+          scenarioState?.set?.(refreshed);
+        }
+        await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      }
+    });
+    const msg = document.createElement('div');
+    msg.className = 'empty-message';
+    msg.textContent = 'No scenario selected';
+    container.appendChild(msg);
     return;
   }
 
   const scrollSnapshot = snapshotWindowScroll();
   container.innerHTML = '';
 
+  renderGeneratePlanToolbar({
+    container,
+    onRefresh: async () => {
+      const current = scenarioState?.get?.();
+      if (current?.id) {
+        const refreshed = await getScenario(current.id);
+        scenarioState?.set?.(refreshed);
+      }
+      await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+    }
+  });
+
   const accounts = (scenario.accounts || []).filter((a) => a.name !== 'Select Account');
   if (accounts.length === 0) {
-    container.innerHTML = '<div class="empty-message">Create accounts first to configure goals.</div>';
+    const msg = document.createElement('div');
+    msg.className = 'empty-message';
+    msg.textContent = 'Create accounts first to configure goals.';
+    container.appendChild(msg);
     return;
   }
 
@@ -584,7 +650,22 @@ export async function loadGeneratePlanSection({
 }) {
   const currentScenario = scenarioState?.get?.();
   if (!currentScenario) {
-    container.innerHTML = '<div class="empty-message">No scenario selected</div>';
+    container.innerHTML = '';
+    renderGeneratePlanToolbar({
+      container,
+      onRefresh: async () => {
+        const current = scenarioState?.get?.();
+        if (current?.id) {
+          const refreshed = await getScenario(current.id);
+          scenarioState?.set?.(refreshed);
+        }
+        await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      }
+    });
+    const msg = document.createElement('div');
+    msg.className = 'empty-message';
+    msg.textContent = 'No scenario selected';
+    container.appendChild(msg);
     return;
   }
 
@@ -599,16 +680,43 @@ export async function loadGeneratePlanSection({
   }
 
   const accounts = currentScenario.accounts || [];
-  const displayAccounts = accounts.filter(a => a.name !== 'Select Account' && a.goalAmount !== null && a.goalAmount !== undefined);
+  const displayAccounts = accounts.filter(a => a.name !== 'Select Account' && !!a.goalDate);
   const selectableAccounts = accounts.filter(a => a.name !== 'Select Account');
 
   if (displayAccounts.length === 0) {
-    container.innerHTML = '<div class="empty-message">No accounts with goals found. Set goal amounts and dates on accounts to generate plans.</div>';
+    container.innerHTML = '';
+    renderGeneratePlanToolbar({
+      container,
+      onRefresh: async () => {
+        const current = scenarioState?.get?.();
+        if (current?.id) {
+          const refreshed = await getScenario(current.id);
+          scenarioState?.set?.(refreshed);
+        }
+        await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      }
+    });
+    const msg = document.createElement('div');
+    msg.className = 'empty-message';
+    msg.textContent = 'No accounts with goals found. Set goal amounts and dates on accounts to generate plans.';
+    container.appendChild(msg);
     return;
   }
 
   const scrollSnapshot = snapshotWindowScroll();
   container.innerHTML = '';
+
+  renderGeneratePlanToolbar({
+    container,
+    onRefresh: async () => {
+      const current = scenarioState?.get?.();
+      if (current?.id) {
+        const refreshed = await getScenario(current.id);
+        scenarioState?.set?.(refreshed);
+      }
+      await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+    }
+  });
 
   const lookupData = await loadLookup('lookup-data.json');
 
@@ -753,13 +861,19 @@ export async function loadGeneratePlanSection({
       return;
     }
 
+    const solveFor = solveForSelect.value;
     const selectedAccount = displayAccounts.find(a => a.id === selectedId);
-    if (!selectedAccount || !selectedAccount.goalAmount || !selectedAccount.goalDate) {
-      summaryEl.innerHTML = '<p class="error-message">Selected account does not have goal parameters set</p>';
+    if (!selectedAccount || !selectedAccount.goalDate) {
+      summaryEl.innerHTML = '<p class="error-message">Selected account does not have a goal date set</p>';
       return;
     }
 
-    const solveFor = solveForSelect.value;
+    const rawGoalAmount = selectedAccount.goalAmount;
+    const hasGoalAmount = rawGoalAmount !== null && rawGoalAmount !== undefined && rawGoalAmount !== '';
+    if ((solveFor === 'contribution' || solveFor === 'date') && !hasGoalAmount) {
+      summaryEl.innerHTML = '<p class="error-message">Set Goal Amount to solve for contribution or date</p>';
+      return;
+    }
     const frequency = parseInt(frequencySelect.value);
     const contribution = parseFloat(contributionInput.value) || 0;
 
@@ -772,7 +886,7 @@ export async function loadGeneratePlanSection({
     // Calculate the requested value
     const monthsToGoal = calculateMonthsBetweenDates(formatDateOnly(new Date()), selectedAccount.goalDate);
     const startingBalance = selectedAccount.startingBalance || 0;
-    const goalAmount = selectedAccount.goalAmount;
+    const goalAmount = Number(selectedAccount.goalAmount ?? 0);
     const annualRate = selectedAccount.periodicChange?.rateValue || 0;
 
     let summary = '';
@@ -854,17 +968,24 @@ export async function loadGeneratePlanSection({
     }
 
     const selectedAccount = displayAccounts.find(a => a.id === selectedId);
-    if (!selectedAccount || !selectedAccount.goalAmount || !selectedAccount.goalDate) {
-      notifyError('Account does not have goal parameters set');
+    const solveFor = solveForSelect.value;
+    if (!selectedAccount || !selectedAccount.goalDate) {
+      notifyError('Account does not have a goal date set');
       return;
     }
 
-    const solveFor = solveForSelect.value;
+    const rawGoalAmount = selectedAccount.goalAmount;
+    const hasGoalAmount = rawGoalAmount !== null && rawGoalAmount !== undefined && rawGoalAmount !== '';
+    if ((solveFor === 'contribution' || solveFor === 'date') && !hasGoalAmount) {
+      notifyError('Set Goal Amount to solve for contribution or date');
+      return;
+    }
+
     const frequency = parseInt(frequencySelect.value);
     const contribution = parseFloat(contributionInput.value) || 0;
     const monthsToGoal = calculateMonthsBetweenDates(formatDateOnly(new Date()), selectedAccount.goalDate);
     const startingBalance = selectedAccount.startingBalance || 0;
-    const goalAmount = selectedAccount.goalAmount;
+    const goalAmount = Number(selectedAccount.goalAmount ?? 0);
     const annualRate = selectedAccount.periodicChange?.rateValue || 0;
 
     let monthlyContribution = contribution;
