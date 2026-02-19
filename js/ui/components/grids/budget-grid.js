@@ -363,6 +363,13 @@ export async function loadBudgetGrid({
       return normalized;
     });
 
+    // Tabulator list editor expects a concrete values array (function values are not supported
+    // in our current Tabulator build), so precompute account options per render.
+    const secondaryAccountValues = (scenarioState?.get?.()?.accounts || []).map((acc) => ({
+      label: acc.name,
+      value: acc
+    }));
+
     const transformedData = budgetOccurrences.flatMap((budget) => {
       const storedPrimaryId = budget.primaryAccountId;
       const storedSecondaryId = budget.secondaryAccountId;
@@ -602,7 +609,7 @@ export async function loadBudgetGrid({
           },
           editor: 'list',
           editorParams: {
-            values: () => (scenarioState?.get?.()?.accounts || []).map((acc) => ({ label: acc.name, value: acc })),
+            values: secondaryAccountValues,
             listItemFormatter: function (value, title) {
               return title;
             }

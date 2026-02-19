@@ -314,6 +314,13 @@ export async function loadMasterTransactionsGrid({
 
   const showDateColumn = !!state?.getActualPeriod?.();
 
+  // Tabulator list editor expects a concrete values array (function values are not supported
+  // in our current Tabulator build), so precompute account options per render.
+  const secondaryAccountValues = (scenarioState?.get?.()?.accounts || []).map((acc) => ({
+    label: acc.name,
+    value: acc
+  }));
+
   try {
     let allTransactions = await getTransactions(currentScenario.id);
 
@@ -486,8 +493,8 @@ export async function loadMasterTransactionsGrid({
           },
           editor: 'list',
           editorParams: {
-            values: () => [
-              ...((scenarioState?.get?.()?.accounts || []).map((acc) => ({ label: acc.name, value: acc }))),
+            values: [
+              ...secondaryAccountValues,
               { label: 'Insert New Account...', value: { __create__: true } }
             ],
             listItemFormatter: function (value, title) {
