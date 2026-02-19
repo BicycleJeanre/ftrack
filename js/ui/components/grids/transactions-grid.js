@@ -191,7 +191,6 @@ export async function loadMasterTransactionsGrid({
   accountFilter.innerHTML = `
     <label for="account-filter-select" class="text-muted control-label">Account:</label>
     <select id="account-filter-select" class="input-select control-select">
-      <option value="">-- All Accounts --</option>
     </select>
   `;
   window.add(toolbar, accountFilter);
@@ -253,20 +252,32 @@ export async function loadMasterTransactionsGrid({
 
   const accountFilterSelect = document.getElementById('account-filter-select');
   if (accountFilterSelect) {
-    accountFilterSelect.innerHTML = '<option value="">-- All Accounts --</option>';
-    (currentScenario.accounts || []).forEach((account) => {
+    const accounts = currentScenario.accounts || [];
+    accountFilterSelect.innerHTML = '';
+    accounts.forEach((account) => {
       const option = document.createElement('option');
       option.value = account.id;
       option.textContent = account.name;
       accountFilterSelect.appendChild(option);
     });
 
-    accountFilterSelect.value = state?.getTransactionFilterAccountId?.() || '';
+    const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
+    const firstAccountId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
+    const currentFilter = state?.getTransactionFilterAccountId?.();
+    const initialFilter = isValidAccountId(currentFilter)
+      ? Number(currentFilter)
+      : firstAccountId;
 
-    accountFilterSelect.addEventListener('change', async (e) => {
-      const nextFilter = e.target.value ? Number(e.target.value) : null;
-      state?.setTransactionFilterAccountId?.(nextFilter);
+    if (initialFilter != null) {
+      accountFilterSelect.value = String(initialFilter);
+      if (!isValidAccountId(currentFilter)) {
+        state?.setTransactionFilterAccountId?.(initialFilter);
+      }
+    } else {
+      accountFilterSelect.value = '';
+    }
 
+    const applyAccountFilter = (nextFilter) => {
       const masterTransactionsTable = tables?.getMasterTransactionsTable?.();
       if (masterTransactionsTable) {
         if (nextFilter) {
@@ -296,6 +307,14 @@ export async function loadMasterTransactionsGrid({
         }
         callbacks?.updateBudgetTotals?.();
       }
+    };
+
+    applyAccountFilter(initialFilter);
+
+    accountFilterSelect.addEventListener('change', async (e) => {
+      const nextFilter = e.target.value ? Number(e.target.value) : null;
+      state?.setTransactionFilterAccountId?.(nextFilter);
+      applyAccountFilter(nextFilter);
 
       // Projections account filtering is independent of transactions.
     });

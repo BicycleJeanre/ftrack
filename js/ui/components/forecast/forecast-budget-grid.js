@@ -41,6 +41,15 @@ export async function loadBudgetGrid({
   const budgetPeriodSnapshot = state?.getBudgetPeriod?.();
   const selIdNum = transactionFilterAccountIdSnapshot != null ? Number(transactionFilterAccountIdSnapshot) : null;
 
+  const accounts = currentScenario.accounts || [];
+  const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
+  const firstAccountId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
+  const effectiveTransactionFilterAccountId = isValidAccountId(selIdNum) ? selIdNum : firstAccountId;
+
+  if (!isValidAccountId(selIdNum) && effectiveTransactionFilterAccountId != null) {
+    state?.setTransactionFilterAccountId?.(effectiveTransactionFilterAccountId);
+  }
+
   // Keep the grid container stable to reduce scroll jumps.
   const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
   existingToolbars.forEach((el) => el.remove());
@@ -84,10 +93,8 @@ export async function loadBudgetGrid({
         }
 
         const primaryAccountId =
-          transactionFilterAccountIdSnapshot ||
-          (currentScenario.accounts && currentScenario.accounts.length > 0
-            ? currentScenario.accounts[0].id
-            : null);
+          effectiveTransactionFilterAccountId ||
+          (currentScenario.accounts && currentScenario.accounts.length > 0 ? currentScenario.accounts[0].id : null);
 
         const newBudget = {
           id: null,
@@ -207,7 +214,6 @@ export async function loadBudgetGrid({
     accountFilter.innerHTML = `
       <label for="budget-account-filter-select" class="text-muted control-label">Account:</label>
       <select id="budget-account-filter-select" class="input-select control-select">
-        <option value="">-- All Accounts --</option>
       </select>
     `;
     window.add(toolbar, accountFilter);
@@ -268,7 +274,7 @@ export async function loadBudgetGrid({
 
     const budgetAccountFilterSelect = document.getElementById('budget-account-filter-select');
     if (budgetAccountFilterSelect) {
-      budgetAccountFilterSelect.innerHTML = '<option value="">-- All Accounts --</option>';
+      budgetAccountFilterSelect.innerHTML = '';
       (currentScenario.accounts || []).forEach((account) => {
         const option = document.createElement('option');
         option.value = account.id;
@@ -276,7 +282,11 @@ export async function loadBudgetGrid({
         budgetAccountFilterSelect.appendChild(option);
       });
 
-      budgetAccountFilterSelect.value = transactionFilterAccountIdSnapshot || '';
+      if (effectiveTransactionFilterAccountId != null) {
+        budgetAccountFilterSelect.value = String(effectiveTransactionFilterAccountId);
+      } else {
+        budgetAccountFilterSelect.value = '';
+      }
 
       budgetAccountFilterSelect.addEventListener('change', async (e) => {
         const nextId = e.target.value ? Number(e.target.value) : null;
@@ -618,10 +628,11 @@ export async function loadBudgetGrid({
     }
 
     setTimeout(() => {
-      if (transactionFilterAccountIdSnapshot) {
+      const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+      if (transactionFilterAccountId) {
         budgetTable.setFilter((data) => {
           if (!data.perspectiveAccountId) return true;
-          return Number(data.perspectiveAccountId) === transactionFilterAccountIdSnapshot;
+          return Number(data.perspectiveAccountId) === transactionFilterAccountId;
         });
       } else {
         budgetTable.setFilter((data) => {

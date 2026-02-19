@@ -132,7 +132,6 @@ export async function loadProjectionsSection({
   accountFilter.innerHTML = `
     <label for="projections-account-filter-select" class="text-muted control-label">Account:</label>
     <select id="projections-account-filter-select" class="input-select control-select">
-      <option value="">-- All Accounts --</option>
     </select>
   `;
   window.add(toolbar, accountFilter);
@@ -266,6 +265,7 @@ export async function loadProjectionsSection({
 
   const projectionsAccountFilterSelect = document.getElementById('projections-account-filter-select');
   if (projectionsAccountFilterSelect) {
+    projectionsAccountFilterSelect.innerHTML = '';
     (currentScenario.accounts || []).forEach((account) => {
       const option = document.createElement('option');
       option.value = account.id;
@@ -324,7 +324,17 @@ export async function loadProjectionsSection({
 
     const projectionsAccountFilterSelect = document.getElementById('projections-account-filter-select');
     if (projectionsAccountFilterSelect) {
-      const nextId = projectionsAccountFilterSelect.value ? Number(projectionsAccountFilterSelect.value) : null;
+      const accounts = currentScenario.accounts || [];
+      const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
+      const candidateId = projectionsAccountFilterSelect.value ? Number(projectionsAccountFilterSelect.value) : null;
+      const nextId = isValidAccountId(candidateId)
+        ? candidateId
+        : (accounts?.[0]?.id != null ? Number(accounts[0].id) : null);
+
+      if (nextId != null) {
+        projectionsAccountFilterSelect.value = String(nextId);
+      }
+
       state?.setProjectionAccountFilterId?.(nextId);
     }
   } catch (_) {
