@@ -47,6 +47,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scenario selection on first load
 - Documentation navigation defaults updated to match renamed document IDs
 
+## [0.8.5-beta] - 2026-02-19
+
+### Added
+
+- Refresh buttons added to remaining forecast accordions
+  - Generate Plan
+  - Summary
+
+### Changed
+
+- Budget and Projections period navigation now filters in-place (no full grid reload)
+
+### Fixed
+
+- Account selectors no longer include an "All Accounts" option and now default to the first account
+- Scenario-specific Secondary Account dropdown lists in Transactions and Budget
+- Goal-based planner accepts and persists goalAmount as 0 when goal amount is not touched
+- Summary accordions refresh reloads scenario data from disk
+
 ## [0.8.4-beta] - 2026-02-17
 
 ### Added
