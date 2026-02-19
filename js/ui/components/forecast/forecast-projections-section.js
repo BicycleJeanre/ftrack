@@ -17,6 +17,37 @@ import { expandPeriodicChangeForCalculation } from '../../../domain/calculations
 const projectionsGridState = new GridStateManager('projections');
 let lastProjectionsTable = null;
 
+function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable, state } = {}) {
+  if (!projectionsTable) return;
+
+  const projectionPeriod = state?.getProjectionPeriod?.();
+  const projectionPeriods = state?.getProjectionPeriods?.() || [];
+  const selectedPeriod = projectionPeriod ? projectionPeriods.find((p) => p.id === projectionPeriod) : null;
+
+  if (!selectedPeriod?.startDate || !selectedPeriod?.endDate) {
+    projectionsTable.clearFilter();
+    return;
+  }
+
+  const startKey = formatDateOnly(new Date(selectedPeriod.startDate));
+  const endKey = formatDateOnly(new Date(selectedPeriod.endDate));
+
+  const toDateKey = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return formatDateOnly(value);
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return formatDateOnly(d);
+    return String(value);
+  };
+
+  projectionsTable.setFilter((row) => {
+    const rowKey = toDateKey(row?.date);
+    if (!rowKey) return false;
+    return rowKey >= startKey && rowKey <= endKey;
+  });
+}
+
 export async function loadProjectionsSection({
   container,
   scenarioState,
@@ -238,15 +269,8 @@ export async function loadProjectionsSection({
 
     periodSelect.addEventListener('change', async (e) => {
       state?.setProjectionPeriod?.(e.target.value);
-      await loadProjectionsGrid({
-        container: document.getElementById('projectionsGrid'),
-        scenarioState,
-        state,
-        tables,
-        callbacks,
-        logger
-      });
-      callbacks?.updateProjectionTotals?.(container);
+      applyProjectionsPeriodFilter({ state });
+      callbacks?.updateProjectionTotals?.(container, callbacks?.getFilteredProjections?.());
     });
 
     document.getElementById('projections-prev-period-btn')?.addEventListener('click', async () => {
@@ -254,15 +278,9 @@ export async function loadProjectionsSection({
       const currentIndex = projectionPeriods.findIndex((p) => p.id === currentPeriod);
       if (currentIndex > 0) {
         state?.setProjectionPeriod?.(projectionPeriods[currentIndex - 1].id);
-        await loadProjectionsGrid({
-          container: document.getElementById('projectionsGrid'),
-          scenarioState,
-          state,
-          tables,
-          callbacks,
-          logger
-        });
-        callbacks?.updateProjectionTotals?.(container);
+        periodSelect.value = projectionPeriods[currentIndex - 1].id;
+        applyProjectionsPeriodFilter({ state });
+        callbacks?.updateProjectionTotals?.(container, callbacks?.getFilteredProjections?.());
       }
     });
 
@@ -271,15 +289,9 @@ export async function loadProjectionsSection({
       const currentIndex = projectionPeriods.findIndex((p) => p.id === currentPeriod);
       if (currentIndex >= 0 && currentIndex < projectionPeriods.length - 1) {
         state?.setProjectionPeriod?.(projectionPeriods[currentIndex + 1].id);
-        await loadProjectionsGrid({
-          container: document.getElementById('projectionsGrid'),
-          scenarioState,
-          state,
-          tables,
-          callbacks,
-          logger
-        });
-        callbacks?.updateProjectionTotals?.(container);
+        periodSelect.value = projectionPeriods[currentIndex + 1].id;
+        applyProjectionsPeriodFilter({ state });
+        callbacks?.updateProjectionTotals?.(container, callbacks?.getFilteredProjections?.());
       }
     });
 
@@ -389,7 +401,18 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
   // (We refresh Tabulator data instead of rebuilding DOM.)
 
   try {
-    const filteredProjections = callbacks?.getFilteredProjections?.();
+    const projectionsForTotals = callbacks?.getFilteredProjections?.();
+
+    // For performance: build table data for all periods (account-filtered only) and
+    // apply the period selection as a Tabulator filter instead of rebuilding/recomputing.
+    const projectionsAccountFilterId = state?.getProjectionAccountFilterId?.() ?? state?.getTransactionFilterAccountId?.();
+    let filteredProjections = currentScenario.projections || [];
+    if (projectionsAccountFilterId) {
+      const accountExists = (currentScenario.accounts || []).some((a) => Number(a.id) === Number(projectionsAccountFilterId));
+      if (accountExists) {
+        filteredProjections = filteredProjections.filter((p) => Number(p.accountId) === Number(projectionsAccountFilterId));
+      }
+    }
 
     const projectionsGroupingSelect = document.getElementById('projections-grouping-select');
     const groupField = projectionsGroupingSelect?.value || '';
@@ -739,6 +762,13 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
       lastProjectionsTable = projectionsTable;
     }
 
+    // Apply period filter after data refresh/build.
+    try {
+      applyProjectionsPeriodFilter({ projectionsTable, state });
+    } catch (_) {
+      // ignore
+    }
+
     if (projectionsGroupingSelect) {
       const formatGroupLabel = (val) => {
         if (val === null || val === undefined || val === '') return 'Unspecified';
@@ -795,7 +825,7 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
       }
     }
 
-    callbacks?.updateProjectionTotals?.(callbacks?.getEl?.('projectionsContent'), filteredProjections);
+    callbacks?.updateProjectionTotals?.(callbacks?.getEl?.('projectionsContent'), projectionsForTotals ?? filteredProjections);
   } catch (err) {
     logger?.error?.('[Forecast] loadProjectionsGrid failed', err);
     notifyError(`Failed to load projections: ${err?.message || String(err)}`);

@@ -27,6 +27,49 @@ function isCompletedRow(rowData) {
   return false;
 }
 
+function applyMasterBudgetTableFilters({ tables, state, callbacks }) {
+  const masterBudgetTable = tables?.getMasterBudgetTable?.();
+  if (!masterBudgetTable) return;
+
+  const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+  const budgetPeriodId = state?.getBudgetPeriod?.();
+  const periods = state?.getPeriods?.() || [];
+  const selectedPeriod = budgetPeriodId ? periods.find((p) => p.id === budgetPeriodId) : null;
+
+  let periodStart = null;
+  let periodEnd = null;
+  if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
+    periodStart = new Date(selectedPeriod.startDate);
+    periodStart.setHours(0, 0, 0, 0);
+
+    periodEnd = new Date(selectedPeriod.endDate);
+    periodEnd.setHours(23, 59, 59, 999);
+  }
+
+  masterBudgetTable.setFilter((data) => {
+    if (!data) return false;
+
+    // Preserve historical behavior: when no account filter is selected, hide flipped rows.
+    if (!transactionFilterAccountId && String(data.id).includes('_flipped')) return false;
+
+    if (transactionFilterAccountId) {
+      if (data.perspectiveAccountId && Number(data.perspectiveAccountId) !== Number(transactionFilterAccountId)) {
+        return false;
+      }
+    }
+
+    if (periodStart && periodEnd) {
+      const occ = data.occurrenceDate ? new Date(data.occurrenceDate) : null;
+      if (!occ || Number.isNaN(occ.getTime())) return false;
+      if (occ < periodStart || occ > periodEnd) return false;
+    }
+
+    return true;
+  });
+
+  callbacks?.updateBudgetTotals?.();
+}
+
 export async function loadBudgetGrid({
   container,
   scenarioState,
@@ -120,8 +163,9 @@ export async function loadBudgetGrid({
 
         let defaultDate = formatDateOnly(new Date());
         const periods = state?.getPeriods?.() || [];
-        if (budgetPeriodSnapshot) {
-          const selectedPeriod = periods.find((p) => p.id === budgetPeriodSnapshot);
+        const liveBudgetPeriod = state?.getBudgetPeriod?.();
+        if (liveBudgetPeriod) {
+          const selectedPeriod = periods.find((p) => p.id === liveBudgetPeriod);
           if (selectedPeriod && selectedPeriod.startDate) {
             defaultDate = formatDateOnly(new Date(selectedPeriod.startDate));
           }
@@ -307,7 +351,7 @@ export async function loadBudgetGrid({
 
       budgetPeriodSelect.addEventListener('change', async (e) => {
         state?.setBudgetPeriod?.(e.target.value);
-        await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+        applyMasterBudgetTableFilters({ tables, state, callbacks });
       });
 
       document.getElementById('budget-prev-period-btn')?.addEventListener('click', async () => {
@@ -315,7 +359,8 @@ export async function loadBudgetGrid({
         const currentIndex = periods.findIndex((p) => p.id === budgetPeriod);
         if (currentIndex > 0) {
           state?.setBudgetPeriod?.(periods[currentIndex - 1].id);
-          await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+          budgetPeriodSelect.value = periods[currentIndex - 1].id;
+          applyMasterBudgetTableFilters({ tables, state, callbacks });
         }
       });
 
@@ -324,7 +369,8 @@ export async function loadBudgetGrid({
         const currentIndex = periods.findIndex((p) => p.id === budgetPeriod);
         if (currentIndex < periods.length - 1) {
           state?.setBudgetPeriod?.(periods[currentIndex + 1].id);
-          await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+          budgetPeriodSelect.value = periods[currentIndex + 1].id;
+          applyMasterBudgetTableFilters({ tables, state, callbacks });
         }
       });
 
@@ -355,20 +401,7 @@ export async function loadBudgetGrid({
         const nextId = e.target.value ? Number(e.target.value) : null;
         state?.setTransactionFilterAccountId?.(nextId);
 
-        const masterBudgetTable = tables?.getMasterBudgetTable?.();
-        if (masterBudgetTable) {
-          if (nextId) {
-            masterBudgetTable.setFilter((data) => {
-              if (!data.perspectiveAccountId) return true;
-              return Number(data.perspectiveAccountId) === nextId;
-            });
-          } else {
-            masterBudgetTable.setFilter((data) => {
-              return !String(data.id).includes('_flipped');
-            });
-          }
-          callbacks?.updateBudgetTotals?.();
-        }
+        applyMasterBudgetTableFilters({ tables, state, callbacks });
 
         const masterTransactionsTable = tables?.getMasterTransactionsTable?.();
         if (masterTransactionsTable) {
@@ -448,19 +481,6 @@ export async function loadBudgetGrid({
         recurrenceDescription: recurrenceSummary,
         status: statusObj
       };
-
-      if (budgetPeriodSnapshot) {
-        const selectedPeriod = periods.find((p) => p.id === budgetPeriodSnapshot);
-        if (selectedPeriod) {
-          const budgetDate = new Date(budget.occurrenceDate);
-          const periodStart = new Date(selectedPeriod.startDate);
-          const periodEnd = new Date(selectedPeriod.endDate);
-          periodEnd.setHours(23, 59, 59, 999);
-          if (budgetDate < periodStart || budgetDate > periodEnd) {
-            return [];
-          }
-        }
-      }
 
       const canonicalBudget = normalizeCanonicalTransaction(baseData);
       return transformTransactionToRows(canonicalBudget, normalizedAccounts);
@@ -808,17 +828,7 @@ export async function loadBudgetGrid({
       }
 
       setTimeout(() => {
-        const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
-        if (transactionFilterAccountId) {
-          budgetTable.setFilter((data) => {
-            if (!data.perspectiveAccountId) return true;
-            return Number(data.perspectiveAccountId) === transactionFilterAccountId;
-          });
-        } else {
-          budgetTable.setFilter((data) => {
-            return !String(data.id).includes('_flipped');
-          });
-        }
+        applyMasterBudgetTableFilters({ tables, state, callbacks });
       }, 0);
     };
 
