@@ -1018,7 +1018,22 @@ async function loadDebtSummaryCards(container) {
         <option value="Asset">Asset</option>
       </select>
     `;
+
+    const refreshItem = document.createElement('div');
+    refreshItem.className = 'toolbar-item';
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'btn';
+    refreshButton.textContent = 'Refresh';
+    refreshButton.onclick = async () => {
+      if (currentScenario?.id) {
+        currentScenario = await getScenario(currentScenario.id);
+      }
+      await loadDebtSummaryCards(container);
+    };
+    refreshItem.appendChild(refreshButton);
+
     toolbar.appendChild(filterItem);
+    toolbar.appendChild(refreshItem);
     container.appendChild(toolbar);
     filterSelect = filterItem.querySelector('#summary-cards-type-filter');
   }
@@ -1298,9 +1313,12 @@ async function loadFundsSummaryCards(container) {
     const refreshItem = document.createElement('div');
     refreshItem.className = 'toolbar-item';
     const refreshButton = document.createElement('button');
-    refreshButton.className = 'btn btn-primary';
+    refreshButton.className = 'btn';
     refreshButton.textContent = 'Refresh';
     refreshButton.onclick = async () => {
+      if (currentScenario?.id) {
+        currentScenario = await getScenario(currentScenario.id);
+      }
       await loadFundsSummaryCards(container);
     };
     refreshItem.appendChild(refreshButton);
@@ -1604,6 +1622,21 @@ async function loadGeneralSummaryCards(container) {
 
     toolbar.appendChild(typeItem);
     toolbar.appendChild(accountItem);
+
+    const refreshItem = document.createElement('div');
+    refreshItem.className = 'toolbar-item';
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'btn';
+    refreshButton.textContent = 'Refresh';
+    refreshButton.onclick = async () => {
+      if (currentScenario?.id) {
+        currentScenario = await getScenario(currentScenario.id);
+      }
+      await loadGeneralSummaryCards(container);
+    };
+    refreshItem.appendChild(refreshButton);
+    toolbar.appendChild(refreshItem);
+
     container.appendChild(toolbar);
   }
 
