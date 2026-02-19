@@ -126,6 +126,33 @@ export async function loadBudgetGrid({
     });
     window.add(buttonContainer, addButton);
 
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'btn';
+    refreshButton.textContent = 'Refresh';
+    refreshButton.addEventListener('click', async () => {
+      const prevText = refreshButton.textContent;
+      try {
+        refreshButton.textContent = 'Refreshing...';
+        refreshButton.disabled = true;
+
+        const scenario = scenarioState?.get?.();
+        if (scenario?.id) {
+          const refreshed = await getScenario(scenario.id);
+          scenarioState?.set?.(refreshed);
+        }
+
+        await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+      } catch (err) {
+        notifyError('Failed to refresh budget: ' + (err?.message || String(err)));
+      } finally {
+        if (refreshButton.isConnected) {
+          refreshButton.textContent = prevText;
+          refreshButton.disabled = false;
+        }
+      }
+    });
+    window.add(buttonContainer, refreshButton);
+
     const clearButton = document.createElement('button');
     clearButton.className = 'btn';
     clearButton.textContent = 'Clear Budget';
@@ -650,4 +677,8 @@ export async function loadBudgetGrid({
   } catch (err) {
     logger?.error?.('[Forecast] loadBudgetGrid failed', err);
   }
+}
+
+export async function refreshBudgetGrid(args) {
+  return loadBudgetGrid(args);
 }

@@ -125,6 +125,41 @@ export async function loadProjectionsSection({
   });
   window.add(buttonContainer, clearButton);
 
+  const refreshButton = document.createElement('button');
+  refreshButton.className = 'btn';
+  refreshButton.textContent = 'Refresh';
+  refreshButton.addEventListener('click', async () => {
+    const prevText = refreshButton.textContent;
+    try {
+      refreshButton.textContent = 'Refreshing...';
+      refreshButton.disabled = true;
+
+      const scenario = scenarioState?.get?.();
+      if (scenario?.id) {
+        const refreshed = await getScenario(scenario.id);
+        scenarioState?.set?.(refreshed);
+      }
+
+      await loadProjectionsSection({
+        container,
+        scenarioState,
+        getScenarioTypeConfig,
+        state,
+        tables,
+        callbacks,
+        logger
+      });
+    } catch (err) {
+      notifyError('Failed to refresh projections: ' + (err?.message || String(err)));
+    } finally {
+      if (refreshButton.isConnected) {
+        refreshButton.textContent = prevText;
+        refreshButton.disabled = false;
+      }
+    }
+  });
+  window.add(buttonContainer, refreshButton);
+
   window.add(toolbar, buttonContainer);
 
   const accountFilter = document.createElement('div');
@@ -340,6 +375,10 @@ export async function loadProjectionsSection({
   } catch (_) {
     // ignore
   }
+}
+
+export async function refreshProjectionsSection(args) {
+  return loadProjectionsSection(args);
 }
 
 export async function loadProjectionsGrid({ container, scenarioState, state, tables, callbacks, logger }) {

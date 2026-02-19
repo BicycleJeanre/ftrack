@@ -88,6 +88,14 @@ export async function loadMasterTransactionsGrid({
     await callbacks?.refreshSummaryCards?.();
   };
 
+  const refreshFromDisk = async () => {
+    const scenario = scenarioState?.get?.();
+    if (!scenario?.id) return;
+    const refreshed = await getScenario(scenario.id);
+    scenarioState?.set?.(refreshed);
+    await rerun();
+  };
+
   const toolbar = document.createElement('div');
   toolbar.className = 'grid-toolbar';
 
@@ -146,6 +154,26 @@ export async function loadMasterTransactionsGrid({
     }
   });
   window.add(addButtonContainer, addButton);
+
+  const refreshButton = document.createElement('button');
+  refreshButton.className = 'btn';
+  refreshButton.textContent = 'Refresh';
+  refreshButton.addEventListener('click', async () => {
+    const prevText = refreshButton.textContent;
+    try {
+      refreshButton.textContent = 'Refreshing...';
+      refreshButton.disabled = true;
+      await refreshFromDisk();
+    } catch (err) {
+      notifyError('Failed to refresh transactions: ' + (err?.message || String(err)));
+    } finally {
+      if (refreshButton.isConnected) {
+        refreshButton.textContent = prevText;
+        refreshButton.disabled = false;
+      }
+    }
+  });
+  window.add(addButtonContainer, refreshButton);
   window.add(toolbar, addButtonContainer);
 
   const groupingControl = document.createElement('div');
@@ -747,4 +775,8 @@ export async function loadMasterTransactionsGrid({
   } catch (err) {
     // Keep existing behavior: errors are swallowed here.
   }
+}
+
+export async function refreshMasterTransactionsGrid(args) {
+  return loadMasterTransactionsGrid(args);
 }
