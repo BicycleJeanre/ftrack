@@ -355,6 +355,16 @@ export async function loadMasterTransactionsGrid({
 
   const showDateColumn = !!state?.getActualPeriod?.();
 
+  // Tabulator list editor expects a concrete values array (function values are not supported
+  // in our current Tabulator build), so precompute account options per render.
+  const editorAccounts = (currentScenario.accounts || []).filter((a) => a?.name !== 'Select Account');
+  const secondaryAccountValues = editorAccounts.map((acc) => ({
+    label: acc.name,
+    value: acc
+  }));
+  const secondaryAccountsKey = editorAccounts.map((a) => `${a.id}:${a.name}`).join('|');
+  const scenarioId = Number(currentScenario.id);
+
   try {
     let allTransactions = await getTransactions(currentScenario.id);
 
@@ -437,7 +447,9 @@ export async function loadMasterTransactionsGrid({
     const shouldRebuildTable =
       !masterTransactionsTable ||
       masterTransactionsTable?.element !== gridContainer ||
-      masterTransactionsTable?.__ftrackShowDateColumn !== showDateColumn;
+      masterTransactionsTable?.__ftrackShowDateColumn !== showDateColumn ||
+      masterTransactionsTable?.__ftrackScenarioId !== scenarioId ||
+      masterTransactionsTable?.__ftrackSecondaryAccountsKey !== secondaryAccountsKey;
 
     let didCreateNewTable = false;
 
@@ -504,8 +516,8 @@ export async function loadMasterTransactionsGrid({
           },
           editor: 'list',
           editorParams: {
-            values: () => [
-              ...((scenarioState?.get?.()?.accounts || []).map((acc) => ({ label: acc.name, value: acc }))),
+            values: [
+              ...secondaryAccountValues,
               { label: 'Insert New Account...', value: { __create__: true } }
             ],
             listItemFormatter: function (value, title) {
@@ -650,6 +662,8 @@ export async function loadMasterTransactionsGrid({
       });
 
       masterTransactionsTable.__ftrackShowDateColumn = showDateColumn;
+      masterTransactionsTable.__ftrackScenarioId = scenarioId;
+      masterTransactionsTable.__ftrackSecondaryAccountsKey = secondaryAccountsKey;
     } else {
       await refreshGridData(masterTransactionsTable, flatTransformedData);
     }

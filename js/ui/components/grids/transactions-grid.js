@@ -363,10 +363,13 @@ export async function loadMasterTransactionsGrid({
 
   // Tabulator list editor expects a concrete values array (function values are not supported
   // in our current Tabulator build), so precompute account options per render.
-  const secondaryAccountValues = (scenarioState?.get?.()?.accounts || []).map((acc) => ({
+  const editorAccounts = (currentScenario.accounts || []).filter((a) => a?.name !== 'Select Account');
+  const secondaryAccountValues = editorAccounts.map((acc) => ({
     label: acc.name,
     value: acc
   }));
+  const secondaryAccountsKey = editorAccounts.map((a) => `${a.id}:${a.name}`).join('|');
+  const scenarioId = Number(currentScenario.id);
 
   try {
     let allTransactions = await getTransactions(currentScenario.id);
@@ -450,7 +453,9 @@ export async function loadMasterTransactionsGrid({
     const shouldRebuildTable =
       !masterTransactionsTable ||
       masterTransactionsTable?.element !== gridContainer ||
-      masterTransactionsTable?.__ftrackShowDateColumn !== showDateColumn;
+      masterTransactionsTable?.__ftrackShowDateColumn !== showDateColumn ||
+      masterTransactionsTable?.__ftrackScenarioId !== scenarioId ||
+      masterTransactionsTable?.__ftrackSecondaryAccountsKey !== secondaryAccountsKey;
 
     let didCreateNewTable = false;
 
@@ -686,6 +691,8 @@ export async function loadMasterTransactionsGrid({
       });
 
       masterTransactionsTable.__ftrackShowDateColumn = showDateColumn;
+      masterTransactionsTable.__ftrackScenarioId = scenarioId;
+      masterTransactionsTable.__ftrackSecondaryAccountsKey = secondaryAccountsKey;
     } else {
       await refreshGridData(masterTransactionsTable, flatTransformedData);
     }

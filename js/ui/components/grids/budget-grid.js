@@ -402,10 +402,13 @@ export async function loadBudgetGrid({
 
     // Tabulator list editor expects a concrete values array (function values are not supported
     // in our current Tabulator build), so precompute account options per render.
-    const secondaryAccountValues = (scenarioState?.get?.()?.accounts || []).map((acc) => ({
+    const editorAccounts = (currentScenario.accounts || []).filter((a) => a?.name !== 'Select Account');
+    const secondaryAccountValues = editorAccounts.map((acc) => ({
       label: acc.name,
       value: acc
     }));
+    const secondaryAccountsKey = editorAccounts.map((a) => `${a.id}:${a.name}`).join('|');
+    const scenarioId = Number(currentScenario.id);
 
     const transformedData = budgetOccurrences.flatMap((budget) => {
       const storedPrimaryId = budget.primaryAccountId;
@@ -603,7 +606,11 @@ export async function loadBudgetGrid({
     };
 
     let budgetTable = tables?.getMasterBudgetTable?.();
-    const shouldRebuildTable = !budgetTable || budgetTable?.element !== gridContainer;
+    const shouldRebuildTable =
+      !budgetTable ||
+      budgetTable?.element !== gridContainer ||
+      budgetTable?.__ftrackScenarioId !== scenarioId ||
+      budgetTable?.__ftrackSecondaryAccountsKey !== secondaryAccountsKey;
     let didCreateNewTable = false;
 
     if (shouldRebuildTable) {
@@ -751,6 +758,9 @@ export async function loadBudgetGrid({
         }
         }
       });
+
+      budgetTable.__ftrackScenarioId = scenarioId;
+      budgetTable.__ftrackSecondaryAccountsKey = secondaryAccountsKey;
     } else {
       await refreshGridData(budgetTable, transformedData);
     }

@@ -462,6 +462,16 @@ export async function loadBudgetGrid({
 
     const existingTable = tables?.getMasterBudgetTable?.();
 
+    // Tabulator list editor expects a concrete values array (function values are not supported
+    // in our current Tabulator build), so precompute account options per render.
+    const editorAccounts = (currentScenario.accounts || []).filter((a) => a?.name !== 'Select Account');
+    const secondaryAccountValues = editorAccounts.map((acc) => ({
+      label: acc.name,
+      value: acc
+    }));
+    const secondaryAccountsKey = editorAccounts.map((a) => `${a.id}:${a.name}`).join('|');
+    const scenarioId = Number(currentScenario.id);
+
     const columns = [
       createDeleteColumn(
         async (cell) => {
@@ -487,7 +497,7 @@ export async function loadBudgetGrid({
         },
         editor: 'list',
         editorParams: {
-          values: () => (scenarioState?.get?.()?.accounts || []).map((acc) => ({ label: acc.name, value: acc })),
+          values: secondaryAccountValues,
           listItemFormatter: function (value, title) {
             return title;
           }
@@ -542,7 +552,11 @@ export async function loadBudgetGrid({
     ];
 
     let budgetTable = existingTable;
-    const needsNewTable = !budgetTable || budgetTable?.element !== gridContainer;
+    const needsNewTable =
+      !budgetTable ||
+      budgetTable?.element !== gridContainer ||
+      budgetTable?.__ftrackScenarioId !== scenarioId ||
+      budgetTable?.__ftrackSecondaryAccountsKey !== secondaryAccountsKey;
     let didCreateNewTable = false;
 
     if (needsNewTable) {
@@ -597,6 +611,9 @@ export async function loadBudgetGrid({
         }
         }
       });
+
+      budgetTable.__ftrackScenarioId = scenarioId;
+      budgetTable.__ftrackSecondaryAccountsKey = secondaryAccountsKey;
     } else {
       await refreshGridData(budgetTable, transformedData);
     }
