@@ -6,6 +6,7 @@ import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from '../grids/grid-state.js';
+import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
@@ -51,7 +52,7 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
 export async function loadProjectionsSection({
   container,
   scenarioState,
-  getScenarioTypeConfig,
+  getWorkflowConfig,
   state,
   tables,
   callbacks,
@@ -98,7 +99,6 @@ export async function loadProjectionsSection({
       currentScenario = scenarioState?.get?.();
 
       await generateProjections(currentScenario.id, {
-        periodicity: 'monthly',
         source: 'transactions'
       });
 
@@ -109,15 +109,15 @@ export async function loadProjectionsSection({
       await loadProjectionsSection({
         container,
         scenarioState,
-        getScenarioTypeConfig,
+        getWorkflowConfig,
         state,
         tables,
         callbacks,
         logger
       });
 
-      const typeConfig = getScenarioTypeConfig?.();
-      if (typeConfig?.showSummaryCards) {
+      const workflowConfig = getWorkflowConfig?.();
+      if (workflowConfig?.showSummaryCards) {
         await callbacks?.loadSummaryCards?.(callbacks?.getEl?.('summaryCardsContent'));
       }
     } catch (err) {
@@ -144,7 +144,7 @@ export async function loadProjectionsSection({
       await loadProjectionsSection({
         container,
         scenarioState,
-        getScenarioTypeConfig,
+        getWorkflowConfig,
         state,
         tables,
         callbacks,
@@ -174,7 +174,7 @@ export async function loadProjectionsSection({
       await loadProjectionsSection({
         container,
         scenarioState,
-        getScenarioTypeConfig,
+        getWorkflowConfig,
         state,
         tables,
         callbacks,
@@ -301,7 +301,7 @@ export async function loadProjectionsSection({
       await loadProjectionsSection({
         container,
         scenarioState,
-        getScenarioTypeConfig,
+        getWorkflowConfig,
         state,
         tables,
         callbacks,
@@ -406,7 +406,7 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
     // For performance: build table data for all periods (account-filtered only) and
     // apply the period selection as a Tabulator filter instead of rebuilding/recomputing.
     const projectionsAccountFilterId = state?.getProjectionAccountFilterId?.() ?? state?.getTransactionFilterAccountId?.();
-    let filteredProjections = currentScenario.projections || [];
+    let filteredProjections = getScenarioProjectionRows(currentScenario);
     if (projectionsAccountFilterId) {
       const accountExists = (currentScenario.accounts || []).some((a) => Number(a.id) === Number(projectionsAccountFilterId));
       if (accountExists) {

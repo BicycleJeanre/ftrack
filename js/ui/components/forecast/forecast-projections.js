@@ -2,6 +2,7 @@
 // Forecast projections filtering and totals rendering extracted from forecast.js.
 
 import { parseDateOnly } from '../../../shared/date-utils.js';
+import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 
 export function getFilteredProjections({
   currentScenario,
@@ -12,7 +13,7 @@ export function getFilteredProjections({
 }) {
   if (!currentScenario) return [];
 
-  let filtered = currentScenario.projections || [];
+  let filtered = getScenarioProjectionRows(currentScenario);
 
   const accountFilterId = projectionsAccountFilterId ?? transactionFilterAccountId;
 

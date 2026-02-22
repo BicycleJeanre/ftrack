@@ -11,8 +11,12 @@ function runDateBoundaryAssertions({ scenarios }) {
   const allScenarios = scenarios || [];
 
   allScenarios.forEach((scenario) => {
-    const start = toDate(scenario.startDate);
-    const end = toDate(scenario.endDate);
+    const projectionConfig = scenario?.projection?.config || {};
+    const windowStart = projectionConfig.startDate || scenario.startDate;
+    const windowEnd = projectionConfig.endDate || scenario.endDate;
+
+    const start = toDate(windowStart);
+    const end = toDate(windowEnd);
 
     if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       pushMismatch(mismatches, 'scenario-date-valid', {
@@ -28,7 +32,7 @@ function runDateBoundaryAssertions({ scenarios }) {
         scenarioId: scenario.id,
         scenarioName: scenario.name,
         expected: 'startDate <= endDate',
-        actual: `${scenario.startDate} > ${scenario.endDate}`
+        actual: `${windowStart} > ${windowEnd}`
       });
     }
 
@@ -43,7 +47,7 @@ function runDateBoundaryAssertions({ scenarios }) {
           scenarioId: scenario.id,
           scenarioName: scenario.name,
           transactionId: tx.id,
-          expected: `recurrence.startDate <= ${scenario.endDate}`,
+          expected: `recurrence.startDate <= ${windowEnd}`,
           actual: recurrence.startDate
         });
       }
@@ -80,7 +84,7 @@ function runDateBoundaryAssertions({ scenarios }) {
             scenarioId: scenario.id,
             scenarioName: scenario.name,
             transactionId: tx.id,
-            expected: `${scenario.startDate} <= one-time date <= ${scenario.endDate}`,
+            expected: `${windowStart} <= one-time date <= ${windowEnd}`,
             actual: recurrence.startDate
           });
         }

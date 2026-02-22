@@ -11,10 +11,10 @@
 
 ## 2.0 Current Coupling Observed
 
-2.0.1 UI sections are controlled by `assets/lookup-data.json.scenarioTypes` and `getScenarioTypeConfig`.
-2.0.2 Scenario records currently store `type`, `startDate`, `endDate`, and `projectionPeriod`.
-2.0.3 Projection generation reads `scenario.startDate/endDate/projectionPeriod` directly.
-2.0.4 QC test mapping is organized around scenario types in `QC/mappings/use-case-to-scenario-type.json`.
+2.0.1 Legacy UI sections were controlled by `assets/lookup-data.json.scenarioTypes` and `getScenarioTypeConfig`.
+2.0.2 Legacy scenario records stored `type`, `startDate`, `endDate`, and `projectionPeriod`.
+2.0.3 Legacy projection generation read `scenario.startDate/endDate/projectionPeriod` directly.
+2.0.4 Legacy QC mapping was organized around scenario types in `QC/mappings/use-case-to-scenario-type.json`.
 
 ## 3.0 Proposed Conceptual Model
 
@@ -42,11 +42,19 @@
 - last selected scenario id and version
 - per-view period settings for card grids (transactions, budgets, projections)
 
-4.0.4 Versioning Through Duplication
+4.0.4 Planning Windows For Goal Tooling
 
-4.0.4.1 Each scenario is a versioned artifact.
-4.0.4.2 Duplicating a scenario creates a new scenario with a new ID and increments a version counter.
-4.0.4.3 Scenarios track where they were duplicated from using a simple lineage record (no merge semantics).
+4.0.4.1 Goal workflows use explicit planning windows stored on the scenario:
+- `scenario.planning.generatePlan` (Generate Plan)
+- `scenario.planning.advancedGoalSolver` (Advanced Goal Solver)
+
+4.0.4.2 Planning windows default to the projection window but may diverge.
+
+4.0.5 Versioning Through Duplication
+
+4.0.5.1 Each scenario is a versioned artifact.
+4.0.5.2 Duplicating a scenario creates a new scenario with a new ID and increments a version counter.
+4.0.5.3 Scenarios track where they were duplicated from using a simple lineage record (no merge semantics).
 
 ## 5.0 Workflow Definitions
 
@@ -63,10 +71,14 @@
 - the forecast page renders sections based on workflow config
 - scenario selection remains orthogonal to workflow selection
 
+5.0.5 Default Workflow Selection
+
+- If `uiState.lastWorkflowId` is missing or invalid, default to `general`.
+
 ## 6.0 Import/Export Behavior
 
 6.0.1 Export includes `uiState.lastWorkflowId` so the app re-opens on the same workflow after import.
-6.0.2 If imported data has no `uiState`, fall back to a default workflow id.
+6.0.2 If imported data has no `uiState`, fall back to the default workflow id (`general`).
 6.0.3 Export includes `uiState.lastScenarioId` and the last selected scenario version so the app re-opens on the same version after import.
 
 ## 7.0 Migration Sketch
@@ -93,6 +105,5 @@
 
 9.0.1 Projection config is user-overridable per run and may be changed at any time.
 9.0.2 Workflow selection is global-only.
-9.0.3 Code-defined workflows are sufficient.
-
+9.0.3 Code-defined workflows are sufficient (registry can expand as new workflows are defined).
 9.0.4 Transaction and budget period views are per-card settings (not tied to projection period type).

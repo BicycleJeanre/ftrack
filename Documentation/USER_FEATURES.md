@@ -1,7 +1,7 @@
 # FTrack User Features
 
 **Version**: 1.2.1  
-**Last Updated**: February 17, 2026  
+**Last Updated**: February 22, 2026  
 **Purpose**: Complete list of implemented user functionality
 
 ---
@@ -9,15 +9,16 @@
 ## 1.0 Scenario Management
 
 1.1 Create new financial scenarios  
-1.2 Edit scenario properties (name, type, description, dates, frequency)  
+1.2 Edit scenario properties (name, description, projection window dates, projection period type)  
 1.3 Delete scenarios  
-1.4 Select active scenario from dropdown  
-1.5 Set scenario type: Budget, General, Funds, Debt Repayment, Goal-Based, or Advanced Goal Solver  
-1.6 Define scenario date range (start/end)  
-1.7 Set scenario frequency (Weekly, Monthly, Quarterly, Yearly)
-1.8 Generate Plan features
-  - 1.8.1 Goal-Based Generate Plan for single-account goal contributions
-  - 1.8.2 Advanced Goal Solver Generate Plan for multi-goal planning with constraints
+1.4 Select active scenario from the scenario list grid  
+1.5 Duplicate scenarios to create versioned what-if comparisons (version + lineage)  
+1.6 Define scenario projection window (start/end)  
+1.7 Set scenario projection period type (Day, Week, Month, Quarter, Year)  
+1.8 Workflow selection (Forecast left nav): Budget, General, Funds, Debt Repayment, Goal-Based, Advanced Goal Solver  
+1.9 Generate Plan features
+  - 1.9.1 Goal-Based Generate Plan for single-account goal contributions
+  - 1.9.2 Advanced Goal Solver Generate Plan for multi-goal planning with constraints
 
 ## 2.0 Account Management
 
@@ -71,7 +72,7 @@
 ## 6.0 User Interface
 
 6.1 Navigate between pages using top navigation bar  
-6.2 Expand/collapse sections using accordions  
+6.2 Forecast page uses card-based sections controlled by the selected workflow  
 6.3 View data in responsive tables  
 6.4 Add rows inline with "Add Row" button  
 6.5 Edit rows inline with edit icon  
@@ -110,7 +111,7 @@
 10.2 Type-specific input validation (dates, numbers, text)  
 10.3 Dropdown constraints for categorical data  
 10.4 Automatic ID generation for new records  
-10.5 Conditional field visibility based on scenario type  
+10.5 Conditional UI visibility based on workflow  
 10.6 Cross-reference validation between accounts and transactions
 
 ## 11.0 Documentation Expansion Layout
@@ -125,7 +126,7 @@
 ## 12.0 Create Your First Budget
 
 12.1 Open Forecast and select a scenario (create one if needed)  
-12.2 Set the scenario type to Budget  
+12.2 Select the Budget workflow in the left nav  
 12.3 Add or confirm key accounts with opening balances  
 12.4 Enter planned income transactions (paychecks, deposits)  
 12.5 Enter planned expense transactions (rent, utilities, groceries)  

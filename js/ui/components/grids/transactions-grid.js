@@ -30,7 +30,7 @@ const transactionsGridState = new GridStateManager('transactions');
 export async function loadMasterTransactionsGrid({
   container,
   scenarioState,
-  getScenarioTypeConfig,
+  getWorkflowConfig,
   state,
   tables,
   callbacks,
@@ -48,15 +48,9 @@ export async function loadMasterTransactionsGrid({
     // Keep existing behavior: ignore state capture errors.
   }
 
-  const typeConfig = getScenarioTypeConfig?.();
+  const workflowConfig = getWorkflowConfig?.();
 
-  if (!currentScenario.type) {
-    container.innerHTML =
-      '<div class="empty-message">Please select a Scenario Type and Period Type in the scenario grid above to enable transactions.</div>';
-    return;
-  }
-
-  if (!typeConfig?.showPlannedTransactions) {
+  if (!workflowConfig?.showPlannedTransactions) {
     container.innerHTML = '';
     return;
   }
@@ -79,7 +73,7 @@ export async function loadMasterTransactionsGrid({
     await loadMasterTransactionsGrid({
       container,
       scenarioState,
-      getScenarioTypeConfig,
+      getWorkflowConfig,
       state,
       tables,
       callbacks,
@@ -130,7 +124,7 @@ export async function loadMasterTransactionsGrid({
       const selectedPeriod = actualPeriod ? periods.find((p) => p.id === actualPeriod) : null;
       const defaultEffectiveDate = selectedPeriod
         ? formatDateOnly(selectedPeriod.startDate)
-        : (currentScenario.startDate || formatDateOnly(new Date()));
+        : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
 
       await createTransaction(currentScenario.id, {
         primaryAccountId: defaultAccountId,

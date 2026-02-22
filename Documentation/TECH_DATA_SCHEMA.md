@@ -14,17 +14,17 @@ FTrack persists a single root object. Export and import operations read and writ
 type AppData = {
   schemaVersion: number,
   scenarios: Scenario[],
-  uiState?: UiState
+  uiState: UiState
 }
 
 type UiState = {
-  lastWorkflowId: string | null,           // Persist last selected workflow across reload/import
+  lastWorkflowId: string,                 // Persist last selected workflow across reload/import (defaults to "general")
   lastScenarioId: number | null,           // Persist last selected scenario across reload/import
   lastScenarioVersion: number | null,      // Redundant safety for versioned scenarios
-  viewPeriodTypeIds?: {                   // Period views are per-card, not derived from projections
-    transactions: number | null,           // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
-    budgets: number | null,                // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
-    projections: number | null             // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
+  viewPeriodTypeIds: {                     // Period views are per-card, not derived from projections
+    transactions: number,                  // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
+    budgets: number,                       // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
+    projections: number                    // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
   }
 }
 ```
@@ -58,7 +58,8 @@ A scenario is a named version of user content (accounts, transactions, and optio
   accounts: Account[],
   transactions?: Transaction[],
   budgets?: Budget[],
-  projection?: ProjectionBundle | null       // Projection config + last generated output
+  projection?: ProjectionBundle | null,      // Projection config + last generated output
+  planning?: ScenarioPlanning | null         // Planning windows for goal tooling (Generate Plan / Solver)
 }
 ```
 
@@ -75,6 +76,7 @@ A scenario is a named version of user content (accounts, transactions, and optio
 | `transactions` | Transaction[] | No | Can be empty |
 | `budgets` | Budget[] | No | Optional; workflow-driven UI may show/hide budget tooling |
 | `projection` | ProjectionBundle \| null | No | Stored projection config and last generated results |
+| `planning` | ScenarioPlanning \| null | No | Planning windows used by goal tooling; independent of projection config |
 
 ### 2.3 ScenarioLineage
 
@@ -111,6 +113,31 @@ type ProjectionConfig = {
 - `source = "transactions"` uses planned transactions as the forward-looking input.
 - `source = "budget"` is new functionality: uses budget occurrences as the forward-looking input and treats budget occurrences marked `status.name = "actual"` as locked.
 - Locked means: once a budget occurrence is marked complete via `status.name = "actual"`, it remains in the data and projections must include it from its actual date (`status.actualDate` if present, otherwise `occurrenceDate`) onward.
+
+---
+
+## 2.5 ScenarioPlanning
+
+Goal tooling uses explicit planning windows that can differ from the projection window.
+
+2.5.1 Rules
+
+- Planning windows default to the projection window (`scenario.projection.config.startDate/endDate`) when missing.
+- Goal-based workflow uses `scenario.planning.generatePlan` as the planning horizon.
+- Advanced Goal Solver uses `scenario.planning.advancedGoalSolver` as the solver horizon.
+- Projections always use `scenario.projection.config` (planning windows do not change engine behavior).
+
+```typescript
+type ScenarioPlanning = {
+  generatePlan: PlanningWindow,
+  advancedGoalSolver: PlanningWindow
+}
+
+type PlanningWindow = {
+  startDate: string,
+  endDate: string
+}
+```
 
 ---
 

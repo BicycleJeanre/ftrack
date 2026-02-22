@@ -192,6 +192,81 @@ p {
   display: none !important;
 }
 
+/* ==================================== Forecast Layout ====================================*/
+
+.forecast-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+}
+
+.forecast-sidebar {
+  flex: 0 0 240px;
+  width: 240px;
+  position: sticky;
+  top: var(--spacing-lg);
+}
+
+.forecast-sidebar-title {
+  font-size: 0.95em;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.forecast-workflow-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+}
+
+.workflow-nav-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.workflow-nav-item:hover {
+  background: var(--bg-hover);
+}
+
+.workflow-nav-item.active {
+  background: var(--accent-subtle);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.forecast-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .forecast-layout {
+    flex-direction: column;
+  }
+
+  .forecast-sidebar {
+    width: auto;
+    position: static;
+  }
+
+  .forecast-workflow-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .workflow-nav-item {
+    width: auto;
+  }
+}
+
 /* ==================================== Navigation ====================================*/
 
 #main-navbar {

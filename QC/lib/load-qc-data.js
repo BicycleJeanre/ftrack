@@ -64,9 +64,28 @@ function loadUseCaseMapping(customPath = DEFAULT_PATHS.useCaseMapping) {
   return data;
 }
 
-function getScenariosByType(qcInputData, scenarioTypeName) {
+function getScenariosByType(qcInputData, scenarioTypeName, useCaseMapping = null) {
   assertScenarioTypeSupported(scenarioTypeName);
-  return (qcInputData.scenarios || []).filter((scenario) => getScenarioTypeName(scenario) === scenarioTypeName);
+  const scenarios = qcInputData.scenarios || [];
+
+  // Legacy datasets (pre-schema 43) tagged scenarios with `scenario.type`.
+  const hasLegacyType = scenarios.some((scenario) => typeof scenario?.type === 'number');
+  if (hasLegacyType) {
+    return scenarios.filter((scenario) => getScenarioTypeName(scenario) === scenarioTypeName);
+  }
+
+  // Workflow-based datasets (schema 43) do not store type on scenarios.
+  // Use the mapping file's explicit scenarioIds list instead.
+  const mapping = useCaseMapping?.scenarioTypeMappings?.[scenarioTypeName] || null;
+  const ids = Array.isArray(mapping?.scenarioIds) ? mapping.scenarioIds : [];
+  if (ids.length === 0) {
+    throw new Error(
+      `QC dataset scenarios do not include scenario.type, and no scenarioIds mapping exists for "${scenarioTypeName}".`
+    );
+  }
+
+  const wanted = new Set(ids.map((id) => Number(id)).filter((id) => Number.isFinite(id)));
+  return scenarios.filter((scenario) => wanted.has(Number(scenario?.id)));
 }
 
 function getMappedUseCasesForScenarioType(useCaseMapping, scenarioTypeName) {

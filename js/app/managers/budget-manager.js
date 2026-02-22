@@ -141,9 +141,14 @@ export async function createFromProjections(scenarioId) {
         throw new Error(`Scenario ${scenarioId} not found`);
     }
 
-// Get scenario date range — always use parseDateOnly, never new Date(), to avoid timezone shifts
-        const startDate = parseDateOnly(scenario.startDate);
-        const endDate = parseDateOnly(scenario.endDate);
+    // Get projection window — always use parseDateOnly, never new Date(), to avoid timezone shifts
+    const windowStart = scenario?.projection?.config?.startDate;
+    const windowEnd = scenario?.projection?.config?.endDate;
+    if (!windowStart || !windowEnd) {
+        throw new Error(`Scenario ${scenarioId} is missing projection window dates`);
+    }
+    const startDate = parseDateOnly(windowStart);
+    const endDate = parseDateOnly(windowEnd);
 
     // Use the same expansion logic as the projection engine (handles recurring + non-recurring)
     const statusName = tx => typeof tx.status === 'object' ? tx.status.name : tx.status;

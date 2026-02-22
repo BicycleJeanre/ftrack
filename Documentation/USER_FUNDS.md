@@ -1,8 +1,8 @@
-# Funds Scenarios
+# Funds Workflow
 
 ## 1.0 Purpose
 
-1.1 Explain how to use Funds scenarios to model a shared pool with ownership expressed as shares.
+1.1 Explain how to use the Funds workflow to model a shared pool with ownership expressed as shares.
 
 ## 2.0 When To Use Funds
 
@@ -14,13 +14,13 @@
 
 2.1.3 A scoped summary view across account types.
 
-## 3.0 Create A Funds Scenario
+## 3.0 Use the Funds Workflow
 
 3.1 Go to Forecast.
 
-3.2 Create a scenario.
+3.2 Select the Funds workflow in the left nav.
 
-3.3 Set Type to Funds.
+3.3 Create a scenario.
 
 3.4 Set Period Type.
 

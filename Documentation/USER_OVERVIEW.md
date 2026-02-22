@@ -35,15 +35,17 @@ Docs can be deep-linked using the hash format.
 
 The `docId` is based on the filename without extension.
 
-## 2.0 Choosing A Scenario Type
+## 2.0 Choosing a Workflow
+
+Workflows are Forecast UI presets (left navigation). They control which cards are visible, but they do not change your scenario data.
 
 2.1 Budget.
 
-2.1.1 Use when you want plan vs actual tracking and a budget workflow.
+2.1.1 Use when you want plan vs actual tracking, budgets, and variance.
 
 2.2 General.
 
-2.2.1 Use for flexible what-if planning without the budget grid.
+2.2.1 Use for flexible what-if planning with summary totals.
 
 2.3 Funds.
 
@@ -61,7 +63,7 @@ The `docId` is based on the filename without extension.
 
 2.6.1 Use for multiple goals across accounts with constraints and an applyable solution.
 
-## 3.0 Choosing Goal Planning Mode
+## 3.0 Choosing Goal Planning Workflow
 
 3.1 If you want to reach a savings target.
 
@@ -83,4 +85,4 @@ The `docId` is based on the filename without extension.
 
 3.3.3 Debt Repayment guide. [Debt Repayment](#repo-docs/USER_DEBT_REPAYMENT)
 
-3.3.4 Scenario type overview. [Scenario Planning](#repo-docs/CONCEPTS_SCENARIOS)
+3.3.4 Scenarios and workflows overview. [Scenarios and Workflows](#repo-docs/CONCEPTS_SCENARIOS)

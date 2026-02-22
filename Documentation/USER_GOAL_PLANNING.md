@@ -30,11 +30,15 @@
 
 3.2.2 Goal Date to the target date.
 
-3.3 Ensure the goal date is within the scenario window.
+3.3 Ensure the goal date is within the Generate Plan planning window.
+
+3.3.1 If you want projections to validate the goal date, also extend the scenario projection End date to cover the goal date.
 
 ## 4.0 Use Generate Plan In Goal-Based Mode
 
 4.1 Open the Generate Plan section.
+
+4.1.1 If needed, set the Planning Window (Start/End) at the top of the card.
 
 4.2 Select.
 
@@ -58,7 +62,7 @@
 
 4.5.1 FTrack creates or replaces a recurring planned transaction tagged as goal-generated for that goal account.
 
-4.5.2 The transaction runs from today through the goal date.
+4.5.2 The transaction runs from the planning window start through the goal date.
 
 ## 5.0 How Interest Is Used In Calculations
 

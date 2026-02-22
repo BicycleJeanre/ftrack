@@ -9,6 +9,7 @@ import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from '../grids/grid-state.js';
+import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 
 import * as BudgetManager from '../../../app/managers/budget-manager.js';
 
@@ -225,7 +226,8 @@ export async function loadBudgetGrid({
       try {
         currentScenario = scenarioState?.get?.();
 
-        if (!currentScenario.projections || currentScenario.projections.length === 0) {
+        const projectionRows = getScenarioProjectionRows(currentScenario);
+        if (!projectionRows || projectionRows.length === 0) {
           notifyError('No projections to save as budget. Generate projections first.');
           return;
         }
@@ -236,7 +238,7 @@ export async function loadBudgetGrid({
         regenerateFromProjectionsButton.textContent = 'Saving...';
         regenerateFromProjectionsButton.disabled = true;
 
-        await BudgetManager.createFromProjections(currentScenario.id, currentScenario.projections);
+        await BudgetManager.createFromProjections(currentScenario.id, projectionRows);
 
         const refreshed = await getScenario(currentScenario.id);
         scenarioState?.set?.(refreshed);

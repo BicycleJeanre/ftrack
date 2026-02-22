@@ -16,9 +16,11 @@
 
 2.1.3 **Start Date / End Date**:
 
-2.1.3.1 If blank, Start Date defaults to the scenario start date.
+2.1.3.1 If blank, Start Date defaults to the solver planning window start date.
 
-2.1.3.2 If blank, End Date defaults to the scenario end date.
+2.1.3.2 If blank, End Date defaults to the solver planning window end date.
+
+2.1.3.3 The solver planning window is set at the top of the Generate Plan card (Advanced Goal Solver workflow) and defaults to the scenario projection window.
 
 2.1.4 **Priority**: lower numbers are solved first. If two goals conflict, priority decides which goal is favoured.
 
@@ -84,7 +86,7 @@
 
 ### 3.1 Pay off a home loan 1 year sooner
 
-3.1.1 Scenario: Advanced Goal Solver.
+3.1.1 Workflow: Advanced Goal Solver.
 
 3.1.2 Accounts: ensure your loan and your funding account exist in the scenario and have correct starting balances.
 

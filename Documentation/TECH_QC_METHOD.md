@@ -33,30 +33,35 @@ Generate a markdown report that includes:
 - `QC/lib/load-qc-data.js`: Loads input and expected data.
 - `QC/lib/extract-actuals.js`: Produces normalized actual values from module outputs.
 - `QC/lib/compare-results.js`: Compares actual vs expected with tolerance support.
-### 3.3 Scenario-Type QC Test Files
-Each scenario-type file should do only these steps:
+### 3.3 Workflow QC Test Files
+Each workflow suite file should do only these steps:
 1. Get generated actual values from the relevant application modules.
 2. Compare actual values to expected values for mapped use cases.
 3. Return pass or fail results with mismatch details.
 
-| Scenario Type | Test File | Input Selection | Use Case Scope |
+| Workflow | Test File | Input Selection | Use Case Scope |
 |---|---|---|---|
-| Budget | `QC/tests/scenario-types/budget.test.js` | Scenario type `Budget` from `qc-input-data.json` | `UC-A*`, `UC-E1`, plus Budget summary assertions |
-| General | `QC/tests/scenario-types/general.test.js` | Scenario type `General` from `qc-input-data.json` | `UC-B*`, `UC-C*`, `UC-F*`, `UC-E2`, plus General summary assertions |
-| Funds | `QC/tests/scenario-types/funds.test.js` | Scenario type `Funds` from `qc-input-data.json` | `UC-E3`, plus Funds summary assertions |
-| Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | Scenario type `Debt Repayment` from `qc-input-data.json` | `UC-D*`, plus Debt summary assertions |
-| Goal-Based | `QC/tests/scenario-types/goal-based.test.js` | Scenario type `Goal-Based` from `qc-input-data.json` | Goal-based scenario assertions |
-| Advanced Goal Solver | `QC/tests/scenario-types/advanced-goal-solver.test.js` | Scenario type `Advanced Goal Solver` from `qc-input-data.json` | `UC-E4`, plus solver summary assertions |
+| Budget | `QC/tests/scenario-types/budget.test.js` | Workflow `Budget` scenarios selected from `qc-input-data.json` via mapping | `UC-A*`, `UC-E1`, plus Budget summary assertions |
+| General | `QC/tests/scenario-types/general.test.js` | Workflow `General` scenarios selected from `qc-input-data.json` via mapping | `UC-B*`, `UC-C*`, `UC-F*`, `UC-E2`, plus General summary assertions |
+| Funds | `QC/tests/scenario-types/funds.test.js` | Workflow `Funds` scenarios selected from `qc-input-data.json` via mapping | `UC-E3`, plus Funds summary assertions |
+| Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | Workflow `Debt Repayment` scenarios selected from `qc-input-data.json` via mapping | `UC-D*`, plus Debt summary assertions |
+| Goal-Based | `QC/tests/scenario-types/goal-based.test.js` | Workflow `Goal-Based` scenarios selected from `qc-input-data.json` via mapping | Goal-based scenario assertions |
+| Advanced Goal Solver | `QC/tests/scenario-types/advanced-goal-solver.test.js` | Workflow `Advanced Goal Solver` scenarios selected from `qc-input-data.json` via mapping | `UC-E4`, plus solver summary assertions |
 
-### 3.4 Universal Actions In Every Scenario-Type File
-Universal checks are included by import and execution inside each scenario-type file, not as separate runner files.
+3.3.1 Selection Rule
+
+- For schemaVersion 43 datasets, workflow suites select scenarios by `scenarioIds` from `QC/mappings/use-case-to-scenario-type.json` (legacy filename retained).
+- Legacy QC datasets may still include `scenario.type` and can be selected by scenario type id mapping.
+
+### 3.4 Universal Actions In Every Workflow Suite File
+Universal checks are included by import and execution inside each workflow suite file, not as separate runner files.
 
 - `QC/tests/universal/recurrence-assertions.js`: Shared recurrence checks.
 - `QC/tests/universal/periodic-change-assertions.js`: Shared periodic change checks.
 - `QC/tests/universal/date-boundary-assertions.js`: Shared date-boundary checks.
 
 ### 3.5 Script-Based QC Execution
-Use scripts in project configuration (`package.json`) for scenario-type execution instead of dedicated runner files.
+Use scripts in project configuration (`package.json`) for workflow suite execution instead of dedicated runner files (folder naming is legacy).
 
 - `qc:test:budget` -> runs `QC/tests/scenario-types/budget.test.js`
 - `qc:test:general` -> runs `QC/tests/scenario-types/general.test.js`
@@ -64,19 +69,18 @@ Use scripts in project configuration (`package.json`) for scenario-type executio
 - `qc:test:debt` -> runs `QC/tests/scenario-types/debt-repayment.test.js`
 - `qc:test:goal-based` -> runs `QC/tests/scenario-types/goal-based.test.js`
 - `qc:test:advanced-goal-solver` -> runs `QC/tests/scenario-types/advanced-goal-solver.test.js`
-- `qc:test:all-scenario-types` -> runs all scenario-type scripts
+- `qc:test:all-scenario-types` -> runs all workflow suite scripts
 
 ### 3.6 Use Case Mapping File
-- `QC/mappings/use-case-to-scenario-type.json`: Declares use case ids per scenario type, including summary assertions.
+- `QC/mappings/use-case-to-scenario-type.json`: Declares use case ids and `scenarioIds` per workflow suite (legacy filename retained).
 
 ### 3.7 Reporting Files
 - `QC/reports/qc-report-YYYY-MM-DD.md`: Human-readable combined report.
-- `QC/reports/qc-report-<scenario-type>-YYYY-MM-DD.md`: Scenario-type specific report.
 
 ### 3.8 Execution Rule
-For every scenario-type run, execute:
-1. Universal assertion actions inside the scenario-type test file.
-2. Scenario-type specific extraction and comparison.
+For every workflow suite run, execute:
+1. Universal assertion actions inside the workflow suite test file.
+2. Workflow-specific extraction and comparison.
 3. Unified report generation with pass/fail by use case id.
 
 ## 4.0 Test Strategy Recommendation
@@ -101,7 +105,7 @@ Keep the QC model simple:
 This section is the single structured mapping for all QC use cases in `QC/qc-input-data.json` and expected assertions in `QC/qc-expected-outputs.json`.
 
 ### 6.1 Unified Use Case Mapping Grid
-| Use Case ID | Category | Scenario Type | Scenario-Type Test File | Input Group | Input Setup Summary | Expected Assertion Focus |
+| Use Case ID | Category | Workflow | Workflow Test File | Input Group | Input Setup Summary | Expected Assertion Focus |
 |---|---|---|---|---|---|---|
 | `UC-A1` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Recurring weekly Money In to checking | Salary inflow recurrence and ending balance effect |
 | `UC-A2` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Recurring monthly rent expense | Fixed obligation outflow and ending balance effect |
@@ -148,4 +152,3 @@ This section is the single structured mapping for all QC use cases in `QC/qc-inp
 3. QC report output must show pass or fail by `useCaseId` and include mismatch details.
 4. Expected outputs must also include all relevant totals and summary values produced by the application.
 5. Totals and summaries should be QC validated using the same input use cases, not a separate dataset.
-

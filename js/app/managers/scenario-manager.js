@@ -3,7 +3,7 @@
 // Uses data-store for persistence
 
 import * as DataStore from '../services/storage-service.js';
-import { formatDateOnly } from '../../shared/date-utils.js';
+import { getNextScenarioVersion, sanitizeScenarioForWrite } from '../../shared/app-data-utils.js';
 
 /**
  * Get all scenarios
@@ -31,32 +31,29 @@ export async function getById(scenarioId) {
  */
 export async function create(scenarioData) {
     return await DataStore.transaction(async (data) => {
-        if (!data || typeof data !== 'object') {
-            data = { scenarios: [] };
-        }
-        if (!Array.isArray(data.scenarios)) {
-            data.scenarios = [];
-        }
+        if (!data || typeof data !== 'object') data = {};
+        if (!Array.isArray(data.scenarios)) data.scenarios = [];
         
         // Generate new ID
         const maxId = data.scenarios.length > 0 
             ? Math.max(...data.scenarios.map(s => s.id)) 
             : 0;
         
-        const newScenario = {
+        const newScenario = sanitizeScenarioForWrite({
             id: maxId + 1,
+            version: 1,
             name: scenarioData.name || 'New Scenario',
-            type: scenarioData.type || { id: 1, name: 'Budget' },
-            description: scenarioData.description || '',
-            startDate: scenarioData.startDate || formatDateOnly(new Date()),
-            endDate: scenarioData.endDate || null,
-            projectionPeriod: scenarioData.projectionPeriod || { id: 3, name: 'Month' },
+            description: Object.prototype.hasOwnProperty.call(scenarioData, 'description')
+              ? scenarioData.description
+              : null,
+            lineage: null,
             accounts: [],
             transactions: [],
-            projections: [],
             budgets: [],
+            projection: null,
+            planning: null,
             ...scenarioData
-        };
+        });
         
         data.scenarios.push(newScenario);
         return data;
@@ -82,10 +79,11 @@ export async function update(scenarioId, updates) {
         }
         
         
-        data.scenarios[scenarioIndex] = {
+        data.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
             ...data.scenarios[scenarioIndex],
-            ...updates
-        };
+            ...updates,
+            id: scenarioId
+        });
         
         
         return data;
@@ -127,14 +125,28 @@ export async function duplicate(scenarioId, newName) {
         // Generate new ID
         const maxId = Math.max(...data.scenarios.map(s => s.id));
         
-        const newScenario = {
-            ...sourceScenario,
+        const ancestorScenarioIds = Array.isArray(sourceScenario.lineage?.ancestorScenarioIds)
+          ? sourceScenario.lineage.ancestorScenarioIds
+          : [];
+        const nextAncestors = [...ancestorScenarioIds, sourceScenario.id];
+        const nextVersion = getNextScenarioVersion({ sourceScenario, scenarios: data.scenarios });
+
+        const cloned = JSON.parse(JSON.stringify(sourceScenario));
+        const nextProjection = cloned.projection
+          ? { ...cloned.projection, rows: [], generatedAt: null }
+          : null;
+
+        const newScenario = sanitizeScenarioForWrite({
+            ...cloned,
             id: maxId + 1,
+            version: nextVersion,
             name: newName || `${sourceScenario.name} (Copy)`,
-            accounts: [...sourceScenario.accounts],
-            transactions: [...(sourceScenario.transactions || [])],
-            projections: []
-        };
+            lineage: {
+              duplicatedFromScenarioId: sourceScenario.id,
+              ancestorScenarioIds: nextAncestors
+            },
+            projection: nextProjection
+        });
         
         data.scenarios.push(newScenario);
         return data;

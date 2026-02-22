@@ -6,9 +6,15 @@ import { generateRecurrenceDates } from '../../domain/calculations/calculation-e
 import { formatDateOnly } from '../../shared/date-utils.js';
 import * as DataStore from './storage-service.js';
 import { notifyError } from '../../shared/notifications.js';
-
-// Web storage constants
-const WEB_MIGRATION_KEY = 'ftrack:migration-version';
+import {
+  createDefaultUiState,
+  CURRENT_SCHEMA_VERSION,
+  DEFAULT_PERIOD_TYPE_ID,
+  assertSchemaVersion43,
+  getNextScenarioVersion,
+  sanitizeScenarioForWrite
+} from '../../shared/app-data-utils.js';
+import { DEFAULT_WORKFLOW_ID } from '../../shared/workflow-registry.js';
 
 // ============================================================================
 // DATA FILE OPERATIONS
@@ -22,17 +28,15 @@ async function readAppData() {
   try {
     const data = await DataStore.read();
 
-    if (!data || !data.scenarios) {
-      return getSampleData();
-    }
-
-    // For web users with no stored data, provide sample content
-    if (!data.scenarios.length || data.scenarios.length === 0) {
+    if (!data || !Array.isArray(data.scenarios) || data.scenarios.length === 0) {
       return getSampleData();
     }
 
     return data;
   } catch (err) {
+    if (err && err.name === 'SchemaVersionError') {
+      throw err;
+    }
     // For web, return sample data on error
     return getSampleData();
   }
@@ -46,88 +50,108 @@ function getSampleData() {
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  
+
+  const projectionStart = formatDateOnly(startOfMonth);
+  const projectionEnd = formatDateOnly(endOfMonth);
+
   return {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     scenarios: [
-      {
+      sanitizeScenarioForWrite({
         id: 1,
+        version: 1,
         name: 'Example Budget',
-        type: { id: 1, name: 'Budget' },
         description: 'Sample scenario - import your own data or modify this example',
-        startDate: formatDateOnly(startOfMonth),
-        endDate: formatDateOnly(endOfMonth),
-        projectionPeriod: { id: 3, name: 'Month' },
+        lineage: null,
         accounts: [
           {
             id: 1,
             name: 'Checking Account',
-            type: { id: 1, name: 'Bank' },
-            balance: 5000,
+            type: { id: 1, name: 'Asset' },
+            currency: { id: 1, name: 'ZAR' },
+            startingBalance: 5000,
+            openDate: projectionStart,
+            periodicChange: null,
+            goalAmount: null,
+            goalDate: null,
             description: 'Primary checking account'
           },
           {
             id: 2,
             name: 'Savings Account',
-            type: { id: 2, name: 'Savings' },
-            balance: 10000,
+            type: { id: 1, name: 'Asset' },
+            currency: { id: 1, name: 'ZAR' },
+            startingBalance: 10000,
+            openDate: projectionStart,
+            periodicChange: null,
+            goalAmount: null,
+            goalDate: null,
             description: 'Emergency fund'
           }
         ],
         transactions: [
           {
             id: 1,
-            name: 'Monthly Salary',
+            primaryAccountId: 1,
+            secondaryAccountId: null,
+            transactionTypeId: 1,
             amount: 5000,
             effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 1)),
-            transactionType: { id: 1, name: 'Money In' },
-            transactionTypeId: 1,
-            transactionTypeName: 'Money In',
-            primaryAccountId: 1,
-            primaryAccountName: 'Checking Account',
-            secondaryAccountId: null,
-            secondaryAccountName: null,
+            description: 'Monthly Salary',
             recurrence: null,
-            notes: 'Monthly income',
+            periodicChange: null,
+            status: { name: 'planned' },
             tags: []
           },
           {
             id: 2,
-            name: 'Rent',
+            primaryAccountId: 1,
+            secondaryAccountId: null,
+            transactionTypeId: 2,
             amount: -1500,
             effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 5)),
-            transactionType: { id: 2, name: 'Money Out' },
-            transactionTypeId: 2,
-            transactionTypeName: 'Money Out',
-            primaryAccountId: 1,
-            primaryAccountName: 'Checking Account',
-            secondaryAccountId: null,
-            secondaryAccountName: null,
+            description: 'Rent',
             recurrence: null,
-            notes: 'Monthly rent payment',
+            periodicChange: null,
+            status: { name: 'planned' },
             tags: []
           },
           {
             id: 3,
-            name: 'Groceries',
+            primaryAccountId: 1,
+            secondaryAccountId: null,
+            transactionTypeId: 2,
             amount: -400,
             effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 10)),
-            transactionType: { id: 2, name: 'Money Out' },
-            transactionTypeId: 2,
-            transactionTypeName: 'Money Out',
-            primaryAccountId: 1,
-            primaryAccountName: 'Checking Account',
-            secondaryAccountId: null,
-            secondaryAccountName: null,
+            description: 'Groceries',
             recurrence: null,
-            notes: 'Weekly groceries',
+            periodicChange: null,
+            status: { name: 'planned' },
             tags: []
           }
         ],
-        projections: [],
-        budgets: []
-      }
+        budgets: [],
+        projection: {
+          config: {
+            startDate: projectionStart,
+            endDate: projectionEnd,
+            periodTypeId: DEFAULT_PERIOD_TYPE_ID,
+            source: 'transactions'
+          },
+          rows: [],
+          generatedAt: null
+        },
+        planning: {
+          generatePlan: { startDate: projectionStart, endDate: projectionEnd },
+          advancedGoalSolver: { startDate: projectionStart, endDate: projectionEnd }
+        }
+      })
     ],
-    migrationVersion: 3
+    uiState: createDefaultUiState({
+      lastWorkflowId: DEFAULT_WORKFLOW_ID,
+      lastScenarioId: 1,
+      lastScenarioVersion: 1
+    })
   };
 }
 
@@ -139,10 +163,6 @@ function getSampleData() {
 async function writeAppData(data) {
   try {
     await DataStore.write(data);
-
-    if (data.migrationVersion !== undefined) {
-      localStorage.setItem(WEB_MIGRATION_KEY, data.migrationVersion.toString());
-    }
   } catch (err) {
     if (err.name === 'QuotaExceededError') {
       notifyError('Storage quota exceeded. Please export your data and clear some scenarios.');
@@ -191,17 +211,18 @@ export async function createScenario(scenarioData) {
     ? Math.max(...appData.scenarios.map(s => s.id)) 
     : 0;
   
-  const newScenario = {
+  const newScenario = sanitizeScenarioForWrite({
     id: maxId + 1,
+    version: 1,
     name: scenarioData.name || 'New Scenario',
-    type: scenarioData.type || { id: 1, name: 'Budget' },
-    startDate: scenarioData.startDate || formatDateOnly(new Date()),
-    endDate: scenarioData.endDate || null,
+    description: Object.prototype.hasOwnProperty.call(scenarioData, 'description') ? scenarioData.description : null,
+    lineage: null,
     accounts: [],
     transactions: [],
-    projections: [],
+    budgets: [],
+    projection: null,
     ...scenarioData
-  };
+  });
   
   appData.scenarios.push(newScenario);
   await writeAppData(appData);
@@ -223,10 +244,11 @@ export async function updateScenario(scenarioId, updates) {
     throw new Error(`Scenario ${scenarioId} not found`);
   }
   
-  appData.scenarios[scenarioIndex] = {
+  appData.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
     ...appData.scenarios[scenarioIndex],
-    ...updates
-  };
+    ...updates,
+    id: scenarioId
+  });
   
   await writeAppData(appData);
   return appData.scenarios[scenarioIndex];
@@ -262,16 +284,35 @@ export async function duplicateScenario(scenarioId, newName) {
   
   // Generate new ID
   const maxId = Math.max(...appData.scenarios.map(s => s.id));
+  const ancestorScenarioIds = Array.isArray(sourceScenario.lineage?.ancestorScenarioIds)
+    ? sourceScenario.lineage.ancestorScenarioIds
+    : [];
+  const nextAncestors = [...ancestorScenarioIds, sourceScenario.id];
+  const nextVersion = getNextScenarioVersion({ sourceScenario, scenarios: appData.scenarios });
+
   duplicatedScenario.id = maxId + 1;
+  duplicatedScenario.version = nextVersion;
   duplicatedScenario.name = newName || `${sourceScenario.name} (Copy)`;
+  duplicatedScenario.lineage = {
+    duplicatedFromScenarioId: sourceScenario.id,
+    ancestorScenarioIds: nextAncestors
+  };
+
+  // Reset projection rows in the copy (config is preserved).
+  if (duplicatedScenario.projection) {
+    duplicatedScenario.projection = {
+      ...duplicatedScenario.projection,
+      rows: [],
+      generatedAt: null
+    };
+  }
+
+  const sanitized = sanitizeScenarioForWrite(duplicatedScenario);
   
-  // Reset projection data in the copy
-  duplicatedScenario.projections = [];
-  
-  appData.scenarios.push(duplicatedScenario);
+  appData.scenarios.push(sanitized);
   await writeAppData(appData);
   
-  return duplicatedScenario;
+  return sanitized;
 }
 
 // ============================================================================
@@ -719,7 +760,7 @@ export async function saveActualTransactions(scenarioId, transactions) {
  */
 export async function getProjections(scenarioId) {
   const scenario = await getScenario(scenarioId);
-  return scenario ? scenario.projections || [] : [];
+  return scenario?.projection?.rows || [];
 }
 
 /**
@@ -736,7 +777,67 @@ export async function saveProjections(scenarioId, projections) {
     throw new Error(`Scenario ${scenarioId} not found`);
   }
   
-  appData.scenarios[scenarioIndex].projections = projections;
+  const scenario = appData.scenarios[scenarioIndex];
+  const existingConfig = scenario?.projection?.config || null;
+  const today = formatDateOnly(new Date());
+
+  const nextProjection = {
+    config: existingConfig || {
+      startDate: today,
+      endDate: today,
+      periodTypeId: DEFAULT_PERIOD_TYPE_ID,
+      source: 'transactions'
+    },
+    rows: Array.isArray(projections) ? projections : [],
+    generatedAt: new Date().toISOString()
+  };
+
+  appData.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
+    ...scenario,
+    id: scenarioId,
+    projection: nextProjection
+  });
+  await writeAppData(appData);
+}
+
+/**
+ * Save the full projection bundle for a scenario (config + rows + generatedAt)
+ * @param {number} scenarioId - The scenario ID
+ * @param {Object} bundle - Projection bundle
+ * @returns {Promise<void>}
+ */
+export async function saveProjectionBundle(scenarioId, bundle) {
+  const appData = await readAppData();
+  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
+
+  if (scenarioIndex === -1) {
+    throw new Error(`Scenario ${scenarioId} not found`);
+  }
+
+  const scenario = appData.scenarios[scenarioIndex];
+  const existingConfig = scenario?.projection?.config || null;
+  const today = formatDateOnly(new Date());
+
+  const nextProjection = {
+    config: bundle?.config || existingConfig || {
+      startDate: today,
+      endDate: today,
+      periodTypeId: DEFAULT_PERIOD_TYPE_ID,
+      source: 'transactions'
+    },
+    rows: Array.isArray(bundle?.rows) ? bundle.rows : [],
+    generatedAt:
+      bundle && Object.prototype.hasOwnProperty.call(bundle, 'generatedAt')
+        ? (bundle.generatedAt === undefined ? new Date().toISOString() : bundle.generatedAt)
+        : new Date().toISOString()
+  };
+
+  appData.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
+    ...scenario,
+    id: scenarioId,
+    projection: nextProjection
+  });
+
   await writeAppData(appData);
 }
 
@@ -746,7 +847,7 @@ export async function saveProjections(scenarioId, projections) {
  * @returns {Promise<void>}
  */
 export async function clearProjections(scenarioId) {
-  await saveProjections(scenarioId, []);
+  await saveProjectionBundle(scenarioId, { rows: [], generatedAt: null });
 }
 
 // ============================================================================
@@ -818,15 +919,21 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   }
   
   const periods = [];
-  const start = typeof scenario.startDate === 'string' ? parseDateOnly(scenario.startDate) : new Date(scenario.startDate);
-  const end = typeof scenario.endDate === 'string' ? parseDateOnly(scenario.endDate) : new Date(scenario.endDate);
+  const windowStart = scenario?.projection?.config?.startDate;
+  const windowEnd = scenario?.projection?.config?.endDate;
+  if (!windowStart || !windowEnd) {
+    throw new Error(`Scenario ${scenarioId} is missing projection window dates`);
+  }
+  const start = typeof windowStart === 'string' ? parseDateOnly(windowStart) : new Date(windowStart);
+  const end = typeof windowEnd === 'string' ? parseDateOnly(windowEnd) : new Date(windowEnd);
   
   // Get period type name from ID: first check customPeriodType (string), then projectionPeriod.id → name
   let periodType = customPeriodType;
   if (!periodType) {
-    const projectionPeriodId = typeof scenario.projectionPeriod === 'number'
-      ? scenario.projectionPeriod
-      : scenario.projectionPeriod || 3; // Default to 3 (Month)
+    const projectionPeriodIdRaw = scenario?.projection?.config?.periodTypeId ?? 3;
+    const projectionPeriodId = typeof projectionPeriodIdRaw === 'number'
+      ? projectionPeriodIdRaw
+      : (typeof projectionPeriodIdRaw === 'object' ? Number(projectionPeriodIdRaw?.id) : Number(projectionPeriodIdRaw)) || 3;
     periodType = PERIOD_ID_TO_NAME[projectionPeriodId] || 'Month';
   }
   
@@ -1077,6 +1184,11 @@ export async function importAppData(jsonString, merge = false) {
     // Validate basic structure
     if (!importedData.scenarios || !Array.isArray(importedData.scenarios)) {
       throw new Error('Invalid app data format: missing scenarios array');
+    }
+
+    assertSchemaVersion43(importedData);
+    if (!importedData.uiState || typeof importedData.uiState !== 'object') {
+      throw new Error('Invalid app data format: missing uiState object');
     }
     
     

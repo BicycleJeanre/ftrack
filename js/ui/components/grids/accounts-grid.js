@@ -23,7 +23,7 @@ let lastAccountsTable = null;
 
 export function buildAccountsGridColumns({
   lookupData,
-  typeConfig,
+  workflowConfig,
   scenarioState,
   reloadAccountsGrid,
   reloadMasterTransactionsGrid,
@@ -80,7 +80,7 @@ export function buildAccountsGridColumns({
     createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 })
   ];
 
-  if (typeConfig && typeConfig.showGeneratePlan) {
+  if (workflowConfig && workflowConfig.showGeneratePlan) {
     columns.push(
       createMoneyColumn('Goal Amount', 'goalAmount', {
         widthGrow: 1,
@@ -117,7 +117,7 @@ export function buildAccountsGridColumns({
     }
   });
 
-  if (typeConfig?.id === 4) {
+  if (workflowConfig?.supportsPeriodicChangeSchedule) {
     columns.push({
       title: 'Periodic Change Schedule',
       field: 'periodicChangeScheduleSummary',
@@ -159,7 +159,7 @@ export function buildAccountsGridColumns({
 export async function loadAccountsGrid({
   container,
   scenarioState,
-  getScenarioTypeConfig,
+  getWorkflowConfig,
   reloadMasterTransactionsGrid,
   logger
 }) {
@@ -177,15 +177,9 @@ export async function loadAccountsGrid({
     // Keep existing behavior: ignore state capture errors.
   }
 
-  const typeConfig = getScenarioTypeConfig?.();
+  const workflowConfig = getWorkflowConfig?.();
 
-  if (!currentScenario.type) {
-    container.innerHTML =
-      '<div class="empty-message">Please select a Scenario Type and Period Type in the scenario grid above to enable accounts.</div>';
-    return;
-  }
-
-  if (!typeConfig?.showAccounts) {
+  if (!workflowConfig?.showAccounts) {
     container.innerHTML = '';
     return;
   }
@@ -260,7 +254,7 @@ export async function loadAccountsGrid({
         await loadAccountsGrid({
           container,
           scenarioState,
-          getScenarioTypeConfig,
+          getWorkflowConfig,
           reloadMasterTransactionsGrid,
           logger
         });
@@ -303,23 +297,23 @@ export async function loadAccountsGrid({
     );
 
     const columns = buildAccountsGridColumns({
-        lookupData,
-        typeConfig,
-        scenarioState,
-        reloadAccountsGrid: (nextContainer) =>
-          loadAccountsGrid({
-            container: nextContainer,
-            scenarioState,
-            getScenarioTypeConfig,
-            reloadMasterTransactionsGrid,
-            logger
-          }),
-        reloadMasterTransactionsGrid,
-        logger
-      });
+      lookupData,
+      workflowConfig,
+      scenarioState,
+      reloadAccountsGrid: (nextContainer) =>
+        loadAccountsGrid({
+          container: nextContainer,
+          scenarioState,
+          getWorkflowConfig,
+          reloadMasterTransactionsGrid,
+          logger
+        }),
+      reloadMasterTransactionsGrid,
+      logger
+    });
 
-    const typeIdForKey = typeConfig?.id ?? 'unknown';
-    const columnsKey = `accounts-${typeIdForKey}-${typeConfig?.showGeneratePlan ? 'with-plan' : 'base'}`;
+    const workflowIdForKey = workflowConfig?.id ?? 'unknown';
+    const columnsKey = `accounts-${workflowIdForKey}-${workflowConfig?.showGeneratePlan ? 'with-plan' : 'base'}`;
     const shouldRebuildTable =
       !accountsTable ||
       accountsTable?.element !== gridContainer ||

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-17T16:35:25.331Z",
+  "generatedAt": "2026-02-22T15:47:02.662Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -53,7 +53,7 @@
     },
     {
       "id": "CONCEPTS_SCENARIOS",
-      "title": "Scenario Planning",
+      "title": "Scenarios and Workflows",
       "category": "Concepts",
       "file": "Documentation/CONCEPTS_SCENARIOS.md",
       "kind": "md"
@@ -94,13 +94,6 @@
       "kind": "md"
     },
     {
-      "id": "OTHER_MONETIZATION_OPTIONS",
-      "title": "Monetization Options",
-      "category": "Other",
-      "file": "Documentation/OTHER_MONETIZATION_OPTIONS.md",
-      "kind": "md"
-    },
-    {
       "id": "TECH_DATA_SCHEMA",
       "title": "Data Schema",
       "category": "Technical",
@@ -133,6 +126,27 @@
       "title": "UI Layer & Components",
       "category": "Technical",
       "file": "Documentation/TECH_UI_LAYER.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_IMPLEMENTATION_PLAN",
+      "title": "Workflow Refactor Implementation Plan",
+      "category": "Technical",
+      "file": "Documentation/TECH_IMPLEMENTATION_PLAN.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_WORKFLOW_REFACTOR_PHASE1_INVENTORY",
+      "title": "Workflow Refactor Phase 1 - Review Inventory",
+      "category": "Technical",
+      "file": "Documentation/TECH_WORKFLOW_REFACTOR_PHASE1_INVENTORY.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_REFACTOR_WORKFLOWS",
+      "title": "Workflow-Based Scenarios Refactor",
+      "category": "Technical",
+      "file": "Documentation/TECH_REFACTOR_WORKFLOWS.md",
       "kind": "md"
     },
     {
@@ -172,7 +186,7 @@
     },
     {
       "id": "USER_FUNDS",
-      "title": "Funds Scenarios",
+      "title": "Funds Workflow",
       "category": "User",
       "file": "Documentation/USER_FUNDS.md",
       "kind": "md"

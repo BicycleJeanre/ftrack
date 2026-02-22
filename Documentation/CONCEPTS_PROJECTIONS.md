@@ -14,9 +14,9 @@
 Projections show you where your finances are headed based on your planned transactions and account balances.
 
 1. Ensure all your accounts and planned transactions are set up correctly.
-2. Click Generate Projections in the Forecast view.
-3. Select the projection period, typically 90 days.
-4. Review the projected balances for each account.
+2. Set the scenario **projection window** (Start, End, Period Type) in the scenario list at the top of Forecast.
+3. Click **Generate Projections** in the Projections card.
+4. Review the projected balances for each account over the projection window.
 5. Identify any accounts that go negative or reach critical levels.
 6. Adjust transactions or income as needed to improve the forecast.
 
@@ -39,7 +39,14 @@ Projections are only as good as your data. Here is how to improve accuracy.
 - Add periodic changes for salary increases or known expense changes.
 - Compare projections to actuals and adjust the plan accordingly.
 
-## 1.5 Scenario Comparison
+## 1.5 View By (display grouping)
+
+The Projections card includes a **View By** selector.
+
+- View By changes how the grid is grouped for display (for example, Month vs Week).
+- It does not change the projection engine’s Period Type.
+
+## 1.6 Scenario Comparison
 
 Create multiple scenarios with different assumptions to compare outcomes.
 

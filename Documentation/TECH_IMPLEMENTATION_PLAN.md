@@ -4,6 +4,7 @@
 1.0.1 Provide a phased, minimal-change plan to implement workflow-based scenarios.
 1.0.2 Align application storage with schemaVersion 43 in Data Schema.
 1.0.3 Keep migration out of runtime and deliver it as a standalone QC module.
+1.0.4 Implement scenario version/lineage and goal planning windows as part of schemaVersion 43 alignment.
 
 ## 2.0 Inputs And Constraints
 2.0.1 Follow the target model in [Documentation/TECH_REFACTOR_WORKFLOWS.md](Documentation/TECH_REFACTOR_WORKFLOWS.md).
@@ -20,12 +21,15 @@
 3.0.2.4 QC scenario-type mappings, runners, and expected outputs.
 3.0.3 Produce a short inventory list of affected files and modules.
 3.0.4 Confirm minimal change strategy by identifying reuse points and avoiding new abstractions.
+3.0.5 Phase 1 inventory output: [Documentation/TECH_WORKFLOW_REFACTOR_PHASE1_INVENTORY.md](Documentation/TECH_WORKFLOW_REFACTOR_PHASE1_INVENTORY.md).
 
 ## 4.0 Phase 2 - Data Model And Scenario Storage Alignment
 4.0.1 Update scenario creation defaults to match schemaVersion 43.
 4.0.1.1 Remove persistence of `type`, `startDate`, `endDate`, `projectionPeriod` from scenarios.
 4.0.1.2 Add `projection.config` and `projection.rows` where projection data exists.
 4.0.1.3 Ensure `UiState` fields exist and are persisted: `lastWorkflowId`, `lastScenarioId`, `lastScenarioVersion`, `viewPeriodTypeIds`.
+4.0.1.4 Ensure scenario versioning and lineage exist and are persisted: `version`, `lineage`.
+4.0.1.5 Ensure goal tooling planning windows exist and are persisted: `planning.generatePlan`, `planning.advancedGoalSolver`.
 4.0.2 Update sample data to the schema structure.
 4.0.3 Validate import/export reads and writes the root object unchanged, including `uiState`.
 

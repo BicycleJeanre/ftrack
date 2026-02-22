@@ -4,6 +4,12 @@
  * Single source of truth for data persistence operations
  */
 
+import {
+    assertSchemaVersion43,
+    createDefaultAppData,
+    sanitizeAppDataForWrite
+} from '../../shared/app-data-utils.js';
+
 // Web storage key
 const STORAGE_KEY = 'ftrack:app-data';
 const BACKUP_KEY = 'ftrack:backup';
@@ -19,19 +25,17 @@ export async function read() {
     try {
         const dataString = localStorage.getItem(STORAGE_KEY);
         if (!dataString) {
-            return { scenarios: [] };
+            return createDefaultAppData();
         }
 
         const parsed = JSON.parse(dataString);
-        if (!parsed || typeof parsed !== 'object') {
-            return { scenarios: [] };
+        assertSchemaVersion43(parsed);
+        return sanitizeAppDataForWrite(parsed);
+    } catch (err) {
+        if (err && err.name === 'SchemaVersionError') {
+            throw err;
         }
-        if (!Array.isArray(parsed.scenarios)) {
-            parsed.scenarios = [];
-        }
-        return parsed;
-    } catch (_) {
-        return { scenarios: [] };
+        return createDefaultAppData();
     }
 }
 
@@ -42,7 +46,9 @@ export async function read() {
  */
 export async function write(data) {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        assertSchemaVersion43(data);
+        const sanitized = sanitizeAppDataForWrite(data);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
     } catch (err) {
         if (err.name === 'QuotaExceededError') {
             throw new Error('Storage quota exceeded. Please export and clear old data.');

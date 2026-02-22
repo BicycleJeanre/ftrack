@@ -2,7 +2,7 @@
 
 ## 1.0 Purpose
 
-1.1 Explain how to use Debt Repayment scenarios to model payoff timelines, interest paid, and payoff dates.
+1.1 Explain how to use the Debt Repayment workflow to model payoff timelines, interest paid, and payoff dates.
 
 ## 2.0 When To Use Debt Repayment
 
@@ -26,17 +26,15 @@
 
 3.1 Go to Forecast.
 
-3.2 Create a new scenario.
+3.2 Select the Debt Repayment workflow in the left nav.
 
-3.3 Set.
+3.3 Create a new scenario.
 
-3.3.1 Type to Debt Repayment.
+3.4 Set Period Type to Month in most cases.
 
-3.3.2 Period Type to Month in most cases.
+3.5 Set Start and End dates to cover the payoff window.
 
-3.3.3 Start and End dates to cover the payoff window.
-
-3.4 Select the scenario so it becomes the active scenario.
+3.6 Select the scenario row so it becomes the active scenario.
 
 ## 4.0 Add Debt Accounts
 

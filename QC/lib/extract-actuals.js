@@ -3,7 +3,7 @@ const { pathToFileURL } = require('url');
 
 const {
   getMappedUseCasesForScenarioType,
-  getScenarioTypeName
+  getScenariosByType
 } = require('./load-qc-data');
 
 function round2(value) {
@@ -44,6 +44,11 @@ async function loadCalculationModules() {
 }
 
 function buildScenarioActuals(scenario, projections) {
+  const projectionConfig = scenario?.projection?.config || {};
+  const windowStart = projectionConfig.startDate || scenario.startDate;
+  const windowEnd = projectionConfig.endDate || scenario.endDate;
+  const projectionPeriod = projectionConfig.periodTypeId ?? scenario.projectionPeriod;
+
   const endingAccountBalances = (scenario.accounts || []).map((account) => {
     const accountRows = projections.filter((row) => row.accountId === account.id);
     const last = accountRows[accountRows.length - 1] || null;
@@ -52,7 +57,7 @@ function buildScenarioActuals(scenario, projections) {
       accountId: account.id,
       accountName: account.name,
       endingBalance: last ? round2(last.balance) : round2(account.startingBalance || 0),
-      lastProjectionDate: last ? last.date : scenario.endDate,
+      lastProjectionDate: last ? last.date : windowEnd,
       projectionPoints: accountRows.length,
       accountType: account.type
     };
@@ -61,11 +66,10 @@ function buildScenarioActuals(scenario, projections) {
   return {
     scenarioId: scenario.id,
     scenarioName: scenario.name,
-    scenarioType: scenario.type,
     timeline: {
-      startDate: scenario.startDate,
-      endDate: scenario.endDate,
-      projectionPeriod: scenario.projectionPeriod
+      startDate: windowStart,
+      endDate: windowEnd,
+      projectionPeriod
     },
     totals: {
       accountCount: (scenario.accounts || []).length,
@@ -81,8 +85,12 @@ function buildScenarioActuals(scenario, projections) {
 function buildOccurrencesForScenario(scenario, modules, lookupData) {
   const { expandTransactions, parseDateOnly, calculatePeriodicChange, expandPeriodicChangeForCalculation } = modules;
 
-  const startDate = parseDateOnly(scenario.startDate);
-  const endDate = parseDateOnly(scenario.endDate);
+  const projectionConfig = scenario?.projection?.config || {};
+  const windowStart = projectionConfig.startDate || scenario.startDate;
+  const windowEnd = projectionConfig.endDate || scenario.endDate;
+
+  const startDate = parseDateOnly(windowStart);
+  const endDate = parseDateOnly(windowEnd);
   const plannedTransactions = (scenario.transactions || []).filter((tx) => statusName(tx) === 'planned');
   const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, scenario.accounts || []);
 
@@ -204,11 +212,7 @@ function extractSummaryUseCases({
   }
 
   if (selectedUseCaseIds.includes('UC-S7')) {
-    const debtScenarios = getScenarioActualsForUseCase('UC-S7').filter((item) => {
-      const source = allScenariosById.get(item.scenarioId);
-      return getScenarioTypeName(source) === 'Debt Repayment';
-    });
-
+    const debtScenarios = getScenarioActualsForUseCase('UC-S7');
     const debtOccurrences = debtScenarios.flatMap((item) => allOccurrencesByScenarioId.get(item.scenarioId) || []);
     const totalDebtPayments = round2(
       debtOccurrences
@@ -231,10 +235,7 @@ function extractSummaryUseCases({
   }
 
   if (selectedUseCaseIds.includes('UC-S8')) {
-    const fundsScenarios = getScenarioActualsForUseCase('UC-S8').filter((item) => {
-      const source = allScenariosById.get(item.scenarioId);
-      return getScenarioTypeName(source) === 'Funds';
-    });
+    const fundsScenarios = getScenarioActualsForUseCase('UC-S8');
 
     const endingNav = round2(
       fundsScenarios
@@ -313,7 +314,7 @@ async function extractActualsForScenarioType({
 }) {
   const modules = await loadCalculationModules();
   const allScenarios = qcInputData.scenarios || [];
-  const selectedScenarios = allScenarios.filter((scenario) => getScenarioTypeName(scenario) === scenarioType);
+  const selectedScenarios = getScenariosByType(qcInputData, scenarioType, useCaseMapping);
   const selectedUseCaseIds = getMappedUseCasesForScenarioType(useCaseMapping, scenarioType);
 
   const scenarioActualsById = new Map();

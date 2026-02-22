@@ -2,13 +2,13 @@
 
 ## 1.0 Purpose
 
-1.1 Explain how goals are modeled in FTrack, and how Goal-Based scenarios differ from Advanced Goal Solver scenarios.
+1.1 Explain how goals are modeled in FTrack, and how the Goal-Based workflow differs from the Advanced Goal Solver workflow.
 
 ## 2.0 Two Goal Systems
 
-### 2.1 Goal-Based Scenario Type
+### 2.1 Goal-Based Workflow
 
-2.1.1 Goal-Based scenarios use per-account goal fields.
+2.1.1 Goal-Based uses per-account goal fields.
 
 2.1.2 Each account may define.
 
@@ -20,9 +20,9 @@
 
 2.1.4 Goal-Based is best when you want a simple single-goal plan per account and you do not need cross-account constraints.
 
-### 2.2 Advanced Goal Solver Scenario Type
+### 2.2 Advanced Goal Solver Workflow
 
-2.2.1 Advanced Goal Solver scenarios use a solver that can satisfy multiple goals across multiple accounts with constraints.
+2.2.1 Advanced Goal Solver uses a solver that can satisfy multiple goals across multiple accounts with constraints.
 
 2.2.2 Goals and constraints are stored under `scenario.advancedGoalSettings`.
 
@@ -48,8 +48,10 @@
 
 ## 4.0 Common Pitfalls
 
-4.1 Goal Date must fall within the scenario date window to validate the plan.
+4.1 Goal dates must fall within the relevant planning window (Generate Plan / Solver).
+
+4.1.1 If you want projections to validate results to the goal date, the scenario projection End date must also cover that date.
 
 4.2 Starting balances matter. Both goal systems start from the account `startingBalance`.
 
-4.3 Period Type matters for date boundaries. Scenario Period Type controls how start and end dates are interpreted in the scenario grid.
+4.3 Period Type matters for date boundaries. Projection Period Type controls how Start/End are interpreted in the scenario grid.

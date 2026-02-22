@@ -8,7 +8,6 @@
       {
         "scenarioId": 101,
         "scenarioName": "QC Budget Baseline",
-        "scenarioType": 1,
         "timeline": {
           "startDate": "2026-01-01",
           "endDate": "2026-12-31",
@@ -75,7 +74,6 @@
       {
         "scenarioId": 102,
         "scenarioName": "QC General Recurrence Coverage",
-        "scenarioType": 2,
         "timeline": {
           "startDate": "2026-01-01",
           "endDate": "2026-12-31",
@@ -114,7 +112,6 @@
       {
         "scenarioId": 103,
         "scenarioName": "QC General Periodic Change Coverage",
-        "scenarioType": 2,
         "timeline": {
           "startDate": "2026-01-01",
           "endDate": "2028-12-31",
@@ -124,7 +121,7 @@
           "accountCount": 14,
           "transactionCount": 4,
           "projectionCount": 504,
-          "scenarioEndingBalanceTotal": 3754.94
+          "scenarioEndingBalanceTotal": 3764.66
         },
         "expectedEndingAccountBalances": [
           {
@@ -186,7 +183,7 @@
           {
             "accountId": 39,
             "accountName": "Pct Custom Account",
-            "expectedEndingBalance": 103.03,
+            "expectedEndingBalance": 112.75,
             "lastProjectionDate": "2028-12-01",
             "projectionPoints": 36
           },
@@ -230,7 +227,6 @@
       {
         "scenarioId": 104,
         "scenarioName": "QC Debt Repayment",
-        "scenarioType": 4,
         "timeline": {
           "startDate": "2026-01-01",
           "endDate": "2027-12-31",
@@ -269,7 +265,6 @@
       {
         "scenarioId": 105,
         "scenarioName": "QC Funds Scenario",
-        "scenarioType": 3,
         "timeline": {
           "startDate": "2026-01-01",
           "endDate": "2026-12-31",
@@ -308,7 +303,6 @@
       {
         "scenarioId": 106,
         "scenarioName": "QC Goal-Based Scenario",
-        "scenarioType": 5,
         "timeline": {
           "startDate": "2026-01-01",
           "endDate": "2027-12-31",
@@ -347,7 +341,6 @@
       {
         "scenarioId": 107,
         "scenarioName": "QC Advanced Goal Solver Scenario",
-        "scenarioType": 6,
         "timeline": {
           "startDate": "2026-01-01",
           "endDate": "2028-12-31",
@@ -386,7 +379,6 @@
       {
         "scenarioId": 108,
         "scenarioName": "QC Date Boundary and Isolation",
-        "scenarioType": 2,
         "timeline": {
           "startDate": "2027-12-01",
           "endDate": "2028-03-31",
@@ -482,7 +474,7 @@
           104
         ],
         "expected": {
-          "totalInterestEarned": 2081.61,
+          "totalInterestEarned": 2091.32,
           "totalInterestPaid": 69.92
         }
       },

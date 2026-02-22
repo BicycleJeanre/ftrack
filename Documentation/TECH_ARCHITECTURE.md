@@ -117,7 +117,10 @@ The application layer contains business logic and coordinates between UI and dom
   - `storage-service.js` - Data persistence (localStorage)
   - `export-service.js` - Data import/export
   - `lookup-service.js` - Lookup data management
-  - `migration-service.js` - Data version migrations
+  - `migration-service.js` - Deprecated (runtime does not migrate; kept for reference)
+
+**Schema migration (QC-only)**:
+- `QC/migrate-app-data-to-schema43.js` - Standalone legacy → schemaVersion 43 converter
 
 ### 2.3 Domain Layer
 
@@ -297,7 +300,7 @@ js/
 │       ├── storage-service.js
 │       ├── export-service.js
 │       ├── lookup-service.js
-│       └── migration-service.js
+│       └── migration-service.js       # Deprecated (runtime does not migrate)
 │
 ├── domain/                            # Domain Layer
 │   ├── calculations/                  # Calculation engine

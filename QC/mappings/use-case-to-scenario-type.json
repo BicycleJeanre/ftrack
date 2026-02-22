@@ -4,6 +4,7 @@
   "scenarioTypeMappings": {
     "Budget": {
       "testFile": "QC/tests/scenario-types/budget.test.js",
+      "scenarioIds": [101],
       "useCases": [
         "UC-A1",
         "UC-A2",
@@ -20,6 +21,7 @@
     },
     "General": {
       "testFile": "QC/tests/scenario-types/general.test.js",
+      "scenarioIds": [102, 103, 108],
       "useCases": [
         "UC-B1",
         "UC-B2",
@@ -47,6 +49,7 @@
     },
     "Funds": {
       "testFile": "QC/tests/scenario-types/funds.test.js",
+      "scenarioIds": [105],
       "useCases": [
         "UC-E3",
         "UC-S8"
@@ -54,6 +57,7 @@
     },
     "Debt Repayment": {
       "testFile": "QC/tests/scenario-types/debt-repayment.test.js",
+      "scenarioIds": [104],
       "useCases": [
         "UC-D1",
         "UC-D2",
@@ -66,12 +70,14 @@
     },
     "Goal-Based": {
       "testFile": "QC/tests/scenario-types/goal-based.test.js",
+      "scenarioIds": [106],
       "useCases": [
         "UC-S4"
       ]
     },
     "Advanced Goal Solver": {
       "testFile": "QC/tests/scenario-types/advanced-goal-solver.test.js",
+      "scenarioIds": [107],
       "useCases": [
         "UC-E4",
         "UC-S9"

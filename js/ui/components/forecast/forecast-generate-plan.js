@@ -9,7 +9,7 @@ import {
   createNumberColumn,
   formatMoneyDisplay
 } from '../grids/grid-factory.js';
-import { formatDateOnly } from '../../../shared/date-utils.js';
+import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import {
   calculateContributionAmount,
   calculateMonthsToGoal,
@@ -24,8 +24,61 @@ import { getScenario } from '../../../app/services/data-service.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.js';
 
-function isAdvancedGoalSolverScenario(scenario) {
-  return scenario?.type?.name === 'Advanced Goal Solver';
+function isAdvancedGoalSolverWorkflow(workflowId) {
+  return String(workflowId || '').toLowerCase() === 'advanced-goal-solver';
+}
+
+function normalizeDateRange({ startDate, endDate }) {
+  const start = typeof startDate === 'string' && startDate ? startDate : null;
+  const end = typeof endDate === 'string' && endDate ? endDate : null;
+  if (!start && !end) return { startDate: null, endDate: null };
+  if (!start) return { startDate: end, endDate: end };
+  if (!end) return { startDate: start, endDate: start };
+  return start <= end ? { startDate: start, endDate: end } : { startDate: end, endDate: start };
+}
+
+function getScenarioPlanningWindow(scenario, key) {
+  const projectionConfig = scenario?.projection?.config || {};
+  const fallback = normalizeDateRange({
+    startDate: projectionConfig.startDate || formatDateOnly(new Date()),
+    endDate: projectionConfig.endDate || projectionConfig.startDate || formatDateOnly(new Date())
+  });
+
+  const planning = scenario?.planning && typeof scenario.planning === 'object' ? scenario.planning : {};
+  const raw = planning?.[key] && typeof planning[key] === 'object' ? planning[key] : {};
+
+  const window = normalizeDateRange({
+    startDate: raw.startDate || fallback.startDate,
+    endDate: raw.endDate || fallback.endDate
+  });
+
+  return {
+    startDate: window.startDate || fallback.startDate,
+    endDate: window.endDate || fallback.endDate
+  };
+}
+
+async function persistPlanningWindow({ scenarioId, planningKey, nextWindow, scenarioState }) {
+  const existingScenario = scenarioState?.get?.() || (scenarioId ? await getScenario(scenarioId) : null);
+  const currentPlanning = existingScenario?.planning && typeof existingScenario.planning === 'object' ? existingScenario.planning : {};
+
+  const normalizedWindow = normalizeDateRange(nextWindow);
+  if (!normalizedWindow.startDate || !normalizedWindow.endDate) {
+    throw new Error('Planning window requires both start and end dates.');
+  }
+
+  const nextPlanning = {
+    ...currentPlanning,
+    [planningKey]: {
+      startDate: normalizedWindow.startDate,
+      endDate: normalizedWindow.endDate
+    }
+  };
+
+  await ScenarioManager.update(scenarioId, { planning: nextPlanning });
+  const refreshed = await getScenario(scenarioId);
+  scenarioState?.set?.(refreshed);
+  return refreshed;
 }
 
 function escapeHtml(str) {
@@ -141,9 +194,72 @@ function renderGeneratePlanToolbar({ container, onRefresh }) {
   container.insertBefore(toolbar, container.firstChild);
 }
 
+function renderPlanningWindowToolbar({ container, title, planningWindow, onWindowChange }) {
+  if (!container) return;
+
+  container.querySelectorAll(':scope > .planning-window-toolbar').forEach((el) => el.remove());
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar planning-window-toolbar';
+
+  const titleItem = document.createElement('div');
+  titleItem.className = 'toolbar-item';
+  titleItem.innerHTML = `<span class="text-muted">${escapeHtml(title || 'Planning Window')}</span>`;
+  window.add(toolbar, titleItem);
+
+  const startItem = document.createElement('div');
+  startItem.className = 'toolbar-item';
+  startItem.innerHTML = `
+    <label class="text-muted control-label" style="margin-right:6px;">Start:</label>
+  `;
+  const startInput = document.createElement('input');
+  startInput.type = 'date';
+  startInput.className = 'input-select control-select';
+  startInput.value = planningWindow?.startDate || '';
+  window.add(startItem, startInput);
+  window.add(toolbar, startItem);
+
+  const endItem = document.createElement('div');
+  endItem.className = 'toolbar-item';
+  endItem.innerHTML = `
+    <label class="text-muted control-label" style="margin-right:6px;">End:</label>
+  `;
+  const endInput = document.createElement('input');
+  endInput.type = 'date';
+  endInput.className = 'input-select control-select';
+  endInput.value = planningWindow?.endDate || '';
+  window.add(endItem, endInput);
+  window.add(toolbar, endItem);
+
+  let persistTimer = null;
+  const schedulePersist = () => {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(async () => {
+      const next = normalizeDateRange({
+        startDate: startInput.value,
+        endDate: endInput.value
+      });
+
+      if (next.startDate && next.endDate) {
+        if (next.startDate !== startInput.value) startInput.value = next.startDate;
+        if (next.endDate !== endInput.value) endInput.value = next.endDate;
+        await onWindowChange?.(next);
+      }
+    }, 200);
+  };
+
+  startInput.addEventListener('change', schedulePersist);
+  endInput.addEventListener('change', schedulePersist);
+
+  const existingTopToolbars = Array.from(container.querySelectorAll(':scope > .grid-toolbar'));
+  const insertAfter = existingTopToolbars.length > 0 ? existingTopToolbars[existingTopToolbars.length - 1] : null;
+  container.insertBefore(toolbar, insertAfter?.nextSibling || null);
+}
+
 async function loadAdvancedGoalSolverSection({
   container,
   scenarioState,
+  workflowId,
   loadMasterTransactionsGrid,
   loadProjectionsSection,
   logger
@@ -159,7 +275,7 @@ async function loadAdvancedGoalSolverSection({
           const refreshed = await getScenario(current.id);
           scenarioState?.set?.(refreshed);
         }
-        await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
       }
     });
     const msg = document.createElement('div');
@@ -180,7 +296,27 @@ async function loadAdvancedGoalSolverSection({
         const refreshed = await getScenario(current.id);
         scenarioState?.set?.(refreshed);
       }
-      await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+    }
+  });
+
+  const planningWindow = getScenarioPlanningWindow(scenario, 'advancedGoalSolver');
+  renderPlanningWindowToolbar({
+    container,
+    title: 'Advanced Goal Solver Window',
+    planningWindow,
+    onWindowChange: async (nextWindow) => {
+      try {
+        await persistPlanningWindow({
+          scenarioId: scenario.id,
+          planningKey: 'advancedGoalSolver',
+          nextWindow,
+          scenarioState
+        });
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      } catch (err) {
+        notifyError('Failed to save planning window: ' + (err?.message || String(err)));
+      }
     }
   });
 
@@ -547,8 +683,8 @@ async function loadAdvancedGoalSolverSection({
       targetAmount: null,
       deltaAmount: null,
       floorAmount: null,
-      startDate: scenario.startDate || null,
-      endDate: scenario.endDate || null
+      startDate: planningWindow?.startDate || null,
+      endDate: planningWindow?.endDate || null
     };
     goalsTable.addRow(newGoal, true);
     await persistNow();
@@ -644,6 +780,7 @@ async function loadAdvancedGoalSolverSection({
 export async function loadGeneratePlanSection({
   container,
   scenarioState,
+  workflowId = null,
   loadMasterTransactionsGrid,
   loadProjectionsSection,
   logger
@@ -659,7 +796,7 @@ export async function loadGeneratePlanSection({
           const refreshed = await getScenario(current.id);
           scenarioState?.set?.(refreshed);
         }
-        await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
       }
     });
     const msg = document.createElement('div');
@@ -669,10 +806,11 @@ export async function loadGeneratePlanSection({
     return;
   }
 
-  if (isAdvancedGoalSolverScenario(currentScenario)) {
+  if (isAdvancedGoalSolverWorkflow(workflowId)) {
     return loadAdvancedGoalSolverSection({
       container,
       scenarioState,
+      workflowId,
       loadMasterTransactionsGrid,
       loadProjectionsSection,
       logger
@@ -689,16 +827,35 @@ export async function loadGeneratePlanSection({
       container,
       onRefresh: async () => {
         const current = scenarioState?.get?.();
-        if (current?.id) {
-          const refreshed = await getScenario(current.id);
-          scenarioState?.set?.(refreshed);
+      if (current?.id) {
+        const refreshed = await getScenario(current.id);
+        scenarioState?.set?.(refreshed);
+      }
+      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+    }
+  });
+    const planningWindow = getScenarioPlanningWindow(currentScenario, 'generatePlan');
+    renderPlanningWindowToolbar({
+      container,
+      title: 'Generate Plan Window',
+      planningWindow,
+      onWindowChange: async (nextWindow) => {
+        try {
+          await persistPlanningWindow({
+            scenarioId: currentScenario.id,
+            planningKey: 'generatePlan',
+            nextWindow,
+            scenarioState
+          });
+          await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+        } catch (err) {
+          notifyError('Failed to save planning window: ' + (err?.message || String(err)));
         }
-        await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
       }
     });
-    const msg = document.createElement('div');
-    msg.className = 'empty-message';
-    msg.textContent = 'No accounts with goals found. Set goal amounts and dates on accounts to generate plans.';
+  const msg = document.createElement('div');
+  msg.className = 'empty-message';
+  msg.textContent = 'No accounts with goals found. Set goal amounts and dates on accounts to generate plans.';
     container.appendChild(msg);
     return;
   }
@@ -714,7 +871,27 @@ export async function loadGeneratePlanSection({
         const refreshed = await getScenario(current.id);
         scenarioState?.set?.(refreshed);
       }
-      await loadGeneratePlanSection({ container, scenarioState, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+    }
+  });
+
+  const planningWindow = getScenarioPlanningWindow(currentScenario, 'generatePlan');
+  renderPlanningWindowToolbar({
+    container,
+    title: 'Generate Plan Window',
+    planningWindow,
+    onWindowChange: async (nextWindow) => {
+      try {
+        await persistPlanningWindow({
+          scenarioId: currentScenario.id,
+          planningKey: 'generatePlan',
+          nextWindow,
+          scenarioState
+        });
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      } catch (err) {
+        notifyError('Failed to save planning window: ' + (err?.message || String(err)));
+      }
     }
   });
 
@@ -884,7 +1061,19 @@ export async function loadGeneratePlanSection({
     generatePlanState.contribution = contribution;
 
     // Calculate the requested value
-    const monthsToGoal = calculateMonthsBetweenDates(formatDateOnly(new Date()), selectedAccount.goalDate);
+    const planStart = planningWindow?.startDate || formatDateOnly(new Date());
+    const planEnd = planningWindow?.endDate || selectedAccount.goalDate || planStart;
+
+    if (selectedAccount.goalDate < planStart) {
+      summaryEl.innerHTML = `<p class="error-message">Goal Date must be on/after planning start (${escapeHtml(planStart)})</p>`;
+      return;
+    }
+    if (selectedAccount.goalDate > planEnd) {
+      summaryEl.innerHTML = `<p class="error-message">Goal Date (${escapeHtml(selectedAccount.goalDate)}) is after planning end (${escapeHtml(planEnd)})</p>`;
+      return;
+    }
+
+    const monthsToGoal = calculateMonthsBetweenDates(planStart, selectedAccount.goalDate);
     const startingBalance = selectedAccount.startingBalance || 0;
     const goalAmount = Number(selectedAccount.goalAmount ?? 0);
     const annualRate = selectedAccount.periodicChange?.rateValue || 0;
@@ -983,7 +1172,19 @@ export async function loadGeneratePlanSection({
 
     const frequency = parseInt(frequencySelect.value);
     const contribution = parseFloat(contributionInput.value) || 0;
-    const monthsToGoal = calculateMonthsBetweenDates(formatDateOnly(new Date()), selectedAccount.goalDate);
+    const planStart = planningWindow?.startDate || formatDateOnly(new Date());
+    const planEnd = planningWindow?.endDate || selectedAccount.goalDate || planStart;
+
+    if (selectedAccount.goalDate < planStart) {
+      notifyError(`Goal Date must be on/after planning start (${planStart}).`);
+      return;
+    }
+    if (selectedAccount.goalDate > planEnd) {
+      notifyError(`Goal Date (${selectedAccount.goalDate}) is after planning end (${planEnd}).`);
+      return;
+    }
+
+    const monthsToGoal = calculateMonthsBetweenDates(planStart, selectedAccount.goalDate);
     const startingBalance = selectedAccount.startingBalance || 0;
     const goalAmount = Number(selectedAccount.goalAmount ?? 0);
     const annualRate = selectedAccount.periodicChange?.rateValue || 0;
@@ -1021,8 +1222,9 @@ export async function loadGeneratePlanSection({
         5: { id: 7, name: 'Yearly' }
       };
 
-      const startDateStr = formatDateOnly(new Date());
+      const startDateStr = planStart;
       const endDateStr = selectedAccount.goalDate;
+      const anchor = startDateStr ? parseDateOnly(startDateStr) : new Date();
 
       // Generate recurring transaction with proper recurrence structure
       const newTransaction = {
@@ -1038,8 +1240,8 @@ export async function loadGeneratePlanSection({
           startDate: startDateStr,
           endDate: endDateStr,
           interval: 1,
-          dayOfWeek: frequency === 2 ? { id: new Date().getDay(), name: '' } : null,
-          dayOfMonth: frequency === 3 ? new Date().getDate() : null,
+          dayOfWeek: frequency === 2 ? { id: anchor.getDay(), name: '' } : null,
+          dayOfMonth: frequency === 3 ? anchor.getDate() : null,
           weekOfMonth: null,
           dayOfWeekInMonth: null,
           dayOfQuarter: null,

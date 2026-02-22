@@ -17,7 +17,7 @@ function loadLookupData() {
 async function runAdvancedGoalSolverScenarioTypeTest() {
   const scenarioType = 'Advanced Goal Solver';
   const { qcInput, qcExpected, useCaseMapping } = loadAllQcData();
-  const scenarios = getScenariosByType(qcInput, scenarioType);
+  const scenarios = getScenariosByType(qcInput, scenarioType, useCaseMapping);
   const lookupData = loadLookupData();
 
   const universalResults = [

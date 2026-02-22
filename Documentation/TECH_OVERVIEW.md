@@ -87,27 +87,27 @@ The technical documentation is modularized. Read the specific section required f
 *Covers: Definitions and guided use cases for solver configuration.*
 
 ## 5.0 Data Migration Strategy
-FTrack uses versioned data migrations to evolve the schema while preserving user data. The migration system automatically detects and applies necessary updates when the application starts.
 
-**Migration File**: [js/data-migration.js](../js/data-migration.js)
+FTrack uses a versioned storage schema (`schemaVersion`). This build targets **schemaVersion 43** and **does not perform runtime migrations**.
 
-**Current Migration Version**: 3
+### 5.1 Runtime rule
 
-**Migration Workflow**:
-1. On application startup, `needsMigration()` checks if `migrationVersion < 3`
-2. If needed, `migrateAllScenarios()` applies all sequential migrations
-3. Migration version is updated in `app-data.json`
+- Runtime code requires `schemaVersion === 43`.
+- If older data is present (legacy export or legacy local storage), the app will fail fast rather than attempting in-app migration.
 
-**Applied Migrations**:
-- **v1**: Unified transactions (converted `plannedTransactions`/`actualTransactions` to single `transactions` array)
-- **v2**: Added `budgets` array to scenarios
-- **v3**: Migrated account `balance` field and recurrence structure format
+### 5.2 Standalone migration (QC-only)
 
-**Adding New Migrations**:
-1. Create migration function in `data-migration.js`
-2. Add to `migrateAllScenarios()` sequence
-3. Increment target migration version
-4. Test with old data format to ensure backward compatibility
+Legacy exports can be converted using the standalone migration utility:
+
+- `QC/migrate-app-data-to-schema43.js`
+
+Example usage:
+
+```bash
+node QC/migrate-app-data-to-schema43.js --input legacy.json --output schema43.json
+```
+
+The runtime application must not import or depend on QC migration code.
 
 ## 6.0 Quick Start Reference
 

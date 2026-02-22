@@ -17,7 +17,7 @@ function loadLookupData() {
 async function runGoalBasedScenarioTypeTest() {
   const scenarioType = 'Goal-Based';
   const { qcInput, qcExpected, useCaseMapping } = loadAllQcData();
-  const scenarios = getScenariosByType(qcInput, scenarioType);
+  const scenarios = getScenariosByType(qcInput, scenarioType, useCaseMapping);
   const lookupData = loadLookupData();
 
   const universalResults = [
