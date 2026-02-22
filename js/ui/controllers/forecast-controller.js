@@ -526,167 +526,111 @@ async function buildScenarioGrid(container) {
     });
     window.add(container, addScenarioBtn);
 
-    // Create/reuse grid container
-    let gridContainer = container.querySelector('#scenariosTable');
-    if (!gridContainer) {
-      gridContainer = document.createElement('div');
-      gridContainer.id = 'scenariosTable'; // explicit ID for logging and testing
-      gridContainer.className = 'grid-container scenarios-grid';
-      window.add(container, gridContainer);
+    // Create/reuse list container
+    let listContainer = container.querySelector('#scenariosList');
+    if (!listContainer) {
+      listContainer = document.createElement('div');
+      listContainer.id = 'scenariosList';
+      listContainer.className = 'scenarios-list';
+      window.add(container, listContainer);
     }
 
     // Load all scenarios
     const scenarios = await ScenarioManager.getAll();
-    const scenarioRows = (scenarios || []).map((scenario) => {
-      return {
-        ...scenario
-      };
-    });
 
-    const selectedScenarioIdSnapshot =
-      scenariosTable?.getSelectedData?.()?.[0]?.id ??
-      currentScenario?.id ??
-      null;
+    const selectedScenarioIdSnapshot = currentScenario?.id ?? null;
 
-    const shouldRebuildTable = !scenariosTable || scenariosTable?.element !== gridContainer;
-    let didCreateNewTable = false;
+    // Clear and rebuild list
+    listContainer.innerHTML = '';
 
-    if (shouldRebuildTable) {
-      didCreateNewTable = true;
-      try {
-        scenariosTable?.destroy?.();
-      } catch (_) {
-        // ignore
-      }
-
-      scenariosTable = await createGrid(gridContainer, {
-        data: scenarioRows,
-        selectable: 1, // Only allow single row selection
-        placeholder: 'No scenarios yet. Click + Add New to create your first scenario.',
-        columns: [
-        createDuplicateColumn(async (cell) => {
-          const rowData = cell.getRow().getData();
-          await ScenarioManager.duplicate(rowData.id);
-          await buildScenarioGrid(container);
-        }, { headerTooltip: 'Duplicate Scenario' }),
-        createDeleteColumn(async (cell) => {
-          const rowData = cell.getRow().getData();
-          await ScenarioManager.remove(rowData.id);
-          await buildScenarioGrid(container);
-        }, { confirmMessage: (rowData) => `Delete scenario: ${rowData.name}?` }),
-        createTextColumn('Scenario Name', 'name', { widthGrow: 3, editor: "input", editable: true }),
-        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true, responsive: 3 })
-        ],
-        rowSelectionChanged: async function(data, rows) {
-          // logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
-          if (rows.length > 0) {
-            const scenario = rows[0].getData();
-            await setCurrentScenarioById(scenario.id);
-          }
-        }
-      });
+    if (!scenarios || scenarios.length === 0) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'scenarios-list-placeholder';
+      placeholder.textContent = 'No scenarios yet. Click + Add New to create your first scenario.';
+      listContainer.appendChild(placeholder);
     } else {
-      await refreshGridData(scenariosTable, scenarioRows);
-    }
+      scenarios.forEach((scenario) => {
+        const item = document.createElement('div');
+        item.className = 'scenario-list-item';
+        item.setAttribute('data-scenario-id', scenario.id);
 
-    const handleScenarioRowSelectedPrimary = async function(row) {
-      try {
-        const scenario = row.getData();
-        await setCurrentScenarioById(scenario.id);
-      } catch (err) {
-        logger.error('[ScenarioGrid] rowSelected handler failed:', err);
-      }
-    };
-
-    const handleScenarioRowSelectedEnforce = function(row) {
-      try {
-        const table = row.getTable();
-        const selected = table.getSelectedRows();
-        if (selected.length > 1) {
-          // Deselect others, keep this one
-          selected.forEach(r => { if (r.getData().id !== row.getData().id) r.deselect(); });
-        }
-      } catch (err) {
-        logger.error('[ScenarioGrid] rowSelected enforcement failed:', err);
-      }
-      // Debounce reload to avoid re-render races
-      setTimeout(async () => {
-        try {
-          const scenario = row.getData();
-          await setCurrentScenarioById(scenario.id);
-        } catch (err) {
-          logger.error('[ScenarioGrid] rowSelected handler failed (delayed):', err);
-        }
-      }, 40);
-    };
-
-    const handleScenarioRowClick = function(e, row) {
-      // Ensure single-selection by deselecting others then selecting this row
-      try {
-        const table = row.getTable();
-        // If clicking an already selected row, toggle it off
-        if (row.isSelected()) {
-          table.deselectRow(row);
-          return;
-        }
-        table.deselectRow();
-        row.select();
-        // Safety check after a tiny delay
-        setTimeout(() => {
-          const selected = table.getSelectedRows();
-          if (!row.isSelected()) {
-            table.deselectRow();
-            row.select();
-          } else if (selected.length > 1) {
-            // enforce single selection
-            selected.forEach(r => { if (r.getData().id !== row.getData().id) r.deselect(); });
-          }
-        }, 20);
-      } catch (err) {
-        logger.error('[ScenarioGrid] rowClick fallback failed:', err);
-      }
-    };
-
-    const handleScenarioCellEdited = async function(cell) {
-      const row = cell.getRow();
-      const scenario = row.getData();
-      
-      try {
-        const persisted = await getScenario(scenario.id);
-
-        const updates = {
-          name: scenario.name,
-          description: scenario.description
-        };
+        const content = document.createElement('div');
+        content.className = 'scenario-list-item-content';
         
-        // Update just the edited scenario
-        await ScenarioManager.update(scenario.id, updates);
+        const nameEl = document.createElement('div');
+        nameEl.className = 'scenario-list-item-name';
+        nameEl.textContent = scenario.name || 'Untitled';
 
-        // If the edited scenario is currently selected, refresh downstream grids.
-        // Without this, accounts/transactions can stay in a disabled placeholder state.
-        if (currentScenario?.id === scenario.id) {
-          // Re-fetch to keep currentScenario in sync with persisted shapes.
-          currentScenario = await getScenario(scenario.id);
-          // Small delay avoids Tabulator edit/selection race conditions.
-          setTimeout(() => {
-            loadScenarioData().catch((err) => {
-              logger.error('[Forecast] loadScenarioData failed after scenario edit:', err);
-            });
-          }, 0);
+        const descEl = document.createElement('div');
+        descEl.className = 'scenario-list-item-desc';
+        descEl.textContent = scenario.description || '';
+
+        content.appendChild(nameEl);
+        if (descEl.textContent) {
+          content.appendChild(descEl);
         }
-      } catch (err) {
-        notifyError('Failed to save scenario: ' + err.message);
-      }
-    };
 
-    if (didCreateNewTable) {
-      attachGridHandlers(scenariosTable, {
-        rowSelected: [handleScenarioRowSelectedPrimary, handleScenarioRowSelectedEnforce],
-        rowClick: handleScenarioRowClick,
-        cellEdited: handleScenarioCellEdited
+        const actions = document.createElement('div');
+        actions.className = 'scenario-list-item-actions';
+
+        const dupBtn = document.createElement('button');
+        dupBtn.className = 'icon-btn scenarios-list-dup';
+        dupBtn.title = 'Duplicate Scenario';
+        dupBtn.innerHTML = '📋';
+        dupBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            await ScenarioManager.duplicate(scenario.id);
+            await buildScenarioGrid(container);
+          } catch (err) {
+            notifyError('Failed to duplicate scenario: ' + (err?.message || 'Unknown error'));
+          }
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'icon-btn scenarios-list-del';
+        delBtn.title = 'Delete Scenario';
+        delBtn.innerHTML = '🗑️';
+        delBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const confirmed = confirm(`Delete scenario: ${scenario.name}?`);
+          if (confirmed) {
+            try {
+              await ScenarioManager.remove(scenario.id);
+              await buildScenarioGrid(container);
+            } catch (err) {
+              notifyError('Failed to delete scenario: ' + (err?.message || 'Unknown error'));
+            }
+          }
+        });
+
+        actions.appendChild(dupBtn);
+        actions.appendChild(delBtn);
+
+        item.appendChild(content);
+        item.appendChild(actions);
+
+        // Handle selection
+        item.addEventListener('click', async () => {
+          // Update UI selection
+          listContainer.querySelectorAll('.scenario-list-item').forEach(el => {
+            el.classList.remove('selected');
+          });
+          item.classList.add('selected');
+
+          // Update current scenario
+          try {
+            await setCurrentScenarioById(scenario.id);
+          } catch (err) {
+            logger.error('[ScenarioList] selection handler failed:', err);
+          }
+        });
+
+        listContainer.appendChild(item);
       });
     }
 
+    // Re-establish selection
     const persistedScenarioId = uiState?.lastScenarioId ?? null;
     const persistedScenarioVersion = uiState?.lastScenarioVersion ?? null;
 
@@ -710,10 +654,9 @@ async function buildScenarioGrid(container) {
 
     if (desiredScenarioId != null) {
       await setCurrentScenarioById(desiredScenarioId);
-      try {
-        scenariosTable.selectRow(desiredScenarioId);
-      } catch (_) {
-        // ignore
+      const selectedItem = listContainer.querySelector(`[data-scenario-id="${desiredScenarioId}"]`);
+      if (selectedItem) {
+        selectedItem.classList.add('selected');
       }
     }
   } catch (err) {
