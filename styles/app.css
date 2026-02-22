@@ -221,6 +221,23 @@ p {
   padding: var(--spacing-sm);
 }
 
+.sidebar-scenarios-container {
+  padding: var(--spacing-sm);
+  overflow-y: auto;
+  max-height: 40vh;
+}
+
+.sidebar-scenarios-container .btn-add {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+
+.sidebar-scenarios-container .grid-container {
+  max-height: none;
+  height: auto;
+}
+
 .workflow-nav-item {
   width: 100%;
   text-align: left;

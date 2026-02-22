@@ -221,8 +221,6 @@ async function setCurrentScenarioById(scenarioId) {
 
 async function buildScenarioGrid(container) {
   try {
-    const lookupData = await loadLookup('lookup-data.json');
-
     const pad2 = (n) => String(n).padStart(2, '0');
 
     const parseDateOnlySafe = (value) => {
@@ -539,15 +537,9 @@ async function buildScenarioGrid(container) {
 
     // Load all scenarios
     const scenarios = await ScenarioManager.getAll();
-    const periodTypeById = new Map((lookupData?.periodTypes || []).map((pt) => [Number(pt.id), pt]));
-    const defaultPeriodType = periodTypeById.get(3) || (lookupData?.periodTypes || [])[0] || null;
     const scenarioRows = (scenarios || []).map((scenario) => {
-      const periodTypeId = Number(scenario?.projection?.config?.periodTypeId) || 3;
       return {
-        ...scenario,
-        startDate: scenario?.projection?.config?.startDate || null,
-        endDate: scenario?.projection?.config?.endDate || null,
-        projectionPeriod: periodTypeById.get(periodTypeId) || defaultPeriodType
+        ...scenario
       };
     });
 
@@ -583,53 +575,7 @@ async function buildScenarioGrid(container) {
           await buildScenarioGrid(container);
         }, { confirmMessage: (rowData) => `Delete scenario: ${rowData.name}?` }),
         createTextColumn('Scenario Name', 'name', { widthGrow: 3, editor: "input", editable: true }),
-        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true, responsive: 3 }),
-        {
-          title: 'Start',
-          field: 'startDate',
-          widthGrow: 2,
-          responsive: 1,
-          editable: (cell) => !!getPeriodTypeName(cell.getRow().getData()),
-          editor: createScenarioBoundaryEditor('start'),
-          formatter: (cell) => {
-            const rowData = cell.getRow().getData();
-            const periodType = getPeriodTypeName(rowData);
-            return formatPeriodLabel(cell.getValue(), periodType, 'start');
-          },
-          headerTooltip: 'Start of the selected period'
-        },
-        {
-          title: 'End',
-          field: 'endDate',
-          widthGrow: 2,
-          responsive: 2,
-          editable: (cell) => !!getPeriodTypeName(cell.getRow().getData()),
-          editor: createScenarioBoundaryEditor('end'),
-          formatter: (cell) => {
-            const rowData = cell.getRow().getData();
-            const periodType = getPeriodTypeName(rowData);
-            return formatPeriodLabel(cell.getValue(), periodType, 'end');
-          },
-          headerTooltip: 'End of the selected period'
-        },
-        {
-          title: "Period Type",
-          field: "projectionPeriod",
-          widthGrow: 2,
-          responsive: 0,
-          editor: "list",
-          editorParams: {
-            values: lookupData.periodTypes.map(p => ({ label: p.name, value: p })),
-            listItemFormatter: function(value, title) {
-              return title;
-            }
-          },
-          formatter: function(cell) {
-            const value = cell.getValue();
-            return value?.name || '';
-          },
-          headerHozAlign: "left"
-        }
+        createTextColumn('Description', 'description', { widthGrow: 3, editor: "input", editable: true, responsive: 3 })
         ],
         rowSelectionChanged: async function(data, rows) {
           // logger.debug('[Forecast] scenarios.rowSelectionChanged fired. data length:', data && data.length, 'rows length:', rows && rows.length);
@@ -706,95 +652,11 @@ async function buildScenarioGrid(container) {
       const scenario = row.getData();
       
       try {
-        const field = cell.getColumn()?.getField?.();
-        const periodType = getPeriodTypeName(scenario);
-
-        // Snap boundaries when the period type changes, and keep ranges valid.
-        if (field === 'projectionPeriod' && periodType) {
-          const nextStart = snapToPeriodBoundary(scenario.startDate, periodType, 'start');
-          const nextEnd = snapToPeriodBoundary(scenario.endDate, periodType, 'end');
-          scenario.startDate = nextStart;
-          scenario.endDate = nextEnd;
-          row.update({ startDate: nextStart, endDate: nextEnd });
-        }
-
-        // Keep start/end aligned and ordered.
-        if ((field === 'startDate' || field === 'endDate') && periodType) {
-          const snappedStart = snapToPeriodBoundary(scenario.startDate, periodType, 'start');
-          const snappedEnd = snapToPeriodBoundary(scenario.endDate, periodType, 'end');
-          scenario.startDate = snappedStart;
-          scenario.endDate = snappedEnd;
-
-          if (snappedStart && snappedEnd && snappedStart > snappedEnd) {
-            if (field === 'startDate') {
-              // Move end forward to the end of the start period.
-              const inferredEnd = snapToPeriodBoundary(snappedStart, periodType, 'end');
-              scenario.endDate = inferredEnd;
-              row.update({ endDate: inferredEnd });
-            } else {
-              // Move start back to the start of the end period.
-              const inferredStart = snapToPeriodBoundary(snappedEnd, periodType, 'start');
-              scenario.startDate = inferredStart;
-              row.update({ startDate: inferredStart });
-            }
-          }
-        }
-
         const persisted = await getScenario(scenario.id);
-        const existingProjection = persisted?.projection || null;
-        const existingConfig = existingProjection?.config || {};
-
-        const periodTypeIdRaw = scenario.projectionPeriod;
-        const periodTypeId =
-          typeof periodTypeIdRaw === 'number'
-            ? periodTypeIdRaw
-            : (typeof periodTypeIdRaw === 'object' ? Number(periodTypeIdRaw?.id) : Number(periodTypeIdRaw)) || 3;
-
-        const nextProjectionConfig = {
-          ...existingConfig,
-          startDate: scenario.startDate,
-          endDate: scenario.endDate,
-          periodTypeId: Number.isFinite(Number(periodTypeId)) ? Number(periodTypeId) : 3,
-          source: existingConfig.source === 'budget' ? 'budget' : 'transactions'
-        };
-
-        const nextProjection = existingProjection
-          ? { ...existingProjection, config: nextProjectionConfig }
-          : { config: nextProjectionConfig, rows: [], generatedAt: null };
-
-        const planning = persisted?.planning || null;
-        const shouldSyncGeneratePlan =
-          !!planning?.generatePlan &&
-          planning.generatePlan.startDate === existingConfig.startDate &&
-          planning.generatePlan.endDate === existingConfig.endDate;
-        const shouldSyncAdvanced =
-          !!planning?.advancedGoalSolver &&
-          planning.advancedGoalSolver.startDate === existingConfig.startDate &&
-          planning.advancedGoalSolver.endDate === existingConfig.endDate;
-
-        const nextPlanning =
-          planning && (shouldSyncGeneratePlan || shouldSyncAdvanced)
-            ? {
-                ...planning,
-                ...(shouldSyncGeneratePlan
-                  ? { generatePlan: { startDate: nextProjectionConfig.startDate, endDate: nextProjectionConfig.endDate } }
-                  : {}),
-                ...(shouldSyncAdvanced
-                  ? {
-                      advancedGoalSolver: {
-                        startDate: nextProjectionConfig.startDate,
-                        endDate: nextProjectionConfig.endDate
-                      }
-                    }
-                  : {})
-              }
-            : planning;
 
         const updates = {
           name: scenario.name,
-          description: scenario.description,
-          projection: nextProjection,
-          ...(nextPlanning ? { planning: nextPlanning } : {})
+          description: scenario.description
         };
         
         // Update just the edited scenario

@@ -16,6 +16,17 @@ export function buildGridContainer() {
   const sidebarInner = document.createElement('div');
   sidebarInner.className = 'forecast-sidebar-inner bg-main bordered rounded shadow-lg';
 
+  const scenariosTitle = document.createElement('div');
+  scenariosTitle.className = 'forecast-sidebar-title section-padding';
+  scenariosTitle.textContent = 'Scenarios';
+
+  const scenarioSelector = document.createElement('div');
+  scenarioSelector.id = 'scenario-selector';
+  scenarioSelector.className = 'sidebar-scenarios-container';
+
+  sidebarInner.appendChild(scenariosTitle);
+  sidebarInner.appendChild(scenarioSelector);
+
   const workflowTitle = document.createElement('div');
   workflowTitle.className = 'forecast-sidebar-title section-padding';
   workflowTitle.textContent = 'Workflows';
@@ -49,12 +60,6 @@ export function buildGridContainer() {
 
     return { section, content };
   };
-
-  const { section: scenarioSection, content: scenarioSelector } = buildCard({
-    title: 'Scenarios',
-    contentId: 'scenario-selector'
-  });
-  main.appendChild(scenarioSection);
 
   const { section: summaryCardsSection, content: summaryCardsContent } = buildCard({
     id: 'summaryCardsSection',
