@@ -199,32 +199,48 @@ p {
   align-items: flex-start;
   gap: var(--spacing-lg);
   padding: var(--spacing-lg);
+  padding-left: 280px;
 }
 
 .forecast-sidebar {
   flex: 0 0 240px;
   width: 240px;
-  position: sticky;
-  top: var(--spacing-lg);
+  position: fixed;
+  left: var(--spacing-lg);
+  top: calc(64px + var(--spacing-lg));
+  bottom: var(--spacing-lg);
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.forecast-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .forecast-sidebar-title {
   font-size: 0.95em;
   font-weight: 700;
   border-bottom: 1px solid var(--border-primary);
-}
-
-.forecast-workflow-nav {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
   padding: var(--spacing-sm);
 }
 
 .sidebar-scenarios-container {
+  flex: 0 0 auto;
   padding: var(--spacing-sm);
   overflow-y: auto;
   max-height: 50vh;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.forecast-workflow-nav {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  overflow-y: auto;
 }
 
 .scenarios-list {
@@ -341,14 +357,27 @@ p {
 @media (max-width: 1024px) {
   .forecast-layout {
     flex-direction: column;
+    padding-left: var(--spacing-lg);
   }
 
   .forecast-sidebar {
-    width: auto;
     position: static;
+    width: auto;
+    height: auto;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    overflow-y: visible;
+  }
+
+  .sidebar-scenarios-container {
+    max-height: none;
+    border-bottom: none;
   }
 
   .forecast-workflow-nav {
+    flex: 0 1 auto;
     flex-direction: row;
     flex-wrap: wrap;
   }
