@@ -14,12 +14,14 @@ import {
 } from './grid-factory.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openPeriodicChangeScheduleModal } from '../modals/periodic-change-schedule-modal.js';
+import { openTagEditorModal } from '../modals/tag-editor-modal.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
 import { notifyError } from '../../../shared/notifications.js';
 import { GridStateManager } from './grid-state.js';
 
 const accountsGridState = new GridStateManager('accounts');
 let lastAccountsTable = null;
+let accountsGridMode = 'summary'; // 'summary' or 'detail'
 
 export function buildAccountsGridColumns({
   lookupData,
@@ -27,8 +29,65 @@ export function buildAccountsGridColumns({
   scenarioState,
   reloadAccountsGrid,
   reloadMasterTransactionsGrid,
-  logger
+  logger,
+  mode = 'summary'
 }) {
+  // SUMMARY columns - minimal, most important fields only
+  if (mode === 'summary') {
+    return [
+      createDuplicateColumn(
+        async (cell) => {
+          const currentScenario = scenarioState?.get?.();
+          if (!currentScenario) return;
+
+          const rowData = cell.getRow().getData();
+          const allAccounts = await AccountManager.getAll(currentScenario.id);
+          const source = allAccounts.find((a) => a.id === rowData.id) || rowData;
+
+          const { id, accountType, periodicChangeSummary, ...payload } = JSON.parse(JSON.stringify(source));
+          await AccountManager.create(currentScenario.id, payload);
+
+          await reloadAccountsGrid(document.getElementById('accountsTable'));
+          await reloadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+          document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
+        },
+        { headerTooltip: 'Duplicate Account' }
+      ),
+      createDeleteColumn(
+        async (cell) => {
+          const currentScenario = scenarioState?.get?.();
+          const rowData = cell.getRow().getData();
+          await AccountManager.remove(currentScenario.id, rowData.id);
+          await reloadAccountsGrid(document.getElementById('accountsTable'));
+          await reloadMasterTransactionsGrid(document.getElementById('transactionsTable'));
+          document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
+        },
+        { confirmMessage: (rowData) => `Delete account: ${rowData.name}?` }
+      ),
+      createTextColumn('Account Name', 'name', { widthGrow: 2, editor: "input", editable: true }),
+      {
+        title: 'Type',
+        field: 'type',
+        minWidth: 120,
+        widthGrow: 1,
+        formatter: function (cell) {
+          const value = cell.getValue();
+          return value?.name || '';
+        },
+        editor: 'list',
+        editable: true,
+        editorParams: {
+          values: lookupData.accountTypes.map((t) => ({ label: t.name, value: t })),
+          listItemFormatter: function (value, title) {
+            return title;
+          }
+        }
+      },
+      createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1, editor: "input", editable: true })
+    ];
+  }
+
+  // DETAIL columns - full feature set
   const columns = [
     createDuplicateColumn(
       async (cell) => {
@@ -153,6 +212,33 @@ export function buildAccountsGridColumns({
 
   columns.push(createTextColumn('Description', 'description', { widthGrow: 2 }));
 
+  columns.push({
+    title: 'Tags',
+    field: 'tags',
+    minWidth: 150,
+    widthGrow: 1.5,
+    formatter: function (cell) {
+      const tags = cell.getValue() || [];
+      if (!Array.isArray(tags) || tags.length === 0) {
+        return '<span class="text-secondary">No tags</span>';
+      }
+      return tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('');
+    },
+    cellClick: function (e, cell) {
+      const rowData = cell.getRow().getData();
+      openTagEditorModal(rowData.tags || [], 'account', async (newTags) => {
+        const currentScenario = scenarioState?.get?.();
+        const allAccts = await AccountManager.getAll(currentScenario.id);
+        const acctIndex = allAccts.findIndex((ac) => ac.id === rowData.id);
+        if (acctIndex >= 0) {
+          allAccts[acctIndex].tags = newTags;
+          await AccountManager.saveAll(currentScenario.id, allAccts);
+          await reloadAccountsGrid(document.getElementById('accountsTable'));
+        }
+      });
+    }
+  });
+
   return columns;
 }
 
@@ -268,6 +354,26 @@ export async function loadAccountsGrid({
       }
     });
     window.add(buttonContainer, refreshButton);
+
+    const modeToggleButton = document.createElement('button');
+    modeToggleButton.className = 'btn';
+    modeToggleButton.id = 'accounts-grid-mode-toggle';
+    modeToggleButton.textContent = accountsGridMode === 'summary' ? 'Detail View' : 'Summary View';
+    modeToggleButton.addEventListener('click', async () => {
+      accountsGridMode = accountsGridMode === 'summary' ? 'detail' : 'summary';
+      try {
+        await loadAccountsGrid({
+          container,
+          scenarioState,
+          getWorkflowConfig,
+          reloadMasterTransactionsGrid,
+          logger
+        });
+      } catch (err) {
+        notifyError('Failed to toggle grid view: ' + (err?.message || String(err)));
+      }
+    });
+    window.add(buttonContainer, modeToggleButton);
     window.add(toolbar, buttonContainer);
 
     const accountGroupingControl = document.createElement('div');
@@ -297,6 +403,7 @@ export async function loadAccountsGrid({
     );
 
     const columns = buildAccountsGridColumns({
+      mode: accountsGridMode,
       lookupData,
       workflowConfig,
       scenarioState,

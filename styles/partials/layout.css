@@ -1,0 +1,1347 @@
+/* === FTRACK PATCH: Force summary cards grid layout in summary section === */
+.summary-cards-groups {
+  /* Stack account-type sections vertically; each section contains a horizontal flow of cards */
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--spacing-sm);
+  align-items: stretch;
+}
+
+.summary-cards-group {
+  /* Each account-type section is a full-width horizontal band; cards inside will flow left-to-right and wrap. */
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.summary-cards-grid {
+  /* Flow layout: wrap cards horizontally within each account-type section */
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  align-items: flex-start;
+}
+
+/* Individual cards flow inside groups; constrain width so they form columns rather than long vertical lists */
+.summary-card,
+.account-card,
+.grid-summary-card {
+  flex: 0 1 260px;
+  min-width: 240px;
+  max-width: 380px;
+}
+
+/* In a vertical list (column flex), flex-basis controls height — reset to content size */
+.scenarios-list .grid-summary-card {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+/* Ensure the summary area is visible even when empty or when layout collapses */
+#summaryCardsContent {
+  min-height: 140px;
+  padding: var(--spacing-sm);
+  box-sizing: border-box;
+}
+
+/* Ensure the summary container stacks its children vertically so the overall total can span full width */
+#summaryCardsContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  align-items: stretch;
+}
+/* ====================================
+   Page Layout & Navigation
+   ====================================*/
+
+#main-navbar {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 0 var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding-right: var(--spacing-md);
+  border-right: 1px solid var(--border-primary);
+  margin-right: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+.navbar-logo {
+  height: 28px;
+  width: 28px;
+  object-fit: contain;
+}
+
+.navbar-title {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+#main-navbar a {
+  display: inline-block;
+  padding: 16px 20px;
+  margin: 0 4px;
+  font-size: 0.95em;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+#main-navbar a:hover {
+  color: var(--text-primary);
+}
+
+#main-navbar a.active {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+#main-navbar .nav-spacer {
+  flex: 1;
+  min-width: var(--spacing-md);
+}
+
+#main-navbar button {
+  padding: 8px 16px;
+  font-size: 0.85em;
+  margin: 8px 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+  #main-navbar {
+    padding: 0 var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    gap: var(--spacing-xs);
+  }
+  
+  #main-navbar a {
+    padding: 12px 16px;
+    font-size: 0.85em;
+  }
+  
+  #main-navbar button {
+    padding: 6px 12px;
+    font-size: 0.75em;
+  }
+}
+
+@media (max-width: 768px) {
+  #main-navbar {
+    padding: 0 var(--spacing-sm);
+  }
+  
+  #main-navbar a {
+    padding: 12px 12px;
+  }
+}
+
+/* ==================================== Forecast Layout ====================================*/
+
+.forecast-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  padding-left: 280px;
+}
+
+.forecast-sidebar {
+  flex: 0 0 240px;
+  width: 240px;
+  position: fixed;
+  left: var(--spacing-lg);
+  top: calc(64px + var(--spacing-lg));
+  bottom: var(--spacing-lg);
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.forecast-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.forecast-sidebar-title {
+  font-size: 0.95em;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-primary);
+  padding: var(--spacing-sm);
+}
+
+.sidebar-scenarios-container {
+  flex: 0 0 auto;
+  padding: var(--spacing-sm);
+  overflow-y: auto;
+  max-height: 50vh;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.sidebar-scenarios-container .btn-add {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+
+.forecast-workflow-nav {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  overflow-y: auto;
+}
+
+.workflow-nav-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.workflow-nav-item:hover {
+  background: var(--bg-hover);
+}
+
+.workflow-nav-item.active {
+  background: var(--accent-subtle);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+@media (max-width: 1024px) {
+  .forecast-layout {
+    flex-direction: column;
+    padding-left: var(--spacing-lg);
+  }
+
+  .forecast-sidebar {
+    position: static;
+    width: auto;
+    height: auto;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    overflow-y: visible;
+  }
+
+  .sidebar-scenarios-container {
+    max-height: none;
+    border-bottom: none;
+  }
+
+  .forecast-workflow-nav {
+    flex: 0 1 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .workflow-nav-item {
+    width: auto;
+  }
+}
+
+/* ==================================== Forecast Dashboard Shell ====================================*/
+
+body.dashboard-shell {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: row;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: clamp(180px, 18vw, 280px);
+  background: transparent;
+  border-right: 1px solid var(--border-secondary);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--transition-normal);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar.collapsed {
+  width: 0;
+  border-right: none;
+}
+
+.sidebar-header {
+  padding: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sidebar-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.sidebar-app-title {
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--text-primary);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+.sidebar-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.sidebar-section-title {
+  font-size: 0.75em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.sidebar-item {
+  display: block;
+  padding: 8px 12px;
+  font-size: 0.95em;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sidebar-item.active {
+  color: var(--accent-primary);
+  border-left-color: var(--accent-primary);
+  background: var(--accent-subtle);
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.topbar {
+  background: transparent;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: clamp(13px, 1.2vw, 17px);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.topbar-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.burger-menu {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.burger-line {
+  width: 20px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.95;
+}
+
+.content-area {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Sidebar overlay behavior for small screens */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 400;
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 500;
+    width: min(86vw, 320px);
+    transform: translateX(-105%);
+    transition: transform var(--transition-normal);
+    border-right: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    width: min(86vw, 320px);
+    border-right: 1px solid var(--border-secondary);
+  }
+
+  .topbar-actions {
+    gap: 6px;
+  }
+}
+
+/* ==================================== Forecast Dash Layout (Row Stack) ====================================*/
+
+.dash-layout {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+}
+
+.dash-row {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 220px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: flex var(--transition-normal);
+}
+
+.dash-row.row-middle {
+  flex: 2;
+  min-height: 260px;
+}
+
+.dash-row.collapsed {
+  flex: 0 0 48px;
+  min-height: 48px;
+}
+
+.dash-row.collapsed .dash-row-body {
+  display: none;
+}
+
+.dash-row-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--bg-tertiary);
+  border-left: 3px solid var(--accent-primary);
+  border-bottom: 1px solid var(--border-secondary);
+  gap: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dash-row-header:hover {
+  background: var(--bg-hover);
+}
+
+.dash-row-chevron {
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast);
+}
+
+.dash-row.collapsed .dash-row-chevron {
+  transform: rotate(-90deg);
+}
+
+.dash-row-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-row-controls {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.dash-row-controls .icon-btn {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.dash-row-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  background: rgba(0, 212, 255, 0.02);
+  min-height: 0;
+}
+
+/* Middle Row Panels */
+.middle-panels {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+}
+
+.dash-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border-primary);
+}
+
+/* When reusing legacy forecast-card hooks inside dashboard panels, avoid the
+   old max-content sizing so flex layouts behave as expected. */
+.dash-panel.forecast-card {
+  width: auto;
+}
+
+.dash-panel:last-child {
+  border-right: none;
+}
+
+.dash-panel-header {
+  height: 38px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.dash-panel-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+}
+
+.dash-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  min-height: 0;
+}
+
+/* Dashboard rows should treat embedded cards as full-width sections. */
+.dash-row-body > .forecast-card {
+  width: 100%;
+}
+
+@media (max-width: 1023px) {
+  .middle-panels {
+    flex-direction: column;
+  }
+
+  .dash-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--border-primary);
+    min-height: 260px;
+  }
+
+  .dash-panel:last-child {
+    border-bottom: none;
+  }
+}
+
+/* ==================================== Main Content ====================================*/
+
+/* Grid Containers - Container handles scrolling, Tabulator grows to content */
+.grid-container {
+  width: 100%;
+  max-height: 500px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+/* Accounts-detail mode: hide the outer accordion header, force-expand the body,
+   and let the Tabulator grid grow to fill all available space */
+.dash-row.mode-accounts-detail {
+  flex: 1;
+}
+
+.dash-row.mode-accounts-detail .dash-row-header {
+  display: none;
+}
+
+.dash-row.mode-accounts-detail .dash-row-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.dash-row.mode-accounts-detail .dash-panel-body {
+  overflow-y: auto;
+}
+
+.dash-row.mode-accounts-detail .grid-container {
+  max-height: none;
+  overflow-y: visible;
+  flex: none;
+}
+
+.forecast-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.forecast-cards-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+  align-items: flex-start;
+}
+
+.forecast-card {
+  margin-bottom: 0;
+  width: max-content;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.forecast-card .section-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+}
+
+.card-chevron {
+  display: inline-flex;
+  margin-right: 8px;
+  color: var(--text-secondary);
+}
+
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.card-header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.card-collapsed .section-content {
+  display: none;
+}
+
+/* ==================================== Grid Totals ====================================*/
+
+.grid-totals {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 24px !important;
+  margin: 16px 0 24px 0;
+  padding: 18px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  align-items: stretch;
+}
+
+.grid-total-item {
+  padding: 18px 20px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 160px;
+  min-height: 80px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+
+@media (max-width: 700px) {
+  .grid-totals {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 6px;
+  }
+  .grid-total-item {
+    min-width: 0;
+    min-height: 60px;
+    padding: 12px 10px;
+  }
+}
+
+.grid-total-item .label {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin-bottom: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.grid-total-item .value {
+  font-weight: 700;
+  font-size: 1.4em;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.grid-total-item .value.positive {
+  color: var(--color-positive);
+}
+
+.grid-total-item .value.negative {
+  color: var(--color-negative);
+}
+
+.grid-total-item .value.zero {
+  color: var(--color-zero);
+}
+
+@media (max-width: 700px) {
+  .forecast-cards-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ==================================== Sidebar Scenarios List ====================================*/
+
+.scenarios-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.scenarios-list-placeholder {
+  padding: var(--spacing-md);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+.scenario-list-item {
+  cursor: pointer;
+}
+
+.scenario-list-item.selected {
+  background: var(--accent-subtle);
+  border-color: var(--accent-primary);
+}
+
+/* ==================================== Summary Card Layouts ====================================*/
+
+.accounts-summary-list,
+.grid-summary-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-sm);
+}
+
+/* Cards inside the accounts summary list must fill their grid cell fully
+   so container queries on .account-card fire based on actual rendered width */
+.accounts-summary-list .account-card {
+  max-width: none;
+  width: 100%;
+}
+
+/* Summary cards: unified class for account and grid items */
+.summary-card,
+.account-card,
+.grid-summary-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  /* Only transition non-layout properties to avoid reflow/jitter (avoid 'all') */
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  width: 100%;
+}
+
+.summary-card:hover,
+.account-card:hover,
+.grid-summary-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-accent);
+}
+
+/* Allow container queries to fire for the account card edit form */
+.account-card {
+  container-type: inline-size;
+}
+
+/* Make each summary row align label and value on a single line */
+.summary-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.summary-card-row .label {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.summary-card-row .value {
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* interest/value semantic colors */
+.summary-card .interest-earned,
+.summary-card .value.positive { color: var(--color-positive); }
+.summary-card .interest-paid,
+.summary-card .value.negative { color: var(--color-negative); }
+.summary-card .value.zero { color: var(--color-zero); }
+
+/* Blue accent highlight similar to other focused cards/rows (no layout shift) */
+.summary-card:focus-within,
+.summary-card.highlight,
+.summary-card:hover {
+  box-shadow: inset 4px 0 0 var(--accent-primary);
+  border-color: var(--border-accent);
+}
+
+/* Ensure these summary card styles take precedence where cards appear inside the summary section */
+.summary-cards-groups .summary-card,
+.summary-cards-groups .account-card,
+.summary-cards-groups .grid-summary-card {
+  flex-direction: column !important;
+  padding: var(--spacing-sm) !important;
+  border: 1px solid var(--border-secondary) !important;
+  background: var(--bg-tertiary) !important;
+  /* Ensure only non-layout transitions inside the summary section */
+  transition: box-shadow var(--transition-fast) !important, border-color var(--transition-fast) !important, background-color var(--transition-fast) !important;
+}
+
+.summary-cards-group-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 6px 8px;
+}
+
+/* Overall total card uses the full width and appears before the groups */
+.summary-card.overall-total {
+  width: 100% !important;
+  order: -1;
+  align-self: stretch;
+  box-shadow: none;
+  border-left: 4px solid var(--accent-primary);
+}
+
+/* Force overall total to use full inner width and respect padding */
+#summaryCardsContent > .summary-card.overall-total {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+  margin: 0 !important;
+}
+
+/* Match the workflow selector active styling: blue outline and subtle tint */
+#summaryCardsContent > .summary-card.overall-total {
+  background: linear-gradient(90deg, var(--accent-subtle), transparent) !important;
+  border: 1px solid var(--border-accent) !important;
+  border-left: 4px solid var(--accent-primary) !important;
+}
+
+#summaryCardsContent > .summary-card.overall-total .summary-card-title {
+  color: var(--accent-primary) !important;
+}
+
+#summaryCardsContent > .summary-card.overall-total:hover {
+  background: linear-gradient(90deg, var(--accent-hover), transparent) !important;
+  border-color: var(--accent-hover) !important;
+}
+
+/* Transaction card header row: secondary account name + type badge */
+.grid-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+}
+
+.grid-summary-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-secondary);
+}
+
+.grid-summary-type.money-in {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.35);
+  color: #4ade80;
+}
+
+.grid-summary-type.money-out {
+  background: var(--danger-subtle);
+  border-color: var(--danger-hover);
+  color: var(--danger);
+}
+
+/* Summary card content layout */
+.summary-card-content,
+.account-card-content,
+.grid-summary-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Summary card titles */
+.summary-card-title,
+.account-card-name,
+.grid-summary-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+/* Summary card metadata */
+.summary-card-meta,
+.account-card-meta,
+.grid-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  font-size: 0.9em;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Summary card amount/value */
+.summary-card-amount,
+.account-card-balance,
+.grid-summary-amount {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.summary-card-amount.negative,
+.account-card-balance.negative,
+.grid-summary-amount.negative {
+  color: var(--color-negative);
+}
+
+.summary-card-amount.positive,
+.account-card-balance.positive,
+.grid-summary-amount.positive {
+  color: var(--color-positive);
+}
+
+.summary-card-amount.zero,
+.account-card-balance.zero,
+.grid-summary-amount.zero {
+  color: var(--color-zero);
+}
+
+/* Summary card actions */
+.summary-card-actions,
+.account-card-actions,
+.grid-summary-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+
+.summary-card-actions .icon-btn,
+.account-card-actions .icon-btn,
+.grid-summary-actions .icon-btn {
+  padding: 4px;
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 1em;
+  line-height: 1;
+}
+
+.summary-card-actions .icon-btn:hover,
+.account-card-actions .icon-btn:hover,
+.grid-summary-actions .icon-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Summary card form elements */
+.summary-card-form,
+.grid-summary-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Full-width fields and actions inside the summary form */
+.grid-summary-form .form-field--full,
+.grid-summary-form .grid-summary-form-actions {
+  grid-column: 1 / -1;
+}
+
+/* Collapse to single column on narrow cards */
+@container (max-width: 380px) {
+  .grid-summary-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.account-card-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Fields that should always span both columns */
+.account-card-form .form-field--full,
+.account-card-form .account-card-form-actions {
+  grid-column: 1 / -1;
+}
+
+/* Collapse to single column when the card is narrow */
+@container (max-width: 380px) {
+  .account-card-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Inline tag editor */
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 24px;
+}
+
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 12px;
+  font-size: 0.8em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font-size: 1em;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.tag-remove:hover {
+  color: var(--color-danger, #e05);
+}
+
+.tag-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag-input-row .accounts-detail-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.summary-card-field,
+.grid-summary-field,
+.accounts-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary-card-label,
+.grid-summary-label,
+.accounts-detail-label {
+  font-size: 0.8em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.summary-card-input,
+.grid-summary-input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  color: var(--text-primary);
+}
+
+.summary-card-form-actions,
+.grid-summary-form-actions,
+.account-card-form-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+/* ==================================== Grid Toolbar ====================================*/
+
+.grid-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.grid-toolbar .toolbar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.grid-toolbar .toolbar-totals {
+  margin-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.toolbar-total-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.toolbar-total-item .label {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.toolbar-total-item .value {
+  font-weight: 700;
+  font-size: 1.1em;
+  color: var(--text-primary);
+}
+
+.toolbar-total-item .value.positive {
+  color: var(--success);
+}
+
+.toolbar-total-item .value.negative {
+  color: var(--danger);
+}
+
+@media (max-width: 1024px) {
+  .grid-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .grid-toolbar .toolbar-totals {
+    margin-left: 0;
+    width: 100%;
+    align-items: flex-start;
+  }
+  
+  .toolbar-total-item .label {
+    font-size: 0.75em;
+  }
+  
+  .toolbar-total-item .value {
+    font-size: 0.9em;
+  }
+}
+
+/* ==================================== Accordion & Sections ====================================*/
+
+.section-content {
+  padding: var(--spacing-md);
+}
+
+.section-padding {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.section-title {
+  font-size: 1.1em;
+  margin-bottom: 12px;
+}
+
+.accordion-content {
+  transition: max-height var(--transition-normal), opacity var(--transition-normal);
+  overflow: hidden;
+}
+
+.accordion-content.open {
+  display: block;
+  padding: 0 var(--spacing-md) var(--spacing-md) var(--spacing-md);
+  max-height: 600px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.accordion-content.collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  pointer-events: none;
+}
+
+@media (max-width: 1024px) {
+  .accordion-content.open {
+    padding: 0 var(--spacing-xs) var(--spacing-sm) var(--spacing-xs);
+    max-height: 500px;
+  }
+  
+  .section-content {
+    padding: var(--spacing-sm);
+  }
+  
+  .section-padding {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .accordion-content.open {
+    padding: 0 var(--spacing-xs) var(--spacing-sm) var(--spacing-xs);
+    max-height: 350px;
+  }
+  
+  .section-padding {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}

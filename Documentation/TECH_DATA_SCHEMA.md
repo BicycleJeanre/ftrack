@@ -158,7 +158,8 @@ An account represents a place where money lives or is owed.
   periodicChange?: PeriodicChange | null,
   periodicChangeSchedule?: PeriodicChangeScheduleEntry[] | null,
   goalAmount?: number | null,
-  goalDate?: string | null
+  goalDate?: string | null,
+  tags?: string[]                            // User-defined tags for categorization
 }
 ```
 
@@ -176,6 +177,7 @@ An account represents a place where money lives or is owed.
 | `periodicChangeSchedule` | PeriodicChangeScheduleEntry[] \| null | No | Optional date-bounded overrides for `periodicChange` (variable rates) |
 | `goalAmount` | number \| null | No | Target balance (for goal-based scenarios) |
 | `goalDate` | string \| null | No | Date when goal should be reached |
+| `tags` | string[] | No | User-defined tags for categorization and filtering |
 
 ### 3.3 Periodic Change Schedule
 
