@@ -105,7 +105,6 @@ export function buildAccountsGridColumns({
 export async function loadAccountsGrid({
   container,
   scenarioState,
-  getScenarioTypeConfig,
   reloadMasterTransactionsGrid,
   logger
 }) {
@@ -121,19 +120,6 @@ export async function loadAccountsGrid({
     });
   } catch (_) {
     // Keep existing behavior: ignore state capture errors.
-  }
-
-  const typeConfig = getScenarioTypeConfig?.();
-
-  if (!currentScenario.type) {
-    container.innerHTML =
-      '<div class="empty-message">Please select a Scenario Type and Period Type in the scenario grid above to enable accounts.</div>';
-    return;
-  }
-
-  if (!typeConfig?.showAccounts) {
-    container.innerHTML = '';
-    return;
   }
 
   // Keep the grid container stable to reduce scroll jumps.
@@ -198,7 +184,6 @@ export async function loadAccountsGrid({
         await loadAccountsGrid({
           container,
           scenarioState,
-          getScenarioTypeConfig,
           reloadMasterTransactionsGrid,
           logger
         });
@@ -244,13 +229,11 @@ export async function loadAccountsGrid({
 
     const columns = buildAccountsGridColumns({
         lookupData,
-        typeConfig,
         scenarioState,
         reloadAccountsGrid: (nextContainer) =>
           loadAccountsGrid({
             container: nextContainer,
             scenarioState,
-            getScenarioTypeConfig,
             reloadMasterTransactionsGrid,
             logger
           }),
@@ -258,7 +241,7 @@ export async function loadAccountsGrid({
         logger
       });
 
-    const columnsKey = typeConfig?.showGeneratePlan ? 'accounts-with-plan' : 'accounts-base';
+    const columnsKey = 'accounts-base';
     const shouldRebuildTable =
       !accountsTable ||
       accountsTable?.element !== gridContainer ||

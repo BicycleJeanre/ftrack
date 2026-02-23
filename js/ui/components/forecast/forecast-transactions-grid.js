@@ -30,7 +30,6 @@ const transactionsGridState = new GridStateManager('transactions');
 export async function loadMasterTransactionsGrid({
   container,
   scenarioState,
-  getScenarioTypeConfig,
   state,
   tables,
   callbacks,
@@ -48,19 +47,6 @@ export async function loadMasterTransactionsGrid({
     // Keep existing behavior: ignore state capture errors.
   }
 
-  const typeConfig = getScenarioTypeConfig?.();
-
-  if (!currentScenario.type) {
-    container.innerHTML =
-      '<div class="empty-message">Please select a Scenario Type and Period Type in the scenario grid above to enable transactions.</div>';
-    return;
-  }
-
-  if (!typeConfig?.showPlannedTransactions) {
-    container.innerHTML = '';
-    return;
-  }
-
   // Keep the grid container stable to reduce scroll jumps.
   const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
   existingToolbars.forEach((el) => el.remove());
@@ -69,7 +55,6 @@ export async function loadMasterTransactionsGrid({
     await loadMasterTransactionsGrid({
       container,
       scenarioState,
-      getScenarioTypeConfig,
       state,
       tables,
       callbacks,

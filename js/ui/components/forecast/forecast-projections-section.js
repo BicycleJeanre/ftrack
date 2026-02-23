@@ -538,8 +538,8 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
       const interestByPeriodLabel = new Map(selectedAccountProjections.map((p) => [String(p.date || ''), Number(p.interest || 0)]));
 
       const plannedTransactions = (currentScenario.transactions || []).filter((tx) => getStatusName(tx) === 'planned');
-      const startDate = normalizeDateOnly(currentScenario.startDate);
-      const endDate = normalizeDateOnly(currentScenario.endDate);
+      const startDate = normalizeDateOnly(currentScenario.projection?.config?.startDate);
+      const endDate = normalizeDateOnly(currentScenario.projection?.config?.endDate);
       const accounts = currentScenario.accounts || [];
 
       if (!startDate || !endDate) {
