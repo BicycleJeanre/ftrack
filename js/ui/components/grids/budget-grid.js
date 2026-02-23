@@ -9,9 +9,11 @@ import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
-import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
+import { getScenarioProjectionRows, getScenarioBudgetWindowConfig, setScenarioBudgetWindowConfig } from '../../../shared/app-data-utils.js';
+import { openTimeframeModal } from '../modals/timeframe-modal.js';
 
 import * as BudgetManager from '../../../app/managers/budget-manager.js';
+import * as ScenarioManager from '../../../app/managers/scenario-manager.js';
 
 import { getScenario, getScenarioPeriods, getBudget } from '../../../app/services/data-service.js';
 
@@ -257,37 +259,110 @@ export async function loadBudgetGrid({
 
     const regenerateFromProjectionsButton = document.createElement('button');
     regenerateFromProjectionsButton.className = 'btn btn-primary';
-    regenerateFromProjectionsButton.textContent = 'Regenerate Budget from Projections';
+    regenerateFromProjectionsButton.textContent = 'Regenerate from Planned Transactions';
     regenerateFromProjectionsButton.addEventListener('click', async () => {
-      try {
-        currentScenario = scenarioState?.get?.();
+      openTimeframeModal({
+        title: 'Regenerate Budget from Planned Transactions',
+        showPeriodType: false,
+        onConfirm: async (timeframe) => {
+          try {
+            currentScenario = scenarioState?.get?.();
 
-        const projectionRows = getScenarioProjectionRows(currentScenario);
-        if (!projectionRows || projectionRows.length === 0) {
-          notifyError('No projections to save as budget. Generate projections first.');
-          return;
-        }
+            const confirmed = confirm('Regenerate budget from planned transactions? This will replace any existing budget.');
+            if (!confirmed) return;
 
-        const confirmed = confirm('Regenerate planned budget entries from projections? Entries with recorded actuals will be preserved.');
-        if (!confirmed) return;
+            regenerateFromProjectionsButton.textContent = 'Saving...';
+            regenerateFromProjectionsButton.disabled = true;
 
-        regenerateFromProjectionsButton.textContent = 'Saving...';
-        regenerateFromProjectionsButton.disabled = true;
+            // Save the budget window config to the scenario first
+            await ScenarioManager.update(currentScenario.id, {
+              budgetWindow: {
+                config: {
+                  startDate: timeframe.startDate,
+                  endDate: timeframe.endDate
+                }
+              }
+            });
 
-        await BudgetManager.createFromProjections(currentScenario.id, projectionRows);
+            await BudgetManager.createFromProjections(currentScenario.id);
 
-        const refreshed = await getScenario(currentScenario.id);
-        scenarioState?.set?.(refreshed);
+            const refreshed = await getScenario(currentScenario.id);
+            scenarioState?.set?.(refreshed);
 
-        await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+            // Get the existing budget table and refresh data instead of reloading entire grid
+            const existingTable = tables?.getMasterBudgetTable?.();
+            if (existingTable) {
+              const newBudgetOccurrences = await getBudget(currentScenario.id);
+              const lookupData = await loadLookup('lookup-data.json');
+              const normalizedAccounts = (refreshed.accounts || []).map((account) => {
+                const normalized = { ...account };
+                if (normalized.type && typeof normalized.type !== 'object') {
+                  const foundType = lookupData.accountTypes.find((t) => t.id == normalized.type);
+                  if (foundType) normalized.type = foundType;
+                }
+                return normalized;
+              });
 
-        notifySuccess('Budget saved successfully!');
-      } catch (err) {
-        notifyError('Failed to save budget: ' + err.message);
-      } finally {
-        regenerateFromProjectionsButton.textContent = 'Regenerate Budget from Projections';
-        regenerateFromProjectionsButton.disabled = false;
-      }
+              const transformedData = newBudgetOccurrences.flatMap((budget) => {
+                const storedPrimaryId = budget.primaryAccountId;
+                const storedSecondaryId = budget.secondaryAccountId;
+                const storedTypeId = budget.transactionTypeId;
+
+                const statusObj =
+                  typeof budget.status === 'object'
+                    ? budget.status
+                    : { name: budget.status, actualAmount: null, actualDate: null };
+
+                const sourceTransaction = budget.sourceTransactionId
+                  ? refreshed.transactions?.find((tx) => tx.id === budget.sourceTransactionId)
+                  : null;
+                const recurrenceSummary = sourceTransaction?.recurrence
+                  ? getRecurrenceDescription(sourceTransaction.recurrence)
+                  : budget.recurrenceDescription || 'One time';
+
+                const baseData = {
+                  id: budget.id,
+                  originalBudgetId: budget.id,
+                  sourceTransactionId: budget.sourceTransactionId,
+                  primaryAccountId: storedPrimaryId,
+                  secondaryAccountId: storedSecondaryId,
+                  transactionTypeId: storedTypeId,
+                  transactionType: storedTypeId === 1 ? { id: 1, name: 'Money In' } : { id: 2, name: 'Money Out' },
+                  plannedAmount: budget.amount,
+                  actualAmount: statusObj.actualAmount,
+                  actualDate: statusObj.actualDate,
+                  completed: String(statusObj?.name || '').toLowerCase() === 'actual',
+                  amount:
+                    statusObj.actualAmount !== null && statusObj.actualAmount !== undefined
+                      ? statusObj.actualAmount
+                      : budget.amount,
+                  description: budget.description,
+                  occurrenceDate: budget.occurrenceDate,
+                  recurrenceDescription: recurrenceSummary,
+                  status: statusObj
+                };
+
+                const canonicalBudget = normalizeCanonicalTransaction(baseData);
+                return transformTransactionToRows(canonicalBudget, normalizedAccounts);
+              });
+
+              // Use Tabulator's data update instead of rebuilding
+              existingTable.setData(transformedData);
+              applyMasterBudgetTableFilters({ tables, state, callbacks });
+              callbacks?.updateBudgetTotals?.();
+            } else {
+              // Fall back to full reload if table doesn't exist
+              await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+            }
+
+            notifySuccess('Budget regenerated successfully!');
+          } catch (err) {
+            notifyError('Failed to regenerate budget: ' + err.message);
+          } finally {
+            regenerateFromProjectionsButton.textContent = 'Regenerate from Planned Transactions';
+            regenerateFromProjectionsButton.disabled = false;
+          }
+      });
     });
     window.add(buttonContainer, regenerateFromProjectionsButton);
 

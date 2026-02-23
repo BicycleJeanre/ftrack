@@ -151,6 +151,15 @@ function normalizeProjectionConfig(rawConfig) {
   };
 }
 
+function normalizeBudgetWindowConfig(rawConfig) {
+  const base = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+
+  return {
+    startDate: typeof base.startDate === 'string' && base.startDate ? base.startDate : null,
+    endDate: typeof base.endDate === 'string' && base.endDate ? base.endDate : null
+  };
+}
+
 export function normalizeScenario(rawScenario) {
   const base = rawScenario && typeof rawScenario === 'object' ? rawScenario : {};
 
@@ -175,6 +184,12 @@ export function normalizeScenario(rawScenario) {
           ...(rows.length ? { rows } : {}),
           generatedAt: base.projection?.generatedAt ?? null
         }
+      : null;
+
+  const budgetWindowConfig = normalizeBudgetWindowConfig(base.budgetWindow?.config);
+  const budgetWindow =
+    budgetWindowConfig && (budgetWindowConfig.startDate || budgetWindowConfig.endDate)
+      ? { config: budgetWindowConfig }
       : null;
 
   const planning = base.planning && typeof base.planning === 'object' ? base.planning : {};
@@ -204,6 +219,7 @@ export function normalizeScenario(rawScenario) {
     accounts,
     transactions,
     budgets,
+    budgetWindow,
     projection,
     planning: nextPlanning
   };
@@ -215,6 +231,18 @@ export function getScenarioProjectionConfig(scenario) {
 
 export function getScenarioProjectionRows(scenario) {
   return scenario?.projection?.rows || [];
+}
+
+export function getScenarioBudgetWindowConfig(scenario) {
+  return scenario?.budgetWindow?.config || null;
+}
+
+export function setScenarioBudgetWindowConfig(scenario, config) {
+  if (!scenario) return;
+  if (!scenario.budgetWindow) {
+    scenario.budgetWindow = {};
+  }
+  scenario.budgetWindow.config = config;
 }
 
 export function sanitizeScenarioForWrite(rawScenario) {
@@ -229,6 +257,7 @@ export function sanitizeScenarioForWrite(rawScenario) {
     accounts: scenario.accounts || [],
     ...(scenario.transactions ? { transactions: scenario.transactions } : {}),
     ...(scenario.budgets ? { budgets: scenario.budgets } : {}),
+    ...(scenario.budgetWindow !== undefined ? { budgetWindow: scenario.budgetWindow } : {}),
     ...(scenario.projection !== undefined ? { projection: scenario.projection } : {}),
     ...(scenario.planning ? { planning: scenario.planning } : {})
   };

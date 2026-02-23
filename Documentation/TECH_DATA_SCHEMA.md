@@ -57,7 +57,8 @@ A scenario is a named version of user content (accounts, transactions, and optio
   lineage?: ScenarioLineage | null,
   accounts: Account[],
   transactions?: Transaction[],
-  budgets?: Budget[],
+  budgets?: BudgetOccurrence[],
+  budgetWindow?: BudgetBundle | null,        // Budget config (independent of projection)
   projection?: ProjectionBundle | null,      // Projection config + last generated output
   planning?: ScenarioPlanning | null         // Planning windows for goal tooling (Generate Plan / Solver)
 }
@@ -74,7 +75,8 @@ A scenario is a named version of user content (accounts, transactions, and optio
 | `lineage` | ScenarioLineage \| null | No | Tracks duplication source and ancestor IDs |
 | `accounts` | Account[] | Yes | Must have at least 1 account |
 | `transactions` | Transaction[] | No | Can be empty |
-| `budgets` | Budget[] | No | Optional; workflow-driven UI may show/hide budget tooling |
+| `budgets` | BudgetOccurrence[] | No | Optional; workflow-driven UI may show/hide budget tooling |
+| `budgetWindow` | BudgetBundle | Yes (if using budgets) | Independent budget configuration; required if budgets workflow is active |
 | `projection` | ProjectionBundle \| null | No | Stored projection config and last generated results |
 | `planning` | ScenarioPlanning \| null | No | Planning windows used by goal tooling; independent of projection config |
 
@@ -115,6 +117,28 @@ type ProjectionConfig = {
 - Locked means: once a budget occurrence is marked complete via `status.name = "actual"`, it remains in the data and projections must include it from its actual date (`status.actualDate` if present, otherwise `occurrenceDate`) onward.
 
 ---
+
+## 2.4.2 BudgetBundle
+
+Budget window is independent from projection config and is stored under `scenario.budgetWindow.config`.
+
+```typescript
+type BudgetBundle = {
+  config: BudgetWindowConfig
+}
+
+type BudgetWindowConfig = {
+  startDate: string,                       // Start of budget regeneration window (YYYY-MM-DD)
+  endDate: string                          // End of budget regeneration window (YYYY-MM-DD)
+}
+```
+
+2.4.2.1 Budget Window Semantics
+
+- Budget window is the date range for "Regenerate from Planned Transactions" action.
+- It is **required** and independent from projection config; budgets and projections have completely separate scopes.
+- Budget regeneration expands **planned transactions WITH recurrence** (including one-time recurrence) within this window.
+- No default; must be explicitly configured by user.
 
 ## 2.5 ScenarioPlanning
 

@@ -31,9 +31,10 @@
 
 
 import * as DataStore from '../services/storage-service.js';
+import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
 import { expandTransactions } from '../../domain/calculations/transaction-expander.js';
 import { getRecurrenceDescription } from '../../domain/calculations/recurrence-utils.js';
-import { parseDateOnly } from '../../shared/date-utils.js';
+import { getScenarioBudgetWindowConfig } from '../../shared/app-data-utils.js';
 
 /**
  * Get all budget occurrences for a scenario
@@ -88,18 +89,12 @@ export async function saveAll(scenarioId, budgets) {
                 };
             }
 
-            // Extract IDs from objects if present, otherwise use ID fields directly
-            const extractId = (obj, idField) => {
-                if (obj && typeof obj === 'object' && obj.id !== undefined) return obj.id;
-                return idField || null;
-            };
-
             const normalized = {
                 id: budget.id || nextId++,
                 sourceTransactionId: budget.sourceTransactionId || null,
-                primaryAccountId: extractId(budget.primaryAccount, budget.primaryAccountId),
-                secondaryAccountId: extractId(budget.secondaryAccount, budget.secondaryAccountId),
-                transactionTypeId: extractId(budget.transactionType, budget.transactionTypeId),
+                primaryAccountId: budget.primaryAccountId ?? null,
+                secondaryAccountId: budget.secondaryAccountId ?? null,
+                transactionTypeId: budget.transactionTypeId ?? null,
                 amount: Math.abs(budget.amount || 0),
                 description: budget.description || '',
                 recurrenceDescription: budget.recurrenceDescription || '',
@@ -128,25 +123,32 @@ export async function saveAll(scenarioId, budgets) {
 }
 
 /**
- * Create budgets from planned transactions with recurrence expansion
- * Expands each transaction's recurrence into individual dated budget occurrences
+ * Create budgets from projections
+ * Uses the shared transaction expansion logic over the projection window
  * @param {number} scenarioId - The scenario ID
  * @returns {Promise<Array>} - The created budgets (expanded occurrences)
  */
 export async function createFromProjections(scenarioId) {
     const data = await DataStore.read();
-    const scenario = data.scenarios.find(s => s.id === scenarioId);
+    const scenario = data.scenarios?.find(s => s.id === scenarioId);
 
     if (!scenario) {
         throw new Error(`Scenario ${scenarioId} not found`);
     }
 
-    // Get projection window — always use parseDateOnly, never new Date(), to avoid timezone shifts
-    const windowStart = scenario?.projection?.config?.startDate;
-    const windowEnd = scenario?.projection?.config?.endDate;
-    if (!windowStart || !windowEnd) {
-        throw new Error(`Scenario ${scenarioId} is missing projection window dates`);
+    // Budget uses its own independent window configuration
+    const budgetWindowConfig = getScenarioBudgetWindowConfig(scenario);
+    if (!budgetWindowConfig) {
+        throw new Error(`Scenario ${scenarioId} is missing budget window configuration`);
     }
+
+    const windowStart = budgetWindowConfig.startDate;
+    const windowEnd = budgetWindowConfig.endDate;
+    if (!windowStart || !windowEnd) {
+        throw new Error(`Scenario ${scenarioId} budget window must have both start and end dates`);
+    }
+
+    // Always use parseDateOnly, never new Date(), to avoid timezone shifts
     const startDate = parseDateOnly(windowStart);
     const endDate = parseDateOnly(windowEnd);
 
@@ -155,8 +157,12 @@ export async function createFromProjections(scenarioId) {
     const plannedTransactions = (scenario.transactions || [])
         .filter(tx => statusName(tx) === 'planned');
 
-    const accounts = scenario.accounts || [];
-    const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
+    const expandedTransactions = expandTransactions(
+        plannedTransactions,
+        startDate,
+        endDate,
+        scenario.accounts || []
+    );
 
     // Map expanded occurrences to budget entries (id: 0 — saveAll will assign proper IDs)
     const newEntries = expandedTransactions.map(tx => ({

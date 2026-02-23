@@ -7,6 +7,7 @@ import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from '../grids/grid-state.js';
 import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
+import { openTimeframeModal } from '../modals/timeframe-modal.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
@@ -92,40 +93,50 @@ export async function loadProjectionsSection({
   generateButton.className = 'btn btn-primary';
   generateButton.textContent = 'Generate Projections';
   generateButton.addEventListener('click', async () => {
-    try {
-      generateButton.textContent = 'Generating...';
-      generateButton.disabled = true;
+    openTimeframeModal({
+      title: 'Generate Projections',
+      showPeriodType: true,
+      defaultPeriodTypeId: state?.getProjectionPeriodType?.() || 3,
+      onConfirm: async (timeframe) => {
+        try {
+          generateButton.textContent = 'Generating...';
+          generateButton.disabled = true;
 
-      currentScenario = scenarioState?.get?.();
+          currentScenario = scenarioState?.get?.();
 
-      await generateProjections(currentScenario.id, {
-        source: 'transactions'
-      });
+          await generateProjections(currentScenario.id, {
+            source: 'transactions',
+            startDate: timeframe.startDate,
+            endDate: timeframe.endDate,
+            periodTypeId: timeframe.periodTypeId
+          });
 
-      const refreshed = await getScenario(currentScenario.id);
-      scenarioState?.set?.(refreshed);
-      currentScenario = refreshed;
+          const refreshed = await getScenario(currentScenario.id);
+          scenarioState?.set?.(refreshed);
+          currentScenario = refreshed;
 
-      await loadProjectionsSection({
-        container,
-        scenarioState,
-        getWorkflowConfig,
-        state,
-        tables,
-        callbacks,
-        logger
-      });
+          await loadProjectionsSection({
+            container,
+            scenarioState,
+            getWorkflowConfig,
+            state,
+            tables,
+            callbacks,
+            logger
+          });
 
-      const workflowConfig = getWorkflowConfig?.();
-      if (workflowConfig?.showSummaryCards) {
-        await callbacks?.loadSummaryCards?.(callbacks?.getEl?.('summaryCardsContent'));
+          const workflowConfig = getWorkflowConfig?.();
+          if (workflowConfig?.showSummaryCards) {
+            await callbacks?.loadSummaryCards?.(callbacks?.getEl?.('summaryCardsContent'));
+          }
+        } catch (err) {
+          notifyError('Failed to generate projections: ' + err.message);
+        } finally {
+          generateButton.textContent = 'Generate Projections';
+          generateButton.disabled = false;
+        }
       }
-    } catch (err) {
-      notifyError('Failed to generate projections: ' + err.message);
-    } finally {
-      generateButton.textContent = 'Generate Projections';
-      generateButton.disabled = false;
-    }
+    });
   });
   window.add(buttonContainer, generateButton);
 
