@@ -16,14 +16,15 @@ import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCan
 import * as TransactionManager from '../../../app/managers/transaction-manager.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
+import * as DataService from '../../../app/services/data-service.js';
 
-import {
+const {
   getScenario,
   getTransactions,
   createTransaction,
   createAccount,
   getScenarioPeriods
-} from '../../../data-manager.js';
+} = DataService;
 
 const transactionsGridState = new GridStateManager('transactions');
 
