@@ -105,7 +105,7 @@ export async function loadMasterTransactionsGrid({
       const selectedPeriod = actualPeriod ? periods.find((p) => p.id === actualPeriod) : null;
       const defaultEffectiveDate = selectedPeriod
         ? formatDateOnly(selectedPeriod.startDate)
-        : (currentScenario.startDate || formatDateOnly(new Date()));
+        : (currentScenario.projection?.config?.startDate || formatDateOnly(new Date()));
 
       await createTransaction(currentScenario.id, {
         primaryAccountId: defaultAccountId,

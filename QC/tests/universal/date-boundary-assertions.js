@@ -12,8 +12,8 @@ function runDateBoundaryAssertions({ scenarios }) {
 
   allScenarios.forEach((scenario) => {
     const projectionConfig = scenario?.projection?.config || {};
-    const windowStart = projectionConfig.startDate || scenario.startDate;
-    const windowEnd = projectionConfig.endDate || scenario.endDate;
+    const windowStart = projectionConfig.startDate;
+    const windowEnd = projectionConfig.endDate;
 
     const start = toDate(windowStart);
     const end = toDate(windowEnd);

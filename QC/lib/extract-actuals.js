@@ -45,9 +45,9 @@ async function loadCalculationModules() {
 
 function buildScenarioActuals(scenario, projections) {
   const projectionConfig = scenario?.projection?.config || {};
-  const windowStart = projectionConfig.startDate || scenario.startDate;
-  const windowEnd = projectionConfig.endDate || scenario.endDate;
-  const projectionPeriod = projectionConfig.periodTypeId ?? scenario.projectionPeriod;
+  const windowStart = projectionConfig.startDate;
+  const windowEnd = projectionConfig.endDate;
+  const projectionPeriod = projectionConfig.periodTypeId ?? 3;
 
   const endingAccountBalances = (scenario.accounts || []).map((account) => {
     const accountRows = projections.filter((row) => row.accountId === account.id);
@@ -86,8 +86,8 @@ function buildOccurrencesForScenario(scenario, modules, lookupData) {
   const { expandTransactions, parseDateOnly, calculatePeriodicChange, expandPeriodicChangeForCalculation } = modules;
 
   const projectionConfig = scenario?.projection?.config || {};
-  const windowStart = projectionConfig.startDate || scenario.startDate;
-  const windowEnd = projectionConfig.endDate || scenario.endDate;
+  const windowStart = projectionConfig.startDate;
+  const windowEnd = projectionConfig.endDate;
 
   const startDate = parseDateOnly(windowStart);
   const endDate = parseDateOnly(windowEnd);
