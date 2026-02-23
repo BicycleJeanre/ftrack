@@ -10,27 +10,27 @@ const OUTPUT_DEFAULT = path.join(__dirname, 'reports', `qc-report-${TODAY}.md`);
 const WORKFLOW_RUNNERS = [
   {
     workflow: 'Budget',
-    command: 'node QC/tests/scenario-types/budget.test.js'
+    command: 'node QC/tests/workflows/budget.test.js'
   },
   {
     workflow: 'General',
-    command: 'node QC/tests/scenario-types/general.test.js'
+    command: 'node QC/tests/workflows/general.test.js'
   },
   {
     workflow: 'Funds',
-    command: 'node QC/tests/scenario-types/funds.test.js'
+    command: 'node QC/tests/workflows/funds.test.js'
   },
   {
     workflow: 'Debt Repayment',
-    command: 'node QC/tests/scenario-types/debt-repayment.test.js'
+    command: 'node QC/tests/workflows/debt-repayment.test.js'
   },
   {
     workflow: 'Goal-Based',
-    command: 'node QC/tests/scenario-types/goal-based.test.js'
+    command: 'node QC/tests/workflows/goal-based.test.js'
   },
   {
     workflow: 'Advanced Goal Solver',
-    command: 'node QC/tests/scenario-types/advanced-goal-solver.test.js'
+    command: 'node QC/tests/workflows/advanced-goal-solver.test.js'
   }
 ];
 

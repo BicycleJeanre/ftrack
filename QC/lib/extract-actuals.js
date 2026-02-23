@@ -2,6 +2,9 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const {
+  getMappedUseCasesForWorkflow,
+  getScenariosByWorkflow,
+  // Deprecated imports - use newer versions above
   getMappedUseCasesForScenarioType,
   getScenariosByType
 } = require('./load-qc-data');
@@ -305,8 +308,8 @@ function extractSummaryUseCases({
   return summaryActuals;
 }
 
-async function extractActualsForScenarioType({
-  scenarioType,
+async function extractActualsForWorkflow({
+  workflowName,
   qcInputData,
   useCaseMapping,
   lookupData,
@@ -314,8 +317,8 @@ async function extractActualsForScenarioType({
 }) {
   const modules = await loadCalculationModules();
   const allScenarios = qcInputData.scenarios || [];
-  const selectedScenarios = getScenariosByType(qcInputData, scenarioType, useCaseMapping);
-  const selectedUseCaseIds = getMappedUseCasesForScenarioType(useCaseMapping, scenarioType);
+  const selectedScenarios = getScenariosByWorkflow(qcInputData, workflowName, useCaseMapping);
+  const selectedUseCaseIds = getMappedUseCasesForWorkflow(useCaseMapping, workflowName);
 
   const scenarioActualsById = new Map();
   const occurrencesByScenarioId = new Map();
@@ -345,15 +348,33 @@ async function extractActualsForScenarioType({
   });
 
   return {
-    scenarioType,
+    workflowName,
     useCaseIds: selectedUseCaseIds,
     scenarios: scenarioActuals,
     useCases: summaryUseCaseActuals
   };
 }
 
+// Deprecated: use extractActualsForWorkflow instead
+async function extractActualsForScenarioType({
+  scenarioType,
+  qcInputData,
+  useCaseMapping,
+  lookupData,
+  qcExpectedData = null
+}) {
+  return extractActualsForWorkflow({
+    workflowName: scenarioType,
+    qcInputData,
+    useCaseMapping,
+    lookupData,
+    qcExpectedData
+  });
+}
+
 module.exports = {
-  extractActualsForScenarioType,
+  extractActualsForWorkflow,
+  extractActualsForScenarioType, // Deprecated - use extractActualsForWorkflow
   loadCalculationModules,
   buildScenarioActuals,
   buildOccurrencesForScenario,

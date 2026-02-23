@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const { loadAllQcData, getScenariosByType } = require('../../lib/load-qc-data');
-const { extractActualsForScenarioType } = require('../../lib/extract-actuals');
+const { loadAllQcData, getScenariosByWorkflow } = require('../../lib/load-qc-data');
+const { extractActualsForWorkflow } = require('../../lib/extract-actuals');
 const { compareActualsToExpected } = require('../../lib/compare-results');
 
 const { runRecurrenceAssertions } = require('../universal/recurrence-assertions');
@@ -14,10 +14,10 @@ function loadLookupData() {
   return JSON.parse(fs.readFileSync(lookupPath, 'utf8'));
 }
 
-async function runFundsScenarioTypeTest() {
-  const scenarioType = 'Funds';
+async function runGeneralWorkflowTest() {
+  const workflowName = 'General';
   const { qcInput, qcExpected, useCaseMapping } = loadAllQcData();
-  const scenarios = getScenariosByType(qcInput, scenarioType, useCaseMapping);
+  const scenarios = getScenariosByWorkflow(qcInput, workflowName, useCaseMapping);
   const lookupData = loadLookupData();
 
   const universalResults = [
@@ -26,8 +26,8 @@ async function runFundsScenarioTypeTest() {
     runDateBoundaryAssertions({ scenarios })
   ];
 
-  const actualData = await extractActualsForScenarioType({
-    scenarioType,
+  const actualData = await extractActualsForWorkflow({
+    workflowName,
     qcInputData: qcInput,
     useCaseMapping,
     lookupData,
@@ -37,7 +37,7 @@ async function runFundsScenarioTypeTest() {
   const comparison = compareActualsToExpected({
     expectedData: qcExpected,
     actualData,
-    scenarioType,
+    scenarioType: workflowName,
     options: { tolerance: 0.01 }
   });
 
@@ -45,7 +45,7 @@ async function runFundsScenarioTypeTest() {
   const passed = comparison.passed && universalMismatchCount === 0;
 
   const output = {
-    scenarioType,
+    scenarioType: workflowName,
     passed,
     universal: universalResults,
     comparison
@@ -61,12 +61,12 @@ async function runFundsScenarioTypeTest() {
 }
 
 if (require.main === module) {
-  runFundsScenarioTypeTest().catch((error) => {
-    console.error('[QC][Funds] Fatal error:', error);
+  runGeneralWorkflowTest().catch((error) => {
+    console.error('[QC][General] Fatal error:', error);
     process.exit(1);
   });
 }
 
 module.exports = {
-  runFundsScenarioTypeTest
+  runGeneralWorkflowTest
 };

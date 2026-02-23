@@ -1,0 +1,362 @@
+{
+  "version": "1.0.0",
+  "source": "Documentation/TECH_QC_METHOD.md",
+  "workflowMappings": {
+    "Budget": {
+      "testFile": "QC/tests/workflows/budget.test.js",
+      "scenarioIds": [101],
+      "useCases": [
+        "UC-A1",
+        "UC-A2",
+        "UC-A3",
+        "UC-A4",
+        "UC-A5",
+        "UC-E1",
+        "UC-S1",
+        "UC-S2",
+        "UC-S3",
+        "UC-S4",
+        "UC-S6"
+      ]
+    },
+    "General": {
+      "testFile": "QC/tests/workflows/general.test.js",
+      "scenarioIds": [102, 103, 108],
+      "useCases": [
+        "UC-B1",
+        "UC-B2",
+        "UC-B3",
+        "UC-B4",
+        "UC-B5",
+        "UC-C1",
+        "UC-C2",
+        "UC-C3",
+        "UC-C4",
+        "UC-C5",
+        "UC-E2",
+        "UC-E5",
+        "UC-F1",
+        "UC-F2",
+        "UC-F3",
+        "UC-F4",
+        "UC-S1",
+        "UC-S2",
+        "UC-S3",
+        "UC-S4",
+        "UC-S5",
+        "UC-S10"
+      ]
+    },
+    "Funds": {
+      "testFile": "QC/tests/workflows/funds.test.js",
+      "scenarioIds": [105],
+      "useCases": [
+        "UC-E3",
+        "UC-S8"
+      ]
+    },
+    "Debt Repayment": {
+      "testFile": "QC/tests/workflows/debt-repayment.test.js",
+      "scenarioIds": [104],
+      "useCases": [
+        "UC-D1",
+        "UC-D2",
+        "UC-D3",
+        "UC-D4",
+        "UC-S4",
+        "UC-S5",
+        "UC-S7"
+      ]
+    },
+    "Goal-Based": {
+      "testFile": "QC/tests/workflows/goal-based.test.js",
+      "scenarioIds": [106],
+      "useCases": [
+        "UC-S4"
+      ]
+    },
+    "Advanced Goal Solver": {
+      "testFile": "QC/tests/workflows/advanced-goal-solver.test.js",
+      "scenarioIds": [107],
+      "useCases": [
+        "UC-E4",
+        "UC-S9"
+      ]
+    }
+  },
+  "useCaseDetails": {
+    "UC-A1": {
+      "workflow": [
+        "Budget"
+      ],
+      "inputGroup": "A",
+      "category": "Core Flow"
+    },
+    "UC-A2": {
+      "workflow": [
+        "Budget"
+      ],
+      "inputGroup": "A",
+      "category": "Core Flow"
+    },
+    "UC-A3": {
+      "workflow": [
+        "Budget"
+      ],
+      "inputGroup": "A",
+      "category": "Core Flow"
+    },
+    "UC-A4": {
+      "workflow": [
+        "Budget"
+      ],
+      "inputGroup": "A",
+      "category": "Core Flow"
+    },
+    "UC-A5": {
+      "workflow": [
+        "Budget"
+      ],
+      "inputGroup": "A",
+      "category": "Core Flow"
+    },
+    "UC-B1": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "B",
+      "category": "Recurrence"
+    },
+    "UC-B2": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "B",
+      "category": "Recurrence"
+    },
+    "UC-B3": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "B",
+      "category": "Recurrence"
+    },
+    "UC-B4": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "B",
+      "category": "Recurrence"
+    },
+    "UC-B5": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "B",
+      "category": "Recurrence"
+    },
+    "UC-C1": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "C",
+      "category": "Periodic Change"
+    },
+    "UC-C2": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "C",
+      "category": "Periodic Change"
+    },
+    "UC-C3": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "C",
+      "category": "Periodic Change"
+    },
+    "UC-C4": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "C",
+      "category": "Periodic Change"
+    },
+    "UC-C5": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "C",
+      "category": "Periodic Change"
+    },
+    "UC-D1": {
+      "workflow": [
+        "Debt Repayment"
+      ],
+      "inputGroup": "D",
+      "category": "Debt Behavior"
+    },
+    "UC-D2": {
+      "workflow": [
+        "Debt Repayment"
+      ],
+      "inputGroup": "D",
+      "category": "Debt Behavior"
+    },
+    "UC-D3": {
+      "workflow": [
+        "Debt Repayment"
+      ],
+      "inputGroup": "D",
+      "category": "Debt Behavior"
+    },
+    "UC-D4": {
+      "workflow": [
+        "Debt Repayment"
+      ],
+      "inputGroup": "D",
+      "category": "Debt Behavior"
+    },
+    "UC-E1": {
+      "workflow": [
+        "Budget"
+      ],
+      "inputGroup": "E",
+      "category": "Scenario Type"
+    },
+    "UC-E2": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "E",
+      "category": "Scenario Type"
+    },
+    "UC-E3": {
+      "workflow": [
+        "Funds"
+      ],
+      "inputGroup": "E",
+      "category": "Scenario Type"
+    },
+    "UC-E4": {
+      "workflow": [
+        "Advanced Goal Solver"
+      ],
+      "inputGroup": "E",
+      "category": "Scenario Type"
+    },
+    "UC-E5": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "E",
+      "category": "Scenario Type"
+    },
+    "UC-F1": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "F",
+      "category": "Date Boundary"
+    },
+    "UC-F2": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "F",
+      "category": "Date Boundary"
+    },
+    "UC-F3": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "F",
+      "category": "Date Boundary"
+    },
+    "UC-F4": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "F",
+      "category": "Data Integrity"
+    },
+    "UC-S1": {
+      "workflow": [
+        "Budget",
+        "General"
+      ],
+      "inputGroup": "A,B",
+      "category": "Summary"
+    },
+    "UC-S2": {
+      "workflow": [
+        "Budget",
+        "General"
+      ],
+      "inputGroup": "A,B,C,D",
+      "category": "Summary"
+    },
+    "UC-S3": {
+      "workflow": [
+        "Budget",
+        "General"
+      ],
+      "inputGroup": "A,B,C,D",
+      "category": "Summary"
+    },
+    "UC-S4": {
+      "workflow": [
+        "Budget",
+        "General",
+        "Debt Repayment",
+        "Goal-Based"
+      ],
+      "inputGroup": "A,C,D",
+      "category": "Summary"
+    },
+    "UC-S5": {
+      "workflow": [
+        "General",
+        "Debt Repayment"
+      ],
+      "inputGroup": "C,D",
+      "category": "Summary"
+    },
+    "UC-S6": {
+      "workflow": [
+        "Budget"
+      ],
+      "inputGroup": "A",
+      "category": "Summary"
+    },
+    "UC-S7": {
+      "workflow": [
+        "Debt Repayment"
+      ],
+      "inputGroup": "D",
+      "category": "Summary"
+    },
+    "UC-S8": {
+      "workflow": [
+        "Funds"
+      ],
+      "inputGroup": "E",
+      "category": "Summary"
+    },
+    "UC-S9": {
+      "workflow": [
+        "Advanced Goal Solver"
+      ],
+      "inputGroup": "E",
+      "category": "Summary"
+    },
+    "UC-S10": {
+      "workflow": [
+        "General"
+      ],
+      "inputGroup": "E,F",
+      "category": "Summary"
+    }
+  }
+}

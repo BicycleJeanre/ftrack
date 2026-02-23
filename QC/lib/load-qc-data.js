@@ -4,7 +4,7 @@ const path = require('path');
 const DEFAULT_PATHS = {
   qcInput: path.join('QC', 'qc-input-data.json'),
   qcExpected: path.join('QC', 'qc-expected-outputs.json'),
-  useCaseMapping: path.join('QC', 'mappings', 'use-case-to-scenario-type.json')
+  useCaseMapping: path.join('QC', 'mappings', 'use-case-to-workflow.json')
 };
 
 function resolveRepoPath(relativePath) {
@@ -35,22 +35,22 @@ function loadQcExpectedOutputs(customPath = DEFAULT_PATHS.qcExpected) {
 
 function loadUseCaseMapping(customPath = DEFAULT_PATHS.useCaseMapping) {
   const data = readJsonAt(customPath);
-  if (!data.scenarioTypeMappings || typeof data.scenarioTypeMappings !== 'object') {
-    throw new Error(`Invalid use-case mapping file at ${customPath}: missing scenarioTypeMappings`);
+  if (!data.workflowMappings || typeof data.workflowMappings !== 'object') {
+    throw new Error(`Invalid use-case mapping file at ${customPath}: missing workflowMappings`);
   }
   return data;
 }
 
-function getScenariosByType(qcInputData, scenarioTypeName, useCaseMapping = null) {
+function getScenariosByWorkflow(qcInputData, workflowName, useCaseMapping = null) {
   const scenarios = qcInputData.scenarios || [];
 
-  // Schema 43 datasets do not store type on scenarios.
+  // Schema 43 datasets do not store workflow on scenarios.
   // Use the mapping file's explicit scenarioIds list instead.
-  const mapping = useCaseMapping?.scenarioTypeMappings?.[scenarioTypeName] || null;
+  const mapping = useCaseMapping?.workflowMappings?.[workflowName] || null;
   const ids = Array.isArray(mapping?.scenarioIds) ? mapping.scenarioIds : [];
   if (ids.length === 0) {
     throw new Error(
-      `QC dataset scenarios do not include a mapping for "${scenarioTypeName}" in the use-case mapping file. Expected: useCaseMapping.scenarioTypeMappings["${scenarioTypeName}"].scenarioIds`
+      `QC dataset scenarios do not include a mapping for workflow "${workflowName}" in the use-case mapping file. Expected: useCaseMapping.workflowMappings["${workflowName}"].scenarioIds`
     );
   }
 
@@ -58,10 +58,20 @@ function getScenariosByType(qcInputData, scenarioTypeName, useCaseMapping = null
   return scenarios.filter((scenario) => wanted.has(Number(scenario?.id)));
 }
 
-function getMappedUseCasesForScenarioType(useCaseMapping, scenarioTypeName) {
-  const mapping = useCaseMapping.scenarioTypeMappings?.[scenarioTypeName];
+// Deprecated: use getScenariosByWorkflow instead
+function getScenariosByType(qcInputData, scenarioTypeName, useCaseMapping = null) {
+  return getScenariosByWorkflow(qcInputData, scenarioTypeName, useCaseMapping);
+}
+
+function getMappedUseCasesForWorkflow(useCaseMapping, workflowName) {
+  const mapping = useCaseMapping.workflowMappings?.[workflowName];
   if (!mapping) return [];
   return Array.isArray(mapping.useCases) ? mapping.useCases : [];
+}
+
+// Deprecated: use getMappedUseCasesForWorkflow instead
+function getMappedUseCasesForScenarioType(useCaseMapping, scenarioTypeName) {
+  return getMappedUseCasesForWorkflow(useCaseMapping, scenarioTypeName);
 }
 
 function getExpectedScenarioAssertion(qcExpectedData, scenarioId) {
@@ -93,8 +103,10 @@ module.exports = {
   DEFAULT_PATHS,
   getExpectedScenarioAssertion,
   getExpectedUseCaseAssertion,
-  getMappedUseCasesForScenarioType,
-  getScenariosByType,
+  getMappedUseCasesForWorkflow,
+  getMappedUseCasesForScenarioType, // Deprecated - use getMappedUseCasesForWorkflow
+  getScenariosByWorkflow,
+  getScenariosByType, // Deprecated - use getScenariosByWorkflow
   loadAllQcData,
   loadQcExpectedOutputs,
   loadQcInputData,

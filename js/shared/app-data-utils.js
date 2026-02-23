@@ -202,6 +202,9 @@ export function normalizeScenario(rawScenario) {
   };
   const defaultWindow = projectionConfig || getDefaultProjectionWindowDates();
 
+  // Planning windows: defaults to projection window, but can be overridden per goal solver
+  // These do NOT affect projection generation; projections always use scenario.projection.config
+  // Planning windows are only used by Generate Plan and Advanced Goal Solver for their respective horizons
   const nextPlanning = {
     generatePlan: cleanWindow(planning.generatePlan, defaultWindow),
     advancedGoalSolver: cleanWindow(planning.advancedGoalSolver, defaultWindow)
@@ -247,6 +250,17 @@ export function setScenarioBudgetWindowConfig(scenario, config) {
 
 export function sanitizeScenarioForWrite(rawScenario) {
   const scenario = normalizeScenario(rawScenario);
+
+  // Validate: if budgets exist, budgetWindow.config must be present with startDate and endDate
+  if (scenario.budgets && scenario.budgets.length > 0) {
+    const budgetConfig = scenario.budgetWindow?.config;
+    if (!budgetConfig || !budgetConfig.startDate || !budgetConfig.endDate) {
+      throw new Error(
+        `Scenario "${scenario.name}" has budgets but is missing required budgetWindow configuration. ` +
+        `budgetWindow.config must have both startDate and endDate.`
+      );
+    }
+  }
 
   const next = {
     id: scenario.id,
