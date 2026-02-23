@@ -7,15 +7,6 @@ const DEFAULT_PATHS = {
   useCaseMapping: path.join('QC', 'mappings', 'use-case-to-scenario-type.json')
 };
 
-const SCENARIO_TYPE_ID_TO_NAME = {
-  1: 'Budget',
-  2: 'General',
-  3: 'Funds',
-  4: 'Debt Repayment',
-  5: 'Goal-Based',
-  6: 'Advanced Goal Solver'
-};
-
 function resolveRepoPath(relativePath) {
   return path.resolve(process.cwd(), relativePath);
 }
@@ -24,20 +15,6 @@ function readJsonAt(relativePath) {
   const absolutePath = resolveRepoPath(relativePath);
   const raw = fs.readFileSync(absolutePath, 'utf8');
   return JSON.parse(raw);
-}
-
-function assertScenarioTypeSupported(scenarioTypeName) {
-  const supported = new Set(Object.values(SCENARIO_TYPE_ID_TO_NAME));
-  if (!supported.has(scenarioTypeName)) {
-    throw new Error(
-      `Unsupported scenario type "${scenarioTypeName}". Supported types: ${Array.from(supported).join(', ')}`
-    );
-  }
-}
-
-function getScenarioTypeName(scenario) {
-  if (!scenario || typeof scenario.type !== 'number') return null;
-  return SCENARIO_TYPE_ID_TO_NAME[scenario.type] || null;
 }
 
 function loadQcInputData(customPath = DEFAULT_PATHS.qcInput) {
@@ -65,22 +42,15 @@ function loadUseCaseMapping(customPath = DEFAULT_PATHS.useCaseMapping) {
 }
 
 function getScenariosByType(qcInputData, scenarioTypeName, useCaseMapping = null) {
-  assertScenarioTypeSupported(scenarioTypeName);
   const scenarios = qcInputData.scenarios || [];
 
-  // Legacy datasets (pre-schema 43) tagged scenarios with `scenario.type`.
-  const hasLegacyType = scenarios.some((scenario) => typeof scenario?.type === 'number');
-  if (hasLegacyType) {
-    return scenarios.filter((scenario) => getScenarioTypeName(scenario) === scenarioTypeName);
-  }
-
-  // Workflow-based datasets (schema 43) do not store type on scenarios.
+  // Schema 43 datasets do not store type on scenarios.
   // Use the mapping file's explicit scenarioIds list instead.
   const mapping = useCaseMapping?.scenarioTypeMappings?.[scenarioTypeName] || null;
   const ids = Array.isArray(mapping?.scenarioIds) ? mapping.scenarioIds : [];
   if (ids.length === 0) {
     throw new Error(
-      `QC dataset scenarios do not include scenario.type, and no scenarioIds mapping exists for "${scenarioTypeName}".`
+      `QC dataset scenarios do not include a mapping for "${scenarioTypeName}" in the use-case mapping file. Expected: useCaseMapping.scenarioTypeMappings["${scenarioTypeName}"].scenarioIds`
     );
   }
 
@@ -89,7 +59,6 @@ function getScenariosByType(qcInputData, scenarioTypeName, useCaseMapping = null
 }
 
 function getMappedUseCasesForScenarioType(useCaseMapping, scenarioTypeName) {
-  assertScenarioTypeSupported(scenarioTypeName);
   const mapping = useCaseMapping.scenarioTypeMappings?.[scenarioTypeName];
   if (!mapping) return [];
   return Array.isArray(mapping.useCases) ? mapping.useCases : [];
@@ -122,17 +91,14 @@ function loadAllQcData(paths = {}) {
 
 module.exports = {
   DEFAULT_PATHS,
-  SCENARIO_TYPE_ID_TO_NAME,
   getExpectedScenarioAssertion,
   getExpectedUseCaseAssertion,
   getMappedUseCasesForScenarioType,
   getScenariosByType,
-  getScenarioTypeName,
   loadAllQcData,
   loadQcExpectedOutputs,
   loadQcInputData,
   loadUseCaseMapping,
   readJsonAt,
-  resolveRepoPath,
-  assertScenarioTypeSupported
+  resolveRepoPath
 };
