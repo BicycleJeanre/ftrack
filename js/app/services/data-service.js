@@ -27,132 +27,14 @@ import { DEFAULT_WORKFLOW_ID } from '../../shared/workflow-registry.js';
 async function readAppData() {
   try {
     const data = await DataStore.read();
-
-    if (!data || !Array.isArray(data.scenarios) || data.scenarios.length === 0) {
-      return getSampleData();
-    }
-
+    assertSchemaVersion43(data);
     return data;
   } catch (err) {
     if (err && err.name === 'SchemaVersionError') {
       throw err;
     }
-    // For web, return sample data on error
-    return getSampleData();
+    throw new Error('No app data found. Please import a data file or create a new scenario.');
   }
-}
-
-/**
- * Get sample/example data for web users with no existing data
- * @returns {Object} - Sample app data structure
- */
-function getSampleData() {
-  const today = new Date();
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-  const projectionStart = formatDateOnly(startOfMonth);
-  const projectionEnd = formatDateOnly(endOfMonth);
-
-  return {
-    schemaVersion: CURRENT_SCHEMA_VERSION,
-    scenarios: [
-      sanitizeScenarioForWrite({
-        id: 1,
-        version: 1,
-        name: 'Example Budget',
-        description: 'Sample scenario - import your own data or modify this example',
-        lineage: null,
-        accounts: [
-          {
-            id: 1,
-            name: 'Checking Account',
-            type: { id: 1, name: 'Asset' },
-            currency: { id: 1, name: 'ZAR' },
-            startingBalance: 5000,
-            openDate: projectionStart,
-            periodicChange: null,
-            goalAmount: null,
-            goalDate: null,
-            description: 'Primary checking account'
-          },
-          {
-            id: 2,
-            name: 'Savings Account',
-            type: { id: 1, name: 'Asset' },
-            currency: { id: 1, name: 'ZAR' },
-            startingBalance: 10000,
-            openDate: projectionStart,
-            periodicChange: null,
-            goalAmount: null,
-            goalDate: null,
-            description: 'Emergency fund'
-          }
-        ],
-        transactions: [
-          {
-            id: 1,
-            primaryAccountId: 1,
-            secondaryAccountId: null,
-            transactionTypeId: 1,
-            amount: 5000,
-            effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 1)),
-            description: 'Monthly Salary',
-            recurrence: null,
-            periodicChange: null,
-            status: { name: 'planned' },
-            tags: []
-          },
-          {
-            id: 2,
-            primaryAccountId: 1,
-            secondaryAccountId: null,
-            transactionTypeId: 2,
-            amount: -1500,
-            effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 5)),
-            description: 'Rent',
-            recurrence: null,
-            periodicChange: null,
-            status: { name: 'planned' },
-            tags: []
-          },
-          {
-            id: 3,
-            primaryAccountId: 1,
-            secondaryAccountId: null,
-            transactionTypeId: 2,
-            amount: -400,
-            effectiveDate: formatDateOnly(new Date(today.getFullYear(), today.getMonth(), 10)),
-            description: 'Groceries',
-            recurrence: null,
-            periodicChange: null,
-            status: { name: 'planned' },
-            tags: []
-          }
-        ],
-        budgets: [],
-        projection: {
-          config: {
-            startDate: projectionStart,
-            endDate: projectionEnd,
-            periodTypeId: DEFAULT_PERIOD_TYPE_ID,
-            source: 'transactions'
-          },
-          rows: [],
-          generatedAt: null
-        },
-        planning: {
-          generatePlan: { startDate: projectionStart, endDate: projectionEnd },
-          advancedGoalSolver: { startDate: projectionStart, endDate: projectionEnd }
-        }
-      })
-    ],
-    uiState: createDefaultUiState({
-      lastWorkflowId: DEFAULT_WORKFLOW_ID,
-      lastScenarioId: 1,
-      lastScenarioVersion: 1
-    })
-  };
 }
 
 /**
@@ -1205,6 +1087,22 @@ export async function importAppData(jsonString, merge = false) {
       });
       
       currentData.scenarios.push(...importedData.scenarios);
+      
+      // Merge uiState: preserve current selections but allow imported workflow if valid
+      if (importedData.uiState && typeof importedData.uiState === 'object') {
+        const importedState = normalizeUiState(importedData.uiState);
+        currentData.uiState = {
+          ...currentData.uiState,
+          // Keep viewing preferences from current
+          viewPeriodTypeIds: currentData.uiState.viewPeriodTypeIds,
+          // Allow imported workflow if valid, else keep current
+          lastWorkflowId: importedState.lastWorkflowId || currentData.uiState.lastWorkflowId,
+          // Don't restore imported scenario IDs since we renumbered them
+          lastScenarioId: null,
+          lastScenarioVersion: null
+        };
+      }
+      
       await writeAppData(currentData);
     } else {
       // Replace mode: overwrite all data
