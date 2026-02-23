@@ -11,7 +11,6 @@ import {
   CURRENT_SCHEMA_VERSION,
   DEFAULT_PERIOD_TYPE_ID,
   assertSchemaVersion43,
-  getNextScenarioVersion,
   sanitizeScenarioForWrite
 } from '../../shared/app-data-utils.js';
 import { DEFAULT_WORKFLOW_ID } from '../../shared/workflow-registry.js';
@@ -76,130 +75,12 @@ export async function getScenario(scenarioId) {
   return scenarios.find(s => s.id === scenarioId) || null;
 }
 
-/**
- * Create a new scenario
- * @param {Object} scenarioData - The scenario data
- * @returns {Promise<Object>} - The created scenario with ID
- */
-export async function createScenario(scenarioData) {
-  const appData = await readAppData();
-  
-  if (!appData.scenarios) {
-    appData.scenarios = [];
-  }
-  
-  // Generate new ID
-  const maxId = appData.scenarios.length > 0 
-    ? Math.max(...appData.scenarios.map(s => s.id)) 
-    : 0;
-  
-  const newScenario = sanitizeScenarioForWrite({
-    id: maxId + 1,
-    version: 1,
-    name: scenarioData.name || 'New Scenario',
-    description: Object.prototype.hasOwnProperty.call(scenarioData, 'description') ? scenarioData.description : null,
-    lineage: null,
-    accounts: [],
-    transactions: [],
-    budgets: [],
-    projection: null,
-    ...scenarioData
-  });
-  
-  appData.scenarios.push(newScenario);
-  await writeAppData(appData);
-  
-  return newScenario;
-}
-
-/**
- * Update an existing scenario
- * @param {number} scenarioId - The scenario ID
- * @param {Object} updates - The fields to update
- * @returns {Promise<Object>} - The updated scenario
- */
-export async function updateScenario(scenarioId, updates) {
-  const appData = await readAppData();
-  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-  
-  if (scenarioIndex === -1) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
-  
-  appData.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
-    ...appData.scenarios[scenarioIndex],
-    ...updates,
-    id: scenarioId
-  });
-  
-  await writeAppData(appData);
-  return appData.scenarios[scenarioIndex];
-}
-
-/**
- * Delete a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<void>}
- */
-export async function deleteScenario(scenarioId) {
-  const appData = await readAppData();
-  appData.scenarios = appData.scenarios.filter(s => s.id !== scenarioId);
-  await writeAppData(appData);
-}
-
-/**
- * Duplicate a scenario
- * @param {number} scenarioId - The scenario ID to duplicate
- * @param {string} newName - Name for the duplicated scenario
- * @returns {Promise<Object>} - The new scenario
- */
-export async function duplicateScenario(scenarioId, newName) {
-  const appData = await readAppData();
-  const sourceScenario = appData.scenarios.find(s => s.id === scenarioId);
-  
-  if (!sourceScenario) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
-  
-  // Deep copy the scenario
-  const duplicatedScenario = JSON.parse(JSON.stringify(sourceScenario));
-  
-  // Generate new ID
-  const maxId = Math.max(...appData.scenarios.map(s => s.id));
-  const ancestorScenarioIds = Array.isArray(sourceScenario.lineage?.ancestorScenarioIds)
-    ? sourceScenario.lineage.ancestorScenarioIds
-    : [];
-  const nextAncestors = [...ancestorScenarioIds, sourceScenario.id];
-  const nextVersion = getNextScenarioVersion({ sourceScenario, scenarios: appData.scenarios });
-
-  duplicatedScenario.id = maxId + 1;
-  duplicatedScenario.version = nextVersion;
-  duplicatedScenario.name = newName || `${sourceScenario.name} (Copy)`;
-  duplicatedScenario.lineage = {
-    duplicatedFromScenarioId: sourceScenario.id,
-    ancestorScenarioIds: nextAncestors
-  };
-
-  // Reset projection rows in the copy (config is preserved).
-  if (duplicatedScenario.projection) {
-    duplicatedScenario.projection = {
-      ...duplicatedScenario.projection,
-      rows: [],
-      generatedAt: null
-    };
-  }
-
-  const sanitized = sanitizeScenarioForWrite(duplicatedScenario);
-  
-  appData.scenarios.push(sanitized);
-  await writeAppData(appData);
-  
-  return sanitized;
-}
-
 // ============================================================================
 // ACCOUNT OPERATIONS (Scenario-scoped)
 // ============================================================================
+// NOTE: Scenario CRUD operations (create, update, delete, duplicate) are
+// handled by the ScenarioManager business logic layer in:
+// js/app/managers/scenario-manager.js
 
 /**
  * Get all accounts for a scenario
