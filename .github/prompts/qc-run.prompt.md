@@ -26,7 +26,7 @@ If no filter is provided:
 ## 3.0 Scripts And Locations
 
 ### 3.1 Scenario-Type QC Scripts
-Run scenario-type validators under `QC/tests/scenario-types/` using:
+Run workflow validators under `QC/tests/workflows/` using:
 - `npm run qc:test:budget`
 - `npm run qc:test:general`
 - `npm run qc:test:funds`

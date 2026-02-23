@@ -3,7 +3,7 @@
   "source": "Documentation/TECH_QC_METHOD.md",
   "scenarioTypeMappings": {
     "Budget": {
-      "testFile": "QC/tests/scenario-types/budget.test.js",
+      "testFile": "QC/tests/workflows/budget.test.js",
       "scenarioIds": [101],
       "useCases": [
         "UC-A1",
@@ -20,7 +20,7 @@
       ]
     },
     "General": {
-      "testFile": "QC/tests/scenario-types/general.test.js",
+      "testFile": "QC/tests/workflows/general.test.js",
       "scenarioIds": [102, 103, 108],
       "useCases": [
         "UC-B1",
@@ -48,7 +48,7 @@
       ]
     },
     "Funds": {
-      "testFile": "QC/tests/scenario-types/funds.test.js",
+      "testFile": "QC/tests/workflows/funds.test.js",
       "scenarioIds": [105],
       "useCases": [
         "UC-E3",
@@ -56,7 +56,7 @@
       ]
     },
     "Debt Repayment": {
-      "testFile": "QC/tests/scenario-types/debt-repayment.test.js",
+      "testFile": "QC/tests/workflows/debt-repayment.test.js",
       "scenarioIds": [104],
       "useCases": [
         "UC-D1",
@@ -69,14 +69,14 @@
       ]
     },
     "Goal-Based": {
-      "testFile": "QC/tests/scenario-types/goal-based.test.js",
+      "testFile": "QC/tests/workflows/goal-based.test.js",
       "scenarioIds": [106],
       "useCases": [
         "UC-S4"
       ]
     },
     "Advanced Goal Solver": {
-      "testFile": "QC/tests/scenario-types/advanced-goal-solver.test.js",
+      "testFile": "QC/tests/workflows/advanced-goal-solver.test.js",
       "scenarioIds": [107],
       "useCases": [
         "UC-E4",

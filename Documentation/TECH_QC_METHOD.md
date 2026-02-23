@@ -41,12 +41,12 @@ Each workflow suite file should do only these steps:
 
 | Workflow | Test File | Input Selection | Use Case Scope |
 |---|---|---|---|
-| Budget | `QC/tests/scenario-types/budget.test.js` | Workflow `Budget` scenarios selected from `qc-input-data.json` via mapping | `UC-A*`, `UC-E1`, plus Budget summary assertions |
-| General | `QC/tests/scenario-types/general.test.js` | Workflow `General` scenarios selected from `qc-input-data.json` via mapping | `UC-B*`, `UC-C*`, `UC-F*`, `UC-E2`, plus General summary assertions |
-| Funds | `QC/tests/scenario-types/funds.test.js` | Workflow `Funds` scenarios selected from `qc-input-data.json` via mapping | `UC-E3`, plus Funds summary assertions |
-| Debt Repayment | `QC/tests/scenario-types/debt-repayment.test.js` | Workflow `Debt Repayment` scenarios selected from `qc-input-data.json` via mapping | `UC-D*`, plus Debt summary assertions |
-| Goal-Based | `QC/tests/scenario-types/goal-based.test.js` | Workflow `Goal-Based` scenarios selected from `qc-input-data.json` via mapping | Goal-based scenario assertions |
-| Advanced Goal Solver | `QC/tests/scenario-types/advanced-goal-solver.test.js` | Workflow `Advanced Goal Solver` scenarios selected from `qc-input-data.json` via mapping | `UC-E4`, plus solver summary assertions |
+| Budget | `QC/tests/workflows/budget.test.js` | Workflow `Budget` scenarios selected from `qc-input-data.json` via mapping | `UC-A*`, `UC-E1`, plus Budget summary assertions |
+| General | `QC/tests/workflows/general.test.js` | Workflow `General` scenarios selected from `qc-input-data.json` via mapping | `UC-B*`, `UC-C*`, `UC-F*`, `UC-E2`, plus General summary assertions |
+| Funds | `QC/tests/workflows/funds.test.js` | Workflow `Funds` scenarios selected from `qc-input-data.json` via mapping | `UC-E3`, plus Funds summary assertions |
+| Debt Repayment | `QC/tests/workflows/debt-repayment.test.js` | Workflow `Debt Repayment` scenarios selected from `qc-input-data.json` via mapping | `UC-D*`, plus Debt summary assertions |
+| Goal-Based | `QC/tests/workflows/goal-based.test.js` | Workflow `Goal-Based` scenarios selected from `qc-input-data.json` via mapping | Goal-based scenario assertions |
+| Advanced Goal Solver | `QC/tests/workflows/advanced-goal-solver.test.js` | Workflow `Advanced Goal Solver` scenarios selected from `qc-input-data.json` via mapping | `UC-E4`, plus solver summary assertions |
 
 3.3.1 Selection Rule
 
@@ -63,12 +63,12 @@ Universal checks are included by import and execution inside each workflow suite
 ### 3.5 Script-Based QC Execution
 Use scripts in project configuration (`package.json`) for workflow suite execution instead of dedicated runner files (folder naming is legacy).
 
-- `qc:test:budget` -> runs `QC/tests/scenario-types/budget.test.js`
-- `qc:test:general` -> runs `QC/tests/scenario-types/general.test.js`
-- `qc:test:funds` -> runs `QC/tests/scenario-types/funds.test.js`
-- `qc:test:debt` -> runs `QC/tests/scenario-types/debt-repayment.test.js`
-- `qc:test:goal-based` -> runs `QC/tests/scenario-types/goal-based.test.js`
-- `qc:test:advanced-goal-solver` -> runs `QC/tests/scenario-types/advanced-goal-solver.test.js`
+- `qc:test:budget` -> runs `QC/tests/workflows/budget.test.js`
+- `qc:test:general` -> runs `QC/tests/workflows/general.test.js`
+- `qc:test:funds` -> runs `QC/tests/workflows/funds.test.js`
+- `qc:test:debt` -> runs `QC/tests/workflows/debt-repayment.test.js`
+- `qc:test:goal-based` -> runs `QC/tests/workflows/goal-based.test.js`
+- `qc:test:advanced-goal-solver` -> runs `QC/tests/workflows/advanced-goal-solver.test.js`
 - `qc:test:all-scenario-types` -> runs all workflow suite scripts
 
 ### 3.6 Use Case Mapping File
@@ -107,12 +107,12 @@ This section is the single structured mapping for all QC use cases in `QC/qc-inp
 ### 6.1 Unified Use Case Mapping Grid
 | Use Case ID | Category | Workflow | Workflow Test File | Input Group | Input Setup Summary | Expected Assertion Focus |
 |---|---|---|---|---|---|---|
-| `UC-A1` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Recurring weekly Money In to checking | Salary inflow recurrence and ending balance effect |
-| `UC-A2` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Recurring monthly rent expense | Fixed obligation outflow and ending balance effect |
-| `UC-A3` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Recurring monthly grocery expense | Variable essential outflow and ending balance effect |
-| `UC-A4` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | One-time utility expense spike | One-time shock handling and projection impact |
-| `UC-A5` | Core Flow | Budget | `QC/tests/scenario-types/budget.test.js` | A | Internal transfer between asset accounts | Transfer handling and net-worth neutrality inputs |
-| `UC-B1` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | Weekly recurrence on specific day | Weekly schedule expansion correctness |
+| `UC-A1` | Core Flow | Budget | `QC/tests/workflows/budget.test.js` | A | Recurring weekly Money In to checking | Salary inflow recurrence and ending balance effect |
+| `UC-A2` | Core Flow | Budget | `QC/tests/workflows/budget.test.js` | A | Recurring monthly rent expense | Fixed obligation outflow and ending balance effect |
+| `UC-A3` | Core Flow | Budget | `QC/tests/workflows/budget.test.js` | A | Recurring monthly grocery expense | Variable essential outflow and ending balance effect |
+| `UC-A4` | Core Flow | Budget | `QC/tests/workflows/budget.test.js` | A | One-time utility expense spike | One-time shock handling and projection impact |
+| `UC-A5` | Core Flow | Budget | `QC/tests/workflows/budget.test.js` | A | Internal transfer between asset accounts | Transfer handling and net-worth neutrality inputs |
+| `UC-B1` | Recurrence | General | `QC/tests/workflows/general.test.js` | B | Weekly recurrence on specific day | Weekly schedule expansion correctness |
 | `UC-B2` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | Monthly day-of-month recurrence | Monthly schedule expansion correctness |
 | `UC-B3` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | Quarterly recurrence | Quarterly schedule expansion correctness |
 | `UC-B4` | Recurrence | General | `QC/tests/scenario-types/general.test.js` | B | Yearly recurrence | Yearly schedule expansion correctness |
