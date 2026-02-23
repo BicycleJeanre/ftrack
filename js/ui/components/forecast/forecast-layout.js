@@ -40,23 +40,47 @@ export function buildGridContainer() {
   sidebar.appendChild(sidebarInner);
 
   const main = document.createElement('div');
-  main.className = 'forecast-main';
+  main.className = 'forecast-main forecast-cards-grid';
 
   const buildCard = ({ id = null, title, contentId, hidden = false }) => {
     const section = document.createElement('div');
     if (id) section.id = id;
-    section.className = 'bg-main bordered rounded shadow-lg mb-lg';
+    section.className = 'forecast-card bg-main bordered rounded shadow-lg';
     if (hidden) section.classList.add('hidden');
 
     const header = document.createElement('div');
-    header.className = 'section-padding';
-    header.innerHTML = `<h2 class="text-main section-title">${title}</h2>`;
+    header.className = 'section-padding card-header';
+
+    const titleEl = document.createElement('h2');
+    titleEl.className = 'text-main section-title';
+    const chevron = document.createElement('span');
+    chevron.className = 'card-chevron';
+    chevron.textContent = '▾';
+    titleEl.appendChild(chevron);
+    titleEl.appendChild(document.createTextNode(title));
+
+    const actions = document.createElement('div');
+    actions.className = 'card-header-actions';
+
+    const controls = document.createElement('div');
+    controls.className = 'card-header-controls';
+
+    actions.appendChild(controls);
+
+    header.appendChild(titleEl);
+    header.appendChild(actions);
     section.appendChild(header);
 
     const content = document.createElement('div');
     content.id = contentId;
     content.className = 'section-content';
     section.appendChild(content);
+
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('.card-header-actions')) return;
+      const isCollapsed = section.classList.toggle('card-collapsed');
+      chevron.textContent = isCollapsed ? '▸' : '▾';
+    });
 
     return { section, content };
   };
@@ -69,21 +93,19 @@ export function buildGridContainer() {
   });
   main.appendChild(summaryCardsSection);
 
-  const { section: accountsSection, content: accountsTable } = buildCard({ title: 'Accounts', contentId: 'accountsTable' });
+  const { section: accountsSection, content: accountsTable } = buildCard({
+    title: 'Accounts',
+    contentId: 'accountsTable'
+  });
   main.appendChild(accountsSection);
 
-  const generatePlanSection = document.createElement('div');
-  generatePlanSection.id = 'generatePlanSection';
-  generatePlanSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
+  const { section: generatePlanSection, content: generatePlanContent } = buildCard({
+    id: 'generatePlanSection',
+    title: 'Generate Plan',
+    contentId: 'generatePlanContent',
+    hidden: true
+  });
   generatePlanSection.style.display = 'none';
-  const generatePlanHeader = document.createElement('div');
-  generatePlanHeader.className = 'section-padding';
-  generatePlanHeader.innerHTML = `<h2 class="text-main section-title">Generate Plan</h2>`;
-  generatePlanSection.appendChild(generatePlanHeader);
-  const generatePlanContent = document.createElement('div');
-  generatePlanContent.id = 'generatePlanContent';
-  generatePlanContent.className = 'section-content';
-  generatePlanSection.appendChild(generatePlanContent);
   main.appendChild(generatePlanSection);
 
   const { section: transactionsSection, content: transactionsTable } = buildCard({

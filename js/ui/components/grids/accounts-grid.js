@@ -18,10 +18,527 @@ import { openTagEditorModal } from '../modals/tag-editor-modal.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
 import { notifyError } from '../../../shared/notifications.js';
 import { GridStateManager } from './grid-state.js';
+import { formatCurrency } from '../../../shared/format-utils.js';
 
 const accountsGridState = new GridStateManager('accounts');
 let lastAccountsTable = null;
 let accountsGridMode = 'summary'; // 'summary' or 'detail'
+
+function sanitizeAccountPayload(account) {
+  if (!account || typeof account !== 'object') return account;
+  const { _detailsOpen, ...payload } = account;
+  return payload;
+}
+
+function createDetailField({ label, inputEl }) {
+  const field = document.createElement('div');
+  field.className = 'accounts-detail-field';
+
+  const labelEl = document.createElement('label');
+  labelEl.className = 'accounts-detail-label';
+  labelEl.textContent = label;
+
+  field.appendChild(labelEl);
+  field.appendChild(inputEl);
+
+  return field;
+}
+
+function renderAccountsRowDetails({
+  row,
+  rowData,
+  lookupData,
+  workflowConfig,
+  scenarioState,
+  reloadAccountsGrid,
+  logger
+}) {
+  const rowEl = row.getElement();
+  if (!rowEl) return;
+
+  let detailsEl = rowEl.querySelector('.accounts-row-details');
+  if (!detailsEl) {
+    detailsEl = document.createElement('div');
+    detailsEl.className = 'accounts-row-details';
+    rowEl.appendChild(detailsEl);
+  }
+
+  if (!rowData?._detailsOpen) {
+    detailsEl.style.display = 'none';
+    detailsEl.innerHTML = '';
+    rowEl.classList.remove('accounts-row-expanded');
+    return;
+  }
+
+  detailsEl.style.display = 'block';
+  detailsEl.innerHTML = '';
+  rowEl.classList.add('accounts-row-expanded');
+
+  const grid = document.createElement('div');
+  grid.className = 'accounts-row-details-grid';
+
+  const typeSelect = createAccountTypeSelect({
+    lookupData,
+    currentValue: rowData?.type || null
+  });
+  typeSelect.addEventListener('change', async () => {
+    const scenario = scenarioState?.get?.();
+    if (!scenario) return;
+    const nextTypeId = typeSelect.value;
+    const nextType = (lookupData?.accountTypes || []).find((type) => String(type.id) === String(nextTypeId)) || null;
+    try {
+      await AccountManager.update(scenario.id, rowData.id, { type: nextType });
+      row.update({ type: nextType, accountType: nextType?.name || 'Unknown' });
+    } catch (err) {
+      logger?.error?.('[AccountsGrid] Failed to update type', err);
+    }
+  });
+  grid.appendChild(createDetailField({ label: 'Type', inputEl: typeSelect }));
+
+  const startingBalanceInput = document.createElement('input');
+  startingBalanceInput.type = 'number';
+  startingBalanceInput.step = '0.01';
+  startingBalanceInput.className = 'accounts-detail-input';
+  startingBalanceInput.value = rowData?.startingBalance ?? 0;
+  startingBalanceInput.addEventListener('blur', async () => {
+    const scenario = scenarioState?.get?.();
+    if (!scenario) return;
+    const nextBalance = Number(startingBalanceInput.value || 0);
+    try {
+      await AccountManager.update(scenario.id, rowData.id, {
+        startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance
+      });
+      row.update({ startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance });
+    } catch (err) {
+      logger?.error?.('[AccountsGrid] Failed to update starting balance', err);
+    }
+  });
+  grid.appendChild(createDetailField({ label: 'Starting Balance', inputEl: startingBalanceInput }));
+
+  const descriptionInput = document.createElement('input');
+  descriptionInput.type = 'text';
+  descriptionInput.className = 'accounts-detail-input';
+  descriptionInput.value = rowData?.description || '';
+  descriptionInput.placeholder = 'Add a description';
+  descriptionInput.addEventListener('blur', async () => {
+    const nextValue = descriptionInput.value.trim();
+    if (nextValue === (rowData?.description || '')) return;
+    const scenario = scenarioState?.get?.();
+    if (!scenario) return;
+    try {
+      await AccountManager.update(scenario.id, rowData.id, { description: nextValue });
+      row.update({ description: nextValue });
+    } catch (err) {
+      logger?.error?.('[AccountsGrid] Failed to update description', err);
+    }
+  });
+  grid.appendChild(createDetailField({ label: 'Description', inputEl: descriptionInput }));
+
+  if (workflowConfig?.showGeneratePlan) {
+    const goalAmountInput = document.createElement('input');
+    goalAmountInput.type = 'number';
+    goalAmountInput.step = '0.01';
+    goalAmountInput.className = 'accounts-detail-input';
+    goalAmountInput.value = rowData?.goalAmount ?? '';
+    goalAmountInput.placeholder = '0.00';
+
+    const goalDateInput = document.createElement('input');
+    goalDateInput.type = 'date';
+    goalDateInput.className = 'accounts-detail-input';
+    goalDateInput.value = rowData?.goalDate || '';
+
+    const saveGoal = async () => {
+      const scenario = scenarioState?.get?.();
+      if (!scenario) return;
+
+      const nextGoalAmountRaw = goalAmountInput.value;
+      const nextGoalAmount = nextGoalAmountRaw === '' ? null : Number(nextGoalAmountRaw);
+      const nextGoalDate = goalDateInput.value || null;
+
+      try {
+        await AccountManager.update(scenario.id, rowData.id, {
+          goalAmount: Number.isNaN(nextGoalAmount) ? null : nextGoalAmount,
+          goalDate: nextGoalDate
+        });
+        row.update({
+          goalAmount: Number.isNaN(nextGoalAmount) ? null : nextGoalAmount,
+          goalDate: nextGoalDate
+        });
+      } catch (err) {
+        logger?.error?.('[AccountsGrid] Failed to update goal fields', err);
+      }
+    };
+
+    goalAmountInput.addEventListener('blur', saveGoal);
+    goalDateInput.addEventListener('blur', saveGoal);
+
+    grid.appendChild(createDetailField({ label: 'Goal Amount', inputEl: goalAmountInput }));
+    grid.appendChild(createDetailField({ label: 'Goal Date', inputEl: goalDateInput }));
+  }
+
+  const tagsField = document.createElement('div');
+  tagsField.className = 'accounts-detail-field';
+  const tagsLabel = document.createElement('label');
+  tagsLabel.className = 'accounts-detail-label';
+  tagsLabel.textContent = 'Tags';
+  const tagsValue = document.createElement('div');
+  tagsValue.className = 'accounts-detail-tags';
+  const renderTags = (tags = []) => {
+    tagsValue.innerHTML = '';
+    if (!Array.isArray(tags) || tags.length === 0) {
+      const empty = document.createElement('span');
+      empty.className = 'text-secondary';
+      empty.textContent = 'No tags';
+      tagsValue.appendChild(empty);
+      return;
+    }
+    tags.forEach((tag) => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-badge';
+      chip.textContent = tag;
+      tagsValue.appendChild(chip);
+    });
+  };
+  renderTags(rowData?.tags || []);
+
+  const tagsButton = document.createElement('button');
+  tagsButton.className = 'btn accounts-detail-btn';
+  tagsButton.textContent = 'Edit Tags';
+  tagsButton.addEventListener('click', () => {
+    openTagEditorModal(rowData?.tags || [], 'account', async (newTags) => {
+      const scenario = scenarioState?.get?.();
+      if (!scenario) return;
+      try {
+        await AccountManager.update(scenario.id, rowData.id, { tags: newTags });
+        row.update({ tags: newTags });
+        renderTags(newTags);
+      } catch (err) {
+        logger?.error?.('[AccountsGrid] Failed to update tags', err);
+      }
+    });
+  });
+
+  tagsField.appendChild(tagsLabel);
+  tagsField.appendChild(tagsValue);
+  tagsField.appendChild(tagsButton);
+  grid.appendChild(tagsField);
+
+  const periodicField = document.createElement('div');
+  periodicField.className = 'accounts-detail-field';
+  const periodicLabel = document.createElement('label');
+  periodicLabel.className = 'accounts-detail-label';
+  periodicLabel.textContent = 'Periodic Change';
+  const periodicValue = document.createElement('div');
+  periodicValue.className = 'accounts-detail-value';
+  periodicValue.textContent = rowData?.periodicChangeSummary || 'None';
+
+  const periodicButton = document.createElement('button');
+  periodicButton.className = 'btn accounts-detail-btn';
+  periodicButton.textContent = 'Edit Periodic Change';
+  periodicButton.addEventListener('click', () => {
+    openPeriodicChangeModal(rowData?.periodicChange, async (newPeriodicChange) => {
+      const scenario = scenarioState?.get?.();
+      if (!scenario) return;
+      try {
+        const summary = await getPeriodicChangeDescription(newPeriodicChange);
+        await AccountManager.update(scenario.id, rowData.id, {
+          periodicChange: newPeriodicChange
+        });
+        row.update({
+          periodicChange: newPeriodicChange,
+          periodicChangeSummary: summary
+        });
+        periodicValue.textContent = summary || 'None';
+      } catch (err) {
+        logger?.error?.('[AccountsGrid] Failed to update periodic change', err);
+      }
+    });
+  });
+
+  periodicField.appendChild(periodicLabel);
+  periodicField.appendChild(periodicValue);
+  periodicField.appendChild(periodicButton);
+  grid.appendChild(periodicField);
+
+  if (workflowConfig?.supportsPeriodicChangeSchedule) {
+    const scheduleField = document.createElement('div');
+    scheduleField.className = 'accounts-detail-field';
+    const scheduleLabel = document.createElement('label');
+    scheduleLabel.className = 'accounts-detail-label';
+    scheduleLabel.textContent = 'Periodic Change Schedule';
+    const scheduleValue = document.createElement('div');
+    scheduleValue.className = 'accounts-detail-value';
+    scheduleValue.textContent = rowData?.periodicChangeScheduleSummary || 'None';
+
+    const scheduleButton = document.createElement('button');
+    scheduleButton.className = 'btn accounts-detail-btn';
+    scheduleButton.textContent = 'Edit Schedule';
+    scheduleButton.addEventListener('click', () => {
+      openPeriodicChangeScheduleModal(
+        {
+          basePeriodicChange: rowData?.periodicChange ?? null,
+          schedule: rowData?.periodicChangeSchedule ?? []
+        },
+        async (newSchedule) => {
+          const scenario = scenarioState?.get?.();
+          if (!scenario) return;
+          try {
+            const nextSummary =
+              Array.isArray(newSchedule) && newSchedule.length
+                ? `${newSchedule.length} scheduled change${newSchedule.length === 1 ? '' : 's'}`
+                : 'None';
+            await AccountManager.update(scenario.id, rowData.id, {
+              periodicChangeSchedule: newSchedule
+            });
+            row.update({
+              periodicChangeSchedule: newSchedule,
+              periodicChangeScheduleSummary: nextSummary
+            });
+            scheduleValue.textContent = nextSummary;
+          } catch (err) {
+            logger?.error?.('[AccountsGrid] Failed to update periodic change schedule', err);
+          }
+        }
+      );
+    });
+
+    scheduleField.appendChild(scheduleLabel);
+    scheduleField.appendChild(scheduleValue);
+    scheduleField.appendChild(scheduleButton);
+    grid.appendChild(scheduleField);
+  }
+
+  detailsEl.appendChild(grid);
+}
+
+function createAccountTypeSelect({ lookupData, currentValue }) {
+  const select = document.createElement('select');
+  select.className = 'accounts-detail-input';
+
+  const emptyOption = document.createElement('option');
+  emptyOption.value = '';
+  emptyOption.textContent = 'Select type';
+  select.appendChild(emptyOption);
+
+  (lookupData?.accountTypes || []).forEach((type) => {
+    const option = document.createElement('option');
+    option.value = String(type.id);
+    option.textContent = type.name;
+    if (currentValue && String(currentValue.id) === String(type.id)) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+
+  return select;
+}
+
+function renderAccountsSummaryList({
+  container,
+  accounts,
+  lookupData,
+  scenarioState,
+  reloadAccountsGrid,
+  logger
+}) {
+  container.innerHTML = '';
+
+  const list = document.createElement('div');
+  list.className = 'accounts-summary-list';
+  container.appendChild(list);
+
+  if (!accounts || accounts.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'scenarios-list-placeholder';
+    empty.textContent = 'No accounts yet. Click + Add New to create your first account.';
+    list.appendChild(empty);
+    return;
+  }
+
+  accounts.forEach((account) => {
+    const card = document.createElement('div');
+    card.className = 'account-card';
+
+    const content = document.createElement('div');
+    content.className = 'account-card-content';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'account-card-name';
+    nameEl.textContent = account?.name || 'Untitled';
+
+    const meta = document.createElement('div');
+    meta.className = 'account-card-meta';
+
+    const typeEl = document.createElement('span');
+    typeEl.className = 'account-card-type';
+    typeEl.textContent = account?.type?.name || 'Unspecified';
+
+    const balanceEl = document.createElement('span');
+    balanceEl.className = 'account-card-balance';
+    const currency = account?.currency?.code || account?.currency?.name || 'ZAR';
+    balanceEl.textContent = formatCurrency(Number(account?.startingBalance || 0), currency);
+
+    meta.appendChild(typeEl);
+    meta.appendChild(balanceEl);
+
+    content.appendChild(nameEl);
+    content.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'account-card-actions';
+
+    const duplicateBtn = document.createElement('button');
+    duplicateBtn.className = 'icon-btn';
+    duplicateBtn.title = 'Duplicate Account';
+    duplicateBtn.textContent = '📋';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'icon-btn';
+    deleteBtn.title = 'Delete Account';
+    deleteBtn.textContent = '🗑️';
+
+    actions.appendChild(duplicateBtn);
+    actions.appendChild(deleteBtn);
+
+    const form = document.createElement('div');
+    form.className = 'account-card-form';
+    form.style.display = 'none';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'accounts-detail-input';
+    nameInput.value = account?.name || '';
+
+    const typeSelect = createAccountTypeSelect({
+      lookupData,
+      currentValue: account?.type || null
+    });
+
+    const balanceInput = document.createElement('input');
+    balanceInput.type = 'number';
+    balanceInput.step = '0.01';
+    balanceInput.className = 'accounts-detail-input';
+    balanceInput.value = account?.startingBalance ?? 0;
+
+    const formActions = document.createElement('div');
+    formActions.className = 'account-card-form-actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn btn-primary';
+    saveBtn.textContent = 'Save';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn';
+    cancelBtn.textContent = 'Cancel';
+
+    formActions.appendChild(saveBtn);
+    formActions.appendChild(cancelBtn);
+
+    form.appendChild(createDetailField({ label: 'Name', inputEl: nameInput }));
+    form.appendChild(createDetailField({ label: 'Type', inputEl: typeSelect }));
+    form.appendChild(createDetailField({ label: 'Starting Balance', inputEl: balanceInput }));
+    form.appendChild(formActions);
+
+    const enterEditMode = () => {
+      form.style.display = 'grid';
+      content.style.display = 'none';
+      actions.style.display = 'none';
+    };
+
+    const exitEditMode = () => {
+      form.style.display = 'none';
+      content.style.display = 'block';
+      actions.style.display = 'flex';
+    };
+
+    duplicateBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const scenario = scenarioState?.get?.();
+      if (!scenario) return;
+      try {
+        const allAccounts = await AccountManager.getAll(scenario.id);
+        const source = allAccounts.find((a) => a.id === account.id) || account;
+        const { id, accountType, periodicChangeSummary, ...payload } = JSON.parse(JSON.stringify(source));
+        await AccountManager.create(scenario.id, payload);
+
+        await reloadAccountsGrid(document.getElementById('accountsTable'));
+        document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
+      } catch (err) {
+        logger?.error?.('[AccountsGrid] Failed to duplicate account', err);
+      }
+    });
+
+    deleteBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const scenario = scenarioState?.get?.();
+      if (!scenario) return;
+      const confirmed = confirm(`Delete account: ${account?.name || 'Untitled'}?`);
+      if (!confirmed) return;
+      try {
+        await AccountManager.remove(scenario.id, account.id);
+        await reloadAccountsGrid(document.getElementById('accountsTable'));
+        document.dispatchEvent(new CustomEvent('forecast:accountsUpdated'));
+      } catch (err) {
+        logger?.error?.('[AccountsGrid] Failed to delete account', err);
+      }
+    });
+
+    cancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      nameInput.value = account?.name || '';
+      if (account?.type?.id != null) {
+        typeSelect.value = String(account.type.id);
+      } else {
+        typeSelect.value = '';
+      }
+      balanceInput.value = account?.startingBalance ?? 0;
+      exitEditMode();
+    });
+
+    saveBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const scenario = scenarioState?.get?.();
+      if (!scenario) return;
+
+      const nextName = nameInput.value.trim() || 'Untitled';
+      const nextBalance = Number(balanceInput.value || 0);
+      const nextTypeId = typeSelect.value;
+      const nextType = (lookupData?.accountTypes || []).find((type) => String(type.id) === String(nextTypeId)) || null;
+
+      try {
+        await AccountManager.update(scenario.id, account.id, {
+          name: nextName,
+          type: nextType,
+          startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance
+        });
+
+        account.name = nextName;
+        account.type = nextType;
+        account.startingBalance = Number.isNaN(nextBalance) ? 0 : nextBalance;
+
+        nameEl.textContent = account?.name || 'Untitled';
+        typeEl.textContent = account?.type?.name || 'Unspecified';
+        balanceEl.textContent = formatCurrency(Number(account?.startingBalance || 0), currency);
+
+        exitEditMode();
+      } catch (err) {
+        logger?.error?.('[AccountsGrid] Failed to update account from summary list', err);
+      }
+    });
+
+    card.appendChild(content);
+    card.appendChild(actions);
+    card.appendChild(form);
+
+    card.addEventListener('click', (e) => {
+      if (form.style.display === 'grid') return;
+      if (e.target.closest('.icon-btn')) return;
+      enterEditMode();
+    });
+
+    list.appendChild(card);
+  });
+}
 
 export function buildAccountsGridColumns({
   lookupData,
@@ -35,6 +552,25 @@ export function buildAccountsGridColumns({
   // SUMMARY columns - minimal, most important fields only
   if (mode === 'summary') {
     return [
+      {
+        title: '',
+        field: '_detailsToggle',
+        width: 44,
+        hozAlign: 'center',
+        headerSort: false,
+        formatter: function (cell) {
+          const isOpen = Boolean(cell.getRow().getData()?._detailsOpen);
+          const icon = isOpen ? '▾' : '▸';
+          return `<span class="accounts-row-toggle" aria-hidden="true">${icon}</span>`;
+        },
+        cellClick: function (e, cell) {
+          const row = cell.getRow();
+          const rowData = row.getData() || {};
+          const nextState = !rowData._detailsOpen;
+          row.update({ _detailsOpen: nextState });
+          row.getTable()?.redraw?.(true);
+        }
+      },
       createDuplicateColumn(
         async (cell) => {
           const currentScenario = scenarioState?.get?.();
@@ -87,8 +623,27 @@ export function buildAccountsGridColumns({
     ];
   }
 
-  // DETAIL columns - full feature set
+  // DETAIL columns - streamlined set
   const columns = [
+    {
+      title: '',
+      field: '_detailsToggle',
+      width: 44,
+      hozAlign: 'center',
+      headerSort: false,
+      formatter: function (cell) {
+        const isOpen = Boolean(cell.getRow().getData()?._detailsOpen);
+        const icon = isOpen ? '▾' : '▸';
+        return `<span class="accounts-row-toggle" aria-hidden="true">${icon}</span>`;
+      },
+      cellClick: function (e, cell) {
+        const row = cell.getRow();
+        const rowData = row.getData() || {};
+        const nextState = !rowData._detailsOpen;
+        row.update({ _detailsOpen: nextState });
+        row.getTable()?.redraw?.(true);
+      }
+    },
     createDuplicateColumn(
       async (cell) => {
         const currentScenario = scenarioState?.get?.();
@@ -118,126 +673,8 @@ export function buildAccountsGridColumns({
       },
       { confirmMessage: (rowData) => `Delete account: ${rowData.name}?` }
     ),
-    createTextColumn('Account Name', 'name', { widthGrow: 2 }),
-    {
-      title: 'Type',
-      field: 'type',
-      minWidth: 120,
-      widthGrow: 1,
-      formatter: function (cell) {
-        const value = cell.getValue();
-        return value?.name || '';
-      },
-      editor: 'list',
-      editorParams: {
-        values: lookupData.accountTypes.map((t) => ({ label: t.name, value: t })),
-        listItemFormatter: function (value, title) {
-          return title;
-        }
-      }
-    },
-    createMoneyColumn('Starting Balance', 'startingBalance', { widthGrow: 1 })
+    createTextColumn('Account Name', 'name', { widthGrow: 2 })
   ];
-
-  if (workflowConfig && workflowConfig.showGeneratePlan) {
-    columns.push(
-      createMoneyColumn('Goal Amount', 'goalAmount', {
-        widthGrow: 1,
-        bottomCalc: null
-      })
-    );
-    columns.push(createDateColumn('Goal Date', 'goalDate', { widthGrow: 1 }));
-  }
-
-  columns.push({
-    title: 'Periodic Change',
-    field: 'periodicChangeSummary',
-    minWidth: 170,
-    widthGrow: 1.2,
-    formatter: function (cell) {
-      const summary = cell.getValue() || 'None';
-      const icon =
-        '<svg class="periodic-change-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v8h-8v2h8v8h2v-8h8v-2h-8V3z"/></svg>';
-      return `<span class="periodic-change-cell">${icon}<span class="periodic-change-text">${summary}</span></span>`;
-    },
-    cellClick: function (e, cell) {
-      const rowData = cell.getRow().getData();
-      openPeriodicChangeModal(rowData.periodicChange, async (newPeriodicChange) => {
-        const currentScenario = scenarioState?.get?.();
-
-        const allAccts = await AccountManager.getAll(currentScenario.id);
-        const acctIndex = allAccts.findIndex((ac) => ac.id === rowData.id);
-        if (acctIndex >= 0) {
-          allAccts[acctIndex].periodicChange = newPeriodicChange;
-          await AccountManager.saveAll(currentScenario.id, allAccts);
-          await reloadAccountsGrid(document.getElementById('accountsTable'));
-        }
-      });
-    }
-  });
-
-  if (workflowConfig?.supportsPeriodicChangeSchedule) {
-    columns.push({
-      title: 'Periodic Change Schedule',
-      field: 'periodicChangeScheduleSummary',
-      minWidth: 210,
-      widthGrow: 1.2,
-      formatter: function (cell) {
-        const summary = cell.getValue() || 'None';
-        const icon =
-          '<svg class="periodic-change-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v8h-8v2h8v8h2v-8h8v-2h-8V3z"/></svg>';
-        return `<span class="periodic-change-cell">${icon}<span class="periodic-change-text">${summary}</span></span>`;
-      },
-      cellClick: function (e, cell) {
-        const rowData = cell.getRow().getData();
-        openPeriodicChangeScheduleModal(
-          {
-            basePeriodicChange: rowData.periodicChange ?? null,
-            schedule: rowData.periodicChangeSchedule ?? []
-          },
-          async (newSchedule) => {
-            const currentScenario = scenarioState?.get?.();
-            const allAccts = await AccountManager.getAll(currentScenario.id);
-            const acctIndex = allAccts.findIndex((ac) => ac.id === rowData.id);
-            if (acctIndex >= 0) {
-              allAccts[acctIndex].periodicChangeSchedule = newSchedule;
-              await AccountManager.saveAll(currentScenario.id, allAccts);
-              await reloadAccountsGrid(document.getElementById('accountsTable'));
-            }
-          }
-        );
-      }
-    });
-  }
-
-  columns.push(createTextColumn('Description', 'description', { widthGrow: 2 }));
-
-  columns.push({
-    title: 'Tags',
-    field: 'tags',
-    minWidth: 150,
-    widthGrow: 1.5,
-    formatter: function (cell) {
-      const tags = cell.getValue() || [];
-      if (!Array.isArray(tags) || tags.length === 0) {
-        return '<span class="text-secondary">No tags</span>';
-      }
-      return tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('');
-    },
-    cellClick: function (e, cell) {
-      const rowData = cell.getRow().getData();
-      openTagEditorModal(rowData.tags || [], 'account', async (newTags) => {
-        const currentScenario = scenarioState?.get?.();
-        const allAccts = await AccountManager.getAll(currentScenario.id);
-        const acctIndex = allAccts.findIndex((ac) => ac.id === rowData.id);
-        if (acctIndex >= 0) {
-          allAccts[acctIndex].tags = newTags;
-          await AccountManager.saveAll(currentScenario.id, allAccts);
-          await reloadAccountsGrid(document.getElementById('accountsTable'));
-        }
-      });
-    }
-  });
 
   return columns;
 }
@@ -270,39 +707,58 @@ export async function loadAccountsGrid({
     return;
   }
 
-  // Keep the grid container stable to reduce scroll jumps.
-  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
-  existingToolbars.forEach((el) => el.remove());
+  const accountsSection = container.closest('.forecast-card');
+  const accountsHeader = accountsSection?.querySelector(':scope > .card-header');
+  if (accountsHeader) {
+    const controls = accountsHeader.querySelector('.card-header-controls');
+    if (!controls) return;
+    controls.innerHTML = '';
 
-  try {
-    let gridContainer = container.querySelector('#accountsGrid');
-    if (!gridContainer) {
-      gridContainer = document.createElement('div');
-      gridContainer.id = 'accountsGrid';
-      gridContainer.className = 'grid-container accounts-grid';
-      window.add(container, gridContainer);
-    }
-
-    const accounts = await AccountManager.getAll(currentScenario.id);
-    const displayAccounts = accounts.filter((a) => a.name !== 'Select Account');
-
-    const lookupData = await loadLookup('lookup-data.json');
-
-    const existingAccountAdds = container.querySelectorAll('.btn-add');
-    existingAccountAdds.forEach((el) => el.remove());
-
-    const toolbar = document.createElement('div');
-    toolbar.className = 'grid-toolbar';
-
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'toolbar-item';
-
-    let accountsTable = lastAccountsTable;
+    const viewSelect = document.createElement('select');
+    viewSelect.className = 'input-select input-select-compact';
+    viewSelect.innerHTML = `
+      <option value="summary">Summary</option>
+      <option value="detail">Detail</option>
+    `;
+    viewSelect.value = accountsGridMode;
+    viewSelect.addEventListener('change', async () => {
+      accountsGridMode = viewSelect.value;
+      await loadAccountsGrid({
+        container,
+        scenarioState,
+        getWorkflowConfig,
+        reloadMasterTransactionsGrid,
+        logger
+      });
+    });
 
     const addButton = document.createElement('button');
-    addButton.className = 'btn btn-primary';
-    addButton.textContent = '+ Add New';
-    addButton.addEventListener('click', async () => {
+    addButton.className = 'icon-btn';
+    addButton.title = 'Add Account';
+    addButton.textContent = '+';
+
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'icon-btn';
+    refreshButton.title = 'Refresh Accounts';
+    refreshButton.textContent = '⟳';
+
+    controls.appendChild(viewSelect);
+    controls.appendChild(addButton);
+    controls.appendChild(refreshButton);
+
+    if (accountsGridMode === 'detail') {
+      const groupingSelect = document.createElement('select');
+      groupingSelect.id = 'account-grouping-select';
+      groupingSelect.className = 'input-select input-select-compact';
+      groupingSelect.innerHTML = `
+        <option value="">No Group</option>
+        <option value="accountType">Type</option>
+      `;
+      controls.appendChild(groupingSelect);
+    }
+
+    addButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
       const scenario = scenarioState?.get?.();
 
       const data = await AccountManager.create(scenario.id, {
@@ -317,24 +773,29 @@ export async function loadAccountsGrid({
       if (!scenario.accounts) scenario.accounts = [];
       scenario.accounts.push(newAccount);
 
-      if (accountsTable) {
-        const rowData = {
-          ...newAccount,
-          accountType: newAccount.type?.name || 'Unknown'
-        };
-        accountsTable.addRow(rowData, false);
+      if (accountsGridMode === 'summary' || !lastAccountsTable) {
+        await loadAccountsGrid({
+          container,
+          scenarioState,
+          getWorkflowConfig,
+          reloadMasterTransactionsGrid,
+          logger
+        });
+        return;
       }
+
+      const rowData = {
+        ...newAccount,
+        accountType: newAccount.type?.name || 'Unknown'
+      };
+      lastAccountsTable.addRow(rowData, false);
     });
 
-    window.add(buttonContainer, addButton);
-
-    const refreshButton = document.createElement('button');
-    refreshButton.className = 'btn';
-    refreshButton.textContent = 'Refresh';
-    refreshButton.addEventListener('click', async () => {
+    refreshButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
       const prevText = refreshButton.textContent;
       try {
-        refreshButton.textContent = 'Refreshing...';
+        refreshButton.textContent = '...';
         refreshButton.disabled = true;
 
         await loadAccountsGrid({
@@ -353,42 +814,57 @@ export async function loadAccountsGrid({
         }
       }
     });
-    window.add(buttonContainer, refreshButton);
+  }
 
-    const modeToggleButton = document.createElement('button');
-    modeToggleButton.className = 'btn';
-    modeToggleButton.id = 'accounts-grid-mode-toggle';
-    modeToggleButton.textContent = accountsGridMode === 'summary' ? 'Detail View' : 'Summary View';
-    modeToggleButton.addEventListener('click', async () => {
-      accountsGridMode = accountsGridMode === 'summary' ? 'detail' : 'summary';
+  // Keep the grid container stable to reduce scroll jumps.
+  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
+  existingToolbars.forEach((el) => el.remove());
+
+  try {
+    let gridContainer = container.querySelector('#accountsGrid');
+    if (!gridContainer) {
+      gridContainer = document.createElement('div');
+      gridContainer.id = 'accountsGrid';
+      gridContainer.className = 'grid-container accounts-grid';
+      window.add(container, gridContainer);
+    }
+
+    gridContainer.className = accountsGridMode === 'detail'
+      ? 'grid-container accounts-grid accounts-grid-compact'
+      : 'grid-container accounts-grid';
+
+    const accounts = await AccountManager.getAll(currentScenario.id);
+    const displayAccounts = accounts.filter((a) => a.name !== 'Select Account');
+
+    const lookupData = await loadLookup('lookup-data.json');
+
+    let accountsTable = lastAccountsTable;
+
+    if (accountsGridMode === 'summary') {
       try {
-        await loadAccountsGrid({
-          container,
-          scenarioState,
-          getWorkflowConfig,
-          reloadMasterTransactionsGrid,
-          logger
-        });
-      } catch (err) {
-        notifyError('Failed to toggle grid view: ' + (err?.message || String(err)));
+        accountsTable?.destroy?.();
+      } catch (_) {
+        // ignore
       }
-    });
-    window.add(buttonContainer, modeToggleButton);
-    window.add(toolbar, buttonContainer);
-
-    const accountGroupingControl = document.createElement('div');
-    accountGroupingControl.className = 'toolbar-item grouping-control';
-    accountGroupingControl.innerHTML = `
-      <label for="account-grouping-select" class="text-muted control-label">Group By:</label>
-      <select id="account-grouping-select" class="input-select control-select">
-        <option value="">None</option>
-        <option value="accountType">Type</option>
-      </select>
-    `;
-    window.add(toolbar, accountGroupingControl);
-
-    // Insert toolbar above the grid so it doesn't jump to the bottom on refresh.
-    container.insertBefore(toolbar, gridContainer);
+      accountsTable = null;
+      lastAccountsTable = null;
+      renderAccountsSummaryList({
+        container: gridContainer,
+        accounts: displayAccounts,
+        lookupData,
+        scenarioState,
+        reloadAccountsGrid: (nextContainer) =>
+          loadAccountsGrid({
+            container: nextContainer,
+            scenarioState,
+            getWorkflowConfig,
+            reloadMasterTransactionsGrid,
+            logger
+          }),
+        logger
+      });
+      return;
+    }
 
     const enrichedAccounts = await Promise.all(
       displayAccounts.map(async (a) => ({
@@ -420,7 +896,7 @@ export async function loadAccountsGrid({
     });
 
     const workflowIdForKey = workflowConfig?.id ?? 'unknown';
-    const columnsKey = `accounts-${workflowIdForKey}-${workflowConfig?.showGeneratePlan ? 'with-plan' : 'base'}`;
+    const columnsKey = `accounts-${workflowIdForKey}-${accountsGridMode}-${workflowConfig?.showGeneratePlan ? 'with-plan' : 'base'}`;
     const shouldRebuildTable =
       !accountsTable ||
       accountsTable?.element !== gridContainer ||
@@ -436,8 +912,26 @@ export async function loadAccountsGrid({
       accountsTable = await createGrid(gridContainer, {
         data: enrichedAccounts,
         columns,
+        rowFormatter: (row) => {
+          renderAccountsRowDetails({
+            row,
+            rowData: row.getData(),
+            lookupData,
+            workflowConfig,
+            scenarioState,
+            reloadAccountsGrid: (nextContainer) =>
+              loadAccountsGrid({
+                container: nextContainer,
+                scenarioState,
+                getWorkflowConfig,
+                reloadMasterTransactionsGrid,
+                logger
+              }),
+            logger
+          });
+        },
         cellEdited: async function (cell) {
-          const account = cell.getRow().getData();
+          const account = sanitizeAccountPayload(cell.getRow().getData());
           try {
             if (account.type && typeof account.type !== 'object') {
               const foundType = lookupData.accountTypes.find((t) => t.id == account.type);
@@ -462,19 +956,21 @@ export async function loadAccountsGrid({
       await refreshGridData(accountsTable, enrichedAccounts);
     }
 
-    const accountGroupingSelect = document.getElementById('account-grouping-select');
-    if (accountGroupingSelect) {
-      accountGroupingSelect.addEventListener('change', (e) => {
-        const groupField = e.target.value;
-        if (groupField) {
-          accountsTable.setGroupBy(groupField);
-          accountsTable.setGroupHeader((value, count, data, group) => {
-            return `${value} (${count} items)`;
-          });
-        } else {
-          accountsTable.setGroupBy(false);
-        }
-      });
+    if (accountsGridMode === 'detail') {
+      const accountGroupingSelect = document.getElementById('account-grouping-select');
+      if (accountGroupingSelect) {
+        accountGroupingSelect.addEventListener('change', (e) => {
+          const groupField = e.target.value;
+          if (groupField) {
+            accountsTable.setGroupBy(groupField);
+            accountsTable.setGroupHeader((value, count, data, group) => {
+              return `${value} (${count} items)`;
+            });
+          } else {
+            accountsTable.setGroupBy(false);
+          }
+        });
+      }
     }
 
     lastAccountsTable = accountsTable;

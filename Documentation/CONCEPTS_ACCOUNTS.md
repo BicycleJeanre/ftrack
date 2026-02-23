@@ -21,6 +21,16 @@ Accounts are the foundation of your financial model. Each account represents a p
 6. Mark as active or inactive.
 7. Save your account.
 
+## 1.2.1 Summary List
+
+The Accounts summary view shows a card list with account name, type, and starting balance. Click a card to edit and use the action icons to duplicate or delete accounts.
+
+Use the header selector to switch between Summary and Detail views. Click the Accounts header to collapse or expand the section.
+
+## 1.2.2 Detail Grid With Inline Panels
+
+Switch to the detail view to work in the slim accounts grid. Expand a row to reveal extra fields like type, starting balance, description, tags, and periodic change settings.
+
 ## 1.3 Account Types
 
 - **Asset**: Money you have or own such as checking, savings, investment accounts.
