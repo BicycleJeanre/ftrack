@@ -1224,15 +1224,11 @@
 }
 
 .status-netchange.positive {
-  color: var(--color-positive) !important;
+  color: var(--success) !important;
 }
 
 .status-netchange.negative {
-  color: var(--color-negative) !important;
-}
-
-.status-netchange.zero {
-  color: var(--color-zero) !important;
+  color: var(--danger) !important;
 }
 
 .clickable-recurrence {
@@ -1246,15 +1242,11 @@
 }
 
 .positive {
-  color: var(--color-positive) !important;
+  color: var(--success) !important;
 }
 
 .negative {
-  color: var(--color-negative) !important;
-}
-
-.zero {
-  color: var(--color-zero) !important;
+  color: var(--danger) !important;
 }
 
 /* ==================================== Layout Utilities ====================================*/

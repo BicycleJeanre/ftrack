@@ -35,11 +35,6 @@
   --danger-hover: #ff6666;
   --danger-subtle: rgba(255, 68, 68, 0.1);
   --info: #00d4ff;
-
-  /* Numeric value semantic colors: positive=green, negative=red, zero=blue */
-  --color-positive: #4ade80;
-  --color-negative: #f87171;
-  --color-zero: #00d4ff;
   
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -105,11 +100,6 @@ html[data-theme="light"] {
   --danger-hover: #b91c1c;
   --danger-subtle: rgba(220, 38, 38, 0.12);
   --info: #0a84ff;
-
-  /* Numeric value semantic colors: positive=green, negative=red, zero=blue */
-  --color-positive: #16a34a;
-  --color-negative: #dc2626;
-  --color-zero: #0a84ff;
 
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(20, 24, 31, 0.12);

@@ -8,6 +8,7 @@ import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from '../grids/grid-state.js';
 import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 import { openTimeframeModal } from '../modals/timeframe-modal.js';
+import { formatCurrency } from '../../../shared/format-utils.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
@@ -18,6 +19,107 @@ import { expandPeriodicChangeForCalculation } from '../../../domain/calculations
 
 const projectionsGridState = new GridStateManager('projections');
 let lastProjectionsTable = null;
+let projectionsGridMode = 'summary';
+
+function renderProjectionsRowDetails({ row, rowData }) {
+  const rowEl = row.getElement();
+  if (!rowEl) return;
+
+  let detailsEl = rowEl.querySelector('.grid-row-details');
+  if (!detailsEl) {
+    detailsEl = document.createElement('div');
+    detailsEl.className = 'grid-row-details';
+    rowEl.appendChild(detailsEl);
+  }
+
+  if (!rowData?._detailsOpen) {
+    detailsEl.style.display = 'none';
+    detailsEl.innerHTML = '';
+    rowEl.classList.remove('grid-row-expanded');
+    return;
+  }
+
+  detailsEl.style.display = 'block';
+  detailsEl.innerHTML = '';
+  rowEl.classList.add('grid-row-expanded');
+
+  const grid = document.createElement('div');
+  grid.className = 'grid-row-details-grid';
+
+  const addField = (label, value) => {
+    const field = document.createElement('div');
+    field.className = 'grid-detail-field';
+    const labelEl = document.createElement('label');
+    labelEl.className = 'grid-detail-label';
+    labelEl.textContent = label;
+    const valueEl = document.createElement('div');
+    valueEl.className = 'grid-detail-value';
+    valueEl.textContent = value || '—';
+    field.appendChild(labelEl);
+    field.appendChild(valueEl);
+    grid.appendChild(field);
+  };
+
+  addField('Account', rowData?.accountName || rowData?.account);
+  addField('Income', formatCurrency(Number(rowData?.income || 0), 'ZAR'));
+  addField('Expenses', formatCurrency(Math.abs(Number(rowData?.expenses || 0)), 'ZAR'));
+  addField('Net Change', formatCurrency(Number(rowData?.netChange || 0), 'ZAR'));
+
+  detailsEl.appendChild(grid);
+}
+
+function renderProjectionsSummaryList({ container, projections }) {
+  container.innerHTML = '';
+
+  const list = document.createElement('div');
+  list.className = 'grid-summary-list';
+  container.appendChild(list);
+
+  if (!projections || projections.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'scenarios-list-placeholder';
+    empty.textContent = 'No projections available. Generate projections to see results.';
+    list.appendChild(empty);
+    return;
+  }
+
+  projections.forEach((row) => {
+    const card = document.createElement('div');
+    card.className = 'grid-summary-card';
+
+    const content = document.createElement('div');
+    content.className = 'grid-summary-content';
+
+    const title = document.createElement('div');
+    title.className = 'grid-summary-title';
+    title.textContent = row?.accountName || row?.account || 'Account';
+
+    const meta = document.createElement('div');
+    meta.className = 'grid-summary-meta';
+
+    const balance = document.createElement('span');
+    balance.className = 'grid-summary-amount';
+    balance.textContent = formatCurrency(Number(row?.balance || 0), 'ZAR');
+
+    const date = document.createElement('span');
+    date.className = 'grid-summary-date';
+    date.textContent = row?.date || 'No date';
+
+    const net = document.createElement('span');
+    net.className = 'grid-summary-type';
+    net.textContent = `Net ${formatCurrency(Number(row?.netChange || 0), 'ZAR')}`;
+
+    meta.appendChild(balance);
+    meta.appendChild(date);
+    meta.appendChild(net);
+
+    content.appendChild(title);
+    content.appendChild(meta);
+
+    card.appendChild(content);
+    list.appendChild(card);
+  });
+}
 
 function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable, state } = {}) {
   if (!projectionsTable) return;
@@ -62,6 +164,57 @@ export async function loadProjectionsSection({
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
+  const projectionsSection = container.closest('.forecast-card');
+  const projectionsHeader = projectionsSection?.querySelector(':scope > .card-header');
+  if (projectionsHeader) {
+    const controls = projectionsHeader.querySelector('.card-header-controls');
+    if (controls) {
+      controls.innerHTML = '';
+      const viewSelect = document.createElement('select');
+      viewSelect.className = 'input-select input-select-compact';
+      viewSelect.innerHTML = `
+        <option value="summary">Summary</option>
+        <option value="detail">Detail</option>
+      `;
+      viewSelect.value = projectionsGridMode;
+      viewSelect.addEventListener('change', async () => {
+        projectionsGridMode = viewSelect.value;
+        await loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+      });
+      const refreshButton = document.createElement('button');
+      refreshButton.className = 'icon-btn';
+      refreshButton.title = 'Refresh Projections';
+      refreshButton.textContent = '⟳';
+
+      controls.appendChild(viewSelect);
+      controls.appendChild(refreshButton);
+
+      refreshButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const prevText = refreshButton.textContent;
+        try {
+          refreshButton.textContent = '...';
+          refreshButton.disabled = true;
+
+          const scenario = scenarioState?.get?.();
+          if (scenario?.id) {
+            const refreshed = await getScenario(scenario.id);
+            scenarioState?.set?.(refreshed);
+          }
+
+          await loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        } catch (err) {
+          notifyError('Failed to refresh projections: ' + (err?.message || String(err)));
+        } finally {
+          if (refreshButton.isConnected) {
+            refreshButton.textContent = prevText;
+            refreshButton.disabled = false;
+          }
+        }
+      });
+    }
+  }
+
   try {
     projectionsGridState.capture(lastProjectionsTable, {
       groupBy: '#projections-grouping-select',
@@ -81,6 +234,47 @@ export async function loadProjectionsSection({
     projectionsGridContainer.id = 'projectionsGrid';
     projectionsGridContainer.className = 'grid-container projections-grid';
     window.add(container, projectionsGridContainer);
+  }
+
+  if (projectionsGridMode === 'detail') {
+    projectionsGridContainer.classList.add('grid-detail');
+  } else {
+    projectionsGridContainer.classList.remove('grid-detail');
+  }
+
+  if (projectionsGridMode === 'summary') {
+    try {
+      lastProjectionsTable?.destroy?.();
+      lastProjectionsTable = null;
+    } catch (_) {
+      // ignore
+    }
+
+    let rows = getScenarioProjectionRows(currentScenario);
+    const accountFilterId = state?.getProjectionAccountFilterId?.();
+    if (accountFilterId) {
+      rows = rows.filter((row) => Number(row.accountId) === Number(accountFilterId));
+    }
+
+    const projectionPeriod = state?.getProjectionPeriod?.();
+    const projectionPeriods = state?.getProjectionPeriods?.() || [];
+    if (projectionPeriod) {
+      const selectedPeriod = projectionPeriods.find((p) => p.id === projectionPeriod);
+      if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
+        const start = formatDateOnly(new Date(selectedPeriod.startDate));
+        const end = formatDateOnly(new Date(selectedPeriod.endDate));
+        rows = rows.filter((row) => {
+          const rowKey = typeof row.date === 'string' ? row.date : formatDateOnly(new Date(row.date));
+          return rowKey >= start && rowKey <= end;
+        });
+      }
+    }
+
+    renderProjectionsSummaryList({
+      container: projectionsGridContainer,
+      projections: rows
+    });
+    return;
   }
 
   const toolbar = document.createElement('div');
@@ -167,40 +361,7 @@ export async function loadProjectionsSection({
   });
   window.add(buttonContainer, clearButton);
 
-  const refreshButton = document.createElement('button');
-  refreshButton.className = 'btn';
-  refreshButton.textContent = 'Refresh';
-  refreshButton.addEventListener('click', async () => {
-    const prevText = refreshButton.textContent;
-    try {
-      refreshButton.textContent = 'Refreshing...';
-      refreshButton.disabled = true;
-
-      const scenario = scenarioState?.get?.();
-      if (scenario?.id) {
-        const refreshed = await getScenario(scenario.id);
-        scenarioState?.set?.(refreshed);
-      }
-
-      await loadProjectionsSection({
-        container,
-        scenarioState,
-        getWorkflowConfig,
-        state,
-        tables,
-        callbacks,
-        logger
-      });
-    } catch (err) {
-      notifyError('Failed to refresh projections: ' + (err?.message || String(err)));
-    } finally {
-      if (refreshButton.isConnected) {
-        refreshButton.textContent = prevText;
-        refreshButton.disabled = false;
-      }
-    }
-  });
-  window.add(buttonContainer, refreshButton);
+  // Refresh moved to header controls.
 
   window.add(toolbar, buttonContainer);
 
@@ -686,8 +847,29 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
       return round2(sum);
     };
 
+    const detailToggleColumn = {
+      title: '',
+      field: '_detailsToggle',
+      width: 44,
+      hozAlign: 'center',
+      headerSort: false,
+      formatter: function (cell) {
+        const isOpen = Boolean(cell.getRow().getData()?._detailsOpen);
+        const icon = isOpen ? '▾' : '▸';
+        return `<span class="accounts-row-toggle" aria-hidden="true">${icon}</span>`;
+      },
+      cellClick: function (e, cell) {
+        const row = cell.getRow();
+        const rowData = row.getData() || {};
+        const nextState = !rowData._detailsOpen;
+        row.update({ _detailsOpen: nextState });
+        row.getTable()?.redraw?.(true);
+      }
+    };
+
     const columns = isCounterpartyMode
       ? [
+          detailToggleColumn,
           createDateColumn('Date', 'date', { widthGrow: 1 }),
           createTextColumn('Secondary Account', 'secondaryAccount', { widthGrow: 2 }),
           createMoneyColumn('Projected Balance', 'balance', {
@@ -714,7 +896,8 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
             hozAlign: 'right'
           }
         ]
-      : [
+        : [
+          detailToggleColumn,
           createDateColumn('Date', 'date', { widthGrow: 1 }),
           createTextColumn('Account', 'account', { widthGrow: 2 }),
           createMoneyColumn('Projected Balance', 'balance', {
@@ -763,7 +946,13 @@ export async function loadProjectionsGrid({ container, scenarioState, state, tab
       projectionsTable = await createGrid(container, {
         data: transformedData,
         layout: 'fitColumns',
-        columns
+        columns,
+        rowFormatter: (row) => {
+          renderProjectionsRowDetails({
+            row,
+            rowData: row.getData()
+          });
+        }
       });
 
       projectionsTable.__ftrackColumnsKey = columnsKey;

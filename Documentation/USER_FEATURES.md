@@ -74,15 +74,16 @@
 6.1 Navigate between pages using top navigation bar  
 6.2 Forecast page uses card-based sections controlled by the selected workflow  
 6.3 Forecast cards lay out in a responsive multi-column grid  
-6.4 Card headers provide collapse toggles  
-6.5 View data in responsive tables  
-6.6 Add rows inline with "Add Row" button  
-6.7 Edit rows inline with edit icon  
-6.8 Delete rows with delete icon  
-6.9 Save/cancel edits with action buttons  
-6.10 Select rows with radio buttons  
-6.11 Open modal dialogs for complex data (recurrence, periodic change)
-6.12 Read the home page user guide for quick start and component tips
+6.4 Card headers provide collapse toggles and quick actions  
+6.5 Transactions, Budget, and Projections support Summary and Detail views  
+6.6 View data in responsive tables  
+6.7 Add rows inline with "Add Row" button  
+6.8 Edit rows inline with edit icon  
+6.9 Delete rows with delete icon  
+6.10 Save/cancel edits with action buttons  
+6.11 Select rows with radio buttons  
+6.12 Open modal dialogs for complex data (recurrence, periodic change)
+6.13 Read the home page user guide for quick start and component tips
 
 ## 7.0 Keyboard Shortcuts
 

@@ -830,7 +830,7 @@ export async function loadAccountsGrid({
     }
 
     gridContainer.className = accountsGridMode === 'detail'
-      ? 'grid-container accounts-grid accounts-grid-compact'
+      ? 'grid-container accounts-grid accounts-grid-compact grid-detail'
       : 'grid-container accounts-grid';
 
     const accounts = await AccountManager.getAll(currentScenario.id);
