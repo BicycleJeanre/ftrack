@@ -1454,19 +1454,13 @@ async function loadGeneralSummaryCards(container, options = {}) {
   const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
   const projectionsIndex = buildProjectionsIndex(getScenarioProjectionRows(currentScenario));
   const scrollSnapshot = getPageScrollSnapshot();
-  // DEBUG: Show number of accounts detected
-  const debugMsg = document.createElement('div');
-  debugMsg.style.color = 'orange';
-  debugMsg.style.fontWeight = 'bold';
-  debugMsg.textContent = `[DEBUG] loadGeneralSummaryCards called. Accounts detected: ${accounts ? accounts.length : 0}`;
-  container.appendChild(debugMsg);
+  // no debug messages; show empty state if no accounts
   if (!accounts || !Array.isArray(accounts) || !accounts.length) {
     container.innerHTML = '';
-    const debugMsg = document.createElement('div');
-    debugMsg.className = 'empty-message';
-    debugMsg.style.color = 'red';
-    debugMsg.textContent = '[DEBUG] No accounts found in current scenario.';
-    container.appendChild(debugMsg);
+    const empty = document.createElement('div');
+    empty.className = 'empty-message';
+    empty.textContent = 'No accounts found in current scenario.';
+    container.appendChild(empty);
     return;
   }
 
@@ -1691,31 +1685,7 @@ async function loadGeneralSummaryCards(container, options = {}) {
 async function loadSummaryCards(container, options = {}) {
   // Always declare workflowConfig before any usage
   const workflowConfig = getWorkflowConfig();
-  // DEBUG: Entry marker
-  const entryMsg = document.createElement('div');
-  entryMsg.style.color = 'orange';
-  entryMsg.style.fontWeight = 'bold';
-  entryMsg.textContent = '[DEBUG] Entered loadSummaryCards()';
-  if (container) container.appendChild(entryMsg);
-
-  // DEBUG: Log workflowConfig object (safe)
-  try {
-    const configMsg = document.createElement('div');
-    configMsg.style.color = 'orange';
-    configMsg.textContent = `[DEBUG] workflowConfig: id=${workflowConfig?.id}, summaryMode=${workflowConfig?.summaryMode}`;
-    if (container) container.appendChild(configMsg);
-  } catch (err) {
-    const errMsg = document.createElement('div');
-    errMsg.style.color = 'red';
-    errMsg.textContent = '[DEBUG] Error displaying workflowConfig: ' + (err?.message || err);
-    if (container) container.appendChild(errMsg);
-  }
-  // DEBUG: Show workflowConfig and branch taken
-  const debugMsg = document.createElement('div');
-  debugMsg.style.color = 'orange';
-  debugMsg.style.fontWeight = 'bold';
-  debugMsg.textContent = `[DEBUG] loadSummaryCards: workflowConfig.id=${workflowConfig?.id}, summaryMode=${workflowConfig?.summaryMode}`;
-  if (container) container.appendChild(debugMsg);
+  // removed debug-only DOM insertions
   if (!workflowConfig?.showSummaryCards) {
     if (container) container.innerHTML = '';
     return;
@@ -1728,38 +1698,25 @@ async function loadSummaryCards(container, options = {}) {
   }
 
   if (isDebtWorkflow(workflowConfig)) {
-    const branchMsg = document.createElement('div');
-    branchMsg.style.color = 'orange';
-    branchMsg.textContent = '[DEBUG] Taking Debt workflow branch.';
-    if (container) container.appendChild(branchMsg);
+    // debt workflow branch
     await loadDebtSummaryCards(container, options);
     return;
   }
 
   if (isGeneralWorkflow(workflowConfig)) {
-    const branchMsg = document.createElement('div');
-    branchMsg.style.color = 'orange';
-    branchMsg.textContent = '[DEBUG] Taking General workflow branch.';
-    if (container) container.appendChild(branchMsg);
+    // general workflow branch
     await loadGeneralSummaryCards(container, options);
     return;
   }
 
   if (isFundsWorkflow(workflowConfig)) {
-    const branchMsg = document.createElement('div');
-    branchMsg.style.color = 'orange';
-    branchMsg.textContent = '[DEBUG] Taking Funds workflow branch.';
-    if (container) container.appendChild(branchMsg);
+    // funds workflow branch
     await loadFundsSummaryCards(container, options);
     return;
   }
 
   // DEBUG: No workflow branch matched
-  const elseMsg = document.createElement('div');
-  elseMsg.style.color = 'red';
-  elseMsg.style.fontWeight = 'bold';
-  elseMsg.textContent = '[DEBUG] No workflow branch matched in loadSummaryCards()!';
-  if (container) container.appendChild(elseMsg);
+  // no workflow branch matched (silently ignore)
 }
 
 async function refreshSummaryCards() {
@@ -1936,13 +1893,7 @@ async function loadScenarioData() {
   // Load summary cards AFTER projections so they have data to work with
   if (showSummaryCards) {
     // DEBUG: Show marker before calling loadSummaryCards
-    if (containers.summaryCardsContent) {
-      const debugMsg = document.createElement('div');
-      debugMsg.style.color = 'orange';
-      debugMsg.style.fontWeight = 'bold';
-      debugMsg.textContent = '[DEBUG] Calling loadSummaryCards for summaryCardsContent.';
-      containers.summaryCardsContent.appendChild(debugMsg);
-    }
+    // calling loadSummaryCards for summaryCardsContent
     await loadSummaryCards(containers.summaryCardsContent, { simple: true });
   }
 }
