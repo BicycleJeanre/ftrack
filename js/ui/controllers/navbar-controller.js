@@ -11,18 +11,14 @@ const clearDataBtn = '<button id="nav-clear" class="btn btn-danger" title="Clear
 const repoRootUrl = new URL('../../../', import.meta.url);
 
 const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;
-const homeHref = new URL('index.html', repoRootUrl).href;
-const forecastHref = new URL('pages/forecast.html', repoRootUrl).href;
-const documentationHref = new URL('pages/documentation.html', repoRootUrl).href;
+const ftrackHref = new URL('pages/ftrack.html', repoRootUrl).href;
 
 const navLinks = `
   <div class="navbar-brand">
     <img src="${logoPath}" alt="FTrack" class="navbar-logo" />
     <span class="navbar-title">FTrack</span>
   </div>
-  <a href="${homeHref}" id="nav-home">Home</a>
-  <a href="${forecastHref}" id="nav-forecast">Forecast</a>
-  <a href="${documentationHref}" id="nav-documentation">Documentation</a>
+  <a href="${ftrackHref}" id="nav-ftrack">FTrack</a>
   <div class="nav-spacer"></div>
   <button id="nav-theme" class="btn btn-ghost" title="Toggle theme"></button>
   <button id="nav-export" class="btn btn-secondary" title="Export data to file">Export Data</button>
@@ -41,9 +37,9 @@ function getPage() {
 
 function highlightActive() {
   var navMap = {
-    'index.html': 'nav-home',
-    'forecast.html': 'nav-forecast',
-    'documentation.html': 'nav-documentation'
+    'ftrack.html': 'nav-ftrack',
+    'forecast.html': 'nav-ftrack',
+    'index.html': 'nav-ftrack'
   };
   var activeId = navMap[getPage()];
   if (activeId) {

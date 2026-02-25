@@ -7,6 +7,7 @@ import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { getTheme, setTheme } from '../../../config.js';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
+const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;
 
 function buildIconButton({ title, svg, onClick, extraClass = '' }) {
   const btn = document.createElement('button');
@@ -115,36 +116,6 @@ function buildTopbarActions() {
   return actions;
 }
 
-function buildSidebarNavSection() {
-  const section = document.createElement('div');
-  section.className = 'sidebar-section';
-
-  const title = document.createElement('div');
-  title.className = 'sidebar-section-title';
-  title.textContent = 'Navigation';
-  section.appendChild(title);
-
-  const homeHref = new URL('index.html', repoRootUrl).href;
-  const forecastHref = new URL('pages/forecast.html', repoRootUrl).href;
-  const documentationHref = new URL('pages/documentation.html', repoRootUrl).href;
-
-  const links = [
-    { href: homeHref, label: 'Home' },
-    { href: forecastHref, label: 'Forecast', active: true },
-    { href: documentationHref, label: 'Documentation' }
-  ];
-
-  links.forEach((link) => {
-    const a = document.createElement('a');
-    a.className = `sidebar-item${link.active ? ' active' : ''}`;
-    a.href = link.href;
-    a.textContent = link.label;
-    section.appendChild(a);
-  });
-
-  return section;
-}
-
 function buildDashRow({ id, title, defaultCollapsed = false }) {
   const row = document.createElement('section');
   row.className = 'dash-row';
@@ -231,14 +202,24 @@ export function buildGridContainer() {
 
   const sidebarHeader = document.createElement('div');
   sidebarHeader.className = 'sidebar-header';
+
+  const sidebarBrand = document.createElement('div');
+  sidebarBrand.className = 'sidebar-brand';
+  const sidebarLogo = document.createElement('img');
+  sidebarLogo.className = 'sidebar-logo';
+  sidebarLogo.src = logoPath;
+  sidebarLogo.alt = 'FTrack';
+
   const sidebarTitle = document.createElement('div');
   sidebarTitle.className = 'sidebar-app-title';
   sidebarTitle.textContent = 'FTrack';
-  sidebarHeader.appendChild(sidebarTitle);
+
+  sidebarBrand.appendChild(sidebarLogo);
+  sidebarBrand.appendChild(sidebarTitle);
+  sidebarHeader.appendChild(sidebarBrand);
 
   const sidebarContent = document.createElement('div');
   sidebarContent.className = 'sidebar-content';
-  sidebarContent.appendChild(buildSidebarNavSection());
 
   const scenariosSection = document.createElement('div');
   scenariosSection.className = 'sidebar-section';
@@ -287,11 +268,18 @@ export function buildGridContainer() {
   };
 
   const burger = buildBurgerButton({ onClick: toggleSidebar });
+
+  const topbarLogo = document.createElement('img');
+  topbarLogo.className = 'topbar-logo';
+  topbarLogo.src = logoPath;
+  topbarLogo.alt = 'FTrack';
+
   const pageTitle = document.createElement('div');
   pageTitle.className = 'page-title';
-  pageTitle.textContent = 'Forecast';
+  pageTitle.textContent = 'FTrack';
 
   topbar.appendChild(burger);
+  topbar.appendChild(topbarLogo);
   topbar.appendChild(pageTitle);
   topbar.appendChild(buildTopbarActions());
 
@@ -333,14 +321,20 @@ export function buildGridContainer() {
   panels.className = 'middle-panels';
 
   const accountsPanel = document.createElement('div');
-  accountsPanel.className = 'dash-panel';
+  accountsPanel.className = 'dash-panel forecast-card';
   accountsPanel.id = 'accountsSection';
   const accountsHeader = document.createElement('div');
-  accountsHeader.className = 'dash-panel-header';
+  accountsHeader.className = 'dash-panel-header card-header';
+  const accountsHeaderLeft = document.createElement('div');
+  accountsHeaderLeft.className = 'card-header-actions';
   const accountsLabel = document.createElement('div');
   accountsLabel.className = 'dash-panel-label';
   accountsLabel.textContent = 'Accounts';
-  accountsHeader.appendChild(accountsLabel);
+  accountsHeaderLeft.appendChild(accountsLabel);
+  const accountsControls = document.createElement('div');
+  accountsControls.className = 'card-header-controls';
+  accountsHeader.appendChild(accountsHeaderLeft);
+  accountsHeader.appendChild(accountsControls);
   const accountsBody = document.createElement('div');
   accountsBody.className = 'dash-panel-body';
   const accountsTable = document.createElement('div');
@@ -350,14 +344,20 @@ export function buildGridContainer() {
   accountsPanel.appendChild(accountsBody);
 
   const txPanel = document.createElement('div');
-  txPanel.className = 'dash-panel';
+  txPanel.className = 'dash-panel forecast-card';
   txPanel.id = 'transactionsSection';
   const txHeader = document.createElement('div');
-  txHeader.className = 'dash-panel-header';
+  txHeader.className = 'dash-panel-header card-header';
+  const txHeaderLeft = document.createElement('div');
+  txHeaderLeft.className = 'card-header-actions';
   const txLabel = document.createElement('div');
   txLabel.className = 'dash-panel-label';
   txLabel.textContent = 'Transactions';
-  txHeader.appendChild(txLabel);
+  txHeaderLeft.appendChild(txLabel);
+  const txControls = document.createElement('div');
+  txControls.className = 'card-header-controls';
+  txHeader.appendChild(txHeaderLeft);
+  txHeader.appendChild(txControls);
   const txBody = document.createElement('div');
   txBody.className = 'dash-panel-body';
   const transactionsTable = document.createElement('div');
@@ -375,18 +375,56 @@ export function buildGridContainer() {
     id: 'budgetSection',
     title: 'Budget'
   });
+  const budgetCard = document.createElement('div');
+  budgetCard.className = 'forecast-card';
+  const budgetHeader = document.createElement('div');
+  budgetHeader.className = 'dash-panel-header card-header';
+  const budgetHeaderLeft = document.createElement('div');
+  budgetHeaderLeft.className = 'card-header-actions';
+  const budgetLabel = document.createElement('div');
+  budgetLabel.className = 'dash-panel-label';
+  budgetLabel.textContent = 'Budget';
+  budgetHeaderLeft.appendChild(budgetLabel);
+  const budgetControls = document.createElement('div');
+  budgetControls.className = 'card-header-controls';
+  budgetHeader.appendChild(budgetHeaderLeft);
+  budgetHeader.appendChild(budgetControls);
+  const budgetContent = document.createElement('div');
+  budgetContent.className = 'section-content';
   const budgetTable = document.createElement('div');
   budgetTable.id = 'budgetTable';
-  budgetBody.appendChild(budgetTable);
+  budgetContent.appendChild(budgetTable);
+  budgetCard.appendChild(budgetHeader);
+  budgetCard.appendChild(budgetContent);
+  budgetBody.appendChild(budgetCard);
   dashLayout.appendChild(budgetSection);
 
   const { row: projectionsSection, body: projectionsBody } = buildDashRow({
     id: 'projectionsSection',
     title: 'Projections'
   });
+  const projectionsCard = document.createElement('div');
+  projectionsCard.className = 'forecast-card';
+  const projectionsHeader = document.createElement('div');
+  projectionsHeader.className = 'dash-panel-header card-header';
+  const projectionsHeaderLeft = document.createElement('div');
+  projectionsHeaderLeft.className = 'card-header-actions';
+  const projectionsLabel = document.createElement('div');
+  projectionsLabel.className = 'dash-panel-label';
+  projectionsLabel.textContent = 'Projections';
+  projectionsHeaderLeft.appendChild(projectionsLabel);
+  const projectionsControls = document.createElement('div');
+  projectionsControls.className = 'card-header-controls';
+  projectionsHeader.appendChild(projectionsHeaderLeft);
+  projectionsHeader.appendChild(projectionsControls);
+  const projectionsContentWrap = document.createElement('div');
+  projectionsContentWrap.className = 'section-content';
   const projectionsContent = document.createElement('div');
   projectionsContent.id = 'projectionsContent';
-  projectionsBody.appendChild(projectionsContent);
+  projectionsContentWrap.appendChild(projectionsContent);
+  projectionsCard.appendChild(projectionsHeader);
+  projectionsCard.appendChild(projectionsContentWrap);
+  projectionsBody.appendChild(projectionsCard);
   dashLayout.appendChild(projectionsSection);
 
   contentArea.appendChild(dashLayout);

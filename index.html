@@ -1,130 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FTrack - Financial Forecast</title>
-    <link rel="icon" href="assets/ftrack-logo.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="styles/app.css">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FTrack</title>
+  <link rel="icon" href="assets/ftrack-logo.svg" type="image/svg+xml" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <meta http-equiv="refresh" content="0; url=pages/ftrack.html" />
 </head>
-<body class="bg-main text-main home-page">
-    <div id="main-navbar"></div>
-    <div class="page-container">
-        <h1 class="text-main page-title">Welcome to FTrack</h1>
-        <p class="text-main page-subtitle">
-            A streamlined financial forecasting tool for managing scenarios, accounts, and transactions.
-        </p>
-        
-        <div class="home-hero">
-            <div class="hero-content">
-                <h2 class="text-main hero-title">Build Your Financial Plan</h2>
-                <p class="text-main hero-description">
-                    FTrack helps you forecast multiple financial scenarios, track income and expenses, and project your financial future with confidence.
-                </p>
-                <a href="pages/documentation.html#repo-docs/USER_GETTING_STARTED" class="btn btn-primary hero-cta">Get Started</a>
-            </div>
-        </div>
-
-        <!-- What's New Section: Keep only the last 3 releases -->
-        <div class="whats-new-section">
-            <h2 class="text-main section-title">What's New</h2>
-            <div class="whats-new-content">
-                <!-- v0.8.4-beta - 2026-02-17 -->
-                <div class="whats-new-item">
-                    <span class="whats-new-version">v0.8.4-beta</span>
-                    <span class="whats-new-date">2026-02-17</span>
-                    <h3 class="whats-new-title">Expanded Documentation Coverage</h3>
-                    <p class="whats-new-description">
-                        Added missing user guides for Budget workflows, Funds scenarios, and Import/Export. The Overview doc now includes a quick chooser for scenario types and goal planning modes.
-                    </p>
-                </div>
-
-                <!-- v0.8.3-beta - 2026-02-17 -->
-                <div class="whats-new-item">
-                    <span class="whats-new-version">v0.8.3-beta</span>
-                    <span class="whats-new-date">2026-02-17</span>
-                    <h3 class="whats-new-title">Scenario Setup Reliability & GitHub Pages Fixes</h3>
-                    <p class="whats-new-description">
-                        Improved scenario creation and switching behavior so grids refresh after setting Scenario Type and Period Type. Better handling for empty or corrupt storage on first run. Fixed lookup asset loading when hosted on GitHub Pages under a repo subpath.
-                    </p>
-                </div>
-                
-                <!-- v0.8.2-beta - 2026-02-17 -->
-                <div class="whats-new-item">
-                    <span class="whats-new-version">v0.8.2-beta</span>
-                    <span class="whats-new-date">2026-02-17</span>
-                    <h3 class="whats-new-title">Debt Modeling Enhancements</h3>
-                    <p class="whats-new-description">
-                        Better support for debt payoff workflows, including scheduled rate changes and improved Forecast UI stability for scenario-based modeling.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="home-sections">
-            <div class="doc-card">
-                <h3 class="doc-card-title">Getting Started</h3>
-                <p class="doc-card-description">Learn how to create your first budget and set up scenarios.</p>
-                <a href="pages/documentation.html#repo-docs/USER_GETTING_STARTED" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">Accounts</h3>
-                <p class="doc-card-description">Understand accounts, types, and how to manage your balances.</p>
-                <a href="pages/documentation.html#repo-docs/CONCEPTS_ACCOUNTS" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">Transactions</h3>
-                <p class="doc-card-description">Create and manage planned and actual transactions.</p>
-                <a href="pages/documentation.html#repo-docs/CONCEPTS_TRANSACTIONS" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">Projections</h3>
-                <p class="doc-card-description">Generate and interpret financial forecasts.</p>
-                <a href="pages/documentation.html#repo-docs/CONCEPTS_PROJECTIONS" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">Recurrence & Scheduling</h3>
-                <p class="doc-card-description">Set up repeating transactions with various patterns.</p>
-                <a href="pages/documentation.html#repo-docs/CONCEPTS_RECURRENCE" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">Periodic Changes</h3>
-                <p class="doc-card-description">Apply automatic adjustments like salary raises and inflation.</p>
-                <a href="pages/documentation.html#repo-docs/CONCEPTS_PERIODIC_CHANGES" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">Scenario Planning</h3>
-                <p class="doc-card-description">Compare multiple financial plans and what-if scenarios.</p>
-                <a href="pages/documentation.html#repo-docs/CONCEPTS_SCENARIOS" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">Keyboard Shortcuts</h3>
-                <p class="doc-card-description">Speed up your workflow with quick key combinations.</p>
-                <a href="pages/documentation.html#repo-docs/OTHER_SHORTCUTS" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">Glossary</h3>
-                <p class="doc-card-description">Reference guide to key financial and app terminology.</p>
-                <a href="pages/documentation.html#repo-docs/OTHER_GLOSSARY" class="doc-card-link">Read Guide →</a>
-            </div>
-
-            <div class="doc-card">
-                <h3 class="doc-card-title">FAQ</h3>
-                <p class="doc-card-description">Answers to common questions and troubleshooting.</p>
-                <a href="pages/documentation.html#repo-docs/USER_GUIDE" class="doc-card-link">Read Guide →</a>
-            </div>
-        </div>
-    </div>
-    <script type="module" src="js/config.js"></script>
-    <script type="module" src="js/ui/controllers/navbar-controller.js"></script>
+<body>
+  <p>Redirecting to FTrack…</p>
 </body>
 </html>
