@@ -1,6 +1,6 @@
 # FTrack UI Style Guide
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Last Updated**: February 25, 2026  
 **Purpose**: Defines layout, formatting, and styling rules for the application. Used by AI and developers to apply consistent UI. No business logic or content changes are within scope of this document.
 
@@ -8,30 +8,31 @@
 
 ## 1.0 Design Tokens
 
+Tokens are defined as CSS variables in `styles/partials/base.css` and must be consumed via `var(--token-name)` in CSS.
+
+Implementation note: the Forecast dashboard shell and dash row layout are implemented in `styles/partials/layout.css` and rendered by `js/ui/components/forecast/forecast-layout.js`.
+
 ### 1.1 Colour Palette
 
-| Token | Value | Usage |
+| CSS Variable | Dark Value | Usage |
 |---|---|---|
-| `bg-base` | `#1a1a1a` | Page/app background |
-| `bg-surface` | `#1e1e1e` | Cards, panels, row bodies |
-| `bg-raised` | `#222` | Elevated cards, filter bars, stats bars |
-| `bg-header` | `#252525` | Row headers, section title bars |
-| `bg-toolbar` | `#1e1e1e` | Row toolbars (inside body) |
-| `bg-inline-editor` | `#202020` | Inline edit forms |
-| `border-subtle` | `#2a2a2a` | Row/panel dividers |
-| `border-default` | `#3a3a3a` | Cards, inputs, table rows |
-| `border-hover` | `#4a4a4a` | Hovered card borders |
-| `accent-cyan` | `#00d4ff` | Primary accent — active states, left borders, highlights |
-| `accent-cyan-dim` | `rgba(0,212,255,0.1)` | Active tab backgrounds |
-| `accent-cyan-border` | `rgba(0,212,255,0.35–0.4)` | Active tab / edit form borders |
-| `accent-cyan-fill` | `rgba(0,212,255,0.07–0.15)` | Totals card backgrounds, btn-action-primary bg |
-| `text-primary` | `#e0e0e0` | Main body text, values |
-| `text-secondary` | `#999` | Labels, metadata, card titles |
-| `text-muted` | `#666–#777` | Dimmer labels, filter labels, icon buttons default |
-| `text-faint` | `#555` | Chevrons, inactive icons |
-| `positive` | `#4ade80` | Positive values, income |
-| `negative` | `#f87171` | Negative values, debt |
-| `neutral` | `#999` | Neutral values |
+| `--bg-primary` | `#0f0f0f` | App background (root) |
+| `--bg-secondary` | `#1a1a1a` | Surfaces and containers (incl. `bg-main`) |
+| `--bg-tertiary` | `#252525` | Headers, bars, raised sections |
+| `--bg-elevated` | `#2a2a2a` | Elevated panels |
+| `--bg-hover` | `#333333` | Hover backgrounds |
+| `--text-primary` | `#e8e8e8` | Body text, values |
+| `--text-secondary` | `#a0a0a0` | Labels, metadata |
+| `--text-muted` | `#666666` | Dim labels and secondary controls |
+| `--accent-primary` | `#00d4ff` | Primary accent (active states, left borders) |
+| `--accent-subtle` | `rgba(0, 212, 255, 0.1)` | Subtle accent backgrounds |
+| `--accent-secondary` | `#00a8cc` | Secondary accent |
+| `--border-primary` | `#2a2a2a` | Standard dividers and borders |
+| `--border-secondary` | `#3a3a3a` | Stronger borders (shell separators) |
+| `--border-accent` | `#00d4ff` | Accent borders |
+| `--success` | `#00d4ff` | Positive/OK state |
+| `--warning` | `#ffbb33` | Warning state |
+| `--danger` | `#ff4444` | Danger state |
 
 ### 1.2 Typography
 
@@ -50,23 +51,19 @@
 | Page title (topbar) | `clamp(13px,1.2vw,17px)` | `600` | Normal | `#e0e0e0` |
 
 All letter-spacing on uppercase labels: `0.4–0.6px`.  
-Font stack: `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`.
+Font stack: `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`.
 
 ### 1.3 Spacing Scale
 
-Consistent `8px` base unit. Common values: `4 / 6 / 8 / 10 / 12 / 14 / 16 / 20 / 24px`.  
-`clamp()` is used for grid gaps and card padding at page level to respond to viewport width.
+Prefer the shared spacing variables: `--spacing-xs/sm/md/lg/xl`.
 
 ### 1.4 Border Radius
 
-| Element | Radius |
+| Element | Token |
 |---|---|
-| Dash rows | `6px` |
-| Cards, grids, filter bars, inputs | `6px` |
-| KPI / projection cards | `8px` |
-| Buttons (action, tab, icon) | `4px` |
-| Pill / standalone tag | `4px` |
-| Progress bars, scrollbars | `3px` |
+| Dash rows, cards, grids | `var(--radius-md)` |
+| Buttons (action, icon) | `var(--radius-sm)` |
+| Large panels / featured | `var(--radius-lg)` |
 
 ---
 
@@ -75,13 +72,17 @@ Consistent `8px` base unit. Common values: `4 / 6 / 8 / 10 / 12 / 14 / 16 / 20 /
 ### 2.1 Top-level Structure
 
 ```
-body (overflow: hidden)
+body.dashboard-shell (overflow: hidden)
 └── .app-container  (flex row, 100vw × 100vh)
     ├── .sidebar
     └── .main-content  (flex col, flex: 1)
         ├── .topbar
         └── .content-area  (flex col, flex: 1, overflow: hidden)
             └── .dash-layout
+
+Forecast implementation:
+- DOM shell: `js/ui/components/forecast/forecast-layout.js`
+- Shell + dash layout CSS: `styles/partials/layout.css`
 ```
 
 ### 2.2 Sidebar
@@ -90,7 +91,7 @@ body (overflow: hidden)
 .sidebar {
     width: clamp(180px, 18vw, 280px);
     background: transparent;
-    border-right: 1px solid #3a3a3a;
+    border-right: 1px solid var(--border-secondary);
     display: flex; flex-direction: column;
     transition: width 0.3s ease;
     overflow: hidden;
@@ -113,7 +114,7 @@ On `≤640px` the sidebar becomes a fixed overlay (`position: fixed`, slides in/
 .topbar {
     background: transparent;
     padding: 12px 16px;
-    border-bottom: 1px solid #3a3a3a;
+    border-bottom: 1px solid var(--border-secondary);
     display: flex; align-items: center; gap: 16px;
 }
 ```
@@ -156,8 +157,8 @@ Each section of the page is a `.dash-row`:
 .dash-row {
     display: flex; flex-direction: column;
     flex: 1; min-height: 220px;
-    border: 1px solid #2a2a2a;
-    border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md); overflow: hidden;
     transition: flex 0.25s ease;
 }
 ```
@@ -179,13 +180,13 @@ The `.row-middle` variant uses `flex: 2` and `min-height: 260px`.
 .dash-row-header {
     flex-shrink: 0; display: flex; align-items: center;
     height: 48px; padding: 0 16px;
-    background: #252525;
-    border-left: 3px solid #00d4ff;
-    border-bottom: 1px solid #3a3a3a;
+    background: var(--bg-tertiary);
+    border-left: 3px solid var(--accent-primary);
+    border-bottom: 1px solid var(--border-secondary);
     gap: 10px; overflow: hidden;
     cursor: pointer; user-select: none;
 }
-.dash-row-header:hover { background: #2c2c2c; }
+.dash-row-header:hover { background: var(--bg-hover); }
 ```
 
 **Always contains (left → right):**

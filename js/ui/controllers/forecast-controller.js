@@ -1926,9 +1926,9 @@ async function loadScenarioData() {
   }
   
   // Show/hide sections based on workflow
-  const accountsSection = getEl('accountsTable').closest('.bg-main');
+  const accountsSection = getEl('accountsSection');
   const generatePlanSection = getEl('generatePlanSection');
-  const txSection = getEl('transactionsTable').closest('.bg-main');
+  const txSection = getEl('transactionsSection');
   const budgetSection = getEl('budgetSection');
   const projectionsSection = getEl('projectionsSection');
   const summaryCardsSection = getEl('summaryCardsSection');
@@ -2030,6 +2030,20 @@ async function init() {
       await refreshSummaryCards();
     } catch (e) {
       // keep existing behavior: ignore
+    }
+  });
+
+  let refreshInFlight = false;
+  document.addEventListener('forecast:refresh', async () => {
+    if (refreshInFlight) return;
+    if (!currentScenario) return;
+    refreshInFlight = true;
+    try {
+      await loadScenarioData();
+    } catch (err) {
+      logger.error('[Forecast] Refresh failed:', err);
+    } finally {
+      refreshInFlight = false;
     }
   });
   
