@@ -1,0 +1,3459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTrack - Forecast Page Dashboard Layout</title>
+    <style>
+        :root {
+            --sidebar-width: clamp(180px, 18vw, 280px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            min-width: 0;
+            background: transparent;
+            border-right: 1px solid #3a3a3a;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease, overflow 0.3s ease;
+            position: relative;
+            z-index: 100;
+            overflow: hidden;
+        }
+        
+        .sidebar.collapsed {
+            width: 0;
+            border-right: none;
+        }
+        
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .sidebar-title {
+            font-weight: bold;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+        
+        .sidebar-section-title {
+            font-weight: 600;
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .sidebar-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 0;
+            margin-bottom: 2px;
+            transition: color 0.2s;
+            font-size: 13px;
+            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-left: 2px solid transparent;
+        }
+        
+        .sidebar-item:hover {
+            color: #e0e0e0;
+        }
+        
+        .sidebar-item.active {
+            color: #00d4ff;
+            border-left: 2px solid #00d4ff;
+        }
+        
+        .sidebar-button {
+            width: 100%;
+            padding: 8px;
+            background: transparent;
+            color: #00d4ff;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+        
+        .sidebar-button:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Topbar */
+        .topbar {
+            background: transparent;
+            padding: 12px 16px;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .burger-menu {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .burger-menu:hover {
+            background: transparent;
+            opacity: 0.7;
+        }
+        
+        .burger-line {
+            width: 20px;
+            height: 2px;
+            background: #e0e0e0;
+            transition: all 0.3s;
+        }
+        
+        .page-title {
+            font-weight: 600;
+            font-size: clamp(13px, 1.2vw, 17px);
+            color: #e0e0e0;
+        }
+        
+        .topbar-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1a1a1a;
+            overflow: hidden;
+        }
+
+        /* Dash Layout — controlled vertical row layout */
+        .dash-layout {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+            gap: 8px;
+            padding: 8px;
+        }
+        
+        /* Grid Layouts — auto-fit: columns reflow naturally, no per-component breakpoints */
+        .grid-2col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: clamp(10px, 1.5vw, 24px);
+            margin-bottom: clamp(16px, 2vw, 30px);
+        }
+        
+        .grid-3col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: clamp(10px, 1.5vw, 24px);
+            margin-bottom: clamp(16px, 2vw, 30px);
+        }
+        
+        .grid-4col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: clamp(10px, 1.5vw, 24px);
+            margin-bottom: clamp(16px, 2vw, 30px);
+            padding-bottom: 20px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        
+        /* Cards */
+        .card {
+            background: transparent;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        .card:hover {
+            border-color: #4a4a4a;
+        }
+        
+        .card.with-bg {
+            background: #2a2a2a;
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        
+        .card-title {
+            font-weight: 600;
+            font-size: 13px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .card-value {
+            font-size: clamp(20px, 2vw, 28px);
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 4px;
+        }
+        
+        .card-value.large {
+            font-size: clamp(24px, 2.5vw, 36px);
+        }
+        
+        .card-meta {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .card-content {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .metric-positive {
+            color: #4ade80;
+        }
+        
+        .metric-negative {
+            color: #f87171;
+        }
+        
+        .metric-neutral {
+            color: #999;
+        }
+        
+        /* Account Cards */
+        .account-card {
+            background: transparent;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .account-card:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+        }
+        
+        .account-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+        }
+        
+        .account-balance {
+            font-size: clamp(14px, 1.4vw, 20px);
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 4px;
+        }
+        
+        .account-change {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        /* Buttons */
+        button.btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        button.btn-primary {
+            background: #00d4ff;
+            color: #000;
+        }
+        
+        button.btn-primary:hover {
+            background: #00b8e6;
+        }
+        
+        button.btn-secondary {
+            background: #3a3a3a;
+            color: #e0e0e0;
+        }
+        
+        button.btn-secondary:hover {
+            background: #4a4a4a;
+        }
+        
+        button.btn-small {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        
+        /* Section Headers */
+        .section-header {
+            font-weight: 600;
+            font-size: 14px;
+            color: #e0e0e0;
+            margin-bottom: 16px;
+            margin-top: 30px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .section-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        table th {
+            padding: 10px;
+            text-align: left;
+            background: transparent;
+            color: #999;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        
+        table td {
+            padding: 10px;
+            color: #e0e0e0;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        
+        table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #3a3a3a;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #00d4ff;
+            transition: width 0.3s;
+        }
+        
+        .progress-fill.positive {
+            background: #4ade80;
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4a;
+        }
+
+        /* Sidebar backdrop — narrow screens only */
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 99;
+        }
+
+        .sidebar-backdrop.visible {
+            display: block;
+        }
+
+        /* ===== Narrow layout: sidebar becomes floating overlay ===== */
+        @media (max-width: 640px) {
+            body {
+                overflow: auto;
+            }
+
+            .app-container {
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: var(--sidebar-width) !important;
+                transform: translateX(0);
+                transition: transform 0.3s ease;
+                background: #1e1e1e;
+                border-right: 1px solid #3a3a3a;
+            }
+
+            .sidebar.collapsed {
+                width: var(--sidebar-width) !important;
+                transform: translateX(-100%);
+                border-right: none;
+            }
+
+            .main-content {
+                width: 100%;
+            }
+
+            .content-area {
+                overflow: hidden;
+            }
+        }
+
+        /* ===== Section Container ===== */
+        .section-container {
+            margin-bottom: clamp(16px, 2vw, 28px);
+            border: 1px solid #3a3a3a;
+            border-left: 3px solid #00d4ff;
+            border-radius: 8px;
+            overflow: hidden;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .section-title-bar {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            cursor: pointer;
+            user-select: none;
+            background: #252525;
+            gap: 10px;
+        }
+
+        .section-title-bar:hover {
+            background: #2c2c2c;
+        }
+
+        .section-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .section-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-chevron {
+            color: #666;
+            display: flex;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .section-container.collapsed .section-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .section-title-text {
+            font-size: clamp(18px, 2vw, 24px);
+            font-weight: 700;
+            color: #e0e0e0;
+            line-height: 1;
+        }
+
+        .section-body {
+            padding: 16px;
+            background: rgba(0, 212, 255, 0.02);
+        }
+
+        .section-container.collapsed .section-body {
+            display: none;
+        }
+
+        /* ===== Dashboard Row Layout ===== */
+        .dash-row {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 220px;
+            border: 1px solid #2a2a2a;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: flex 0.25s ease;
+        }
+
+        .dash-row.minimized {
+            flex: 0 0 48px !important;
+            min-height: 0 !important;
+        }
+
+        .dash-row.focused {
+            flex: 3 !important;
+        }
+
+        .dash-row.collapsed {
+            flex: 0 0 48px !important;
+            min-height: 0 !important;
+        }
+
+        .dash-row.collapsed .dash-row-body {
+            display: none;
+        }
+
+        .dash-row-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            height: 48px;
+            padding: 0 16px;
+            background: #252525;
+            border-left: 3px solid #00d4ff;
+            border-bottom: 1px solid #3a3a3a;
+            gap: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dash-row-header:hover {
+            background: #2c2c2c;
+        }
+
+        .dash-row-chevron {
+            display: flex;
+            align-items: center;
+            color: #555;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .dash-row.collapsed .dash-row-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .dash-row-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #e0e0e0;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .dash-row-controls {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .dash-row-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 16px;
+            background: rgba(0, 212, 255, 0.02);
+            min-height: 0;
+        }
+
+        .dash-row.minimized .dash-row-body {
+            overflow: hidden;
+            visibility: hidden;
+        }
+
+        /* Row toolbar — tabs and action buttons inside the collapsible body */
+        .row-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: -14px -16px 12px;
+            padding: 8px 16px;
+            background: #1e1e1e;
+            border-bottom: 1px solid #2a2a2a;
+            flex-shrink: 0;
+        }
+
+        /* Middle row: two side-by-side panels */
+        .row-middle {
+            flex: 2;
+            min-height: 260px;
+        }
+
+        .middle-panels {
+            display: flex;
+            flex-direction: row;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .dash-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid #2a2a2a;
+        }
+
+        .dash-panel:last-child {
+            border-right: none;
+        }
+
+        .dash-panel-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            height: 38px;
+            padding: 0 12px;
+            background: #1e1e1e;
+            border-bottom: 1px solid #2a2a2a;
+            gap: 6px;
+            overflow: hidden;
+        }
+
+        .dash-panel-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .dash-panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            min-height: 0;
+        }
+
+        /* CSS order: Summary rows float to top */
+        #row-summary      { order: 1; }
+        #row-fund-summary { order: 2; }
+        #row-middle       { order: 3; }
+        #row-budget       { order: 4; }
+        #row-projections  { order: 5; }
+
+        /* Mobile: stack panels */
+        @media (max-width: 1023px) {
+            .middle-panels { flex-direction: column; overflow-y: auto; }
+            .dash-panel { border-right: none; border-bottom: 1px solid #2a2a2a; flex: none; min-height: 260px; }
+        }
+
+        /* Panel toolbar — lives inside section-body */
+        .panel-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            gap: 8px;
+        }
+
+        .panel-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .panel-toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* View Tabs */
+        .view-tabs {
+            display: flex;
+        }
+
+        .view-tab {
+            padding: 5px 14px;
+            background: transparent;
+            color: #999;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: inherit;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .view-tabs .view-tab:not(:last-child) {
+            border-radius: 4px 0 0 4px;
+            border-right: none;
+        }
+
+        .view-tabs .view-tab:last-child {
+            border-radius: 0 4px 4px 0;
+        }
+
+        .view-tab.standalone {
+            border-radius: 4px !important;
+            border-right: 1px solid #3a3a3a !important;
+        }
+
+        .view-tab.active {
+            background: rgba(0, 212, 255, 0.1);
+            color: #00d4ff;
+            border-color: rgba(0, 212, 255, 0.35);
+        }
+
+        .view-tab:hover:not(.active) {
+            color: #e0e0e0;
+        }
+
+        /* Icon buttons — consistent 28×28 click target, 14px icon */
+        .icon-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            transition: color 0.15s, background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .icon-btn:hover {
+            color: #e0e0e0;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .icon-btn.icon-danger {
+            color: #f87171;
+        }
+
+        .icon-btn.icon-danger:hover {
+            color: #ff9898;
+            background: rgba(248,113,113,0.08);
+        }
+
+        /* ===== Tabulator Grid ===== */
+        .tab-grid {
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .tab-header {
+            display: flex;
+            align-items: center;
+            background: #222;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .tab-row {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #2e2e2e;
+            background: #1e1e1e;
+        }
+
+        .tab-row.expanded {
+            background: #222;
+        }
+
+        .tab-row:hover {
+            background: rgba(255,255,255,0.025);
+        }
+
+        /* Control cells: fixed 36px, icon-btn fills the cell */
+        .tab-cell-ctrl {
+            width: 36px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border-right: 1px solid #2e2e2e;
+        }
+
+        .tab-header .tab-cell-ctrl {
+            height: 34px;
+            color: #555;
+            cursor: pointer;
+        }
+
+        .tab-header .tab-cell-ctrl:hover {
+            color: #999;
+        }
+
+        /* icon-btn inside a ctrl cell fills the full cell */
+        .tab-cell-ctrl .icon-btn {
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+        }
+
+        .tab-cell-name {
+            flex: 1;
+            padding: 0 12px;
+            font-size: 13px;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 38px;
+        }
+
+        .tab-header .tab-cell-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #777;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            min-height: 34px;
+        }
+
+        /* Inline row editor */
+        .inline-editor {
+            background: #202020;
+            border-bottom: 1px solid #3a3a3a;
+            padding: 14px 16px 14px 52px;
+        }
+
+        .field-group {
+            margin-bottom: 10px;
+        }
+
+        .field-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .field-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 4px;
+        }
+
+        .field-display {
+            padding: 7px 10px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #e0e0e0;
+        }
+
+        .field-display.placeholder {
+            color: #444;
+        }
+
+        /* ===== Account Summary Cards ===== */
+        .acct-summary-list {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        /* Each group (card + edit form) shrinks to content */
+        .acct-summary-list > div {
+            display: flex;
+            flex-direction: column;
+            width: fit-content;
+        }
+
+        .acct-summary-card {
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            padding: 11px 14px;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            background: #1e1e1e;
+            cursor: pointer;
+            transition: border-color 0.15s;
+            width: fit-content;
+            white-space: nowrap;
+        }
+
+        .acct-summary-card:hover {
+            border-color: #4a4a4a;
+        }
+
+        .acct-summary-card.active {
+            border-color: #00d4ff;
+        }
+
+        .acct-card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .acct-card-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #e0e0e0;
+            white-space: nowrap;
+        }
+
+        .acct-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 12px;
+            color: #777;
+            white-space: nowrap;
+        }
+
+        .acct-card-meta .balance {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        .acct-card-meta .balance.negative {
+            color: #f87171;
+        }
+
+        .acct-card-actions {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        /* ===== Account Summary Edit Form ===== */
+        .acct-edit-form {
+            margin-top: 8px;
+            padding: 14px;
+            background: #202020;
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 6px;
+            min-width: 240px;
+            width: fit-content;
+            border-radius: 6px;
+        }
+
+        .acct-edit-form .field-group {
+            margin-bottom: 10px;
+        }
+
+        .acct-edit-form .field-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .acct-edit-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .btn-save {
+            padding: 8px 20px;
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-save:hover {
+            background: #00bde6;
+        }
+
+        .btn-cancel {
+            padding: 8px 20px;
+            background: #2e2e2e;
+            color: #e0e0e0;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-cancel:hover {
+            background: #3a3a3a;
+        }
+
+        /* ===== Generic Totals Card ===== */
+        .totals-card {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 4px 20px;
+            padding: 10px 14px;
+            background: rgba(0, 212, 255, 0.07);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .total-row {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .total-label {
+            color: #666;
+            font-size: 11px;
+            min-width: 80px;
+        }
+
+        .total-value {
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .total-value.positive { color: #4ade80; }
+        .total-value.negative { color: #f87171; }
+        .total-value.neutral  { color: #999; }
+
+        /* ===== Transaction Summary Cards ===== */
+        .txn-summary-list {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .txn-summary-list > div {
+            display: flex;
+            flex-direction: column;
+            width: fit-content;
+        }
+
+        .txn-summary-card {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 12px 14px;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            background: #1e1e1e;
+            cursor: pointer;
+            transition: border-color 0.15s;
+            width: fit-content;
+            min-width: 240px;
+        }
+
+        .txn-summary-card:hover   { border-color: #4a4a4a; }
+        .txn-summary-card.active  { border-color: #00d4ff; }
+
+        .txn-card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .txn-card-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: #e0e0e0;
+            white-space: nowrap;
+        }
+
+        .txn-card-amount-row {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            white-space: nowrap;
+        }
+
+        .txn-card-amount {
+            font-weight: 600;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .txn-card-amount.positive { color: #4ade80; }
+        .txn-card-amount.negative { color: #f87171; }
+
+        .txn-card-date {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .txn-card-meta {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .txn-card-flow {
+            font-size: 12px;
+            color: #555;
+            white-space: nowrap;
+        }
+
+        /* ===== Filter Bar ===== */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+            padding: 10px 12px;
+            background: #222;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .add-row {
+            margin: 6px 0 4px;
+        }
+
+        .filter-bar-main {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+            flex: 1;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .filter-control {
+            padding: 4px 10px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #e0e0e0;
+            white-space: nowrap;
+        }
+
+        .period-nav {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .period-btn {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 3px;
+            color: #999;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .period-btn:hover { color: #e0e0e0; background: #2a2a2a; }
+
+        /* Transaction grid: type/acct/amount columns */
+        .tab-cell-type   { flex: 0 0 110px; padding: 0 12px; font-size: 13px; color: #e0e0e0; display: flex; align-items: center; min-height: 38px; border-right: 1px solid #2e2e2e; }
+        .tab-cell-acct   { flex: 0 0 150px; padding: 0 12px; font-size: 13px; color: #e0e0e0; display: flex; align-items: center; min-height: 38px; border-right: 1px solid #2e2e2e; }
+        .tab-cell-amount { flex: 0 0 110px; padding: 0 12px; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: flex-end; min-height: 38px; }
+
+        .tab-header .tab-cell-type,
+        .tab-header .tab-cell-acct,
+        .tab-header .tab-cell-amount {
+            font-size: 11px;
+            font-weight: 600;
+            color: #777;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            min-height: 34px;
+        }
+
+        /* Group row — period label / subtotal */
+        .tab-group-row {
+            background: #1a1a1a;
+            border-bottom: 1px solid #3a3a3a;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #4ade80;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* ===== Budget ===== */
+
+        /* Summary: 2-col auto-fit card grid */
+        .budget-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 8px;
+        }
+
+        .budget-summary-card {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            background: #1e1e1e;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+
+        .budget-summary-card:hover  { border-color: #4a4a4a; }
+        .budget-summary-card.active { border-color: #00d4ff; }
+
+        .budget-card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .budget-card-name   { font-weight: 700; font-size: 13px; color: #e0e0e0; }
+        .budget-card-row    { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+        .budget-card-amount { font-weight: 600; color: #e0e0e0; }
+        .budget-card-date   { font-size: 12px; color: #666; }
+        .budget-card-flow   { font-size: 12px; color: #555; }
+
+        /* Scrollable grid wrapper */
+        .tab-grid-scroll { overflow-x: auto; }
+        .tab-grid-scroll .tab-grid { min-width: max-content; }
+
+        /* Budget-specific grid cells */
+        .tab-cell-check  { flex: 0 0 36px;  display: flex; align-items: center; justify-content: center; min-height: 38px; border-right: 1px solid #2e2e2e; }
+        .tab-cell-planned{ flex: 0 0 120px; padding: 0 12px; font-size: 13px; font-weight: 600; color: #4ade80; display: flex; align-items: center; justify-content: flex-end; min-height: 38px; border-right: 1px solid #2e2e2e; }
+        .tab-cell-date   { flex: 0 0 104px; padding: 0 12px; font-size: 13px; color: #e0e0e0; display: flex; align-items: center; min-height: 38px; border-right: 1px solid #2e2e2e; }
+        .tab-cell-recur  { flex: 0 0 140px; padding: 0 12px; font-size: 13px; color: #e0e0e0; display: flex; align-items: center; min-height: 38px; border-right: 1px solid #2e2e2e; }
+        .tab-cell-desc   { flex: 0 0 140px; padding: 0 12px; font-size: 13px; color: #e0e0e0; display: flex; align-items: center; min-height: 38px; border-right: 1px solid #2e2e2e; }
+        .tab-cell-actual { flex: 0 0 120px; padding: 0 12px; font-size: 13px; font-weight: 600; color: #4ade80; display: flex; align-items: center; justify-content: flex-end; min-height: 38px; }
+
+        .tab-header .tab-cell-check,
+        .tab-header .tab-cell-planned,
+        .tab-header .tab-cell-date,
+        .tab-header .tab-cell-recur,
+        .tab-header .tab-cell-desc,
+        .tab-header .tab-cell-actual {
+            font-size: 11px; font-weight: 600; color: #777;
+            text-transform: uppercase; letter-spacing: 0.4px; min-height: 34px;
+        }
+
+        /* Dual-value group row (planned | actual) */
+        .tab-group-row.dual {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 16px;
+        }
+
+        /* Filter bar action buttons */
+        .btn-action {
+            padding: 6px 14px;
+            background: transparent;
+            color: #e0e0e0;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s;
+        }
+        .btn-action:hover { background: #2a2a2a; }
+
+        .btn-action-primary {
+            background: rgba(0, 212, 255, 0.15);
+            color: #00d4ff;
+            border-color: rgba(0, 212, 255, 0.4);
+        }
+        .btn-action-primary:hover { background: rgba(0, 212, 255, 0.25); }
+
+        /* ===== Projections ===== */
+        .proj-stats-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 20px;
+            padding: 10px 14px;
+            background: #222;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .proj-stat-item {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .proj-stat-label {
+            color: #666;
+        }
+
+        .proj-stat-value {
+            font-weight: 700;
+            color: #e0e0e0;
+        }
+
+        .proj-stat-value.positive { color: #4ade80; }
+        .proj-stat-value.negative { color: #f87171; }
+        .proj-stat-value.cyan     { color: #00d4ff; }
+
+        .tab-cell-proj-acct {
+            flex: 0 0 160px;
+            padding: 0 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tab-cell-proj-num {
+            flex: 0 0 130px;
+            padding: 0 8px;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .proj-grand-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0;
+            padding: 8px 0;
+            border-top: 1px solid #3a3a3a;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* Projections Summary ─ KPI tiles */
+        .proj-kpi-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .proj-kpi-card {
+            padding: 14px 18px;
+            background: #222;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            min-width: 140px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .proj-kpi-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .proj-kpi-value {
+            font-size: clamp(16px, 1.8vw, 22px);
+            font-weight: 700;
+            color: #e0e0e0;
+            line-height: 1.1;
+        }
+
+        .proj-kpi-value.positive { color: #4ade80; }
+        .proj-kpi-value.negative { color: #f87171; }
+        .proj-kpi-value.cyan     { color: #00d4ff; }
+
+        /* Account trajectory cards */
+        .proj-acct-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .proj-acct-card {
+            padding: 14px 16px;
+            background: #222;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+        }
+
+        .proj-acct-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .proj-acct-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .proj-acct-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 11px;
+            color: #666;
+            flex-wrap: wrap;
+        }
+
+        .proj-acct-meta span b {
+            color: #e0e0e0;
+            font-weight: 600;
+        }
+
+        .proj-acct-track {
+            height: 6px;
+            background: #2a2a2a;
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid #3a3a3a;
+        }
+
+        .proj-acct-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, rgba(0,212,255,0.5), #4ade80);
+        }
+
+        .proj-acct-fill.negative {
+            background: linear-gradient(90deg, rgba(0,212,255,0.5), #f87171);
+        }
+
+        /* ===== Fund Summary ===== */
+        .fsum-group-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            padding: 10px 2px 4px;
+        }
+
+        .fsum-card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .fsum-card {
+            padding: 12px 14px;
+            background: #222;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 110px;
+        }
+
+        .fsum-card.highlight {
+            border-color: rgba(0,212,255,0.5);
+            background: rgba(0,212,255,0.04);
+        }
+
+        .fsum-card-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 2px;
+        }
+
+        .fsum-card-field {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 11px;
+            gap: 6px;
+        }
+
+        .fsum-card-field-label { color: #555; white-space: nowrap; }
+
+        .fsum-card-field-val {
+            font-weight: 600;
+            color: #e0e0e0;
+            text-align: right;
+        }
+
+        .fsum-card-field-val.positive { color: #4ade80; }
+        .fsum-card-field-val.negative { color: #f87171; }
+
+        .fsum-subtotal {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: baseline;
+            gap: 6px;
+            padding: 4px 6px 8px;
+            font-size: 11px;
+            color: #555;
+        }
+
+        .fsum-subtotal-val {
+            font-weight: 700;
+            font-size: 12px;
+            color: #00d4ff;
+        }
+
+        .fsum-overall {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 20px;
+            padding: 12px 14px;
+            background: rgba(0,212,255,0.07);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 6px;
+            margin-top: 12px;
+        }
+
+        .fsum-overall-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #00d4ff;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            width: 100%;
+            margin-bottom: 2px;
+        }
+
+        .tab-cell-bal {
+            flex: 1;
+            padding: 0 8px;
+            text-align: right;
+            white-space: nowrap;
+            min-width: 110px;
+        }
+
+        .tab-cell-acct-type {
+            flex: 0 0 110px;
+            padding: 0 8px;
+            white-space: nowrap;
+        }
+
+        /* ===== Fund Summary Section ===== */
+        .fund-scope-panel {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 10px 14px;
+            background: #1e1e1e;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .fund-scope-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #a0a0a0;
+        }
+        .fund-scope-input {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 13px;
+            padding: 4px 10px;
+            min-width: 110px;
+        }
+        .fund-scope-input:focus { outline: none; border-color: #00d4ff; }
+        .fund-totals-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 4px 18px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        .fund-totals-label {
+            font-weight: 700;
+            color: #e0e0e0;
+            font-size: 12px;
+            letter-spacing: 0.3px;
+        }
+        .fund-totals-item {
+            color: #888;
+            white-space: nowrap;
+        }
+        .fund-totals-val {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+        .fund-context-label {
+            font-size: 12px;
+            color: #666;
+            padding: 3px 2px 6px;
+        }
+        /* Equity scope grid columns */
+        .tab-cell-investor  { flex: 1; min-width: 120px; padding: 0 8px; }
+        .tab-cell-shares    { flex: 0 0 110px; text-align: right; padding: 0 8px; white-space: nowrap; }
+        .tab-cell-ownership { flex: 0 0 110px; text-align: right; padding: 0 8px; white-space: nowrap; }
+        .tab-cell-implied   { flex: 0 0 140px; text-align: right; padding: 0 8px; white-space: nowrap; }
+        .tab-cell-net-contrib { flex: 0 0 150px; text-align: right; padding: 0 8px; white-space: nowrap; }
+        .tab-cell-net-redeem  { flex: 0 0 150px; text-align: right; padding: 0 8px; white-space: nowrap; }
+
+        /* Utility */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar backdrop (narrow screens) -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+        <!-- Sidebar -->
+        <div class="sidebar collapsed" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">FTrack</div>
+            </div>
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Scenarios</div>
+                    <div class="sidebar-item active" onclick="toggleSidebar()">
+                        <span>Base Case</span>
+                        <span style="color: #4ade80;">✓</span>
+                    </div>
+                    <div class="sidebar-item" onclick="toggleSidebar()">
+                        <span>Conservative</span>
+                    </div>
+                    <div class="sidebar-item" onclick="toggleSidebar()">
+                        <span>Optimistic</span>
+                    </div>
+                    <button class="sidebar-button">+ Add Scenario</button>
+                </div>
+                
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Workflows</div>
+                    <div class="sidebar-item active" onclick="toggleSidebar()">
+                        <span>Forecast</span>
+                    </div>
+                    <div class="sidebar-item" onclick="toggleSidebar()">
+                        <span>Recurrence</span>
+                    </div>
+                    <div class="sidebar-item" onclick="toggleSidebar()">
+                        <span>Scenarios</span>
+                    </div>
+                    <div class="sidebar-item" onclick="toggleSidebar()">
+                        <span>Goals</span>
+                    </div>
+                    <div class="sidebar-item" onclick="toggleSidebar()">
+                        <span>Reports</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Topbar -->
+            <div class="topbar">
+                <div class="burger-menu" onclick="toggleSidebar()">
+                    <div class="burger-line"></div>
+                    <div class="burger-line"></div>
+                    <div class="burger-line"></div>
+                </div>
+                <div class="page-title">Forecast Dashboard</div>
+                <div class="topbar-actions">
+                    <button class="btn btn-secondary btn-small">Export</button>
+                    <button class="btn btn-primary btn-small">Settings</button>
+                </div>
+            </div>
+            
+            <!-- Content Area -->
+            <div class="content-area">
+                <div class="dash-layout">
+
+                <!-- ===== Row: Middle (Accounts + Transactions) ===== -->
+                <div class="dash-row row-middle" id="row-middle">
+                    <div class="dash-row-header" onclick="collapseRow('row-middle')">
+                        <span class="dash-row-chevron"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span class="dash-row-title">Accounts &amp; Transactions</span>
+                        <div class="dash-row-controls">
+                            <button class="icon-btn" title="Minimize" onclick="minimizeRow('row-middle')">
+                                <svg width="12" height="2" viewBox="0 0 12 2" fill="none"><path d="M1 1h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            </button>
+                            <button class="icon-btn" title="Focus" onclick="focusRow('row-middle')">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 5V1h4M7 1h4v4M11 7v4H7M5 11H1V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="dash-row-body" style="padding:0; overflow:hidden;">
+                        <div class="middle-panels">
+
+                            <!-- Accounts Panel -->
+                            <div class="dash-panel" id="panel-accounts">
+                                <div class="dash-panel-header">
+                                    <span class="dash-panel-label">Accounts</span>
+                                    <div class="view-tabs" style="margin-left:10px;">
+                                        <button class="view-tab active" onclick="switchView('accounts','detail',this)">Detail</button>
+                                        <button class="view-tab" onclick="switchView('accounts','summary',this)">Summary</button>
+                                    </div>
+                                    <div style="margin-left:auto; display:flex; align-items:center; gap:4px;">
+                                        <button class="view-tab standalone" style="font-size:12px; color:#777">No Group</button>
+                                        <button class="icon-btn" title="Refresh"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 6.5A4.5 4.5 0 1 1 9.7 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M9 1v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                                    </div>
+                                </div>
+                                <div class="dash-panel-body">
+
+                        <!-- Detail view: tabulator-style grid with inline row editors -->
+                        <div id="accounts-detail" class="view-panel">
+                            <div class="add-row">
+                                <button class="icon-btn" title="Add account">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                </button>
+                            </div>
+                            <div class="tab-grid">
+
+                                <!-- Header -->
+                                <div class="tab-header">
+                                    <div class="tab-cell-ctrl"></div>
+                                    <div class="tab-cell-ctrl" title="Sort">
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                    </div>
+                                    <div class="tab-cell-ctrl" title="Sort">
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                    </div>
+                                    <div class="tab-cell-name">
+                                        <span>Account Name</span>
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                    </div>
+                                </div>
+
+                                <!-- Row: Dean A/R (expanded) -->
+                                <div class="tab-row expanded">
+                                    <div class="tab-cell-ctrl" style="cursor:pointer" onclick="toggleInlineEditor('dean-editor')">
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3l3 4 3-4" stroke="#aaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn" title="Copy">
+                                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn icon-danger" title="Delete">
+                                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-name">Dean A/R</div>
+                                </div>
+
+                                <!-- Inline editor: Dean A/R -->
+                                <div class="inline-editor" id="dean-editor">
+                                    <div class="field-group">
+                                        <div class="field-label">Type</div>
+                                        <div class="field-display">Liability</div>
+                                    </div>
+                                    <div class="field-group">
+                                        <div class="field-label">Starting Balance</div>
+                                        <div class="field-display">-23500</div>
+                                    </div>
+                                    <div class="field-group">
+                                        <div class="field-label">Description</div>
+                                        <div class="field-display placeholder">Add a description</div>
+                                    </div>
+                                    <div class="field-group">
+                                        <div class="field-label">Tags</div>
+                                        <div class="field-display" style="margin-bottom:6px">No tags</div>
+                                        <button class="view-tab standalone" style="font-size:12px">Edit Tags</button>
+                                    </div>
+                                    <div class="field-group">
+                                        <div class="field-label">Periodic Change</div>
+                                        <div class="field-display">None</div>
+                                    </div>
+                                </div>
+
+                                <!-- Row: Licensing Fees -->
+                                <div class="tab-row">
+                                    <div class="tab-cell-ctrl" style="cursor:pointer">
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn" title="Copy">
+                                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn icon-danger" title="Delete">
+                                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-name">Licensing Fees</div>
+                                </div>
+
+                                <!-- Row: Account Payment -->
+                                <div class="tab-row" style="border-bottom:none">
+                                    <div class="tab-cell-ctrl" style="cursor:pointer">
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn" title="Copy">
+                                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn icon-danger" title="Delete">
+                                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-name">Account Payment</div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Summary view: account cards -->
+                        <div id="accounts-summary" class="view-panel hidden">
+                            <div class="acct-summary-list">
+
+                                <div>
+                                    <div class="acct-summary-card" onclick="toggleSummaryEdit('dean-edit')">
+                                        <div class="acct-card-info">
+                                            <div class="acct-card-name">Dean A/R</div>
+                                            <div class="acct-card-meta">
+                                                <span>Liability</span>
+                                                <span class="balance negative">ZAR -23,500.00</span>
+                                            </div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form" id="dean-edit">
+                                        <div class="field-group">
+                                            <div class="field-label">Name</div>
+                                            <div class="field-display">Dean A/R</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Type</div>
+                                            <div class="field-display">Liability</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Starting Balance</div>
+                                            <div class="field-display">-23500</div>
+                                        </div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('dean-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="acct-summary-card" onclick="toggleSummaryEdit('licensing-edit')">
+                                        <div class="acct-card-info">
+                                            <div class="acct-card-name">Licensing Fees</div>
+                                            <div class="acct-card-meta">
+                                                <span>Expense</span>
+                                                <span class="balance">ZAR 0.00</span>
+                                            </div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form hidden" id="licensing-edit">
+                                        <div class="field-group">
+                                            <div class="field-label">Name</div>
+                                            <div class="field-display">Licensing Fees</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Type</div>
+                                            <div class="field-display">Expense</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Starting Balance</div>
+                                            <div class="field-display">0</div>
+                                        </div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('licensing-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="acct-summary-card active" onclick="toggleSummaryEdit('payment-edit')">
+                                        <div class="acct-card-info">
+                                            <div class="acct-card-name">Account Payment</div>
+                                            <div class="acct-card-meta">
+                                                <span>Income</span>
+                                                <span class="balance">ZAR 0.00</span>
+                                            </div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form hidden" id="payment-edit">
+                                        <div class="field-group">
+                                            <div class="field-label">Name</div>
+                                            <div class="field-display">Account Payment</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Type</div>
+                                            <div class="field-display">Income</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Starting Balance</div>
+                                            <div class="field-display">0</div>
+                                        </div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('payment-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                                </div><!-- end dash-panel-body accounts -->
+                            </div><!-- end dash-panel accounts -->
+
+                            <!-- Transactions Panel -->
+                            <div class="dash-panel" id="panel-transactions">
+                                <div class="dash-panel-header">
+                                    <span class="dash-panel-label">Transactions</span>
+                                    <div class="view-tabs" style="margin-left:10px;">
+                                        <button class="view-tab active" onclick="switchView('transactions','detail',this)">Detail</button>
+                                        <button class="view-tab" onclick="switchView('transactions','summary',this)">Summary</button>
+                                    </div>
+                                    <div style="margin-left:auto; display:flex; align-items:center; gap:4px;">
+                                        <button class="icon-btn" title="Refresh"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 6.5A4.5 4.5 0 1 1 9.7 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M9 1v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                                    </div>
+                                </div>
+                                <div class="dash-panel-body">
+
+                        <!-- Detail view -->
+                        <div id="transactions-detail" class="view-panel">
+
+                            <!-- Filter bar -->
+                            <div class="filter-bar">
+                                <div class="filter-bar-main">
+                                    <div class="filter-item">
+                                        <span>Group By:</span>
+                                        <span class="filter-control">None</span>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>View By:</span>
+                                        <span class="filter-control">Month</span>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>Period:</span>
+                                        <span class="filter-control">-- All Periods --</span>
+                                        <div class="period-nav">
+                                            <button class="period-btn">&#9664;</button>
+                                            <button class="period-btn">&#9654;</button>
+                                        </div>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>Account:</span>
+                                        <span class="filter-control">Dean A/R</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Totals -->
+                            <div class="totals-card" style="margin-bottom:8px;">
+                                <div class="total-row">
+                                    <span class="total-label">Money In:</span>
+                                    <span class="total-value positive">R 1 921,74</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Money Out:</span>
+                                    <span class="total-value negative">R 1 921,74</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Net:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                            </div>
+
+                            <!-- Add row -->
+                            <div class="add-row">
+                                <button class="icon-btn" title="Add transaction">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                </button>
+                            </div>
+
+                            <!-- Grid: type / secondary account / amount only -->
+                            <div class="tab-grid">
+                                <div class="tab-header">
+                                    <div class="tab-cell-ctrl"></div>
+                                    <div class="tab-cell-ctrl"></div>
+                                    <div class="tab-cell-ctrl"></div>
+                                    <div class="tab-cell-type">
+                                        Type
+                                        <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                    </div>
+                                    <div class="tab-cell-acct">
+                                        Secondary Account
+                                        <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                    </div>
+                                    <div class="tab-cell-amount">
+                                        Amount
+                                        <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                    </div>
+                                </div>
+
+                                <!-- Group subtotal row -->
+                                <div class="tab-group-row">R 121,74</div>
+
+                                <!-- Row: Money Out -->
+                                <div class="tab-row">
+                                    <div class="tab-cell-ctrl" style="cursor:pointer" onclick="toggleInlineEditor('txn-row1-editor')">
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn" title="Copy">
+                                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn icon-danger" title="Delete">
+                                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-type">Money Out</div>
+                                    <div class="tab-cell-acct">Licensing Fees</div>
+                                    <div class="tab-cell-amount" style="color:#f87171">-R 900,00</div>
+                                </div>
+
+                                <!-- Inline editor: row 1 (recurrence, periodic change, tags) -->
+                                <div class="inline-editor hidden" id="txn-row1-editor">
+                                    <div class="field-group">
+                                        <div class="field-label">Primary Account</div>
+                                        <div class="field-display">Dean A/R</div>
+                                    </div>
+                                    <div class="field-group">
+                                        <div class="field-label">Secondary Account</div>
+                                        <div class="field-display">Licensing Fees</div>
+                                    </div>
+                                    <div class="field-group">
+                                        <div class="field-label">Recurrence</div>
+                                        <div class="field-display">Every year on Sep 01 until 2027-07-01</div>
+                                    </div>
+                                    <div class="field-group">
+                                        <div class="field-label">Periodic Change</div>
+                                        <div class="field-display placeholder">—</div>
+                                    </div>
+                                    <div class="field-group">
+                                        <div class="field-label">Tags</div>
+                                        <div class="field-display placeholder">—</div>
+                                    </div>
+                                </div>
+
+                                <!-- Row: Money In -->
+                                <div class="tab-row" style="border-bottom:none">
+                                    <div class="tab-cell-ctrl" style="cursor:pointer">
+                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn" title="Copy">
+                                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-ctrl">
+                                        <button class="icon-btn icon-danger" title="Delete">
+                                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="tab-cell-type">Money In</div>
+                                    <div class="tab-cell-acct">Account Payment</div>
+                                    <div class="tab-cell-amount" style="color:#4ade80">R 1 021,74</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary view -->
+                        <div id="transactions-summary" class="view-panel hidden">
+                            <div class="txn-summary-list">
+
+                                <div>
+                                    <div class="txn-summary-card active" onclick="toggleSummaryEdit('txn1-edit')">
+                                        <div class="txn-card-body">
+                                            <div class="txn-card-name">Untitled Transaction</div>
+                                            <div class="txn-card-amount-row">
+                                                <span class="txn-card-amount positive">ZAR 900.00</span>
+                                                <span class="txn-card-date">2026-08-01</span>
+                                            </div>
+                                            <div class="txn-card-meta">Money In</div>
+                                            <div class="txn-card-flow">Licensing Fees &rarr; Dean A/R</div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form" id="txn1-edit">
+                                        <div class="field-group">
+                                            <div class="field-label">Description</div>
+                                            <div class="field-display placeholder">Add a description</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Amount</div>
+                                            <div class="field-display">900</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Date</div>
+                                            <div class="field-display">01/08/2026</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Type</div>
+                                            <div class="field-display">Money In</div>
+                                        </div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('txn1-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="txn-summary-card" onclick="toggleSummaryEdit('txn2-edit')">
+                                        <div class="txn-card-body">
+                                            <div class="txn-card-name">Advanced Goal: Pay down Dean A/R</div>
+                                            <div class="txn-card-amount-row">
+                                                <span class="txn-card-amount positive">ZAR 1,021.74</span>
+                                            </div>
+                                            <div class="txn-card-amount-row">
+                                                <span class="txn-card-date">2026-01-01</span>
+                                                <span class="txn-card-meta">Money In</span>
+                                            </div>
+                                            <div class="txn-card-flow">Dean A/R &rarr; Account Payment</div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form hidden" id="txn2-edit">
+                                        <div class="field-group">
+                                            <div class="field-label">Description</div>
+                                            <div class="field-display">Advanced Goal: Pay down Dean A/R</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Amount</div>
+                                            <div class="field-display">1021.74</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Date</div>
+                                            <div class="field-display">01/01/2026</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Type</div>
+                                            <div class="field-display">Money In</div>
+                                        </div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('txn2-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                                </div><!-- end dash-panel-body transactions -->
+                            </div><!-- end dash-panel transactions -->
+
+                        </div><!-- end middle-panels -->
+                    </div><!-- end dash-row-body middle -->
+                </div><!-- end row-middle -->
+
+                <!-- ===== Row: Budget ===== -->
+                <div class="dash-row" id="row-budget">
+                    <div class="dash-row-header" onclick="collapseRow('row-budget')">
+                        <span class="dash-row-chevron"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span class="dash-row-title">Budget</span>
+                        <div class="dash-row-controls">
+                            <button class="icon-btn" title="Refresh"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 6.5A4.5 4.5 0 1 1 9.7 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M9 1v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="icon-btn" title="Minimize" onclick="minimizeRow('row-budget')"><svg width="12" height="2" viewBox="0 0 12 2" fill="none"><path d="M1 1h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                            <button class="icon-btn" title="Focus" onclick="focusRow('row-budget')"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 5V1h4M7 1h4v4M11 7v4H7M5 11H1V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="dash-row-body">
+
+                        <div class="row-toolbar">
+                            <div class="view-tabs">
+                                <button class="view-tab active" onclick="switchView('budget','detail',this)">Detail</button>
+                                <button class="view-tab" onclick="switchView('budget','summary',this)">Summary</button>
+                            </div>
+                            <div style="margin-left:auto; display:flex; gap:6px;">
+                                <button class="btn-action">Clear Budget</button>
+                                <button class="btn-action btn-action-primary">Regenerate</button>
+                            </div>
+                        </div>
+
+                        <!-- Detail view -->
+                        <div id="budget-detail" class="view-panel">
+
+                            <!-- Filter bar -->
+                            <div class="filter-bar">
+                                <div class="filter-bar-main">
+                                    <div class="filter-item">
+                                        <span>Group By:</span>
+                                        <span class="filter-control">None</span>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>View By:</span>
+                                        <span class="filter-control">Year</span>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>Period:</span>
+                                        <span class="filter-control">-- All Periods --</span>
+                                        <div class="period-nav">
+                                            <button class="period-btn">&#9664;</button>
+                                            <button class="period-btn">&#9654;</button>
+                                        </div>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>Account:</span>
+                                        <span class="filter-control">Jeanre Transactional</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Totals -->
+                            <div class="totals-card" style="margin-bottom:8px;">
+                                <div class="total-row"><span class="total-label">Actual Net:</span>      <span class="total-value neutral">R 0,00</span></div>
+                                <div class="total-row"><span class="total-label">Money In:</span>        <span class="total-value positive">R 0,00</span></div>
+                                <div class="total-row"><span class="total-label">Money Out:</span>       <span class="total-value negative">R 0,00</span></div>
+                                <div class="total-row"><span class="total-label">Net:</span>             <span class="total-value neutral">R 0,00</span></div>
+                                <div class="total-row"><span class="total-label">Planned Outst.:</span> <span class="total-value negative">R 0,00</span></div>
+                                <div class="total-row"><span class="total-label">Planned Net:</span>     <span class="total-value neutral">R 0,00</span></div>
+                                <div class="total-row"><span class="total-label">Unplanned:</span>       <span class="total-value negative">R 0,00</span></div>
+                            </div>
+
+                            <!-- Add row -->
+                            <div class="add-row">
+                                <button class="icon-btn" title="Add budget item">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                </button>
+                            </div>
+
+                            <!-- Scrollable grid -->
+                            <div class="tab-grid-scroll">
+                                <div class="tab-grid">
+
+                                    <!-- Header -->
+                                    <div class="tab-header">
+                                        <div class="tab-cell-ctrl"></div>
+                                        <div class="tab-cell-ctrl"></div>
+                                        <div class="tab-cell-check">Compl.</div>
+                                        <div class="tab-cell-acct">Secondary Account
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-type">Type
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-planned">Planned Amt
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-date">Date
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-recur">Recurrence
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-desc">Description
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-actual">Actual Amt
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                    </div>
+
+                                    <!-- Group subtotal: planned | actual -->
+                                    <div class="tab-group-row dual">
+                                        <span>R 76 368,00</span>
+                                        <span>R 0,00</span>
+                                    </div>
+
+                                    <!-- Row 1 -->
+                                    <div class="tab-row">
+                                        <div class="tab-cell-ctrl" style="cursor:pointer" onclick="toggleInlineEditor('budget-row1-editor')">
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                        </div>
+                                        <div class="tab-cell-ctrl">
+                                            <button class="icon-btn icon-danger" title="Delete">
+                                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                            </button>
+                                        </div>
+                                        <div class="tab-cell-check">
+                                            <div style="width:14px;height:14px;border:1px solid #3a3a3a;border-radius:3px;background:#1a1a1a;"></div>
+                                        </div>
+                                        <div class="tab-cell-acct">Bicycle</div>
+                                        <div class="tab-cell-type">Money In</div>
+                                        <div class="tab-cell-planned">R 1 800,00</div>
+                                        <div class="tab-cell-date">2026-03-01</div>
+                                        <div class="tab-cell-recur" style="color:#00d4ff; font-size:12px;">Every month&hellip;</div>
+                                        <div class="tab-cell-desc">Claims</div>
+                                        <div class="tab-cell-actual">R 0,00</div>
+                                    </div>
+
+                                    <!-- Inline editor row 1 -->
+                                    <div class="inline-editor hidden" id="budget-row1-editor">
+                                        <div class="field-group">
+                                            <div class="field-label">Secondary Account</div>
+                                            <div class="field-display">Bicycle</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Type</div>
+                                            <div class="field-display">Money In</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Planned Amount</div>
+                                            <div class="field-display">1800</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Date</div>
+                                            <div class="field-display">2026-03-01</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Recurrence</div>
+                                            <div class="field-display">Every month on day 1</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Description</div>
+                                            <div class="field-display">Claims</div>
+                                        </div>
+                                        <div class="field-group">
+                                            <div class="field-label">Actual Amount</div>
+                                            <div class="field-display">0</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Row 2 -->
+                                    <div class="tab-row" style="border-bottom:none">
+                                        <div class="tab-cell-ctrl" style="cursor:pointer">
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                        </div>
+                                        <div class="tab-cell-ctrl">
+                                            <button class="icon-btn icon-danger" title="Delete">
+                                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                            </button>
+                                        </div>
+                                        <div class="tab-cell-check">
+                                            <div style="width:14px;height:14px;border:1px solid #3a3a3a;border-radius:3px;background:#1a1a1a;"></div>
+                                        </div>
+                                        <div class="tab-cell-acct">Bicycle</div>
+                                        <div class="tab-cell-type">Money In</div>
+                                        <div class="tab-cell-planned">R 1 800,00</div>
+                                        <div class="tab-cell-date">2026-04-01</div>
+                                        <div class="tab-cell-recur" style="color:#00d4ff; font-size:12px;">Every month&hellip;</div>
+                                        <div class="tab-cell-desc">Claims</div>
+                                        <div class="tab-cell-actual">R 0,00</div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary view -->
+                        <div id="budget-summary" class="view-panel hidden">
+                            <div class="budget-card-grid">
+
+                                <div>
+                                    <div class="budget-summary-card active" onclick="toggleSummaryEdit('budget1-edit')">
+                                        <div class="budget-card-body">
+                                            <div class="budget-card-name">Claims</div>
+                                            <div class="budget-card-row">
+                                                <span class="budget-card-amount">ZAR 1,800.00</span>
+                                                <span class="budget-card-date">2026-03-01</span>
+                                            </div>
+                                            <div class="budget-card-flow">Jeanre Transactional &rarr; Bicycle</div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form" id="budget1-edit">
+                                        <div class="field-group"><div class="field-label">Description</div><div class="field-display">Claims</div></div>
+                                        <div class="field-group"><div class="field-label">Amount</div><div class="field-display">1800</div></div>
+                                        <div class="field-group"><div class="field-label">Date</div><div class="field-display">01/03/2026</div></div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('budget1-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="budget-summary-card" onclick="toggleSummaryEdit('budget2-edit')">
+                                        <div class="budget-card-body">
+                                            <div class="budget-card-name">Claims</div>
+                                            <div class="budget-card-row">
+                                                <span class="budget-card-amount">ZAR 1,800.00</span>
+                                                <span class="budget-card-date">2026-04-01</span>
+                                            </div>
+                                            <div class="budget-card-flow">Jeanre Transactional &rarr; Bicycle</div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form hidden" id="budget2-edit">
+                                        <div class="field-group"><div class="field-label">Description</div><div class="field-display">Claims</div></div>
+                                        <div class="field-group"><div class="field-label">Amount</div><div class="field-display">1800</div></div>
+                                        <div class="field-group"><div class="field-label">Date</div><div class="field-display">01/04/2026</div></div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('budget2-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="budget-summary-card" onclick="toggleSummaryEdit('budget3-edit')">
+                                        <div class="budget-card-body">
+                                            <div class="budget-card-name">Claims</div>
+                                            <div class="budget-card-row">
+                                                <span class="budget-card-amount">ZAR 1,800.00</span>
+                                                <span class="budget-card-date">2026-05-01</span>
+                                            </div>
+                                            <div class="budget-card-flow">Jeanre Transactional &rarr; Bicycle</div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form hidden" id="budget3-edit">
+                                        <div class="field-group"><div class="field-label">Description</div><div class="field-display">Claims</div></div>
+                                        <div class="field-group"><div class="field-label">Amount</div><div class="field-display">1800</div></div>
+                                        <div class="field-group"><div class="field-label">Date</div><div class="field-display">01/05/2026</div></div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('budget3-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="budget-summary-card" onclick="toggleSummaryEdit('budget4-edit')">
+                                        <div class="budget-card-body">
+                                            <div class="budget-card-name">Claims</div>
+                                            <div class="budget-card-row">
+                                                <span class="budget-card-amount">ZAR 1,800.00</span>
+                                                <span class="budget-card-date">2026-06-01</span>
+                                            </div>
+                                            <div class="budget-card-flow">Jeanre Transactional &rarr; Bicycle</div>
+                                        </div>
+                                        <div class="acct-card-actions">
+                                            <button class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4.5" y="1" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="4.5" width="8.5" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/></svg></button>
+                                            <button class="icon-btn icon-danger" title="Delete" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4.5h10M5 4.5V3a.5.5 0 0 1 .5-.5h3A.5.5 0 0 1 9 3v1.5M5.5 7v3M8.5 7v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3 4.5l.8 6.7a1 1 0 0 0 1 .8h4.4a1 1 0 0 0 1-.8L11 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+                                        </div>
+                                    </div>
+                                    <div class="acct-edit-form hidden" id="budget4-edit">
+                                        <div class="field-group"><div class="field-label">Description</div><div class="field-display">Claims</div></div>
+                                        <div class="field-group"><div class="field-label">Amount</div><div class="field-display">1800</div></div>
+                                        <div class="field-group"><div class="field-label">Date</div><div class="field-display">01/06/2026</div></div>
+                                        <div class="acct-edit-actions">
+                                            <button class="btn-save">Save</button>
+                                            <button class="btn-cancel" onclick="toggleSummaryEdit('budget4-edit')">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div><!-- end dash-row-body budget -->
+                </div><!-- end row-budget -->
+
+                <!-- ===== Row: Projections ===== -->
+                <div class="dash-row" id="row-projections">
+                    <div class="dash-row-header" onclick="collapseRow('row-projections')">
+                        <span class="dash-row-chevron"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span class="dash-row-title">Projections</span>
+                        <div class="dash-row-controls">
+                            <button class="icon-btn" title="Refresh"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 6.5A4.5 4.5 0 1 1 9.7 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M9 1v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="icon-btn" title="Minimize" onclick="minimizeRow('row-projections')"><svg width="12" height="2" viewBox="0 0 12 2" fill="none"><path d="M1 1h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                            <button class="icon-btn" title="Focus" onclick="focusRow('row-projections')"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 5V1h4M7 1h4v4M11 7v4H7M5 11H1V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="dash-row-body">
+
+                        <div class="row-toolbar">
+                            <div class="view-tabs">
+                                <button class="view-tab active" onclick="switchView('projections','detail',this)">Detail</button>
+                                <button class="view-tab" onclick="switchView('projections','summary',this)">Summary</button>
+                            </div>
+                            <div style="margin-left:auto; display:flex; gap:6px;">
+                                <button class="btn-action btn-action-primary">Generate</button>
+                                <button class="btn-action">Clear</button>
+                            </div>
+                        </div>
+
+                        <!-- Detail view -->
+                        <div id="projections-detail" class="view-panel">
+
+                            <!-- Filter bar -->
+                            <div class="filter-bar">
+                                <div class="filter-bar-main">
+                                    <div class="filter-item">
+                                        <span>Account:</span>
+                                        <span class="filter-control">Jeanre Transactional</span>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>Group By:</span>
+                                        <span class="filter-control">None</span>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>View By:</span>
+                                        <span class="filter-control">Month</span>
+                                    </div>
+                                    <div class="filter-item">
+                                        <span>Period:</span>
+                                        <span class="filter-control">-- All Periods --</span>
+                                        <div class="period-nav">
+                                            <button class="period-btn">&#9664;</button>
+                                            <button class="period-btn">&#9654;</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Totals -->
+                            <div class="totals-card" style="margin-bottom:10px;">
+                                <div class="total-row"><span class="total-label">Start Bal (2026-02-23):</span><span class="total-value neutral">R 0,00</span></div>
+                                <div class="total-row"><span class="total-label">End Bal (2027-02-22):</span><span class="total-value positive">R 77 274,81</span></div>
+                                <div class="total-row"><span class="total-label">Income:</span><span class="total-value positive">R 482 107,00</span></div>
+                                <div class="total-row"><span class="total-label">Expenses:</span><span class="total-value negative">-R 404 832,00</span></div>
+                                <div class="total-row"><span class="total-label">Net:</span><span class="total-value positive">R 77 275,00</span></div>
+                            </div>
+
+                            <!-- Grid -->
+                            <div class="tab-grid-scroll">
+                                <div class="tab-grid">
+
+                                    <div class="tab-header">
+                                        <div class="tab-cell-ctrl"></div>
+                                        <div class="tab-cell-date">Date
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-proj-acct">Account
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-proj-num">Proj. Balance
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-proj-num">Proj. Income
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-proj-num">Proj. Expenses
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-proj-num">Net Change
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                    </div>
+
+                                    <!-- Grand total (top) -->
+                                    <div class="proj-grand-row">
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 16 574 801,56</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 482 107,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#f87171">-R 404 832,00</div>
+                                        <div class="tab-cell-proj-num"></div>
+                                    </div>
+
+                                    <!-- Data rows (read-only) -->
+                                    <div class="tab-row">
+                                        <div class="tab-cell-ctrl" style="color:#666">
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                        </div>
+                                        <div class="tab-cell-date">2026-02-23</div>
+                                        <div class="tab-cell-proj-acct">Jeanre Transactional</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                    </div>
+
+                                    <div class="tab-row" style="border: 1px solid rgba(0,212,255,0.5); background: rgba(0,212,255,0.04);">
+                                        <div class="tab-cell-ctrl" style="color:#666">
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                        </div>
+                                        <div class="tab-cell-date">2026-02-24</div>
+                                        <div class="tab-cell-proj-acct">Jeanre Transactional</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                    </div>
+
+                                    <div class="tab-row">
+                                        <div class="tab-cell-ctrl" style="color:#666">
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                        </div>
+                                        <div class="tab-cell-date">2026-02-25</div>
+                                        <div class="tab-cell-proj-acct">Jeanre Transactional</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 24 601,35</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 24 601,35</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 24 601,35</div>
+                                    </div>
+
+                                    <div class="tab-row">
+                                        <div class="tab-cell-ctrl" style="color:#666">
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                        </div>
+                                        <div class="tab-cell-date">2026-02-26</div>
+                                        <div class="tab-cell-proj-acct">Jeanre Transactional</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 24 602,69</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 1,35</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 1,35</div>
+                                    </div>
+
+                                    <div class="tab-row">
+                                        <div class="tab-cell-ctrl" style="color:#666">
+                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3z" fill="currentColor" opacity="0.4"/></svg>
+                                        </div>
+                                        <div class="tab-cell-date">2026-03-01</div>
+                                        <div class="tab-cell-proj-acct">Jeanre Transactional</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 6 369,73</div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 15 500,35</div>
+                                        <div class="tab-cell-proj-num" style="color:#f87171">-R 33 736,00</div>
+                                        <div class="tab-cell-proj-num" style="color:#f87171">-R 18 235,65</div>
+                                    </div>
+
+                                    <!-- Grand total (bottom) -->
+                                    <div class="proj-grand-row">
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 77 274,81</div>
+                                        <div class="tab-cell-proj-num"></div>
+                                        <div class="tab-cell-proj-num"></div>
+                                        <div class="tab-cell-proj-num" style="color:#4ade80">R 77 275,00</div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary view -->
+                        <div id="projections-summary" class="view-panel hidden">
+
+                            <!-- Single totals card -->
+                            <div class="totals-card" style="margin-bottom:16px;">
+                                <div class="total-row"><span class="total-label">Start Bal (2026-02-23):</span><span class="total-value neutral">R 0,00</span></div>
+                                <div class="total-row"><span class="total-label">End Bal (2027-02-22):</span><span class="total-value positive">R 77 274,81</span></div>
+                                <div class="total-row"><span class="total-label">Income:</span><span class="total-value positive">R 482 107,00</span></div>
+                                <div class="total-row"><span class="total-label">Expenses:</span><span class="total-value negative">-R 404 832,00</span></div>
+                                <div class="total-row"><span class="total-label">Net:</span><span class="total-value positive">R 77 275,00</span></div>
+                            </div>
+
+                            <!-- Account trajectories -->
+                            <div style="font-size:11px; font-weight:600; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Account Trajectories</div>
+                            <div style="font-size:11px; color:#555; margin-bottom:12px;">Start and end balance for each account over the projection period, with income, expenses, and net change.</div>
+                            <div class="proj-acct-list">
+
+                                <div class="proj-acct-card">
+                                    <div class="proj-acct-header">
+                                        <div class="proj-acct-name">Jeanre Transactional</div>
+                                        <div class="proj-acct-meta">
+                                            <span><b>R 0,00</b> &rarr; <b style="color:#4ade80">R 77 274,81</b></span>
+                                            <span>Income: <b style="color:#4ade80">R 482 107,00</b></span>
+                                            <span>Expenses: <b style="color:#f87171">R 404 832,00</b></span>
+                                            <span>Net: <b style="color:#4ade80">+R 77 275,00</b></span>
+                                        </div>
+                                    </div>
+                                    <div class="proj-acct-track">
+                                        <div class="proj-acct-fill" style="width: 82%;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="proj-acct-card">
+                                    <div class="proj-acct-header">
+                                        <div class="proj-acct-name">Dean A/R</div>
+                                        <div class="proj-acct-meta">
+                                            <span><b>-R 23 500,00</b> &rarr; <b style="color:#4ade80">R 0,00</b></span>
+                                            <span>Income: <b style="color:#4ade80">R 23 500,00</b></span>
+                                            <span>Expenses: <b style="color:#4ade80">R 0,00</b></span>
+                                            <span>Net: <b style="color:#4ade80">+R 23 500,00</b></span>
+                                        </div>
+                                    </div>
+                                    <div class="proj-acct-track">
+                                        <div class="proj-acct-fill" style="width: 55%;"></div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div><!-- end dash-row-body projections -->
+                </div><!-- end row-projections -->
+
+                <!-- ===== Row: Summary ===== -->
+                <div class="dash-row" id="row-summary">
+                    <div class="dash-row-header" onclick="collapseRow('row-summary')">
+                        <span class="dash-row-chevron"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span class="dash-row-title">Summary</span>
+                        <div class="dash-row-controls">
+                            <button class="icon-btn" title="Refresh"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 6.5A4.5 4.5 0 1 1 9.7 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M9 1v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="icon-btn" title="Minimize" onclick="minimizeRow('row-summary')"><svg width="12" height="2" viewBox="0 0 12 2" fill="none"><path d="M1 1h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                            <button class="icon-btn" title="Focus" onclick="focusRow('row-summary')"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 5V1h4M7 1h4v4M11 7v4H7M5 11H1V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="dash-row-body">
+
+                        <!-- Shared filter bar -->
+                        <div class="filter-bar">
+                            <div class="filter-bar-main">
+                                <div class="filter-item">
+                                    <span>Account Type:</span>
+                                    <span class="filter-control">All</span>
+                                </div>
+                                <div class="filter-item">
+                                    <span>Account:</span>
+                                    <span class="filter-control">All</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary view: 3-wide card grid per group -->
+                        <div id="summary-summary" class="view-panel">
+
+                            <!-- Liability -->
+                            <div class="fsum-group-label">Liability</div>
+                            <div class="fsum-card-grid">
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Jeanre Credit Card</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val negative">-R 9 720,50</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val negative">-R 35 883,90</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val negative">-R 4 563,49</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Home Loan</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val negative">-R 692 836,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val negative">-R 671 909,59</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val negative">-R 69 073,64</span></div>
+                                </div>
+                                <div class="fsum-card highlight">
+                                    <div class="fsum-card-name">Vehicle Loan</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val negative">-R 113 177,66</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val negative">-R 131 150,79</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val negative">-R 17 973,28</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Bernice Credit Card</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val negative">-R 7 977,41</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 15 438,25</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val positive">R 812,92</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val negative">-R 197,30</span></div>
+                                </div>
+                                <div class="fsum-subtotal"><span>Subtotal:</span><span class="fsum-subtotal-val">-R 854 382,53</span></div>
+                            </div>
+
+                            <!-- Asset -->
+                            <div class="fsum-group-label">Asset</div>
+                            <div class="fsum-card-grid">
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Jeanre Transactional</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 77 274,81</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val positive">R 907,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Easy Equities</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val positive">R 12 800,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 20 070,78</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val positive">R 1 270,78</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Child Fund</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val positive">R 21 600,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 52 353,23</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val positive">R 753,69</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Godwin Str 24</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val positive">R 750 000,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 772 484,60</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val positive">R 22 484,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-subtotal"><span>Subtotal:</span><span class="fsum-subtotal-val">R 959 300,37</span></div>
+                            </div>
+
+                            <!-- Income -->
+                            <div class="fsum-group-label">Income</div>
+                            <div class="fsum-card-grid">
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Bicycle</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val negative">-R 444 000,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Jodine A/P</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val negative">-R 80 400,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Dean A/P</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val positive">R 23 500,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 5 500,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-subtotal"><span>Subtotal:</span><span class="fsum-subtotal-val">-R 518 900,00</span></div>
+                            </div>
+
+                            <!-- Expense -->
+                            <div class="fsum-group-label">Expense</div>
+                            <div class="fsum-card-grid">
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Medical Aid</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 75 660,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Running Costs</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 54 000,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-card">
+                                    <div class="fsum-card-name">Jodine Rent</div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Starting Balance</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Projected End</span><span class="fsum-card-field-val positive">R 66 000,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Earned</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                    <div class="fsum-card-field"><span class="fsum-card-field-label">Interest Paid</span><span class="fsum-card-field-val">R 0,00</span></div>
+                                </div>
+                                <div class="fsum-subtotal"><span>Subtotal:</span><span class="fsum-subtotal-val">R 278 898,64</span></div>
+                            </div>
+
+                            <!-- Overall Total -->
+                            <div class="fsum-overall">
+                                <div class="fsum-overall-title">Overall Total &mdash; 30 Accounts</div>
+                                <span class="fsum-field"><span class="fsum-field-label">Starting Balance:</span><span class="fsum-field-val negative">-R 3 488,04</span></span>
+                                <span class="fsum-field"><span class="fsum-field-label">Projected End:</span><span class="fsum-field-val negative">-R 104 179,02</span></span>
+                                <span class="fsum-field"><span class="fsum-field-label">Interest Earned:</span><span class="fsum-field-val positive">R 27 092,19</span></span>
+                                <span class="fsum-field"><span class="fsum-field-label">Interest Paid:</span><span class="fsum-field-val negative">-R 127 782,30</span></span>
+                                <span class="fsum-field"><span class="fsum-field-label">Net Worth:</span><span class="fsum-field-val positive">R 104 917,84</span></span>
+                                <span class="fsum-field"><span class="fsum-field-label">Total Assets:</span><span class="fsum-field-val positive">R 959 300,37</span></span>
+                                <span class="fsum-field"><span class="fsum-field-label">Total Liabilities:</span><span class="fsum-field-val negative">-R 854 382,53</span></span>
+                            </div>
+
+                        </div>
+
+                        <!-- Detail view: grouped account grid -->
+                        <div id="summary-detail" class="view-panel hidden">
+                            <div class="tab-grid-scroll">
+                                <div class="tab-grid">
+
+                                    <div class="tab-header">
+                                        <div class="tab-cell-name">Account
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-acct-type">Type
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-bal">Balance
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                    </div>
+
+                                    <!-- Group: Asset -->
+                                    <div class="tab-group-row" style="font-size:12px;">&#9660; Asset &nbsp;<span style="color:#555; font-weight:400;">7 items &nbsp; Subtotal:</span>&nbsp;<span style="color:#4ade80;">R 959 300,37</span></div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-name">Bernice Transactional</div>
+                                        <div class="tab-cell-acct-type">Asset</div>
+                                        <div class="tab-cell-bal" style="color:#4ade80">R 1 859,35</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-name">Easy Equities</div>
+                                        <div class="tab-cell-acct-type">Asset</div>
+                                        <div class="tab-cell-bal" style="color:#4ade80">R 20 070,78</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-name">Child Fund</div>
+                                        <div class="tab-cell-acct-type">Asset</div>
+                                        <div class="tab-cell-bal" style="color:#4ade80">R 52 353,23</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-name">Personal Wealth</div>
+                                        <div class="tab-cell-acct-type">Asset</div>
+                                        <div class="tab-cell-bal" style="color:#4ade80">R 13 399,12</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-name">Bernice Savings</div>
+                                        <div class="tab-cell-acct-type">Asset</div>
+                                        <div class="tab-cell-bal" style="color:#4ade80">R 21 858,48</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-name">Godwin Str 24</div>
+                                        <div class="tab-cell-acct-type">Asset</div>
+                                        <div class="tab-cell-bal" style="color:#4ade80">R 772 484,60</div>
+                                    </div>
+                                    <div class="tab-row" style="border-bottom:none;">
+                                        <div class="tab-cell-name">Jeanre Transactional</div>
+                                        <div class="tab-cell-acct-type">Asset</div>
+                                        <div class="tab-cell-bal" style="color:#4ade80">R 77 274,81</div>
+                                    </div>
+                                    <div class="tab-row" style="border-top: 1px solid #3a3a3a; border-bottom:none; justify-content:flex-end;">
+                                        <div class="tab-cell-bal" style="color:#4ade80; font-weight:700;">R 959 300,37</div>
+                                    </div>
+
+                                    <!-- Group: Income -->
+                                    <div class="tab-group-row" style="font-size:12px; margin-top:4px;">&#9660; Income &nbsp;<span style="color:#555; font-weight:400;">3 items &nbsp; Subtotal:</span>&nbsp;<span style="color:#f87171;">-R 518 900,00</span></div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-name">Bicycle</div>
+                                        <div class="tab-cell-acct-type">Income</div>
+                                        <div class="tab-cell-bal" style="color:#f87171">-R 444 000,00</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-name">Jodine A/P</div>
+                                        <div class="tab-cell-acct-type">Income</div>
+                                        <div class="tab-cell-bal" style="color:#f87171">-R 80 400,00</div>
+                                    </div>
+                                    <div class="tab-row" style="border-bottom:none;">
+                                        <div class="tab-cell-name">Dean A/P</div>
+                                        <div class="tab-cell-acct-type">Income</div>
+                                        <div class="tab-cell-bal" style="color:#4ade80">R 5 500,00</div>
+                                    </div>
+                                    <div class="tab-row" style="border-top: 1px solid #3a3a3a; border-bottom:none; justify-content:flex-end;">
+                                        <div class="tab-cell-bal" style="color:#f87171; font-weight:700;">-R 518 900,00</div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- end dash-row-body summary -->
+                </div><!-- end row-summary -->
+
+                <!-- ===== Row: Fund Summary ===== -->
+                <div class="dash-row" id="row-fund-summary">
+                    <div class="dash-row-header" onclick="collapseRow('row-fund-summary')">
+                        <span class="dash-row-chevron"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        <span class="dash-row-title">Fund Summary</span>
+                        <div class="dash-row-controls">
+                            <button class="icon-btn" title="Refresh"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 6.5A4.5 4.5 0 1 1 9.7 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M9 1v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                            <button class="icon-btn" title="Minimize" onclick="minimizeRow('row-fund-summary')"><svg width="12" height="2" viewBox="0 0 12 2" fill="none"><path d="M1 1h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+                            <button class="icon-btn" title="Focus" onclick="focusRow('row-fund-summary')"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 5V1h4M7 1h4v4M11 7v4H7M5 11H1V7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="dash-row-body">
+
+                        <div class="row-toolbar">
+                            <div class="view-tabs">
+                                <button class="view-tab active" onclick="switchFundScope('all',this)">All</button>
+                                <button class="view-tab" onclick="switchFundScope('asset',this)">Asset</button>
+                                <button class="view-tab" onclick="switchFundScope('liability',this)">Liability</button>
+                                <button class="view-tab" onclick="switchFundScope('equity',this)">Equity</button>
+                                <button class="view-tab" onclick="switchFundScope('expense',this)">Expense</button>
+                            </div>
+                        </div>
+
+                        <!-- ── ALL scope ── -->
+                        <div id="fscp-all">
+                            <div class="totals-card" style="margin-bottom:6px;">
+                                <div class="total-row" style="width:100%; margin-bottom:2px;">
+                                    <span class="total-label" style="font-weight:700; color:#e0e0e0; min-width:auto; font-size:12px;">FUND TOTALS</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">NAV:</span>
+                                    <span class="total-value positive">R 104 917,84</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Total shares:</span>
+                                    <span class="total-value neutral">0.0000</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Share price:</span>
+                                    <span class="total-value neutral">N/A</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Contributions:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Redemptions:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Net:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                            </div>
+                            <div class="fund-context-label">All Accounts</div>
+
+                            <!-- All: Account | Type | Balance grouped -->
+                            <div class="tab-grid-scroll">
+                                <div class="tab-grid">
+                                    <div class="tab-header">
+                                        <div class="tab-cell-name">Account <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                        <div class="tab-cell-acct-type">Type <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                        <div class="tab-cell-bal">Balance <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                    </div>
+                                    <div class="tab-group-row" style="font-size:12px;">&#9660; Asset &nbsp;<span style="color:#555; font-weight:400;">7 items &nbsp; Subtotal:</span>&nbsp;<span style="color:#4ade80;">R 959 300,37</span></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Bernice Transactional</div><div class="tab-cell-acct-type">Asset</div><div class="tab-cell-bal" style="color:#4ade80">R 1 859,35</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Easy Equities</div><div class="tab-cell-acct-type">Asset</div><div class="tab-cell-bal" style="color:#4ade80">R 20 070,78</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Child Fund</div><div class="tab-cell-acct-type">Asset</div><div class="tab-cell-bal" style="color:#4ade80">R 52 353,23</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Personal Wealth</div><div class="tab-cell-acct-type">Asset</div><div class="tab-cell-bal" style="color:#4ade80">R 13 399,12</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Bernice Savings</div><div class="tab-cell-acct-type">Asset</div><div class="tab-cell-bal" style="color:#4ade80">R 21 858,48</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Godwin Str 24</div><div class="tab-cell-acct-type">Asset</div><div class="tab-cell-bal" style="color:#4ade80">R 772 484,60</div></div>
+                                    <div class="tab-row" style="border-bottom:none;"><div class="tab-cell-name">Jeanre Transactional</div><div class="tab-cell-acct-type">Asset</div><div class="tab-cell-bal" style="color:#4ade80">R 77 274,81</div></div>
+                                    <div class="tab-row" style="border-top:1px solid #3a3a3a; border-bottom:none; justify-content:flex-end;"><div class="tab-cell-bal" style="color:#4ade80; font-weight:700;">R 959 300,37</div></div>
+                                    <div class="tab-group-row" style="font-size:12px; margin-top:4px;">&#9660; Income &nbsp;<span style="color:#555; font-weight:400;">3 items &nbsp; Subtotal:</span>&nbsp;<span style="color:#f87171;">-R 518 900,00</span></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Bicycle</div><div class="tab-cell-acct-type">Income</div><div class="tab-cell-bal" style="color:#f87171">-R 444 000,00</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Jodine A/P</div><div class="tab-cell-acct-type">Income</div><div class="tab-cell-bal" style="color:#f87171">-R 80 400,00</div></div>
+                                    <div class="tab-row" style="border-bottom:none;"><div class="tab-cell-name">Dean A/P</div><div class="tab-cell-acct-type">Income</div><div class="tab-cell-bal" style="color:#4ade80">R 5 500,00</div></div>
+                                    <div class="tab-row" style="border-top:1px solid #3a3a3a; border-bottom:none; justify-content:flex-end;"><div class="tab-cell-bal" style="color:#f87171; font-weight:700;">-R 518 900,00</div></div>
+                                    <div class="tab-group-row" style="font-size:12px; margin-top:4px;">&#9660; Liability &nbsp;<span style="color:#555; font-weight:400;">4 items &nbsp; Subtotal:</span>&nbsp;<span style="color:#f87171;">-R 823 506,03</span></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Jeanre Credit Card</div><div class="tab-cell-acct-type">Liability</div><div class="tab-cell-bal" style="color:#f87171">-R 35 883,90</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Home Loan</div><div class="tab-cell-acct-type">Liability</div><div class="tab-cell-bal" style="color:#f87171">-R 671 909,59</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Vehicle Loan</div><div class="tab-cell-acct-type">Liability</div><div class="tab-cell-bal" style="color:#f87171">-R 131 150,79</div></div>
+                                    <div class="tab-row" style="border-bottom:none;"><div class="tab-cell-name">Bernice Credit Card</div><div class="tab-cell-acct-type">Liability</div><div class="tab-cell-bal" style="color:#4ade80">R 15 438,25</div></div>
+                                    <div class="tab-row" style="border-top:1px solid #3a3a3a; border-bottom:none; justify-content:flex-end;"><div class="tab-cell-bal" style="color:#f87171; font-weight:700;">-R 823 506,03</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── ASSET scope ── -->
+                        <div id="fscp-asset" class="hidden">
+                            <div class="totals-card" style="margin-bottom:6px;">
+                                <div class="total-row" style="width:100%; margin-bottom:2px;">
+                                    <span class="total-label" style="font-weight:700; color:#e0e0e0; min-width:auto; font-size:12px;">FUND TOTALS</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">NAV:</span>
+                                    <span class="total-value positive">R 1 433,81</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Total shares:</span>
+                                    <span class="total-value neutral">1000.0000</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Share price:</span>
+                                    <span class="total-value positive">R 1,43</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Contributions:</span>
+                                    <span class="total-value positive">R 1 433,81</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Redemptions:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Net:</span>
+                                    <span class="total-value positive">R 1 433,81</span>
+                                </div>
+                            </div>
+                            <div class="fund-context-label">Asset Accounts</div>
+                            <!-- Asset: Account | Balance flat -->
+                            <div class="tab-grid-scroll">
+                                <div class="tab-grid">
+                                    <div class="tab-header">
+                                        <div class="tab-cell-name">Account <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                        <div class="tab-cell-bal">Balance <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                    </div>
+                                    <div class="tab-row"><div class="tab-cell-name">Capital Gains</div><div class="tab-cell-bal" style="color:#4ade80">R 0,00</div></div>
+                                    <div class="tab-row" style="border-bottom:none;"><div class="tab-cell-name">Contributions</div><div class="tab-cell-bal" style="color:#4ade80">R 1 433,81</div></div>
+                                    <div class="tab-row" style="border-top:1px solid #3a3a3a; border-bottom:none; justify-content:flex-end;"><div class="tab-cell-bal" style="color:#4ade80; font-weight:700;">R 1 433,81</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── LIABILITY scope ── -->
+                        <div id="fscp-liability" class="hidden">
+                            <div class="totals-card" style="margin-bottom:6px;">
+                                <div class="total-row" style="width:100%; margin-bottom:2px;">
+                                    <span class="total-label" style="font-weight:700; color:#e0e0e0; min-width:auto; font-size:12px;">FUND TOTALS</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">NAV:</span>
+                                    <span class="total-value positive">R 104 917,84</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Total shares:</span>
+                                    <span class="total-value neutral">0.0000</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Share price:</span>
+                                    <span class="total-value neutral">N/A</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Contributions:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Redemptions:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Net:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                            </div>
+                            <div class="fund-context-label">Liability Accounts</div>
+                            <!-- Liability: Account | Balance flat -->
+                            <div class="tab-grid-scroll">
+                                <div class="tab-grid">
+                                    <div class="tab-header">
+                                        <div class="tab-cell-name">Account <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                        <div class="tab-cell-bal">Balance <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                    </div>
+                                    <div class="tab-row"><div class="tab-cell-name">Jeanre Credit Card</div><div class="tab-cell-bal" style="color:#f87171">-R 35 883,90</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Home Loan</div><div class="tab-cell-bal" style="color:#f87171">-R 671 909,59</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Vehicle Loan</div><div class="tab-cell-bal" style="color:#f87171">-R 131 150,79</div></div>
+                                    <div class="tab-row" style="border-bottom:none;"><div class="tab-cell-name">Bernice Credit Card</div><div class="tab-cell-bal" style="color:#4ade80">R 15 438,25</div></div>
+                                    <div class="tab-row" style="border-top:1px solid #3a3a3a; border-bottom:none; justify-content:flex-end;"><div class="tab-cell-bal" style="color:#f87171; font-weight:700;">-R 823 506,03</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── EQUITY scope ── -->
+                        <div id="fscp-equity" class="hidden">
+                            <div class="totals-card" style="margin-bottom:6px;">
+                                <div class="total-row" style="width:100%; margin-bottom:2px;">
+                                    <span class="total-label" style="font-weight:700; color:#e0e0e0; min-width:auto; font-size:12px;">FUND TOTALS</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">NAV:</span>
+                                    <span class="total-value positive">R 1 433,81</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Total shares:</span>
+                                    <span class="total-value neutral">1000.0000</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Share price:</span>
+                                    <span class="total-value positive">R 1,43</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Contributions:</span>
+                                    <span class="total-value positive">R 1 433,81</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Redemptions:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Net:</span>
+                                    <span class="total-value positive">R 1 433,81</span>
+                                </div>
+                            </div>
+                            <div class="fund-context-label">Equity Accounts</div>
+                            <!-- Equity: Investor | Shares | Ownership % | Implied Value | Net Contributions | Net Redemptions -->
+                            <div class="tab-grid-scroll">
+                                <div class="tab-grid">
+                                    <div class="tab-header">
+                                        <div class="tab-cell-investor">Investor
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-shares">Shares
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-ownership">Ownership %
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-implied">Implied Value
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-net-contrib">Net Contributions
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                        <div class="tab-cell-net-redeem">Net Redemptions
+                                            <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg>
+                                        </div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-investor">Jeanre</div>
+                                        <div class="tab-cell-shares">1000.0000</div>
+                                        <div class="tab-cell-ownership">100.00%</div>
+                                        <div class="tab-cell-implied" style="color:#4ade80">R 1 433,81</div>
+                                        <div class="tab-cell-net-contrib" style="color:#4ade80">R 1 433,81</div>
+                                        <div class="tab-cell-net-redeem" style="color:#4ade80">R 0,00</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-investor">Jodine</div>
+                                        <div class="tab-cell-shares">0.0000</div>
+                                        <div class="tab-cell-ownership">0.00%</div>
+                                        <div class="tab-cell-implied" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-net-contrib" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-net-redeem" style="color:#4ade80">R 0,00</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-investor">Bernice</div>
+                                        <div class="tab-cell-shares">0.0000</div>
+                                        <div class="tab-cell-ownership">0.00%</div>
+                                        <div class="tab-cell-implied" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-net-contrib" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-net-redeem" style="color:#4ade80">R 0,00</div>
+                                    </div>
+                                    <div class="tab-row">
+                                        <div class="tab-cell-investor">Dean</div>
+                                        <div class="tab-cell-shares">0.0000</div>
+                                        <div class="tab-cell-ownership">0.00%</div>
+                                        <div class="tab-cell-implied" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-net-contrib" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-net-redeem" style="color:#4ade80">R 0,00</div>
+                                    </div>
+                                    <div class="tab-row" style="border-bottom:none;">
+                                        <div class="tab-cell-investor">Andrew</div>
+                                        <div class="tab-cell-shares">0.0000</div>
+                                        <div class="tab-cell-ownership">0.00%</div>
+                                        <div class="tab-cell-implied" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-net-contrib" style="color:#4ade80">R 0,00</div>
+                                        <div class="tab-cell-net-redeem" style="color:#4ade80">R 0,00</div>
+                                    </div>
+                                    <div class="tab-row" style="border-top:1px solid #3a3a3a; border-bottom:none;">
+                                        <div class="tab-cell-investor"></div>
+                                        <div class="tab-cell-shares" style="font-weight:700; color:#e0e0e0;">1000.0000</div>
+                                        <div class="tab-cell-ownership"></div>
+                                        <div class="tab-cell-implied" style="color:#4ade80; font-weight:700;">R 1 433,81</div>
+                                        <div class="tab-cell-net-contrib" style="color:#4ade80; font-weight:700;">R 1 433,81</div>
+                                        <div class="tab-cell-net-redeem" style="color:#4ade80; font-weight:700;">R 0,00</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── EXPENSE scope ── -->
+                        <div id="fscp-expense" class="hidden">
+                            <div class="totals-card" style="margin-bottom:6px;">
+                                <div class="total-row" style="width:100%; margin-bottom:2px;">
+                                    <span class="total-label" style="font-weight:700; color:#e0e0e0; min-width:auto; font-size:12px;">FUND TOTALS</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">NAV:</span>
+                                    <span class="total-value positive">R 104 917,84</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Total shares:</span>
+                                    <span class="total-value neutral">0.0000</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Share price:</span>
+                                    <span class="total-value neutral">N/A</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Contributions:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Redemptions:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">Net:</span>
+                                    <span class="total-value neutral">R 0,00</span>
+                                </div>
+                            </div>
+                            <div class="fund-context-label">Expense Accounts</div>
+                            <!-- Expense: Account | Balance flat -->
+                            <div class="tab-grid-scroll">
+                                <div class="tab-grid">
+                                    <div class="tab-header">
+                                        <div class="tab-cell-name">Account <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                        <div class="tab-cell-bal">Balance <svg style="margin-left:4px" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 2l4 5H1z" fill="currentColor"/></svg></div>
+                                    </div>
+                                    <div class="tab-row"><div class="tab-cell-name">Household</div><div class="tab-cell-bal" style="color:#f87171">-R 48 200,00</div></div>
+                                    <div class="tab-row"><div class="tab-cell-name">Transport</div><div class="tab-cell-bal" style="color:#f87171">-R 12 400,00</div></div>
+                                    <div class="tab-row" style="border-bottom:none;"><div class="tab-cell-name">Utilities</div><div class="tab-cell-bal" style="color:#f87171">-R 9 600,00</div></div>
+                                    <div class="tab-row" style="border-top:1px solid #3a3a3a; border-bottom:none; justify-content:flex-end;"><div class="tab-cell-bal" style="color:#f87171; font-weight:700;">-R 70 200,00</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- end dash-row-body fund-summary -->
+                </div><!-- end row-fund-summary -->
+
+                </div><!-- end dash-layout -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const isNarrow = window.innerWidth <= 640;
+            sidebar.classList.toggle('collapsed');
+            if (isNarrow) {
+                backdrop.classList.toggle('visible', !sidebar.classList.contains('collapsed'));
+            }
+        }
+
+        function toggleSection(id) {
+            document.getElementById(id + '-section').classList.toggle('collapsed');
+        }
+
+        function switchView(section, view, btn) {
+            btn.closest('.view-tabs').querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(section + '-detail').classList.toggle('hidden', view !== 'detail');
+            document.getElementById(section + '-summary').classList.toggle('hidden', view !== 'summary');
+        }
+
+        function toggleInlineEditor(id) {
+            document.getElementById(id).classList.toggle('hidden');
+        }
+
+        function toggleSummaryEdit(id) {
+            document.getElementById(id).classList.toggle('hidden');
+        }
+
+        function switchFundScope(scope, btn) {
+            btn.closest('.view-tabs').querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            ['all','asset','liability','equity','expense'].forEach(s => {
+                document.getElementById('fscp-' + s).classList.toggle('hidden', s !== scope);
+            });
+        }
+
+        function collapseRow(id) {
+            document.getElementById(id).classList.toggle('collapsed');
+        }
+
+        function minimizeRow(id) {
+            document.getElementById(id).classList.toggle('minimized');
+        }
+
+        function focusRow(id) {
+            const rows = document.querySelectorAll('.dash-row');
+            const target = document.getElementById(id);
+            const isFocused = target.classList.contains('focused');
+            rows.forEach(r => r.classList.remove('focused', 'minimized'));
+            if (!isFocused) {
+                target.classList.add('focused');
+                rows.forEach(r => { if (r !== target) r.classList.add('minimized'); });
+            }
+        }
+    </script>
+</body>
+</html>
