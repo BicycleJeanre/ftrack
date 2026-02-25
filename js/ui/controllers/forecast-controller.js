@@ -120,6 +120,7 @@ function getPageScrollSnapshot() {
   } catch (_) {
     return { x: 0, y: 0 };
   }
+
 }
 
 function restorePageScroll(snapshot) {
@@ -1436,6 +1437,7 @@ async function loadFundsSummaryCards(container) {
 }
 
 async function loadGeneralSummaryCards(container) {
+
   if (!container) {
     return;
   }
@@ -1446,8 +1448,19 @@ async function loadGeneralSummaryCards(container) {
   }
 
   const accounts = currentScenario.accounts || [];
-  if (!accounts.length) {
-    container.innerHTML = '<div class="empty-message">No accounts to summarize yet.</div>';
+  // DEBUG: Show number of accounts detected
+  const debugMsg = document.createElement('div');
+  debugMsg.style.color = 'orange';
+  debugMsg.style.fontWeight = 'bold';
+  debugMsg.textContent = `[DEBUG] loadGeneralSummaryCards called. Accounts detected: ${accounts ? accounts.length : 0}`;
+  container.appendChild(debugMsg);
+  if (!accounts || !Array.isArray(accounts) || !accounts.length) {
+    container.innerHTML = '';
+    const debugMsg = document.createElement('div');
+    debugMsg.className = 'empty-message';
+    debugMsg.style.color = 'red';
+    debugMsg.textContent = '[DEBUG] No accounts found in current scenario.';
+    container.appendChild(debugMsg);
     return;
   }
 
@@ -1469,95 +1482,58 @@ async function loadGeneralSummaryCards(container) {
     return found ? Number(found.id) : 0;
   };
 
-  const projectionsIndex = buildProjectionsIndex(getScenarioProjectionRows(currentScenario));
-  const scrollSnapshot = getPageScrollSnapshot();
+  // Only render the two static filters (account type and account) and the summary cards grid.
+  container.innerHTML = '';
 
-  const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
+  const toolbar = document.createElement('div');
+  toolbar.className = 'grid-toolbar summary-cards-toolbar';
 
-  // Keep toolbar stable (avoid losing focus/scroll between refreshes).
-  // If a different summary type was previously rendered, rebuild once.
-  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
-  let typeSelect = container.querySelector('#general-summary-type-filter');
-  let accountSelect = container.querySelector('#general-summary-account');
-  const isGeneralToolbar = !!typeSelect && !!accountSelect;
-  if (!toolbar || !isGeneralToolbar) {
-    container.innerHTML = '';
+  const typeItem = document.createElement('div');
+  typeItem.className = 'toolbar-item';
+  typeItem.innerHTML = `
+    <label for="general-summary-type-filter" class="text-muted control-label">Account Type:</label>
+    <select id="general-summary-type-filter" class="input-select control-select">
+      ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+    </select>
+  `;
 
-    toolbar = document.createElement('div');
-    toolbar.className = 'grid-toolbar summary-cards-toolbar';
+  const accountItem = document.createElement('div');
+  accountItem.className = 'toolbar-item';
+  accountItem.innerHTML = `
+    <label for="general-summary-account" class="text-muted control-label">Account:</label>
+    <select id="general-summary-account" class="input-select control-select"></select>
+  `;
 
-    const typeItem = document.createElement('div');
-    typeItem.className = 'toolbar-item';
-    typeItem.innerHTML = `
-      <label for="general-summary-type-filter" class="text-muted control-label">Account Type:</label>
-      <select id="general-summary-type-filter" class="input-select control-select">
-        ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
-      </select>
-    `;
+  toolbar.appendChild(typeItem);
+  toolbar.appendChild(accountItem);
+  container.appendChild(toolbar);
 
-    const accountItem = document.createElement('div');
-    accountItem.className = 'toolbar-item';
-    accountItem.innerHTML = `
-      <label for="general-summary-account" class="text-muted control-label">Account:</label>
-      <select id="general-summary-account" class="input-select control-select"></select>
-    `;
+  // Populate and wire up the filters
+  const typeSelect = toolbar.querySelector('#general-summary-type-filter');
+  const accountSelect = toolbar.querySelector('#general-summary-account');
+  typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
+  typeSelect.onchange = async () => {
+    generalSummaryScope = typeSelect.value;
+    await loadGeneralSummaryCards(container);
+  };
 
-    toolbar.appendChild(typeItem);
-    toolbar.appendChild(accountItem);
-
-    const refreshItem = document.createElement('div');
-    refreshItem.className = 'toolbar-item';
-    const refreshButton = document.createElement('button');
-    refreshButton.className = 'btn';
-    refreshButton.textContent = 'Refresh';
-    refreshButton.onclick = async () => {
-      if (currentScenario?.id) {
-        currentScenario = await getScenario(currentScenario.id);
-      }
-      await loadGeneralSummaryCards(container);
-    };
-    refreshItem.appendChild(refreshButton);
-    toolbar.appendChild(refreshItem);
-
-    container.appendChild(toolbar);
-  }
-
-  typeSelect = container.querySelector('#general-summary-type-filter');
-  accountSelect = container.querySelector('#general-summary-account');
-
-  if (typeSelect) {
-    typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
-    typeSelect.onchange = async () => {
-      generalSummaryScope = typeSelect.value;
-      await loadGeneralSummaryCards(container);
-    };
-  }
-
-  if (accountSelect) {
-    const selectedId = Number(generalSummaryAccountId) || 0;
-    const options = ['<option value="0">All</option>']
-      .concat(
-        accounts
-          .slice()
-          .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
-          .map((a) => `<option value="${Number(a.id)}">${String(a.name || 'Unnamed')}</option>`)
-      )
-      .join('');
-
-    if (accountSelect.__ftrackLastOptions !== options) {
-      accountSelect.innerHTML = options;
-      accountSelect.__ftrackLastOptions = options;
-    }
-
-    const currentHasSelected = Array.from(accountSelect.options || []).some((o) => Number(o.value) === selectedId);
-    accountSelect.value = currentHasSelected ? String(selectedId) : '0';
+  const selectedId = Number(generalSummaryAccountId) || 0;
+  const options = ['<option value="0">All</option>']
+    .concat(
+      accounts
+        .slice()
+        .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+        .map((a) => `<option value="${Number(a.id)}">${String(a.name || 'Unnamed')}</option>`)
+    )
+    .join('');
+  accountSelect.innerHTML = options;
+  accountSelect.value = String(selectedId);
+  generalSummaryAccountId = Number(accountSelect.value) || 0;
+  accountSelect.onchange = async () => {
     generalSummaryAccountId = Number(accountSelect.value) || 0;
+    await loadGeneralSummaryCards(container);
+  };
 
-    accountSelect.onchange = async () => {
-      generalSummaryAccountId = Number(accountSelect.value) || 0;
-      await loadGeneralSummaryCards(container);
-    };
-  }
 
   // Clear any previous empty messages.
   container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
@@ -1579,13 +1555,15 @@ async function loadGeneralSummaryCards(container) {
       container.appendChild(emptyMessage);
     }
     emptyMessage.textContent = 'No accounts match this filter.';
+    // Still render an empty summary-cards-groups container for layout consistency
+    let groupWrapper = container.querySelector(':scope > .summary-cards-groups');
+    if (!groupWrapper) {
+      groupWrapper = document.createElement('div');
+      groupWrapper.className = 'summary-cards-groups';
+      container.appendChild(groupWrapper);
+    }
 
-    const existingGroups = container.querySelector(':scope > .summary-cards-groups');
-    if (existingGroups) existingGroups.innerHTML = '';
-
-    const existingDetail = container.querySelector(':scope > .general-summary-details');
-    if (existingDetail) existingDetail.remove();
-
+    groupWrapper.innerHTML = '';
     restorePageScroll(scrollSnapshot);
     return;
   }
@@ -1697,108 +1675,82 @@ async function loadGeneralSummaryCards(container) {
   groupWrapper.appendChild(totalCard);
 
   // Funds-style detail grid (stable DOM node so Tabulator instance can be reused).
-  let detailWrap = container.querySelector(':scope > .general-summary-details');
-  let detailTitle = detailWrap?.querySelector(':scope > .summary-cards-group-title') || null;
-  let detailGrid = detailWrap?.querySelector(':scope > .grid-container') || null;
-
-  if (!detailWrap || !detailTitle || !detailGrid) {
-    if (detailWrap) detailWrap.remove();
-
-    detailWrap = document.createElement('div');
-    detailWrap.className = 'summary-cards-group general-summary-details';
-    detailTitle = document.createElement('div');
-    detailTitle.className = 'summary-cards-group-title';
-    detailWrap.appendChild(detailTitle);
-
-    detailGrid = document.createElement('div');
-    detailGrid.className = 'grid-container';
-    detailWrap.appendChild(detailGrid);
-
-    container.appendChild(detailWrap);
-  }
-
-  const selectedAccountName = Number(generalSummaryAccountId) > 0
-    ? (accounts.find((a) => Number(a.id) === Number(generalSummaryAccountId))?.name || 'Account')
-    : null;
-  detailTitle.textContent = selectedAccountName
-    ? selectedAccountName
-    : (generalSummaryScope === 'All' ? 'All Accounts' : `${generalSummaryScope} Accounts`);
-
-  const data = filteredAccounts.map((a) => {
-    const balance = getBalanceAsOf({ account: a, projectionsIndex, asOfDate: null });
-    return {
-      accountId: Number(a.id) || 0,
-      name: a.name || 'Unnamed',
-      type: getAccountTypeName(a),
-      balance
-    };
-  });
-
-  const shouldGroup = generalSummaryScope === 'All' && Number(generalSummaryAccountId) === 0;
-  const columnsKey = shouldGroup ? 'general-accounts-grouped' : 'general-accounts-flat';
-  const shouldRebuild = !generalSummaryTable || generalSummaryTable?.element !== detailGrid || generalSummaryTable?.__ftrackColumnsKey !== columnsKey;
-
-  if (shouldRebuild) {
-    try {
-      generalSummaryTable?.destroy?.();
-    } catch (_) {
-      // ignore
-    }
-
-    generalSummaryTable = await createGrid(detailGrid, {
-      data,
-      headerWordWrap: false,
-      ...(shouldGroup ? { groupBy: 'type' } : {}),
-      columns: [
-        { title: 'Account', field: 'name', headerSort: false },
-        ...(shouldGroup ? [{ title: 'Type', field: 'type', headerSort: false }] : []),
-        {
-          title: 'Balance',
-          field: 'balance',
-          headerSort: false,
-          bottomCalc: 'sum',
-          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
-          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
-        }
-      ]
-    });
-
-    generalSummaryTable.__ftrackColumnsKey = columnsKey;
-  } else {
-    await refreshGridData(generalSummaryTable, data);
-  }
-
-  if (shouldGroup && generalSummaryTable?.setGroupHeader) {
-    generalSummaryTable.setGroupHeader((value, count, rows) => {
-      const subtotal = (rows || []).reduce((sum, row) => sum + Number(row?.balance || 0), 0);
-      return `${value} (${count} items, Subtotal: ${formatMoneyDisplay(subtotal)})`;
-    });
-  }
-
-  restorePageScroll(scrollSnapshot);
+  // Disable detail grid rendering for General workflow summary section.
+  // Only show the summary card grid (matches expected UI).
 }
 
 async function loadSummaryCards(container) {
+  // Always declare workflowConfig before any usage
   const workflowConfig = getWorkflowConfig();
+  // DEBUG: Entry marker
+  const entryMsg = document.createElement('div');
+  entryMsg.style.color = 'orange';
+  entryMsg.style.fontWeight = 'bold';
+  entryMsg.textContent = '[DEBUG] Entered loadSummaryCards()';
+  if (container) container.appendChild(entryMsg);
+
+  // DEBUG: Log workflowConfig object (safe)
+  try {
+    const configMsg = document.createElement('div');
+    configMsg.style.color = 'orange';
+    configMsg.textContent = `[DEBUG] workflowConfig: id=${workflowConfig?.id}, summaryMode=${workflowConfig?.summaryMode}`;
+    if (container) container.appendChild(configMsg);
+  } catch (err) {
+    const errMsg = document.createElement('div');
+    errMsg.style.color = 'red';
+    errMsg.textContent = '[DEBUG] Error displaying workflowConfig: ' + (err?.message || err);
+    if (container) container.appendChild(errMsg);
+  }
+  // DEBUG: Show workflowConfig and branch taken
+  const debugMsg = document.createElement('div');
+  debugMsg.style.color = 'orange';
+  debugMsg.style.fontWeight = 'bold';
+  debugMsg.textContent = `[DEBUG] loadSummaryCards: workflowConfig.id=${workflowConfig?.id}, summaryMode=${workflowConfig?.summaryMode}`;
+  if (container) container.appendChild(debugMsg);
   if (!workflowConfig?.showSummaryCards) {
     if (container) container.innerHTML = '';
     return;
   }
 
+  // Always default to summary card grid view on load
+  if (typeof window !== 'undefined') {
+    if (typeof generalSummaryScope !== 'string' || !generalSummaryScope) generalSummaryScope = 'All';
+    if (typeof generalSummaryAccountId !== 'number') generalSummaryAccountId = 0;
+  }
+
   if (isDebtWorkflow(workflowConfig)) {
+    const branchMsg = document.createElement('div');
+    branchMsg.style.color = 'orange';
+    branchMsg.textContent = '[DEBUG] Taking Debt workflow branch.';
+    if (container) container.appendChild(branchMsg);
     await loadDebtSummaryCards(container);
     return;
   }
 
   if (isGeneralWorkflow(workflowConfig)) {
+    const branchMsg = document.createElement('div');
+    branchMsg.style.color = 'orange';
+    branchMsg.textContent = '[DEBUG] Taking General workflow branch.';
+    if (container) container.appendChild(branchMsg);
     await loadGeneralSummaryCards(container);
     return;
   }
 
   if (isFundsWorkflow(workflowConfig)) {
+    const branchMsg = document.createElement('div');
+    branchMsg.style.color = 'orange';
+    branchMsg.textContent = '[DEBUG] Taking Funds workflow branch.';
+    if (container) container.appendChild(branchMsg);
     await loadFundsSummaryCards(container);
     return;
   }
+
+  // DEBUG: No workflow branch matched
+  const elseMsg = document.createElement('div');
+  elseMsg.style.color = 'red';
+  elseMsg.style.fontWeight = 'bold';
+  elseMsg.textContent = '[DEBUG] No workflow branch matched in loadSummaryCards()!';
+  if (container) container.appendChild(elseMsg);
 }
 
 async function refreshSummaryCards() {
@@ -1974,6 +1926,14 @@ async function loadScenarioData() {
   
   // Load summary cards AFTER projections so they have data to work with
   if (showSummaryCards) {
+    // DEBUG: Show marker before calling loadSummaryCards
+    if (containers.summaryCardsContent) {
+      const debugMsg = document.createElement('div');
+      debugMsg.style.color = 'orange';
+      debugMsg.style.fontWeight = 'bold';
+      debugMsg.textContent = '[DEBUG] Calling loadSummaryCards for summaryCardsContent.';
+      containers.summaryCardsContent.appendChild(debugMsg);
+    }
     await loadSummaryCards(containers.summaryCardsContent);
   }
 }
@@ -2008,23 +1968,19 @@ function renderWorkflowNav(container) {
   });
 }
 
+// --- Place all function declarations above init() for hoisting and clarity ---
+
+// ...existing code...
+
 // Initialize the page
 async function init() {
-  
   loadGlobals();
-
   await loadUiState();
-
   const containers = buildGridContainer();
-
   renderWorkflowNav(containers.workflowNav);
-
   await buildScenarioGrid(containers.scenarioSelector);
-  
   // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
-  
   initializeKeyboardShortcuts();
-
   document.addEventListener('forecast:accountsUpdated', async () => {
     try {
       await refreshSummaryCards();
@@ -2079,6 +2035,18 @@ function initializeKeyboardShortcuts() {
   document.body.appendChild(shortcutsBtn);
 }
 
+// Diagnostic: confirm loadUiState is present before calling init
+try {
+  console.log('forecast-controller: module url =', import.meta?.url);
+  console.log('forecast-controller: typeof loadUiState =', typeof loadUiState);
+  if (typeof loadUiState === 'undefined') {
+    console.log('forecast-controller: loadUiState is undefined in module scope');
+  }
+} catch (e) {
+  console.log('forecast-controller: error checking loadUiState:', e);
+}
+
 init().catch(err => {
+  console.error('forecast-controller: init failed', err);
   notifyError('Initialization failed: ' + (err?.message || 'Unknown error'));
 });

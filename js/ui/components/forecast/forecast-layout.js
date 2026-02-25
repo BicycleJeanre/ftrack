@@ -288,11 +288,13 @@ export function buildGridContainer() {
   const dashLayout = document.createElement('div');
   dashLayout.className = 'dash-layout';
 
+  // SUMMARY ROW: Only the summary cards grid should be rendered here.
   const { row: summaryCardsSection, body: summaryCardsBody } = buildDashRow({
     id: 'summaryCardsSection',
     title: 'Summary'
   });
-  summaryCardsSection.classList.add('hidden');
+  // REMOVE .hidden to ensure always visible for debugging
+  // summaryCardsSection.classList.add('hidden');
   const summaryCardsContent = document.createElement('div');
   summaryCardsContent.id = 'summaryCardsContent';
   summaryCardsBody.appendChild(summaryCardsContent);
