@@ -863,7 +863,7 @@ async function loadBudgetGrid(container) {
 }
 
 // Load debt summary cards (per-account + overall total)
-async function loadDebtSummaryCards(container) {
+async function loadDebtSummaryCards(container, options = {}) {
   if (!container) {
     return;
   }
@@ -886,47 +886,49 @@ async function loadDebtSummaryCards(container) {
   let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
   let filterSelect = container.querySelector('#summary-cards-type-filter');
   const isDebtToolbar = !!filterSelect;
-  if (!toolbar || !isDebtToolbar) {
-    container.innerHTML = '';
-    toolbar = document.createElement('div');
-    toolbar.className = 'grid-toolbar summary-cards-toolbar';
+  if (!options.simple) {
+    if (!toolbar || !isDebtToolbar) {
+      container.innerHTML = '';
+      toolbar = document.createElement('div');
+      toolbar.className = 'grid-toolbar summary-cards-toolbar';
 
-    const filterItem = document.createElement('div');
-    filterItem.className = 'toolbar-item';
-    filterItem.innerHTML = `
-      <label for="summary-cards-type-filter" class="text-muted control-label">Account Type:</label>
-      <select id="summary-cards-type-filter" class="input-select control-select">
-        <option value="All">All</option>
-        <option value="Liability">Liability</option>
-        <option value="Asset">Asset</option>
-      </select>
-    `;
+      const filterItem = document.createElement('div');
+      filterItem.className = 'toolbar-item';
+      filterItem.innerHTML = `
+        <label for="summary-cards-type-filter" class="text-muted control-label">Account Type:</label>
+        <select id="summary-cards-type-filter" class="input-select control-select">
+          <option value="All">All</option>
+          <option value="Liability">Liability</option>
+          <option value="Asset">Asset</option>
+        </select>
+      `;
 
-    const refreshItem = document.createElement('div');
-    refreshItem.className = 'toolbar-item';
-    const refreshButton = document.createElement('button');
-    refreshButton.className = 'btn';
-    refreshButton.textContent = 'Refresh';
-    refreshButton.onclick = async () => {
-      if (currentScenario?.id) {
-        currentScenario = await getScenario(currentScenario.id);
-      }
-      await loadDebtSummaryCards(container);
-    };
-    refreshItem.appendChild(refreshButton);
+      const refreshItem = document.createElement('div');
+      refreshItem.className = 'toolbar-item';
+      const refreshButton = document.createElement('button');
+      refreshButton.className = 'btn';
+      refreshButton.textContent = 'Refresh';
+      refreshButton.onclick = async () => {
+        if (currentScenario?.id) {
+          currentScenario = await getScenario(currentScenario.id);
+        }
+        await loadDebtSummaryCards(container, options);
+      };
+      refreshItem.appendChild(refreshButton);
 
-    toolbar.appendChild(filterItem);
-    toolbar.appendChild(refreshItem);
-    container.appendChild(toolbar);
-    filterSelect = filterItem.querySelector('#summary-cards-type-filter');
-  }
+      toolbar.appendChild(filterItem);
+      toolbar.appendChild(refreshItem);
+      container.appendChild(toolbar);
+      filterSelect = filterItem.querySelector('#summary-cards-type-filter');
+    }
 
-  if (filterSelect) {
-    filterSelect.value = summaryCardsAccountTypeFilter;
-    filterSelect.onchange = () => {
-      summaryCardsAccountTypeFilter = filterSelect.value;
-      loadDebtSummaryCards(container);
-    };
+    if (filterSelect) {
+      filterSelect.value = summaryCardsAccountTypeFilter;
+      filterSelect.onchange = () => {
+        summaryCardsAccountTypeFilter = filterSelect.value;
+        loadDebtSummaryCards(container, options);
+      };
+    }
   }
 
   // Clear any previous empty message
@@ -1129,7 +1131,7 @@ async function ensureFundSettingsInitialized() {
   currentScenario = await getScenario(currentScenario.id);
 }
 
-async function loadFundsSummaryCards(container) {
+async function loadFundsSummaryCards(container, options = {}) {
   if (!container) {
     return;
   }
@@ -1159,68 +1161,69 @@ async function loadFundsSummaryCards(container) {
     return found ? Number(found.id) : 0;
   };
 
-  const accounts = currentScenario.accounts || [];
-  const projectionsIndex = buildProjectionsIndex(getScenarioProjectionRows(currentScenario));
-  const fundSettings = currentScenario.fundSettings || getDefaultFundSettings();
-
   const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
-
+  const projectionsIndex = buildProjectionsIndex(getScenarioProjectionRows(currentScenario));
   const scrollSnapshot = getPageScrollSnapshot();
+
+  const accounts = currentScenario.accounts || [];
+  const fundSettings = currentScenario.fundSettings || getDefaultFundSettings();
 
   // Keep toolbar stable. If a different summary type was previously rendered, rebuild once.
   let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
   let scopeSelect = container.querySelector('#fund-summary-scope');
   const isFundsToolbar = !!scopeSelect;
-  if (!toolbar || !isFundsToolbar) {
-    container.innerHTML = '';
+  if (!options.simple) {
+    if (!toolbar || !isFundsToolbar) {
+      container.innerHTML = '';
 
-    toolbar = document.createElement('div');
-    toolbar.className = 'grid-toolbar summary-cards-toolbar';
+      toolbar = document.createElement('div');
+      toolbar.className = 'grid-toolbar summary-cards-toolbar';
 
-    const scopeItem = document.createElement('div');
-    scopeItem.className = 'toolbar-item';
-    scopeItem.innerHTML = `
-      <label for="fund-summary-scope" class="text-muted control-label">Scope:</label>
-      <select id="fund-summary-scope" class="input-select control-select">
-        ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
-      </select>
-    `;
+      const scopeItem = document.createElement('div');
+      scopeItem.className = 'toolbar-item';
+      scopeItem.innerHTML = `
+        <label for="fund-summary-scope" class="text-muted control-label">Scope:</label>
+        <select id="fund-summary-scope" class="input-select control-select">
+          ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+        </select>
+      `;
 
-    const sharesItem = document.createElement('div');
-    sharesItem.className = 'toolbar-item';
-    sharesItem.innerHTML = `
-      <label for="fund-total-shares" class="text-muted control-label">Total shares:</label>
-      <input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" />
-    `;
+      const sharesItem = document.createElement('div');
+      sharesItem.className = 'toolbar-item';
+      sharesItem.innerHTML = `
+        <label for="fund-total-shares" class="text-muted control-label">Total shares:</label>
+        <input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" />
+      `;
 
-    const refreshItem = document.createElement('div');
-    refreshItem.className = 'toolbar-item';
-    const refreshButton = document.createElement('button');
-    refreshButton.className = 'btn';
-    refreshButton.textContent = 'Refresh';
-    refreshButton.onclick = async () => {
-      if (currentScenario?.id) {
-        currentScenario = await getScenario(currentScenario.id);
-      }
-      await loadFundsSummaryCards(container);
-    };
-    refreshItem.appendChild(refreshButton);
+      const refreshItem = document.createElement('div');
+      refreshItem.className = 'toolbar-item';
+      const refreshButton = document.createElement('button');
+      refreshButton.className = 'btn';
+      refreshButton.textContent = 'Refresh';
+      refreshButton.onclick = async () => {
+        if (currentScenario?.id) {
+          currentScenario = await getScenario(currentScenario.id);
+        }
+        await loadFundsSummaryCards(container, options);
+      };
+      refreshItem.appendChild(refreshButton);
 
-    toolbar.appendChild(scopeItem);
-    toolbar.appendChild(sharesItem);
-    toolbar.appendChild(refreshItem);
-    container.appendChild(toolbar);
-  }
+      toolbar.appendChild(scopeItem);
+      toolbar.appendChild(sharesItem);
+      toolbar.appendChild(refreshItem);
+      container.appendChild(toolbar);
+    }
 
-  scopeSelect = container.querySelector('#fund-summary-scope');
-  const totalSharesInput = container.querySelector('#fund-total-shares');
+    scopeSelect = container.querySelector('#fund-summary-scope');
+    const totalSharesInput = container.querySelector('#fund-total-shares');
 
-  if (scopeSelect) {
-    scopeSelect.value = scopeOptions.includes(fundSummaryScope) ? fundSummaryScope : 'All';
-    scopeSelect.onchange = async () => {
-      fundSummaryScope = scopeSelect.value;
-      await loadFundsSummaryCards(container);
-    };
+    if (scopeSelect) {
+      scopeSelect.value = scopeOptions.includes(fundSummaryScope) ? fundSummaryScope : 'All';
+      scopeSelect.onchange = async () => {
+        fundSummaryScope = scopeSelect.value;
+        await loadFundsSummaryCards(container, options);
+      };
+    }
   }
 
 
@@ -1436,7 +1439,7 @@ async function loadFundsSummaryCards(container) {
   restorePageScroll(scrollSnapshot);
 }
 
-async function loadGeneralSummaryCards(container) {
+async function loadGeneralSummaryCards(container, options = {}) {
 
   if (!container) {
     return;
@@ -1448,6 +1451,9 @@ async function loadGeneralSummaryCards(container) {
   }
 
   const accounts = currentScenario.accounts || [];
+  const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
+  const projectionsIndex = buildProjectionsIndex(getScenarioProjectionRows(currentScenario));
+  const scrollSnapshot = getPageScrollSnapshot();
   // DEBUG: Show number of accounts detected
   const debugMsg = document.createElement('div');
   debugMsg.style.color = 'orange';
@@ -1485,54 +1491,57 @@ async function loadGeneralSummaryCards(container) {
   // Only render the two static filters (account type and account) and the summary cards grid.
   container.innerHTML = '';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'grid-toolbar summary-cards-toolbar';
+  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
+  if (!options.simple) {
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar summary-cards-toolbar';
 
-  const typeItem = document.createElement('div');
-  typeItem.className = 'toolbar-item';
-  typeItem.innerHTML = `
-    <label for="general-summary-type-filter" class="text-muted control-label">Account Type:</label>
-    <select id="general-summary-type-filter" class="input-select control-select">
-      ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
-    </select>
-  `;
+    const typeItem = document.createElement('div');
+    typeItem.className = 'toolbar-item';
+    typeItem.innerHTML = `
+      <label for="general-summary-type-filter" class="text-muted control-label">Account Type:</label>
+      <select id="general-summary-type-filter" class="input-select control-select">
+        ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    `;
 
-  const accountItem = document.createElement('div');
-  accountItem.className = 'toolbar-item';
-  accountItem.innerHTML = `
-    <label for="general-summary-account" class="text-muted control-label">Account:</label>
-    <select id="general-summary-account" class="input-select control-select"></select>
-  `;
+    const accountItem = document.createElement('div');
+    accountItem.className = 'toolbar-item';
+    accountItem.innerHTML = `
+      <label for="general-summary-account" class="text-muted control-label">Account:</label>
+      <select id="general-summary-account" class="input-select control-select"></select>
+    `;
 
-  toolbar.appendChild(typeItem);
-  toolbar.appendChild(accountItem);
-  container.appendChild(toolbar);
+    toolbar.appendChild(typeItem);
+    toolbar.appendChild(accountItem);
+    container.appendChild(toolbar);
 
-  // Populate and wire up the filters
-  const typeSelect = toolbar.querySelector('#general-summary-type-filter');
-  const accountSelect = toolbar.querySelector('#general-summary-account');
-  typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
-  typeSelect.onchange = async () => {
-    generalSummaryScope = typeSelect.value;
-    await loadGeneralSummaryCards(container);
-  };
+    // Populate and wire up the filters
+    const typeSelect = toolbar.querySelector('#general-summary-type-filter');
+    const accountSelect = toolbar.querySelector('#general-summary-account');
+    typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
+    typeSelect.onchange = async () => {
+      generalSummaryScope = typeSelect.value;
+      await loadGeneralSummaryCards(container, options);
+    };
 
-  const selectedId = Number(generalSummaryAccountId) || 0;
-  const options = ['<option value="0">All</option>']
-    .concat(
-      accounts
-        .slice()
-        .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
-        .map((a) => `<option value="${Number(a.id)}">${String(a.name || 'Unnamed')}</option>`)
-    )
-    .join('');
-  accountSelect.innerHTML = options;
-  accountSelect.value = String(selectedId);
-  generalSummaryAccountId = Number(accountSelect.value) || 0;
-  accountSelect.onchange = async () => {
+    const selectedId = Number(generalSummaryAccountId) || 0;
+    const opts = ['<option value="0">All</option>']
+      .concat(
+        accounts
+          .slice()
+          .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+          .map((a) => `<option value="${Number(a.id)}">${String(a.name || 'Unnamed')}</option>`)
+      )
+      .join('');
+    accountSelect.innerHTML = opts;
+    accountSelect.value = String(selectedId);
     generalSummaryAccountId = Number(accountSelect.value) || 0;
-    await loadGeneralSummaryCards(container);
-  };
+    accountSelect.onchange = async () => {
+      generalSummaryAccountId = Number(accountSelect.value) || 0;
+      await loadGeneralSummaryCards(container, options);
+    };
+  }
 
 
   // Clear any previous empty messages.
@@ -1679,7 +1688,7 @@ async function loadGeneralSummaryCards(container) {
   // Only show the summary card grid (matches expected UI).
 }
 
-async function loadSummaryCards(container) {
+async function loadSummaryCards(container, options = {}) {
   // Always declare workflowConfig before any usage
   const workflowConfig = getWorkflowConfig();
   // DEBUG: Entry marker
@@ -1723,7 +1732,7 @@ async function loadSummaryCards(container) {
     branchMsg.style.color = 'orange';
     branchMsg.textContent = '[DEBUG] Taking Debt workflow branch.';
     if (container) container.appendChild(branchMsg);
-    await loadDebtSummaryCards(container);
+    await loadDebtSummaryCards(container, options);
     return;
   }
 
@@ -1732,7 +1741,7 @@ async function loadSummaryCards(container) {
     branchMsg.style.color = 'orange';
     branchMsg.textContent = '[DEBUG] Taking General workflow branch.';
     if (container) container.appendChild(branchMsg);
-    await loadGeneralSummaryCards(container);
+    await loadGeneralSummaryCards(container, options);
     return;
   }
 
@@ -1741,7 +1750,7 @@ async function loadSummaryCards(container) {
     branchMsg.style.color = 'orange';
     branchMsg.textContent = '[DEBUG] Taking Funds workflow branch.';
     if (container) container.appendChild(branchMsg);
-    await loadFundsSummaryCards(container);
+    await loadFundsSummaryCards(container, options);
     return;
   }
 
@@ -1764,7 +1773,7 @@ async function refreshSummaryCards() {
     return;
   }
 
-  await loadSummaryCards(getEl('summaryCardsContent'));
+  await loadSummaryCards(getEl('summaryCardsContent'), { simple: true });
 }
 
 // Load projections section (buttons and grid)
@@ -1934,7 +1943,7 @@ async function loadScenarioData() {
       debugMsg.textContent = '[DEBUG] Calling loadSummaryCards for summaryCardsContent.';
       containers.summaryCardsContent.appendChild(debugMsg);
     }
-    await loadSummaryCards(containers.summaryCardsContent);
+    await loadSummaryCards(containers.summaryCardsContent, { simple: true });
   }
 }
 

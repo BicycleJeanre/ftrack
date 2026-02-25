@@ -116,7 +116,7 @@ function buildTopbarActions() {
   return actions;
 }
 
-function buildDashRow({ id, title, defaultCollapsed = false }) {
+function buildDashRow({ id, title, defaultCollapsed = false, showControls = true }) {
   const row = document.createElement('section');
   row.className = 'dash-row';
   row.id = id;
@@ -133,43 +133,49 @@ function buildDashRow({ id, title, defaultCollapsed = false }) {
   titleEl.className = 'dash-row-title';
   titleEl.textContent = title;
 
-  const controls = document.createElement('div');
-  controls.className = 'dash-row-controls';
+  if (showControls) {
+    const controls = document.createElement('div');
+    controls.className = 'dash-row-controls';
 
-  const refreshBtn = buildIconButton({
-    title: 'Refresh',
-    svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    onClick: () => document.dispatchEvent(new CustomEvent('forecast:refresh'))
-  });
+    const refreshBtn = buildIconButton({
+      title: 'Refresh',
+      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      onClick: () => document.dispatchEvent(new CustomEvent('forecast:refresh'))
+    });
 
-  const minimizeBtn = buildIconButton({
-    title: 'Minimize',
-    svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-    onClick: () => {
-      row.classList.toggle('minimized');
-      row.classList.remove('collapsed');
-    }
-  });
+    const minimizeBtn = buildIconButton({
+      title: 'Minimize',
+      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+      onClick: () => {
+        row.classList.toggle('minimized');
+        row.classList.remove('collapsed');
+      }
+    });
 
-  const focusBtn = buildIconButton({
-    title: 'Focus',
-    svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3H3v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 3h6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21H3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 21h6v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    onClick: () => {
-      const isFocused = row.classList.toggle('focused');
-      document.querySelectorAll('.dash-row.focused').forEach((el) => {
-        if (el !== row) el.classList.remove('focused');
-      });
-      if (!isFocused) row.classList.remove('focused');
-    }
-  });
+    const focusBtn = buildIconButton({
+      title: 'Focus',
+      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3H3v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 3h6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21H3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 21h6v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      onClick: () => {
+        const isFocused = row.classList.toggle('focused');
+        document.querySelectorAll('.dash-row.focused').forEach((el) => {
+          if (el !== row) el.classList.remove('focused');
+        });
+        if (!isFocused) row.classList.remove('focused');
+      }
+    });
 
-  controls.appendChild(refreshBtn);
-  controls.appendChild(minimizeBtn);
-  controls.appendChild(focusBtn);
+    controls.appendChild(refreshBtn);
+    controls.appendChild(minimizeBtn);
+    controls.appendChild(focusBtn);
 
-  header.appendChild(chevron);
-  header.appendChild(titleEl);
-  header.appendChild(controls);
+    header.appendChild(chevron);
+    header.appendChild(titleEl);
+    header.appendChild(controls);
+  } else {
+    // Only chevron and title
+    header.appendChild(chevron);
+    header.appendChild(titleEl);
+  }
 
   header.addEventListener('click', (e) => {
     if (e.target.closest('button')) return;
@@ -290,8 +296,9 @@ export function buildGridContainer() {
 
   // SUMMARY ROW: Only the summary cards grid should be rendered here.
   const { row: summaryCardsSection, body: summaryCardsBody } = buildDashRow({
-    id: 'summaryCardsSection',
-    title: 'Summary'
+     id: 'summaryCardsSection',
+     title: 'Summary',
+     showControls: false
   });
   // REMOVE .hidden to ensure always visible for debugging
   // summaryCardsSection.classList.add('hidden');

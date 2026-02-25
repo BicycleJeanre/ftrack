@@ -58,6 +58,12 @@
   gap: var(--spacing-lg);
   align-items: stretch;
 }
+/* Ensure the summary area is visible even when empty or when layout collapses */
+#summaryCardsContent {
+  min-height: 140px;
+  padding: var(--spacing-sm);
+  box-sizing: border-box;
+}
 /* ====================================
    Page Layout & Navigation
    ====================================*/
