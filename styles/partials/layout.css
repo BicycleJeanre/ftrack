@@ -64,6 +64,14 @@
   padding: var(--spacing-sm);
   box-sizing: border-box;
 }
+
+/* Ensure the summary container stacks its children vertically so the overall total can span full width */
+#summaryCardsContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  align-items: stretch;
+}
 /* ====================================
    Page Layout & Navigation
    ====================================*/

@@ -1106,7 +1106,16 @@ async function loadDebtSummaryCards(container, options = {}) {
         <span class="value">${filteredAccounts.length}</span>
       </div>
     `;
-    groupWrapper.appendChild(totalCard);
+    // Place overall total at the top of the summary container so it uses full width
+    try {
+      if (groupWrapper && groupWrapper.parentNode === container) {
+        container.insertBefore(totalCard, groupWrapper);
+      } else {
+        container.appendChild(totalCard);
+      }
+    } catch (e) {
+      groupWrapper.appendChild(totalCard);
+    }
   }
 
   restorePageScroll(scrollSnapshot);
@@ -1675,7 +1684,16 @@ async function loadGeneralSummaryCards(container, options = {}) {
     <div class="summary-card-row"><span class="label">Total Liabilities:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(totalLiabilities || 0))}</span></div>
     <div class="summary-card-row"><span class="label">Accounts:</span><span class="value">${filteredAccounts.length}</span></div>
   `;
-  groupWrapper.appendChild(totalCard);
+    // Place overall total at the top of the summary container so it uses full width
+    try {
+      if (groupWrapper && groupWrapper.parentNode === container) {
+        container.insertBefore(totalCard, groupWrapper);
+      } else {
+        container.appendChild(totalCard);
+      }
+    } catch (e) {
+      groupWrapper.appendChild(totalCard);
+    }
 
   // Funds-style detail grid (stable DOM node so Tabulator instance can be reused).
   // Disable detail grid rendering for General workflow summary section.
