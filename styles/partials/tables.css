@@ -275,6 +275,16 @@ body .tabulator .tabulator-row.budget-row-frozen .tabulator-cell {
   cursor: pointer;
 }
 
+/* Ensure numeric status formatting inside group headers keeps semantic colors */
+.tabulator .tabulator-row.tabulator-group .status-netchange.positive,
+.tabulator .tabulator-row.tabulator-group .tabulator-cell .status-netchange.positive {
+  color: #4ade80 !important;
+}
+.tabulator .tabulator-row.tabulator-group .status-netchange.negative,
+.tabulator .tabulator-row.tabulator-group .tabulator-cell .status-netchange.negative {
+  color: var(--danger) !important;
+}
+
 .tabulator-print-table-group {
   background: var(--bg-elevated) !important;
 }

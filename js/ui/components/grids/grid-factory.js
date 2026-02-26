@@ -321,6 +321,15 @@ export function formatMoneyDisplay(value) {
     return `<span class="${cls}">${formatted}</span>`;
 }
 
+/**
+ * Format a numeric value to a fixed number of decimal places for grids
+ * Returns a plain string (no currency) suitable for share counts and percentages
+ */
+export function formatNumberDisplay(value, digits = 4) {
+    const num = Number(value) || 0;
+    return num.toFixed(digits);
+}
+
 export function createMoneyColumn(title, field, options = {}) {
     const formatterParams = {
         decimal: ".",

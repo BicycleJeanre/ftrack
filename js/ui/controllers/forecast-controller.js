@@ -3,7 +3,7 @@
 // Displays accounts, transactions, budgets, and projections based on the selected workflow
 
 
-import { createGrid, refreshGridData, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
+import { createGrid, refreshGridData, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay, formatNumberDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
 import { attachGridHandlers } from '../components/grids/grid-handlers.js';
 import * as ScenarioManager from '../../app/managers/scenario-manager.js';
 import * as AccountManager from '../../app/managers/account-manager.js';
@@ -24,6 +24,7 @@ import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCan
 import { renderMoneyTotals, renderBudgetTotals } from '../components/widgets/toolbar-totals.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
 import { buildGridContainer } from '../components/forecast/forecast-layout.js';
+import { ICON_REFRESH, ICON_SPINNER } from '../../../styles/icons.js';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore
@@ -881,16 +882,17 @@ async function loadDebtSummaryCards(container, options = {}) {
 
   const scrollSnapshot = getPageScrollSnapshot();
 
-  // Keep toolbar stable (avoid losing focus/scroll between refreshes).
-  // If a different summary type was previously rendered, rebuild once.
-  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
+  // Render account-type selector above the totals card (header refresh handles refresh)
   let filterSelect = container.querySelector('#summary-cards-type-filter');
-  const isDebtToolbar = !!filterSelect;
   if (!options.simple) {
-    if (!toolbar || !isDebtToolbar) {
+    // Remove any old filter holder or toolbars
+    container.querySelectorAll(':scope > .summary-filter-holder, :scope > .summary-cards-toolbar').forEach((el) => el.remove());
+    if (!filterSelect) {
+      // Clear previous content so we can insert fresh filter/summary
       container.innerHTML = '';
-      toolbar = document.createElement('div');
-      toolbar.className = 'grid-toolbar summary-cards-toolbar';
+
+      const filterHolder = document.createElement('div');
+      filterHolder.className = 'summary-filter-holder';
 
       const filterItem = document.createElement('div');
       filterItem.className = 'toolbar-item';
@@ -903,22 +905,8 @@ async function loadDebtSummaryCards(container, options = {}) {
         </select>
       `;
 
-      const refreshItem = document.createElement('div');
-      refreshItem.className = 'toolbar-item';
-      const refreshButton = document.createElement('button');
-      refreshButton.className = 'btn';
-      refreshButton.textContent = 'Refresh';
-      refreshButton.onclick = async () => {
-        if (currentScenario?.id) {
-          currentScenario = await getScenario(currentScenario.id);
-        }
-        await loadDebtSummaryCards(container, options);
-      };
-      refreshItem.appendChild(refreshButton);
-
-      toolbar.appendChild(filterItem);
-      toolbar.appendChild(refreshItem);
-      container.appendChild(toolbar);
+      filterHolder.appendChild(filterItem);
+      container.appendChild(filterHolder);
       filterSelect = filterItem.querySelector('#summary-cards-type-filter');
     }
 
@@ -1141,16 +1129,18 @@ async function ensureFundSettingsInitialized() {
 }
 
 async function loadFundsSummaryCards(container, options = {}) {
-  if (!container) {
-    return;
-  }
+  if (!container) return;
+  // Ensure local refs exist to avoid accidental global assignments
+  let toolbar = null;
+  let totalSharesInput = null;
 
-  if (!currentScenario) {
-    container.innerHTML = '';
-    return;
-  }
+  try {
+    if (!currentScenario) {
+      container.innerHTML = '';
+      return;
+    }
 
-  await ensureFundSettingsInitialized();
+    await ensureFundSettingsInitialized();
 
   const lookupData = await loadLookup('lookup-data.json');
   const accountTypeNameById = new Map((lookupData?.accountTypes || []).map((t) => [Number(t.id), t.name]));
@@ -1177,82 +1167,48 @@ async function loadFundsSummaryCards(container, options = {}) {
   const accounts = currentScenario.accounts || [];
   const fundSettings = currentScenario.fundSettings || getDefaultFundSettings();
 
-  // Keep toolbar stable. If a different summary type was previously rendered, rebuild once.
-  let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
-  let scopeSelect = container.querySelector('#fund-summary-scope');
-  const isFundsToolbar = !!scopeSelect;
-  if (!options.simple) {
-    if (!toolbar || !isFundsToolbar) {
-      container.innerHTML = '';
+  // Ensure no stale grid toolbars remain for summary (we'll use header icon instead)
+  container.querySelectorAll(':scope > .grid-toolbar, :scope > .summary-cards-toolbar').forEach((el) => el.remove());
 
-      toolbar = document.createElement('div');
-      toolbar.className = 'grid-toolbar summary-cards-toolbar';
-
-      const scopeItem = document.createElement('div');
-      scopeItem.className = 'toolbar-item';
-      scopeItem.innerHTML = `
-        <label for="fund-summary-scope" class="text-muted control-label">Scope:</label>
-        <select id="fund-summary-scope" class="input-select control-select">
-          ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
-        </select>
-      `;
-
-      const sharesItem = document.createElement('div');
-      sharesItem.className = 'toolbar-item';
-      sharesItem.innerHTML = `
-        <label for="fund-total-shares" class="text-muted control-label">Total shares:</label>
-        <input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" />
-      `;
-
-      const refreshItem = document.createElement('div');
-      refreshItem.className = 'toolbar-item';
-      const refreshButton = document.createElement('button');
-      refreshButton.className = 'btn';
-      refreshButton.textContent = 'Refresh';
-      refreshButton.onclick = async () => {
-        if (currentScenario?.id) {
-          currentScenario = await getScenario(currentScenario.id);
+  // Place a refresh icon in the summary section header (match other sections)
+  try {
+    const summarySection = document.getElementById('summaryCardsSection');
+    if (summarySection) {
+      const header = summarySection.querySelector('.dash-row-header');
+      if (header) {
+        let controls = header.querySelector('.dash-row-controls');
+        if (!controls) {
+          controls = document.createElement('div');
+          controls.className = 'dash-row-controls';
+          // insert at the end of header
+          header.appendChild(controls);
         }
-        await loadFundsSummaryCards(container, options);
-      };
-      refreshItem.appendChild(refreshButton);
-
-      toolbar.appendChild(scopeItem);
-      toolbar.appendChild(sharesItem);
-      toolbar.appendChild(refreshItem);
-      container.appendChild(toolbar);
+        // Remove any existing summary refresh button to avoid duplicates
+        const existing = controls.querySelector('.icon-btn[data-summary-refresh]');
+        if (existing) existing.remove();
+        const hdrRefresh = document.createElement('button');
+        hdrRefresh.type = 'button';
+        hdrRefresh.className = 'icon-btn';
+        hdrRefresh.title = 'Refresh';
+        hdrRefresh.setAttribute('aria-label', 'Refresh');
+        hdrRefresh.setAttribute('data-summary-refresh', '1');
+        hdrRefresh.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        hdrRefresh.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.dispatchEvent(new CustomEvent('forecast:refresh'));
+        });
+        controls.appendChild(hdrRefresh);
+      }
     }
-
-    scopeSelect = container.querySelector('#fund-summary-scope');
-    const totalSharesInput = container.querySelector('#fund-total-shares');
-
-    if (scopeSelect) {
-      scopeSelect.value = scopeOptions.includes(fundSummaryScope) ? fundSummaryScope : 'All';
-      scopeSelect.onchange = async () => {
-        fundSummaryScope = scopeSelect.value;
-        await loadFundsSummaryCards(container, options);
-      };
-    }
+  } catch (e) {
+    // noop - header may not exist yet
   }
+ 
 
 
   // No As-of date control.
 
-  if (totalSharesInput) {
-    const currentTotalShares = Number(fundSettings?.totalShares);
-    totalSharesInput.value = Number.isFinite(currentTotalShares) && currentTotalShares > 0 ? String(currentTotalShares) : '';
-    totalSharesInput.onchange = async () => {
-      const nextValue = Number(totalSharesInput.value);
-      const next = {
-        ...getDefaultFundSettings(),
-        ...(currentScenario.fundSettings || {}),
-        totalShares: Number.isFinite(nextValue) ? nextValue : null
-      };
-      await ScenarioManager.update(currentScenario.id, { fundSettings: next });
-      currentScenario = await getScenario(currentScenario.id);
-      await loadFundsSummaryCards(container);
-    };
-  }
+  // totalSharesInput will be attached after we render the totals card below
 
   // Shares are always automatic; no share mode or manual share editing.
 
@@ -1281,8 +1237,8 @@ async function loadFundsSummaryCards(container, options = {}) {
   totalsCard.className = 'summary-card overall-total';
   totalsCard.innerHTML = `
     <div class="summary-card-title">FUND TOTALS</div>
+    <div class="summary-card-row"><span class="label">Total shares:</span><span class="value neutral"><input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" value="${Number.isFinite(totalShares) ? totalShares.toFixed(4) : ''}" /></span></div>
     <div class="summary-card-row"><span class="label">NAV:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
-    <div class="summary-card-row"><span class="label">Total shares:</span><span class="value neutral">${Number.isFinite(totalShares) ? totalShares.toFixed(4) : '0.0000'}</span></div>
     <div class="summary-card-row"><span class="label">Share price:</span><span class="value neutral">${sharePrice === null ? 'N/A' : formatMoneyDisplay(sharePrice)}</span></div>
     <div class="summary-card-row"><span class="label">Contributions:</span><span class="value">${formatMoneyDisplay(investorTotals.contributions)}</span></div>
     <div class="summary-card-row"><span class="label">Redemptions:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(investorTotals.redemptions || 0))}</span></div>
@@ -1290,11 +1246,30 @@ async function loadFundsSummaryCards(container, options = {}) {
   `;
   container.appendChild(totalsCard);
 
+  // Attach total shares input handler (moved into totals card)
+  totalSharesInput = container.querySelector('#fund-total-shares');
+  if (totalSharesInput) {
+    const currentTotalShares = Number(fundSettings?.totalShares);
+    totalSharesInput.value = Number.isFinite(currentTotalShares) && currentTotalShares > 0 ? String(currentTotalShares) : (Number.isFinite(totalShares) ? totalShares.toFixed(4) : '');
+    totalSharesInput.onchange = async () => {
+      const nextValue = Number(totalSharesInput.value);
+      const next = {
+        ...getDefaultFundSettings(),
+        ...(currentScenario.fundSettings || {}),
+        totalShares: Number.isFinite(nextValue) ? nextValue : null
+      };
+      await ScenarioManager.update(currentScenario.id, { fundSettings: next });
+      currentScenario = await getScenario(currentScenario.id);
+      await loadFundsSummaryCards(container, options);
+    };
+  }
+
   const detailWrap = document.createElement('div');
   detailWrap.className = 'summary-cards-group';
   const detailTitle = document.createElement('div');
   detailTitle.className = 'summary-cards-group-title';
-  detailTitle.textContent = fundSummaryScope === 'All' ? 'All Accounts' : `${fundSummaryScope} Accounts`;
+  // Always render the equity detail grid (filtered equities)
+  detailTitle.textContent = 'Equity Accounts';
   detailWrap.appendChild(detailTitle);
 
   const detailGrid = document.createElement('div');
@@ -1302,7 +1277,8 @@ async function loadFundsSummaryCards(container, options = {}) {
   detailWrap.appendChild(detailGrid);
   container.appendChild(detailWrap);
 
-  if (fundSummaryScope === 'Equity') {
+  // Render equity detail grid only
+  {
     const flows = computeInvestorFlows({ scenario: currentScenario, accounts, asOfDate });
     const rows = equityAccounts.map(a => {
       const shares = Number(sharesById[a.id] || 0);
@@ -1339,49 +1315,40 @@ async function loadFundsSummaryCards(container, options = {}) {
           field: 'shares',
           headerSort: false,
           hozAlign: 'right',
-          bottomCalc: 'sum',
-          formatter: (cell) => {
-            const v = Number(cell.getValue() || 0);
-            return v.toFixed(4);
-          },
-          bottomCalcFormatter: (cell) => {
-            const v = Number(cell.getValue() || 0);
-            return v.toFixed(4);
-          }
+          topCalc: 'sum',
+          formatter: (cell) => formatNumberDisplay(cell.getValue() || 0, 4),
+          topCalcFormatter: (cell) => formatNumberDisplay(cell.getValue() || 0, 4)
         },
         {
           title: 'Ownership %',
           field: 'ownershipPct',
           headerSort: false,
           hozAlign: 'right',
-          formatter: (cell) => {
-            const v = Number(cell.getValue() || 0);
-            return v.toFixed(2) + '%';
-          }
+          formatter: (cell) => (Number(cell.getValue() || 0)).toFixed(2) + '%'
         },
         {
           title: 'Implied Value',
           field: 'impliedValue',
           headerSort: false,
-          bottomCalc: 'sum',
+          topCalc: 'sum',
           formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
-          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+          topCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
         },
         {
           title: 'Net Contributions',
           field: 'contributions',
           headerSort: false,
-          bottomCalc: 'sum',
+          topCalc: 'sum',
           formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
-          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+          topCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
         },
         {
           title: 'Net Redemptions',
           field: 'redemptions',
           headerSort: false,
-          bottomCalc: 'sum',
+          topCalc: 'sum',
           formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
-          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
+          topCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
         }
         ]
       });
@@ -1390,62 +1357,22 @@ async function loadFundsSummaryCards(container, options = {}) {
     } else {
       await refreshGridData(fundSummaryTable, rows);
     }
-  } else {
-    const selectedScopeTypeId = scopeTypeId(fundSummaryScope);
-    const filteredAccounts = fundSummaryScope === 'All'
-      ? accounts
-      : accounts.filter((a) => getAccountTypeId(a) === selectedScopeTypeId);
-
-    const data = filteredAccounts.map(a => {
-      const balance = getBalanceAsOf({ account: a, projectionsIndex, asOfDate });
-      return {
-        name: a.name || 'Unnamed',
-        type: getAccountTypeName(a),
-        balance
-      };
-    });
-
-    const columnsKey = fundSummaryScope === 'All' ? 'funds-accounts-grouped' : 'funds-accounts-flat';
-    const shouldRebuild = !fundSummaryTable || fundSummaryTable?.element !== detailGrid || fundSummaryTable?.__ftrackColumnsKey !== columnsKey;
-    if (shouldRebuild) {
-      try {
-        fundSummaryTable?.destroy?.();
-      } catch (_) {
-        // ignore
-      }
-
-      fundSummaryTable = await createGrid(detailGrid, {
-        data,
-        headerWordWrap: false,
-        ...(fundSummaryScope === 'All' ? { groupBy: 'type' } : {}),
-        columns: [
-        { title: 'Account', field: 'name', headerSort: false },
-        ...(fundSummaryScope === 'All' ? [{ title: 'Type', field: 'type', headerSort: false }] : []),
-        {
-          title: 'Balance',
-          field: 'balance',
-          headerSort: false,
-          bottomCalc: 'sum',
-          formatter: (cell) => formatMoneyDisplay(cell.getValue() || 0),
-          bottomCalcFormatter: (cell) => formatMoneyDisplay(cell.getValue() || 0)
-        }
-        ]
-      });
-
-      fundSummaryTable.__ftrackColumnsKey = columnsKey;
-    } else {
-      await refreshGridData(fundSummaryTable, data);
-    }
-
-    if (fundSummaryScope === 'All' && fundSummaryTable?.setGroupHeader) {
-      fundSummaryTable.setGroupHeader((value, count, data) => {
-        const subtotal = (data || []).reduce((sum, row) => sum + Number(row?.balance || 0), 0);
-        return `${value} (${count} items, Subtotal: ${formatMoneyDisplay(subtotal)})`;
-      });
-    }
   }
+  // end forced equity block
 
   restorePageScroll(scrollSnapshot);
+  } catch (err) {
+    console.error('[FundsSummary] failed to render', err);
+    try {
+      container.innerHTML = '';
+      const errEl = document.createElement('div');
+      errEl.className = 'empty-message';
+      errEl.textContent = 'Failed to load funds summary: ' + (err?.message || String(err));
+      container.appendChild(errEl);
+    } catch (e) {
+      // swallow
+    }
+  }
 }
 
 async function loadGeneralSummaryCards(container, options = {}) {
@@ -1748,7 +1675,8 @@ async function refreshSummaryCards() {
     return;
   }
 
-  await loadSummaryCards(getEl('summaryCardsContent'), { simple: true });
+  const useSimple = isGeneralWorkflow(workflowConfig);
+  await loadSummaryCards(getEl('summaryCardsContent'), { simple: useSimple });
 }
 
 // Load projections section (buttons and grid)
@@ -1910,9 +1838,10 @@ async function loadScenarioData() {
   
   // Load summary cards AFTER projections so they have data to work with
   if (showSummaryCards) {
-    // DEBUG: Show marker before calling loadSummaryCards
-    // calling loadSummaryCards for summaryCardsContent
-    await loadSummaryCards(containers.summaryCardsContent, { simple: true });
+    // Only use simplified summary mode for the General workflow; Funds and Debt get the full UI
+    const workflowConfig = getWorkflowConfig();
+    const useSimple = isGeneralWorkflow(workflowConfig);
+    await loadSummaryCards(containers.summaryCardsContent, { simple: useSimple });
   }
 }
 
