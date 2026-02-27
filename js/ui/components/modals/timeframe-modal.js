@@ -3,6 +3,7 @@
 
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { createModal } from './modal-factory.js';
+import { notifyError } from '../../../shared/notifications.js';
 
 /**
  * Calculate default dates: next 12 months from today
@@ -84,7 +85,7 @@ export function openTimeframeModal({
     const end = endDateInput.value;
 
     if (!start || !end) {
-      alert('Please enter both start and end dates.');
+      notifyError('Please enter both start and end dates.');
       return;
     }
 
@@ -92,7 +93,7 @@ export function openTimeframeModal({
     const endParsed = parseDateOnly(end);
 
     if (startParsed > endParsed) {
-      alert('Start date must be before end date.');
+      notifyError('Start date must be before end date.');
       return;
     }
 

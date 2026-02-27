@@ -3,7 +3,7 @@
 // Updated to render the dashboard shell (sidebar + topbar + dash rows).
 
 import { downloadAppData, uploadAppData } from '../../../app/services/export-service.js';
-import { notifyError, notifySuccess } from '../../../shared/notifications.js';
+import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
 import { getTheme, setTheme } from '../../../config.js';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
@@ -97,9 +97,9 @@ function buildTopbarActions() {
   clearBtn.className = 'btn btn-danger';
   clearBtn.title = 'Clear all data from browser storage';
   clearBtn.textContent = 'Clear Data';
-  clearBtn.addEventListener('click', (e) => {
+  clearBtn.addEventListener('click', async (e) => {
     e.preventDefault();
-    if (!confirm('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) return;
+    if (!await confirmDialog('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) return;
     try {
       localStorage.removeItem('ftrack:app-data');
       notifySuccess('All data cleared successfully. The page will now reload.');

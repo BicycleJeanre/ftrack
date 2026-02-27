@@ -5,7 +5,7 @@ import { createGrid, refreshGridData, createDeleteColumn, createTextColumn, crea
 import { attachGridHandlers } from './grid-handlers.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
-import { notifyError, notifySuccess } from '../../../shared/notifications.js';
+import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
@@ -242,8 +242,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
       e.stopPropagation();
       const scenario = budget?._scenarioId;
       if (!scenario) return;
-      const confirmed = confirm('Delete this budget entry?');
-      if (!confirmed) return;
+      if (!await confirmDialog('Delete this budget entry?')) return;
       const allBudgets = await getBudget(scenario);
       const filtered = allBudgets.filter((b) => Number(b.id) !== Number(budget.id));
       await BudgetManager.saveAll(scenario, filtered);

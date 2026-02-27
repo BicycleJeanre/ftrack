@@ -2,7 +2,7 @@
 // Utility wrapper for creating Tabulator grids with consistent configuration
 
 import { createLogger } from '../../../shared/logger.js';
-import { notifyError } from '../../../shared/notifications.js';
+import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 
 const logger = createLogger('GridFactory');
 
@@ -397,7 +397,7 @@ export function createDeleteColumn(onDelete, options = {}) {
                 if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return;
                 const rowData = row.getData();
                 const message = typeof confirmMessage === 'function' ? confirmMessage(rowData) : confirmMessage;
-                if (confirm(message)) {
+                if (await confirmDialog(message)) {
                     await onDelete(cell);
                 }
             } catch (err) {

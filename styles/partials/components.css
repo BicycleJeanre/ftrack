@@ -868,3 +868,64 @@ input[type="checkbox"] {
   white-space: nowrap;
   min-width: fit-content;
 }
+/* ==================================== Toast Notifications ====================================*/
+
+.notify-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.92em;
+  font-weight: 500;
+  max-width: 360px;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.notify-toast.notify-toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.notify-toast.notify-toast-hiding {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.notify-toast-success {
+  background: #166534;
+  border: 1px solid #4ade80;
+  color: #dcfce7;
+}
+
+.notify-toast-error {
+  background: #7f1d1d;
+  border: 1px solid var(--danger);
+  color: #fee2e2;
+}
+
+/* ==================================== Confirm Dialog ====================================*/
+
+.confirm-dialog {
+  max-width: 420px;
+  width: 90vw;
+  padding: var(--spacing-lg);
+}
+
+.confirm-dialog-message {
+  color: var(--text-primary);
+  font-size: 0.95em;
+  line-height: 1.5;
+  margin: 0 0 var(--spacing-lg) 0;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}

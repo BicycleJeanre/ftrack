@@ -15,7 +15,7 @@ import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import keyboardShortcuts from '../../shared/keyboard-shortcuts.js';
 import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';
-import { notifyError, notifySuccess } from '../../shared/notifications.js';
+import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
 import { getScenarioProjectionRows, mapPeriodTypeNameToId } from '../../shared/app-data-utils.js';
 import { DEFAULT_WORKFLOW_ID, WORKFLOWS, getWorkflowById } from '../../shared/workflow-registry.js';
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
@@ -580,8 +580,7 @@ async function buildScenarioGrid(container) {
         delBtn.innerHTML = '🗑️';
         delBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const confirmed = confirm(`Delete scenario: ${scenario.name}?`);
-          if (confirmed) {
+          if (await confirmDialog(`Delete scenario: ${scenario.name}?`)) {
             try {
               await ScenarioManager.remove(scenario.id);
               await buildScenarioGrid(container);

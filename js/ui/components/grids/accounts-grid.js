@@ -16,7 +16,7 @@ import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openPeriodicChangeScheduleModal } from '../modals/periodic-change-schedule-modal.js';
 import { openTagEditorModal } from '../modals/tag-editor-modal.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
-import { notifyError } from '../../../shared/notifications.js';
+import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 import { GridStateManager } from './grid-state.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 
@@ -471,8 +471,7 @@ function renderAccountsSummaryList({
       e.stopPropagation();
       const scenario = scenarioState?.get?.();
       if (!scenario) return;
-      const confirmed = confirm(`Delete account: ${account?.name || 'Untitled'}?`);
-      if (!confirmed) return;
+      if (!await confirmDialog(`Delete account: ${account?.name || 'Untitled'}?`)) return;
       try {
         await AccountManager.remove(scenario.id, account.id);
         await reloadAccountsGrid(document.getElementById('accountsTable'));

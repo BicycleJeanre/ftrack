@@ -1,6 +1,6 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 import { downloadAppData, uploadAppData } from '../../app/services/export-service.js';
-import { notifyError, notifySuccess } from '../../shared/notifications.js';
+import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
 import { openValidateDataModal } from '../components/modals/validate-data-modal.js';
 
 // Web-only: Show clear data button for browser storage management
@@ -116,9 +116,9 @@ async function attachDataHandlers() {
   // Clear data button (web only)
   var clearBtn = document.getElementById('nav-clear');
   if (clearBtn) {
-    clearBtn.addEventListener('click', function(e) {
+    clearBtn.addEventListener('click', async function(e) {
       e.preventDefault();
-      if (confirm('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) {
+      if (await confirmDialog('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) {
         try {
           localStorage.removeItem('ftrack:app-data');
           notifySuccess('All data cleared successfully. The page will now reload.');

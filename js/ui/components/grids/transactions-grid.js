@@ -11,7 +11,7 @@ import { expandTransactions } from '../../../domain/calculations/transaction-exp
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
 import { calculateCategoryTotals } from '../../transforms/data-aggregators.js';
-import { notifyError } from '../../../shared/notifications.js';
+import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
 import * as TransactionManager from '../../../app/managers/transaction-manager.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
@@ -292,8 +292,7 @@ function renderTransactionsSummaryList({
       e.stopPropagation();
       const scenario = tx?._scenarioId;
       if (!scenario) return;
-      const confirmed = confirm('Delete this transaction?');
-      if (!confirmed) return;
+      if (!await confirmDialog('Delete this transaction?')) return;
       const allTxs = await getTransactions(scenario);
       const filtered = allTxs.filter((t) => Number(t.id) !== Number(tx.id));
       await TransactionManager.saveAll(scenario, filtered);
