@@ -852,6 +852,7 @@ body.dashboard-shell {
 .scenario-list-item {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm);
   border: 1px solid var(--border-secondary);
@@ -899,6 +900,13 @@ body.dashboard-shell {
   display: flex;
   gap: var(--spacing-xs);
   flex-shrink: 0;
+}
+
+.scenario-list-item-form {
+  flex: 0 0 100%;
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .scenario-list-item-actions .icon-btn {
@@ -1159,7 +1167,9 @@ body.dashboard-shell {
 
 /* Summary card form elements */
 .summary-card-form,
-.grid-summary-form {
+.grid-summary-form,
+.account-card-form,
+.scenario-list-item-form {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;

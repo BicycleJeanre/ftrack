@@ -594,11 +594,110 @@ async function buildScenarioGrid(container) {
         actions.appendChild(dupBtn);
         actions.appendChild(delBtn);
 
+        // Edit form - same pattern as account-card and grid-summary-card
+        const form = document.createElement('div');
+        form.className = 'scenario-list-item-form';
+        form.style.display = 'none';
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'grid-summary-input';
+        nameInput.value = scenario.name || '';
+        nameInput.placeholder = 'Scenario name';
+
+        const descInput = document.createElement('input');
+        descInput.type = 'text';
+        descInput.className = 'grid-summary-input';
+        descInput.value = scenario.description || '';
+        descInput.placeholder = 'Description (optional)';
+
+        const addFormField = (label, inputEl) => {
+          const field = document.createElement('div');
+          field.className = 'grid-summary-field';
+          const labelEl = document.createElement('label');
+          labelEl.className = 'grid-summary-label';
+          labelEl.textContent = label;
+          field.appendChild(labelEl);
+          field.appendChild(inputEl);
+          form.appendChild(field);
+        };
+
+        addFormField('Name', nameInput);
+        addFormField('Description', descInput);
+
+        const formActions = document.createElement('div');
+        formActions.className = 'grid-summary-form-actions';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-primary';
+        saveBtn.textContent = 'Save';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn';
+        cancelBtn.textContent = 'Cancel';
+
+        formActions.appendChild(saveBtn);
+        formActions.appendChild(cancelBtn);
+        form.appendChild(formActions);
+
+        const enterEdit = () => {
+          form.style.display = 'grid';
+          content.style.display = 'none';
+          actions.style.display = 'none';
+          nameInput.focus();
+        };
+
+        const exitEdit = () => {
+          form.style.display = 'none';
+          content.style.display = 'block';
+          actions.style.display = 'flex';
+        };
+
+        cancelBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          nameInput.value = scenario.name || '';
+          descInput.value = scenario.description || '';
+          exitEdit();
+        });
+
+        saveBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const nextName = nameInput.value.trim() || 'Untitled';
+          const nextDesc = descInput.value.trim() || null;
+          try {
+            await ScenarioManager.update(scenario.id, { name: nextName, description: nextDesc });
+            scenario.name = nextName;
+            scenario.description = nextDesc;
+            nameEl.textContent = nextName;
+            descEl.textContent = nextDesc || '';
+            if (descEl.textContent && !content.contains(descEl)) {
+              content.appendChild(descEl);
+            } else if (!descEl.textContent && content.contains(descEl)) {
+              content.removeChild(descEl);
+            }
+            if (currentScenario && Number(currentScenario.id) === Number(scenario.id)) {
+              currentScenario = { ...currentScenario, name: nextName, description: nextDesc };
+            }
+            exitEdit();
+          } catch (err) {
+            notifyError('Failed to update scenario: ' + (err?.message || 'Unknown error'));
+          }
+        });
+
         item.appendChild(content);
         item.appendChild(actions);
+        item.appendChild(form);
 
-        // Handle selection
-        item.addEventListener('click', async () => {
+        // Handle selection - click selects; click again on selected item enters edit mode
+        item.addEventListener('click', async (e) => {
+          if (form.style.display === 'grid') return;
+          if (e.target.closest('.icon-btn')) return;
+
+          if (item.classList.contains('selected')) {
+            enterEdit();
+            return;
+          }
+
           // Update UI selection
           listContainer.querySelectorAll('.scenario-list-item').forEach(el => {
             el.classList.remove('selected');
