@@ -22,7 +22,7 @@ import { formatCurrency } from '../../../shared/format-utils.js';
 
 const accountsGridState = new GridStateManager('accounts');
 let lastAccountsTable = null;
-let accountsGridMode = 'summary'; // 'summary' or 'detail'
+// Removed accountsGridMode: always summary in base grid.
 
 function sanitizeAccountPayload(account) {
   if (!account || typeof account !== 'object') return account;
@@ -714,23 +714,7 @@ export async function loadAccountsGrid({
     if (!controls) return;
     controls.innerHTML = '';
 
-    const viewSelect = document.createElement('select');
-    viewSelect.className = 'input-select input-select-compact';
-    viewSelect.innerHTML = `
-      <option value="summary">Summary</option>
-      <option value="detail">Detail</option>
-    `;
-    viewSelect.value = accountsGridMode;
-    viewSelect.addEventListener('change', async () => {
-      accountsGridMode = viewSelect.value;
-      await loadAccountsGrid({
-        container,
-        scenarioState,
-        getWorkflowConfig,
-        reloadMasterTransactionsGrid,
-        logger
-      });
-    });
+    // View toggle removed: accounts should always show the summary in base grids.
 
     const addButton = document.createElement('button');
     addButton.className = 'icon-btn';
@@ -742,20 +726,10 @@ export async function loadAccountsGrid({
     refreshButton.title = 'Refresh Accounts';
     refreshButton.textContent = '⟳';
 
-    controls.appendChild(viewSelect);
     controls.appendChild(addButton);
     controls.appendChild(refreshButton);
 
-    if (accountsGridMode === 'detail') {
-      const groupingSelect = document.createElement('select');
-      groupingSelect.id = 'account-grouping-select';
-      groupingSelect.className = 'input-select input-select-compact';
-      groupingSelect.innerHTML = `
-        <option value="">No Group</option>
-        <option value="accountType">Type</option>
-      `;
-      controls.appendChild(groupingSelect);
-    }
+    // Detail-specific grouping removed from base accounts grid.
 
     addButton.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -773,16 +747,15 @@ export async function loadAccountsGrid({
       if (!scenario.accounts) scenario.accounts = [];
       scenario.accounts.push(newAccount);
 
-      if (accountsGridMode === 'summary' || !lastAccountsTable) {
-        await loadAccountsGrid({
-          container,
-          scenarioState,
-          getWorkflowConfig,
-          reloadMasterTransactionsGrid,
-          logger
-        });
-        return;
-      }
+      // Always reload in summary mode.
+      await loadAccountsGrid({
+        container,
+        scenarioState,
+        getWorkflowConfig,
+        reloadMasterTransactionsGrid,
+        logger
+      });
+      return;
 
       const rowData = {
         ...newAccount,
@@ -829,9 +802,7 @@ export async function loadAccountsGrid({
       window.add(container, gridContainer);
     }
 
-    gridContainer.className = accountsGridMode === 'detail'
-      ? 'grid-container accounts-grid accounts-grid-compact grid-detail'
-      : 'grid-container accounts-grid';
+    gridContainer.className = 'grid-container accounts-grid';
 
     const accounts = await AccountManager.getAll(currentScenario.id);
     const displayAccounts = accounts.filter((a) => a.name !== 'Select Account');
@@ -840,7 +811,7 @@ export async function loadAccountsGrid({
 
     let accountsTable = lastAccountsTable;
 
-    if (accountsGridMode === 'summary') {
+    // Always summary mode in base grid.
       try {
         accountsTable?.destroy?.();
       } catch (_) {
@@ -864,7 +835,6 @@ export async function loadAccountsGrid({
         logger
       });
       return;
-    }
 
     const enrichedAccounts = await Promise.all(
       displayAccounts.map(async (a) => ({
@@ -879,7 +849,7 @@ export async function loadAccountsGrid({
     );
 
     const columns = buildAccountsGridColumns({
-      mode: accountsGridMode,
+      mode: 'summary',
       lookupData,
       workflowConfig,
       scenarioState,
@@ -896,7 +866,7 @@ export async function loadAccountsGrid({
     });
 
     const workflowIdForKey = workflowConfig?.id ?? 'unknown';
-    const columnsKey = `accounts-${workflowIdForKey}-${accountsGridMode}-${workflowConfig?.showGeneratePlan ? 'with-plan' : 'base'}`;
+    const columnsKey = `accounts-${workflowIdForKey}-summary-${workflowConfig?.showGeneratePlan ? 'with-plan' : 'base'}`;
     const shouldRebuildTable =
       !accountsTable ||
       accountsTable?.element !== gridContainer ||
@@ -954,23 +924,6 @@ export async function loadAccountsGrid({
       accountsTable.__ftrackColumnsKey = columnsKey;
     } else {
       await refreshGridData(accountsTable, enrichedAccounts);
-    }
-
-    if (accountsGridMode === 'detail') {
-      const accountGroupingSelect = document.getElementById('account-grouping-select');
-      if (accountGroupingSelect) {
-        accountGroupingSelect.addEventListener('change', (e) => {
-          const groupField = e.target.value;
-          if (groupField) {
-            accountsTable.setGroupBy(groupField);
-            accountsTable.setGroupHeader((value, count, data, group) => {
-              return `${value} (${count} items)`;
-            });
-          } else {
-            accountsTable.setGroupBy(false);
-          }
-        });
-      }
     }
 
     lastAccountsTable = accountsTable;

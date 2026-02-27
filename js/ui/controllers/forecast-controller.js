@@ -46,8 +46,7 @@ import {
 import { loadMasterTransactionsGrid as loadMasterTransactionsGridCore } from '../components/grids/transactions-grid.js';
 import { loadBudgetGrid as loadBudgetGridCore } from '../components/grids/budget-grid.js';
 import {
-  loadProjectionsSection as loadProjectionsSectionCore,
-  loadProjectionsGrid as loadProjectionsGridCore
+  loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js';
 
 const logger = createLogger('ForecastController');
@@ -1734,7 +1733,7 @@ async function loadProjectionsSection(container) {
 
 // Load projections grid
 async function loadProjectionsGrid(container) {
-  return loadProjectionsGridCore({
+  return loadProjectionsSectionCore({
     container,
     scenarioState: {
       get: () => currentScenario,
@@ -1785,6 +1784,41 @@ async function loadScenarioData() {
 
   const workflowConfig = getWorkflowConfig();
 
+  // Debug: log active workflow and visibility flags to help trace incorrect rendering
+  try {
+    console.log('loadScenarioData: currentWorkflowId=', currentWorkflowId, 'workflowConfig=', workflowConfig && workflowConfig.id, 'flags=', {
+      showAccounts: !!(workflowConfig && workflowConfig.showAccounts),
+      showTransactions: !!(workflowConfig && (workflowConfig.showPlannedTransactions || workflowConfig.showActualTransactions)),
+      showBudget: !!(workflowConfig && workflowConfig.showBudget),
+      showProjections: !!(workflowConfig && workflowConfig.showProjections),
+      showSummaryCards: !!(workflowConfig && workflowConfig.showSummaryCards)
+    });
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const secs = { accountsSection, txSection, budgetSection, projectionsSection, summaryCardsSection };
+    Object.keys(secs).forEach((k) => {
+      const el = secs[k];
+      if (!el) {
+        console.log('loadScenarioData: missing element', k);
+      } else {
+        console.log('loadScenarioData: element', k, 'class=', el.className, 'hidden?', el.classList.contains('hidden'));
+      }
+    });
+    // Also log container contents sizes
+    console.log('loadScenarioData: containers lengths', {
+      accountsTable: containers.accountsTable?.children?.length || 0,
+      transactionsTable: containers.transactionsTable?.children?.length || 0,
+      budgetTable: containers.budgetTable?.children?.length || 0,
+      projectionsContent: containers.projectionsContent?.children?.length || 0,
+      summaryCardsContent: containers.summaryCardsContent?.children?.length || 0
+    });
+  } catch (e) {
+    // ignore
+  }
+
   if (currentScenario && isFundsWorkflow(workflowConfig)) {
     await ensureFundSettingsInitialized();
   }
@@ -1817,24 +1851,38 @@ async function loadScenarioData() {
   containers.accountsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
   containers.transactionsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
   containers.budgetTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
+  // Load or clear each section based on workflow visibility
+  if (showAccounts) {
+    await loadAccountsGrid(containers.accountsTable);
+  } else {
+    containers.accountsTable.innerHTML = '';
+  }
 
-  await loadAccountsGrid(containers.accountsTable);
-  
   // Load Generate Plan section if applicable
   if (showGeneratePlan) {
     await loadGeneratePlanSection(getEl('generatePlanContent'));
+  } else {
+    const genEl = getEl('generatePlanContent'); if (genEl) genEl.innerHTML = '';
   }
-  
-  // Load transactions grid initially (filtering will be applied by account selection)
-  // Period calculation happens inside each grid load function
-  await loadMasterTransactionsGrid(containers.transactionsTable);
+
+  // Load transactions grid if visible
+  if (showTransactions) {
+    await loadMasterTransactionsGrid(containers.transactionsTable);
+  } else {
+    containers.transactionsTable.innerHTML = '';
+  }
 
   if (showBudget) {
     await loadBudgetGrid(containers.budgetTable);
   } else {
     containers.budgetTable.innerHTML = '';
   }
-  await loadProjectionsSection(containers.projectionsContent);
+
+  if (showProjections) {
+    await loadProjectionsSection(containers.projectionsContent);
+  } else {
+    containers.projectionsContent.innerHTML = '';
+  }
   
   // Load summary cards AFTER projections so they have data to work with
   if (showSummaryCards) {
@@ -1842,6 +1890,9 @@ async function loadScenarioData() {
     const workflowConfig = getWorkflowConfig();
     const useSimple = isGeneralWorkflow(workflowConfig);
     await loadSummaryCards(containers.summaryCardsContent, { simple: useSimple });
+  } else {
+    // Clear previous summary content when this workflow hides summaries
+    if (containers.summaryCardsContent) containers.summaryCardsContent.innerHTML = '';
   }
 }
 
