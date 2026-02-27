@@ -505,20 +505,6 @@ body.dashboard-shell {
   display: none;
 }
 
-.dash-row.minimized {
-  flex: 0 0 48px;
-  min-height: 48px;
-}
-
-.dash-row.minimized .dash-row-body {
-  overflow: hidden;
-  visibility: hidden;
-}
-
-.dash-row.focused {
-  flex: 3;
-}
-
 .dash-row-header {
   flex-shrink: 0;
   display: flex;

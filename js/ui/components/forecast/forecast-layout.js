@@ -143,30 +143,7 @@ function buildDashRow({ id, title, defaultCollapsed = false, showControls = true
       onClick: () => document.dispatchEvent(new CustomEvent('forecast:refresh'))
     });
 
-    const minimizeBtn = buildIconButton({
-      title: 'Minimize',
-      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-      onClick: () => {
-        row.classList.toggle('minimized');
-        row.classList.remove('collapsed');
-      }
-    });
-
-    const focusBtn = buildIconButton({
-      title: 'Focus',
-      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3H3v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 3h6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21H3v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 21h6v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      onClick: () => {
-        const isFocused = row.classList.toggle('focused');
-        document.querySelectorAll('.dash-row.focused').forEach((el) => {
-          if (el !== row) el.classList.remove('focused');
-        });
-        if (!isFocused) row.classList.remove('focused');
-      }
-    });
-
     controls.appendChild(refreshBtn);
-    controls.appendChild(minimizeBtn);
-    controls.appendChild(focusBtn);
 
     header.appendChild(chevron);
     header.appendChild(titleEl);
@@ -180,7 +157,6 @@ function buildDashRow({ id, title, defaultCollapsed = false, showControls = true
   header.addEventListener('click', (e) => {
     if (e.target.closest('button')) return;
     row.classList.toggle('collapsed');
-    row.classList.remove('minimized');
   });
 
   const body = document.createElement('div');
@@ -298,7 +274,8 @@ export function buildGridContainer() {
   const { row: summaryCardsSection, body: summaryCardsBody } = buildDashRow({
      id: 'summaryCardsSection',
      title: 'Summary',
-     showControls: false
+     showControls: false,
+     defaultCollapsed: true
   });
   const summaryCardsContent = document.createElement('div');
   summaryCardsContent.id = 'summaryCardsContent';
@@ -318,7 +295,8 @@ export function buildGridContainer() {
 
   const { row: middleRow, body: middleBody } = buildDashRow({
     id: 'row-middle',
-    title: 'Accounts & Transactions'
+    title: 'Accounts & Transactions',
+    defaultCollapsed: true
   });
   middleRow.classList.add('row-middle');
   middleBody.style.padding = '0';
@@ -380,7 +358,8 @@ export function buildGridContainer() {
 
   const { row: budgetSection, body: budgetBody } = buildDashRow({
     id: 'budgetSection',
-    title: 'Budget'
+    title: 'Budget',
+    defaultCollapsed: true
   });
   const budgetCard = document.createElement('div');
   budgetCard.className = 'forecast-card';
@@ -408,7 +387,8 @@ export function buildGridContainer() {
 
   const { row: projectionsSection, body: projectionsBody } = buildDashRow({
     id: 'projectionsSection',
-    title: 'Projections'
+    title: 'Projections',
+    defaultCollapsed: true
   });
   const projectionsCard = document.createElement('div');
   projectionsCard.className = 'forecast-card';
