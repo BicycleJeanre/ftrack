@@ -3,6 +3,7 @@
 // All operations read/write from localStorage (Web)
 
 import { generateRecurrenceDates } from '../../domain/calculations/calculation-engine.js';
+import { generatePeriods } from '../../domain/calculations/period-utils.js';
 import { formatDateOnly } from '../../shared/date-utils.js';
 import * as DataStore from './storage-service.js';
 import { notifyError } from '../../shared/notifications.js';
@@ -609,8 +610,6 @@ export async function clearBudget(scenarioId) {
  * @param {string} customPeriodType - Optional period type override (Day, Week, Month, Quarter, Year)
  * @returns {Promise<Array>} - Array of period objects
  */
-import { parseDateOnly } from '../../shared/date-utils.js';
-
 export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   const PERIOD_ID_TO_NAME = {
     1: 'Day',
@@ -621,141 +620,24 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   };
 
   const scenario = await getScenario(scenarioId);
-  
-  if (!scenario) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
-  
-  const periods = [];
+  if (!scenario) throw new Error(`Scenario ${scenarioId} not found`);
+
   const windowStart = scenario?.projection?.config?.startDate;
-  const windowEnd = scenario?.projection?.config?.endDate;
+  const windowEnd   = scenario?.projection?.config?.endDate;
   if (!windowStart || !windowEnd) {
     throw new Error(`Scenario ${scenarioId} is missing projection window dates`);
   }
-  const start = typeof windowStart === 'string' ? parseDateOnly(windowStart) : new Date(windowStart);
-  const end = typeof windowEnd === 'string' ? parseDateOnly(windowEnd) : new Date(windowEnd);
-  
-  // Get period type name from ID: first check customPeriodType (string), then projectionPeriod.id → name
+
   let periodType = customPeriodType;
   if (!periodType) {
-    const projectionPeriodIdRaw = scenario?.projection?.config?.periodTypeId ?? 3;
-    const projectionPeriodId = typeof projectionPeriodIdRaw === 'number'
-      ? projectionPeriodIdRaw
-      : (typeof projectionPeriodIdRaw === 'object' ? Number(projectionPeriodIdRaw?.id) : Number(projectionPeriodIdRaw)) || 3;
-    periodType = PERIOD_ID_TO_NAME[projectionPeriodId] || 'Month';
+    const periodTypeIdRaw = scenario?.projection?.config?.periodTypeId ?? 3;
+    const periodTypeId = typeof periodTypeIdRaw === 'number'
+      ? periodTypeIdRaw
+      : (typeof periodTypeIdRaw === 'object' ? Number(periodTypeIdRaw?.id) : Number(periodTypeIdRaw)) || 3;
+    periodType = PERIOD_ID_TO_NAME[periodTypeId] || 'Month';
   }
-  
-  let current = new Date(start);
-  
-  while (current <= end) {
-    if (periodType === 'Day') {
-      const periodId = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-      const dayName = current.toLocaleString('default', { weekday: 'long' });
-      const monthName = current.toLocaleString('default', { month: 'short' });
-      const day = current.getDate();
-      const year = current.getFullYear();
-      
-      periods.push({
-        id: periodId,
-        label: `${dayName}, ${monthName} ${day}, ${year}`,
-        startDate: new Date(current),
-        endDate: new Date(current)
-      });
-      
-      current.setDate(current.getDate() + 1);
-    } else if (periodType === 'Month') {
-      const periodId = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
-      const monthName = current.toLocaleString('default', { month: 'long' });
-      const year = current.getFullYear();
-      
-      periods.push({
-        id: periodId,
-        label: `${monthName} ${year}`,
-        startDate: new Date(current.getFullYear(), current.getMonth(), 1),
-        endDate: new Date(current.getFullYear(), current.getMonth() + 1, 0)
-      });
-      
-      current.setMonth(current.getMonth() + 1);
-    } else if (periodType === 'Week') {
-      // Align to Monday as week start (ISO week)
-      const weekStart = new Date(current);
-      const day = weekStart.getDay();
-      const diff = (day + 6) % 7; // days since Monday
-      weekStart.setDate(weekStart.getDate() - diff);
-      
-      // Skip if week starts after end date
-      if (weekStart > end) break;
-      
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      
-      // Clip to scenario end
-      const clippedEnd = weekEnd > end ? new Date(end) : weekEnd;
-      
-      const weekNum = Math.ceil(((weekStart - start) / 86400000 + 1) / 7);
-      const periodId = `${weekStart.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
-      const startMonth = weekStart.toLocaleString('default', { month: 'short' });
-      const endMonth = clippedEnd.toLocaleString('default', { month: 'short' });
-      const label = startMonth === endMonth 
-        ? `Week ${weekNum}: ${startMonth} ${weekStart.getDate()}-${clippedEnd.getDate()}, ${weekStart.getFullYear()}`
-        : `Week ${weekNum}: ${startMonth} ${weekStart.getDate()} - ${endMonth} ${clippedEnd.getDate()}, ${weekStart.getFullYear()}`;
-      
-      periods.push({
-        id: periodId,
-        label: label,
-        startDate: weekStart,
-        endDate: clippedEnd
-      });
-      
-      current.setDate(current.getDate() + 7);
-    } else if (periodType === 'Quarter') {
-      const quarter = Math.floor(current.getMonth() / 3) + 1;
-      const quarterStart = new Date(current.getFullYear(), (quarter - 1) * 3, 1);
-      
-      // Skip if quarter starts after end date
-      if (quarterStart > end) break;
-      
-      let quarterEnd = new Date(current.getFullYear(), quarter * 3, 0);
-      // Clip to scenario end
-      quarterEnd = quarterEnd > end ? new Date(end) : quarterEnd;
-      
-      const periodId = `${current.getFullYear()}-Q${quarter}`;
-      
-      periods.push({
-        id: periodId,
-        label: `Q${quarter} ${current.getFullYear()}`,
-        startDate: quarterStart,
-        endDate: quarterEnd
-      });
-      
-      current.setMonth(current.getMonth() + 3);
-    } else if (periodType === 'Year') {
-      const yearStart = new Date(current.getFullYear(), 0, 1);
-      
-      // Skip if year starts after end date
-      if (yearStart > end) break;
-      
-      let yearEnd = new Date(current.getFullYear(), 11, 31);
-      // Clip to scenario end
-      yearEnd = yearEnd > end ? new Date(end) : yearEnd;
-      
-      const periodId = `${current.getFullYear()}`;
-      
-      periods.push({
-        id: periodId,
-        label: `${current.getFullYear()}`,
-        startDate: yearStart,
-        endDate: yearEnd
-      });
-      
-      current.setFullYear(current.getFullYear() + 1);
-    } else {
-      // Default to month
-      current.setMonth(current.getMonth() + 1);
-    }
-  }
-  
-  return periods;
+
+  return generatePeriods(windowStart, windowEnd, periodType);
 }
 
 /**
