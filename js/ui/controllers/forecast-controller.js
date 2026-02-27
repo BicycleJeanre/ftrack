@@ -538,18 +538,18 @@ async function buildScenarioGrid(container) {
     } else {
       scenarios.forEach((scenario) => {
         const item = document.createElement('div');
-        item.className = 'scenario-list-item';
+        item.className = 'grid-summary-card scenario-list-item';
         item.setAttribute('data-scenario-id', scenario.id);
 
         const content = document.createElement('div');
-        content.className = 'scenario-list-item-content';
+        content.className = 'grid-summary-content';
         
         const nameEl = document.createElement('div');
-        nameEl.className = 'scenario-list-item-name';
+        nameEl.className = 'grid-summary-title';
         nameEl.textContent = scenario.name || 'Untitled';
 
         const descEl = document.createElement('div');
-        descEl.className = 'scenario-list-item-desc';
+        descEl.className = 'grid-summary-meta';
         descEl.textContent = scenario.description || '';
 
         content.appendChild(nameEl);
@@ -558,7 +558,7 @@ async function buildScenarioGrid(container) {
         }
 
         const actions = document.createElement('div');
-        actions.className = 'scenario-list-item-actions';
+        actions.className = 'grid-summary-actions';
 
         const dupBtn = document.createElement('button');
         dupBtn.className = 'icon-btn scenarios-list-dup';
@@ -595,7 +595,7 @@ async function buildScenarioGrid(container) {
 
         // Edit form - same pattern as account-card and grid-summary-card
         const form = document.createElement('div');
-        form.className = 'scenario-list-item-form';
+        form.className = 'grid-summary-form';
         form.style.display = 'none';
 
         const nameInput = document.createElement('input');
