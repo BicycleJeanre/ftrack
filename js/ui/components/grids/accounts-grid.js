@@ -336,6 +336,7 @@ function renderAccountsSummaryList({
   container,
   accounts,
   lookupData,
+  workflowConfig,
   scenarioState,
   reloadAccountsGrid,
   logger
@@ -419,6 +420,179 @@ function renderAccountsSummaryList({
     balanceInput.className = 'accounts-detail-input';
     balanceInput.value = account?.startingBalance ?? 0;
 
+    const descriptionInput = document.createElement('input');
+    descriptionInput.type = 'text';
+    descriptionInput.className = 'accounts-detail-input';
+    descriptionInput.value = account?.description || '';
+    descriptionInput.placeholder = 'Add a description';
+
+    let goalAmountInput = null;
+    let goalDateInput = null;
+    if (workflowConfig?.showGeneratePlan) {
+      goalAmountInput = document.createElement('input');
+      goalAmountInput.type = 'number';
+      goalAmountInput.step = '0.01';
+      goalAmountInput.className = 'accounts-detail-input';
+      goalAmountInput.value = account?.goalAmount ?? '';
+      goalAmountInput.placeholder = '0.00';
+
+      goalDateInput = document.createElement('input');
+      goalDateInput.type = 'date';
+      goalDateInput.className = 'accounts-detail-input';
+      goalDateInput.value = account?.goalDate || '';
+    }
+
+    // Periodic Change — clickable value field opens the modal
+    const periodicValueEl = document.createElement('div');
+    periodicValueEl.className = 'accounts-detail-value accounts-detail-value--clickable';
+    periodicValueEl.title = 'Click to edit periodic change';
+    periodicValueEl.textContent = account?.periodicChangeSummary || 'None';
+    periodicValueEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openPeriodicChangeModal(account?.periodicChange, async (newPeriodicChange) => {
+        const scenario = scenarioState?.get?.();
+        if (!scenario) return;
+        try {
+          const summary = await getPeriodicChangeDescription(newPeriodicChange);
+          await AccountManager.update(scenario.id, account.id, { periodicChange: newPeriodicChange });
+          account.periodicChange = newPeriodicChange;
+          account.periodicChangeSummary = summary;
+          periodicValueEl.textContent = summary || 'None';
+        } catch (err) {
+          logger?.error?.('[AccountsGrid] Failed to update periodic change', err);
+        }
+      });
+    });
+    const periodicFormField = document.createElement('div');
+    periodicFormField.className = 'accounts-detail-field form-field--full';
+    const periodicFormLabel = document.createElement('label');
+    periodicFormLabel.className = 'accounts-detail-label';
+    periodicFormLabel.textContent = 'Periodic Change';
+    periodicFormField.appendChild(periodicFormLabel);
+    periodicFormField.appendChild(periodicValueEl);
+
+    // Tags — inline editor
+    const cardTags = [...(account?.tags || [])];
+    const tagSuggestions = ['checking', 'savings', 'investment', 'credit-card', 'mortgage', 'auto-loan', 'primary', 'secondary', 'inactive', 'joint'];
+
+    const tagsChipsEl = document.createElement('div');
+    tagsChipsEl.className = 'tag-chips';
+
+    const renderCardTags = () => {
+      tagsChipsEl.innerHTML = '';
+      if (cardTags.length === 0) {
+        const empty = document.createElement('span');
+        empty.className = 'text-secondary';
+        empty.textContent = 'No tags';
+        tagsChipsEl.appendChild(empty);
+        return;
+      }
+      cardTags.forEach((tag, idx) => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-badge';
+        chip.innerHTML = `${tag} <button type="button" class="tag-remove" aria-label="Remove tag">&times;</button>`;
+        chip.querySelector('.tag-remove').addEventListener('click', (e) => {
+          e.stopPropagation();
+          cardTags.splice(idx, 1);
+          renderCardTags();
+        });
+        tagsChipsEl.appendChild(chip);
+      });
+    };
+    renderCardTags();
+
+    const tagInputRow = document.createElement('div');
+    tagInputRow.className = 'tag-input-row';
+
+    const tagInput = document.createElement('input');
+    tagInput.type = 'text';
+    tagInput.className = 'accounts-detail-input';
+    tagInput.placeholder = 'Add tag…';
+    tagInput.autocomplete = 'off';
+    const tagDatalistId = `tag-suggestions-${account.id}`;
+    const tagDatalist = document.createElement('datalist');
+    tagDatalist.id = tagDatalistId;
+    tagSuggestions.forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s;
+      tagDatalist.appendChild(opt);
+    });
+    tagInput.setAttribute('list', tagDatalistId);
+
+    const addTagFn = () => {
+      const val = tagInput.value.trim().toLowerCase();
+      if (val && !cardTags.includes(val)) {
+        cardTags.push(val);
+        renderCardTags();
+      }
+      tagInput.value = '';
+    };
+    tagInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addTagFn(); }
+    });
+
+    const addTagBtn = document.createElement('button');
+    addTagBtn.type = 'button';
+    addTagBtn.className = 'btn';
+    addTagBtn.textContent = 'Add';
+    addTagBtn.addEventListener('click', (e) => { e.stopPropagation(); addTagFn(); });
+
+    tagInputRow.appendChild(tagInput);
+    tagInputRow.appendChild(tagDatalist);
+    tagInputRow.appendChild(addTagBtn);
+
+    const tagsFormField = document.createElement('div');
+    tagsFormField.className = 'accounts-detail-field form-field--full';
+    const tagsFormLabel = document.createElement('label');
+    tagsFormLabel.className = 'accounts-detail-label';
+    tagsFormLabel.textContent = 'Tags';
+    tagsFormField.appendChild(tagsFormLabel);
+    tagsFormField.appendChild(tagsChipsEl);
+    tagsFormField.appendChild(tagInputRow);
+
+    // Periodic Change Schedule — auto-saves via modal (conditional)
+    let scheduleFormField = null;
+    let scheduleValueEl = null;
+    if (workflowConfig?.supportsPeriodicChangeSchedule) {
+      scheduleValueEl = document.createElement('div');
+      scheduleValueEl.className = 'accounts-detail-value';
+      scheduleValueEl.textContent = account?.periodicChangeScheduleSummary || 'None';
+      const scheduleEditBtn = document.createElement('button');
+      scheduleEditBtn.type = 'button';
+      scheduleEditBtn.className = 'btn accounts-detail-btn';
+      scheduleEditBtn.textContent = 'Edit Schedule';
+      scheduleEditBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPeriodicChangeScheduleModal(
+          { basePeriodicChange: account?.periodicChange ?? null, schedule: account?.periodicChangeSchedule ?? [] },
+          async (newSchedule) => {
+            const scenario = scenarioState?.get?.();
+            if (!scenario) return;
+            try {
+              const nextSummary =
+                Array.isArray(newSchedule) && newSchedule.length
+                  ? `${newSchedule.length} scheduled change${newSchedule.length === 1 ? '' : 's'}`
+                  : 'None';
+              await AccountManager.update(scenario.id, account.id, { periodicChangeSchedule: newSchedule });
+              account.periodicChangeSchedule = newSchedule;
+              account.periodicChangeScheduleSummary = nextSummary;
+              scheduleValueEl.textContent = nextSummary;
+            } catch (err) {
+              logger?.error?.('[AccountsGrid] Failed to update periodic change schedule', err);
+            }
+          }
+        );
+      });
+      scheduleFormField = document.createElement('div');
+      scheduleFormField.className = 'accounts-detail-field form-field--full';
+      const scheduleFormLabel = document.createElement('label');
+      scheduleFormLabel.className = 'accounts-detail-label';
+      scheduleFormLabel.textContent = 'Periodic Change Schedule';
+      scheduleFormField.appendChild(scheduleFormLabel);
+      scheduleFormField.appendChild(scheduleValueEl);
+      scheduleFormField.appendChild(scheduleEditBtn);
+    }
+
     const formActions = document.createElement('div');
     formActions.className = 'account-card-form-actions';
 
@@ -436,6 +610,12 @@ function renderAccountsSummaryList({
     form.appendChild(createDetailField({ label: 'Name', inputEl: nameInput }));
     form.appendChild(createDetailField({ label: 'Type', inputEl: typeSelect }));
     form.appendChild(createDetailField({ label: 'Starting Balance', inputEl: balanceInput }));
+    form.appendChild(createDetailField({ label: 'Description', inputEl: descriptionInput }));
+    if (goalAmountInput) form.appendChild(createDetailField({ label: 'Goal Amount', inputEl: goalAmountInput }));
+    if (goalDateInput) form.appendChild(createDetailField({ label: 'Goal Date', inputEl: goalDateInput }));
+    form.appendChild(periodicFormField);
+    form.appendChild(tagsFormField);
+    if (scheduleFormField) form.appendChild(scheduleFormField);
     form.appendChild(formActions);
 
     const enterEditMode = () => {
@@ -490,6 +670,11 @@ function renderAccountsSummaryList({
         typeSelect.value = '';
       }
       balanceInput.value = account?.startingBalance ?? 0;
+      descriptionInput.value = account?.description || '';
+      if (goalAmountInput) goalAmountInput.value = account?.goalAmount ?? '';
+      if (goalDateInput) goalDateInput.value = account?.goalDate || '';
+      cardTags.splice(0, cardTags.length, ...(account?.tags || []));
+      renderCardTags();
       exitEditMode();
     });
 
@@ -502,17 +687,35 @@ function renderAccountsSummaryList({
       const nextBalance = Number(balanceInput.value || 0);
       const nextTypeId = typeSelect.value;
       const nextType = (lookupData?.accountTypes || []).find((type) => String(type.id) === String(nextTypeId)) || null;
+      const nextDescription = descriptionInput.value.trim();
+      const nextGoalAmountRaw = goalAmountInput?.value;
+      const nextGoalAmount = nextGoalAmountRaw === undefined ? undefined
+        : nextGoalAmountRaw === '' ? null
+        : Number(nextGoalAmountRaw);
+      const nextGoalDate = goalDateInput !== null
+        ? (goalDateInput?.value || null)
+        : undefined;
+
+      const updatePayload = {
+        name: nextName,
+        type: nextType,
+        startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance,
+        description: nextDescription,
+        tags: [...cardTags]
+      };
+      if (nextGoalAmount !== undefined) updatePayload.goalAmount = Number.isNaN(nextGoalAmount) ? null : nextGoalAmount;
+      if (nextGoalDate !== undefined) updatePayload.goalDate = nextGoalDate;
 
       try {
-        await AccountManager.update(scenario.id, account.id, {
-          name: nextName,
-          type: nextType,
-          startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance
-        });
+        await AccountManager.update(scenario.id, account.id, updatePayload);
 
         account.name = nextName;
         account.type = nextType;
         account.startingBalance = Number.isNaN(nextBalance) ? 0 : nextBalance;
+        account.description = nextDescription;
+        account.tags = [...cardTags];
+        if (nextGoalAmount !== undefined) account.goalAmount = updatePayload.goalAmount;
+        if (nextGoalDate !== undefined) account.goalDate = nextGoalDate;
 
         nameEl.textContent = account?.name || 'Untitled';
         typeEl.textContent = account?.type?.name || 'Unspecified';
@@ -805,6 +1008,17 @@ export async function loadAccountsGrid({
     const accounts = await AccountManager.getAll(currentScenario.id);
     const displayAccounts = accounts.filter((a) => a.name !== 'Select Account');
 
+    // Enrich with computed summaries so the card form shows correct initial values.
+    await Promise.all(
+      displayAccounts.map(async (a) => {
+        a.periodicChangeSummary = await getPeriodicChangeDescription(a.periodicChange);
+        a.periodicChangeScheduleSummary =
+          Array.isArray(a.periodicChangeSchedule) && a.periodicChangeSchedule.length
+            ? `${a.periodicChangeSchedule.length} scheduled change${a.periodicChangeSchedule.length === 1 ? '' : 's'}`
+            : 'None';
+      })
+    );
+
     const lookupData = await loadLookup('lookup-data.json');
 
     let accountsTable = lastAccountsTable;
@@ -821,6 +1035,7 @@ export async function loadAccountsGrid({
         container: gridContainer,
         accounts: displayAccounts,
         lookupData,
+        workflowConfig,
         scenarioState,
         reloadAccountsGrid: (nextContainer) =>
           loadAccountsGrid({

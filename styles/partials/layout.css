@@ -1090,8 +1090,6 @@ body.dashboard-shell {
 
 /* Summary card form elements */
 .summary-card-form,
-.grid-summary-form,
-.account-card-form,
 .grid-summary-form {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
