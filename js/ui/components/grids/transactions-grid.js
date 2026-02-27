@@ -342,6 +342,43 @@ export async function loadMasterTransactionsGrid({
     if (controls) {
       controls.innerHTML = '';
       // View toggle removed: transactions should always render summary in base grids.
+
+      // Account filter — lets the user narrow the list by primary account perspective.
+      const accountFilterWrapper = document.createElement('div');
+      accountFilterWrapper.style.cssText = 'display:flex;align-items:center;gap:5px;';
+      const accountFilterLabel = document.createElement('label');
+      accountFilterLabel.className = 'text-muted';
+      accountFilterLabel.style.cssText = 'font-size:11px;white-space:nowrap;';
+      accountFilterLabel.textContent = 'Account:';
+      const accountFilterSelect = document.createElement('select');
+      accountFilterSelect.className = 'input-select';
+      accountFilterSelect.style.cssText = 'padding:3px 6px;min-width:110px;width:auto;font-size:12px;';
+      (currentScenario.accounts || [])
+        .filter((a) => a.name !== 'Select Account')
+        .forEach((account) => {
+          const opt = document.createElement('option');
+          opt.value = String(account.id);
+          opt.textContent = account.name;
+          accountFilterSelect.appendChild(opt);
+        });
+      const currentFilterId = state?.getTransactionFilterAccountId?.();
+      const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
+      const initialFilterId = currentFilterId || firstAccountId || null;
+      if (initialFilterId) {
+        accountFilterSelect.value = String(initialFilterId);
+        if (!currentFilterId) {
+          state?.setTransactionFilterAccountId?.(Number(initialFilterId));
+        }
+      }
+      accountFilterSelect.addEventListener('change', (e) => {
+        const nextId = e.target.value ? Number(e.target.value) : null;
+        state?.setTransactionFilterAccountId?.(nextId);
+        loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+      });
+      accountFilterWrapper.appendChild(accountFilterLabel);
+      accountFilterWrapper.appendChild(accountFilterSelect);
+      controls.appendChild(accountFilterWrapper);
+
       const addButton = document.createElement('button');
       addButton.className = 'icon-btn';
       addButton.title = 'Add Transaction';
