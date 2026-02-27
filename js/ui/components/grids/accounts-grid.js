@@ -1003,8 +1003,6 @@ export async function loadAccountsGrid({
       window.add(container, gridContainer);
     }
 
-    gridContainer.className = 'grid-container accounts-grid';
-
     const accounts = await AccountManager.getAll(currentScenario.id);
     const displayAccounts = accounts.filter((a) => a.name !== 'Select Account');
 
