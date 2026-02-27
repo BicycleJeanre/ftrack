@@ -1818,6 +1818,18 @@ async function loadScenarioData() {
   if (showBudget) budgetSection.classList.remove('hidden'); else budgetSection.classList.add('hidden');
   if (showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
 
+  // For the accounts-detail workflow: hide the outer accordion wrapper and expand the
+  // body so the Tabulator grid fills all available space.
+  const rowMiddle = getEl('row-middle');
+  if (rowMiddle) {
+    if (workflowConfig?.accountsMode === 'detail') {
+      rowMiddle.classList.add('mode-accounts-detail');
+      rowMiddle.classList.remove('collapsed');
+    } else {
+      rowMiddle.classList.remove('mode-accounts-detail');
+    }
+  }
+
   // Clear any stale placeholders without destroying stable grid containers.
   containers.accountsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
   containers.transactionsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
