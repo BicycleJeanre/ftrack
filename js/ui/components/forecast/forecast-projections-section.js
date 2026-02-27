@@ -16,7 +16,6 @@ import { generateProjections, clearProjections } from '../../../domain/calculati
 
 const projectionsGridState = new GridStateManager('projections');
 let lastProjectionsTable = null;
-// Removed projectionsGridMode: always summary in base projections section.
 
 function renderProjectionsRowDetails({ row, rowData }) {
   const rowEl = row.getElement();

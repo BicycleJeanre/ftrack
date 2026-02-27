@@ -28,7 +28,6 @@ const {
 } = DataService;
 
 const transactionsGridState = new GridStateManager('transactions');
-// Removed transactionsGridMode: always summary in base grid.
 
 function renderTransactionsRowDetails({ row, rowData }) {
   const rowEl = row.getElement();

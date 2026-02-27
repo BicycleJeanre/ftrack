@@ -9,7 +9,7 @@ import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
-import { getScenarioProjectionRows, getScenarioBudgetWindowConfig, setScenarioBudgetWindowConfig } from '../../../shared/app-data-utils.js';
+import { getScenarioProjectionRows, getScenarioBudgetWindowConfig } from '../../../shared/app-data-utils.js';
 import { openTimeframeModal } from '../modals/timeframe-modal.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 
@@ -19,7 +19,6 @@ import * as ScenarioManager from '../../../app/managers/scenario-manager.js';
 import { getScenario, getScenarioPeriods, getBudget } from '../../../app/services/data-service.js';
 
 const budgetGridState = new GridStateManager('budget');
-// Removed budgetGridMode: always summary in base grid.
 
 function renderBudgetRowDetails({ row, rowData }) {
   const rowEl = row.getElement();

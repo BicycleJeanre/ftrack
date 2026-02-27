@@ -136,7 +136,7 @@ export function calculateMonthsToGoal(presentValue, futureValue, monthlyContribu
  * @param {number} frequencyId - Frequency lookup ID (1=Daily, 2=Weekly, 3=Monthly, 4=Quarterly, 5=Yearly)
  * @returns {number} - Number of months between contributions
  */
-export function getFrequencyInMonths(frequencyId) {
+function getFrequencyInMonths(frequencyId) {
     const frequencyMap = {
         1: 0.033,    // Daily (1/30 months)
         2: 0.231,    // Weekly (1/4.33 months)

@@ -22,7 +22,6 @@ import { formatCurrency } from '../../../shared/format-utils.js';
 
 const accountsGridState = new GridStateManager('accounts');
 let lastAccountsTable = null;
-// Removed accountsGridMode: always summary in base grid.
 
 function sanitizeAccountPayload(account) {
   if (!account || typeof account !== 'object') return account;

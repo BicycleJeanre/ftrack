@@ -47,14 +47,14 @@ function getScenarioPlanningWindow(scenario, key) {
   const planning = scenario?.planning && typeof scenario.planning === 'object' ? scenario.planning : {};
   const raw = planning?.[key] && typeof planning[key] === 'object' ? planning[key] : {};
 
-  const window = normalizeDateRange({
+  const planWindow = normalizeDateRange({
     startDate: raw.startDate || fallback.startDate,
     endDate: raw.endDate || fallback.endDate
   });
 
   return {
-    startDate: window.startDate || fallback.startDate,
-    endDate: window.endDate || fallback.endDate
+    startDate: planWindow.startDate || fallback.startDate,
+    endDate: planWindow.endDate || fallback.endDate
   };
 }
 

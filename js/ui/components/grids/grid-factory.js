@@ -181,24 +181,6 @@ export async function refreshGridData(table, nextData = []) {
 }
 
 /**
- * Create column definition for row selection
- * @returns {Object} - Tabulator column config
- */
-export function createSelectorColumn() {
-    return {
-        formatter: "rowSelection",
-        titleFormatter: "rowSelection",
-        headerSort: false,
-        cellClick: function(e, cell) {
-            cell.getRow().toggleSelect();
-        },
-        width: 50,
-        hozAlign: "center",
-        headerHozAlign: "center"
-    };
-}
-
-/**
  * Create column definition with header filter
  * @param {string} title - Column title
  * @param {string} field - Data field name
@@ -212,35 +194,6 @@ export function createTextColumn(title, field, options = {}) {
         editor: "input",
         headerSort: true,
         headerFilter: "input",
-        headerHozAlign: "left",
-        responsive: options.responsive || 1, // Default responsive priority
-        ...options
-    };
-}
-
-/**
- * Create column definition for object fields (type.name, currency.name, etc)
- * @param {string} title - Column title
- * @param {string} field - Data field name
- * @param {string} subField - Nested field (e.g., 'name')
- * @param {Object} options - Additional options
- * @returns {Object} - Tabulator column config
- */
-export function createObjectColumn(title, field, subField = 'name', options = {}) {
-    return {
-        title,
-        field,
-        formatter: function(cell) {
-            const value = cell.getValue();
-            if (value && value[subField]) return value[subField];
-            return value || '';
-        },
-        headerSort: true,
-        headerFilter: "input",
-        headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
-            const displayValue = rowValue?.[subField] || '';
-            return displayValue.toLowerCase().includes(headerValue.toLowerCase());
-        },
         headerHozAlign: "left",
         responsive: options.responsive || 1, // Default responsive priority
         ...options

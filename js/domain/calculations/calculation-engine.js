@@ -10,22 +10,13 @@
 import * as FinancialCalc from './financial-calculations.js';
 import * as RecurrenceCalc from './recurrence-calculations.js';
 
-// Re-export all financial calculations
+// Re-export calculation functions used by consumers
 export const {
-  calculatePeriodicChange,
-  calculateFutureValue,
-  calculatePresentValue,
-  calculateCompoundInterest,
-  calculateEffectiveRate,
-  calculatePayment,
-  calculatePeriods
+  calculatePeriodicChange
 } = FinancialCalc;
 
-// Re-export all recurrence calculations
+// Re-export recurrence functions used by consumers
 export const {
-  getNthWeekdayOfMonth,
-  getQuartersBetween,
-  getPeriodsBetween,
   generateRecurrenceDates
 } = RecurrenceCalc;
 

@@ -13,7 +13,6 @@ import {
 // Web storage key
 const STORAGE_KEY = 'ftrack:app-data';
 
-let writeQueue = Promise.resolve(); // serialize writes to avoid concurrent truncation
 let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
 
 /**

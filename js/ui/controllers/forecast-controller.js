@@ -20,10 +20,8 @@ import { getScenarioProjectionRows, mapPeriodTypeNameToId } from '../../shared/a
 import { DEFAULT_WORKFLOW_ID, WORKFLOWS, getWorkflowById } from '../../shared/workflow-registry.js';
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
-import { renderMoneyTotals, renderBudgetTotals } from '../components/widgets/toolbar-totals.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
 import { buildGridContainer } from '../components/forecast/forecast-layout.js';
-import { ICON_REFRESH, ICON_SPINNER } from '../../../styles/icons.js';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore
@@ -60,13 +58,11 @@ import {
 import {
   getScenarios,
   getScenario,
-  saveAccounts,
   getTransactions,
   createTransaction,
   createAccount,
   getScenarioPeriods,
-  getBudget,
-  saveBudget
+  getBudget
 } from '../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../domain/calculations/projection-engine.js';
 
