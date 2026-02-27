@@ -12,7 +12,6 @@ import {
 
 // Web storage key
 const STORAGE_KEY = 'ftrack:app-data';
-const BACKUP_KEY = 'ftrack:backup';
 
 let writeQueue = Promise.resolve(); // serialize writes to avoid concurrent truncation
 let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
@@ -120,26 +119,6 @@ export async function transaction(modifyFn) {
 }
 
 /**
- * Backup current data
- * @returns {Promise<void>}
- */
-export async function backup() {
-    const data = await read();
-    localStorage.setItem(BACKUP_KEY, JSON.stringify(data));
-}
-
-/**
- * Restore from backup
- * @returns {Promise<void>}
- */
-export async function restore() {
-    const backup = localStorage.getItem(BACKUP_KEY);
-    if (backup) {
-        localStorage.setItem(STORAGE_KEY, backup);
-    }
-}
-
-/**
  * Clear all data
  * @returns {Promise<void>}
  */
@@ -147,15 +126,3 @@ export async function clear() {
     localStorage.removeItem(STORAGE_KEY);
 }
 
-/**
- * Get storage usage information
- * @returns {Object} - Object with used, quota, and percentage
- */
-export function getStorageUsage() {
-    const data = localStorage.getItem(STORAGE_KEY) || '';
-    return {
-        used: new Blob([data]).size,
-        quota: 5 * 1024 * 1024, // 5MB typical limit
-        percentage: (new Blob([data]).size / (5 * 1024 * 1024)) * 100
-    };
-}

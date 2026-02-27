@@ -505,7 +505,3 @@ export async function loadMasterTransactionsGrid({
     // Keep existing behavior: errors are swallowed here.
   }
 }
-
-export async function refreshMasterTransactionsGrid(args) {
-  return loadMasterTransactionsGrid(args);
-}

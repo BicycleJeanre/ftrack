@@ -27,7 +27,6 @@ const defaultConfig = {
     selectableRangeMode: false, // Disable to allow cell editing
     // Allow grids to decide if a row is selectable. Log calls for debugging.
     selectableCheck: function(row) {
-        // try { logger.debug('selectableCheck: row id', row.getData() && row.getData().id); } catch (e) { /* noop */ }
         return true; // Default to selectable
     },
     editTriggerEvent: "dblclick", // Double-click to edit cells (allows single-click for row selection)
@@ -88,47 +87,25 @@ export async function createGrid(element, options = {}) {
         config.selectablePersistence = false; // Important: Clear selection on reload
     }
     
-    // logger.info(`Creating grid on element ID: ${element.id || 'N/A'}`, { 
-    //     selectable: config.selectable, 
-    //     selector: element.id || element 
-    // });
-    
     const table = new TabulatorLib(element, config);
 
     // Instrument selection events for debugging
     table.on("rowSelected", function(row){
-        // logger.info(`Row Selected in ${element.id||'Grid'}:`, row.getData().id);
         try {
             const el = row.getElement();
             if (el && el.classList) el.classList.add('custom-selected');
-            // logger.debug(`Row element classes: ${el ? el.className : 'no-el'}`);
         } catch (e) { logger.error('rowSelected diagnostics failed', e); }
     });
     
     table.on("rowDeselected", function(row){
-        // logger.debug(`Row Deselected in ${element.id||'Grid'}:`, row.getData().id);
         try {
             const el = row.getElement();
             if (el && el.classList) el.classList.remove('custom-selected');
         } catch (e) { logger.error('rowDeselected diagnostics failed', e); }
     });
-
-    // Additional instrumentation: clicks and table lifecycle
-    table.on("rowClick", function(e, row){
-        // try { logger.info(`Row Click in ${element.id||'Grid'}:`, row.getData().id, 'target=', e.target && e.target.tagName); } catch (err) { logger.info('Row Click in Grid (no id)'); }
-    });
-
-    table.on("cellClick", function(e, cell){
-        // try { logger.debug(`Cell Click in ${element.id||'Grid'}:`, cell.getField(), 'target=', e.target && e.target.tagName); } catch (err) { logger.debug('Cell Click in Grid'); }
-    });
-
-    table.on("tableBuilt", function(){
-        // logger.info(`Table built: ${element.id||'Grid'}`);
-    });
     
     if (cellEdited) {
         table.on("cellEdited", (cell) => {
-            // logger.info(`Cell Edited in ${element.id||'Grid'}:`, cell.getField(), cell.getValue());
             cellEdited(cell);
         });
     }

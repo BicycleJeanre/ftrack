@@ -3,7 +3,7 @@
 // Displays accounts, transactions, budgets, and projections based on the selected workflow
 
 
-import { createGrid, refreshGridData, createSelectorColumn, createTextColumn, createObjectColumn, createDateColumn, createMoneyColumn, createListEditor, formatMoneyDisplay, formatNumberDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
+import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, formatMoneyDisplay, formatNumberDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
 import { attachGridHandlers } from '../components/grids/grid-handlers.js';
 import * as ScenarioManager from '../../app/managers/scenario-manager.js';
 import * as AccountManager from '../../app/managers/account-manager.js';
@@ -33,11 +33,7 @@ import {
   getFilteredProjections as getFilteredProjectionsCore,
   updateProjectionTotals as updateProjectionTotalsCore
 } from '../components/forecast/forecast-projections.js';
-import {
-  transformPlannedTxForUI as transformPlannedTxForUICore,
-  transformActualTxForUI as transformActualTxForUICore,
-  mapTxToUI as mapTxToUICore
-} from '../components/forecast/forecast-tx-ui.js';
+
 import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js';
 import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
@@ -52,15 +48,10 @@ import {
 const logger = createLogger('ForecastController');
 
 import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
-import { generateRecurrenceDates } from '../../domain/calculations/calculation-engine.js';
-import { expandTransactions } from '../../domain/calculations/transaction-expander.js';
-import { getRecurrenceDescription } from '../../domain/calculations/recurrence-utils.js';
-import { calculateCategoryTotals, calculateBudgetTotals } from '../transforms/data-aggregators.js';
-import { calculateContributionAmount, calculateMonthsToGoal, calculateFutureValue, calculateMonthsBetweenDates, getFrequencyName, getFrequencyInMonths, convertContributionFrequency, getGoalSummary } from '../../domain/calculations/goal-calculations.js';
+
 import {
   getDefaultFundSettings,
   buildProjectionsIndex,
-  getBalanceAsOf,
   computeNav,
   computeContributionRedemptionTotals,
   computeFixedSharesReport,
@@ -662,42 +653,6 @@ async function buildScenarioGrid(container) {
     }
   } catch (err) {
   }
-}
-
-/**
- * Transform planned transactions to UI format (transactionType/secondaryAccount) filtered by selected account
- */
-function transformPlannedTxForUI(plannedTxs, transactionFilterAccountId) {
-  return transformPlannedTxForUICore({
-    currentScenario,
-    plannedTxs,
-    transactionFilterAccountId
-  });
-}
-
-
-
-/**
- * Transform actual transactions for UI (same as planned transactions)
- */
-function transformActualTxForUI(actualTxs, transactionFilterAccountId) {
-  return transformActualTxForUICore({
-    currentScenario,
-    actualTxs,
-    transactionFilterAccountId
-  });
-}
-
-/**
- * Map a backend transaction to UI representation for a selected account.
- * Returns null if the transaction does not involve the selected account.
- */
-function mapTxToUI(tx, transactionFilterAccountId) {
-  return mapTxToUICore({
-    currentScenario,
-    tx,
-    transactionFilterAccountId
-  });
 }
 
 /**

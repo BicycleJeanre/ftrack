@@ -500,19 +500,6 @@ function generatePeriods(start, end, periodicity) {
 }
 
 /**
- * Format date as YYYY-MM-DD
- * @param {Date} date - Date to format
- * @returns {string} - Formatted date string
- */
-function formatDate(date) {
-  // Use local date components to avoid UTC offset causing previous-day dates
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-/**
  * Clear projections for a scenario
  * @param {number} scenarioId - The scenario ID
  * @returns {Promise<void>}

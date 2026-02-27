@@ -3,7 +3,7 @@
 
 import { createGrid, refreshGridData, createDateColumn, createTextColumn, createMoneyColumn, formatMoneyDisplay } from '../grids/grid-factory.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
-import { notifyError, notifySuccess } from '../../../shared/notifications.js';
+import { notifyError } from '../../../shared/notifications.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from '../grids/grid-state.js';
 import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
@@ -13,9 +13,6 @@ import { formatCurrency } from '../../../shared/format-utils.js';
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
 
-import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
-import { calculatePeriodicChange } from '../../../domain/calculations/calculation-engine.js';
-import { expandPeriodicChangeForCalculation } from '../../../domain/calculations/periodic-change-utils.js';
 
 const projectionsGridState = new GridStateManager('projections');
 let lastProjectionsTable = null;
@@ -176,7 +173,6 @@ export async function loadProjectionsSection({
       refreshButton.title = 'Refresh Projections';
       refreshButton.textContent = '⟳';
 
-      controls.appendChild(viewSelect);
       controls.appendChild(refreshButton);
 
       refreshButton.addEventListener('click', async (e) => {
@@ -264,6 +260,3 @@ export async function loadProjectionsSection({
   }
 }
 
-export async function refreshProjectionsSection(args) {
-  return loadProjectionsSection(args);
-}

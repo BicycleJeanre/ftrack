@@ -706,7 +706,3 @@ export async function loadBudgetGrid({
     logger?.error?.('[Forecast] loadBudgetGrid failed', err);
   }
 }
-
-export async function refreshBudgetGrid(args) {
-  return loadBudgetGrid(args);
-}

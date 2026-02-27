@@ -943,7 +943,3 @@ export async function loadAccountsGrid({
     logger?.error?.('[Forecast] Failed to load accounts grid:', err);
   }
 }
-
-export async function refreshAccountsGrid(args) {
-  return loadAccountsGrid(args);
-}

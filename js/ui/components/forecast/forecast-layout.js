@@ -300,8 +300,6 @@ export function buildGridContainer() {
      title: 'Summary',
      showControls: false
   });
-  // REMOVE .hidden to ensure always visible for debugging
-  // summaryCardsSection.classList.add('hidden');
   const summaryCardsContent = document.createElement('div');
   summaryCardsContent.id = 'summaryCardsContent';
   summaryCardsBody.appendChild(summaryCardsContent);

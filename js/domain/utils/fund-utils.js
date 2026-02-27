@@ -219,16 +219,6 @@ export function computeContributionRedemptionTotals({
   };
 }
 
-export function computeAutomaticSharesByAccountId({
-  scenario,
-  accounts = [],
-  projectionsIndex,
-  asOfDate = null,
-  fundSettings
-}) {
-  throw new Error('computeAutomaticSharesByAccountId was removed; use computeFixedSharesReport');
-}
-
 export function computeFixedSharesReport({
   scenario,
   accounts = [],

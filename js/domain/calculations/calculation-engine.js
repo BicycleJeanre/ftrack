@@ -29,15 +29,3 @@ export const {
   generateRecurrenceDates
 } = RecurrenceCalc;
 
-// Engine metadata
-export const ENGINE_VERSION = '1.0.0';
-export const ENGINE_INFO = {
-  version: ENGINE_VERSION,
-  capabilities: [
-    'financial-calculations',
-    'recurrence-generation',
-    'goal-planning',
-    'projection-engine',
-    'transaction-expansion'
-  ]
-};

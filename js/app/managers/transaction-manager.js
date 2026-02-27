@@ -86,22 +86,6 @@ export async function saveAll(scenarioId, transactions) {
 }
 
 /**
- * Get transactions for a specific period
- * @param {number} scenarioId - The scenario ID
- * @param {string} periodId - The period ID (or 'all' for all transactions)
- * @returns {Promise<Array>} - Array of transactions
- */
-export async function getByPeriod(scenarioId, periodId) {
-    const transactions = await getAll(scenarioId);
-    if (periodId === 'all') {
-        return transactions;
-    }
-    // Filter by period - this would need to be implemented based on effectiveDate
-    // For now, return all transactions
-    return transactions;
-}
-
-/**
  * Create a new transaction using canonical normalization (matches saveAll rules).
  * @param {number} scenarioId - The scenario ID
  * @param {Object} txnData - The transaction data

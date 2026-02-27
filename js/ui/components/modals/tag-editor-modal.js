@@ -1,7 +1,7 @@
 // tag-editor-modal.js
 // Modal for editing tags on any entity (accounts, transactions, etc.)
 
-import { notifySuccess, notifyError } from '../../../shared/notifications.js';
+import { notifyError } from '../../../shared/notifications.js';
 
 const commonTags = {
   account: ['checking', 'savings', 'investment', 'credit-card', 'mortgage', 'auto-loan', 'primary', 'secondary', 'inactive', 'joint'],

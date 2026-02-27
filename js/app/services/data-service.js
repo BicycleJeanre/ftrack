@@ -209,43 +209,6 @@ export async function getProjections(scenarioId) {
 }
 
 /**
- * Save projections for a scenario (replaces all existing projections)
- * @param {number} scenarioId - The scenario ID
- * @param {Array} projections - Array of projection records
- * @returns {Promise<void>}
- */
-export async function saveProjections(scenarioId, projections) {
-  const appData = await readAppData();
-  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-  
-  if (scenarioIndex === -1) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
-  
-  const scenario = appData.scenarios[scenarioIndex];
-  const existingConfig = scenario?.projection?.config || null;
-  const today = formatDateOnly(new Date());
-
-  const nextProjection = {
-    config: existingConfig || {
-      startDate: today,
-      endDate: today,
-      periodTypeId: DEFAULT_PERIOD_TYPE_ID,
-      source: 'transactions'
-    },
-    rows: Array.isArray(projections) ? projections : [],
-    generatedAt: new Date().toISOString()
-  };
-
-  appData.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
-    ...scenario,
-    id: scenarioId,
-    projection: nextProjection
-  });
-  await writeAppData(appData);
-}
-
-/**
  * Save the full projection bundle for a scenario (config + rows + generatedAt)
  * @param {number} scenarioId - The scenario ID
  * @param {Object} bundle - Projection bundle
@@ -286,18 +249,7 @@ export async function saveProjectionBundle(scenarioId, bundle) {
   await writeAppData(appData);
 }
 
-/**
- * Clear all projections for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<void>}
- */
-export async function clearProjections(scenarioId) {
-  await saveProjectionBundle(scenarioId, { rows: [], generatedAt: null });
-}
 
-// ============================================================================
-// BUDGET OPERATIONS
-// ============================================================================
 
 /**
  * Save budget for a scenario (replaces all existing budget occurrences)

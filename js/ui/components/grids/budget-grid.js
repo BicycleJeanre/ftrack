@@ -521,7 +521,3 @@ export async function loadBudgetGrid({
     // Keep existing behavior: errors are swallowed here.
   }
 }
-
-export async function refreshBudgetGrid(args) {
-  return loadBudgetGrid(args);
-}
