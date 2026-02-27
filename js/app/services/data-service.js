@@ -117,27 +117,11 @@ export async function createAccount(scenarioId, accountData) {
  * @returns {Promise<Object>} - The updated account
  */
 export async function updateAccount(scenarioId, accountId, updates) {
-  const appData = await readAppData();
-  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-  
-  if (scenarioIndex === -1) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
-  
-  const scenario = appData.scenarios[scenarioIndex];
-  const accountIndex = scenario.accounts.findIndex(a => a.id === accountId);
-  
-  if (accountIndex === -1) {
-    throw new Error(`Account ${accountId} not found in scenario ${scenarioId}`);
-  }
-  
-  scenario.accounts[accountIndex] = {
-    ...scenario.accounts[accountIndex],
-    ...updates
-  };
-  
-  await writeAppData(appData);
-  return scenario.accounts[accountIndex];
+  // Delegate to AccountManager for canonical account updates
+  const result = await AccountManager.update(scenarioId, accountId, updates);
+  // AccountManager.update returns the mutated app-data object from the transaction
+  const scenario = result.scenarios.find(s => s.id === scenarioId);
+  return scenario.accounts.find(a => a.id === accountId);
 }
 
 /**
@@ -148,30 +132,8 @@ export async function updateAccount(scenarioId, accountId, updates) {
  * @returns {Promise<void>}
  */
 export async function deleteAccount(scenarioId, accountId) {
-  await DataStore.transaction(async (appData) => {
-    const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-    if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
-
-    const scenario = appData.scenarios[scenarioIndex];
-    const accountIdNum = Number(accountId);
-
-    // Cascade delete: Remove all transactions that reference this account (primary or secondary)
-    if (scenario.transactions) {
-      const beforeCount = scenario.transactions.length;
-      scenario.transactions = scenario.transactions.filter(tx => {
-        const hasPrimary = tx.primaryAccountId && Number(tx.primaryAccountId) === accountIdNum;
-        const hasSecondary = tx.secondaryAccountId && Number(tx.secondaryAccountId) === accountIdNum;
-        return !hasPrimary && !hasSecondary;
-      });
-      const deletedCount = beforeCount - scenario.transactions.length;
-      if (deletedCount > 0) {
-      }
-    }
-
-    // Delete the account
-    scenario.accounts = (scenario.accounts || []).filter(a => a.id !== accountIdNum);
-    return appData;
-  });
+  // Delegate to AccountManager.remove which performs cascading deletes
+  await AccountManager.remove(scenarioId, accountId);
 }
 
 /**
@@ -181,26 +143,8 @@ export async function deleteAccount(scenarioId, accountId) {
  * @returns {Promise<void>}
  */
 export async function saveAccounts(scenarioId, accounts) {
-  await DataStore.transaction(async (appData) => {
-    const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
-    if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
-
-    // Assign IDs to any accounts that don't have them
-    const validIds = accounts
-      .map(a => a.id)
-      .filter(id => id !== null && id !== undefined && typeof id === 'number');
-    let nextId = validIds.length > 0 ? Math.max(...validIds) + 1 : 1;
-
-    const accountsWithIds = accounts.map(account => {
-      if (account.id === null || account.id === undefined || isNaN(account.id)) {
-        return { ...account, id: nextId++ };
-      }
-      return account;
-    });
-
-    appData.scenarios[scenarioIndex].accounts = accountsWithIds;
-    return appData;
-  });
+  // Delegate bulk account save to AccountManager to keep normalization consistent
+  await AccountManager.saveAll(scenarioId, accounts);
 }
 
 // ============================================================================

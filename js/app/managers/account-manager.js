@@ -2,7 +2,6 @@
 // Business logic for account operations within scenarios
 
 import * as DataStore from '../services/storage-service.js';
-import { deleteAccount } from '../services/data-service.js';
 import { formatDateOnly } from '../../shared/date-utils.js';
 
 /**
@@ -158,7 +157,26 @@ export async function update(scenarioId, accountId, updates) {
  * @returns {Promise<void>}
  */
 export async function remove(scenarioId, accountId) {
-    return await deleteAccount(scenarioId, accountId);
+    return await DataStore.transaction(async (data) => {
+        const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
+        if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
+
+        const scenario = data.scenarios[scenarioIndex];
+        const accountIdNum = Number(accountId);
+
+        // Cascade delete: Remove all transactions that reference this account (primary or secondary)
+        if (scenario.transactions) {
+            scenario.transactions = scenario.transactions.filter(tx => {
+                const hasPrimary = tx.primaryAccountId && Number(tx.primaryAccountId) === accountIdNum;
+                const hasSecondary = tx.secondaryAccountId && Number(tx.secondaryAccountId) === accountIdNum;
+                return !hasPrimary && !hasSecondary;
+            });
+        }
+
+        // Delete the account
+        scenario.accounts = (scenario.accounts || []).filter(a => a.id !== accountIdNum);
+        return data;
+    });
 }
 /**
  * Update account goal parameters
