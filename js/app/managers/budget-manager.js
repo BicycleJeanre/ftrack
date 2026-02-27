@@ -38,17 +38,6 @@ import { getRecurrenceDescription } from '../../domain/calculations/recurrence-u
 import { getScenarioBudgetWindowConfig } from '../../shared/app-data-utils.js';
 
 /**
- * Get all budget occurrences for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of budget occurrences
- */
-export async function getAll(scenarioId) {
-    const data = await DataStore.read();
-    const scenario = data.scenarios?.find(s => s.id === scenarioId);
-    return scenario?.budgets || [];
-}
-
-/**
  * Save all budget occurrences for a scenario
  * @param {number} scenarioId - The scenario ID
  * @param {Array} budgets - Array of budget occurrence objects
@@ -187,40 +176,6 @@ export async function createFromProjections(scenarioId) {
     });
 
     return await saveAll(scenarioId, [...existingActuals, ...newEntries]);
-}
-
-/**
- * Update a specific budget occurrence
- * @param {number} scenarioId - The scenario ID
- * @param {number} budgetId - The budget occurrence ID
- * @param {Object} updates - The fields to update
- * @returns {Promise<Object>} - The updated budget occurrence
- */
-export async function update(scenarioId, budgetId, updates) {
-    return await DataStore.transaction(async (data) => {
-        const scenario = data.scenarios.find(s => s.id === scenarioId);
-        
-        if (!scenario) {
-            throw new Error(`Scenario ${scenarioId} not found`);
-        }
-        
-        if (!scenario.budgets) {
-            scenario.budgets = [];
-        }
-        
-        const budgetIndex = scenario.budgets.findIndex(b => b.id === budgetId);
-        
-        if (budgetIndex === -1) {
-            throw new Error(`Budget occurrence ${budgetId} not found`);
-        }
-        
-        scenario.budgets[budgetIndex] = {
-            ...scenario.budgets[budgetIndex],
-            ...updates
-        };
-        
-        return data;
-    });
 }
 
 /**

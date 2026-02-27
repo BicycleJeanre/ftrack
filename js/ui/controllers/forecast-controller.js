@@ -3,8 +3,7 @@
 // Displays accounts, transactions, budgets, and projections based on the selected workflow
 
 
-import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, formatMoneyDisplay, formatNumberDisplay, createDeleteColumn, createDuplicateColumn } from '../components/grids/grid-factory.js';
-import { attachGridHandlers } from '../components/grids/grid-handlers.js';
+import { createGrid, refreshGridData, formatMoneyDisplay, formatNumberDisplay } from '../components/grids/grid-factory.js';
 import * as ScenarioManager from '../../app/managers/scenario-manager.js';
 import * as AccountManager from '../../app/managers/account-manager.js';
 import * as TransactionManager from '../../app/managers/transaction-manager.js';
@@ -652,6 +651,7 @@ async function buildScenarioGrid(container) {
       }
     }
   } catch (err) {
+    logger.error('[ScenarioGrid] failed to render', err);
   }
 }
 
@@ -1584,7 +1584,6 @@ async function loadGeneralSummaryCards(container, options = {}) {
 async function loadSummaryCards(container, options = {}) {
   // Always declare workflowConfig before any usage
   const workflowConfig = getWorkflowConfig();
-  // removed debug-only DOM insertions
   if (!workflowConfig?.showSummaryCards) {
     if (container) container.innerHTML = '';
     return;
@@ -1614,7 +1613,6 @@ async function loadSummaryCards(container, options = {}) {
     return;
   }
 
-  // DEBUG: No workflow branch matched
   // no workflow branch matched (silently ignore)
 }
 
@@ -1680,47 +1678,6 @@ async function loadProjectionsSection(container) {
       updateBudgetTotals,
       updateProjectionTotals,
       getFilteredProjections,
-      getEl
-    },
-    logger
-  });
-}
-
-// Load projections grid
-async function loadProjectionsGrid(container) {
-  return loadProjectionsSectionCore({
-    container,
-    scenarioState: {
-      get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
-    },
-    state: {
-      getProjectionAccountFilterId: () => projectionsAccountFilterId,
-      setProjectionAccountFilterId: (nextId) => {
-        projectionsAccountFilterId = nextId;
-      },
-      getProjectionPeriod: () => projectionPeriod,
-      setProjectionPeriod: (nextPeriod) => {
-        projectionPeriod = nextPeriod;
-      },
-      getProjectionPeriodType: () => projectionPeriodType,
-      setProjectionPeriodType: (nextType) => {
-        projectionPeriodType = nextType;
-      },
-      getProjectionPeriods: () => projectionPeriods,
-      setProjectionPeriods: (nextPeriods) => {
-        projectionPeriods = nextPeriods;
-      }
-    },
-    tables: {
-      getMasterTransactionsTable: () => masterTransactionsTable,
-      getMasterBudgetTable: () => masterBudgetTable
-    },
-    callbacks: {
-      getFilteredProjections,
-      updateProjectionTotals,
       getEl
     },
     logger
@@ -1897,21 +1854,8 @@ function initializeKeyboardShortcuts() {
     }
   });
 
-  document.addEventListener('shortcut:save', async () => {
-    // Save is automatic on cell edit, so just show feedback
-  });
-
-  // Add visual indicator for keyboard shortcuts
-  const shortcutsBtn = document.createElement('button');
-  shortcutsBtn.className = 'btn btn-secondary';
-  shortcutsBtn.innerHTML = '⌨️ Shortcuts';
-  shortcutsBtn.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 100; padding: 10px 16px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);';
-  shortcutsBtn.title = 'View keyboard shortcuts (or press ?)';
-  shortcutsBtn.addEventListener('click', () => {
-    keyboardShortcuts.showHelp();
-  });
-  document.body.appendChild(shortcutsBtn);
 }
+
 
 init().catch(err => {
   console.error('forecast-controller: init failed', err);

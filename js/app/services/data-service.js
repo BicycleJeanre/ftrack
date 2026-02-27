@@ -9,14 +9,12 @@ import * as TransactionManager from '../managers/transaction-manager.js';
 import * as DataStore from './storage-service.js';
 import { notifyError } from '../../shared/notifications.js';
 import {
-  createDefaultUiState,
-  CURRENT_SCHEMA_VERSION,
   DEFAULT_PERIOD_TYPE_ID,
   assertSchemaVersion43,
   sanitizeScenarioForWrite,
-  allocateNextId
+  allocateNextId,
+  normalizeUiState
 } from '../../shared/app-data-utils.js';
-import { DEFAULT_WORKFLOW_ID } from '../../shared/workflow-registry.js';
 
 // ============================================================================
 // DATA FILE OPERATIONS
@@ -86,16 +84,6 @@ export async function getScenario(scenarioId) {
 // js/app/managers/scenario-manager.js
 
 /**
- * Get all accounts for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of accounts
- */
-export async function getAccounts(scenarioId) {
-  const scenario = await getScenario(scenarioId);
-  return scenario ? scenario.accounts || [] : [];
-}
-
-/**
  * Create a new account in a scenario
  * @param {number} scenarioId - The scenario ID
  * @param {Object} accountData - The account data
@@ -107,33 +95,6 @@ export async function createAccount(scenarioId, accountData) {
   const scenario = data.scenarios.find(s => s.id === scenarioId);
   // Return the last account (the one just created)
   return scenario.accounts[scenario.accounts.length - 1];
-}
-
-/**
- * Update an account in a scenario
- * @param {number} scenarioId - The scenario ID
- * @param {number} accountId - The account ID
- * @param {Object} updates - The fields to update
- * @returns {Promise<Object>} - The updated account
- */
-export async function updateAccount(scenarioId, accountId, updates) {
-  // Delegate to AccountManager for canonical account updates
-  const result = await AccountManager.update(scenarioId, accountId, updates);
-  // AccountManager.update returns the mutated app-data object from the transaction
-  const scenario = result.scenarios.find(s => s.id === scenarioId);
-  return scenario.accounts.find(a => a.id === accountId);
-}
-
-/**
- * Delete an account from a scenario
- * Cascades delete to all transactions that reference this account
- * @param {number} scenarioId - The scenario ID
- * @param {number} accountId - The account ID
- * @returns {Promise<void>}
- */
-export async function deleteAccount(scenarioId, accountId) {
-  // Delegate to AccountManager.remove which performs cascading deletes
-  await AccountManager.remove(scenarioId, accountId);
 }
 
 /**
@@ -197,16 +158,6 @@ export async function createTransaction(scenarioId, transactionData) {
 // ============================================================================
 // PROJECTION OPERATIONS (Scenario-scoped)
 // ============================================================================
-
-/**
- * Get all projections for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of projections
- */
-export async function getProjections(scenarioId) {
-  const scenario = await getScenario(scenarioId);
-  return scenario?.projection?.rows || [];
-}
 
 /**
  * Save the full projection bundle for a scenario (config + rows + generatedAt)
@@ -277,15 +228,6 @@ export async function saveBudget(scenarioId, budgets) {
 export async function getBudget(scenarioId) {
   const scenario = await getScenario(scenarioId);
   return scenario?.budgets || [];
-}
-
-/**
- * Clear all budget occurrences for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<void>}
- */
-export async function clearBudget(scenarioId) {
-  await saveBudget(scenarioId, []);
 }
 
 // ============================================================================

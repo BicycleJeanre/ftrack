@@ -283,4 +283,3 @@ const keyboardShortcuts = new KeyboardShortcuts();
 
 // Export for use in other modules
 export default keyboardShortcuts;
-export { KeyboardShortcuts };

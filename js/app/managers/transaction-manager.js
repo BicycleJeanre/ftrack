@@ -5,17 +5,6 @@ import * as DataStore from '../services/storage-service.js';
 import { allocateNextId } from '../../shared/app-data-utils.js';
 
 /**
- * Get all transactions for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of transactions
- */
-export async function getAll(scenarioId) {
-    const data = await DataStore.read();
-    const scenario = data.scenarios?.find(s => s.id === scenarioId);
-    return scenario?.transactions || [];
-}
-
-/**
  * Save all transactions for a scenario
  * @param {number} scenarioId - The scenario ID
  * @param {Array} transactions - Array of transaction objects

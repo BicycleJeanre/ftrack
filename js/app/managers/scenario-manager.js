@@ -15,16 +15,6 @@ export async function getAll() {
 }
 
 /**
- * Get a specific scenario by ID
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Object|null>} - The scenario object or null
- */
-export async function getById(scenarioId) {
-    const scenarios = await getAll();
-    return scenarios.find(s => s.id === scenarioId) || null;
-}
-
-/**
  * Create a new scenario
  * @param {Object} scenarioData - The scenario data
  * @returns {Promise<Object>} - The created scenario with ID

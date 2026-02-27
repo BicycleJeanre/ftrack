@@ -243,10 +243,6 @@ export function normalizeScenario(rawScenario) {
   };
 }
 
-export function getScenarioProjectionConfig(scenario) {
-  return scenario?.projection?.config || null;
-}
-
 export function getScenarioProjectionRows(scenario) {
   return scenario?.projection?.rows || [];
 }

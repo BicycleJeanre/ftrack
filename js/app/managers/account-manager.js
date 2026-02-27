@@ -17,17 +17,6 @@ export async function getAll(scenarioId) {
 }
 
 /**
- * Get a specific account by ID
- * @param {number} scenarioId - The scenario ID
- * @param {number} accountId - The account ID
- * @returns {Promise<Object|null>} - The account or null
- */
-export async function getById(scenarioId, accountId) {
-    const accounts = await getAll(scenarioId);
-    return accounts.find(a => a.id === accountId) || null;
-}
-
-/**
  * Save all accounts for a scenario (replaces existing)
  * @param {number} scenarioId - The scenario ID
  * @param {Array} accounts - Array of account objects
@@ -168,15 +157,4 @@ export async function remove(scenarioId, accountId) {
         scenario.accounts = (scenario.accounts || []).filter(a => a.id !== accountIdNum);
         return data;
     });
-}
-/**
- * Update account goal parameters
- * @param {number} scenarioId - The scenario ID
- * @param {number} accountId - The account ID
- * @param {number|null} goalAmount - Target goal amount (null to clear)
- * @param {string|null} goalDate - Target goal date (null to clear)
- * @returns {Promise<void>}
- */
-export async function updateGoal(scenarioId, accountId, goalAmount, goalDate) {
-    return await update(scenarioId, accountId, { goalAmount, goalDate });
 }
