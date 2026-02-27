@@ -11,7 +11,8 @@ import {
   CURRENT_SCHEMA_VERSION,
   DEFAULT_PERIOD_TYPE_ID,
   assertSchemaVersion43,
-  sanitizeScenarioForWrite
+  sanitizeScenarioForWrite,
+  allocateNextId
 } from '../../shared/app-data-utils.js';
 import { DEFAULT_WORKFLOW_ID } from '../../shared/workflow-registry.js';
 
@@ -902,13 +903,10 @@ export async function importAppData(jsonString, merge = false) {
     if (merge) {
       // Merge mode: add imported scenarios with new IDs
       const currentData = await readAppData();
-      const maxId = currentData.scenarios.length > 0
-        ? Math.max(...currentData.scenarios.map(s => s.id))
-        : 0;
-      
-      // Renumber imported scenarios
+      const startId = allocateNextId(currentData.scenarios);
+      // Renumber imported scenarios to start after current max
       importedData.scenarios.forEach((scenario, index) => {
-        scenario.id = maxId + index + 1;
+        scenario.id = startId + index;
       });
       
       currentData.scenarios.push(...importedData.scenarios);

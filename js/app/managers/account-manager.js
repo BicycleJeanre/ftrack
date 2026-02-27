@@ -3,6 +3,7 @@
 
 import * as DataStore from '../services/storage-service.js';
 import { formatDateOnly } from '../../shared/date-utils.js';
+import { allocateNextId } from '../../shared/app-data-utils.js';
 
 /**
  * Get all accounts for a scenario
@@ -40,12 +41,7 @@ export async function saveAll(scenarioId, accounts) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
         
-        // Assign IDs to new accounts (id = 0 or undefined)
-        const maxId = accounts.length > 0 && accounts.some(a => a.id)
-            ? Math.max(...accounts.filter(a => a.id).map(a => a.id))
-            : 0;
-        
-        let nextId = maxId + 1;
+        let nextId = allocateNextId(accounts);
         
         data.scenarios[scenarioIndex].accounts = accounts.map(account => {
             if (!account.id || account.id === 0) {
@@ -77,13 +73,8 @@ export async function create(scenarioId, accountData) {
             scenario.accounts = [];
         }
         
-        // Generate new ID
-        const maxId = scenario.accounts.length > 0
-            ? Math.max(...scenario.accounts.map(a => a.id || 0))
-            : 0;
-        
         const newAccount = {
-            id: maxId + 1,
+            id: allocateNextId(scenario.accounts),
             name: accountData.name || 'New Account',
             type: accountData.type || { id: 1, name: 'Asset' },
             currency: accountData.currency || { id: 1, name: 'ZAR' },

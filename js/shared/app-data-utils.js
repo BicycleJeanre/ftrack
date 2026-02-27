@@ -80,6 +80,21 @@ export function getDefaultProjectionWindowDates(now = new Date()) {
   };
 }
 
+/**
+ * Return the next available integer ID for a collection of objects with an `id` field.
+ * Guarantees a monotonically increasing, gap-free ID without spreads on large arrays.
+ * @param {Array<{id?: number}>} collection
+ * @returns {number}
+ */
+export function allocateNextId(collection) {
+  if (!Array.isArray(collection) || collection.length === 0) return 1;
+  const max = collection.reduce((m, item) => {
+    const id = Number(item.id);
+    return Number.isFinite(id) && id > m ? id : m;
+  }, 0);
+  return max + 1;
+}
+
 export function createDefaultUiState(overrides = {}) {
   const safeWorkflowId = getWorkflowById(overrides.lastWorkflowId)?.id || DEFAULT_WORKFLOW_ID;
 

@@ -32,6 +32,7 @@
 
 import * as DataStore from '../services/storage-service.js';
 import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
+import { allocateNextId } from '../../shared/app-data-utils.js';
 import { expandTransactions } from '../../domain/calculations/transaction-expander.js';
 import { getRecurrenceDescription } from '../../domain/calculations/recurrence-utils.js';
 import { getScenarioBudgetWindowConfig } from '../../shared/app-data-utils.js';
@@ -61,12 +62,7 @@ export async function saveAll(scenarioId, budgets) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
 
-        // Assign IDs to new budget occurrences
-        const maxId = budgets.length > 0 && budgets.some(b => b.id)
-            ? Math.max(...budgets.filter(b => b.id).map(b => b.id))
-            : 0;
-
-        let nextId = maxId + 1;
+        let nextId = allocateNextId(budgets);
 
         data.scenarios[scenarioIndex].budgets = budgets.map(budget => {
             // Normalize budget to storage format: only store IDs, not objects

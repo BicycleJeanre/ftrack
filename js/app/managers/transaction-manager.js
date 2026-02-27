@@ -2,6 +2,7 @@
 // Unified business logic for transaction operations
 
 import * as DataStore from '../services/storage-service.js';
+import { allocateNextId } from '../../shared/app-data-utils.js';
 
 /**
  * Get all transactions for a scenario
@@ -28,12 +29,7 @@ export async function saveAll(scenarioId, transactions) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
 
-        // Assign IDs to new transactions
-        const maxId = transactions.length > 0 && transactions.some(t => t.id)
-            ? Math.max(...transactions.filter(t => t.id).map(t => t.id))
-            : 0;
-
-        let nextId = maxId + 1;
+        let nextId = allocateNextId(transactions);
 
         data.scenarios[scenarioIndex].transactions = transactions.map(txn => {
             const id = (!txn.id || txn.id === 0) ? nextId++ : txn.id;

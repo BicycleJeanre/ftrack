@@ -3,7 +3,7 @@
 // Uses data-store for persistence
 
 import * as DataStore from '../services/storage-service.js';
-import { getNextScenarioVersion, sanitizeScenarioForWrite } from '../../shared/app-data-utils.js';
+import { getNextScenarioVersion, sanitizeScenarioForWrite, allocateNextId } from '../../shared/app-data-utils.js';
 
 /**
  * Get all scenarios
@@ -34,13 +34,8 @@ export async function create(scenarioData) {
         if (!data || typeof data !== 'object') data = {};
         if (!Array.isArray(data.scenarios)) data.scenarios = [];
         
-        // Generate new ID
-        const maxId = data.scenarios.length > 0 
-            ? Math.max(...data.scenarios.map(s => s.id)) 
-            : 0;
-        
         const newScenario = sanitizeScenarioForWrite({
-            id: maxId + 1,
+            id: allocateNextId(data.scenarios),
             version: 1,
             name: scenarioData.name || 'New Scenario',
             description: Object.prototype.hasOwnProperty.call(scenarioData, 'description')
@@ -122,9 +117,6 @@ export async function duplicate(scenarioId, newName) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
         
-        // Generate new ID
-        const maxId = Math.max(...data.scenarios.map(s => s.id));
-        
         const ancestorScenarioIds = Array.isArray(sourceScenario.lineage?.ancestorScenarioIds)
           ? sourceScenario.lineage.ancestorScenarioIds
           : [];
@@ -138,7 +130,7 @@ export async function duplicate(scenarioId, newName) {
 
         const newScenario = sanitizeScenarioForWrite({
             ...cloned,
-            id: maxId + 1,
+            id: allocateNextId(data.scenarios),
             version: nextVersion,
             name: newName || `${sourceScenario.name} (Copy)`,
             lineage: {
