@@ -1023,7 +1023,8 @@ export async function loadAccountsGrid({
 
     let accountsTable = lastAccountsTable;
 
-    // Always summary mode in base grid.
+    // Summary card list for all workflows except those requesting the full detail grid.
+    if (workflowConfig?.accountsMode !== 'detail') {
       try {
         accountsTable?.destroy?.();
       } catch (_) {
@@ -1048,6 +1049,7 @@ export async function loadAccountsGrid({
         logger
       });
       return;
+    }
 
     const enrichedAccounts = await Promise.all(
       displayAccounts.map(async (a) => ({
@@ -1062,7 +1064,7 @@ export async function loadAccountsGrid({
     );
 
     const columns = buildAccountsGridColumns({
-      mode: 'summary',
+      mode: workflowConfig?.accountsMode === 'detail' ? 'detail' : 'summary',
       lookupData,
       workflowConfig,
       scenarioState,

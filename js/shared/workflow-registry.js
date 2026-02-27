@@ -140,6 +140,7 @@ export const WORKFLOWS = [
     showGeneratePlan: false,
     showSummaryCards: false,
     summaryMode: null,
+    accountsMode: 'detail',
     supportsPeriodicChangeSchedule: false
   },
   {
