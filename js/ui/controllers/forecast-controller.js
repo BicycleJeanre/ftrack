@@ -1784,41 +1784,6 @@ async function loadScenarioData() {
 
   const workflowConfig = getWorkflowConfig();
 
-  // Debug: log active workflow and visibility flags to help trace incorrect rendering
-  try {
-    console.log('loadScenarioData: currentWorkflowId=', currentWorkflowId, 'workflowConfig=', workflowConfig && workflowConfig.id, 'flags=', {
-      showAccounts: !!(workflowConfig && workflowConfig.showAccounts),
-      showTransactions: !!(workflowConfig && (workflowConfig.showPlannedTransactions || workflowConfig.showActualTransactions)),
-      showBudget: !!(workflowConfig && workflowConfig.showBudget),
-      showProjections: !!(workflowConfig && workflowConfig.showProjections),
-      showSummaryCards: !!(workflowConfig && workflowConfig.showSummaryCards)
-    });
-  } catch (e) {
-    // ignore
-  }
-
-  try {
-    const secs = { accountsSection, txSection, budgetSection, projectionsSection, summaryCardsSection };
-    Object.keys(secs).forEach((k) => {
-      const el = secs[k];
-      if (!el) {
-        console.log('loadScenarioData: missing element', k);
-      } else {
-        console.log('loadScenarioData: element', k, 'class=', el.className, 'hidden?', el.classList.contains('hidden'));
-      }
-    });
-    // Also log container contents sizes
-    console.log('loadScenarioData: containers lengths', {
-      accountsTable: containers.accountsTable?.children?.length || 0,
-      transactionsTable: containers.transactionsTable?.children?.length || 0,
-      budgetTable: containers.budgetTable?.children?.length || 0,
-      projectionsContent: containers.projectionsContent?.children?.length || 0,
-      summaryCardsContent: containers.summaryCardsContent?.children?.length || 0
-    });
-  } catch (e) {
-    // ignore
-  }
-
   if (currentScenario && isFundsWorkflow(workflowConfig)) {
     await ensureFundSettingsInitialized();
   }
@@ -1991,17 +1956,6 @@ function initializeKeyboardShortcuts() {
     keyboardShortcuts.showHelp();
   });
   document.body.appendChild(shortcutsBtn);
-}
-
-// Diagnostic: confirm loadUiState is present before calling init
-try {
-  console.log('forecast-controller: module url =', import.meta?.url);
-  console.log('forecast-controller: typeof loadUiState =', typeof loadUiState);
-  if (typeof loadUiState === 'undefined') {
-    console.log('forecast-controller: loadUiState is undefined in module scope');
-  }
-} catch (e) {
-  console.log('forecast-controller: error checking loadUiState:', e);
 }
 
 init().catch(err => {
