@@ -350,13 +350,7 @@ export async function loadBudgetGrid({
       addButton.title = 'Add Budget Entry';
       addButton.textContent = '+';
 
-      const refreshButton = document.createElement('button');
-      refreshButton.className = 'icon-btn';
-      refreshButton.title = 'Refresh Budget';
-      refreshButton.textContent = '⟳';
-
       controls.appendChild(addButton);
-      controls.appendChild(refreshButton);
 
       addButton.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -416,29 +410,6 @@ export async function loadBudgetGrid({
         }
       });
 
-      refreshButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const prevText = refreshButton.textContent;
-        try {
-          refreshButton.textContent = '...';
-          refreshButton.disabled = true;
-
-          const scenario = scenarioState?.get?.();
-          if (scenario?.id) {
-            const refreshed = await getScenario(scenario.id);
-            scenarioState?.set?.(refreshed);
-          }
-
-          await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
-        } catch (err) {
-          notifyError('Failed to refresh budget: ' + (err?.message || String(err)));
-        } finally {
-          if (refreshButton.isConnected) {
-            refreshButton.textContent = prevText;
-            refreshButton.disabled = false;
-          }
-        }
-      });
     }
   }
 

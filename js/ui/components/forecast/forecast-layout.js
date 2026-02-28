@@ -274,7 +274,6 @@ export function buildGridContainer() {
   const { row: summaryCardsSection, body: summaryCardsBody } = buildDashRow({
      id: 'summaryCardsSection',
      title: 'Summary',
-     showControls: false,
      defaultCollapsed: true
   });
   const summaryCardsContent = document.createElement('div');

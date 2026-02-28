@@ -552,13 +552,7 @@ export async function loadMasterTransactionsGrid({
       addButton.title = 'Add Transaction';
       addButton.textContent = '+';
 
-      const refreshButton = document.createElement('button');
-      refreshButton.className = 'icon-btn';
-      refreshButton.title = 'Refresh Transactions';
-      refreshButton.textContent = '⟳';
-
       controls.appendChild(addButton);
-      controls.appendChild(refreshButton);
 
       addButton.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -608,24 +602,6 @@ export async function loadMasterTransactionsGrid({
         }
       });
 
-      refreshButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const prevText = refreshButton.textContent;
-        try {
-          refreshButton.textContent = '...';
-          refreshButton.disabled = true;
-          const refreshed = await getScenario(currentScenario.id);
-          scenarioState?.set?.(refreshed);
-          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        } catch (err) {
-          notifyError('Failed to refresh transactions: ' + (err?.message || String(err)));
-        } finally {
-          if (refreshButton.isConnected) {
-            refreshButton.textContent = prevText;
-            refreshButton.disabled = false;
-          }
-        }
-      });
     }
   }
 

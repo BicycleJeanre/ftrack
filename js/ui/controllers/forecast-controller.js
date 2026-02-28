@@ -1219,40 +1219,6 @@ async function loadFundsSummaryCards(container, options = {}) {
   // Ensure no stale grid toolbars remain for summary (we'll use header icon instead)
   container.querySelectorAll(':scope > .grid-toolbar, :scope > .summary-cards-toolbar').forEach((el) => el.remove());
 
-  // Place a refresh icon in the summary section header (match other sections)
-  try {
-    const summarySection = document.getElementById('summaryCardsSection');
-    if (summarySection) {
-      const header = summarySection.querySelector('.dash-row-header');
-      if (header) {
-        let controls = header.querySelector('.dash-row-controls');
-        if (!controls) {
-          controls = document.createElement('div');
-          controls.className = 'dash-row-controls';
-          // insert at the end of header
-          header.appendChild(controls);
-        }
-        // Remove any existing summary refresh button to avoid duplicates
-        const existing = controls.querySelector('.icon-btn[data-summary-refresh]');
-        if (existing) existing.remove();
-        const hdrRefresh = document.createElement('button');
-        hdrRefresh.type = 'button';
-        hdrRefresh.className = 'icon-btn';
-        hdrRefresh.title = 'Refresh';
-        hdrRefresh.setAttribute('aria-label', 'Refresh');
-        hdrRefresh.setAttribute('data-summary-refresh', '1');
-        hdrRefresh.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-        hdrRefresh.addEventListener('click', (e) => {
-          e.preventDefault();
-          document.dispatchEvent(new CustomEvent('forecast:refresh'));
-        });
-        controls.appendChild(hdrRefresh);
-      }
-    }
-  } catch (e) {
-    // noop - header may not exist yet
-  }
- 
 
 
   // No As-of date control.
