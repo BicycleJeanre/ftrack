@@ -31,9 +31,9 @@
 
 
 import * as DataStore from '../services/storage-service.js';
-import { generateRecurrenceDates } from '../../domain/calculations/calculation-engine.js';
-import { formatDateOnly } from '../../shared/date-utils.js';
+import { expandTransactions } from '../../domain/calculations/transaction-expander.js';
 import { getRecurrenceDescription } from '../../domain/calculations/recurrence-utils.js';
+import { parseDateOnly } from '../../shared/date-utils.js';
 
 /**
  * Get all budget occurrences for a scenario
@@ -134,60 +134,52 @@ export async function saveAll(scenarioId, budgets) {
  * @returns {Promise<Array>} - The created budgets (expanded occurrences)
  */
 export async function createFromProjections(scenarioId) {
-    return await DataStore.transaction(async (data) => {
-        const scenario = data.scenarios.find(s => s.id === scenarioId);
-        
-        if (!scenario) {
-            throw new Error(`Scenario ${scenarioId} not found`);
-        }
-        
-        if (!scenario.budgets) {
-            scenario.budgets = [];
-        }
-        
-        // Get scenario date range
-        const startDate = new Date(scenario.startDate);
-        const endDate = new Date(scenario.endDate);
-        
-        // Copy planned transactions to budgets and expand by recurrence
-        const statusName = tx => typeof tx.status === 'object' ? tx.status.name : tx.status;
-        const plannedTransactions = (scenario.transactions || [])
-            .filter(tx => statusName(tx) === 'planned' && tx.primaryAccountId && tx.secondaryAccountId);
-        
-        // Expand each transaction into dated budget occurrences
-        const budgets = [];
-        plannedTransactions.forEach(tx => {
-            const recurrenceDescription = getRecurrenceDescription(tx.recurrence);
-            
-            // Generate all occurrence dates within scenario range
-            const occurrenceDates = generateRecurrenceDates(tx.recurrence, startDate, endDate);
-            
-            // Create a budget occurrence for each date
-            occurrenceDates.forEach(date => {
-                budgets.push({
-                    id: 0, // Will be auto-assigned by saveAll
-                    sourceTransactionId: tx.id,
-                    primaryAccountId: tx.primaryAccountId,
-                    secondaryAccountId: tx.secondaryAccountId,
-                    transactionTypeId: tx.transactionTypeId,
-                    amount: tx.amount,
-                    description: tx.description,
-                    recurrenceDescription: recurrenceDescription,
-                    occurrenceDate: formatDateOnly(date),
-                    periodicChange: tx.periodicChange,
-                    status: {
-                        name: 'planned',
-                        actualAmount: null,
-                        actualDate: null
-                    },
-                    tags: tx.tags || []
-                });
-            });
-        });
-        
-        scenario.budgets = budgets;
-        return data;
+    const data = await DataStore.read();
+    const scenario = data.scenarios.find(s => s.id === scenarioId);
+
+    if (!scenario) {
+        throw new Error(`Scenario ${scenarioId} not found`);
+    }
+
+// Get scenario date range — always use parseDateOnly, never new Date(), to avoid timezone shifts
+        const startDate = parseDateOnly(scenario.startDate);
+        const endDate = parseDateOnly(scenario.endDate);
+
+    // Use the same expansion logic as the projection engine (handles recurring + non-recurring)
+    const statusName = tx => typeof tx.status === 'object' ? tx.status.name : tx.status;
+    const plannedTransactions = (scenario.transactions || [])
+        .filter(tx => statusName(tx) === 'planned');
+
+    const accounts = scenario.accounts || [];
+    const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
+
+    // Map expanded occurrences to budget entries (id: 0 — saveAll will assign proper IDs)
+    const newEntries = expandedTransactions.map(tx => ({
+        id: 0,
+        sourceTransactionId: tx.id,
+        primaryAccountId: tx.primaryAccountId,
+        secondaryAccountId: tx.secondaryAccountId ?? null,
+        transactionTypeId: tx.transactionTypeId,
+        amount: tx.amount,
+        description: tx.description,
+        recurrenceDescription: getRecurrenceDescription(tx.recurrence),
+        occurrenceDate: tx.effectiveDate,
+        periodicChange: tx.periodicChange,
+        status: {
+            name: 'planned',
+            actualAmount: null,
+            actualDate: null
+        },
+        tags: tx.tags || []
+    }));
+
+    // Preserve completed entries; let saveAll handle all ID assignment
+    const existingActuals = (scenario.budgets || []).filter(b => {
+        const sName = typeof b.status === 'object' ? b.status?.name : b.status;
+        return sName === 'actual';
     });
+
+    return await saveAll(scenarioId, [...existingActuals, ...newEntries]);
 }
 
 /**

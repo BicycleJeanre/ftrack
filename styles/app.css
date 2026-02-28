@@ -649,15 +649,22 @@ p {
 
 .toolbar-total-item {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   white-space: nowrap;
 }
 
 .toolbar-total-item .label {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.85em;
   font-weight: 500;
+}
+
+.toolbar-total-item .sublabel {
+  color: var(--text-muted);
+  font-size: 0.75em;
+  font-weight: 400;
 }
 
 .toolbar-total-item .value {
@@ -3048,4 +3055,116 @@ html[data-theme="light"] .home-hero {
   .summary-card-row .value {
     font-size: 0.9rem;
   }
+}
+
+/* ============================================================
+   Validate-Data Modal
+   ============================================================ */
+
+.validate-data-modal {
+  max-width: 780px;
+}
+
+.vd-loading {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Summary banner */
+.vd-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  margin-bottom: 20px;
+}
+
+.vd-summary-icon {
+  font-size: 1.1em;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.vd-summary--ok {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  color: var(--text-primary);
+}
+
+.vd-summary--error {
+  background: var(--danger-subtle);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--text-primary);
+}
+
+/* Per-scenario block */
+.vd-scenario {
+  margin-bottom: 20px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.vd-scenario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.vd-scenario-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.vd-scenario-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--danger-subtle);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  white-space: nowrap;
+}
+
+/* Issue list */
+.vd-issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vd-issue {
+  display: grid;
+  grid-template-columns: minmax(160px, 38%) 1fr;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-primary);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.vd-issue:last-child {
+  border-bottom: none;
+}
+
+.vd-issue-path {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.vd-issue-msg {
+  color: var(--text-primary);
+}
+
+/* Modal body scroll */
+.vd-body {
+  max-height: 60vh;
+  overflow-y: auto;
 }
