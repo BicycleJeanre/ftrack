@@ -1035,7 +1035,7 @@ export async function loadMasterTransactionsGrid({
           { headerTooltip: 'Duplicate Transaction' }
         ),
         createTextColumn('Secondary', 'secondaryAccountName', { widthGrow: 1 }),
-        { title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1 },
+        { title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1, headerSort: true, headerFilter: 'input' },
         createMoneyColumn('Amount', 'amount', { widthGrow: 1 }),
         createTextColumn('Recurrence', 'recurrenceSummary', { widthGrow: 1 }),
         createDateColumn('Date', 'effectiveDate', { editor: 'input', editable: true }),

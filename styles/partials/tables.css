@@ -311,19 +311,19 @@ html body .tabulator .tabulator-row.tabulator-group {
 
 .tabulator .tabulator-row .tabulator-cell input,
 .tabulator .tabulator-row .tabulator-cell select {
-  background-color: #2a2a2a;
-  color: var(--tabulator-text);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   border: 1px solid var(--tabulator-accent);
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .tabulator .tabulator-header-filter input {
-  background-color: #2a2a2a;
-  color: var(--tabulator-text);
-  border: 1px solid var(--tabulator-border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .tabulator .tabulator-header-filter input:focus {

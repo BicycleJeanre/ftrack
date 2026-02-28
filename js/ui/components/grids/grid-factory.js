@@ -283,6 +283,8 @@ export function createMoneyColumn(title, field, options = {}) {
         formatterParams,
         hozAlign: "right",
         headerHozAlign: "right",
+        headerSort: true,
+        headerFilter: "input",
         topCalc,
         topCalcFormatter,
         topCalcFormatterParams,
@@ -304,6 +306,7 @@ export function createDateColumn(title, field, options = {}) {
         field,
         editor: "date",
         headerSort: true,
+        headerFilter: "input",
         headerHozAlign: "left",
         responsive: options.responsive || 1, // Default responsive priority
         ...options
@@ -382,6 +385,7 @@ export function createDeleteColumn(onDelete, options = {}) {
         width,
         minWidth: width,
         hozAlign: "center",
+        headerSort: false,
         cssClass: "delete-cell",
         resizable: false,
         formatter: function(cell) {
@@ -424,6 +428,7 @@ export function createDuplicateColumn(onDuplicate, options = {}) {
         width,
         minWidth: width,
         hozAlign: "center",
+        headerSort: false,
         cssClass: "duplicate-cell",
         headerTooltip,
         resizable: false,

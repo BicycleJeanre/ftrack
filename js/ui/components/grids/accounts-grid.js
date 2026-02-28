@@ -808,6 +808,11 @@ export function buildAccountsGridColumns({
         field: 'type',
         minWidth: 120,
         widthGrow: 1,
+        headerSort: true,
+        headerFilter: 'input',
+        headerFilterFunc: function (headerValue, rowValue) {
+          return (rowValue?.name || '').toLowerCase().includes(headerValue.toLowerCase());
+        },
         formatter: function (cell) {
           const value = cell.getValue();
           return value?.name || '';
