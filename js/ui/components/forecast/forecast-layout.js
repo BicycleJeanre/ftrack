@@ -139,7 +139,7 @@ function buildDashRow({ id, title, defaultCollapsed = false, showControls = true
 
     const refreshBtn = buildIconButton({
       title: 'Refresh',
-      svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      svg: '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       onClick: () => document.dispatchEvent(new CustomEvent('forecast:refresh'))
     });
 

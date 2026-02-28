@@ -96,6 +96,12 @@
   border-radius: var(--radius-sm);
 }
 
+.icon-btn svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
 .icon-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);

@@ -391,12 +391,12 @@ function renderAccountsSummaryList({
     const duplicateBtn = document.createElement('button');
     duplicateBtn.className = 'icon-btn';
     duplicateBtn.title = 'Duplicate Account';
-    duplicateBtn.textContent = '📋';
+    duplicateBtn.textContent = '⧉';
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'icon-btn';
     deleteBtn.title = 'Delete Account';
-    deleteBtn.textContent = '🗑️';
+    deleteBtn.textContent = '⨉';
 
     actions.appendChild(duplicateBtn);
     actions.appendChild(deleteBtn);
@@ -923,7 +923,13 @@ export async function loadAccountsGrid({
     addButton.title = 'Add Account';
     addButton.textContent = '+';
 
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'icon-btn';
+    refreshButton.title = 'Refresh Accounts';
+    refreshButton.textContent = '⟳';
+
     controls.appendChild(addButton);
+    controls.appendChild(refreshButton);
 
     // Detail-specific grouping removed from base accounts grid.
 
@@ -958,6 +964,30 @@ export async function loadAccountsGrid({
         accountType: newAccount.type?.name || 'Unknown'
       };
       lastAccountsTable.addRow(rowData, false);
+    });
+
+    refreshButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const prevText = refreshButton.textContent;
+      try {
+        refreshButton.textContent = '...';
+        refreshButton.disabled = true;
+
+        await loadAccountsGrid({
+          container,
+          scenarioState,
+          getWorkflowConfig,
+          reloadMasterTransactionsGrid,
+          logger
+        });
+      } catch (err) {
+        notifyError('Failed to refresh accounts: ' + (err?.message || String(err)));
+      } finally {
+        if (refreshButton.isConnected) {
+          refreshButton.textContent = prevText;
+          refreshButton.disabled = false;
+        }
+      }
     });
   }
 

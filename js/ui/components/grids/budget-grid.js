@@ -139,12 +139,12 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     const duplicateBtn = document.createElement('button');
     duplicateBtn.className = 'icon-btn';
     duplicateBtn.title = 'Duplicate Budget Entry';
-    duplicateBtn.textContent = '📋';
+    duplicateBtn.textContent = '⧉';
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'icon-btn';
     deleteBtn.title = 'Delete Budget Entry';
-    deleteBtn.textContent = '🗑️';
+    deleteBtn.textContent = '⨉';
 
     actions.appendChild(duplicateBtn);
     actions.appendChild(deleteBtn);

@@ -71,6 +71,10 @@
   --tabulator-border: var(--border-primary);
   --tabulator-text: var(--text-primary);
   --tabulator-accent: var(--accent-primary);
+
+  /* Dashboard icon button sizing — change these two values to resize all dashboard icon buttons */
+  --dashboard-icon-btn-size: 44px;
+  --dashboard-icon-size: 20px;
 }
 
 html[data-theme="light"] {

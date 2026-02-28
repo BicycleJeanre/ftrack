@@ -552,10 +552,13 @@ body.dashboard-shell {
   align-items: center;
 }
 
-.dash-row-controls .icon-btn {
-  min-width: 28px;
-  min-height: 28px;
-  padding: 0;
+.dash-row-controls .icon-btn,
+.card-header-controls .icon-btn,
+.projections-icon-toolbar .icon-btn {
+  min-width: var(--dashboard-icon-btn-size);
+  min-height: var(--dashboard-icon-btn-size);
+  padding: 4px;
+  font-size: var(--dashboard-icon-size);
 }
 
 .dash-row-body {
@@ -593,7 +596,7 @@ body.dashboard-shell {
 }
 
 .dash-panel-header {
-  height: 38px;
+  height: 52px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
   display: flex;
@@ -1119,10 +1122,10 @@ body.dashboard-shell {
 .summary-card-actions .icon-btn,
 .account-card-actions .icon-btn,
 .grid-summary-actions .icon-btn {
-  padding: 4px;
-  min-width: 32px;
-  min-height: 32px;
-  font-size: 1em;
+  padding: 6px;
+  min-width: var(--dashboard-icon-btn-size);
+  min-height: var(--dashboard-icon-btn-size);
+  font-size: var(--dashboard-icon-size);
   line-height: 1;
 }
 

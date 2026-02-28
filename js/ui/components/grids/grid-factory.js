@@ -3,9 +3,7 @@
 
 import { createLogger } from '../../../shared/logger.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
-// formatMoneyDisplay is the canonical colored currency HTML function — defined in format-utils.js
-import { formatMoneyDisplay } from '../../../shared/format-utils.js';
-export { formatMoneyDisplay };
+import { numValueClass } from '../../../shared/format-utils.js';
 
 const logger = createLogger('GridFactory');
 
@@ -235,6 +233,26 @@ export function createListEditor(values = [], options = {}) {
 }
 
 /**
+ * Create column definition for monetary values
+ * @param {string} title - Column title
+ * @param {string} field - Data field name
+ * @param {Object} options - Additional options
+ * @returns {Object} - Tabulator column config
+ */
+export function formatMoneyDisplay(value) {
+    const numeric = Number(value) || 0;
+    const formatted = new Intl.NumberFormat('en-ZA', {
+        style: 'currency',
+        currency: 'ZAR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(numeric);
+
+    const cls = `status-netchange ${numValueClass(numeric)}`;
+    return `<span class="${cls}">${formatted}</span>`;
+}
+
+/**
  * Format a numeric value to a fixed number of decimal places for grids
  * Returns a plain string (no currency) suitable for share counts and percentages
  */
@@ -371,7 +389,7 @@ export function createDeleteColumn(onDelete, options = {}) {
                 const rowEl = cell.getRow().getElement();
                 if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
             } catch(e) {}
-            return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
+            return '<span title="Delete">⨉</span>';
         },
         cellClick: async function(e, cell) {
             try {
@@ -414,7 +432,7 @@ export function createDuplicateColumn(onDuplicate, options = {}) {
                 const rowEl = cell.getRow().getElement();
                 if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
             } catch(e) {}
-            return '<svg height="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+            return '<span title="Duplicate">⧉</span>';
         },
         cellClick: async function(e, cell) {
             try {

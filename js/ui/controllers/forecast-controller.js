@@ -564,7 +564,7 @@ async function buildScenarioGrid(container) {
         const dupBtn = document.createElement('button');
         dupBtn.className = 'icon-btn scenarios-list-dup';
         dupBtn.title = 'Duplicate Scenario';
-        dupBtn.innerHTML = '📋';
+        dupBtn.innerHTML = '⧉';
         dupBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           try {
@@ -578,7 +578,7 @@ async function buildScenarioGrid(container) {
         const delBtn = document.createElement('button');
         delBtn.className = 'icon-btn scenarios-list-del';
         delBtn.title = 'Delete Scenario';
-        delBtn.innerHTML = '🗑️';
+        delBtn.innerHTML = '⨉';
         delBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           if (await confirmDialog(`Delete scenario: ${scenario.name}?`)) {
