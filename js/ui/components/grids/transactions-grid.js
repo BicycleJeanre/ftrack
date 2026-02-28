@@ -1,7 +1,7 @@
 // forecast-transactions-grid.js
 // Master transactions grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn } from './grid-factory.js';
+import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn, createListEditor } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
@@ -153,35 +153,33 @@ function renderTransactionsSummaryList({
     const secondaryName = findAccountName(tx.secondaryAccountId);
     const primaryName = findAccountName(tx.primaryAccountId);
 
-    // Header row: secondary account name (left) + type badge (right)
-    const header = document.createElement('div');
-    header.className = 'grid-summary-header';
-    const title = document.createElement('div');
+    // Line 1: secondary account name + amount (amount pushed right)
+    const rowPrimary = document.createElement('div');
+    rowPrimary.className = 'grid-summary-row-primary';
+
+    const title = document.createElement('span');
     title.className = 'grid-summary-title';
     title.textContent = secondaryName;
+
+    const amountEl = document.createElement('span');
+    amountEl.className = `grid-summary-amount ${isMoneyOut ? 'negative' : 'positive'}`;
+    amountEl.textContent = formattedAmt;
+
+    rowPrimary.appendChild(title);
+    rowPrimary.appendChild(amountEl);
+
+    // Line 2: transaction flow
+    const flowEl = document.createElement('div');
+    flowEl.className = 'grid-summary-flow';
+    flowEl.textContent = `${primaryName} \u2192 ${secondaryName}`;
+
+    content.appendChild(rowPrimary);
+    content.appendChild(flowEl);
+
+    // Type badge for actions rail
     const typeSpan = document.createElement('span');
     typeSpan.className = `grid-summary-type ${isMoneyOut ? 'money-out' : 'money-in'}`;
     typeSpan.textContent = typeName;
-    header.appendChild(title);
-    header.appendChild(typeSpan);
-
-    // Amount value
-    const amountEl = document.createElement('div');
-    amountEl.className = 'grid-summary-amount';
-    amountEl.textContent = formattedAmt;
-    if (isMoneyOut) amountEl.classList.add('negative');
-
-    // Subtitle: primary → amount → secondary flow
-    const meta = document.createElement('div');
-    meta.className = 'grid-summary-meta';
-    const flowLabel = document.createElement('span');
-    flowLabel.className = 'grid-summary-accounts';
-    flowLabel.textContent = `${primaryName} → ${formattedAmt} → ${secondaryName}`;
-    meta.appendChild(flowLabel);
-
-    content.appendChild(header);
-    content.appendChild(amountEl);
-    content.appendChild(meta);
 
     const actions = document.createElement('div');
     actions.className = 'grid-summary-actions';
@@ -196,6 +194,7 @@ function renderTransactionsSummaryList({
     deleteBtn.title = 'Delete Transaction';
     deleteBtn.textContent = '⨉';
 
+    actions.appendChild(typeSpan);
     actions.appendChild(duplicateBtn);
     actions.appendChild(deleteBtn);
 
@@ -1035,7 +1034,15 @@ export async function loadMasterTransactionsGrid({
           { headerTooltip: 'Duplicate Transaction' }
         ),
         createTextColumn('Secondary', 'secondaryAccountName', { widthGrow: 1 }),
-        { title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1, headerSort: true, headerFilter: 'input' },
+        {
+          title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1, headerSort: true, headerFilter: 'input',
+          ...createListEditor(['Money In', 'Money Out']),
+          formatter: (cell) => {
+            const val = cell.getValue();
+            const cls = val === 'Money Out' ? 'money-out' : 'money-in';
+            return `<span class="grid-summary-type ${cls}">${val}</span>`;
+          }
+        },
         createMoneyColumn('Amount', 'amount', { widthGrow: 1 }),
         createTextColumn('Recurrence', 'recurrenceSummary', { widthGrow: 1 }),
         createDateColumn('Date', 'effectiveDate', { editor: 'input', editable: true }),
