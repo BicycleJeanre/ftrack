@@ -1834,16 +1834,17 @@ async function loadScenarioData() {
   if (showBudget) budgetSection.classList.remove('hidden'); else budgetSection.classList.add('hidden');
   if (showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
 
-  // For the accounts-detail workflow: hide the outer accordion wrapper and expand the
+  // For detail workflows: hide the outer accordion wrapper and expand the
   // body so the Tabulator grid fills all available space.
   const rowMiddle = getEl('row-middle');
   if (rowMiddle) {
-    if (workflowConfig?.accountsMode === 'detail') {
-      rowMiddle.classList.add('mode-accounts-detail');
+    const isMiddleDetail = workflowConfig?.accountsMode === 'detail' || workflowConfig?.transactionsMode === 'detail';
+    if (isMiddleDetail) {
+      rowMiddle.classList.add('mode-detail');
       rowMiddle.classList.remove('collapsed');
       rowMiddle.classList.remove('hidden');
     } else {
-      rowMiddle.classList.remove('mode-accounts-detail');
+      rowMiddle.classList.remove('mode-detail');
       if (showAccounts || showTransactions) {
         rowMiddle.classList.remove('collapsed');
         rowMiddle.classList.remove('hidden');
@@ -1851,6 +1852,24 @@ async function loadScenarioData() {
         rowMiddle.classList.add('collapsed');
         rowMiddle.classList.add('hidden');
       }
+    }
+  }
+
+  if (budgetSection) {
+    if (workflowConfig?.budgetMode === 'detail') {
+      budgetSection.classList.add('mode-detail');
+      budgetSection.classList.remove('collapsed');
+    } else {
+      budgetSection.classList.remove('mode-detail');
+    }
+  }
+
+  if (projectionsSection) {
+    if (workflowConfig?.projectionsMode === 'detail') {
+      projectionsSection.classList.add('mode-detail');
+      projectionsSection.classList.remove('collapsed');
+    } else {
+      projectionsSection.classList.remove('mode-detail');
     }
   }
 

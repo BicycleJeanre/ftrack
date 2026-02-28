@@ -190,6 +190,7 @@ export const WORKFLOWS = [
     showGeneratePlan: false,
     showSummaryCards: false,
     summaryMode: null,
+    projectionsMode: 'detail',
     supportsPeriodicChangeSchedule: false
   }
 ];
