@@ -374,9 +374,10 @@ function renderAccountsSummaryList({
     typeEl.textContent = account?.type?.name || 'Unspecified';
 
     const balanceEl = document.createElement('span');
-    balanceEl.className = 'account-card-balance';
+    const balanceVal = Number(account?.startingBalance || 0);
     const currency = account?.currency?.code || account?.currency?.name || 'ZAR';
-    balanceEl.textContent = formatCurrency(Number(account?.startingBalance || 0), currency);
+    balanceEl.className = `account-card-balance ${balanceVal > 0 ? 'positive' : balanceVal < 0 ? 'negative' : 'zero'}`;
+    balanceEl.textContent = formatCurrency(balanceVal, currency);
 
     meta.appendChild(typeEl);
     meta.appendChild(balanceEl);

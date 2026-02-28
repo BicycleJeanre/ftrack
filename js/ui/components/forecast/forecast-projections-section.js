@@ -64,7 +64,7 @@ function renderProjectionsRowDetails({ row, rowData }) {
   detailsEl.appendChild(grid);
 }
 
-function renderProjectionsSummaryList({ container, projections }) {
+function renderProjectionsSummaryList({ container, projections, accounts = [] }) {
   container.innerHTML = '';
 
   const list = document.createElement('div');
@@ -93,9 +93,12 @@ function renderProjectionsSummaryList({ container, projections }) {
     const meta = document.createElement('div');
     meta.className = 'grid-summary-meta';
 
+    const projAcct = accounts.find((a) => Number(a.id) === Number(row?.accountId));
+    const projCurrency = projAcct?.currency?.code || projAcct?.currency?.name || 'ZAR';
+
     const balance = document.createElement('span');
     balance.className = 'grid-summary-amount';
-    balance.textContent = formatCurrency(Number(row?.balance || 0), 'ZAR');
+    balance.textContent = formatCurrency(Number(row?.balance || 0), projCurrency);
 
     const date = document.createElement('span');
     date.className = 'grid-summary-date';
@@ -103,7 +106,7 @@ function renderProjectionsSummaryList({ container, projections }) {
 
     const net = document.createElement('span');
     net.className = 'grid-summary-type';
-    net.textContent = `Net ${formatCurrency(Number(row?.netChange || 0), 'ZAR')}`;
+    net.textContent = `Net ${formatCurrency(Number(row?.netChange || 0), projCurrency)}`;
 
     meta.appendChild(balance);
     meta.appendChild(date);
@@ -252,7 +255,8 @@ export async function loadProjectionsSection({
 
     renderProjectionsSummaryList({
       container: projectionsGridContainer,
-      projections: rows
+      projections: rows,
+      accounts: currentScenario?.accounts || []
     });
   } catch (err) {
     logger?.error?.('[Forecast] loadProjectionsSection failed', err);

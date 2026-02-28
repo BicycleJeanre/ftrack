@@ -1242,11 +1242,15 @@
 }
 
 .positive {
-  color: var(--success) !important;
+  color: var(--color-positive) !important;
 }
 
 .negative {
-  color: var(--danger) !important;
+  color: var(--color-negative) !important;
+}
+
+.zero {
+  color: var(--color-zero) !important;
 }
 
 /* ==================================== Layout Utilities ====================================*/

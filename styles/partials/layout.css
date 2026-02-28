@@ -791,11 +791,15 @@ body.dashboard-shell {
 }
 
 .grid-total-item .value.positive {
-  color: var(--success);
+  color: var(--color-positive);
 }
 
 .grid-total-item .value.negative {
-  color: var(--danger);
+  color: var(--color-negative);
+}
+
+.grid-total-item .value.zero {
+  color: var(--color-zero);
 }
 
 @media (max-width: 700px) {
@@ -1040,7 +1044,19 @@ body.dashboard-shell {
 .summary-card-amount.negative,
 .account-card-balance.negative,
 .grid-summary-amount.negative {
-  color: var(--danger);
+  color: var(--color-negative);
+}
+
+.summary-card-amount.positive,
+.account-card-balance.positive,
+.grid-summary-amount.positive {
+  color: var(--color-positive);
+}
+
+.summary-card-amount.zero,
+.account-card-balance.zero,
+.grid-summary-amount.zero {
+  color: var(--color-zero);
 }
 
 .summary-card-amount.positive,

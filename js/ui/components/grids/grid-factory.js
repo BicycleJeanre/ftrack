@@ -3,6 +3,7 @@
 
 import { createLogger } from '../../../shared/logger.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
+import { numValueClass } from '../../../shared/format-utils.js';
 
 const logger = createLogger('GridFactory');
 
@@ -247,7 +248,7 @@ export function formatMoneyDisplay(value) {
         maximumFractionDigits: 2
     }).format(numeric);
 
-    const cls = numeric >= 0 ? 'status-netchange positive' : 'status-netchange negative';
+    const cls = `status-netchange ${numValueClass(numeric)}`;
     return `<span class="${cls}">${formatted}</span>`;
 }
 

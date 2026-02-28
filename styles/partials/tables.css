@@ -278,11 +278,15 @@ body .tabulator .tabulator-row.budget-row-frozen .tabulator-cell {
 /* Ensure numeric status formatting inside group headers keeps semantic colors */
 .tabulator .tabulator-row.tabulator-group .status-netchange.positive,
 .tabulator .tabulator-row.tabulator-group .tabulator-cell .status-netchange.positive {
-  color: #4ade80 !important;
+  color: var(--color-positive) !important;
 }
 .tabulator .tabulator-row.tabulator-group .status-netchange.negative,
 .tabulator .tabulator-row.tabulator-group .tabulator-cell .status-netchange.negative {
-  color: var(--danger) !important;
+  color: var(--color-negative) !important;
+}
+.tabulator .tabulator-row.tabulator-group .status-netchange.zero,
+.tabulator .tabulator-row.tabulator-group .tabulator-cell .status-netchange.zero {
+  color: var(--color-zero) !important;
 }
 
 .tabulator-print-table-group {

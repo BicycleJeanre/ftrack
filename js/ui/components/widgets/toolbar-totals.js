@@ -1,6 +1,8 @@
 // toolbar-totals.js
 // Render Money In / Money Out / Net totals into a toolbar container
 
+import { numValueClass } from '../../../shared/format-utils.js';
+
 export function renderMoneyTotals(targetEl, totals, currency = 'ZAR') {
   if (!targetEl || !totals) return;
 
@@ -18,7 +20,7 @@ export function renderMoneyTotals(targetEl, totals, currency = 'ZAR') {
   targetEl.innerHTML = `
       <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${moneyIn}</span></span>
       <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${moneyOut}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${totals.net >= 0 ? 'positive' : 'negative'}">${net}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${numValueClass(totals.net)}">${net}</span></span>
     `;
 }
 

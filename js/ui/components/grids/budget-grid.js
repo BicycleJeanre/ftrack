@@ -83,6 +83,10 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
   }
 
   const findAccountName = (id) => (accounts || []).find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
+  const findAccountCurrency = (id) => {
+    const acct = (accounts || []).find((a) => Number(a.id) === Number(id));
+    return acct?.currency?.code || acct?.currency?.name || 'ZAR';
+  };
 
   budgets.forEach((budget) => {
     const card = document.createElement('div');
@@ -98,9 +102,10 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     const meta = document.createElement('div');
     meta.className = 'grid-summary-meta';
 
+    const currency = findAccountCurrency(budget?.primaryAccountId);
     const amount = document.createElement('span');
     amount.className = 'grid-summary-amount';
-    amount.textContent = formatCurrency(Math.abs(Number(budget?.amount || 0)), 'ZAR');
+    amount.textContent = formatCurrency(Math.abs(Number(budget?.amount || 0)), currency);
 
     const date = document.createElement('span');
     date.className = 'grid-summary-date';
