@@ -163,11 +163,10 @@ function renderTransactionsSummaryList({
     header.appendChild(title);
     header.appendChild(typeSpan);
 
-    // Amount value
+    // Amount value — Money In = positive (green), Money Out = negative (red)
     const amountEl = document.createElement('div');
-    amountEl.className = 'grid-summary-amount';
+    amountEl.className = `grid-summary-amount ${isMoneyOut ? 'negative' : 'positive'}`;
     amountEl.textContent = formattedAmt;
-    if (isMoneyOut) amountEl.classList.add('negative');
 
     // Subtitle: primary → amount → secondary flow
     const meta = document.createElement('div');

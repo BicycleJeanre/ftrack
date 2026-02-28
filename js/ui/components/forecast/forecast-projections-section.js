@@ -1,14 +1,14 @@
 // forecast-projections-section.js
 // Projections section/grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, refreshGridData, createDateColumn, createTextColumn, createMoneyColumn, formatMoneyDisplay } from '../grids/grid-factory.js';
+import { createGrid, refreshGridData, createDateColumn, createTextColumn, createMoneyColumn } from '../grids/grid-factory.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { notifyError } from '../../../shared/notifications.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from '../grids/grid-state.js';
 import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 import { openTimeframeModal } from '../modals/timeframe-modal.js';
-import { formatCurrency } from '../../../shared/format-utils.js';
+import { formatCurrency, formatMoneyDisplay, numValueClass } from '../../../shared/format-utils.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
@@ -56,10 +56,24 @@ function renderProjectionsRowDetails({ row, rowData }) {
     grid.appendChild(field);
   };
 
+  const addMoneyField = (label, value) => {
+    const field = document.createElement('div');
+    field.className = 'grid-detail-field';
+    const labelEl = document.createElement('label');
+    labelEl.className = 'grid-detail-label';
+    labelEl.textContent = label;
+    const valueEl = document.createElement('div');
+    valueEl.className = 'grid-detail-value';
+    valueEl.innerHTML = formatMoneyDisplay(value) || '—';
+    field.appendChild(labelEl);
+    field.appendChild(valueEl);
+    grid.appendChild(field);
+  };
+
   addField('Account', rowData?.accountName || rowData?.account);
-  addField('Income', formatCurrency(Number(rowData?.income || 0), 'ZAR'));
-  addField('Expenses', formatCurrency(Math.abs(Number(rowData?.expenses || 0)), 'ZAR'));
-  addField('Net Change', formatCurrency(Number(rowData?.netChange || 0), 'ZAR'));
+  addMoneyField('Income', Number(rowData?.income || 0));
+  addMoneyField('Expenses', Math.abs(Number(rowData?.expenses || 0)));
+  addMoneyField('Net Change', Number(rowData?.netChange || 0));
 
   detailsEl.appendChild(grid);
 }
@@ -97,7 +111,7 @@ function renderProjectionsSummaryList({ container, projections, accounts = [] })
     const projCurrency = projAcct?.currency?.code || projAcct?.currency?.name || 'ZAR';
 
     const balance = document.createElement('span');
-    balance.className = 'grid-summary-amount';
+    balance.className = `grid-summary-amount ${numValueClass(Number(row?.balance || 0))}`;
     balance.textContent = formatCurrency(Number(row?.balance || 0), projCurrency);
 
     const date = document.createElement('span');
@@ -105,7 +119,7 @@ function renderProjectionsSummaryList({ container, projections, accounts = [] })
     date.textContent = row?.date || 'No date';
 
     const net = document.createElement('span');
-    net.className = 'grid-summary-type';
+    net.className = `grid-summary-type ${numValueClass(Number(row?.netChange || 0))}`;
     net.textContent = `Net ${formatCurrency(Number(row?.netChange || 0), projCurrency)}`;
 
     meta.appendChild(balance);

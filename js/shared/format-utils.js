@@ -33,3 +33,18 @@ export function formatCurrency(value, currency = 'ZAR', decimals = 2) {
         maximumFractionDigits: decimals
     }).format(numeric);
 }
+
+/**
+ * Format a value as a colored currency HTML span for display.
+ * Applies .positive (green), .negative (red), or .zero (blue) via status-netchange class.
+ * This is the single source of truth for all colored currency display in the application.
+ * @param {number} value - The numeric value to format
+ * @param {string} currency - Currency code (default: 'ZAR')
+ * @returns {string} - HTML string: <span class="status-netchange positive|negative|zero">...</span>
+ */
+export function formatMoneyDisplay(value, currency = 'ZAR') {
+    const numeric = Number(value) || 0;
+    const formatted = formatCurrency(numeric, currency);
+    const cls = `status-netchange ${numValueClass(numeric)}`;
+    return `<span class="${cls}">${formatted}</span>`;
+}

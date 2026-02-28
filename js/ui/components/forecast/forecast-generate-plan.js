@@ -22,6 +22,7 @@ import * as TransactionManager from '../../../app/managers/transaction-manager.j
 import * as ScenarioManager from '../../../app/managers/scenario-manager.js';
 import { getScenario } from '../../../app/services/data-service.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
+import { formatCurrency } from '../../../shared/format-utils.js';
 import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.js';
 
 function isAdvancedGoalSolverWorkflow(workflowId) {
@@ -1266,13 +1267,7 @@ export async function loadGeneratePlanSection({
       await loadProjectionsSection(document.getElementById('projectionsContent'));
 
       // Format currency for alert message (plain text, no HTML)
-      const currencyFormatter = new Intl.NumberFormat('en-ZA', {
-        style: 'currency',
-        currency: 'ZAR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
-      const formattedAmount = currencyFormatter.format(Math.abs(scheduledContribution));
+      const formattedAmount = formatCurrency(Math.abs(scheduledContribution));
 
       notifySuccess(`Goal plan generated! ${getFrequencyName(frequency).toLowerCase()} transaction of ${formattedAmount} created.`);
 

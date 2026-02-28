@@ -3,7 +3,8 @@
 
 import { createLogger } from '../../../shared/logger.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
-import { numValueClass } from '../../../shared/format-utils.js';
+// formatMoneyDisplay is the canonical colored currency HTML function — defined in format-utils.js
+export { formatMoneyDisplay } from '../../../shared/format-utils.js';
 
 const logger = createLogger('GridFactory');
 
@@ -230,26 +231,6 @@ export function createListEditor(values = [], options = {}) {
             listItemFormatter: function(value, title) { return title; }
         }
     };
-}
-
-/**
- * Create column definition for monetary values
- * @param {string} title - Column title
- * @param {string} field - Data field name
- * @param {Object} options - Additional options
- * @returns {Object} - Tabulator column config
- */
-export function formatMoneyDisplay(value) {
-    const numeric = Number(value) || 0;
-    const formatted = new Intl.NumberFormat('en-ZA', {
-        style: 'currency',
-        currency: 'ZAR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(numeric);
-
-    const cls = `status-netchange ${numValueClass(numeric)}`;
-    return `<span class="${cls}">${formatted}</span>`;
 }
 
 /**

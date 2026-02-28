@@ -99,12 +99,23 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     title.className = 'grid-summary-title';
     title.textContent = budget?.description || 'Untitled Budget Entry';
 
+    // Type badge — Money In (typeId 1) or Money Out (typeId 2)
+    const isMoneyOut = Number(budget?.transactionTypeId) === 2;
+    const typeSpan = document.createElement('span');
+    typeSpan.className = `grid-summary-type ${isMoneyOut ? 'money-out' : 'money-in'}`;
+    typeSpan.textContent = isMoneyOut ? 'Money Out' : 'Money In';
+
+    const header = document.createElement('div');
+    header.className = 'grid-summary-header';
+    header.appendChild(title);
+    header.appendChild(typeSpan);
+
     const meta = document.createElement('div');
     meta.className = 'grid-summary-meta';
 
     const currency = findAccountCurrency(budget?.primaryAccountId);
     const amount = document.createElement('span');
-    amount.className = 'grid-summary-amount';
+    amount.className = `grid-summary-amount ${isMoneyOut ? 'negative' : 'positive'}`;
     amount.textContent = formatCurrency(Math.abs(Number(budget?.amount || 0)), currency);
 
     const date = document.createElement('span');
@@ -119,7 +130,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     meta.appendChild(date);
     meta.appendChild(accountsLabel);
 
-    content.appendChild(title);
+    content.appendChild(header);
     content.appendChild(meta);
 
     const actions = document.createElement('div');

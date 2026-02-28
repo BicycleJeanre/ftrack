@@ -1224,11 +1224,15 @@
 }
 
 .status-netchange.positive {
-  color: var(--success) !important;
+  color: var(--color-positive) !important;
 }
 
 .status-netchange.negative {
-  color: var(--danger) !important;
+  color: var(--color-negative) !important;
+}
+
+.status-netchange.zero {
+  color: var(--color-zero) !important;
 }
 
 .clickable-recurrence {

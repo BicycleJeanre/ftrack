@@ -904,9 +904,10 @@ body.dashboard-shell {
 
 /* interest/value semantic colors */
 .summary-card .interest-earned,
-.summary-card .value.positive { color: var(--success); }
+.summary-card .value.positive { color: var(--color-positive); }
 .summary-card .interest-paid,
-.summary-card .value.negative { color: var(--danger); }
+.summary-card .value.negative { color: var(--color-negative); }
+.summary-card .value.zero { color: var(--color-zero); }
 
 /* Blue accent highlight similar to other focused cards/rows (no layout shift) */
 .summary-card:focus-within,
@@ -1057,12 +1058,6 @@ body.dashboard-shell {
 .account-card-balance.zero,
 .grid-summary-amount.zero {
   color: var(--color-zero);
-}
-
-.summary-card-amount.positive,
-.account-card-balance.positive,
-.grid-summary-amount.positive {
-  color: var(--success);
 }
 
 /* Summary card actions */
@@ -1268,11 +1263,15 @@ body.dashboard-shell {
 }
 
 .toolbar-total-item .value.positive {
-  color: var(--success);
+  color: var(--color-positive);
 }
 
 .toolbar-total-item .value.negative {
-  color: var(--danger);
+  color: var(--color-negative);
+}
+
+.toolbar-total-item .value.zero {
+  color: var(--color-zero);
 }
 
 @media (max-width: 1024px) {
