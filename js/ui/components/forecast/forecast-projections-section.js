@@ -183,37 +183,6 @@ export async function loadProjectionsSection({
     const controls = projectionsHeader.querySelector('.card-header-controls');
     if (controls) {
       controls.innerHTML = '';
-      // View toggle removed: projections section always summary in base section.
-      const refreshButton = document.createElement('button');
-      refreshButton.className = 'icon-btn';
-      refreshButton.title = 'Refresh Projections';
-      refreshButton.textContent = '⟳';
-
-      controls.appendChild(refreshButton);
-
-      refreshButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const prevText = refreshButton.textContent;
-        try {
-          refreshButton.textContent = '...';
-          refreshButton.disabled = true;
-
-          const scenario = scenarioState?.get?.();
-          if (scenario?.id) {
-            const refreshed = await getScenario(scenario.id);
-            scenarioState?.set?.(refreshed);
-          }
-
-          await loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        } catch (err) {
-          notifyError('Failed to refresh projections: ' + (err?.message || String(err)));
-        } finally {
-          if (refreshButton.isConnected) {
-            refreshButton.textContent = prevText;
-            refreshButton.disabled = false;
-          }
-        }
-      });
     }
   }
 
@@ -239,6 +208,133 @@ export async function loadProjectionsSection({
   }
 
   projectionsGridContainer.classList.remove('grid-detail');
+
+  // Build icon toolbar above the projections grid.
+  const existingIconToolbar = container.querySelector(':scope > .projections-icon-toolbar');
+  if (existingIconToolbar) existingIconToolbar.remove();
+
+  const iconToolbar = document.createElement('div');
+  iconToolbar.className = 'projections-icon-toolbar';
+
+  // — Filter by account —
+  const filterWrapper = document.createElement('div');
+  filterWrapper.style.position = 'relative';
+
+  const filterBtn = document.createElement('button');
+  filterBtn.className = 'icon-btn' + (Number(state?.getProjectionAccountFilterId?.()) > 0 ? ' icon-btn--active' : '');
+  filterBtn.title = 'Filter by account';
+  filterBtn.textContent = '⊙';
+
+  const filterDropdown = document.createElement('div');
+  filterDropdown.className = 'projections-filter-dropdown hidden';
+
+  const filterSelect = document.createElement('select');
+  filterSelect.className = 'input-select projections-filter-select';
+
+  const allOpt = document.createElement('option');
+  allOpt.value = '0';
+  allOpt.textContent = 'All Accounts';
+  filterSelect.appendChild(allOpt);
+  (currentScenario?.accounts || []).forEach((a) => {
+    const opt = document.createElement('option');
+    opt.value = String(a.id);
+    opt.textContent = a.name || 'Unnamed';
+    filterSelect.appendChild(opt);
+  });
+  filterSelect.value = String(Number(state?.getProjectionAccountFilterId?.()) || 0);
+
+  filterSelect.addEventListener('change', async () => {
+    const selectedId = Number(filterSelect.value) || 0;
+    state?.setProjectionAccountFilterId?.(selectedId > 0 ? selectedId : null);
+    filterDropdown.classList.add('hidden');
+    await loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+  });
+  filterDropdown.appendChild(filterSelect);
+
+  filterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    filterDropdown.classList.toggle('hidden');
+  });
+  document.addEventListener('click', () => filterDropdown.classList.add('hidden'), { once: true });
+
+  filterWrapper.appendChild(filterBtn);
+  filterWrapper.appendChild(filterDropdown);
+  iconToolbar.appendChild(filterWrapper);
+
+  // — Regenerate projections —
+  const regenBtn = document.createElement('button');
+  regenBtn.className = 'icon-btn';
+  regenBtn.title = 'Regenerate projections';
+  regenBtn.textContent = '↺';
+
+  regenBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const prevText = regenBtn.textContent;
+    try {
+      regenBtn.textContent = '…';
+      regenBtn.disabled = true;
+      const scenario = scenarioState?.get?.();
+      if (!scenario?.id) return;
+      const projConfig = scenario?.projection?.config || {};
+      await generateProjections(scenario.id, {
+        source: projConfig.source || 'transactions',
+        startDate: projConfig.startDate,
+        endDate: projConfig.endDate,
+        periodTypeId: projConfig.periodTypeId
+      });
+      const refreshed = await getScenario(scenario.id);
+      scenarioState?.set?.(refreshed);
+      await loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+    } catch (err) {
+      notifyError('Failed to regenerate projections: ' + (err?.message || String(err)));
+    } finally {
+      if (regenBtn.isConnected) {
+        regenBtn.textContent = prevText;
+        regenBtn.disabled = false;
+      }
+    }
+  });
+  iconToolbar.appendChild(regenBtn);
+
+  // — Set projection period —
+  const periodBtn = document.createElement('button');
+  periodBtn.className = 'icon-btn';
+  periodBtn.title = 'Set projection period';
+  periodBtn.textContent = '⊞';
+
+  periodBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const scenario = scenarioState?.get?.();
+    const projConfig = scenario?.projection?.config || {};
+    openTimeframeModal({
+      title: 'Set Projection Period',
+      showPeriodType: true,
+      defaultPeriodTypeId: projConfig.periodTypeId || 3,
+      onConfirm: async ({ startDate, endDate, periodTypeId }) => {
+        try {
+          periodBtn.disabled = true;
+          const current = scenarioState?.get?.();
+          if (!current?.id) return;
+          await generateProjections(current.id, {
+            source: current?.projection?.config?.source || 'transactions',
+            startDate,
+            endDate,
+            periodTypeId
+          });
+          const refreshed = await getScenario(current.id);
+          scenarioState?.set?.(refreshed);
+          await loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        } catch (err) {
+          notifyError('Failed to set projection period: ' + (err?.message || String(err)));
+        } finally {
+          if (periodBtn.isConnected) periodBtn.disabled = false;
+        }
+      }
+    });
+  });
+  iconToolbar.appendChild(periodBtn);
+
+  container.insertBefore(iconToolbar, projectionsGridContainer);
 
   try {
     try {

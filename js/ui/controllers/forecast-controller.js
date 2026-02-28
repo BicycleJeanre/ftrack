@@ -49,6 +49,7 @@ import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
 import {
   getDefaultFundSettings,
   buildProjectionsIndex,
+  getBalanceAsOf,
   computeNav,
   computeContributionRedemptionTotals,
   computeFixedSharesReport,
@@ -1669,6 +1670,54 @@ async function loadGeneralSummaryCards(container, options = {}) {
     } catch (e) {
       groupWrapper.appendChild(totalCard);
     }
+
+  // Repayment goals from Advanced Goal Solver (pay_down_by_date goals).
+  const solverGoals = (currentScenario?.advancedGoalSettings?.goals || []).filter(
+    (g) => g?.type === 'pay_down_by_date'
+  );
+  if (solverGoals.length > 0) {
+    let repaymentSection = container.querySelector(':scope > .repayment-goals-section');
+    if (!repaymentSection) {
+      repaymentSection = document.createElement('div');
+      repaymentSection.className = 'repayment-goals-section';
+      container.appendChild(repaymentSection);
+    }
+    repaymentSection.innerHTML = '';
+
+    const sectionTitle = document.createElement('div');
+    sectionTitle.className = 'summary-cards-group-title';
+    sectionTitle.textContent = 'Repayment Goals';
+    repaymentSection.appendChild(sectionTitle);
+
+    const grid = document.createElement('div');
+    grid.className = 'summary-cards-grid';
+
+    for (const goal of solverGoals) {
+      const goalAccount = (currentScenario?.accounts || []).find(
+        (a) => Number(a.id) === Number(goal.accountId)
+      );
+      if (!goalAccount) continue;
+
+      const targetAmount = goal.targetAmount ?? 0;
+      const goalEndDate = goal.endDate ? parseDateOnly(goal.endDate) : null;
+      const projectedAtDue = getBalanceAsOf({ account: goalAccount, projectionsIndex, asOfDate: goalEndDate });
+      const onTrack = projectedAtDue >= targetAmount - 0.01;
+
+      const card = document.createElement('div');
+      card.className = 'summary-card';
+      card.innerHTML = `
+        <div class="summary-card-title">${goalAccount.name || 'Unnamed'}</div>
+        <div class="summary-card-row"><span class="label">Type:</span><span class="value">Repayment Goal</span></div>
+        <div class="summary-card-row"><span class="label">Target Balance:</span><span class="value">${formatMoneyDisplay(targetAmount)}</span></div>
+        <div class="summary-card-row"><span class="label">Due Date:</span><span class="value">${goal.endDate || 'N/A'}</span></div>
+        <div class="summary-card-row"><span class="label">Projected at Due:</span><span class="value">${formatMoneyDisplay(projectedAtDue)}</span></div>
+        <div class="summary-card-row"><span class="label">Status:</span><span class="value ${onTrack ? 'positive' : 'negative'}">${onTrack ? 'On Track' : 'Off Track'}</span></div>
+      `;
+      grid.appendChild(card);
+    }
+
+    repaymentSection.appendChild(grid);
+  }
 
   // Funds-style detail grid (stable DOM node so Tabulator instance can be reused).
   // Disable detail grid rendering for General workflow summary section.
