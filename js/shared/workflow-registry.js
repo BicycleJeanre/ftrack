@@ -39,13 +39,15 @@ export const WORKFLOWS = [
     visibleCards: [
       'scenarioPicker',
       'summaryCards',
-      // Keep only summary in this workflow; detailed grids moved to detail workflows
+      'accounts',
+      'transactions',
+      'projections'
     ],
-    showAccounts: false,
-    showPlannedTransactions: false,
+    showAccounts: true,
+    showPlannedTransactions: true,
     showActualTransactions: false,
     showBudget: false,
-    showProjections: false,
+    showProjections: true,
     showGeneratePlan: false,
     showSummaryCards: true,
     summaryMode: 'general',

@@ -84,59 +84,95 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     return;
   }
 
-  const findAccountName = (id) => (accounts || []).find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
+  const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
+  const findAccountName = (id) => visibleAccounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
   const findAccountCurrency = (id) => {
-    const acct = (accounts || []).find((a) => Number(a.id) === Number(id));
+    const acct = visibleAccounts.find((a) => Number(a.id) === Number(id));
     return acct?.currency?.code || acct?.currency?.name || 'ZAR';
+  };
+
+  const buildAccountSelect = (selectedId, includeNone = false) => {
+    const sel = document.createElement('select');
+    sel.className = 'grid-summary-input';
+    if (includeNone) {
+      const noneOpt = document.createElement('option');
+      noneOpt.value = '';
+      noneOpt.textContent = '— None —';
+      sel.appendChild(noneOpt);
+    }
+    visibleAccounts.forEach((a) => {
+      const opt = document.createElement('option');
+      opt.value = String(a.id);
+      opt.textContent = a.name;
+      sel.appendChild(opt);
+    });
+    sel.value = selectedId ? String(selectedId) : '';
+    return sel;
   };
 
   budgets.forEach((budget) => {
     const card = document.createElement('div');
     card.className = 'grid-summary-card';
 
+    // --- Card face ---
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
 
-    const title = document.createElement('div');
-    title.className = 'grid-summary-title';
-    title.textContent = budget?.description || 'Untitled Budget Entry';
-
-    // Type badge — Money In (typeId 1) or Money Out (typeId 2)
     const isMoneyOut = Number(budget?.transactionTypeId) === 2;
+    const currency = findAccountCurrency(budget?.primaryAccountId);
+    const formattedAmt = formatCurrency(Math.abs(Number(budget?.amount || 0)), currency);
+    const primaryName = findAccountName(budget.primaryAccountId);
+    const secondaryName = findAccountName(budget.secondaryAccountId);
+    const statusName = typeof budget?.status === 'object' ? (budget.status?.name || 'planned') : (budget?.status || 'planned');
+    const isCompleted = statusName === 'actual';
+
+    // Line 1: checkbox + secondary account name + amount
+    const rowPrimary = document.createElement('div');
+    rowPrimary.className = 'grid-summary-row-primary';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'grid-summary-complete';
+    checkbox.checked = isCompleted;
+    checkbox.title = isCompleted ? 'Mark as planned' : 'Mark as actual';
+
+    const secondaryNameEl = document.createElement('span');
+    secondaryNameEl.className = 'grid-summary-title';
+    secondaryNameEl.textContent = secondaryName;
+
+    const amountEl = document.createElement('span');
+    amountEl.className = `grid-summary-amount ${isMoneyOut ? 'negative' : 'positive'}`;
+    amountEl.textContent = formattedAmt;
+
+    rowPrimary.appendChild(checkbox);
+    rowPrimary.appendChild(secondaryNameEl);
+    rowPrimary.appendChild(amountEl);
+
+    // Line 2: flow description (left) + date (right)
+    const rowSecondary = document.createElement('div');
+    rowSecondary.className = 'grid-summary-row-secondary';
+
+    const flowEl = document.createElement('span');
+    flowEl.className = 'grid-summary-flow';
+    flowEl.textContent = `${primaryName} \u2192 ${formattedAmt} \u2192 ${secondaryName}`;
+
+    const dateEl = document.createElement('span');
+    dateEl.className = 'grid-summary-date';
+    dateEl.textContent = budget?.occurrenceDate || '';
+
+    rowSecondary.appendChild(flowEl);
+    rowSecondary.appendChild(dateEl);
+
+    content.appendChild(rowPrimary);
+    content.appendChild(rowSecondary);
+
+    // Actions rail: type capsule + icon buttons
+    const actions = document.createElement('div');
+    actions.className = 'grid-summary-actions';
+
     const typeSpan = document.createElement('span');
     typeSpan.className = `grid-summary-type ${isMoneyOut ? 'money-out' : 'money-in'}`;
     typeSpan.textContent = isMoneyOut ? 'Money Out' : 'Money In';
-
-    const header = document.createElement('div');
-    header.className = 'grid-summary-header';
-    header.appendChild(title);
-    header.appendChild(typeSpan);
-
-    const meta = document.createElement('div');
-    meta.className = 'grid-summary-meta';
-
-    const currency = findAccountCurrency(budget?.primaryAccountId);
-    const amount = document.createElement('span');
-    amount.className = `grid-summary-amount ${isMoneyOut ? 'negative' : 'positive'}`;
-    amount.textContent = formatCurrency(Math.abs(Number(budget?.amount || 0)), currency);
-
-    const date = document.createElement('span');
-    date.className = 'grid-summary-date';
-    date.textContent = budget?.occurrenceDate || 'No date';
-
-    const accountsLabel = document.createElement('span');
-    accountsLabel.className = 'grid-summary-accounts';
-    accountsLabel.textContent = `${findAccountName(budget.primaryAccountId)} → ${findAccountName(budget.secondaryAccountId)}`;
-
-    meta.appendChild(amount);
-    meta.appendChild(date);
-    meta.appendChild(accountsLabel);
-
-    content.appendChild(header);
-    content.appendChild(meta);
-
-    const actions = document.createElement('div');
-    actions.className = 'grid-summary-actions';
 
     const duplicateBtn = document.createElement('button');
     duplicateBtn.className = 'icon-btn';
@@ -148,17 +184,21 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     deleteBtn.title = 'Delete Budget Entry';
     deleteBtn.textContent = '⨉';
 
+    actions.appendChild(typeSpan);
     actions.appendChild(duplicateBtn);
     actions.appendChild(deleteBtn);
 
+    // --- Edit form ---
     const form = document.createElement('div');
     form.className = 'grid-summary-form';
     form.style.display = 'none';
 
-    const descInput = document.createElement('input');
-    descInput.type = 'text';
-    descInput.className = 'grid-summary-input';
-    descInput.value = budget?.description || '';
+    const typeSelect = document.createElement('select');
+    typeSelect.className = 'grid-summary-input';
+    typeSelect.innerHTML = `<option value="1">Money In</option><option value="2">Money Out</option>`;
+    typeSelect.value = String(budget?.transactionTypeId || 2);
+
+    const secondaryAccountSelect = buildAccountSelect(budget?.secondaryAccountId, true);
 
     const amountInput = document.createElement('input');
     amountInput.type = 'number';
@@ -166,10 +206,39 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     amountInput.className = 'grid-summary-input';
     amountInput.value = Number(budget?.amount || 0);
 
+    const descInput = document.createElement('input');
+    descInput.type = 'text';
+    descInput.className = 'grid-summary-input';
+    descInput.value = budget?.description || '';
+
     const dateInput = document.createElement('input');
     dateInput.type = 'date';
-    dateInput.className = 'grid-summary-input';
+    dateInput.className = 'grid-summary-input grid-summary-input--readonly';
     dateInput.value = budget?.occurrenceDate || '';
+    dateInput.readOnly = true;
+
+    const statusSelect = document.createElement('select');
+    statusSelect.className = 'grid-summary-input';
+    statusSelect.innerHTML = `<option value="planned">Planned</option><option value="actual">Actual</option>`;
+    statusSelect.value = statusName;
+
+    const actualAmountInput = document.createElement('input');
+    actualAmountInput.type = 'number';
+    actualAmountInput.step = '0.01';
+    actualAmountInput.className = 'grid-summary-input';
+    actualAmountInput.value = budget?.status?.actualAmount != null ? Number(budget.status.actualAmount) : '';
+    actualAmountInput.placeholder = 'Optional';
+
+    const actualDateInput = document.createElement('input');
+    actualDateInput.type = 'date';
+    actualDateInput.className = 'grid-summary-input';
+    actualDateInput.value = budget?.status?.actualDate || '';
+
+    const recurrenceInput = document.createElement('input');
+    recurrenceInput.type = 'text';
+    recurrenceInput.className = 'grid-summary-input';
+    recurrenceInput.value = budget?.recurrenceDescription || '';
+    recurrenceInput.placeholder = 'e.g. Monthly';
 
     const formActions = document.createElement('div');
     formActions.className = 'grid-summary-form-actions';
@@ -182,9 +251,9 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     formActions.appendChild(saveBtn);
     formActions.appendChild(cancelBtn);
 
-    const addField = (label, inputEl) => {
+    const addField = (label, inputEl, fullWidth = false) => {
       const field = document.createElement('div');
-      field.className = 'grid-summary-field';
+      field.className = fullWidth ? 'grid-summary-field form-field--full' : 'grid-summary-field';
       const labelEl = document.createElement('label');
       labelEl.className = 'grid-summary-label';
       labelEl.textContent = label;
@@ -193,11 +262,18 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
       form.appendChild(field);
     };
 
-    addField('Description', descInput);
+    addField('Type', typeSelect);
+    addField('Secondary Account', secondaryAccountSelect);
     addField('Amount', amountInput);
-    addField('Date', dateInput);
+    addField('Description', descInput, true);
+    addField('Planned Date', dateInput);
+    addField('Status', statusSelect);
+    addField('Actual Amount', actualAmountInput);
+    addField('Actual Date', actualDateInput);
+    addField('Recurrence', recurrenceInput, true);
     form.appendChild(formActions);
 
+    // --- Interactions ---
     const enterEdit = () => {
       form.style.display = 'grid';
       content.style.display = 'none';
@@ -212,15 +288,39 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
 
     card.addEventListener('click', (e) => {
       if (form.style.display === 'grid') return;
-      if (e.target.closest('.icon-btn')) return;
+      if (e.target.closest('.icon-btn') || e.target === checkbox) return;
       enterEdit();
+    });
+
+    checkbox.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const scenario = budget?._scenarioId;
+      if (!scenario) return;
+      const allBudgets = await getBudget(scenario);
+      const idx = allBudgets.findIndex((b) => Number(b.id) === Number(budget.id));
+      if (idx === -1) return;
+      const prevStatus = allBudgets[idx].status;
+      const prevStatusName = typeof prevStatus === 'object' ? prevStatus?.name : (prevStatus || 'planned');
+      const newStatusName = prevStatusName === 'actual' ? 'planned' : 'actual';
+      const updatedStatus = typeof prevStatus === 'object'
+        ? { ...prevStatus, name: newStatusName }
+        : { name: newStatusName, actualAmount: null, actualDate: null };
+      allBudgets[idx] = { ...allBudgets[idx], status: updatedStatus };
+      await BudgetManager.saveAll(scenario, allBudgets);
+      await onRefresh?.();
     });
 
     cancelBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      descInput.value = budget?.description || '';
+      typeSelect.value = String(budget?.transactionTypeId || 2);
+      secondaryAccountSelect.value = budget?.secondaryAccountId ? String(budget.secondaryAccountId) : '';
       amountInput.value = Number(budget?.amount || 0);
+      descInput.value = budget?.description || '';
       dateInput.value = budget?.occurrenceDate || '';
+      statusSelect.value = statusName;
+      actualAmountInput.value = budget?.status?.actualAmount != null ? Number(budget.status.actualAmount) : '';
+      actualDateInput.value = budget?.status?.actualDate || '';
+      recurrenceInput.value = budget?.recurrenceDescription || '';
       exitEdit();
     });
 
@@ -231,14 +331,29 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
       const allBudgets = await getBudget(scenario);
       const idx = allBudgets.findIndex((b) => Number(b.id) === Number(budget.id));
       if (idx === -1) return;
-
+      const prevStatus = allBudgets[idx].status;
+      const newStatusName = statusSelect.value;
+      const updatedStatus = typeof prevStatus === 'object'
+        ? {
+            ...prevStatus,
+            name: newStatusName,
+            actualAmount: actualAmountInput.value !== '' ? Math.abs(Number(actualAmountInput.value)) : null,
+            actualDate: actualDateInput.value || null
+          }
+        : {
+            name: newStatusName,
+            actualAmount: actualAmountInput.value !== '' ? Math.abs(Number(actualAmountInput.value)) : null,
+            actualDate: actualDateInput.value || null
+          };
       allBudgets[idx] = {
         ...allBudgets[idx],
-        description: descInput.value.trim(),
+        transactionTypeId: Number(typeSelect.value || 2),
+        secondaryAccountId: secondaryAccountSelect.value ? Number(secondaryAccountSelect.value) : null,
         amount: Math.abs(Number(amountInput.value || 0)),
-        occurrenceDate: dateInput.value || allBudgets[idx].occurrenceDate
+        description: descInput.value.trim(),
+        status: updatedStatus,
+        recurrenceDescription: recurrenceInput.value.trim() || allBudgets[idx].recurrenceDescription
       };
-
       await BudgetManager.saveAll(scenario, allBudgets);
       await onRefresh?.();
     });
@@ -695,113 +810,194 @@ export async function loadBudgetGrid({
     lastBudgetDetailTableReady = false;
   }
   container.querySelectorAll(':scope > .grid-toolbar').forEach((el) => el.remove());
+  container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
+  // Load accounts and periods upfront so the toolbar can be populated
+  const accounts = currentScenario.accounts || [];
+  const budgetPeriodType = state?.getBudgetPeriodType?.() || 'Month';
+  let periods = state?.getPeriods?.();
+  if (!periods || periods.length === 0) {
+    periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType);
+    state?.setPeriods?.(periods);
+  }
+
+  const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
+  const firstAccountId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
+  const selIdNum = state?.getTransactionFilterAccountId?.() != null ? Number(state.getTransactionFilterAccountId()) : null;
+  const effectiveTransactionFilterAccountId = isValidAccountId(selIdNum) ? selIdNum : firstAccountId;
+  if (!isValidAccountId(selIdNum) && effectiveTransactionFilterAccountId != null) {
+    state?.setTransactionFilterAccountId?.(effectiveTransactionFilterAccountId);
+  }
+
+  const reload = () => loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+
+  // --- Build filter toolbar in header (mirrors detail mode) ---
   const budgetSection = container.closest('.forecast-card');
   const budgetHeader = budgetSection?.querySelector(':scope > .card-header');
   if (budgetHeader) {
-    budgetHeader.classList.remove('card-header--filters-inline');
+    budgetHeader.classList.add('card-header--filters-inline');
     const controls = budgetHeader.querySelector('.card-header-controls');
     if (controls) {
       controls.innerHTML = '';
-      // View toggle removed: budget grid shows summary by default in base grids.
+
+      const makeHeaderFilter = (id, labelText, selectEl) => {
+        const item = document.createElement('div');
+        item.className = 'header-filter-item';
+        const lbl = document.createElement('label');
+        lbl.htmlFor = id;
+        lbl.textContent = labelText;
+        item.appendChild(lbl);
+        item.appendChild(selectEl);
+        return item;
+      };
+
+      // View By (period type)
+      const periodTypeSelect = document.createElement('select');
+      periodTypeSelect.id = 'budget-period-type-select';
+      periodTypeSelect.className = 'input-select';
+      ['Month', 'Quarter', 'Year'].forEach((pt) => {
+        const opt = document.createElement('option');
+        opt.value = pt; opt.textContent = pt;
+        periodTypeSelect.appendChild(opt);
+      });
+      periodTypeSelect.value = budgetPeriodType;
+      controls.appendChild(makeHeaderFilter('budget-period-type-select', 'View:', periodTypeSelect));
+
+      // Period + ◀ ▶ navigation
+      const periodSelect = document.createElement('select');
+      periodSelect.id = 'budget-period-select';
+      periodSelect.className = 'input-select';
+      const allPeriodsOpt = document.createElement('option');
+      allPeriodsOpt.value = ''; allPeriodsOpt.textContent = 'All';
+      periodSelect.appendChild(allPeriodsOpt);
+      periods.forEach((p) => {
+        const opt = document.createElement('option');
+        opt.value = String(p.id);
+        opt.textContent = p.label || String(p.id);
+        periodSelect.appendChild(opt);
+      });
+      const curPeriod = state?.getBudgetPeriod?.();
+      if (curPeriod) periodSelect.value = String(curPeriod);
+
+      const prevBtn = document.createElement('button');
+      prevBtn.type = 'button';
+      prevBtn.className = 'period-btn';
+      prevBtn.textContent = '\u25c0';
+      const nextBtn = document.createElement('button');
+      nextBtn.type = 'button';
+      nextBtn.className = 'period-btn';
+      nextBtn.textContent = '\u25b6';
+
+      const periodItem = document.createElement('div');
+      periodItem.className = 'header-filter-item';
+      const periodLabel = document.createElement('label');
+      periodLabel.htmlFor = 'budget-period-select';
+      periodLabel.textContent = 'Period:';
+      periodItem.appendChild(periodLabel);
+      periodItem.appendChild(periodSelect);
+      periodItem.appendChild(prevBtn);
+      periodItem.appendChild(nextBtn);
+      controls.appendChild(periodItem);
+
+      // Account filter
+      const accountSelect = document.createElement('select');
+      accountSelect.id = 'budget-account-select';
+      accountSelect.className = 'input-select';
+      const allAccountsOpt = document.createElement('option');
+      allAccountsOpt.value = ''; allAccountsOpt.textContent = 'All Accounts';
+      accountSelect.appendChild(allAccountsOpt);
+      accounts.forEach((a) => {
+        const opt = document.createElement('option');
+        opt.value = String(a.id);
+        opt.textContent = a.name || String(a.id);
+        accountSelect.appendChild(opt);
+      });
+      const curAccountId = state?.getTransactionFilterAccountId?.();
+      if (curAccountId) accountSelect.value = String(curAccountId);
+      controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
+
+      // Icon actions — add entry
+      const iconActions = document.createElement('div');
+      iconActions.className = 'header-icon-actions';
       const addButton = document.createElement('button');
       addButton.className = 'icon-btn';
       addButton.title = 'Add Budget Entry';
       addButton.textContent = '+';
+      iconActions.appendChild(addButton);
+      controls.appendChild(iconActions);
 
-      controls.appendChild(addButton);
-
+      // --- Event handlers ---
       addButton.addEventListener('click', async (e) => {
         e.stopPropagation();
         try {
           currentScenario = scenarioState?.get?.();
-
           const currentBudgets = await getBudget(currentScenario.id);
-
           let defaultDate = formatDateOnly(new Date());
-          const periods = state?.getPeriods?.() || [];
+          const livePeriods = state?.getPeriods?.() || [];
           const liveBudgetPeriod = state?.getBudgetPeriod?.();
           if (liveBudgetPeriod) {
-            const selectedPeriod = periods.find((p) => p.id === liveBudgetPeriod);
-            if (selectedPeriod && selectedPeriod.startDate) {
-              defaultDate = formatDateOnly(new Date(selectedPeriod.startDate));
-            }
+            const selectedPeriod = livePeriods.find((p) => String(p.id) === String(liveBudgetPeriod));
+            if (selectedPeriod?.startDate) defaultDate = formatDateOnly(new Date(selectedPeriod.startDate));
           }
-
-          const transactionFilterAccountIdSnapshot = state?.getTransactionFilterAccountId?.();
-          const accounts = currentScenario.accounts || [];
-          const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
-          const firstAccountId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
-          const effectiveTransactionFilterAccountId = isValidAccountId(transactionFilterAccountIdSnapshot)
-            ? transactionFilterAccountIdSnapshot
-            : firstAccountId;
-
-          const primaryAccountId =
-            effectiveTransactionFilterAccountId ||
-            (currentScenario.accounts && currentScenario.accounts.length > 0 ? currentScenario.accounts[0].id : null);
-
-          const newBudget = {
-            id: null,
-            sourceTransactionId: null,
-            primaryAccountId,
-            secondaryAccountId: null,
-            transactionTypeId: 2,
-            amount: 0,
-            description: '',
-            occurrenceDate: defaultDate,
-            recurrenceDescription: 'One time',
-            status: {
-              name: 'planned',
-              actualAmount: null,
-              actualDate: null
-            }
-          };
-
-          currentBudgets.push(newBudget);
+          const snapshotAcctId = state?.getTransactionFilterAccountId?.();
+          const primaryAccountId = isValidAccountId(snapshotAcctId) ? snapshotAcctId : firstAccountId;
+          currentBudgets.push({
+            id: null, sourceTransactionId: null,
+            primaryAccountId, secondaryAccountId: null,
+            transactionTypeId: 2, amount: 0, description: '',
+            occurrenceDate: defaultDate, recurrenceDescription: 'One time',
+            status: { name: 'planned', actualAmount: null, actualDate: null }
+          });
           await BudgetManager.saveAll(currentScenario.id, currentBudgets);
-
           const refreshed = await getScenario(currentScenario.id);
           scenarioState?.set?.(refreshed);
-
-          await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+          await reload();
         } catch (err) {
           notifyError('Failed to create budget entry. Please try again.');
         }
       });
 
+      periodTypeSelect.addEventListener('change', async () => {
+        state?.setBudgetPeriodType?.(periodTypeSelect.value);
+        state?.setPeriods?.([]);
+        state?.setBudgetPeriod?.(null);
+        await reload();
+      });
+
+      periodSelect.addEventListener('change', () => {
+        state?.setBudgetPeriod?.(periodSelect.value || null);
+        reload();
+      });
+
+      const periodIds = [null, ...periods.map((p) => p.id || null)];
+      const changePeriodBy = (offset) => {
+        const currentId = state?.getBudgetPeriod?.() ?? null;
+        const currentIndex = periodIds.findIndex((id) => id === currentId);
+        const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+        const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
+        const nextId = periodIds[nextIndex] ?? null;
+        periodSelect.value = nextId ? String(nextId) : '';
+        state?.setBudgetPeriod?.(nextId);
+        reload();
+      };
+      prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
+      nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
+
+      accountSelect.addEventListener('change', () => {
+        state?.setTransactionFilterAccountId?.(accountSelect.value ? Number(accountSelect.value) : null);
+        reload();
+      });
     }
   }
 
   const existingTable = tables?.getMasterBudgetTable?.();
-
   try {
-    budgetGridState.capture(existingTable, {
-      groupBy: '#budget-grouping-select'
-    });
+    budgetGridState.capture(existingTable, { groupBy: '#budget-grouping-select' });
   } catch (_) {
     // Keep existing behavior: ignore state capture errors.
   }
 
-  const loadToken = state?.bumpBudgetGridLoadToken?.();
-  const transactionFilterAccountIdSnapshot = state?.getTransactionFilterAccountId?.();
-  const budgetPeriodSnapshot = state?.getBudgetPeriod?.();
-  const selIdNum = transactionFilterAccountIdSnapshot != null ? Number(transactionFilterAccountIdSnapshot) : null;
-
-  const accounts = currentScenario.accounts || [];
-  const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
-  const firstAccountId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
-  const effectiveTransactionFilterAccountId = isValidAccountId(selIdNum) ? selIdNum : firstAccountId;
-
-  if (!isValidAccountId(selIdNum) && effectiveTransactionFilterAccountId != null) {
-    state?.setTransactionFilterAccountId?.(effectiveTransactionFilterAccountId);
-  }
-
-  // Keep the grid container stable to reduce scroll jumps.
-  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
-  existingToolbars.forEach((el) => el.remove());
-
-  // Remove any stale placeholders inserted by higher-level controllers.
-  container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
+  state?.bumpBudgetGridLoadToken?.();
 
   let gridContainer = container.querySelector(':scope > .grid-container.budget-grid');
   if (!gridContainer) {
@@ -823,15 +1019,9 @@ export async function loadBudgetGrid({
 
     let budgets = await getBudget(currentScenario.id);
     const budgetPeriod = state?.getBudgetPeriod?.();
-    let periods = state?.getPeriods?.();
-    if (!periods || periods.length === 0) {
-      const budgetPeriodType = state?.getBudgetPeriodType?.();
-      periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType);
-      state?.setPeriods?.(periods);
-    }
 
     if (budgetPeriod) {
-      const selectedPeriod = periods.find((p) => p.id === budgetPeriod);
+      const selectedPeriod = periods.find((p) => String(p.id) === String(budgetPeriod));
       if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
         const start = new Date(selectedPeriod.startDate);
         const end = new Date(selectedPeriod.endDate);
@@ -857,9 +1047,7 @@ export async function loadBudgetGrid({
       container: gridContainer,
       budgets,
       accounts: currentScenario.accounts || [],
-      onRefresh: async () => {
-        await loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
-      }
+      onRefresh: reload
     });
   } catch (err) {
     // Keep existing behavior: errors are swallowed here.

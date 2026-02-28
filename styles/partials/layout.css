@@ -1332,6 +1332,13 @@ body.dashboard-shell {
   color: var(--text-primary);
 }
 
+.grid-summary-input--readonly,
+.grid-summary-input[readonly] {
+  opacity: 0.5;
+  cursor: default;
+  user-select: none;
+}
+
 .summary-card-form-actions,
 .grid-summary-form-actions,
 .account-card-form-actions {
@@ -1488,4 +1495,59 @@ body.dashboard-shell {
   .section-padding {
     padding: var(--spacing-xs) var(--spacing-sm);
   }
+}
+
+/* ==================================== Budget Summary Card Overrides ====================================*/
+
+.budget-grid .grid-summary-list {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.budget-grid .grid-summary-card {
+  padding: 6px 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.budget-grid .grid-summary-content {
+  width: 100%;
+}
+
+.grid-summary-row-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.grid-summary-row-primary .grid-summary-amount {
+  margin-left: auto;
+}
+
+.grid-summary-complete {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}
+
+.grid-summary-flow {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.budget-grid .grid-summary-actions {
+  align-items: center;
+}
+
+.grid-summary-row-secondary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: 2px;
 }
