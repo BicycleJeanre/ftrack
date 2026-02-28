@@ -916,8 +916,6 @@ export async function loadAccountsGrid({
     if (!controls) return;
     controls.innerHTML = '';
 
-    // View toggle removed: accounts should always show the summary in base grids.
-
     const addButton = document.createElement('button');
     addButton.className = 'icon-btn';
     addButton.title = 'Add Account';
@@ -928,10 +926,44 @@ export async function loadAccountsGrid({
     refreshButton.title = 'Refresh Accounts';
     refreshButton.textContent = '⟳';
 
-    controls.appendChild(addButton);
-    controls.appendChild(refreshButton);
+    if (workflowConfig?.accountsMode === 'detail') {
+      accountsHeader.classList.add('card-header--filters-inline');
 
-    // Detail-specific grouping removed from base accounts grid.
+      const groupByItem = document.createElement('div');
+      groupByItem.className = 'header-filter-item';
+      const groupByLabel = document.createElement('label');
+      groupByLabel.htmlFor = 'account-grouping-select';
+      groupByLabel.textContent = 'Group By:';
+      const groupBySelect = document.createElement('select');
+      groupBySelect.id = 'account-grouping-select';
+      groupBySelect.className = 'input-select';
+      [
+        { value: '', label: 'None' },
+        { value: 'accountType', label: 'Account Type' }
+      ].forEach(({ value, label }) => {
+        const opt = document.createElement('option');
+        opt.value = value; opt.textContent = label;
+        groupBySelect.appendChild(opt);
+      });
+      groupByItem.appendChild(groupByLabel);
+      groupByItem.appendChild(groupBySelect);
+      controls.appendChild(groupByItem);
+
+      const iconActions = document.createElement('div');
+      iconActions.className = 'header-icon-actions';
+      iconActions.appendChild(addButton);
+      iconActions.appendChild(refreshButton);
+      controls.appendChild(iconActions);
+
+      groupBySelect.addEventListener('change', () => {
+        const field = groupBySelect.value;
+        lastAccountsTable?.setGroupBy?.(field ? [field] : []);
+      });
+    } else {
+      accountsHeader.classList.remove('card-header--filters-inline');
+      controls.appendChild(addButton);
+      controls.appendChild(refreshButton);
+    }
 
     addButton.addEventListener('click', async (e) => {
       e.stopPropagation();

@@ -507,123 +507,127 @@ export async function loadMasterTransactionsGrid({
     const controls = transactionsHeader.querySelector('.card-header-controls');
     if (controls) {
       controls.innerHTML = '';
-      // View toggle removed: transactions should always render summary in base grids.
 
-      // Account filter — lets the user narrow the list by primary account perspective.
-      const accountFilterWrapper = document.createElement('div');
-      accountFilterWrapper.style.cssText = 'display:flex;align-items:center;gap:5px;';
-      const accountFilterLabel = document.createElement('label');
-      accountFilterLabel.className = 'text-muted';
-      accountFilterLabel.style.cssText = 'font-size:11px;white-space:nowrap;';
-      accountFilterLabel.textContent = 'Account:';
-      const accountFilterSelect = document.createElement('select');
-      accountFilterSelect.className = 'input-select';
-      accountFilterSelect.style.cssText = 'padding:3px 6px;min-width:110px;width:auto;font-size:12px;';
-      (currentScenario.accounts || [])
-        .filter((a) => a.name !== 'Select Account')
-        .forEach((account) => {
-          const opt = document.createElement('option');
-          opt.value = String(account.id);
-          opt.textContent = account.name;
-          accountFilterSelect.appendChild(opt);
-        });
-      const currentFilterId = state?.getTransactionFilterAccountId?.();
-      const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
-      const initialFilterId = currentFilterId || firstAccountId || null;
-      if (initialFilterId) {
-        accountFilterSelect.value = String(initialFilterId);
-        if (!currentFilterId) {
-          state?.setTransactionFilterAccountId?.(Number(initialFilterId));
-        }
-      }
-      accountFilterSelect.addEventListener('change', (e) => {
-        const nextId = e.target.value ? Number(e.target.value) : null;
-        state?.setTransactionFilterAccountId?.(nextId);
-        loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-      });
-      accountFilterWrapper.appendChild(accountFilterLabel);
-      accountFilterWrapper.appendChild(accountFilterSelect);
-      controls.appendChild(accountFilterWrapper);
+      if (workflowConfig?.transactionsMode === 'detail') {
+        // Detail-mode controls are built later, after periods are available.
+        transactionsHeader.classList.add('card-header--filters-inline');
+      } else {
+        transactionsHeader.classList.remove('card-header--filters-inline');
 
-      const addButton = document.createElement('button');
-      addButton.className = 'icon-btn';
-      addButton.title = 'Add Transaction';
-      addButton.textContent = '+';
-
-      const refreshButton = document.createElement('button');
-      refreshButton.className = 'icon-btn';
-      refreshButton.title = 'Refresh Transactions';
-      refreshButton.textContent = '⟳';
-
-      controls.appendChild(addButton);
-      controls.appendChild(refreshButton);
-
-      addButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        try {
-          currentScenario = scenarioState?.get?.();
-
-          const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
-          const actualPeriod = state?.getActualPeriod?.();
-          const periods = state?.getPeriods?.() || [];
-
-          const accountIds = (currentScenario.accounts || []).map((acc) => acc.id);
-          const filteredAccountId =
-            transactionFilterAccountId && accountIds.includes(transactionFilterAccountId)
-              ? transactionFilterAccountId
-              : null;
-          const defaultAccountId = filteredAccountId || (accountIds.length > 0 ? accountIds[0] : null);
-
-          if (!defaultAccountId) {
-            notifyError('Please create at least one account before adding a transaction.');
-            return;
-          }
-
-          const selectedPeriod = actualPeriod ? periods.find((p) => p.id === actualPeriod) : null;
-          const defaultEffectiveDate = selectedPeriod
-            ? formatDateOnly(selectedPeriod.startDate)
-            : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
-
-          await createTransaction(currentScenario.id, {
-            primaryAccountId: defaultAccountId,
-            secondaryAccountId: null,
-            transactionTypeId: 2,
-            amount: 0,
-            effectiveDate: defaultEffectiveDate,
-            description: '',
-            recurrence: null,
-            periodicChange: null,
-            status: 'planned',
-            tags: []
+        const accountFilterItem = document.createElement('div');
+        accountFilterItem.className = 'header-filter-item';
+        const accountFilterLabel = document.createElement('label');
+        accountFilterLabel.htmlFor = 'tx-account-filter-select';
+        accountFilterLabel.textContent = 'Account:';
+        const accountFilterSelect = document.createElement('select');
+        accountFilterSelect.id = 'tx-account-filter-select';
+        accountFilterSelect.className = 'input-select';
+        (currentScenario.accounts || [])
+          .filter((a) => a.name !== 'Select Account')
+          .forEach((account) => {
+            const opt = document.createElement('option');
+            opt.value = String(account.id);
+            opt.textContent = account.name;
+            accountFilterSelect.appendChild(opt);
           });
-
-          const refreshed = await getScenario(currentScenario.id);
-          scenarioState?.set?.(refreshed);
-
-          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        } catch (err) {
-          notifyError('Failed to create transaction. Please try again.');
-        }
-      });
-
-      refreshButton.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const prevText = refreshButton.textContent;
-        try {
-          refreshButton.textContent = '...';
-          refreshButton.disabled = true;
-          const refreshed = await getScenario(currentScenario.id);
-          scenarioState?.set?.(refreshed);
-          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        } catch (err) {
-          notifyError('Failed to refresh transactions: ' + (err?.message || String(err)));
-        } finally {
-          if (refreshButton.isConnected) {
-            refreshButton.textContent = prevText;
-            refreshButton.disabled = false;
+        const currentFilterId = state?.getTransactionFilterAccountId?.();
+        const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
+        const initialFilterId = currentFilterId || firstAccountId || null;
+        if (initialFilterId) {
+          accountFilterSelect.value = String(initialFilterId);
+          if (!currentFilterId) {
+            state?.setTransactionFilterAccountId?.(Number(initialFilterId));
           }
         }
-      });
+        accountFilterSelect.addEventListener('change', (e) => {
+          const nextId = e.target.value ? Number(e.target.value) : null;
+          state?.setTransactionFilterAccountId?.(nextId);
+          loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+        accountFilterItem.appendChild(accountFilterLabel);
+        accountFilterItem.appendChild(accountFilterSelect);
+        controls.appendChild(accountFilterItem);
+
+        const addButton = document.createElement('button');
+        addButton.className = 'icon-btn';
+        addButton.title = 'Add Transaction';
+        addButton.textContent = '+';
+
+        const refreshButton = document.createElement('button');
+        refreshButton.className = 'icon-btn';
+        refreshButton.title = 'Refresh Transactions';
+        refreshButton.textContent = '⟳';
+
+        controls.appendChild(addButton);
+        controls.appendChild(refreshButton);
+
+        addButton.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            currentScenario = scenarioState?.get?.();
+
+            const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+            const actualPeriod = state?.getActualPeriod?.();
+            const periods = state?.getPeriods?.() || [];
+
+            const accountIds = (currentScenario.accounts || []).map((acc) => acc.id);
+            const filteredAccountId =
+              transactionFilterAccountId && accountIds.includes(transactionFilterAccountId)
+                ? transactionFilterAccountId
+                : null;
+            const defaultAccountId = filteredAccountId || (accountIds.length > 0 ? accountIds[0] : null);
+
+            if (!defaultAccountId) {
+              notifyError('Please create at least one account before adding a transaction.');
+              return;
+            }
+
+            const selectedPeriod = actualPeriod ? periods.find((p) => p.id === actualPeriod) : null;
+            const defaultEffectiveDate = selectedPeriod
+              ? formatDateOnly(selectedPeriod.startDate)
+              : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+
+            await createTransaction(currentScenario.id, {
+              primaryAccountId: defaultAccountId,
+              secondaryAccountId: null,
+              transactionTypeId: 2,
+              amount: 0,
+              effectiveDate: defaultEffectiveDate,
+              description: '',
+              recurrence: null,
+              periodicChange: null,
+              status: 'planned',
+              tags: []
+            });
+
+            const refreshed = await getScenario(currentScenario.id);
+            scenarioState?.set?.(refreshed);
+
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          } catch (err) {
+            notifyError('Failed to create transaction. Please try again.');
+          }
+        });
+
+        refreshButton.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const prevText = refreshButton.textContent;
+          try {
+            refreshButton.textContent = '...';
+            refreshButton.disabled = true;
+            const refreshed = await getScenario(currentScenario.id);
+            scenarioState?.set?.(refreshed);
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          } catch (err) {
+            notifyError('Failed to refresh transactions: ' + (err?.message || String(err)));
+          } finally {
+            if (refreshButton.isConnected) {
+              refreshButton.textContent = prevText;
+              refreshButton.disabled = false;
+            }
+          }
+        });
+      }
     }
   }
 
@@ -718,137 +722,252 @@ export async function loadMasterTransactionsGrid({
 
       const reload = () => loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
 
-      // --- Build toolbar only once ---
+      // --- Build header controls for detail mode (periods now available) ---
+      if (transactionsHeader) {
+        const controls = transactionsHeader.querySelector('.card-header-controls');
+        if (controls) {
+          controls.innerHTML = '';
+
+          const makeHeaderFilter = (id, labelText, selectEl) => {
+            const item = document.createElement('div');
+            item.className = 'header-filter-item';
+            const lbl = document.createElement('label');
+            lbl.htmlFor = id;
+            lbl.textContent = labelText;
+            item.appendChild(lbl);
+            item.appendChild(selectEl);
+            return item;
+          };
+
+          // Account filter
+          const accountFilterSelect = document.createElement('select');
+          accountFilterSelect.id = 'tx-account-filter-select';
+          accountFilterSelect.className = 'input-select';
+          (currentScenario.accounts || [])
+            .filter((a) => a.name !== 'Select Account')
+            .forEach((account) => {
+              const opt = document.createElement('option');
+              opt.value = String(account.id);
+              opt.textContent = account.name;
+              accountFilterSelect.appendChild(opt);
+            });
+          const txCurrentFilterId = state?.getTransactionFilterAccountId?.();
+          const txFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
+          const txInitialFilterId = txCurrentFilterId || txFirstAccountId || null;
+          if (txInitialFilterId) {
+            accountFilterSelect.value = String(txInitialFilterId);
+            if (!txCurrentFilterId) state?.setTransactionFilterAccountId?.(Number(txInitialFilterId));
+          }
+          controls.appendChild(makeHeaderFilter('tx-account-filter-select', 'Account:', accountFilterSelect));
+
+          // Period Type
+          const periodTypeSelect = document.createElement('select');
+          periodTypeSelect.id = 'tx-period-type-select';
+          periodTypeSelect.className = 'input-select';
+          ['Month', 'Quarter', 'Year'].forEach((pt) => {
+            const opt = document.createElement('option');
+            opt.value = pt; opt.textContent = pt;
+            periodTypeSelect.appendChild(opt);
+          });
+          periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
+          controls.appendChild(makeHeaderFilter('tx-period-type-select', 'View:', periodTypeSelect));
+
+          // Period + ◀ ▶ navigation
+          const periodSelect = document.createElement('select');
+          periodSelect.id = 'tx-period-select';
+          periodSelect.className = 'input-select';
+          const allPeriodsOpt = document.createElement('option');
+          allPeriodsOpt.value = ''; allPeriodsOpt.textContent = 'All';
+          periodSelect.appendChild(allPeriodsOpt);
+          periods.forEach((p) => {
+            const opt = document.createElement('option');
+            opt.value = String(p.id);
+            opt.textContent = p.label || String(p.id);
+            periodSelect.appendChild(opt);
+          });
+          const curPeriod = state?.getActualPeriod?.();
+          if (curPeriod) periodSelect.value = String(curPeriod);
+
+          const prevBtn = document.createElement('button');
+          prevBtn.type = 'button';
+          prevBtn.className = 'period-btn';
+          prevBtn.textContent = '◀';
+          const nextBtn = document.createElement('button');
+          nextBtn.type = 'button';
+          nextBtn.className = 'period-btn';
+          nextBtn.textContent = '▶';
+
+          const periodItem = document.createElement('div');
+          periodItem.className = 'header-filter-item';
+          const periodLabel = document.createElement('label');
+          periodLabel.htmlFor = 'tx-period-select';
+          periodLabel.textContent = 'Period:';
+          periodItem.appendChild(periodLabel);
+          periodItem.appendChild(periodSelect);
+          periodItem.appendChild(prevBtn);
+          periodItem.appendChild(nextBtn);
+          controls.appendChild(periodItem);
+
+          // Group By
+          const groupBySelect = document.createElement('select');
+          groupBySelect.id = 'tx-grouping-select';
+          groupBySelect.className = 'input-select';
+          [
+            { value: '', label: 'None' },
+            { value: 'transactionTypeName', label: 'Transaction Type' },
+            { value: 'primaryAccountName', label: 'Primary Account' },
+            { value: 'secondaryAccountName', label: 'Secondary Account' },
+            { value: 'statusName', label: 'Status' }
+          ].forEach(({ value, label }) => {
+            const opt = document.createElement('option');
+            opt.value = value; opt.textContent = label;
+            groupBySelect.appendChild(opt);
+          });
+          controls.appendChild(makeHeaderFilter('tx-grouping-select', 'Group:', groupBySelect));
+
+          // Status
+          const statusFilterSelect = document.createElement('select');
+          statusFilterSelect.id = 'tx-status-filter-select';
+          statusFilterSelect.className = 'input-select';
+          [
+            { value: '', label: 'All' },
+            { value: 'planned', label: 'Planned' },
+            { value: 'actual', label: 'Actual' }
+          ].forEach(({ value, label }) => {
+            const opt = document.createElement('option');
+            opt.value = value; opt.textContent = label;
+            statusFilterSelect.appendChild(opt);
+          });
+          controls.appendChild(makeHeaderFilter('tx-status-filter-select', 'Status:', statusFilterSelect));
+
+          // Icon actions
+          const iconActions = document.createElement('div');
+          iconActions.className = 'header-icon-actions';
+          const addButton = document.createElement('button');
+          addButton.className = 'icon-btn';
+          addButton.title = 'Add Transaction';
+          addButton.textContent = '+';
+          const refreshButton = document.createElement('button');
+          refreshButton.className = 'icon-btn';
+          refreshButton.title = 'Refresh Transactions';
+          refreshButton.textContent = '⟳';
+          iconActions.appendChild(addButton);
+          iconActions.appendChild(refreshButton);
+          controls.appendChild(iconActions);
+
+          // Event listeners
+          accountFilterSelect.addEventListener('change', (e) => {
+            const nextId = e.target.value ? Number(e.target.value) : null;
+            state?.setTransactionFilterAccountId?.(nextId);
+            loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          });
+          periodTypeSelect.addEventListener('change', async () => {
+            state?.setActualPeriodType?.(periodTypeSelect.value);
+            state?.setPeriods?.([]);
+            state?.setActualPeriod?.(null);
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          });
+          periodSelect.addEventListener('change', () => {
+            state?.setActualPeriod?.(periodSelect.value || null);
+            loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          });
+          const periodIds = [null, ...periods.map((p) => p.id || null)];
+          const changePeriodBy = (offset) => {
+            const currentId = state?.getActualPeriod?.() ?? null;
+            const currentIndex = periodIds.findIndex((id) => id === currentId);
+            const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+            const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
+            const nextId = periodIds[nextIndex] ?? null;
+            periodSelect.value = nextId ? String(nextId) : '';
+            state?.setActualPeriod?.(nextId);
+            loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          };
+          prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
+          nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
+          groupBySelect.addEventListener('change', () => {
+            const field = groupBySelect.value;
+            lastTransactionsDetailTable?.setGroupBy?.(field ? [field] : []);
+          });
+          statusFilterSelect.addEventListener('change', () => {
+            if (statusFilterSelect.value) {
+              lastTransactionsDetailTable?.setFilter?.('statusName', '=', statusFilterSelect.value);
+            } else {
+              lastTransactionsDetailTable?.clearFilter?.();
+            }
+            callbacks?.updateTransactionTotals?.();
+          });
+          addButton.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+              currentScenario = scenarioState?.get?.();
+              const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+              const actualPeriod = state?.getActualPeriod?.();
+              const localPeriods = state?.getPeriods?.() || [];
+              const accountIds = (currentScenario.accounts || []).map((acc) => acc.id);
+              const filteredAccountId =
+                transactionFilterAccountId && accountIds.includes(transactionFilterAccountId)
+                  ? transactionFilterAccountId
+                  : null;
+              const defaultAccountId = filteredAccountId || (accountIds.length > 0 ? accountIds[0] : null);
+              if (!defaultAccountId) {
+                notifyError('Please create at least one account before adding a transaction.');
+                return;
+              }
+              const selectedPeriod = actualPeriod ? localPeriods.find((p) => p.id === actualPeriod) : null;
+              const defaultEffectiveDate = selectedPeriod
+                ? formatDateOnly(selectedPeriod.startDate)
+                : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+              await createTransaction(currentScenario.id, {
+                primaryAccountId: defaultAccountId,
+                secondaryAccountId: null,
+                transactionTypeId: 2,
+                amount: 0,
+                effectiveDate: defaultEffectiveDate,
+                description: '',
+                recurrence: null,
+                periodicChange: null,
+                status: 'planned',
+                tags: []
+              });
+              const refreshed = await getScenario(currentScenario.id);
+              scenarioState?.set?.(refreshed);
+              await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+            } catch (err) {
+              notifyError('Failed to create transaction. Please try again.');
+            }
+          });
+          refreshButton.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const prevText = refreshButton.textContent;
+            try {
+              refreshButton.textContent = '...';
+              refreshButton.disabled = true;
+              const refreshed = await getScenario(currentScenario.id);
+              scenarioState?.set?.(refreshed);
+              await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+            } catch (err) {
+              notifyError('Failed to refresh transactions: ' + (err?.message || String(err)));
+            } finally {
+              if (refreshButton.isConnected) {
+                refreshButton.textContent = prevText;
+                refreshButton.disabled = false;
+              }
+            }
+          });
+        }
+      }
+
+      // --- Totals toolbar (stable; selects moved to title bar) ---
       let toolbar = container.querySelector(':scope > .grid-toolbar#transactionsContent');
       if (!toolbar) {
-        // Clear any stale summary HTML from gridContainer before Tabulator first mounts
         gridContainer.innerHTML = '';
-
         toolbar = document.createElement('div');
         toolbar.className = 'grid-toolbar';
         toolbar.id = 'transactionsContent'; // required for updateTransactionTotals to locate .toolbar-totals
-
-        const makeItem = (labelText) => {
-          const item = document.createElement('div');
-          item.className = 'toolbar-item';
-          const lbl = document.createElement('label');
-          lbl.className = 'text-muted control-label';
-          lbl.textContent = labelText;
-          item.appendChild(lbl);
-          return item;
-        };
-
-        // Period type
-        const periodTypeItem = makeItem('Period Type:');
-        const periodTypeSelect = document.createElement('select');
-        periodTypeSelect.id = 'tx-period-type-select';
-        periodTypeSelect.className = 'input-select control-select';
-        ['Month', 'Quarter', 'Year'].forEach((pt) => {
-          const opt = document.createElement('option');
-          opt.value = pt; opt.textContent = pt;
-          periodTypeSelect.appendChild(opt);
-        });
-        periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
-        periodTypeItem.appendChild(periodTypeSelect);
-        toolbar.appendChild(periodTypeItem);
-
-        // Period
-        const periodItem = makeItem('Period:');
-        const periodSelect = document.createElement('select');
-        periodSelect.id = 'tx-period-select';
-        periodSelect.className = 'input-select control-select';
-        const allPeriodsOpt = document.createElement('option');
-        allPeriodsOpt.value = ''; allPeriodsOpt.textContent = 'All Periods';
-        periodSelect.appendChild(allPeriodsOpt);
-        periods.forEach((p) => {
-          const opt = document.createElement('option');
-          opt.value = String(p.id);
-          opt.textContent = p.label || String(p.id);
-          periodSelect.appendChild(opt);
-        });
-        const curPeriod = state?.getActualPeriod?.();
-        if (curPeriod) periodSelect.value = String(curPeriod);
-        periodItem.appendChild(periodSelect);
-        toolbar.appendChild(periodItem);
-
-        // Group by
-        const groupByItem = makeItem('Group By:');
-        const groupBySelect = document.createElement('select');
-        groupBySelect.id = 'tx-grouping-select';
-        groupBySelect.className = 'input-select control-select';
-        [
-          { value: '', label: 'None' },
-          { value: 'transactionTypeName', label: 'Transaction Type' },
-          { value: 'primaryAccountName', label: 'Primary Account' },
-          { value: 'secondaryAccountName', label: 'Secondary Account' },
-          { value: 'statusName', label: 'Status' },
-        ].forEach(({ value, label }) => {
-          const opt = document.createElement('option');
-          opt.value = value; opt.textContent = label;
-          groupBySelect.appendChild(opt);
-        });
-        groupByItem.appendChild(groupBySelect);
-        toolbar.appendChild(groupByItem);
-
-        // Status filter
-        const statusItem = makeItem('Status:');
-        const statusFilterSelect = document.createElement('select');
-        statusFilterSelect.id = 'tx-status-filter-select';
-        statusFilterSelect.className = 'input-select control-select';
-        [
-          { value: '', label: 'All' },
-          { value: 'planned', label: 'Planned' },
-          { value: 'actual', label: 'Actual' },
-        ].forEach(({ value, label }) => {
-          const opt = document.createElement('option');
-          opt.value = value; opt.textContent = label;
-          statusFilterSelect.appendChild(opt);
-        });
-        statusItem.appendChild(statusFilterSelect);
-        toolbar.appendChild(statusItem);
-
-        // Totals (populated by updateTransactionTotals via #transactionsContent .toolbar-totals)
         const totalsEl = document.createElement('div');
         totalsEl.className = 'toolbar-totals';
         toolbar.appendChild(totalsEl);
-
-        // Insert toolbar before the grid container
         container.insertBefore(toolbar, gridContainer);
-
-        // --- Period type change: reload with new period type ---
-        periodTypeSelect.addEventListener('change', async () => {
-          state?.setActualPeriodType?.(periodTypeSelect.value);
-          state?.setPeriods?.([]);
-          state?.setActualPeriod?.(null);
-          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        });
-
-        // --- Period change: reload data with period filter ---
-        periodSelect.addEventListener('change', () => {
-          const newPeriodId = periodSelect.value || null;
-          state?.setActualPeriod?.(newPeriodId);
-          loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        });
-      } else {
-        // Toolbar already exists — update period select options to reflect current periods list
-        const periodSelect = toolbar.querySelector('#tx-period-select');
-        if (periodSelect) {
-          const curPeriod = state?.getActualPeriod?.();
-          // Rebuild options if the count has changed (e.g. period type switched)
-          const optionCount = periodSelect.options.length - 1; // subtract "All Periods"
-          if (optionCount !== periods.length) {
-            while (periodSelect.options.length > 1) periodSelect.remove(1);
-            periods.forEach((p) => {
-              const opt = document.createElement('option');
-              opt.value = String(p.id);
-              opt.textContent = p.label || String(p.id);
-              periodSelect.appendChild(opt);
-            });
-          }
-          periodSelect.value = curPeriod ? String(curPeriod) : '';
-        }
-        const periodTypeSelect = toolbar.querySelector('#tx-period-type-select');
-        if (periodTypeSelect) periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
       }
 
       const columns = [
@@ -954,24 +1073,6 @@ export async function loadMasterTransactionsGrid({
               notifyError('Failed to save transaction edit.');
             }
           }
-        });
-
-        // Attach reactive toolbar controls once
-        const groupBySelect = toolbar.querySelector('#tx-grouping-select');
-        const statusFilterSelect = toolbar.querySelector('#tx-status-filter-select');
-
-        groupBySelect?.addEventListener('change', () => {
-          const field = groupBySelect.value;
-          txTable.setGroupBy(field ? [field] : []);
-        });
-
-        statusFilterSelect?.addEventListener('change', () => {
-          if (statusFilterSelect.value) {
-            txTable.setFilter('statusName', '=', statusFilterSelect.value);
-          } else {
-            txTable.clearFilter();
-          }
-          callbacks?.updateTransactionTotals?.();
         });
 
         attachGridHandlers(txTable, {
