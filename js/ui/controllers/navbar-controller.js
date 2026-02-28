@@ -1,6 +1,7 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 import { downloadAppData, uploadAppData } from '../../app/services/export-service.js';
 import { notifyError, notifySuccess } from '../../shared/notifications.js';
+import { openValidateDataModal } from '../components/modals/validate-data-modal.js';
 
 // Web-only: Show clear data button for browser storage management
 const clearDataBtn = '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>';
@@ -26,6 +27,7 @@ const navLinks = `
   <button id="nav-theme" class="btn btn-ghost" title="Toggle theme"></button>
   <button id="nav-export" class="btn btn-secondary" title="Export data to file">Export Data</button>
   <button id="nav-import" class="btn btn-secondary" title="Import data from file">Import Data</button>
+  <button id="nav-validate" class="btn btn-secondary" title="Validate data file for errors">Validate Data</button>
   ${clearDataBtn}
 `;
 
@@ -55,9 +57,10 @@ async function attachDataHandlers() {
   // Dynamically import theme functions to avoid top-level dependency
   const { getTheme, setTheme } = await import('../../config.js');
   
-  var themeBtn = document.getElementById('nav-theme');
-  var exportBtn = document.getElementById('nav-export');
-  var importBtn = document.getElementById('nav-import');
+  var themeBtn    = document.getElementById('nav-theme');
+  var exportBtn   = document.getElementById('nav-export');
+  var importBtn   = document.getElementById('nav-import');
+  var validateBtn = document.getElementById('nav-validate');
 
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
@@ -103,6 +106,17 @@ async function attachDataHandlers() {
     });
   }
   
+  if (validateBtn) {
+    validateBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      try {
+        await openValidateDataModal();
+      } catch (err) {
+        notifyError('Validation error: ' + err.message);
+      }
+    });
+  }
+
   // Clear data button (web only)
   var clearBtn = document.getElementById('nav-clear');
   if (clearBtn) {

@@ -191,6 +191,15 @@ The infrastructure layer provides technical capabilities.
 **Components**:
 - `date-utils.js` - Date parsing and formatting
 - `format-utils.js` - Currency and number formatting
+
+### 2.4.1 Date Handling Convention
+
+All dates in this application are **date-only strings** (`YYYY-MM-DD`). There are no timestamps, no timezones, and no UTC conversions anywhere in the codebase.
+
+- Always use `parseDateOnly(str)` to convert a date string to a `Date` object.
+- Always use `formatDateOnly(date)` to convert back to a string.
+- Never use `new Date(str)` on a date string — this parses as UTC midnight and causes day-shift bugs in non-UTC timezones.
+- Never use `.toISOString()`, `.toUTCString()`, or any UTC/timezone-aware method.
 - `logger.js` - Logging infrastructure
 - `notifications.js` - User notifications
 - `keyboard-shortcuts.js` - Keyboard handling
