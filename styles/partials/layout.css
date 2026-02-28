@@ -731,6 +731,56 @@ body.dashboard-shell {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.card-header--filters-inline {
+  justify-content: flex-start;
+}
+
+.card-header--filters-inline .card-header-controls {
+  flex: 1;
+  margin-left: 12px;
+}
+
+.card-header--filters-inline .card-header-actions {
+  flex-shrink: 0;
+}
+
+.header-icon-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.header-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.header-filter-item label {
+  font-size: 0.75em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.header-filter-item .input-select {
+  padding: 3px 6px;
+  font-size: 0.8em;
+  min-width: unset;
+  width: auto;
+}
+
+.header-filter-item .period-nav {
+  display: flex;
+  gap: 2px;
+}
+
+.header-filter-item .period-btn {
+  padding: 2px 5px;
+  font-size: 0.8em;
 }
 
 .card-collapsed .section-content {
