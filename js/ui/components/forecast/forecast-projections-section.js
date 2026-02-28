@@ -97,22 +97,20 @@ function renderProjectionsSummaryList({ container, projections, accounts = [] })
     const card = document.createElement('div');
     card.className = 'grid-summary-card';
 
-    const content = document.createElement('div');
-    content.className = 'grid-summary-content';
-
-    const title = document.createElement('div');
+    const title = document.createElement('span');
     title.className = 'grid-summary-title';
     title.textContent = row?.accountName || row?.account || 'Account';
-
-    const meta = document.createElement('div');
-    meta.className = 'grid-summary-meta';
 
     const projAcct = accounts.find((a) => Number(a.id) === Number(row?.accountId));
     const projCurrency = projAcct?.currency?.code || projAcct?.currency?.name || 'ZAR';
 
-    const balance = document.createElement('span');
-    balance.className = `grid-summary-amount ${numValueClass(Number(row?.balance || 0))}`;
-    balance.textContent = formatCurrency(Number(row?.balance || 0), projCurrency);
+    const income = document.createElement('span');
+    income.className = `grid-summary-income ${numValueClass(Number(row?.income || 0))}`;
+    income.textContent = `↑ ${formatCurrency(Number(row?.income || 0), projCurrency)}`;
+
+    const expenses = document.createElement('span');
+    expenses.className = 'grid-summary-expenses';
+    expenses.textContent = `↓ ${formatCurrency(Math.abs(Number(row?.expenses || 0)), projCurrency)}`;
 
     const date = document.createElement('span');
     date.className = 'grid-summary-date';
@@ -122,14 +120,11 @@ function renderProjectionsSummaryList({ container, projections, accounts = [] })
     net.className = `grid-summary-type ${numValueClass(Number(row?.netChange || 0))}`;
     net.textContent = `Net ${formatCurrency(Number(row?.netChange || 0), projCurrency)}`;
 
-    meta.appendChild(balance);
-    meta.appendChild(date);
-    meta.appendChild(net);
-
-    content.appendChild(title);
-    content.appendChild(meta);
-
-    card.appendChild(content);
+    card.appendChild(title);
+    card.appendChild(income);
+    card.appendChild(expenses);
+    card.appendChild(date);
+    card.appendChild(net);
     list.appendChild(card);
   });
 }
