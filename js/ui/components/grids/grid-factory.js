@@ -4,7 +4,8 @@
 import { createLogger } from '../../../shared/logger.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 // formatMoneyDisplay is the canonical colored currency HTML function — defined in format-utils.js
-export { formatMoneyDisplay } from '../../../shared/format-utils.js';
+import { formatMoneyDisplay } from '../../../shared/format-utils.js';
+export { formatMoneyDisplay };
 
 const logger = createLogger('GridFactory');
 

@@ -28,6 +28,8 @@ const {
 } = DataService;
 
 const transactionsGridState = new GridStateManager('transactions');
+let lastTransactionsDetailTable = null;
+let lastTransactionsDetailTableReady = false;
 
 function renderTransactionsRowDetails({ row, rowData }) {
   const rowEl = row.getElement();
@@ -68,7 +70,10 @@ function renderTransactionsRowDetails({ row, rowData }) {
     grid.appendChild(field);
   };
 
+  addField('Description', rowData?.description);
   addField('Primary Account', rowData?.primaryAccountName);
+  addField('Actual Amount', rowData?.actualAmount != null ? rowData.actualAmount : '—');
+  addField('Actual Date', rowData?.status?.actualDate || rowData?.actualDate || '—');
   addField('Secondary Account', rowData?.secondaryAccountName);
   addField('Recurrence', rowData?.recurrenceSummary || rowData?.recurrenceDescription);
   addField('Periodic Change', rowData?.periodicChangeSummary);
@@ -625,8 +630,18 @@ export async function loadMasterTransactionsGrid({
   }
 
   // Keep the grid container stable to reduce scroll jumps.
-  const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
-  existingToolbars.forEach((el) => el.remove());
+  // In detail mode the toolbar is stable and managed inside the detail branch; only remove
+  // toolbars when switching to/from summary mode.
+  if (workflowConfig?.transactionsMode !== 'detail') {
+    const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
+    existingToolbars.forEach((el) => el.remove());
+    // When leaving detail mode, also clear the stable table reference
+    if (lastTransactionsDetailTable) {
+      try { lastTransactionsDetailTable.destroy?.(); } catch (_) { /* ignore */ }
+      lastTransactionsDetailTable = null;
+      lastTransactionsDetailTableReady = false;
+    }
+  }
 
   // Remove any stale placeholders inserted by higher-level controllers.
   container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
@@ -641,14 +656,6 @@ export async function loadMasterTransactionsGrid({
   gridContainer.classList.remove('grid-detail');
 
   try {
-    try {
-      const existingTable = tables?.getMasterTransactionsTable?.();
-      existingTable?.destroy?.();
-      tables?.setMasterTransactionsTable?.(null);
-    } catch (_) {
-      // ignore
-    }
-
     const actualPeriodType = state?.getActualPeriodType?.();
     const actualPeriod = state?.getActualPeriod?.();
     let periods = state?.getPeriods?.();
@@ -683,22 +690,330 @@ export async function loadMasterTransactionsGrid({
       _scenarioId: currentScenario.id
     }));
 
-    renderTransactionsSummaryList({
-      container: gridContainer,
-      transactions: allTransactions,
-      accounts: currentScenario.accounts || [],
-      onRefresh: async () => {
-        await loadMasterTransactionsGrid({
-          container,
-          scenarioState,
-          getWorkflowConfig,
-          state,
-          tables,
-          callbacks,
-          logger
+    if (workflowConfig?.transactionsMode === 'detail') {
+      // --- Detail mode: full Tabulator grid ---
+      gridContainer.classList.add('grid-detail');
+
+      const accounts = currentScenario.accounts || [];
+
+      // Expand to primary-perspective display rows (exclude flipped secondary rows)
+      const displayRows = allTransactions.flatMap((tx) =>
+        transformTransactionToRows(tx, accounts).filter((r) => !String(r.id).endsWith('_flipped'))
+      ).map((r) => ({
+        ...r,
+        statusName: r.status?.name || (typeof r.status === 'string' ? r.status : 'planned')
+      }));
+
+      // Enrich computed summaries for display columns
+      await Promise.all(displayRows.map(async (r) => {
+        r.recurrenceSummary = r.recurrence ? (await getRecurrenceDescription(r.recurrence)) || '' : '';
+        r.periodicChangeSummary = r.periodicChange ? (await getPeriodicChangeDescription(r.periodicChange)) || '' : '';
+      }));
+
+      const reload = () => loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+
+      // --- Build toolbar only once ---
+      let toolbar = container.querySelector(':scope > .grid-toolbar#transactionsContent');
+      if (!toolbar) {
+        // Clear any stale summary HTML from gridContainer before Tabulator first mounts
+        gridContainer.innerHTML = '';
+
+        toolbar = document.createElement('div');
+        toolbar.className = 'grid-toolbar';
+        toolbar.id = 'transactionsContent'; // required for updateTransactionTotals to locate .toolbar-totals
+
+        const makeItem = (labelText) => {
+          const item = document.createElement('div');
+          item.className = 'toolbar-item';
+          const lbl = document.createElement('label');
+          lbl.className = 'text-muted control-label';
+          lbl.textContent = labelText;
+          item.appendChild(lbl);
+          return item;
+        };
+
+        // Period type
+        const periodTypeItem = makeItem('Period Type:');
+        const periodTypeSelect = document.createElement('select');
+        periodTypeSelect.id = 'tx-period-type-select';
+        periodTypeSelect.className = 'input-select control-select';
+        ['Month', 'Quarter', 'Year'].forEach((pt) => {
+          const opt = document.createElement('option');
+          opt.value = pt; opt.textContent = pt;
+          periodTypeSelect.appendChild(opt);
         });
+        periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
+        periodTypeItem.appendChild(periodTypeSelect);
+        toolbar.appendChild(periodTypeItem);
+
+        // Period
+        const periodItem = makeItem('Period:');
+        const periodSelect = document.createElement('select');
+        periodSelect.id = 'tx-period-select';
+        periodSelect.className = 'input-select control-select';
+        const allPeriodsOpt = document.createElement('option');
+        allPeriodsOpt.value = ''; allPeriodsOpt.textContent = 'All Periods';
+        periodSelect.appendChild(allPeriodsOpt);
+        periods.forEach((p) => {
+          const opt = document.createElement('option');
+          opt.value = String(p.id);
+          opt.textContent = p.label || String(p.id);
+          periodSelect.appendChild(opt);
+        });
+        const curPeriod = state?.getActualPeriod?.();
+        if (curPeriod) periodSelect.value = String(curPeriod);
+        periodItem.appendChild(periodSelect);
+        toolbar.appendChild(periodItem);
+
+        // Group by
+        const groupByItem = makeItem('Group By:');
+        const groupBySelect = document.createElement('select');
+        groupBySelect.id = 'tx-grouping-select';
+        groupBySelect.className = 'input-select control-select';
+        [
+          { value: '', label: 'None' },
+          { value: 'transactionTypeName', label: 'Transaction Type' },
+          { value: 'primaryAccountName', label: 'Primary Account' },
+          { value: 'secondaryAccountName', label: 'Secondary Account' },
+          { value: 'statusName', label: 'Status' },
+        ].forEach(({ value, label }) => {
+          const opt = document.createElement('option');
+          opt.value = value; opt.textContent = label;
+          groupBySelect.appendChild(opt);
+        });
+        groupByItem.appendChild(groupBySelect);
+        toolbar.appendChild(groupByItem);
+
+        // Status filter
+        const statusItem = makeItem('Status:');
+        const statusFilterSelect = document.createElement('select');
+        statusFilterSelect.id = 'tx-status-filter-select';
+        statusFilterSelect.className = 'input-select control-select';
+        [
+          { value: '', label: 'All' },
+          { value: 'planned', label: 'Planned' },
+          { value: 'actual', label: 'Actual' },
+        ].forEach(({ value, label }) => {
+          const opt = document.createElement('option');
+          opt.value = value; opt.textContent = label;
+          statusFilterSelect.appendChild(opt);
+        });
+        statusItem.appendChild(statusFilterSelect);
+        toolbar.appendChild(statusItem);
+
+        // Totals (populated by updateTransactionTotals via #transactionsContent .toolbar-totals)
+        const totalsEl = document.createElement('div');
+        totalsEl.className = 'toolbar-totals';
+        toolbar.appendChild(totalsEl);
+
+        // Insert toolbar before the grid container
+        container.insertBefore(toolbar, gridContainer);
+
+        // --- Period type change: reload with new period type ---
+        periodTypeSelect.addEventListener('change', async () => {
+          state?.setActualPeriodType?.(periodTypeSelect.value);
+          state?.setPeriods?.([]);
+          state?.setActualPeriod?.(null);
+          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+
+        // --- Period change: reload data with period filter ---
+        periodSelect.addEventListener('change', () => {
+          const newPeriodId = periodSelect.value || null;
+          state?.setActualPeriod?.(newPeriodId);
+          loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+      } else {
+        // Toolbar already exists — update period select options to reflect current periods list
+        const periodSelect = toolbar.querySelector('#tx-period-select');
+        if (periodSelect) {
+          const curPeriod = state?.getActualPeriod?.();
+          // Rebuild options if the count has changed (e.g. period type switched)
+          const optionCount = periodSelect.options.length - 1; // subtract "All Periods"
+          if (optionCount !== periods.length) {
+            while (periodSelect.options.length > 1) periodSelect.remove(1);
+            periods.forEach((p) => {
+              const opt = document.createElement('option');
+              opt.value = String(p.id);
+              opt.textContent = p.label || String(p.id);
+              periodSelect.appendChild(opt);
+            });
+          }
+          periodSelect.value = curPeriod ? String(curPeriod) : '';
+        }
+        const periodTypeSelect = toolbar.querySelector('#tx-period-type-select');
+        if (periodTypeSelect) periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
       }
-    });
+
+      const columns = [
+        // Planned/Actual checkbox — very first column
+        {
+          title: '',
+          field: '_isActual',
+          width: 60,
+          minWidth: 60,
+          hozAlign: 'center',
+          headerSort: false,
+          headerTooltip: 'Actual (checked) / Planned (unchecked)',
+          formatter: (cell) => {
+            const isActual = cell.getRow().getData().status?.name === 'actual';
+            return `<input type="checkbox" ${isActual ? 'checked' : ''} style="pointer-events:none;cursor:default;">`;
+          },
+          responsive: 0,
+          topCalc: false
+        },
+        // Row detail expand toggle
+        {
+          title: '',
+          field: '_detailsToggle',
+          width: 44,
+          minWidth: 44,
+          hozAlign: 'center',
+          headerSort: false,
+          responsive: 0,
+          topCalc: false,
+          formatter: (cell) => {
+            const isOpen = Boolean(cell.getRow().getData()?._detailsOpen);
+            return `<span style="cursor:pointer;font-size:12px;">${isOpen ? '▾' : '▸'}</span>`;
+          },
+          cellClick: (e, cell) => {
+            const row = cell.getRow();
+            const nextState = !row.getData()._detailsOpen;
+            row.update({ _detailsOpen: nextState });
+            row.getTable()?.redraw?.(true);
+          }
+        },
+        createDeleteColumn(
+          async (cell) => {
+            const row = cell.getRow().getData();
+            const scenarioId = row._scenarioId;
+            if (!scenarioId) return;
+            const allTxs = await getTransactions(scenarioId);
+            const filtered = allTxs.filter((t) => Number(t.id) !== Number(row.originalTransactionId || row.id));
+            await TransactionManager.saveAll(scenarioId, filtered);
+            await reload();
+          },
+          { confirmMessage: (rowData) => `Delete transaction: ${rowData.description || 'Untitled'}?` }
+        ),
+        createDuplicateColumn(
+          async (cell) => {
+            const row = cell.getRow().getData();
+            const scenarioId = row._scenarioId;
+            if (!scenarioId) return;
+            const allTxs = await getTransactions(scenarioId);
+            const source = allTxs.find((t) => Number(t.id) === Number(row.originalTransactionId || row.id));
+            if (!source) return;
+            allTxs.push({ ...source, id: 0 });
+            await TransactionManager.saveAll(scenarioId, allTxs);
+            await reload();
+          },
+          { headerTooltip: 'Duplicate Transaction' }
+        ),
+        createTextColumn('Secondary', 'secondaryAccountName', { widthGrow: 1 }),
+        { title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1 },
+        createMoneyColumn('Amount', 'amount', { widthGrow: 1 }),
+        createTextColumn('Recurrence', 'recurrenceSummary', { widthGrow: 1 }),
+        createDateColumn('Date', 'effectiveDate', { editor: 'input', editable: true }),
+      ];
+
+      // Reuse or create the Tabulator instance
+      let txTable = lastTransactionsDetailTable;
+      const shouldRebuild = !txTable || txTable.element !== gridContainer;
+
+      if (shouldRebuild) {
+        try { txTable?.destroy?.(); } catch (_) { /* ignore */ }
+        lastTransactionsDetailTableReady = false;
+
+        txTable = await createGrid(gridContainer, {
+          data: displayRows,
+          columns,
+          rowFormatter: (row) => {
+            renderTransactionsRowDetails({ row, rowData: row.getData() });
+          },
+          cellEdited: async (cell) => {
+            try {
+              const row = cell.getRow().getData();
+              const scenarioId = row._scenarioId;
+              if (!scenarioId) return;
+              const allTxs = await getTransactions(scenarioId);
+              const canonicalId = Number(row.originalTransactionId || row.id);
+              const idx = allTxs.findIndex((t) => Number(t.id) === canonicalId);
+              if (idx === -1) return;
+              const isFlipped = String(row.id).endsWith('_flipped');
+              const updated = mapEditToCanonical(allTxs[idx], { field: cell.getField(), value: cell.getValue(), isFlipped });
+              allTxs[idx] = updated;
+              await TransactionManager.saveAll(scenarioId, allTxs);
+              callbacks?.refreshSummaryCards?.();
+            } catch (err) {
+              notifyError('Failed to save transaction edit.');
+            }
+          }
+        });
+
+        // Attach reactive toolbar controls once
+        const groupBySelect = toolbar.querySelector('#tx-grouping-select');
+        const statusFilterSelect = toolbar.querySelector('#tx-status-filter-select');
+
+        groupBySelect?.addEventListener('change', () => {
+          const field = groupBySelect.value;
+          txTable.setGroupBy(field ? [field] : []);
+        });
+
+        statusFilterSelect?.addEventListener('change', () => {
+          if (statusFilterSelect.value) {
+            txTable.setFilter('statusName', '=', statusFilterSelect.value);
+          } else {
+            txTable.clearFilter();
+          }
+          callbacks?.updateTransactionTotals?.();
+        });
+
+        attachGridHandlers(txTable, {
+          dataFiltered: (filters, rows) => {
+            callbacks?.updateTransactionTotals?.(rows);
+          }
+        });
+
+        txTable.on('tableBuilt', () => {
+          lastTransactionsDetailTableReady = true;
+          try {
+            transactionsGridState.restore(txTable, { restoreGroupBy: true });
+            transactionsGridState.restoreDropdowns({ groupBy: '#tx-grouping-select' });
+          } catch (_) {
+            // ignore
+          }
+          callbacks?.updateTransactionTotals?.();
+        });
+
+        lastTransactionsDetailTable = txTable;
+      } else {
+        // Data-only refresh — only safe after tableBuilt fires
+        if (lastTransactionsDetailTableReady) {
+          await refreshGridData(txTable, displayRows);
+          callbacks?.updateTransactionTotals?.();
+        }
+      }
+
+      tables?.setMasterTransactionsTable?.(txTable);
+    } else {
+      // --- Summary mode: card list ---
+      renderTransactionsSummaryList({
+        container: gridContainer,
+        transactions: allTransactions,
+        accounts: currentScenario.accounts || [],
+        onRefresh: async () => {
+          await loadMasterTransactionsGrid({
+            container,
+            scenarioState,
+            getWorkflowConfig,
+            state,
+            tables,
+            callbacks,
+            logger
+          });
+        }
+      });
+    }
   } catch (err) {
     // Keep existing behavior: errors are swallowed here.
   }

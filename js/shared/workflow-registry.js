@@ -155,6 +155,7 @@ export const WORKFLOWS = [
     showGeneratePlan: false,
     showSummaryCards: false,
     summaryMode: null,
+    transactionsMode: 'detail',
     supportsPeriodicChangeSchedule: false
   },
   {
