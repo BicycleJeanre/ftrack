@@ -140,6 +140,23 @@ function migrateScenario({
     }
   };
 
+  // Migrate budgetWindow: carry forward existing config or derive from projection dates.
+  // sanitizeScenarioForWrite requires budgetWindow.config when budgets are present.
+  const existingBudgetWindowConfig =
+    s?.budgetWindow?.config && typeof s.budgetWindow.config === 'object'
+      ? s.budgetWindow.config
+      : null;
+
+  if (existingBudgetWindowConfig || migrated.budgets.length > 0) {
+    migrated.budgetWindow = {
+      config: {
+        startDate: existingBudgetWindowConfig?.startDate || startDate,
+        endDate: existingBudgetWindowConfig?.endDate || endDate,
+        periodTypeId: existingBudgetWindowConfig?.periodTypeId ?? periodTypeId
+      }
+    };
+  }
+
   if (s.advancedGoalSettings !== undefined) migrated.advancedGoalSettings = s.advancedGoalSettings;
   if (s.fundSettings !== undefined) migrated.fundSettings = s.fundSettings;
 
