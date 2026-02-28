@@ -19,6 +19,8 @@ import * as ScenarioManager from '../../../app/managers/scenario-manager.js';
 import { getScenario, getScenarioPeriods, getBudget } from '../../../app/services/data-service.js';
 
 const budgetGridState = new GridStateManager('budget');
+let lastBudgetDetailTable = null;
+let lastBudgetDetailTableReady = false;
 
 function renderBudgetRowDetails({ row, rowData }) {
   const rowEl = row.getElement();
@@ -338,9 +340,366 @@ export async function loadBudgetGrid({
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
+  const isBudgetDetailMode = state?.getBudgetMode?.() === 'detail';
+
+  if (isBudgetDetailMode) {
+    // --- Detail mode: full Tabulator grid ---
+
+    // Clear header icon controls (toolbar replaces them in detail mode)
+    const budgetSectionDetail = container.closest('.forecast-card');
+    const budgetHeaderDetail = budgetSectionDetail?.querySelector(':scope > .card-header');
+    if (budgetHeaderDetail) {
+      const controls = budgetHeaderDetail.querySelector('.card-header-controls');
+      if (controls) controls.innerHTML = '';
+    }
+
+    container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
+
+    let gridContainer = container.querySelector(':scope > .grid-container.budget-grid');
+    if (!gridContainer) {
+      gridContainer = document.createElement('div');
+      gridContainer.className = 'grid-container budget-grid';
+      window.add(container, gridContainer);
+    }
+
+    gridContainer.classList.add('grid-detail');
+    state?.bumpBudgetGridLoadToken?.();
+
+    // --- Load data ---
+    const budgetPeriodType = state?.getBudgetPeriodType?.() || 'Month';
+    let periods = state?.getPeriods?.();
+    if (!periods || periods.length === 0) {
+      periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType);
+      state?.setPeriods?.(periods);
+    }
+
+    const allBudgets = await getBudget(currentScenario.id);
+    const accounts = currentScenario.accounts || [];
+    const findAccountName = (id) => accounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
+
+    const displayRows = allBudgets.map((b) => ({
+      ...b,
+      _scenarioId: currentScenario.id,
+      primaryAccountName: findAccountName(b.primaryAccountId),
+      secondaryAccountName: findAccountName(b.secondaryAccountId),
+      transactionTypeName: Number(b.transactionTypeId) === 2 ? 'Money Out' : 'Money In',
+      plannedAmount: Math.abs(Number(b.amount || 0)),
+      actualAmount: b.status?.actualAmount != null ? Math.abs(Number(b.status.actualAmount)) : null,
+      actualDate: b.status?.actualDate || null,
+      statusName: b.status?.name || 'planned'
+    }));
+
+    const reload = () => loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+
+    // --- Card header controls (projections-detail pattern) ---
+    const budgetSectionEl = container.closest('.forecast-card');
+    const budgetHeaderEl = budgetSectionEl?.querySelector(':scope > .card-header');
+    if (budgetHeaderEl) {
+      budgetHeaderEl.classList.add('card-header--filters-inline');
+      const controls = budgetHeaderEl.querySelector('.card-header-controls');
+      if (controls) {
+        controls.innerHTML = '';
+
+        const makeHeaderFilter = (id, labelText, selectEl) => {
+          const item = document.createElement('div');
+          item.className = 'header-filter-item';
+          const lbl = document.createElement('label');
+          lbl.htmlFor = id;
+          lbl.textContent = labelText;
+          item.appendChild(lbl);
+          item.appendChild(selectEl);
+          return item;
+        };
+
+        // View By (period type)
+        const periodTypeSelect = document.createElement('select');
+        periodTypeSelect.id = 'budget-period-type-select';
+        periodTypeSelect.className = 'input-select';
+        ['Month', 'Quarter', 'Year'].forEach((pt) => {
+          const opt = document.createElement('option');
+          opt.value = pt; opt.textContent = pt;
+          periodTypeSelect.appendChild(opt);
+        });
+        periodTypeSelect.value = budgetPeriodType;
+        controls.appendChild(makeHeaderFilter('budget-period-type-select', 'View:', periodTypeSelect));
+
+        // Period + ◀ ▶ navigation
+        const periodSelect = document.createElement('select');
+        periodSelect.id = 'budget-period-select';
+        periodSelect.className = 'input-select';
+        const allPeriodsOpt = document.createElement('option');
+        allPeriodsOpt.value = ''; allPeriodsOpt.textContent = 'All';
+        periodSelect.appendChild(allPeriodsOpt);
+        periods.forEach((p) => {
+          const opt = document.createElement('option');
+          opt.value = String(p.id);
+          opt.textContent = p.label || String(p.id);
+          periodSelect.appendChild(opt);
+        });
+        const curPeriod = state?.getBudgetPeriod?.();
+        if (curPeriod) periodSelect.value = String(curPeriod);
+
+        const prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'period-btn';
+        prevBtn.textContent = '◀';
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'period-btn';
+        nextBtn.textContent = '▶';
+
+        const periodItem = document.createElement('div');
+        periodItem.className = 'header-filter-item';
+        const periodLabel = document.createElement('label');
+        periodLabel.htmlFor = 'budget-period-select';
+        periodLabel.textContent = 'Period:';
+        periodItem.appendChild(periodLabel);
+        periodItem.appendChild(periodSelect);
+        periodItem.appendChild(prevBtn);
+        periodItem.appendChild(nextBtn);
+        controls.appendChild(periodItem);
+
+        // Account filter
+        const accountSelect = document.createElement('select');
+        accountSelect.id = 'budget-account-select';
+        accountSelect.className = 'input-select';
+        const allAccountsOpt = document.createElement('option');
+        allAccountsOpt.value = ''; allAccountsOpt.textContent = 'All Accounts';
+        accountSelect.appendChild(allAccountsOpt);
+        accounts.forEach((a) => {
+          const opt = document.createElement('option');
+          opt.value = String(a.id);
+          opt.textContent = a.name || String(a.id);
+          accountSelect.appendChild(opt);
+        });
+        const curAccountId = state?.getTransactionFilterAccountId?.();
+        if (curAccountId) accountSelect.value = String(curAccountId);
+        controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
+
+        // Group By
+        const groupBySelect = document.createElement('select');
+        groupBySelect.id = 'budget-grouping-select';
+        groupBySelect.className = 'input-select';
+        [
+          { value: '', label: 'None' },
+          { value: 'transactionTypeName', label: 'Type' },
+          { value: 'primaryAccountName', label: 'Primary Account' },
+          { value: 'secondaryAccountName', label: 'Secondary Account' },
+          { value: 'statusName', label: 'Status' }
+        ].forEach(({ value, label }) => {
+          const opt = document.createElement('option');
+          opt.value = value; opt.textContent = label;
+          groupBySelect.appendChild(opt);
+        });
+        controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
+
+        // Icon actions — add entry only (no refresh)
+        const iconActions = document.createElement('div');
+        iconActions.className = 'header-icon-actions';
+        const addButton = document.createElement('button');
+        addButton.className = 'icon-btn';
+        addButton.title = 'Add budget entry';
+        addButton.textContent = '⊕';
+        iconActions.appendChild(addButton);
+        controls.appendChild(iconActions);
+
+        // --- Event handlers ---
+        addButton.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            currentScenario = scenarioState?.get?.();
+            const allBudgetsForAdd = await getBudget(currentScenario.id);
+            let defaultDate = formatDateOnly(new Date());
+            const livePeriods = state?.getPeriods?.() || [];
+            const livePeriod = state?.getBudgetPeriod?.();
+            if (livePeriod) {
+              const sel = livePeriods.find((p) => String(p.id) === String(livePeriod));
+              if (sel?.startDate) defaultDate = formatDateOnly(new Date(sel.startDate));
+            }
+            const acctSnapshot = state?.getTransactionFilterAccountId?.();
+            const firstAccId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
+            const isValidId = (id) => accounts.some((a) => Number(a.id) === Number(id));
+            const primaryAccountId = isValidId(acctSnapshot) ? acctSnapshot : firstAccId;
+            allBudgetsForAdd.push({
+              id: null, sourceTransactionId: null,
+              primaryAccountId, secondaryAccountId: null,
+              transactionTypeId: 2, amount: 0, description: '',
+              occurrenceDate: defaultDate, recurrenceDescription: 'One time',
+              status: { name: 'planned', actualAmount: null, actualDate: null }
+            });
+            await BudgetManager.saveAll(currentScenario.id, allBudgetsForAdd);
+            const refreshed = await getScenario(currentScenario.id);
+            scenarioState?.set?.(refreshed);
+            await reload();
+          } catch (err) {
+            notifyError('Failed to create budget entry. Please try again.');
+          }
+        });
+
+        periodTypeSelect.addEventListener('change', async () => {
+          state?.setBudgetPeriodType?.(periodTypeSelect.value);
+          state?.setPeriods?.([]);
+          state?.setBudgetPeriod?.(null);
+          await reload();
+        });
+
+        periodSelect.addEventListener('change', () => {
+          state?.setBudgetPeriod?.(periodSelect.value || null);
+          reload();
+        });
+
+        const periodIds = [null, ...periods.map((p) => p.id || null)];
+        const changePeriodBy = (offset) => {
+          const currentId = state?.getBudgetPeriod?.() ?? null;
+          const currentIndex = periodIds.findIndex((id) => id === currentId);
+          const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+          const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
+          const nextId = periodIds[nextIndex] ?? null;
+          periodSelect.value = nextId ? String(nextId) : '';
+          state?.setBudgetPeriod?.(nextId);
+          reload();
+        };
+        prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
+        nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
+
+        accountSelect.addEventListener('change', () => {
+          state?.setTransactionFilterAccountId?.(accountSelect.value ? Number(accountSelect.value) : null);
+          reload();
+        });
+
+        groupBySelect.addEventListener('change', () => {
+          const field = groupBySelect.value;
+          lastBudgetDetailTable?.setGroupBy?.(field ? [field] : []);
+        });
+      }
+    }
+
+    // --- Totals card (outside header, overall-total summary card style) ---
+    container.querySelectorAll(':scope > .grid-toolbar, :scope > .grid-totals, :scope > .budget-totals-container').forEach((el) => el.remove());
+    const totalsBar = document.createElement('div');
+    totalsBar.className = 'budget-totals-container';
+    totalsBar.id = 'budgetContent';
+    container.insertBefore(totalsBar, gridContainer);
+
+    // --- Apply period and account filters to display rows ---
+    let filteredRows = [...displayRows];
+    const activePeriodId = state?.getBudgetPeriod?.();
+    if (activePeriodId) {
+      const selectedPeriod = periods.find((p) => String(p.id) === String(activePeriodId));
+      if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
+        const start = new Date(selectedPeriod.startDate);
+        const end = new Date(selectedPeriod.endDate);
+        filteredRows = filteredRows.filter((r) => {
+          const occ = r.occurrenceDate ? new Date(r.occurrenceDate) : null;
+          if (!occ || Number.isNaN(occ.getTime())) return false;
+          return occ >= start && occ <= end;
+        });
+      }
+    }
+    const activeAccountId = state?.getTransactionFilterAccountId?.();
+    if (activeAccountId) {
+      filteredRows = filteredRows.filter((r) =>
+        Number(r.primaryAccountId) === Number(activeAccountId) ||
+        Number(r.secondaryAccountId) === Number(activeAccountId)
+      );
+    }
+
+    // --- Columns ---
+    const columns = [
+      createDeleteColumn(
+        async (cell) => {
+          const row = cell.getRow().getData();
+          const scenarioId = row._scenarioId;
+          if (!scenarioId) return;
+          const allBudgetsForDel = await getBudget(scenarioId);
+          const remaining = allBudgetsForDel.filter((b) => Number(b.id) !== Number(row.id));
+          await BudgetManager.saveAll(scenarioId, remaining);
+          await reload();
+        },
+        { confirmMessage: (rowData) => `Delete budget entry: ${rowData.description || 'Untitled'}?` }
+      ),
+      createTextColumn('Primary', 'primaryAccountName', { widthGrow: 1 }),
+      createTextColumn('Secondary', 'secondaryAccountName', { widthGrow: 1 }),
+      { title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1 },
+      createMoneyColumn('Planned', 'plannedAmount', { widthGrow: 1 }),
+      createDateColumn('Date', 'occurrenceDate', { editor: 'input', editable: true }),
+      createTextColumn('Recurrence', 'recurrenceDescription', { widthGrow: 1 }),
+      createTextColumn('Description', 'description', { widthGrow: 2, editor: 'input', editable: true }),
+      createMoneyColumn('Actual', 'actualAmount', { widthGrow: 1 }),
+      createDateColumn('Actual Date', 'actualDate', {})
+    ];
+
+    // --- Reuse or create Tabulator instance ---
+    let budgetTable = lastBudgetDetailTable;
+    const shouldRebuild = !budgetTable || budgetTable.element !== gridContainer;
+
+    if (shouldRebuild) {
+      try { budgetTable?.destroy?.(); } catch (_) { /* ignore */ }
+      lastBudgetDetailTableReady = false;
+
+      budgetTable = await createGrid(gridContainer, {
+        data: filteredRows,
+        columns,
+        cellEdited: async (cell) => {
+          try {
+            const row = cell.getRow().getData();
+            const scenarioId = row._scenarioId;
+            if (!scenarioId) return;
+            const allBudgetsForEdit = await getBudget(scenarioId);
+            const idx = allBudgetsForEdit.findIndex((b) => Number(b.id) === Number(row.id));
+            if (idx === -1) return;
+            const field = cell.getField();
+            const value = cell.getValue();
+            if (field === 'occurrenceDate') allBudgetsForEdit[idx].occurrenceDate = value;
+            if (field === 'description') allBudgetsForEdit[idx].description = value;
+            await BudgetManager.saveAll(scenarioId, allBudgetsForEdit);
+            callbacks?.updateBudgetTotals?.();
+          } catch (err) {
+            notifyError('Failed to save budget entry edit.');
+          }
+        }
+      });
+
+      attachGridHandlers(budgetTable, {
+        dataFiltered: (filters, rows) => {
+          callbacks?.updateBudgetTotals?.(rows);
+        }
+      });
+
+      budgetTable.on('tableBuilt', () => {
+        lastBudgetDetailTableReady = true;
+        try {
+          budgetGridState.restore(budgetTable, { restoreGroupBy: true });
+          budgetGridState.restoreDropdowns({ groupBy: '#budget-grouping-select' });
+        } catch (_) { /* ignore */ }
+        callbacks?.updateBudgetTotals?.();
+      });
+
+      lastBudgetDetailTable = budgetTable;
+    } else {
+      if (lastBudgetDetailTableReady) {
+        await refreshGridData(budgetTable, filteredRows);
+        callbacks?.updateBudgetTotals?.();
+      }
+    }
+
+    tables?.setMasterBudgetTable?.(budgetTable);
+    return;
+  }
+
+  // --- Summary mode (existing path) ---
+  // When switching from detail to summary, clean up detail artifacts
+  if (lastBudgetDetailTable) {
+    try { lastBudgetDetailTable.destroy?.(); } catch (_) { /* ignore */ }
+    lastBudgetDetailTable = null;
+    lastBudgetDetailTableReady = false;
+  }
+  container.querySelectorAll(':scope > .grid-toolbar').forEach((el) => el.remove());
+
   const budgetSection = container.closest('.forecast-card');
   const budgetHeader = budgetSection?.querySelector(':scope > .card-header');
   if (budgetHeader) {
+    budgetHeader.classList.remove('card-header--filters-inline');
     const controls = budgetHeader.querySelector('.card-header-controls');
     if (controls) {
       controls.innerHTML = '';

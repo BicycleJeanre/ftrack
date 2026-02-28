@@ -37,6 +37,6 @@ export function updateBudgetTotals(table, filteredRows = null) {
     typeIdField: 'transactionTypeId'
   });
 
-  const toolbarTotals = document.querySelector('#budgetContent .toolbar-totals');
-  renderBudgetTotals(toolbarTotals, budgetTotals);
+  const budgetTotalsContainer = document.querySelector('#budgetContent');
+  renderBudgetTotals(budgetTotalsContainer, budgetTotals);
 }

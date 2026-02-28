@@ -1038,10 +1038,42 @@ body.dashboard-shell {
 /* Overall total card uses the full width and appears before the groups */
 .summary-card.overall-total {
   width: 100% !important;
+  max-width: none !important;
   order: -1;
   align-self: stretch;
   box-shadow: none;
   border-left: 4px solid var(--accent-primary);
+}
+
+/* Budget totals: 3-column flexible row layout inside the overall-total card */
+.budget-totals-container {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.budget-totals-rows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 24px;
+  width: 100%;
+}
+
+.budget-totals-rows .summary-card-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.budget-totals-rows .summary-card-row .value {
+  white-space: normal;
+  word-break: break-word;
+  text-align: right;
+}
+
+@media (max-width: 700px) {
+  .budget-totals-rows {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Force overall total to use full inner width and respect padding */

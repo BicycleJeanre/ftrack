@@ -893,7 +893,8 @@ async function loadBudgetGrid(container) {
         periods = nextPeriods;
       },
       bumpBudgetGridLoadToken: () => ++budgetGridLoadToken,
-      getBudgetGridLoadToken: () => budgetGridLoadToken
+      getBudgetGridLoadToken: () => budgetGridLoadToken,
+      getBudgetMode: () => getWorkflowConfig()?.budgetMode
     },
     tables: {
       getMasterBudgetTable: () => masterBudgetTable,
@@ -1840,8 +1841,16 @@ async function loadScenarioData() {
     if (workflowConfig?.accountsMode === 'detail') {
       rowMiddle.classList.add('mode-accounts-detail');
       rowMiddle.classList.remove('collapsed');
+      rowMiddle.classList.remove('hidden');
     } else {
       rowMiddle.classList.remove('mode-accounts-detail');
+      if (showAccounts || showTransactions) {
+        rowMiddle.classList.remove('collapsed');
+        rowMiddle.classList.remove('hidden');
+      } else {
+        rowMiddle.classList.add('collapsed');
+        rowMiddle.classList.add('hidden');
+      }
     }
   }
 

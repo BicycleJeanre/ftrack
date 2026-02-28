@@ -28,13 +28,23 @@ export function renderBudgetTotals(targetEl, totals, currency = 'ZAR') {
   const plannedNetBalance = formatCurrency(totals.plannedNetBalance || 0, currency);
   const unplanned = formatCurrency(totals.unplanned || 0, currency);
 
-  targetEl.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Realized Net</span><span class="sublabel">Recorded actuals — income minus expenses</span><span class="value ${numValueClass(totals.actualNet)}">${actualNet}</span></span>
-      <span class="toolbar-total-item"><span class="label">Planned Income</span><span class="sublabel">Total budgeted inflows</span><span class="value positive">${moneyIn}</span></span>
-      <span class="toolbar-total-item"><span class="label">Planned Expenses</span><span class="sublabel">Total budgeted outflows</span><span class="value negative">${moneyOut}</span></span>
-      <span class="toolbar-total-item"><span class="label">Planned Net Income</span><span class="sublabel">Budgeted income minus budgeted expenses</span><span class="value ${numValueClass(totals.net)}">${net}</span></span>
-      <span class="toolbar-total-item"><span class="label">Open Commitments</span><span class="sublabel">Planned entries not yet recorded as actuals</span><span class="value negative">${plannedOutstanding}</span></span>
-      <span class="toolbar-total-item"><span class="label">Forecast Position</span><span class="sublabel">Realized net minus open commitments</span><span class="value ${numValueClass(totals.plannedNetBalance)}">${plannedNetBalance}</span></span>
-      <span class="toolbar-total-item"><span class="label">Unbudgeted Actuals</span><span class="sublabel">Actuals recorded with no corresponding budget entry</span><span class="value negative">${unplanned}</span></span>
-    `;
+  const items = [
+    { label: 'Realized Net', value: actualNet, cls: numValueClass(totals.actualNet) },
+    { label: 'Planned Income', value: moneyIn, cls: 'positive' },
+    { label: 'Planned Expenses', value: moneyOut, cls: 'negative' },
+    { label: 'Planned Net Income', value: net, cls: numValueClass(totals.net) },
+    { label: 'Open Commitments', value: plannedOutstanding, cls: 'negative' },
+    { label: 'Forecast Position', value: plannedNetBalance, cls: numValueClass(totals.plannedNetBalance) },
+    { label: 'Unbudgeted Actuals', value: unplanned, cls: 'negative' }
+  ];
+
+  const rows = items.map(({ label, value, cls }) =>
+    `<div class="summary-card-row"><span class="label">${label}</span><span class="value ${cls}">${value}</span></div>`
+  ).join('');
+
+  targetEl.innerHTML =
+    `<div class="summary-card overall-total">
+      <div class="summary-card-title">BUDGET TOTALS</div>
+      <div class="budget-totals-rows">${rows}</div>
+    </div>`;
 }
