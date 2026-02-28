@@ -2,13 +2,7 @@
 // Goal-based "Generate Plan" feature extracted from forecast.js (no behavior change).
 
 import { loadLookup } from '../../../app/services/lookup-service.js';
-import {
-  createGrid,
-  createDateColumn,
-  createMoneyColumn,
-  createNumberColumn,
-  formatMoneyDisplay
-} from '../grids/grid-factory.js';
+import { formatMoneyDisplay } from '../grids/grid-factory.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import {
   calculateContributionAmount,
@@ -289,37 +283,92 @@ async function loadAdvancedGoalSolverSection({
   const scrollSnapshot = snapshotWindowScroll();
   container.innerHTML = '';
 
-  renderGeneratePlanToolbar({
-    container,
-    onRefresh: async () => {
+  const planningWindow = getScenarioPlanningWindow(scenario, 'advancedGoalSolver');
+
+  // --- Single consolidated card header (label + planning window dates + refresh) ---
+  const solverHeader = document.createElement('div');
+  solverHeader.className = 'dash-panel-header card-header card-header--filters-inline';
+
+  const headerLeft = document.createElement('div');
+  headerLeft.className = 'card-header-actions';
+  const headerLabel = document.createElement('span');
+  headerLabel.className = 'dash-panel-label';
+  headerLabel.textContent = 'Advanced Goal Solver';
+  headerLeft.appendChild(headerLabel);
+
+  const headerControls = document.createElement('div');
+  headerControls.className = 'card-header-controls';
+
+  const startFilterItem = document.createElement('div');
+  startFilterItem.className = 'header-filter-item';
+  const startLabel = document.createElement('label');
+  startLabel.textContent = 'Start:';
+  const startInput = document.createElement('input');
+  startInput.type = 'date';
+  startInput.className = 'input-select';
+  startInput.value = planningWindow?.startDate || '';
+  startFilterItem.appendChild(startLabel);
+  startFilterItem.appendChild(startInput);
+
+  const endFilterItem = document.createElement('div');
+  endFilterItem.className = 'header-filter-item';
+  const endLabel = document.createElement('label');
+  endLabel.textContent = 'End:';
+  const endInput = document.createElement('input');
+  endInput.type = 'date';
+  endInput.className = 'input-select';
+  endInput.value = planningWindow?.endDate || '';
+  endFilterItem.appendChild(endLabel);
+  endFilterItem.appendChild(endInput);
+
+  headerControls.appendChild(startFilterItem);
+  headerControls.appendChild(endFilterItem);
+
+  const headerIconActions = document.createElement('div');
+  headerIconActions.className = 'header-icon-actions';
+  const refreshBtn = document.createElement('button');
+  refreshBtn.className = 'icon-btn';
+  refreshBtn.title = 'Refresh';
+  refreshBtn.textContent = '⟳';
+  refreshBtn.addEventListener('click', async () => {
+    try {
+      refreshBtn.disabled = true;
       const current = scenarioState?.get?.();
       if (current?.id) {
         const refreshed = await getScenario(current.id);
         scenarioState?.set?.(refreshed);
       }
       await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+    } finally {
+      if (refreshBtn.isConnected) refreshBtn.disabled = false;
     }
   });
+  headerIconActions.appendChild(refreshBtn);
 
-  const planningWindow = getScenarioPlanningWindow(scenario, 'advancedGoalSolver');
-  renderPlanningWindowToolbar({
-    container,
-    title: 'Advanced Goal Solver Window',
-    planningWindow,
-    onWindowChange: async (nextWindow) => {
-      try {
-        await persistPlanningWindow({
-          scenarioId: scenario.id,
-          planningKey: 'advancedGoalSolver',
-          nextWindow,
-          scenarioState
-        });
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
-      } catch (err) {
-        notifyError('Failed to save planning window: ' + (err?.message || String(err)));
+  solverHeader.appendChild(headerLeft);
+  solverHeader.appendChild(headerControls);
+  solverHeader.appendChild(headerIconActions);
+  container.appendChild(solverHeader);
+
+  let planWindowTimer = null;
+  const schedulePlanWindowPersist = () => {
+    clearTimeout(planWindowTimer);
+    planWindowTimer = setTimeout(async () => {
+      const next = normalizeDateRange({ startDate: startInput.value, endDate: endInput.value });
+      if (next.startDate && next.endDate) {
+        if (next.startDate !== startInput.value) startInput.value = next.startDate;
+        if (next.endDate !== endInput.value) endInput.value = next.endDate;
+        try {
+          await persistPlanningWindow({ scenarioId: scenario.id, planningKey: 'advancedGoalSolver', nextWindow: next, scenarioState });
+          await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+        } catch (err) {
+          notifyError('Failed to save planning window: ' + (err?.message || String(err)));
+        }
       }
-    }
-  });
+    }, 200);
+  };
+  startInput.addEventListener('change', schedulePlanWindowPersist);
+  endInput.addEventListener('change', schedulePlanWindowPersist);
 
   const accounts = (scenario.accounts || []).filter((a) => a.name !== 'Select Account');
   if (accounts.length === 0) {
@@ -334,72 +383,118 @@ async function loadAdvancedGoalSolverSection({
   const goals = Array.isArray(settings.goals) ? settings.goals : [];
   const constraints = settings.constraints || {};
 
-  const formContainer = document.createElement('div');
-  formContainer.className = 'generate-plan-form';
+  // --- Side-by-side panels for Constraints + Goals ---
+  const solverPanels = document.createElement('div');
+  solverPanels.className = 'middle-panels solver-panels';
 
-  const constraintsDiv = document.createElement('div');
-  constraintsDiv.innerHTML = `
-    <h3 class="section-title text-main">Constraints</h3>
-    <div class="text-muted" style="margin-top:4px;">
-      Add limits and rules for the solver. Start with <strong>Funding account</strong> so the solver knows where payments come from.
-      Optional constraints can cap monthly outflow, lock accounts, or enforce minimum balances.
-    </div>
-    <div id="adv-constraints-grid" style="margin-top:8px;"></div>
-    <div class="generate-plan-buttons" style="margin-top:8px;">
-      <button id="adv-constraint-add" class="btn btn-secondary">+ Add Constraint</button>
-    </div>
-  `;
-  window.add(formContainer, constraintsDiv);
+  // Constraints panel
+  const constraintsPanel = document.createElement('div');
+  constraintsPanel.className = 'dash-panel forecast-card';
+  const constraintsPanelHeader = document.createElement('div');
+  constraintsPanelHeader.className = 'dash-panel-header card-header';
+  const constraintsPanelLeft = document.createElement('div');
+  constraintsPanelLeft.className = 'card-header-actions';
+  const constraintsPanelLabel = document.createElement('span');
+  constraintsPanelLabel.className = 'dash-panel-label';
+  constraintsPanelLabel.textContent = 'Constraints';
+  constraintsPanelLeft.appendChild(constraintsPanelLabel);
+  const constraintsHeaderActions = document.createElement('div');
+  constraintsHeaderActions.className = 'header-icon-actions';
+  const addConstraintBtn = document.createElement('button');
+  addConstraintBtn.className = 'icon-btn';
+  addConstraintBtn.title = 'Add Constraint (start with Funding Account)';
+  addConstraintBtn.textContent = '+';
+  constraintsHeaderActions.appendChild(addConstraintBtn);
+  constraintsPanelHeader.appendChild(constraintsPanelLeft);
+  constraintsPanelHeader.appendChild(constraintsHeaderActions);
+  const constraintsPanelBody = document.createElement('div');
+  constraintsPanelBody.className = 'dash-panel-body';
+  const constraintsGridEl = document.createElement('div');
+  constraintsGridEl.id = 'adv-constraints-grid';
+  constraintsPanelBody.appendChild(constraintsGridEl);
+  constraintsPanel.appendChild(constraintsPanelHeader);
+  constraintsPanel.appendChild(constraintsPanelBody);
 
-  const goalsDiv = document.createElement('div');
-  goalsDiv.innerHTML = `
-    <h3 class="section-title text-main">Goals</h3>
-    <div class="text-muted" style="margin-top:4px;">
-      Add one or more goals for specific accounts. The solver tries to satisfy lower <strong>Priority</strong> numbers first.
-      For a home loan payoff, use <strong>Pay down to target</strong> with target amount <strong>0</strong> and set the end date to your desired payoff date.
-    </div>
-    <div id="adv-goals-grid" style="margin-top:8px;"></div>
-    <div class="generate-plan-buttons">
-      <button id="adv-goal-add" class="btn btn-secondary">+ Add Goal</button>
-    </div>
-  `;
-  window.add(formContainer, goalsDiv);
+  // Goals panel
+  const goalsPanel = document.createElement('div');
+  goalsPanel.className = 'dash-panel forecast-card';
+  const goalsPanelHeader = document.createElement('div');
+  goalsPanelHeader.className = 'dash-panel-header card-header';
+  const goalsPanelLeft = document.createElement('div');
+  goalsPanelLeft.className = 'card-header-actions';
+  const goalsPanelLabel = document.createElement('span');
+  goalsPanelLabel.className = 'dash-panel-label';
+  goalsPanelLabel.textContent = 'Goals';
+  goalsPanelLeft.appendChild(goalsPanelLabel);
+  const goalsHeaderActions = document.createElement('div');
+  goalsHeaderActions.className = 'header-icon-actions';
+  const addBtn = document.createElement('button');
+  addBtn.className = 'icon-btn';
+  addBtn.title = 'Add Goal';
+  addBtn.textContent = '+';
+  goalsHeaderActions.appendChild(addBtn);
+  goalsPanelHeader.appendChild(goalsPanelLeft);
+  goalsPanelHeader.appendChild(goalsHeaderActions);
+  const goalsPanelBody = document.createElement('div');
+  goalsPanelBody.className = 'dash-panel-body';
+  const goalsGridEl = document.createElement('div');
+  goalsGridEl.id = 'adv-goals-grid';
+  goalsPanelBody.appendChild(goalsGridEl);
+  goalsPanel.appendChild(goalsPanelHeader);
+  goalsPanel.appendChild(goalsPanelBody);
 
-  const resultsDiv = document.createElement('div');
-  resultsDiv.innerHTML = `
-    <h3 class="section-title text-main">Solution</h3>
-    <div class="text-muted" style="margin-top:4px;">
-      Click <strong>Solve</strong> to calculate suggested monthly planned transactions.
-      Click <strong>Apply</strong> to write those transactions into this scenario (replacing any previous solver-generated transactions).
-    </div>
-    <div id="adv-goal-solution" class="text-muted" style="margin-top:8px;">Configure goals and click Solve.</div>
-    <div class="generate-plan-buttons">
-      <button id="adv-goal-solve" class="btn btn-primary">Solve</button>
-      <button id="adv-goal-apply" class="btn btn-secondary" disabled>Apply</button>
-    </div>
-  `;
-  window.add(formContainer, resultsDiv);
+  solverPanels.appendChild(constraintsPanel);
+  solverPanels.appendChild(goalsPanel);
+  container.appendChild(solverPanels);
 
-  window.add(container, formContainer);
+  // --- Solution card ---
+  const solutionCard = document.createElement('div');
+  solutionCard.className = 'forecast-card';
+  solutionCard.style.width = '100%';
+  const solutionHeader = document.createElement('div');
+  solutionHeader.className = 'dash-panel-header card-header';
+  const solutionHeaderLeft = document.createElement('div');
+  solutionHeaderLeft.className = 'card-header-actions';
+  const solutionLabel = document.createElement('span');
+  solutionLabel.className = 'dash-panel-label';
+  solutionLabel.textContent = 'Solution';
+  solutionHeaderLeft.appendChild(solutionLabel);
+  const solutionHeaderActions = document.createElement('div');
+  solutionHeaderActions.className = 'header-icon-actions';
+  const solveBtn = document.createElement('button');
+  solveBtn.className = 'icon-btn';
+  solveBtn.title = 'Solve — calculate suggested transactions';
+  solveBtn.textContent = '▶';
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'icon-btn';
+  applyBtn.title = 'Apply — write transactions into this scenario';
+  applyBtn.textContent = '✓';
+  applyBtn.disabled = true;
+  solutionHeaderActions.appendChild(solveBtn);
+  solutionHeaderActions.appendChild(applyBtn);
+  solutionHeader.appendChild(solutionHeaderLeft);
+  solutionHeader.appendChild(solutionHeaderActions);
+  const solutionBody = document.createElement('div');
+  solutionBody.className = 'section-content';
+  solutionBody.style.padding = '12px';
+  const solutionTotalsEl = document.createElement('div');
+  solutionTotalsEl.id = 'adv-goal-solution-totals';
+  const solutionEl = document.createElement('div');
+  solutionEl.id = 'adv-goal-solution';
+  solutionEl.className = 'text-muted';
+  solutionEl.textContent = 'Configure goals and click Solve.';
+  solutionBody.appendChild(solutionTotalsEl);
+  solutionBody.appendChild(solutionEl);
+  solutionCard.appendChild(solutionHeader);
+  solutionCard.appendChild(solutionBody);
+  container.appendChild(solutionCard);
 
   restoreWindowScroll(scrollSnapshot);
-
-  const constraintsGridEl = document.getElementById('adv-constraints-grid');
-  const addConstraintBtn = document.getElementById('adv-constraint-add');
-  const goalsGridEl = document.getElementById('adv-goals-grid');
-  const solveBtn = document.getElementById('adv-goal-solve');
-  const applyBtn = document.getElementById('adv-goal-apply');
-  const addBtn = document.getElementById('adv-goal-add');
-  const solutionEl = document.getElementById('adv-goal-solution');
 
   let lastSolve = null;
 
   const goalTypeOptions = buildGoalTypeOptions();
   const constraintTypeOptions = buildConstraintTypeOptions();
-
-  const accountIdToName = new Map(accounts.map((a) => [Number(a.id), a.name]));
-  const goalTypeToLabel = new Map(goalTypeOptions.map((g) => [g.value, g.label]));
-  const constraintTypeToLabel = new Map(constraintTypeOptions.map((c) => [c.value, c.label]));
 
   const normalizeGoalRow = (row) => {
     const toNumOrNull = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
@@ -481,202 +576,276 @@ async function loadAdvancedGoalSolverSection({
     };
   };
 
+  // In-memory card rows (replaces Tabulator grids)
+  let goalsRows = goals.map(normalizeGoalRow);
+  let constraintsRows = buildConstraintRowsFromObject().map(normalizeConstraintRow);
+
   let persistTimer = null;
-  const schedulePersistNow = () => {
-    if (persistTimer) window.clearTimeout(persistTimer);
-    persistTimer = window.setTimeout(async () => {
-      try {
-        await persistNow();
-      } catch (err) {
-        logger?.error?.('[AdvancedGoalSolver] Persist failed', err);
-      }
+  const schedulePersist = () => {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(async () => {
+      try { await persistNow(); } catch (err) { logger?.error?.('[AdvancedGoalSolver] Persist failed', err); }
     }, 250);
   };
 
-  const moneyCellFormatterOrBlank = (cell) => {
-    const v = cell.getValue();
-    if (v === '' || v === null || v === undefined) return '';
-    return formatMoneyDisplay(v);
+  // ---- Constraint card builder ----
+  const buildConstraintCard = (row, idx) => {
+    const card = document.createElement('div');
+    card.className = 'grid-summary-card';
+    const rowEl = document.createElement('div');
+    rowEl.style.cssText = 'display:flex;align-items:flex-start;gap:8px;width:100%;';
+
+    const content = document.createElement('div');
+    content.className = 'grid-summary-content';
+    const form = document.createElement('div');
+    form.className = 'grid-summary-form';
+    form.style.marginTop = '0';
+
+    const typeSelect = document.createElement('select');
+    typeSelect.className = 'grid-summary-input';
+    constraintTypeOptions.forEach((o) => {
+      const opt = document.createElement('option');
+      opt.value = o.value; opt.textContent = o.label;
+      typeSelect.appendChild(opt);
+    });
+    typeSelect.value = row.type;
+
+    const accountSelect = document.createElement('select');
+    accountSelect.className = 'grid-summary-input';
+    const cNoneOpt = document.createElement('option');
+    cNoneOpt.value = ''; cNoneOpt.textContent = '— None —';
+    accountSelect.appendChild(cNoneOpt);
+    accounts.forEach((a) => {
+      const opt = document.createElement('option');
+      opt.value = String(Number(a.id)); opt.textContent = a.name;
+      accountSelect.appendChild(opt);
+    });
+    accountSelect.value = row.accountId != null ? String(Number(row.accountId)) : '';
+
+    const amountInput = document.createElement('input');
+    amountInput.type = 'number'; amountInput.className = 'grid-summary-input';
+    amountInput.step = '0.01'; amountInput.placeholder = '0.00';
+    amountInput.value = row.amount != null ? String(row.amount) : '';
+
+    const makeCField = (label, el, full = false) => {
+      const f = document.createElement('div');
+      f.className = 'grid-summary-field' + (full ? ' form-field--full' : '');
+      const lbl = document.createElement('label');
+      lbl.className = 'grid-summary-label'; lbl.textContent = label;
+      f.appendChild(lbl); f.appendChild(el); return f;
+    };
+
+    const accountField = makeCField('Account', accountSelect);
+    const amountField = makeCField('Amount', amountInput);
+    form.appendChild(makeCField('Type', typeSelect, true));
+    form.appendChild(accountField);
+    form.appendChild(amountField);
+    content.appendChild(form);
+
+    const updateCVisibility = () => {
+      const t = typeSelect.value;
+      accountField.style.display = t !== 'maxOutflow' ? '' : 'none';
+      amountField.style.display = (t === 'maxOutflow' || t === 'accountCap' || t === 'minBalanceFloor') ? '' : 'none';
+    };
+    updateCVisibility();
+
+    const toNumOrNull = (v) => (v === '' || v == null ? null : Number(v));
+    const updateConstraintRow = () => {
+      constraintsRows[idx] = normalizeConstraintRow({
+        ...constraintsRows[idx],
+        type: typeSelect.value,
+        accountId: accountSelect.value !== '' ? Number(accountSelect.value) : null,
+        amount: toNumOrNull(amountInput.value)
+      });
+      lastSolve = null; applyBtn.disabled = true; schedulePersist();
+    };
+    typeSelect.addEventListener('change', () => { updateCVisibility(); updateConstraintRow(); });
+    accountSelect.addEventListener('change', updateConstraintRow);
+    amountInput.addEventListener('input', updateConstraintRow);
+
+    const actions = document.createElement('div');
+    actions.className = 'grid-summary-actions';
+    const cDeleteBtn = document.createElement('button');
+    cDeleteBtn.className = 'icon-btn'; cDeleteBtn.title = 'Remove'; cDeleteBtn.textContent = '⨉';
+    cDeleteBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      constraintsRows.splice(idx, 1); renderConstraintCards();
+      lastSolve = null; applyBtn.disabled = true; await persistNow();
+    });
+    actions.appendChild(cDeleteBtn);
+    rowEl.appendChild(content); rowEl.appendChild(actions);
+    card.appendChild(rowEl); return card;
   };
 
-  const goalsTable = await createGrid(goalsGridEl, {
-    data: goals.map(normalizeGoalRow),
-    index: 'id',
-    reactiveData: true,
-    placeholder: 'No goals yet.',
-    columns: [
-      createNumberColumn('Priority', 'priority', { minWidth: 90, widthGrow: 0.6, bottomCalc: null, editorParams: { step: 1, min: 1 } }),
-      {
-        title: 'Account',
-        field: 'accountId',
-        minWidth: 200,
-        widthGrow: 1.5,
-        editor: 'list',
-        editorParams: {
-          values: accounts.map((a) => ({ label: a.name, value: Number(a.id) })),
-          listItemFormatter: function (value, title) {
-            return title;
-          }
-        },
-        formatter: function (cell) {
-          const id = cell.getValue();
-          return id != null ? escapeHtml(accountIdToName.get(Number(id)) || '') : '';
-        }
-      },
-      {
-        title: 'Type',
-        field: 'type',
-        minWidth: 180,
-        widthGrow: 1.2,
-        editor: 'list',
-        editorParams: {
-          values: goalTypeOptions.map((t) => ({ label: t.label, value: t.value })),
-          listItemFormatter: function (value, title) {
-            return title;
-          }
-        },
-        formatter: function (cell) {
-          const v = cell.getValue();
-          return escapeHtml(goalTypeToLabel.get(v) || v || '');
-        }
-      },
-      createMoneyColumn('Target', 'targetAmount', { minWidth: 130, widthGrow: 1, bottomCalc: null, formatter: moneyCellFormatterOrBlank }),
-      createMoneyColumn('Delta', 'deltaAmount', { minWidth: 130, widthGrow: 1, bottomCalc: null, formatter: moneyCellFormatterOrBlank }),
-      createMoneyColumn('Floor', 'floorAmount', { minWidth: 130, widthGrow: 1, bottomCalc: null, formatter: moneyCellFormatterOrBlank }),
-      createDateColumn('Start', 'startDate', { minWidth: 130, widthGrow: 1, bottomCalc: null }),
-      createDateColumn('End', 'endDate', { minWidth: 130, widthGrow: 1, bottomCalc: null }),
-      {
-        title: '',
-        field: '_actions',
-        minWidth: 100,
-        widthGrow: 0.6,
-        headerSort: false,
-        formatter: function () {
-          return '<button class="btn btn-ghost">Remove</button>';
-        },
-        cellClick: async function (e, cell) {
-          e.preventDefault();
-          cell.getRow().delete();
-          lastSolve = null;
-          applyBtn.disabled = true;
-          await persistNow();
-        }
-      }
-    ],
-    cellEdited: function () {
-      lastSolve = null;
-      applyBtn.disabled = true;
-      schedulePersistNow();
+  const renderConstraintCards = () => {
+    constraintsGridEl.innerHTML = '';
+    const list = document.createElement('div');
+    list.className = 'grid-summary-list';
+    constraintsGridEl.appendChild(list);
+    if (constraintsRows.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'scenarios-list-placeholder';
+      empty.textContent = 'No constraints. Add a Funding Account to start.';
+      list.appendChild(empty); return;
     }
-  });
-
-  let persistConstraintsTimer = null;
-  const schedulePersistConstraintsNow = () => {
-    if (persistConstraintsTimer) window.clearTimeout(persistConstraintsTimer);
-    persistConstraintsTimer = window.setTimeout(async () => {
-      try {
-        await persistNow();
-      } catch (err) {
-        logger?.error?.('[AdvancedGoalSolver] Persist constraints failed', err);
-      }
-    }, 250);
+    constraintsRows.forEach((row, idx) => list.appendChild(buildConstraintCard(row, idx)));
   };
 
-  const constraintsTable = await createGrid(constraintsGridEl, {
-    data: buildConstraintRowsFromObject().map(normalizeConstraintRow),
-    index: 'id',
-    reactiveData: true,
-    placeholder: 'No constraints yet.',
-    columns: [
-      {
-        title: 'Type',
-        field: 'type',
-        minWidth: 210,
-        widthGrow: 1.5,
-        editor: 'list',
-        editorParams: {
-          values: constraintTypeOptions.map((t) => ({ label: t.label, value: t.value })),
-          listItemFormatter: function (value, title) {
-            return title;
-          }
-        },
-        formatter: function (cell) {
-          const v = cell.getValue();
-          return escapeHtml(constraintTypeToLabel.get(v) || v || '');
-        }
-      },
-      {
-        title: 'Account',
-        field: 'accountId',
-        minWidth: 220,
-        widthGrow: 1.6,
-        editor: 'list',
-        editorParams: {
-          values: [{ label: '-- None --', value: null }, ...accounts.map((a) => ({ label: a.name, value: Number(a.id) }))],
-          listItemFormatter: function (value, title) {
-            return title;
-          }
-        },
-        formatter: function (cell) {
-          const id = cell.getValue();
-          return id != null ? escapeHtml(accountIdToName.get(Number(id)) || '') : '';
-        }
-      },
-      createMoneyColumn('Amount', 'amount', {
-        minWidth: 160,
-        widthGrow: 1,
-        bottomCalc: null,
-        formatter: moneyCellFormatterOrBlank
-      }),
-      {
-        title: '',
-        field: '_actions',
-        minWidth: 100,
-        widthGrow: 0.6,
-        headerSort: false,
-        formatter: function () {
-          return '<button class="btn btn-ghost">Remove</button>';
-        },
-        cellClick: async function (e, cell) {
-          e.preventDefault();
-          cell.getRow().delete();
-          lastSolve = null;
-          applyBtn.disabled = true;
-          await persistNow();
-        }
-      }
-    ],
-    cellEdited: function () {
-      lastSolve = null;
-      applyBtn.disabled = true;
-      schedulePersistConstraintsNow();
+  // ---- Goal card builder ----
+  const buildGoalCard = (row, idx) => {
+    const card = document.createElement('div');
+    card.className = 'grid-summary-card';
+    const rowEl = document.createElement('div');
+    rowEl.style.cssText = 'display:flex;align-items:flex-start;gap:8px;width:100%;';
+
+    const content = document.createElement('div');
+    content.className = 'grid-summary-content';
+    const form = document.createElement('div');
+    form.className = 'grid-summary-form';
+    form.style.marginTop = '0';
+
+    const toNumOrNull = (v) => (v === '' || v == null ? null : Number(v));
+
+    const priorityInput = document.createElement('input');
+    priorityInput.type = 'number'; priorityInput.className = 'grid-summary-input';
+    priorityInput.min = '1'; priorityInput.step = '1'; priorityInput.value = String(row.priority);
+
+    const accountSelect = document.createElement('select');
+    accountSelect.className = 'grid-summary-input';
+    const gNoneOpt = document.createElement('option');
+    gNoneOpt.value = ''; gNoneOpt.textContent = '— Account —';
+    accountSelect.appendChild(gNoneOpt);
+    accounts.forEach((a) => {
+      const opt = document.createElement('option');
+      opt.value = String(Number(a.id)); opt.textContent = a.name;
+      accountSelect.appendChild(opt);
+    });
+    accountSelect.value = row.accountId != null ? String(Number(row.accountId)) : '';
+
+    const typeSelect = document.createElement('select');
+    typeSelect.className = 'grid-summary-input';
+    goalTypeOptions.forEach((o) => {
+      const opt = document.createElement('option');
+      opt.value = o.value; opt.textContent = o.label;
+      typeSelect.appendChild(opt);
+    });
+    typeSelect.value = row.type;
+
+    const targetInput = document.createElement('input');
+    targetInput.type = 'number'; targetInput.className = 'grid-summary-input';
+    targetInput.step = '0.01'; targetInput.placeholder = '0.00';
+    targetInput.value = row.targetAmount != null ? String(row.targetAmount) : '';
+
+    const deltaInput = document.createElement('input');
+    deltaInput.type = 'number'; deltaInput.className = 'grid-summary-input';
+    deltaInput.step = '0.01'; deltaInput.placeholder = '0.00';
+    deltaInput.value = row.deltaAmount != null ? String(row.deltaAmount) : '';
+
+    const floorInput = document.createElement('input');
+    floorInput.type = 'number'; floorInput.className = 'grid-summary-input';
+    floorInput.step = '0.01'; floorInput.placeholder = '0.00';
+    floorInput.value = row.floorAmount != null ? String(row.floorAmount) : '';
+
+    const startDateInput = document.createElement('input');
+    startDateInput.type = 'date'; startDateInput.className = 'grid-summary-input';
+    startDateInput.value = row.startDate || '';
+
+    const endDateInput = document.createElement('input');
+    endDateInput.type = 'date'; endDateInput.className = 'grid-summary-input';
+    endDateInput.value = row.endDate || '';
+
+    const makeGField = (label, el, full = false) => {
+      const f = document.createElement('div');
+      f.className = 'grid-summary-field' + (full ? ' form-field--full' : '');
+      const lbl = document.createElement('label');
+      lbl.className = 'grid-summary-label'; lbl.textContent = label;
+      f.appendChild(lbl); f.appendChild(el); return f;
+    };
+
+    const targetField = makeGField('Target', targetInput);
+    const deltaField = makeGField('Delta', deltaInput);
+    const floorField = makeGField('Floor', floorInput);
+    form.appendChild(makeGField('Priority', priorityInput));
+    form.appendChild(makeGField('Account', accountSelect));
+    form.appendChild(makeGField('Type', typeSelect, true));
+    form.appendChild(targetField);
+    form.appendChild(deltaField);
+    form.appendChild(floorField);
+    form.appendChild(makeGField('Start', startDateInput));
+    form.appendChild(makeGField('End', endDateInput));
+    content.appendChild(form);
+
+    const updateGAmountVisibility = () => {
+      const t = typeSelect.value;
+      targetField.style.display = (t === 'reach_balance_by_date' || t === 'pay_down_by_date') ? '' : 'none';
+      deltaField.style.display = t === 'increase_by_delta' ? '' : 'none';
+      floorField.style.display = t === 'maintain_floor' ? '' : 'none';
+    };
+    updateGAmountVisibility();
+
+    const updateGoalRow = () => {
+      goalsRows[idx] = normalizeGoalRow({
+        ...goalsRows[idx],
+        priority: Math.max(1, Number(priorityInput.value) || 1),
+        accountId: accountSelect.value !== '' ? Number(accountSelect.value) : null,
+        type: typeSelect.value,
+        targetAmount: toNumOrNull(targetInput.value),
+        deltaAmount: toNumOrNull(deltaInput.value),
+        floorAmount: toNumOrNull(floorInput.value),
+        startDate: startDateInput.value || null,
+        endDate: endDateInput.value || null
+      });
+      lastSolve = null; applyBtn.disabled = true; schedulePersist();
+    };
+    typeSelect.addEventListener('change', () => { updateGAmountVisibility(); updateGoalRow(); });
+    [priorityInput, accountSelect, targetInput, deltaInput, floorInput, startDateInput, endDateInput]
+      .forEach((el) => el.addEventListener('change', updateGoalRow));
+    [priorityInput, targetInput, deltaInput, floorInput]
+      .forEach((el) => el.addEventListener('input', updateGoalRow));
+
+    const actions = document.createElement('div');
+    actions.className = 'grid-summary-actions';
+    const gDeleteBtn = document.createElement('button');
+    gDeleteBtn.className = 'icon-btn'; gDeleteBtn.title = 'Remove'; gDeleteBtn.textContent = '⨉';
+    gDeleteBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      goalsRows.splice(idx, 1); renderGoalCards();
+      lastSolve = null; applyBtn.disabled = true; await persistNow();
+    });
+    actions.appendChild(gDeleteBtn);
+    rowEl.appendChild(content); rowEl.appendChild(actions);
+    card.appendChild(rowEl); return card;
+  };
+
+  const renderGoalCards = () => {
+    goalsGridEl.innerHTML = '';
+    const list = document.createElement('div');
+    list.className = 'grid-summary-list';
+    goalsGridEl.appendChild(list);
+    if (goalsRows.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'scenarios-list-placeholder';
+      empty.textContent = 'No goals yet.';
+      list.appendChild(empty); return;
     }
-  });
+    goalsRows.forEach((row, idx) => list.appendChild(buildGoalCard(row, idx)));
+  };
+
+  renderConstraintCards();
+  renderGoalCards();
 
   const persistNow = async () => {
-    const gridGoals = goalsTable
-      ? goalsTable.getData().map(normalizeGoalRow)
-      : (Array.isArray(goals) ? goals.map(normalizeGoalRow) : []);
-
-    const gridConstraints = constraintsTable
-      ? constraintsTable.getData().map(normalizeConstraintRow)
-      : buildConstraintRowsFromObject().map(normalizeConstraintRow);
-
-    const nextConstraints = buildConstraintsObjectFromRows(gridConstraints);
-
+    const nextConstraints = buildConstraintsObjectFromRows(constraintsRows);
     const nextSettings = {
-      goals: gridGoals,
-      constraints: {
-        ...constraints,
-        ...nextConstraints
-      }
+      goals: goalsRows,
+      constraints: { ...constraints, ...nextConstraints }
     };
     await persistAdvancedSettings({ scenarioId: scenario.id, nextSettings, scenarioState });
   };
 
   addBtn.addEventListener('click', async (e) => {
     e.preventDefault();
-    const newGoal = {
+    goalsRows.push(normalizeGoalRow({
       id: makeId(),
       priority: 1,
       accountId: null,
@@ -686,22 +855,20 @@ async function loadAdvancedGoalSolverSection({
       floorAmount: null,
       startDate: planningWindow?.startDate || null,
       endDate: planningWindow?.endDate || null
-    };
-    goalsTable.addRow(newGoal, true);
+    }));
+    renderGoalCards();
     await persistNow();
   });
 
   addConstraintBtn.addEventListener('click', async (e) => {
     e.preventDefault();
-    constraintsTable.addRow(
-      {
-        id: makeId(),
-        type: 'lockedAccount',
-        accountId: null,
-        amount: null
-      },
-      true
-    );
+    constraintsRows.push(normalizeConstraintRow({
+      id: makeId(),
+      type: 'lockedAccount',
+      accountId: null,
+      amount: null
+    }));
+    renderConstraintCards();
     await persistNow();
   });
 
@@ -711,10 +878,10 @@ async function loadAdvancedGoalSolverSection({
       const latest = await persistAdvancedSettings({
         scenarioId: scenario.id,
         nextSettings: {
-          goals: goalsTable.getData().map(normalizeGoalRow),
+          goals: goalsRows,
           constraints: {
             ...constraints,
-            ...buildConstraintsObjectFromRows(constraintsTable.getData().map(normalizeConstraintRow))
+            ...buildConstraintsObjectFromRows(constraintsRows)
           }
         },
         scenarioState
@@ -725,22 +892,31 @@ async function loadAdvancedGoalSolverSection({
 
       const lines = (result.explanation || []).map((l) => `<div>${escapeHtml(l)}</div>`).join('');
       const txCount = result.suggestedTransactions?.length || 0;
-      solutionEl.innerHTML = `
-        <div><strong>Suggested transactions:</strong> ${txCount}</div>
-        <div style="margin-top:8px;">${lines}</div>
+      const feasible = result.isFeasible;
+      solutionTotalsEl.innerHTML = `
+        <div class="grid-totals" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="grid-total-item">
+            <div class="label">Transactions</div>
+            <div class="value${txCount > 0 ? ' positive' : ' zero'}">${txCount}</div>
+          </div>
+          <div class="grid-total-item">
+            <div class="label">Feasible</div>
+            <div class="value${feasible ? ' positive' : ' negative'}">${feasible ? 'Yes' : 'No'}</div>
+          </div>
+        </div>
       `;
+      solutionEl.className = 'solver-explanation';
+      solutionEl.innerHTML = (result.explanation || []).map((l) => `<div class="solver-explanation-line">${escapeHtml(l)}</div>`).join('') || '<div class="solver-explanation-line">No explanation available.</div>';
 
-      applyBtn.disabled = !result.isFeasible || txCount === 0;
+      applyBtn.disabled = !feasible || txCount === 0;
     } catch (err) {
       logger?.error?.('[AdvancedGoalSolver] Solve failed', err);
 
       const message = err?.message ? String(err.message) : String(err || 'Unknown error');
+      solutionTotalsEl.innerHTML = '';
       solutionEl.innerHTML = `
-        <div class="error-message"><strong>Solve failed</strong></div>
-        <div class="text-muted" style="margin-top:8px;">${escapeHtml(message)}</div>
-        <div class="text-muted" style="margin-top:8px;">
-          Check DevTools Console for more details.
-        </div>
+        <div class="error-message"><strong>Solve failed:</strong> ${escapeHtml(message)}</div>
+        <div class="text-muted" style="margin-top:4px;">Check DevTools Console for more details.</div>
       `;
       notifyError('Failed to solve goals: ' + message);
     }

@@ -886,6 +886,43 @@ input[type="checkbox"] {
   gap: 8px;
 }
 
+.solver-panels {
+  height: auto;
+  min-height: 220px;
+  overflow: visible;
+  align-items: flex-start;
+}
+
+/* Panels inside the solver must size to content, not fill the flex cross-axis.
+   Without this, .dash-panel-body (flex:1) collapses because its column-flex
+   parent never gets a definite height from a height:auto row container. */
+.solver-panels > .dash-panel {
+  height: auto;
+  overflow: visible;
+}
+
+.solver-panels > .dash-panel .dash-panel-body {
+  flex: unset;
+  overflow: visible;
+  min-height: 0;
+  padding-bottom: 8px;
+}
+
+.solver-explanation {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.solver-explanation-line {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid var(--border-secondary);
+  line-height: 1.4;
+}
+
 .input-select,
 .input-text {
   width: 100%;

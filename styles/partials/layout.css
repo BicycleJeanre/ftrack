@@ -470,6 +470,25 @@ body.dashboard-shell {
 
 /* ==================================== Forecast Dash Layout (Row Stack) ====================================*/
 
+#generatePlanSection {
+  flex: 4;
+  min-height: 320px;
+  overflow-y: auto;
+}
+
+#generatePlanSection.collapsed {
+  flex: 0 0 48px;
+  min-height: 48px;
+  overflow: hidden;
+}
+
+#generatePlanSection .dash-row-body {
+  flex: none;
+  height: auto;
+  overflow: visible;
+  padding-bottom: 24px;
+}
+
 .dash-layout {
   height: 100%;
   display: flex;
