@@ -108,6 +108,7 @@ export function createDefaultUiState(overrides = {}) {
       projections: DEFAULT_PERIOD_TYPE_ID,
       ...(overrides.viewPeriodTypeIds || {})
     },
+    accordionStates: overrides.accordionStates && typeof overrides.accordionStates === 'object' ? overrides.accordionStates : {},
     ...overrides,
     lastWorkflowId: safeWorkflowId
   };
@@ -124,6 +125,11 @@ export function normalizeUiState(raw) {
     return Number.isFinite(num) ? num : null;
   };
 
+  const rawAccordion = base.accordionStates && typeof base.accordionStates === 'object' ? base.accordionStates : {};
+  const accordionStates = Object.fromEntries(
+    Object.entries(rawAccordion).filter(([, v]) => typeof v === 'boolean')
+  );
+
   return {
     lastWorkflowId: workflowId,
     lastScenarioId: base.lastScenarioId == null ? null : Number(base.lastScenarioId),
@@ -132,7 +138,8 @@ export function normalizeUiState(raw) {
       transactions: cleanPeriod(view.transactions) ?? DEFAULT_PERIOD_TYPE_ID,
       budgets: cleanPeriod(view.budgets) ?? DEFAULT_PERIOD_TYPE_ID,
       projections: cleanPeriod(view.projections) ?? DEFAULT_PERIOD_TYPE_ID
-    }
+    },
+    accordionStates
   };
 }
 

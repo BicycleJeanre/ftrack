@@ -116,7 +116,7 @@ function buildTopbarActions() {
   return actions;
 }
 
-function buildDashRow({ id, title, defaultCollapsed = false, showControls = true }) {
+function buildDashRow({ id, title, defaultCollapsed = false, showControls = true, onToggle }) {
   const row = document.createElement('section');
   row.className = 'dash-row';
   row.id = id;
@@ -157,6 +157,7 @@ function buildDashRow({ id, title, defaultCollapsed = false, showControls = true
   header.addEventListener('click', (e) => {
     if (e.target.closest('button')) return;
     row.classList.toggle('collapsed');
+    onToggle?.(!row.classList.contains('collapsed'));
   });
 
   const body = document.createElement('div');
@@ -167,7 +168,7 @@ function buildDashRow({ id, title, defaultCollapsed = false, showControls = true
   return { row, body };
 }
 
-export function buildGridContainer() {
+export function buildGridContainer({ accordionStates = {}, onAccordionToggle } = {}) {
   const forecastEl = getEl('panel-forecast');
   forecastEl.innerHTML = '';
 
@@ -180,7 +181,7 @@ export function buildGridContainer() {
   backdrop.className = 'sidebar-backdrop hidden';
 
   const sidebar = document.createElement('aside');
-  sidebar.className = 'sidebar';
+  sidebar.className = 'sidebar collapsed';
 
   const sidebarHeader = document.createElement('div');
   sidebarHeader.className = 'sidebar-header';
@@ -274,7 +275,8 @@ export function buildGridContainer() {
   const { row: summaryCardsSection, body: summaryCardsBody } = buildDashRow({
      id: 'summaryCardsSection',
      title: 'Summary',
-     defaultCollapsed: true
+     defaultCollapsed: accordionStates['summaryCardsSection'] !== true,
+     onToggle: (isOpen) => onAccordionToggle?.('summaryCardsSection', isOpen)
   });
   const summaryCardsContent = document.createElement('div');
   summaryCardsContent.id = 'summaryCardsContent';
@@ -284,7 +286,8 @@ export function buildGridContainer() {
   const { row: generatePlanSection, body: generatePlanBody } = buildDashRow({
     id: 'generatePlanSection',
     title: 'Generate Plan',
-    defaultCollapsed: true
+    defaultCollapsed: accordionStates['generatePlanSection'] !== true,
+    onToggle: (isOpen) => onAccordionToggle?.('generatePlanSection', isOpen)
   });
   generatePlanSection.style.display = 'none';
   const generatePlanContent = document.createElement('div');
@@ -295,7 +298,8 @@ export function buildGridContainer() {
   const { row: middleRow, body: middleBody } = buildDashRow({
     id: 'row-middle',
     title: 'Accounts & Transactions',
-    defaultCollapsed: true
+    defaultCollapsed: accordionStates['row-middle'] !== true,
+    onToggle: (isOpen) => onAccordionToggle?.('row-middle', isOpen)
   });
   middleRow.classList.add('row-middle');
   middleBody.style.padding = '0';
@@ -358,7 +362,8 @@ export function buildGridContainer() {
   const { row: budgetSection, body: budgetBody } = buildDashRow({
     id: 'budgetSection',
     title: 'Budget',
-    defaultCollapsed: true
+    defaultCollapsed: accordionStates['budgetSection'] !== true,
+    onToggle: (isOpen) => onAccordionToggle?.('budgetSection', isOpen)
   });
   const budgetCard = document.createElement('div');
   budgetCard.className = 'forecast-card';
@@ -387,7 +392,8 @@ export function buildGridContainer() {
   const { row: projectionsSection, body: projectionsBody } = buildDashRow({
     id: 'projectionsSection',
     title: 'Projections',
-    defaultCollapsed: true
+    defaultCollapsed: accordionStates['projectionsSection'] !== true,
+    onToggle: (isOpen) => onAccordionToggle?.('projectionsSection', isOpen)
   });
   const projectionsCard = document.createElement('div');
   projectionsCard.className = 'forecast-card';

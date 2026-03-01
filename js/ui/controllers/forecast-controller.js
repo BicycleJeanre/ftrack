@@ -153,7 +153,7 @@ async function patchUiState(nextPartial) {
 async function loadUiState() {
   uiState = await UiStateManager.get();
 
-  currentWorkflowId = getWorkflowById(uiState?.lastWorkflowId)?.id || DEFAULT_WORKFLOW_ID;
+  currentWorkflowId = DEFAULT_WORKFLOW_ID;
 
   const view = uiState?.viewPeriodTypeIds || {};
   actualPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.transactions) || 3] || 'Month';
@@ -1832,12 +1832,10 @@ async function loadScenarioData() {
     const isMiddleDetail = workflowConfig?.accountsMode === 'detail' || workflowConfig?.transactionsMode === 'detail';
     if (isMiddleDetail) {
       rowMiddle.classList.add('mode-detail');
-      rowMiddle.classList.remove('collapsed');
       rowMiddle.classList.remove('hidden');
     } else {
       rowMiddle.classList.remove('mode-detail');
       if (showAccounts || showTransactions) {
-        rowMiddle.classList.remove('collapsed');
         rowMiddle.classList.remove('hidden');
       } else {
         rowMiddle.classList.add('collapsed');
@@ -1849,7 +1847,6 @@ async function loadScenarioData() {
   if (budgetSection) {
     if (workflowConfig?.budgetMode === 'detail') {
       budgetSection.classList.add('mode-detail');
-      budgetSection.classList.remove('collapsed');
     } else {
       budgetSection.classList.remove('mode-detail');
     }
@@ -1858,7 +1855,6 @@ async function loadScenarioData() {
   if (projectionsSection) {
     if (workflowConfig?.projectionsMode === 'detail') {
       projectionsSection.classList.add('mode-detail');
-      projectionsSection.classList.remove('collapsed');
     } else {
       projectionsSection.classList.remove('mode-detail');
     }
@@ -1951,7 +1947,13 @@ function renderWorkflowNav(container) {
 async function init() {
   loadGlobals();
   await loadUiState();
-  const containers = buildGridContainer();
+  const containers = buildGridContainer({
+    accordionStates: uiState?.accordionStates || {},
+    onAccordionToggle: (id, isOpen) => {
+      const current = uiState?.accordionStates || {};
+      patchUiState({ accordionStates: { ...current, [id]: isOpen } });
+    }
+  });
   renderWorkflowNav(containers.workflowNav);
   await buildScenarioGrid(containers.scenarioSelector);
   // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
