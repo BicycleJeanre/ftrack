@@ -485,12 +485,12 @@ function renderTransactionsSummaryList({
     form.appendChild(recurrenceField);
     form.appendChild(periodicField);
 
-    function handleDocMouseDown(e) {
+    async function handleDocMouseDown(e) {
       if (document.querySelector('.modal-overlay')) return;
       if (!card.contains(e.target)) {
         document.removeEventListener('mousedown', handleDocMouseDown);
         exitEdit();
-        doSave();
+        await doSave();
       }
     }
 
@@ -553,6 +553,21 @@ function renderTransactionsSummaryList({
           await doSave();
         }
       }, 0);
+    });
+
+    form.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const focusable = Array.from(form.querySelectorAll('input:not([readonly]):not([disabled]), select:not([disabled])'));
+      const idx = focusable.indexOf(e.target);
+      if (idx === -1) return;
+      e.preventDefault();
+      if (idx < focusable.length - 1) {
+        focusable[idx + 1].focus();
+      } else {
+        document.removeEventListener('mousedown', handleDocMouseDown);
+        exitEdit();
+        doSave();
+      }
     });
 
     duplicateBtn.addEventListener('click', async (e) => {

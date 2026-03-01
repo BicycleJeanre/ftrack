@@ -476,6 +476,7 @@ function renderAccountsSummaryList({
           e.stopPropagation();
           cardTags.splice(idx, 1);
           renderCardTags();
+          tagInput.focus();
         });
         tagsChipsEl.appendChild(chip);
       });
@@ -576,22 +577,6 @@ function renderAccountsSummaryList({
       scheduleFormField.appendChild(scheduleEditBtn);
     }
 
-    const formActions = document.createElement('div');
-    formActions.className = 'account-card-form-actions';
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'icon-btn icon-btn--primary';
-    saveBtn.textContent = '✓';
-    saveBtn.title = 'Save';
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'icon-btn';
-    cancelBtn.textContent = '✕';
-    cancelBtn.title = 'Cancel';
-
-    formActions.appendChild(saveBtn);
-    formActions.appendChild(cancelBtn);
-
     form.appendChild(createDetailField({ label: 'Name', inputEl: nameInput }));
     form.appendChild(createDetailField({ label: 'Type', inputEl: typeSelect }));
     form.appendChild(createDetailField({ label: 'Starting Balance', inputEl: balanceInput }));
@@ -601,15 +586,25 @@ function renderAccountsSummaryList({
     form.appendChild(periodicFormField);
     form.appendChild(tagsFormField);
     if (scheduleFormField) form.appendChild(scheduleFormField);
-    form.appendChild(formActions);
+
+    async function handleDocMouseDown(e) {
+      if (document.querySelector('.modal-overlay')) return;
+      if (!card.contains(e.target)) {
+        document.removeEventListener('mousedown', handleDocMouseDown);
+        exitEditMode();
+        await doSave();
+      }
+    }
 
     const enterEditMode = () => {
       form.style.display = 'grid';
       content.style.display = 'none';
       actions.style.display = 'none';
+      document.addEventListener('mousedown', handleDocMouseDown);
     };
 
     const exitEditMode = () => {
+      document.removeEventListener('mousedown', handleDocMouseDown);
       form.style.display = 'none';
       content.style.display = 'block';
       actions.style.display = 'flex';
@@ -646,25 +641,7 @@ function renderAccountsSummaryList({
       }
     });
 
-    cancelBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      nameInput.value = account?.name || '';
-      if (account?.type?.id != null) {
-        typeSelect.value = String(account.type.id);
-      } else {
-        typeSelect.value = '';
-      }
-      balanceInput.value = account?.startingBalance ?? 0;
-      descriptionInput.value = account?.description || '';
-      if (goalAmountInput) goalAmountInput.value = account?.goalAmount ?? '';
-      if (goalDateInput) goalDateInput.value = account?.goalDate || '';
-      cardTags.splice(0, cardTags.length, ...(account?.tags || []));
-      renderCardTags();
-      exitEditMode();
-    });
-
-    saveBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
+    const doSave = async () => {
       const scenario = scenarioState?.get?.();
       if (!scenario) return;
 
@@ -709,6 +686,31 @@ function renderAccountsSummaryList({
         exitEditMode();
       } catch (err) {
         logger?.error?.('[AccountsGrid] Failed to update account from summary list', err);
+      }
+    };
+
+    form.addEventListener('focusout', () => {
+      setTimeout(async () => {
+        if (document.querySelector('.modal-overlay')) return;
+        if (form.style.display !== 'grid') return;
+        if (!form.contains(document.activeElement)) {
+          await doSave();
+        }
+      }, 0);
+    });
+
+    form.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const focusable = Array.from(form.querySelectorAll('input:not([readonly]):not([disabled]), select:not([disabled])'));
+      const idx = focusable.indexOf(e.target);
+      if (idx === -1) return;
+      e.preventDefault();
+      if (idx < focusable.length - 1) {
+        focusable[idx + 1].focus();
+      } else {
+        document.removeEventListener('mousedown', handleDocMouseDown);
+        exitEditMode();
+        doSave();
       }
     });
 

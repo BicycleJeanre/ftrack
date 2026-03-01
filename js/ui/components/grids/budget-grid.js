@@ -240,19 +240,6 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     recurrenceInput.value = budget?.recurrenceDescription || '';
     recurrenceInput.placeholder = 'e.g. Monthly';
 
-    const formActions = document.createElement('div');
-    formActions.className = 'grid-summary-form-actions';
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'icon-btn icon-btn--primary';
-    saveBtn.textContent = '✓';
-    saveBtn.title = 'Save';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'icon-btn';
-    cancelBtn.textContent = '✕';
-    cancelBtn.title = 'Cancel';
-    formActions.appendChild(saveBtn);
-    formActions.appendChild(cancelBtn);
-
     const addField = (label, inputEl, fullWidth = false) => {
       const field = document.createElement('div');
       field.className = fullWidth ? 'grid-summary-field form-field--full' : 'grid-summary-field';
@@ -273,16 +260,26 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     addField('Actual Amount', actualAmountInput);
     addField('Actual Date', actualDateInput);
     addField('Recurrence', recurrenceInput, true);
-    form.appendChild(formActions);
 
     // --- Interactions ---
+    async function handleDocMouseDown(e) {
+      if (document.querySelector('.modal-overlay')) return;
+      if (!card.contains(e.target)) {
+        document.removeEventListener('mousedown', handleDocMouseDown);
+        exitEdit();
+        await doSave();
+      }
+    }
+
     const enterEdit = () => {
       form.style.display = 'grid';
       content.style.display = 'none';
       actions.style.display = 'none';
+      document.addEventListener('mousedown', handleDocMouseDown);
     };
 
     const exitEdit = () => {
+      document.removeEventListener('mousedown', handleDocMouseDown);
       form.style.display = 'none';
       content.style.display = 'block';
       actions.style.display = 'flex';
@@ -312,22 +309,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
       await onRefresh?.();
     });
 
-    cancelBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      typeSelect.value = String(budget?.transactionTypeId || 2);
-      secondaryAccountSelect.value = budget?.secondaryAccountId ? String(budget.secondaryAccountId) : '';
-      amountInput.value = Number(budget?.amount || 0);
-      descInput.value = budget?.description || '';
-      dateInput.value = budget?.occurrenceDate || '';
-      statusSelect.value = statusName;
-      actualAmountInput.value = budget?.status?.actualAmount != null ? Number(budget.status.actualAmount) : '';
-      actualDateInput.value = budget?.status?.actualDate || '';
-      recurrenceInput.value = budget?.recurrenceDescription || '';
-      exitEdit();
-    });
-
-    saveBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
+    const doSave = async () => {
       const scenario = budget?._scenarioId;
       if (!scenario) return;
       const allBudgets = await getBudget(scenario);
@@ -358,6 +340,31 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
       };
       await BudgetManager.saveAll(scenario, allBudgets);
       await onRefresh?.();
+    };
+
+    form.addEventListener('focusout', () => {
+      setTimeout(async () => {
+        if (document.querySelector('.modal-overlay')) return;
+        if (form.style.display !== 'grid') return;
+        if (!form.contains(document.activeElement)) {
+          await doSave();
+        }
+      }, 0);
+    });
+
+    form.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const focusable = Array.from(form.querySelectorAll('input:not([readonly]):not([disabled]), select:not([disabled])'));
+      const idx = focusable.indexOf(e.target);
+      if (idx === -1) return;
+      e.preventDefault();
+      if (idx < focusable.length - 1) {
+        focusable[idx + 1].focus();
+      } else {
+        document.removeEventListener('mousedown', handleDocMouseDown);
+        exitEdit();
+        doSave();
+      }
     });
 
     duplicateBtn.addEventListener('click', async (e) => {

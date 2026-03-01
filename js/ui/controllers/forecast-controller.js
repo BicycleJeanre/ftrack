@@ -633,23 +633,6 @@ async function buildScenarioGrid(container) {
         addFormField('Name', nameInput);
         addFormField('Description', descInput);
 
-        const formActions = document.createElement('div');
-        formActions.className = 'grid-summary-form-actions';
-
-        const saveBtn = document.createElement('button');
-        saveBtn.className = 'icon-btn icon-btn--primary';
-        saveBtn.textContent = '✓';
-        saveBtn.title = 'Save';
-
-        const cancelBtn = document.createElement('button');
-        cancelBtn.className = 'icon-btn';
-        cancelBtn.textContent = '✕';
-        cancelBtn.title = 'Cancel';
-
-        formActions.appendChild(saveBtn);
-        formActions.appendChild(cancelBtn);
-        form.appendChild(formActions);
-
         const enterEdit = () => {
           form.style.display = 'grid';
           content.style.display = 'none';
@@ -663,15 +646,7 @@ async function buildScenarioGrid(container) {
           actions.style.display = 'flex';
         };
 
-        cancelBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          nameInput.value = scenario.name || '';
-          descInput.value = scenario.description || '';
-          exitEdit();
-        });
-
-        saveBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
+        const doSave = async () => {
           const nextName = nameInput.value.trim() || 'Untitled';
           const nextDesc = descInput.value.trim() || null;
           try {
@@ -691,6 +666,12 @@ async function buildScenarioGrid(container) {
             exitEdit();
           } catch (err) {
             notifyError('Failed to update scenario: ' + (err?.message || 'Unknown error'));
+          }
+        };
+
+        form.addEventListener('focusout', async (e) => {
+          if (!form.contains(e.relatedTarget)) {
+            await doSave();
           }
         });
 
