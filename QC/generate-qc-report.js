@@ -25,12 +25,8 @@ const WORKFLOW_RUNNERS = [
     command: 'node QC/tests/workflows/debt-repayment.test.js'
   },
   {
-    workflow: 'Goal-Based',
-    command: 'node QC/tests/workflows/goal-based.test.js'
-  },
-  {
-    workflow: 'Advanced Goal Solver',
-    command: 'node QC/tests/workflows/advanced-goal-solver.test.js'
+    workflow: 'Goal Workshop',
+    command: 'node QC/tests/workflows/goal-workshop.test.js'
   }
 ];
 

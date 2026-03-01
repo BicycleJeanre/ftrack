@@ -806,6 +806,13 @@ body.dashboard-shell {
   font-size: 0.8em;
 }
 
+.goal-workshop-header .icon-btn {
+  font-size: 0.85em;
+  min-width: unset;
+  min-height: unset;
+  padding: 3px 8px;
+}
+
 .card-collapsed .section-content {
   display: none;
 }

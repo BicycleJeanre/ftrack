@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Consolidated Goal-Based and Advanced Goal Solver into a single **Goal Workshop** workflow with Simple and Advanced mode toggle.
+  - Mode is persisted per scenario via `scenario.planning.goalWorkshopMode`; auto-detected from existing AGS goals for migrated scenarios.
+  - Existing scenario data is fully backward-compatible; no migration script required.
+
 ## [0.8.5-beta] - 2026-02-28
 
 ### Added

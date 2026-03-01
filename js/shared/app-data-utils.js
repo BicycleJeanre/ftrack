@@ -222,7 +222,10 @@ export function normalizeScenario(rawScenario) {
   // Planning windows are only used by Generate Plan and Advanced Goal Solver for their respective horizons
   const nextPlanning = {
     generatePlan: cleanWindow(planning.generatePlan, defaultWindow),
-    advancedGoalSolver: cleanWindow(planning.advancedGoalSolver, defaultWindow)
+    advancedGoalSolver: cleanWindow(planning.advancedGoalSolver, defaultWindow),
+    ...(planning.goalWorkshopMode === 'simple' || planning.goalWorkshopMode === 'advanced'
+      ? { goalWorkshopMode: planning.goalWorkshopMode }
+      : {})
   };
 
   const lineage = base.lineage && typeof base.lineage === 'object' ? base.lineage : null;

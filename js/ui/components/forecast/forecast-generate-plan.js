@@ -1,5 +1,5 @@
 // forecast-generate-plan.js
-// Goal-based "Generate Plan" feature extracted from forecast.js (no behavior change).
+// Goal Workshop Generate Plan section — Simple and Advanced modes.
 
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { formatMoneyDisplay } from '../grids/grid-factory.js';
@@ -19,8 +19,22 @@ import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.js';
 
-function isAdvancedGoalSolverWorkflow(workflowId) {
-  return String(workflowId || '').toLowerCase() === 'advanced-goal-solver';
+function resolveGoalWorkshopMode(scenario) {
+  const persisted = scenario?.planning?.goalWorkshopMode;
+  if (persisted === 'simple' || persisted === 'advanced') return persisted;
+  // Auto-detect for migrated scenarios: if AGS goals already exist, default to advanced.
+  const hasGoals = (scenario?.advancedGoalSettings?.goals || []).length > 0;
+  return hasGoals ? 'advanced' : 'simple';
+}
+
+async function persistGoalWorkshopMode({ scenarioId, mode, scenarioState }) {
+  const existingScenario = scenarioState?.get?.() || (scenarioId ? await getScenario(scenarioId) : null);
+  const currentPlanning = existingScenario?.planning && typeof existingScenario.planning === 'object' ? existingScenario.planning : {};
+  const nextPlanning = { ...currentPlanning, goalWorkshopMode: mode };
+  await ScenarioManager.update(scenarioId, { planning: nextPlanning });
+  const refreshed = await getScenario(scenarioId);
+  scenarioState?.set?.(refreshed);
+  return refreshed;
 }
 
 function normalizeDateRange({ startDate, endDate }) {
@@ -153,148 +167,18 @@ function restoreWindowScroll(snapshot) {
   }
 }
 
-function renderGeneratePlanToolbar({ container, onRefresh }) {
+function renderGoalWorkshopSimpleHeader({ container, planningWindow, onWindowChange, mode, onModeChange }) {
   if (!container) return;
+  container.querySelectorAll(':scope > .goal-workshop-header').forEach((el) => el.remove());
 
-  // Keep a single toolbar at the top of the accordion content.
-  container.querySelectorAll(':scope > .grid-toolbar').forEach((el) => el.remove());
-
-  const toolbar = document.createElement('div');
-  toolbar.className = 'grid-toolbar';
-
-  const buttonContainer = document.createElement('div');
-  buttonContainer.className = 'toolbar-item';
-
-  const refreshButton = document.createElement('button');
-  refreshButton.className = 'icon-btn';
-  refreshButton.textContent = '⟳';
-  refreshButton.title = 'Refresh';
-  refreshButton.addEventListener('click', async () => {
-    const prevText = refreshButton.textContent;
-    try {
-      refreshButton.textContent = '...';
-      refreshButton.disabled = true;
-      await onRefresh?.();
-    } finally {
-      if (refreshButton.isConnected) {
-        refreshButton.textContent = prevText;
-        refreshButton.disabled = false;
-      }
-    }
-  });
-
-  window.add(buttonContainer, refreshButton);
-  window.add(toolbar, buttonContainer);
-
-  // Insert toolbar at the very top.
-  container.insertBefore(toolbar, container.firstChild);
-}
-
-function renderPlanningWindowToolbar({ container, title, planningWindow, onWindowChange }) {
-  if (!container) return;
-
-  container.querySelectorAll(':scope > .planning-window-toolbar').forEach((el) => el.remove());
-
-  const toolbar = document.createElement('div');
-  toolbar.className = 'grid-toolbar planning-window-toolbar';
-
-  const titleItem = document.createElement('div');
-  titleItem.className = 'toolbar-item';
-  titleItem.innerHTML = `<span class="text-muted">${escapeHtml(title || 'Planning Window')}</span>`;
-  window.add(toolbar, titleItem);
-
-  const startItem = document.createElement('div');
-  startItem.className = 'toolbar-item';
-  startItem.innerHTML = `
-    <label class="text-muted control-label" style="margin-right:6px;">Start:</label>
-  `;
-  const startInput = document.createElement('input');
-  startInput.type = 'date';
-  startInput.className = 'input-select control-select';
-  startInput.value = planningWindow?.startDate || '';
-  window.add(startItem, startInput);
-  window.add(toolbar, startItem);
-
-  const endItem = document.createElement('div');
-  endItem.className = 'toolbar-item';
-  endItem.innerHTML = `
-    <label class="text-muted control-label" style="margin-right:6px;">End:</label>
-  `;
-  const endInput = document.createElement('input');
-  endInput.type = 'date';
-  endInput.className = 'input-select control-select';
-  endInput.value = planningWindow?.endDate || '';
-  window.add(endItem, endInput);
-  window.add(toolbar, endItem);
-
-  let persistTimer = null;
-  const schedulePersist = () => {
-    clearTimeout(persistTimer);
-    persistTimer = setTimeout(async () => {
-      const next = normalizeDateRange({
-        startDate: startInput.value,
-        endDate: endInput.value
-      });
-
-      if (next.startDate && next.endDate) {
-        if (next.startDate !== startInput.value) startInput.value = next.startDate;
-        if (next.endDate !== endInput.value) endInput.value = next.endDate;
-        await onWindowChange?.(next);
-      }
-    }, 200);
-  };
-
-  startInput.addEventListener('change', schedulePersist);
-  endInput.addEventListener('change', schedulePersist);
-
-  const existingTopToolbars = Array.from(container.querySelectorAll(':scope > .grid-toolbar'));
-  const insertAfter = existingTopToolbars.length > 0 ? existingTopToolbars[existingTopToolbars.length - 1] : null;
-  container.insertBefore(toolbar, insertAfter?.nextSibling || null);
-}
-
-async function loadAdvancedGoalSolverSection({
-  container,
-  scenarioState,
-  workflowId,
-  loadMasterTransactionsGrid,
-  loadProjectionsSection,
-  logger
-}) {
-  const scenario = scenarioState?.get?.();
-  if (!scenario) {
-    container.innerHTML = '';
-    renderGeneratePlanToolbar({
-      container,
-      onRefresh: async () => {
-        const current = scenarioState?.get?.();
-        if (current?.id) {
-          const refreshed = await getScenario(current.id);
-          scenarioState?.set?.(refreshed);
-        }
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
-      }
-    });
-    const msg = document.createElement('div');
-    msg.className = 'empty-message';
-    msg.textContent = 'No scenario selected';
-    container.appendChild(msg);
-    return;
-  }
-
-  const scrollSnapshot = snapshotWindowScroll();
-  container.innerHTML = '';
-
-  const planningWindow = getScenarioPlanningWindow(scenario, 'advancedGoalSolver');
-
-  // --- Single consolidated card header (label + planning window dates + refresh) ---
-  const solverHeader = document.createElement('div');
-  solverHeader.className = 'dash-panel-header card-header card-header--filters-inline';
+  const header = document.createElement('div');
+  header.className = 'dash-panel-header card-header card-header--filters-inline goal-workshop-header';
 
   const headerLeft = document.createElement('div');
   headerLeft.className = 'card-header-actions';
   const headerLabel = document.createElement('span');
   headerLabel.className = 'dash-panel-label';
-  headerLabel.textContent = 'Advanced Goal Solver';
+  headerLabel.textContent = 'Goal Workshop';
   headerLeft.appendChild(headerLabel);
 
   const headerControls = document.createElement('div');
@@ -327,24 +211,118 @@ async function loadAdvancedGoalSolverSection({
 
   const headerIconActions = document.createElement('div');
   headerIconActions.className = 'header-icon-actions';
-  const refreshBtn = document.createElement('button');
-  refreshBtn.className = 'icon-btn';
-  refreshBtn.title = 'Refresh';
-  refreshBtn.textContent = '⟳';
-  refreshBtn.addEventListener('click', async () => {
-    try {
-      refreshBtn.disabled = true;
-      const current = scenarioState?.get?.();
-      if (current?.id) {
-        const refreshed = await getScenario(current.id);
-        scenarioState?.set?.(refreshed);
-      }
-      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
-    } finally {
-      if (refreshBtn.isConnected) refreshBtn.disabled = false;
+
+  if (mode && onModeChange) {
+    for (const { value, label } of [{ value: 'simple', label: '○ Simple' }, { value: 'advanced', label: '◈ Advanced' }]) {
+      const modeBtn = document.createElement('button');
+      modeBtn.type = 'button';
+      modeBtn.className = `icon-btn${mode === value ? ' icon-btn--active' : ''}`;
+      modeBtn.title = label;
+      modeBtn.textContent = label;
+      modeBtn.addEventListener('click', async () => { await onModeChange(value); });
+      headerIconActions.appendChild(modeBtn);
     }
-  });
-  headerIconActions.appendChild(refreshBtn);
+  }
+
+  header.appendChild(headerLeft);
+  header.appendChild(headerControls);
+  header.appendChild(headerIconActions);
+  container.insertBefore(header, container.firstChild);
+
+  if (onWindowChange) {
+    let persistTimer = null;
+    const schedulePersist = () => {
+      clearTimeout(persistTimer);
+      persistTimer = setTimeout(async () => {
+        const next = normalizeDateRange({ startDate: startInput.value, endDate: endInput.value });
+        if (next.startDate && next.endDate) {
+          if (next.startDate !== startInput.value) startInput.value = next.startDate;
+          if (next.endDate !== endInput.value) endInput.value = next.endDate;
+          await onWindowChange(next);
+        }
+      }, 200);
+    };
+    startInput.addEventListener('change', schedulePersist);
+    endInput.addEventListener('change', schedulePersist);
+  }
+}
+
+async function loadAdvancedGoalSolverSection({
+  container,
+  scenarioState,
+  workflowId,
+  loadMasterTransactionsGrid,
+  loadProjectionsSection,
+  logger
+}) {
+  const scenario = scenarioState?.get?.();
+  if (!scenario) {
+    container.innerHTML = '';
+    const msg = document.createElement('div');
+    msg.className = 'empty-message';
+    msg.textContent = 'No scenario selected';
+    container.appendChild(msg);
+    return;
+  }
+
+  const scrollSnapshot = snapshotWindowScroll();
+  container.innerHTML = '';
+
+  const planningWindow = getScenarioPlanningWindow(scenario, 'advancedGoalSolver');
+
+  // --- Single consolidated card header (label + planning window dates + refresh) ---
+  const solverHeader = document.createElement('div');
+  solverHeader.className = 'dash-panel-header card-header card-header--filters-inline goal-workshop-header';
+
+  const headerLeft = document.createElement('div');
+  headerLeft.className = 'card-header-actions';
+  const headerLabel = document.createElement('span');
+  headerLabel.className = 'dash-panel-label';
+  headerLabel.textContent = 'Goal Workshop';
+  headerLeft.appendChild(headerLabel);
+
+  const headerControls = document.createElement('div');
+  headerControls.className = 'card-header-controls';
+
+  const startFilterItem = document.createElement('div');
+  startFilterItem.className = 'header-filter-item';
+  const startLabel = document.createElement('label');
+  startLabel.textContent = 'Start:';
+  const startInput = document.createElement('input');
+  startInput.type = 'date';
+  startInput.className = 'input-select';
+  startInput.value = planningWindow?.startDate || '';
+  startFilterItem.appendChild(startLabel);
+  startFilterItem.appendChild(startInput);
+
+  const endFilterItem = document.createElement('div');
+  endFilterItem.className = 'header-filter-item';
+  const endLabel = document.createElement('label');
+  endLabel.textContent = 'End:';
+  const endInput = document.createElement('input');
+  endInput.type = 'date';
+  endInput.className = 'input-select';
+  endInput.value = planningWindow?.endDate || '';
+  endFilterItem.appendChild(endLabel);
+  endFilterItem.appendChild(endInput);
+
+  headerControls.appendChild(startFilterItem);
+  headerControls.appendChild(endFilterItem);
+
+  const headerIconActions = document.createElement('div');
+  headerIconActions.className = 'header-icon-actions';
+  for (const { value, label } of [{ value: 'simple', label: '○ Simple' }, { value: 'advanced', label: '◈ Advanced' }]) {
+    const modeBtn = document.createElement('button');
+    modeBtn.type = 'button';
+    modeBtn.className = `icon-btn${value === 'advanced' ? ' icon-btn--active' : ''}`;
+    modeBtn.title = label;
+    modeBtn.textContent = label;
+    modeBtn.addEventListener('click', async () => {
+      await persistGoalWorkshopMode({ scenarioId: scenario.id, mode: value, scenarioState });
+      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+    });
+    headerIconActions.appendChild(modeBtn);
+  }
 
   solverHeader.appendChild(headerLeft);
   solverHeader.appendChild(headerControls);
@@ -966,17 +944,6 @@ export async function loadGeneratePlanSection({
   const currentScenario = scenarioState?.get?.();
   if (!currentScenario) {
     container.innerHTML = '';
-    renderGeneratePlanToolbar({
-      container,
-      onRefresh: async () => {
-        const current = scenarioState?.get?.();
-        if (current?.id) {
-          const refreshed = await getScenario(current.id);
-          scenarioState?.set?.(refreshed);
-        }
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
-      }
-    });
     const msg = document.createElement('div');
     msg.className = 'empty-message';
     msg.textContent = 'No scenario selected';
@@ -984,7 +951,7 @@ export async function loadGeneratePlanSection({
     return;
   }
 
-  if (isAdvancedGoalSolverWorkflow(workflowId)) {
+  if (resolveGoalWorkshopMode(currentScenario) === 'advanced') {
     return loadAdvancedGoalSolverSection({
       container,
       scenarioState,
@@ -1001,21 +968,9 @@ export async function loadGeneratePlanSection({
 
   if (displayAccounts.length === 0) {
     container.innerHTML = '';
-    renderGeneratePlanToolbar({
-      container,
-      onRefresh: async () => {
-        const current = scenarioState?.get?.();
-      if (current?.id) {
-        const refreshed = await getScenario(current.id);
-        scenarioState?.set?.(refreshed);
-      }
-      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
-    }
-  });
     const planningWindow = getScenarioPlanningWindow(currentScenario, 'generatePlan');
-    renderPlanningWindowToolbar({
+    renderGoalWorkshopSimpleHeader({
       container,
-      title: 'Generate Plan Window',
       planningWindow,
       onWindowChange: async (nextWindow) => {
         try {
@@ -1029,11 +984,16 @@ export async function loadGeneratePlanSection({
         } catch (err) {
           notifyError('Failed to save planning window: ' + (err?.message || String(err)));
         }
+      },
+      mode: 'simple',
+      onModeChange: async (newMode) => {
+        await persistGoalWorkshopMode({ scenarioId: currentScenario.id, mode: newMode, scenarioState });
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
       }
     });
-  const msg = document.createElement('div');
-  msg.className = 'empty-message';
-  msg.textContent = 'No accounts with goals found. Set goal amounts and dates on accounts to generate plans.';
+    const msg = document.createElement('div');
+    msg.className = 'empty-message';
+    msg.textContent = 'No accounts with goals found. Set goal amounts and dates on accounts to generate plans.';
     container.appendChild(msg);
     return;
   }
@@ -1041,22 +1001,9 @@ export async function loadGeneratePlanSection({
   const scrollSnapshot = snapshotWindowScroll();
   container.innerHTML = '';
 
-  renderGeneratePlanToolbar({
-    container,
-    onRefresh: async () => {
-      const current = scenarioState?.get?.();
-      if (current?.id) {
-        const refreshed = await getScenario(current.id);
-        scenarioState?.set?.(refreshed);
-      }
-      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
-    }
-  });
-
   const planningWindow = getScenarioPlanningWindow(currentScenario, 'generatePlan');
-  renderPlanningWindowToolbar({
+  renderGoalWorkshopSimpleHeader({
     container,
-    title: 'Generate Plan Window',
     planningWindow,
     onWindowChange: async (nextWindow) => {
       try {
@@ -1070,15 +1017,15 @@ export async function loadGeneratePlanSection({
       } catch (err) {
         notifyError('Failed to save planning window: ' + (err?.message || String(err)));
       }
+    },
+    mode: 'simple',
+    onModeChange: async (newMode) => {
+      await persistGoalWorkshopMode({ scenarioId: currentScenario.id, mode: newMode, scenarioState });
+      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
     }
   });
 
-  const lookupData = await loadLookup('lookup-data.json');
-
-  // Create form container
   const formContainer = document.createElement('div');
-  formContainer.className = 'generate-plan-form';
-
   const introDiv = document.createElement('div');
   introDiv.className = 'text-muted';
   introDiv.style.marginBottom = '10px';

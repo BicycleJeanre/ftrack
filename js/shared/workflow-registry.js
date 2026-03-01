@@ -8,8 +8,8 @@ export const LEGACY_SCENARIO_TYPE_ID_TO_WORKFLOW_ID = {
   2: 'general',
   3: 'funds',
   4: 'debt-repayment',
-  5: 'goal-based',
-  6: 'advanced-goal-solver'
+  5: 'goal-workshop',
+  6: 'goal-workshop'
 };
 
 export const WORKFLOWS = [
@@ -93,8 +93,8 @@ export const WORKFLOWS = [
     supportsPeriodicChangeSchedule: true
   },
   {
-    id: 'goal-based',
-    name: 'Goal-Based',
+    id: 'goal-workshop',
+    name: 'Goal Workshop',
     visibleCards: [
       'scenarioPicker',
       'accounts',
@@ -112,27 +112,6 @@ export const WORKFLOWS = [
     summaryMode: null,
     supportsPeriodicChangeSchedule: false
   },
-  {
-    id: 'advanced-goal-solver',
-    name: 'Advanced Goal Solver',
-    visibleCards: [
-      'scenarioPicker',
-      'accounts',
-      'generatePlan',
-      'transactions',
-      'projections'
-    ],
-    showAccounts: true,
-    showPlannedTransactions: true,
-    showActualTransactions: false,
-    showBudget: false,
-    showProjections: true,
-    showGeneratePlan: true,
-    showSummaryCards: false,
-    summaryMode: null,
-    supportsPeriodicChangeSchedule: false
-  }
-  ,
   {
     id: 'accounts-detail',
     name: 'Accounts (Detail)',

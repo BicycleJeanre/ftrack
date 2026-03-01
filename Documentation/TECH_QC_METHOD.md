@@ -45,8 +45,7 @@ Each workflow suite file should do only these steps:
 | General | `QC/tests/workflows/general.test.js` | Workflow `General` scenarios selected from `qc-input-data.json` via mapping | `UC-B*`, `UC-C*`, `UC-F*`, `UC-E2`, plus General summary assertions |
 | Funds | `QC/tests/workflows/funds.test.js` | Workflow `Funds` scenarios selected from `qc-input-data.json` via mapping | `UC-E3`, plus Funds summary assertions |
 | Debt Repayment | `QC/tests/workflows/debt-repayment.test.js` | Workflow `Debt Repayment` scenarios selected from `qc-input-data.json` via mapping | `UC-D*`, plus Debt summary assertions |
-| Goal-Based | `QC/tests/workflows/goal-based.test.js` | Workflow `Goal-Based` scenarios selected from `qc-input-data.json` via mapping | Goal-based scenario assertions |
-| Advanced Goal Solver | `QC/tests/workflows/advanced-goal-solver.test.js` | Workflow `Advanced Goal Solver` scenarios selected from `qc-input-data.json` via mapping | `UC-E4`, plus solver summary assertions |
+| Goal Workshop | `QC/tests/workflows/goal-workshop.test.js` | Workflow `Goal Workshop` scenarios selected from `qc-input-data.json` via mapping | `UC-S4`, `UC-E4`, `UC-S9` — Simple and Advanced mode assertions |
 
 3.3.1 Selection Rule
 
@@ -67,8 +66,7 @@ Use scripts in project configuration (`package.json`) for workflow suite executi
 - `qc:test:general` -> runs `QC/tests/workflows/general.test.js`
 - `qc:test:funds` -> runs `QC/tests/workflows/funds.test.js`
 - `qc:test:debt` -> runs `QC/tests/workflows/debt-repayment.test.js`
-- `qc:test:goal-based` -> runs `QC/tests/workflows/goal-based.test.js`
-- `qc:test:advanced-goal-solver` -> runs `QC/tests/workflows/advanced-goal-solver.test.js`
+- `qc:test:goal-workshop` -> runs `QC/tests/workflows/goal-workshop.test.js`
 - `qc:test:all-scenario-types` -> runs all workflow suite scripts
 
 ### 3.6 Use Case Mapping File
@@ -129,7 +127,7 @@ This section is the single structured mapping for all QC use cases in `QC/qc-inp
 | `UC-E1` | Scenario Type | Budget | `QC/tests/scenario-types/budget.test.js` | E | Budget scenario configuration | Budget-type extraction and comparison flow |
 | `UC-E2` | Scenario Type | General | `QC/tests/scenario-types/general.test.js` | E | General scenario configuration | General-type extraction and comparison flow |
 | `UC-E3` | Scenario Type | Funds | `QC/tests/scenario-types/funds.test.js` | E | Funds scenario configuration | Funds-type extraction and comparison flow |
-| `UC-E4` | Scenario Type | Advanced Goal Solver | `QC/tests/scenario-types/advanced-goal-solver.test.js` | E | Advanced Goal Solver configuration | Solver-type extraction and comparison flow |
+| `UC-E4` | Scenario Type | Goal Workshop | `QC/tests/workflows/goal-workshop.test.js` | E | Goal Workshop Advanced mode configuration | Solver-type extraction and comparison flow |
 | `UC-E5` | Scenario Type | General | `QC/tests/scenario-types/general.test.js` | E | Short, medium, long horizon variants | Horizon sensitivity and period-span handling |
 | `UC-F1` | Date Boundary | General | `QC/tests/scenario-types/general.test.js` | F | Month-end recurrence case | Month-end rollover correctness |
 | `UC-F2` | Date Boundary | General | `QC/tests/scenario-types/general.test.js` | F | Leap-year date recurrence case | Leap-year recurrence correctness |

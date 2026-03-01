@@ -147,14 +147,16 @@ Goal tooling uses explicit planning windows that can differ from the projection 
 2.5.1 Rules
 
 - Planning windows default to the projection window (`scenario.projection.config.startDate/endDate`) when missing.
-- Goal-based workflow uses `scenario.planning.generatePlan` as the planning horizon.
-- Advanced Goal Solver uses `scenario.planning.advancedGoalSolver` as the solver horizon.
+- Goal Workshop Simple mode uses `scenario.planning.generatePlan` as the planning horizon.
+- Goal Workshop Advanced mode uses `scenario.planning.advancedGoalSolver` as the solver horizon.
+- `scenario.planning.goalWorkshopMode` stores the active mode (`'simple'` or `'advanced'`); defaults to auto-detect if absent.
 - Projections always use `scenario.projection.config` (planning windows do not change engine behavior).
 
 ```typescript
 type ScenarioPlanning = {
   generatePlan: PlanningWindow,
-  advancedGoalSolver: PlanningWindow
+  advancedGoalSolver: PlanningWindow,
+  goalWorkshopMode?: 'simple' | 'advanced'
 }
 
 type PlanningWindow = {

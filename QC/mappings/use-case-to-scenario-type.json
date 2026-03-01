@@ -68,17 +68,11 @@
         "UC-S7"
       ]
     },
-    "Goal-Based": {
-      "testFile": "QC/tests/workflows/goal-based.test.js",
-      "scenarioIds": [106],
+    "Goal Workshop": {
+      "testFile": "QC/tests/workflows/goal-workshop.test.js",
+      "scenarioIds": [106, 107],
       "useCases": [
-        "UC-S4"
-      ]
-    },
-    "Advanced Goal Solver": {
-      "testFile": "QC/tests/workflows/advanced-goal-solver.test.js",
-      "scenarioIds": [107],
-      "useCases": [
+        "UC-S4",
         "UC-E4",
         "UC-S9"
       ]
@@ -241,7 +235,7 @@
     },
     "UC-E4": {
       "scenarioType": [
-        "Advanced Goal Solver"
+        "Goal Workshop"
       ],
       "inputGroup": "E",
       "category": "Scenario Type"
@@ -310,7 +304,7 @@
         "Budget",
         "General",
         "Debt Repayment",
-        "Goal-Based"
+        "Goal Workshop"
       ],
       "inputGroup": "A,C,D",
       "category": "Summary"
@@ -346,7 +340,7 @@
     },
     "UC-S9": {
       "scenarioType": [
-        "Advanced Goal Solver"
+        "Goal Workshop"
       ],
       "inputGroup": "E",
       "category": "Summary"
