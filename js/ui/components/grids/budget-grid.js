@@ -453,6 +453,39 @@ function applyMasterBudgetTableFilters({ tables, state, callbacks }) {
   callbacks?.updateBudgetTotals?.();
 }
 
+function applyBudgetDetailFilters({ state, periods, callbacks }) {
+  if (!lastBudgetDetailTable) return;
+
+  const accountId = state?.getTransactionFilterAccountId?.();
+  const periodId  = state?.getBudgetPeriod?.();
+  const selectedPeriod = periodId ? periods.find((p) => String(p.id) === String(periodId)) : null;
+
+  let periodStart = null;
+  let periodEnd = null;
+  if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
+    periodStart = new Date(selectedPeriod.startDate);
+    periodStart.setHours(0, 0, 0, 0);
+    periodEnd = new Date(selectedPeriod.endDate);
+    periodEnd.setHours(23, 59, 59, 999);
+  }
+
+  lastBudgetDetailTable.setFilter((data) => {
+    if (!data) return false;
+    if (accountId) {
+      if (Number(data.primaryAccountId)   !== Number(accountId) &&
+          Number(data.secondaryAccountId) !== Number(accountId)) return false;
+    }
+    if (periodStart && periodEnd) {
+      const occ = data.occurrenceDate ? new Date(data.occurrenceDate) : null;
+      if (!occ || Number.isNaN(occ.getTime())) return false;
+      if (occ < periodStart || occ > periodEnd) return false;
+    }
+    return true;
+  });
+
+  callbacks?.updateBudgetTotals?.();
+}
+
 export async function loadBudgetGrid({
   container,
   scenarioState,
@@ -607,7 +640,6 @@ export async function loadBudgetGrid({
         [
           { value: '', label: 'None' },
           { value: 'transactionTypeName', label: 'Type' },
-          { value: 'primaryAccountName', label: 'Primary Account' },
           { value: 'secondaryAccountName', label: 'Secondary Account' },
           { value: 'statusName', label: 'Status' }
         ].forEach(({ value, label }) => {
@@ -669,7 +701,7 @@ export async function loadBudgetGrid({
 
         periodSelect.addEventListener('change', () => {
           state?.setBudgetPeriod?.(periodSelect.value || null);
-          reload();
+          applyBudgetDetailFilters({ state, periods, callbacks });
         });
 
         const periodIds = [null, ...periods.map((p) => p.id || null)];
@@ -681,14 +713,14 @@ export async function loadBudgetGrid({
           const nextId = periodIds[nextIndex] ?? null;
           periodSelect.value = nextId ? String(nextId) : '';
           state?.setBudgetPeriod?.(nextId);
-          reload();
+          applyBudgetDetailFilters({ state, periods, callbacks });
         };
         prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
         nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
 
         accountSelect.addEventListener('change', () => {
           state?.setTransactionFilterAccountId?.(accountSelect.value ? Number(accountSelect.value) : null);
-          reload();
+          applyBudgetDetailFilters({ state, periods, callbacks });
         });
 
         groupBySelect.addEventListener('change', () => {
@@ -705,29 +737,6 @@ export async function loadBudgetGrid({
     totalsBar.id = 'budgetContent';
     container.insertBefore(totalsBar, gridContainer);
 
-    // --- Apply period and account filters to display rows ---
-    let filteredRows = [...displayRows];
-    const activePeriodId = state?.getBudgetPeriod?.();
-    if (activePeriodId) {
-      const selectedPeriod = periods.find((p) => String(p.id) === String(activePeriodId));
-      if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
-        const start = new Date(selectedPeriod.startDate);
-        const end = new Date(selectedPeriod.endDate);
-        filteredRows = filteredRows.filter((r) => {
-          const occ = r.occurrenceDate ? new Date(r.occurrenceDate) : null;
-          if (!occ || Number.isNaN(occ.getTime())) return false;
-          return occ >= start && occ <= end;
-        });
-      }
-    }
-    const activeAccountId = state?.getTransactionFilterAccountId?.();
-    if (activeAccountId) {
-      filteredRows = filteredRows.filter((r) =>
-        Number(r.primaryAccountId) === Number(activeAccountId) ||
-        Number(r.secondaryAccountId) === Number(activeAccountId)
-      );
-    }
-
     // --- Columns ---
     const columns = [
       createDeleteColumn(
@@ -742,7 +751,6 @@ export async function loadBudgetGrid({
         },
         { confirmMessage: (rowData) => `Delete budget entry: ${rowData.description || 'Untitled'}?` }
       ),
-      createTextColumn('Primary', 'primaryAccountName', { widthGrow: 1 }),
       createTextColumn('Secondary', 'secondaryAccountName', { widthGrow: 1 }),
       {
         title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1,
@@ -758,7 +766,49 @@ export async function loadBudgetGrid({
       createTextColumn('Recurrence', 'recurrenceDescription', { widthGrow: 1 }),
       createTextColumn('Description', 'description', { widthGrow: 2, editor: 'input', editable: true }),
       createMoneyColumn('Actual', 'actualAmount', { widthGrow: 1 }),
-      createDateColumn('Actual Date', 'actualDate', {})
+      createDateColumn('Actual Date', 'actualDate', {}),
+      {
+        title: '',
+        field: 'statusName',
+        width: 72,
+        minWidth: 72,
+        hozAlign: 'center',
+        headerSort: false,
+        headerTooltip: 'Actual (checked) / Planned (unchecked)',
+        responsive: 0,
+        topCalc: false,
+        formatter: (cell) => {
+          const isActual = cell.getRow().getData().statusName === 'actual';
+          return `<input type="checkbox" ${isActual ? 'checked' : ''} style="pointer-events:none;cursor:default;">`;
+        },
+        cellClick: async (e, cell) => {
+          const row = cell.getRow().getData();
+          const scenarioId = row._scenarioId;
+          if (!scenarioId) return;
+          const allBudgetsForToggle = await getBudget(scenarioId);
+          const idx = allBudgetsForToggle.findIndex((b) => Number(b.id) === Number(row.id));
+          if (idx === -1) return;
+          const prevStatus = allBudgetsForToggle[idx].status;
+          const prevStatusName = typeof prevStatus === 'object' ? prevStatus?.name : (prevStatus || 'planned');
+          const newStatusName = prevStatusName === 'actual' ? 'planned' : 'actual';
+          // When marking as actual, default actual values to planned if not already set
+          const prevActualAmount = typeof prevStatus === 'object' ? prevStatus?.actualAmount : null;
+          const prevActualDate   = typeof prevStatus === 'object' ? prevStatus?.actualDate   : null;
+          const resolvedActualAmount = newStatusName === 'actual'
+            ? (prevActualAmount ?? row.plannedAmount ?? null)
+            : null;
+          const resolvedActualDate = newStatusName === 'actual'
+            ? (prevActualDate ?? row.occurrenceDate ?? null)
+            : null;
+          const updatedStatus = typeof prevStatus === 'object'
+            ? { ...prevStatus, name: newStatusName, actualAmount: resolvedActualAmount, actualDate: resolvedActualDate }
+            : { name: newStatusName, actualAmount: resolvedActualAmount, actualDate: resolvedActualDate };
+          allBudgetsForToggle[idx] = { ...allBudgetsForToggle[idx], status: updatedStatus };
+          await BudgetManager.saveAll(scenarioId, allBudgetsForToggle);
+          cell.getRow().update({ statusName: newStatusName, actualAmount: resolvedActualAmount, actualDate: resolvedActualDate });
+          callbacks?.updateBudgetTotals?.();
+        }
+      }
     ];
 
     // --- Reuse or create Tabulator instance ---
@@ -770,7 +820,7 @@ export async function loadBudgetGrid({
       lastBudgetDetailTableReady = false;
 
       budgetTable = await createGrid(gridContainer, {
-        data: filteredRows,
+        data: displayRows,
         columns,
         cellEdited: async (cell) => {
           try {
@@ -805,14 +855,14 @@ export async function loadBudgetGrid({
           budgetGridState.restore(budgetTable, { restoreGroupBy: true });
           budgetGridState.restoreDropdowns({ groupBy: '#budget-grouping-select' });
         } catch (_) { /* ignore */ }
-        callbacks?.updateBudgetTotals?.();
+        applyBudgetDetailFilters({ state, periods, callbacks });
       });
 
       lastBudgetDetailTable = budgetTable;
     } else {
       if (lastBudgetDetailTableReady) {
-        await refreshGridData(budgetTable, filteredRows);
-        callbacks?.updateBudgetTotals?.();
+        await refreshGridData(budgetTable, displayRows);
+        applyBudgetDetailFilters({ state, periods, callbacks });
       }
     }
 
