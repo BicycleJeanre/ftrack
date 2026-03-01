@@ -86,7 +86,6 @@ function normalizeScenarioForComparison(actualScenario) {
   return {
     scenarioId: actualScenario.scenarioId,
     scenarioName: actualScenario.scenarioName,
-    scenarioType: actualScenario.scenarioType,
     timeline: actualScenario.timeline,
     expectedTotals: {
       accountCount: actualScenario.totals?.accountCount,

@@ -1,24 +1,24 @@
-# Goal Planning
+# Goal Workshop — Simple Mode
 
 ## 1.0 Purpose
 
-1.1 Explain how to set account goals and use Generate Plan to create planned contribution transactions.
+1.1 Explain how to set account goals and use Generate Plan in Simple mode to create planned contribution transactions.
 
-## 2.0 Goal Planning Options
+## 2.0 Goal Workshop Modes
 
-2.1 Goal-Based.
+2.1 Simple.
 
 2.1.1 Uses account fields Goal Amount and Goal Date.
 
 2.1.2 Generates a single recurring planned transaction per goal account.
 
-2.2 Advanced Goal Solver.
+2.2 Advanced.
 
 2.2.1 Uses scenario settings to define multiple goals and constraints.
 
 2.2.2 Can generate and apply a set of planned transactions across accounts.
 
-2.3 If you are paying off a debt by a date, use Advanced Goal Solver with Pay down to target.
+2.3 If you are paying off a debt by a date, use Goal Workshop in Advanced mode with Pay down to target.
 
 ## 3.0 Set A Goal On An Account
 
@@ -30,11 +30,15 @@
 
 3.2.2 Goal Date to the target date.
 
-3.3 Ensure the goal date is within the scenario window.
+3.3 Ensure the goal date is within the Generate Plan planning window.
 
-## 4.0 Use Generate Plan In Goal-Based Mode
+3.3.1 If you want projections to validate the goal date, also extend the scenario projection End date to cover the goal date.
+
+## 4.0 Use Generate Plan In Simple Mode
 
 4.1 Open the Generate Plan section.
+
+4.1.1 If needed, set the Planning Window (Start/End) at the top of the card.
 
 4.2 Select.
 
@@ -58,7 +62,7 @@
 
 4.5.1 FTrack creates or replaces a recurring planned transaction tagged as goal-generated for that goal account.
 
-4.5.2 The transaction runs from today through the goal date.
+4.5.2 The transaction runs from the planning window start through the goal date.
 
 ## 5.0 How Interest Is Used In Calculations
 
@@ -66,7 +70,7 @@
 
 5.2 The simple planner does not use a periodic change schedule.
 
-5.3 If you need variable rates and constraints, use Advanced Goal Solver.
+5.3 If you need variable rates and constraints, use Goal Workshop Advanced mode.
 
 ## 6.0 Verify The Plan
 

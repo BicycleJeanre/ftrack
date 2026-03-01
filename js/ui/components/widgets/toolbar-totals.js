@@ -1,52 +1,60 @@
 // toolbar-totals.js
 // Render Money In / Money Out / Net totals into a toolbar container
 
+import { numValueClass, formatCurrency } from '../../../shared/format-utils.js';
+
 export function renderMoneyTotals(targetEl, totals, currency = 'ZAR') {
   if (!targetEl || !totals) return;
 
-  const formatter = new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  const moneyIn = formatCurrency(totals.moneyIn || 0, currency);
+  const moneyOut = formatCurrency(totals.moneyOut || 0, currency);
+  const net = formatCurrency(totals.net || 0, currency);
 
-  const moneyIn = formatter.format(totals.moneyIn || 0);
-  const moneyOut = formatter.format(totals.moneyOut || 0);
-  const net = formatter.format(totals.net || 0);
+  const items = [
+    { label: 'Money In', value: moneyIn, cls: 'positive' },
+    { label: 'Money Out', value: moneyOut, cls: 'negative' },
+    { label: 'Net', value: net, cls: numValueClass(totals.net) }
+  ];
 
-  targetEl.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${moneyIn}</span></span>
-      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${moneyOut}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${totals.net >= 0 ? 'positive' : 'negative'}">${net}</span></span>
-    `;
+  const rows = items.map(({ label, value, cls }) =>
+    `<div class="summary-card-row"><span class="label">${label}</span><span class="value ${cls}">${value}</span></div>`
+  ).join('');
+
+  targetEl.innerHTML =
+    `<div class="summary-card overall-total">
+      <div class="summary-card-title">TRANSACTION TOTALS</div>
+      <div class="budget-totals-rows">${rows}</div>
+    </div>`;
 }
 
 export function renderBudgetTotals(targetEl, totals, currency = 'ZAR') {
   if (!targetEl || !totals) return;
 
-  const formatter = new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  const moneyIn = formatCurrency(totals.moneyIn || 0, currency);
+  const moneyOut = formatCurrency(totals.moneyOut || 0, currency);
+  const net = formatCurrency(totals.net || 0, currency);
+  const actualNet = formatCurrency(totals.actualNet || 0, currency);
+  const plannedOutstanding = formatCurrency(totals.plannedOutstanding || 0, currency);
+  const plannedNetBalance = formatCurrency(totals.plannedNetBalance || 0, currency);
+  const unplanned = formatCurrency(totals.unplanned || 0, currency);
 
-  const moneyIn = formatter.format(totals.moneyIn || 0);
-  const moneyOut = formatter.format(totals.moneyOut || 0);
-  const net = formatter.format(totals.net || 0);
-  const actualNet = formatter.format(totals.actualNet || 0);
-  const plannedOutstanding = formatter.format(totals.plannedOutstanding || 0);
-  const plannedNetBalance = formatter.format(totals.plannedNetBalance || 0);
-  const unplanned = formatter.format(totals.unplanned || 0);
+  const items = [
+    { label: 'Realized Net', value: actualNet, cls: numValueClass(totals.actualNet) },
+    { label: 'Planned Income', value: moneyIn, cls: 'positive' },
+    { label: 'Planned Expenses', value: moneyOut, cls: 'negative' },
+    { label: 'Planned Net Income', value: net, cls: numValueClass(totals.net) },
+    { label: 'Open Commitments', value: plannedOutstanding, cls: 'negative' },
+    { label: 'Forecast Position', value: plannedNetBalance, cls: numValueClass(totals.plannedNetBalance) },
+    { label: 'Unbudgeted Actuals', value: unplanned, cls: 'negative' }
+  ];
 
-  targetEl.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Realized Net</span><span class="sublabel">Recorded actuals — income minus expenses</span><span class="value ${totals.actualNet >= 0 ? 'positive' : 'negative'}">${actualNet}</span></span>
-      <span class="toolbar-total-item"><span class="label">Planned Income</span><span class="sublabel">Total budgeted inflows</span><span class="value positive">${moneyIn}</span></span>
-      <span class="toolbar-total-item"><span class="label">Planned Expenses</span><span class="sublabel">Total budgeted outflows</span><span class="value negative">${moneyOut}</span></span>
-      <span class="toolbar-total-item"><span class="label">Planned Net Income</span><span class="sublabel">Budgeted income minus budgeted expenses</span><span class="value ${totals.net >= 0 ? 'positive' : 'negative'}">${net}</span></span>
-      <span class="toolbar-total-item"><span class="label">Open Commitments</span><span class="sublabel">Planned entries not yet recorded as actuals</span><span class="value negative">${plannedOutstanding}</span></span>
-      <span class="toolbar-total-item"><span class="label">Forecast Position</span><span class="sublabel">Realized net minus open commitments</span><span class="value ${totals.plannedNetBalance >= 0 ? 'positive' : 'negative'}">${plannedNetBalance}</span></span>
-      <span class="toolbar-total-item"><span class="label">Unbudgeted Actuals</span><span class="sublabel">Actuals recorded with no corresponding budget entry</span><span class="value negative">${unplanned}</span></span>
-    `;
+  const rows = items.map(({ label, value, cls }) =>
+    `<div class="summary-card-row"><span class="label">${label}</span><span class="value ${cls}">${value}</span></div>`
+  ).join('');
+
+  targetEl.innerHTML =
+    `<div class="summary-card overall-total">
+      <div class="summary-card-title">BUDGET TOTALS</div>
+      <div class="budget-totals-rows">${rows}</div>
+    </div>`;
 }

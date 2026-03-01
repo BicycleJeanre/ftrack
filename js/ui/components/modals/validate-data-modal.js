@@ -20,7 +20,7 @@ export async function openValidateDataModal() {
     modal.innerHTML = `
         <div class="modal-header">
             <h2>Validate Data</h2>
-            <button class="modal-close-btn" title="Close">✕</button>
+            <button class="icon-btn modal-close-btn" title="Close">✕</button>
         </div>
         <div class="modal-body">
             <p class="vd-loading">Running validation…</p>
@@ -79,13 +79,13 @@ function renderResult(modal, result, close) {
     modal.innerHTML = `
         <div class="modal-header">
             <h2>Validate Data</h2>
-            <button class="modal-close-btn" title="Close">✕</button>
+            <button class="icon-btn modal-close-btn" title="Close">✕</button>
         </div>
         <div class="modal-body vd-body">
             ${bodyHtml}
         </div>
         <div class="modal-footer">
-            <button class="btn btn-primary vd-close-footer">Close</button>
+            <button class="icon-btn vd-close-footer" title="Close">✕</button>
         </div>
     `;
 
@@ -97,7 +97,7 @@ function renderError(modal, err, close) {
     modal.innerHTML = `
         <div class="modal-header">
             <h2>Validate Data</h2>
-            <button class="modal-close-btn" title="Close">✕</button>
+            <button class="icon-btn modal-close-btn" title="Close">✕</button>
         </div>
         <div class="modal-body vd-body">
             <div class="vd-summary vd-summary--error">
@@ -106,7 +106,7 @@ function renderError(modal, err, close) {
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-primary vd-close-footer">Close</button>
+            <button class="icon-btn vd-close-footer" title="Close">✕</button>
         </div>
     `;
     modal.querySelector('.modal-close-btn').addEventListener('click', close);

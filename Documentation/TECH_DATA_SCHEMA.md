@@ -4,27 +4,63 @@
 
 This document formally defines the data structures used in FTrack. All application code, QC tests, and user data must conform to these structures. This is the **authoritative reference** for field names, types, and relationships.
 
+## 1.1 Root Data Object
+
+FTrack persists a single root object. Export and import operations read and write this object as-is.
+
+### 1.1.1 Structure
+
+```typescript
+type AppData = {
+  schemaVersion: number,
+  scenarios: Scenario[],
+  uiState: UiState
+}
+
+type UiState = {
+  lastWorkflowId: string,                 // Persist last selected workflow across reload/import (defaults to "general")
+  lastScenarioId: number | null,           // Persist last selected scenario across reload/import
+  lastScenarioVersion: number | null,      // Redundant safety for versioned scenarios
+  viewPeriodTypeIds: {                     // Period views are per-card, not derived from projections
+    transactions: number,                  // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
+    budgets: number,                       // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
+    projections: number                    // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
+  }
+}
+```
+
+1.1.2 Schema Versioning
+
+- `schemaVersion` is incremented for breaking storage changes.
+- This workflow-based refactor targets `schemaVersion = 43`.
+
+1.1.3 Period Views Are Not Projections
+
+- UI period grouping for transactions and budgets is a view concern.
+- Projections period type is an engine concern.
+- These must be stored independently (see `UiState.viewPeriodTypeIds`).
+
 ---
 
 ## 2.0 Scenario
 
-A scenario is a complete financial plan containing accounts, transactions, and projections.
+A scenario is a named version of user content (accounts, transactions, and optional budgets). UI workflows are NOT stored on scenarios.
 
 ### 2.1 Structure
 
 ```typescript
 {
   id: number,
+  version: number,                          // Starts at 1; increments on duplication
   name: string,
-  type: number,                             // Scenario Type ID (1=Budget|2=General|3=Funds|4=Debt|5=Goal|6=Advanced)
   description: string | null,
-  startDate: string,
-  endDate: string,
-  projectionPeriod: number,                 // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
+  lineage?: ScenarioLineage | null,
   accounts: Account[],
   transactions?: Transaction[],
-  budgets?: Budget[],                       // Optional, scenario-type dependent
-  projections?: Projection[]                // Calculated output, not user-defined
+  budgets?: BudgetOccurrence[],
+  budgetWindow?: BudgetBundle | null,        // Budget config (independent of projection)
+  projection?: ProjectionBundle | null,      // Projection config + last generated output
+  planning?: ScenarioPlanning | null         // Planning windows for goal tooling (Generate Plan / Solver)
 }
 ```
 
@@ -33,16 +69,101 @@ A scenario is a complete financial plan containing accounts, transactions, and p
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `id` | number | Yes | Unique within profile |
+| `version` | number | Yes | Starts at 1; increments on duplication |
 | `name` | string | Yes | Display name |
-| `type` | number | Yes | Scenario type ID (1–6) |
 | `description` | string \| null | No | Free-form user notes |
-| `startDate` | string | Yes | Projection window start |
-| `endDate` | string | Yes | Projection window end |
-| `projectionPeriod` | number | Yes | Period ID (1–5): 1=Day, 2=Week, 3=Month, 4=Quarter, 5=Year |
+| `lineage` | ScenarioLineage \| null | No | Tracks duplication source and ancestor IDs |
 | `accounts` | Account[] | Yes | Must have at least 1 account |
 | `transactions` | Transaction[] | No | Can be empty |
-| `budgets` | Budget[] | No | Only for Budget scenario types |
-| `projections` | Projection[] | No | System-generated, not user-provided |
+| `budgets` | BudgetOccurrence[] | No | Optional; workflow-driven UI may show/hide budget tooling |
+| `budgetWindow` | BudgetBundle | Yes (if using budgets) | Independent budget configuration; required if budgets workflow is active |
+| `projection` | ProjectionBundle \| null | No | Stored projection config and last generated results |
+| `planning` | ScenarioPlanning \| null | No | Planning windows used by goal tooling; independent of projection config |
+
+### 2.3 ScenarioLineage
+
+Scenario lineage is a lightweight history for duplication only. No merge semantics are defined.
+
+```typescript
+type ScenarioLineage = {
+  duplicatedFromScenarioId: number | null,
+  ancestorScenarioIds: number[]             // Ordered oldest → newest
+}
+```
+
+### 2.4 ProjectionBundle
+
+Projection settings are stored under `scenario.projection.config` (not on the scenario root).
+
+```typescript
+type ProjectionBundle = {
+  config: ProjectionConfig,
+  rows?: ProjectionPoint[],
+  generatedAt?: string | null               // ISO datetime string
+}
+
+type ProjectionConfig = {
+  startDate: string,
+  endDate: string,
+  periodTypeId: number,                    // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
+  source?: "transactions" | "budget"       // Optional; defaults to "transactions"
+}
+```
+
+2.4.1 Projection Source Semantics
+
+- `source = "transactions"` uses planned transactions as the forward-looking input.
+- `source = "budget"` is new functionality: uses budget occurrences as the forward-looking input and treats budget occurrences marked `status.name = "actual"` as locked.
+- Locked means: once a budget occurrence is marked complete via `status.name = "actual"`, it remains in the data and projections must include it from its actual date (`status.actualDate` if present, otherwise `occurrenceDate`) onward.
+
+---
+
+## 2.4.2 BudgetBundle
+
+Budget window is independent from projection config and is stored under `scenario.budgetWindow.config`.
+
+```typescript
+type BudgetBundle = {
+  config: BudgetWindowConfig
+}
+
+type BudgetWindowConfig = {
+  startDate: string,                       // Start of budget regeneration window (YYYY-MM-DD)
+  endDate: string                          // End of budget regeneration window (YYYY-MM-DD)
+}
+```
+
+2.4.2.1 Budget Window Semantics
+
+- Budget window is the date range for "Regenerate from Planned Transactions" action.
+- It is **required** and independent from projection config; budgets and projections have completely separate scopes.
+- Budget regeneration expands **planned transactions WITH recurrence** (including one-time recurrence) within this window.
+- No default; must be explicitly configured by user.
+
+## 2.5 ScenarioPlanning
+
+Goal tooling uses explicit planning windows that can differ from the projection window.
+
+2.5.1 Rules
+
+- Planning windows default to the projection window (`scenario.projection.config.startDate/endDate`) when missing.
+- Goal Workshop Simple mode uses `scenario.planning.generatePlan` as the planning horizon.
+- Goal Workshop Advanced mode uses `scenario.planning.advancedGoalSolver` as the solver horizon.
+- `scenario.planning.goalWorkshopMode` stores the active mode (`'simple'` or `'advanced'`); defaults to auto-detect if absent.
+- Projections always use `scenario.projection.config` (planning windows do not change engine behavior).
+
+```typescript
+type ScenarioPlanning = {
+  generatePlan: PlanningWindow,
+  advancedGoalSolver: PlanningWindow,
+  goalWorkshopMode?: 'simple' | 'advanced'
+}
+
+type PlanningWindow = {
+  startDate: string,
+  endDate: string
+}
+```
 
 ---
 
@@ -63,7 +184,8 @@ An account represents a place where money lives or is owed.
   periodicChange?: PeriodicChange | null,
   periodicChangeSchedule?: PeriodicChangeScheduleEntry[] | null,
   goalAmount?: number | null,
-  goalDate?: string | null
+  goalDate?: string | null,
+  tags?: string[]                            // User-defined tags for categorization
 }
 ```
 
@@ -81,6 +203,7 @@ An account represents a place where money lives or is owed.
 | `periodicChangeSchedule` | PeriodicChangeScheduleEntry[] \| null | No | Optional date-bounded overrides for `periodicChange` (variable rates) |
 | `goalAmount` | number \| null | No | Target balance (for goal-based scenarios) |
 | `goalDate` | string \| null | No | Date when goal should be reached |
+| `tags` | string[] | No | User-defined tags for categorization and filtering |
 
 ### 3.3 Periodic Change Schedule
 
@@ -143,11 +266,6 @@ A transaction represents movement of money between accounts.
   description: string,
   recurrence: Recurrence,
   periodicChange: PeriodicChange | null,
-  status: {
-    name: "planned" | "actual",
-    actualAmount: number | null,
-    actualDate: string | null
-  },
   tags: string[]
 }
 ```
@@ -164,8 +282,12 @@ A transaction represents movement of money between accounts.
 | `description` | string | Yes | Display name (e.g., "Monthly Rent", "Paycheck") |
 | `recurrence` | Recurrence | Yes | When/how often transaction occurs (see section 5.0) |
 | `periodicChange` | PeriodicChange \| null | No | Growth adjustment to transaction amount over time |
-| `status` | Status object | Yes | Planned vs Actual tracking |
 | `tags` | string[] | No | User-defined categories |
+
+4.2.1 Note: Transaction Actuals Are Not Stored
+
+- Transactions do not store actuals or completion status.
+- Locking and actual capture are modeled on budget occurrences (see 4.5).
 
 ### 4.3 Transaction Types
 
@@ -179,6 +301,57 @@ A transaction represents movement of money between accounts.
 ### 4.4 Variable Interest Rates
 
 FTrack supports variable interest rates on accounts by using `Account.periodicChangeSchedule` (see 3.3). Transactions remain the correct model for payments, fees, and other cashflow events.
+
+
+## 4.5 BudgetOccurrence
+
+A budget occurrence is a dated, editable instance of a planned transaction. Budget occurrences are also the only persisted location for completion status and locking semantics.
+
+### 4.5.1 Structure
+
+```typescript
+type BudgetOccurrence = {
+  id: number,
+  sourceTransactionId: number | null,      // Reference to planned transaction (ID only)
+  primaryAccountId: number | null,
+  secondaryAccountId: number | null,
+  transactionTypeId: number | null,
+  amount: number,
+  description: string,
+  recurrenceDescription: string,
+  occurrenceDate: string,                 // YYYY-MM-DD
+  periodicChange: PeriodicChange | null,
+  status: {
+    name: "planned" | "actual",
+    actualAmount: number | null,
+    actualDate: string | null
+  },
+  tags: string[]
+}
+```
+
+### 4.5.2 Fields
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `id` | number | Yes | Unique within scenario budgets array |
+| `sourceTransactionId` | number \| null | No | If derived from a transaction, stores the source transaction ID |
+| `primaryAccountId` | number \| null | No | Account ID (nullable for partially-specified entries) |
+| `secondaryAccountId` | number \| null | No | Counterparty account ID (nullable for partially-specified entries) |
+| `transactionTypeId` | number \| null | No | Type classification (1=Income, 2=Expense) |
+| `amount` | number | Yes | Planned amount (unsigned) |
+| `description` | string | Yes | Display name |
+| `recurrenceDescription` | string | Yes | Human-readable recurrence pattern (UI convenience) |
+| `occurrenceDate` | string | Yes | Budget occurrence date (YYYY-MM-DD) |
+| `periodicChange` | PeriodicChange \| null | No | Optional escalation data carried from source transaction |
+| `status` | Status object | Yes | See 4.5.3 |
+| `tags` | string[] | No | User-defined categories |
+
+### 4.5.3 Status And Locking
+
+- `status.name = "actual"` indicates the occurrence is complete and locked.
+- `status.actualAmount` stores the completed amount (nullable when planned).
+- `status.actualDate` stores the completed date; if null, `occurrenceDate` is the effective date for locked actuals.
 
 
 ---
@@ -383,17 +556,14 @@ System-generated forecast of account balances. NOT user-provided.
 ### 8.1 Structure
 
 ```typescript
-{
-  id: number,
-  scenarioId: number,
+type ProjectionPoint = {
   accountId: number,
-  account: string,                          // Account name
   date: string,
   balance: number,
   income: number,
   expenses: number,
   netChange: number,
-  period: number                            // Period count
+  periodIndex: number                       // 0-based index within generated periods
 }
 ```
 
@@ -409,9 +579,10 @@ System-generated forecast of account balances. NOT user-provided.
 
 ### 9.2 Date Ranges
 
-- `startDate` must be ≤ `endDate` in scenarios
-- Transaction `startDate` must be within scenario date range
-- `endDate` (if present) must be ≥ `startDate`
+- `scenario.projection.config.startDate` must be ≤ `scenario.projection.config.endDate`
+- If `recurrence.startDate` is before the projection window, the engine uses the projection window start as the effective start (no occurrences before the projection start are generated).
+- If `recurrence.startDate` is after the projection window end, the transaction generates no occurrences for that projection run.
+- `recurrence.endDate` (if present) must be ≥ `recurrence.startDate`
 
 ### 9.3 Numeric Constraints
 
@@ -421,7 +592,6 @@ System-generated forecast of account balances. NOT user-provided.
 
 ### 9.4 Enum Validation
 
-- `type` in scenarios must match a valid scenarioTypes entry
 - `type` in accounts must match a valid accountTypes entry
 - `changeMode` must be 1 or 2
 - `changeType` must be 1–7
@@ -438,7 +608,7 @@ System-generated forecast of account balances. NOT user-provided.
 | Scenario | transactions | ✓ | ✗ | ✓ |
 | Account | periodicChange | ✗ | ✓ | ✗ |
 | Transaction | periodicChange | ✗ | ✓ | ✗ |
-| Transaction | status.actualAmount | ✗ | ✓ | ✗ |
+| BudgetOccurrence | status.actualAmount | ✗ | ✓ | ✗ |
 | Recurrence | endDate | ✗ | ✓ | ✗ |
 | PeriodicChange | customCompounding | ✗ | ✓ | ✗ |
 
@@ -448,5 +618,6 @@ System-generated forecast of account balances. NOT user-provided.
 
 | Date | Version | Changes |
 |------|---------|----------|
+| 2026-02-22 | 2.0 | Proposed workflow-based schema targeting `schemaVersion = 43`: scenarios simplified; added scenario `version` and `lineage`; projection config moved under `scenario.projection.config`; added `uiState` with workflow + per-card period view settings; added projection source semantics (`transactions` vs `budget`) |
 | 2026-02-12 | 1.1 | All LookupReferences must be numeric IDs only (no objects, no names) |
 | 2026-02-12 | 1.0 | Initial formal schema definition |

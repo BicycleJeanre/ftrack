@@ -4,16 +4,7 @@ const path = require('path');
 const DEFAULT_PATHS = {
   qcInput: path.join('QC', 'qc-input-data.json'),
   qcExpected: path.join('QC', 'qc-expected-outputs.json'),
-  useCaseMapping: path.join('QC', 'mappings', 'use-case-to-scenario-type.json')
-};
-
-const SCENARIO_TYPE_ID_TO_NAME = {
-  1: 'Budget',
-  2: 'General',
-  3: 'Funds',
-  4: 'Debt Repayment',
-  5: 'Goal-Based',
-  6: 'Advanced Goal Solver'
+  useCaseMapping: path.join('QC', 'mappings', 'use-case-to-workflow.json')
 };
 
 function resolveRepoPath(relativePath) {
@@ -24,20 +15,6 @@ function readJsonAt(relativePath) {
   const absolutePath = resolveRepoPath(relativePath);
   const raw = fs.readFileSync(absolutePath, 'utf8');
   return JSON.parse(raw);
-}
-
-function assertScenarioTypeSupported(scenarioTypeName) {
-  const supported = new Set(Object.values(SCENARIO_TYPE_ID_TO_NAME));
-  if (!supported.has(scenarioTypeName)) {
-    throw new Error(
-      `Unsupported scenario type "${scenarioTypeName}". Supported types: ${Array.from(supported).join(', ')}`
-    );
-  }
-}
-
-function getScenarioTypeName(scenario) {
-  if (!scenario || typeof scenario.type !== 'number') return null;
-  return SCENARIO_TYPE_ID_TO_NAME[scenario.type] || null;
 }
 
 function loadQcInputData(customPath = DEFAULT_PATHS.qcInput) {
@@ -58,22 +35,43 @@ function loadQcExpectedOutputs(customPath = DEFAULT_PATHS.qcExpected) {
 
 function loadUseCaseMapping(customPath = DEFAULT_PATHS.useCaseMapping) {
   const data = readJsonAt(customPath);
-  if (!data.scenarioTypeMappings || typeof data.scenarioTypeMappings !== 'object') {
-    throw new Error(`Invalid use-case mapping file at ${customPath}: missing scenarioTypeMappings`);
+  if (!data.workflowMappings || typeof data.workflowMappings !== 'object') {
+    throw new Error(`Invalid use-case mapping file at ${customPath}: missing workflowMappings`);
   }
   return data;
 }
 
-function getScenariosByType(qcInputData, scenarioTypeName) {
-  assertScenarioTypeSupported(scenarioTypeName);
-  return (qcInputData.scenarios || []).filter((scenario) => getScenarioTypeName(scenario) === scenarioTypeName);
+function getScenariosByWorkflow(qcInputData, workflowName, useCaseMapping = null) {
+  const scenarios = qcInputData.scenarios || [];
+
+  // Schema 43 datasets do not store workflow on scenarios.
+  // Use the mapping file's explicit scenarioIds list instead.
+  const mapping = useCaseMapping?.workflowMappings?.[workflowName] || null;
+  const ids = Array.isArray(mapping?.scenarioIds) ? mapping.scenarioIds : [];
+  if (ids.length === 0) {
+    throw new Error(
+      `QC dataset scenarios do not include a mapping for workflow "${workflowName}" in the use-case mapping file. Expected: useCaseMapping.workflowMappings["${workflowName}"].scenarioIds`
+    );
+  }
+
+  const wanted = new Set(ids.map((id) => Number(id)).filter((id) => Number.isFinite(id)));
+  return scenarios.filter((scenario) => wanted.has(Number(scenario?.id)));
 }
 
-function getMappedUseCasesForScenarioType(useCaseMapping, scenarioTypeName) {
-  assertScenarioTypeSupported(scenarioTypeName);
-  const mapping = useCaseMapping.scenarioTypeMappings?.[scenarioTypeName];
+// Deprecated: use getScenariosByWorkflow instead
+function getScenariosByType(qcInputData, scenarioTypeName, useCaseMapping = null) {
+  return getScenariosByWorkflow(qcInputData, scenarioTypeName, useCaseMapping);
+}
+
+function getMappedUseCasesForWorkflow(useCaseMapping, workflowName) {
+  const mapping = useCaseMapping.workflowMappings?.[workflowName];
   if (!mapping) return [];
   return Array.isArray(mapping.useCases) ? mapping.useCases : [];
+}
+
+// Deprecated: use getMappedUseCasesForWorkflow instead
+function getMappedUseCasesForScenarioType(useCaseMapping, scenarioTypeName) {
+  return getMappedUseCasesForWorkflow(useCaseMapping, scenarioTypeName);
 }
 
 function getExpectedScenarioAssertion(qcExpectedData, scenarioId) {
@@ -103,17 +101,16 @@ function loadAllQcData(paths = {}) {
 
 module.exports = {
   DEFAULT_PATHS,
-  SCENARIO_TYPE_ID_TO_NAME,
   getExpectedScenarioAssertion,
   getExpectedUseCaseAssertion,
-  getMappedUseCasesForScenarioType,
-  getScenariosByType,
-  getScenarioTypeName,
+  getMappedUseCasesForWorkflow,
+  getMappedUseCasesForScenarioType, // Deprecated - use getMappedUseCasesForWorkflow
+  getScenariosByWorkflow,
+  getScenariosByType, // Deprecated - use getScenariosByWorkflow
   loadAllQcData,
   loadQcExpectedOutputs,
   loadQcInputData,
   loadUseCaseMapping,
   readJsonAt,
-  resolveRepoPath,
-  assertScenarioTypeSupported
+  resolveRepoPath
 };

@@ -267,5 +267,3 @@ export function calculatePeriodicChange(principal, periodicChange, periods) {
   }
 }
 
-// Backward compatibility alias for legacy code/tests
-export { calculatePeriodicChange as applyPeriodicChange };

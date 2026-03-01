@@ -2,7 +2,8 @@
 // Utility wrapper for creating Tabulator grids with consistent configuration
 
 import { createLogger } from '../../../shared/logger.js';
-import { notifyError } from '../../../shared/notifications.js';
+import { notifyError, confirmDialog } from '../../../shared/notifications.js';
+import { numValueClass } from '../../../shared/format-utils.js';
 
 const logger = createLogger('GridFactory');
 
@@ -21,11 +22,12 @@ const defaultConfig = {
     layout: "fitColumns",
     responsiveLayout: "hide",
     index: "id",
+    // NO height or maxHeight - let Tabulator grow to fit all rows
+    // Container will handle scrolling
     selectable: false, // Disable by default - grids can override if needed
     selectableRangeMode: false, // Disable to allow cell editing
     // Allow grids to decide if a row is selectable. Log calls for debugging.
     selectableCheck: function(row) {
-        // try { logger.debug('selectableCheck: row id', row.getData() && row.getData().id); } catch (e) { /* noop */ }
         return true; // Default to selectable
     },
     editTriggerEvent: "dblclick", // Double-click to edit cells (allows single-click for row selection)
@@ -86,47 +88,25 @@ export async function createGrid(element, options = {}) {
         config.selectablePersistence = false; // Important: Clear selection on reload
     }
     
-    // logger.info(`Creating grid on element ID: ${element.id || 'N/A'}`, { 
-    //     selectable: config.selectable, 
-    //     selector: element.id || element 
-    // });
-    
     const table = new TabulatorLib(element, config);
 
     // Instrument selection events for debugging
     table.on("rowSelected", function(row){
-        // logger.info(`Row Selected in ${element.id||'Grid'}:`, row.getData().id);
         try {
             const el = row.getElement();
             if (el && el.classList) el.classList.add('custom-selected');
-            // logger.debug(`Row element classes: ${el ? el.className : 'no-el'}`);
         } catch (e) { logger.error('rowSelected diagnostics failed', e); }
     });
     
     table.on("rowDeselected", function(row){
-        // logger.debug(`Row Deselected in ${element.id||'Grid'}:`, row.getData().id);
         try {
             const el = row.getElement();
             if (el && el.classList) el.classList.remove('custom-selected');
         } catch (e) { logger.error('rowDeselected diagnostics failed', e); }
     });
-
-    // Additional instrumentation: clicks and table lifecycle
-    table.on("rowClick", function(e, row){
-        // try { logger.info(`Row Click in ${element.id||'Grid'}:`, row.getData().id, 'target=', e.target && e.target.tagName); } catch (err) { logger.info('Row Click in Grid (no id)'); }
-    });
-
-    table.on("cellClick", function(e, cell){
-        // try { logger.debug(`Cell Click in ${element.id||'Grid'}:`, cell.getField(), 'target=', e.target && e.target.tagName); } catch (err) { logger.debug('Cell Click in Grid'); }
-    });
-
-    table.on("tableBuilt", function(){
-        // logger.info(`Table built: ${element.id||'Grid'}`);
-    });
     
     if (cellEdited) {
         table.on("cellEdited", (cell) => {
-            // logger.info(`Cell Edited in ${element.id||'Grid'}:`, cell.getField(), cell.getValue());
             cellEdited(cell);
         });
     }
@@ -202,24 +182,6 @@ export async function refreshGridData(table, nextData = []) {
 }
 
 /**
- * Create column definition for row selection
- * @returns {Object} - Tabulator column config
- */
-export function createSelectorColumn() {
-    return {
-        formatter: "rowSelection",
-        titleFormatter: "rowSelection",
-        headerSort: false,
-        cellClick: function(e, cell) {
-            cell.getRow().toggleSelect();
-        },
-        width: 50,
-        hozAlign: "center",
-        headerHozAlign: "center"
-    };
-}
-
-/**
  * Create column definition with header filter
  * @param {string} title - Column title
  * @param {string} field - Data field name
@@ -233,35 +195,6 @@ export function createTextColumn(title, field, options = {}) {
         editor: "input",
         headerSort: true,
         headerFilter: "input",
-        headerHozAlign: "left",
-        responsive: options.responsive || 1, // Default responsive priority
-        ...options
-    };
-}
-
-/**
- * Create column definition for object fields (type.name, currency.name, etc)
- * @param {string} title - Column title
- * @param {string} field - Data field name
- * @param {string} subField - Nested field (e.g., 'name')
- * @param {Object} options - Additional options
- * @returns {Object} - Tabulator column config
- */
-export function createObjectColumn(title, field, subField = 'name', options = {}) {
-    return {
-        title,
-        field,
-        formatter: function(cell) {
-            const value = cell.getValue();
-            if (value && value[subField]) return value[subField];
-            return value || '';
-        },
-        headerSort: true,
-        headerFilter: "input",
-        headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
-            const displayValue = rowValue?.[subField] || '';
-            return displayValue.toLowerCase().includes(headerValue.toLowerCase());
-        },
         headerHozAlign: "left",
         responsive: options.responsive || 1, // Default responsive priority
         ...options
@@ -315,8 +248,17 @@ export function formatMoneyDisplay(value) {
         maximumFractionDigits: 2
     }).format(numeric);
 
-    const cls = numeric >= 0 ? 'status-netchange positive' : 'status-netchange negative';
+    const cls = `status-netchange ${numValueClass(numeric)}`;
     return `<span class="${cls}">${formatted}</span>`;
+}
+
+/**
+ * Format a numeric value to a fixed number of decimal places for grids
+ * Returns a plain string (no currency) suitable for share counts and percentages
+ */
+export function formatNumberDisplay(value, digits = 4) {
+    const num = Number(value) || 0;
+    return num.toFixed(digits);
 }
 
 export function createMoneyColumn(title, field, options = {}) {
@@ -327,10 +269,10 @@ export function createMoneyColumn(title, field, options = {}) {
         ...(options.formatterParams || {})
     };
 
-    // Allow overriding or disabling bottomCalc via options
-    const bottomCalc = options.hasOwnProperty('bottomCalc') ? options.bottomCalc : 'sum';
-    const bottomCalcFormatter = options.hasOwnProperty('bottomCalcFormatter') ? options.bottomCalcFormatter : ((cell) => formatMoneyDisplay(cell.getValue()));
-    const bottomCalcFormatterParams = options.hasOwnProperty('bottomCalcFormatterParams') ? options.bottomCalcFormatterParams : formatterParams;
+    // Allow overriding or disabling topCalc via options
+    const topCalc = options.hasOwnProperty('topCalc') ? options.topCalc : 'sum';
+    const topCalcFormatter = options.hasOwnProperty('topCalcFormatter') ? options.topCalcFormatter : ((cell) => formatMoneyDisplay(cell.getValue()));
+    const topCalcFormatterParams = options.hasOwnProperty('topCalcFormatterParams') ? options.topCalcFormatterParams : formatterParams;
 
     return {
         title,
@@ -341,9 +283,11 @@ export function createMoneyColumn(title, field, options = {}) {
         formatterParams,
         hozAlign: "right",
         headerHozAlign: "right",
-        bottomCalc,
-        bottomCalcFormatter,
-        bottomCalcFormatterParams,
+        headerSort: true,
+        headerFilter: "input",
+        topCalc,
+        topCalcFormatter,
+        topCalcFormatterParams,
         responsive: options.responsive || 1, // Default responsive priority
         ...options
     };
@@ -362,6 +306,7 @@ export function createDateColumn(title, field, options = {}) {
         field,
         editor: "date",
         headerSort: true,
+        headerFilter: "input",
         headerHozAlign: "left",
         responsive: options.responsive || 1, // Default responsive priority
         ...options
@@ -375,9 +320,9 @@ export function createDateColumn(title, field, options = {}) {
  * @param {Object} options
  */
 export function createNumberColumn(title, field, options = {}) {
-    const bottomCalc = options.hasOwnProperty('bottomCalc') ? options.bottomCalc : 'sum';
-    const bottomCalcFormatter = options.hasOwnProperty('bottomCalcFormatter') ? options.bottomCalcFormatter : (options.formatter === 'money' ? 'money' : 'number');
-    const bottomCalcFormatterParams = options.hasOwnProperty('bottomCalcFormatterParams') ? options.bottomCalcFormatterParams : (options.formatterParams || {});
+    const topCalc = options.hasOwnProperty('topCalc') ? options.topCalc : 'sum';
+    const topCalcFormatter = options.hasOwnProperty('topCalcFormatter') ? options.topCalcFormatter : (options.formatter === 'money' ? 'money' : 'number');
+    const topCalcFormatterParams = options.hasOwnProperty('topCalcFormatterParams') ? options.topCalcFormatterParams : (options.formatterParams || {});
 
     return {
         title,
@@ -386,9 +331,9 @@ export function createNumberColumn(title, field, options = {}) {
         editorParams: options.editorParams || { step: 1 },
         hozAlign: options.hozAlign || 'right',
         headerHozAlign: options.headerHozAlign || 'right',
-        bottomCalc,
-        bottomCalcFormatter,
-        bottomCalcFormatterParams,
+        topCalc,
+        topCalcFormatter,
+        topCalcFormatterParams,
         ...options
     };
 }
@@ -440,6 +385,7 @@ export function createDeleteColumn(onDelete, options = {}) {
         width,
         minWidth: width,
         hozAlign: "center",
+        headerSort: false,
         cssClass: "delete-cell",
         resizable: false,
         formatter: function(cell) {
@@ -447,7 +393,7 @@ export function createDeleteColumn(onDelete, options = {}) {
                 const rowEl = cell.getRow().getElement();
                 if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
             } catch(e) {}
-            return '<svg enable-background="new 0 0 24 24" height="14" width="14" viewBox="0 0 24 24" xml:space="preserve"><path d="M22.245,4.015c0.313,0.313,0.313,0.826,0,1.139l-6.276,6.27c-0.313,0.312-0.313,0.826,0,1.14l6.273,6.272  c0.313,0.313,0.313,0.826,0,1.14l-2.285,2.277c-0.314,0.312-0.828,0.312-1.142,0l-6.271-6.271c-0.313-0.313-0.828-0.313-1.141,0  l-6.276,6.267c-0.313,0.313-0.828,0.313-1.141,0l-2.282-2.28c-0.313-0.313-0.313-0.826,0-1.14l6.278-6.269  c0.313-0.312,0.313-0.826,0-1.14L1.709,5.147c-0.314-0.313-0.314-0.827,0-1.14l2.284-2.278C4.308,1.417,4.821,1.417,5.135,1.73  L11.405,8c0.314,0.314,0.828,0.314,1.141,0.001l6.276-6.267c0.312-0.312,0.826-0.312,1.141,0L22.245,4.015z"></path></svg>';
+            return '<span title="Delete">⨉</span>';
         },
         cellClick: async function(e, cell) {
             try {
@@ -456,7 +402,7 @@ export function createDeleteColumn(onDelete, options = {}) {
                 if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return;
                 const rowData = row.getData();
                 const message = typeof confirmMessage === 'function' ? confirmMessage(rowData) : confirmMessage;
-                if (confirm(message)) {
+                if (await confirmDialog(message)) {
                     await onDelete(cell);
                 }
             } catch (err) {
@@ -482,6 +428,7 @@ export function createDuplicateColumn(onDuplicate, options = {}) {
         width,
         minWidth: width,
         hozAlign: "center",
+        headerSort: false,
         cssClass: "duplicate-cell",
         headerTooltip,
         resizable: false,
@@ -490,7 +437,7 @@ export function createDuplicateColumn(onDuplicate, options = {}) {
                 const rowEl = cell.getRow().getElement();
                 if (rowEl && rowEl.classList.contains('tabulator-calcs-row')) return '';
             } catch(e) {}
-            return '<svg height="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+            return '<span title="Duplicate">⧉</span>';
         },
         cellClick: async function(e, cell) {
             try {

@@ -2,8 +2,8 @@
 // Business logic for account operations within scenarios
 
 import * as DataStore from '../services/storage-service.js';
-import { deleteAccount } from '../services/data-service.js';
 import { formatDateOnly } from '../../shared/date-utils.js';
+import { allocateNextId } from '../../shared/app-data-utils.js';
 
 /**
  * Get all accounts for a scenario
@@ -14,17 +14,6 @@ export async function getAll(scenarioId) {
     const data = await DataStore.read();
     const scenario = data.scenarios?.find(s => s.id === scenarioId);
     return scenario?.accounts || [];
-}
-
-/**
- * Get a specific account by ID
- * @param {number} scenarioId - The scenario ID
- * @param {number} accountId - The account ID
- * @returns {Promise<Object|null>} - The account or null
- */
-export async function getById(scenarioId, accountId) {
-    const accounts = await getAll(scenarioId);
-    return accounts.find(a => a.id === accountId) || null;
 }
 
 /**
@@ -41,12 +30,7 @@ export async function saveAll(scenarioId, accounts) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
         
-        // Assign IDs to new accounts (id = 0 or undefined)
-        const maxId = accounts.length > 0 && accounts.some(a => a.id)
-            ? Math.max(...accounts.filter(a => a.id).map(a => a.id))
-            : 0;
-        
-        let nextId = maxId + 1;
+        let nextId = allocateNextId(accounts);
         
         data.scenarios[scenarioIndex].accounts = accounts.map(account => {
             if (!account.id || account.id === 0) {
@@ -78,13 +62,8 @@ export async function create(scenarioId, accountData) {
             scenario.accounts = [];
         }
         
-        // Generate new ID
-        const maxId = scenario.accounts.length > 0
-            ? Math.max(...scenario.accounts.map(a => a.id || 0))
-            : 0;
-        
         const newAccount = {
-            id: maxId + 1,
+            id: allocateNextId(scenario.accounts),
             name: accountData.name || 'New Account',
             type: accountData.type || { id: 1, name: 'Asset' },
             currency: accountData.currency || { id: 1, name: 'ZAR' },
@@ -158,16 +137,24 @@ export async function update(scenarioId, accountId, updates) {
  * @returns {Promise<void>}
  */
 export async function remove(scenarioId, accountId) {
-    return await deleteAccount(scenarioId, accountId);
-}
-/**
- * Update account goal parameters
- * @param {number} scenarioId - The scenario ID
- * @param {number} accountId - The account ID
- * @param {number|null} goalAmount - Target goal amount (null to clear)
- * @param {string|null} goalDate - Target goal date (null to clear)
- * @returns {Promise<void>}
- */
-export async function updateGoal(scenarioId, accountId, goalAmount, goalDate) {
-    return await update(scenarioId, accountId, { goalAmount, goalDate });
+    return await DataStore.transaction(async (data) => {
+        const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
+        if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
+
+        const scenario = data.scenarios[scenarioIndex];
+        const accountIdNum = Number(accountId);
+
+        // Cascade delete: Remove all transactions that reference this account (primary or secondary)
+        if (scenario.transactions) {
+            scenario.transactions = scenario.transactions.filter(tx => {
+                const hasPrimary = tx.primaryAccountId && Number(tx.primaryAccountId) === accountIdNum;
+                const hasSecondary = tx.secondaryAccountId && Number(tx.secondaryAccountId) === accountIdNum;
+                return !hasPrimary && !hasSecondary;
+            });
+        }
+
+        // Delete the account
+        scenario.accounts = (scenario.accounts || []).filter(a => a.id !== accountIdNum);
+        return data;
+    });
 }

@@ -270,7 +270,7 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       break;
     }
 
-    case 8: // Custom Dates
+    case 11: // Custom Dates
       if (recurrence.customDates) {
         const customDateStrings = recurrence.customDates.split(',').map(value => value.trim()).filter(Boolean);
         customDateStrings.forEach(dateStr => {

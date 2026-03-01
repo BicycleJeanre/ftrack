@@ -26,9 +26,3 @@ export async function loadLookup(schemaName = 'lookup-data.json') {
   return parsed;
 }
 
-/**
- * Clear lookup cache
- */
-export function clearCache() {
-  cache.clear();
-}

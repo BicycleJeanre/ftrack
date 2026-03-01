@@ -3,28 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forecast | Financial Tracking</title>
+    <title>FTrack</title>
     <link rel="icon" href="../assets/ftrack-logo.svg" type="image/svg+xml">
-    <!-- Tabulator CSS from CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2.0/dist/css/tabulator.min.css" rel="stylesheet">
-    <!-- App theme -->
-    <link rel="stylesheet" href="../styles/app.css">
-
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net;">
-    <!-- Forecast page Tabulator theme moved to styles/app.css -->
+    <meta http-equiv="refresh" content="0; url=ftrack.html">
 </head>
 <body class="bg-main text-main">
-    <div id="main-navbar"></div>
-    <div id="panel-forecast"></div>
-    <!-- Tabulator library UMD from CDN - loads as window.Tabulator -->
-    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6.2.0/dist/js/tabulator.min.js"></script>
-    <script type="module" src="../js/ui/controllers/navbar-controller.js"></script>
     <script>
-      // Dynamic cache busting
-      const script = document.createElement('script');
-      script.src = '../js/ui/controllers/forecast-controller.js?v=' + Date.now();
-      script.type = 'module';
-      document.head.appendChild(script);
+      window.location.replace('ftrack.html');
     </script>
 </body>
 </html>

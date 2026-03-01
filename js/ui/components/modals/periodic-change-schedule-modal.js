@@ -94,10 +94,10 @@ export async function openPeriodicChangeScheduleModal(
     <div id="pcsEntries" class="modal-periodic-form-group"></div>
 
     <div class="modal-periodic-actions" style="display:flex; gap:8px; justify-content:space-between; margin-top:12px;">
-      <button id="pcsAdd" class="btn btn-secondary">+ Add Entry</button>
+      <button id="pcsAdd" class="icon-btn">⊕</button>
       <div style="display:flex; gap:8px;">
-        <button id="pcsCancel" class="btn btn-ghost">Cancel</button>
-        <button id="pcsSave" class="btn btn-primary">Save</button>
+        <button id="pcsCancel" class="icon-btn">✕</button>
+        <button id="pcsSave" class="icon-btn icon-btn--primary">✓</button>
       </div>
     </div>
   `;
@@ -106,6 +106,10 @@ export async function openPeriodicChangeScheduleModal(
   const addBtn = modal.querySelector('#pcsAdd');
   const cancelBtn = modal.querySelector('#pcsCancel');
   const saveBtn = modal.querySelector('#pcsSave');
+
+  addBtn.title = 'Add Entry';
+  cancelBtn.title = 'Cancel';
+  saveBtn.title = 'Save';
 
   cancelBtn.addEventListener('click', () => close());
 
@@ -159,8 +163,9 @@ export async function openPeriodicChangeScheduleModal(
       actions.style.gap = '6px';
 
       const editBtn = document.createElement('button');
-      editBtn.className = 'btn btn-secondary';
-      editBtn.textContent = 'Edit';
+      editBtn.className = 'icon-btn';
+      editBtn.textContent = '⊞';
+      editBtn.title = 'Edit';
       editBtn.addEventListener('click', async () => {
         await openPeriodicChangeModal(entry.periodicChange ?? basePeriodicChange, async (nextPc) => {
           entry.periodicChange = nextPc;
@@ -170,8 +175,9 @@ export async function openPeriodicChangeScheduleModal(
       });
 
       const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'btn btn-danger';
-      deleteBtn.textContent = 'Delete';
+      deleteBtn.className = 'icon-btn icon-btn--danger';
+      deleteBtn.textContent = '⨉';
+      deleteBtn.title = 'Delete';
       deleteBtn.addEventListener('click', () => {
         entries.splice(index, 1);
         render();

@@ -134,8 +134,8 @@ export function computeMoneyTotalsFromTransactions({
 }) {
   const sourceTransactions = scenario?.transactions || transactions || [];
 
-  const start = toDateOrNull(scenario?.startDate) || new Date(0);
-  const end = asOfDate || toDateOrNull(scenario?.endDate) || new Date();
+  const start = toDateOrNull(scenario?.projection?.config?.startDate) || new Date(0);
+  const end = asOfDate || toDateOrNull(scenario?.projection?.config?.endDate) || new Date();
 
   const occurrences = expandTransactions(sourceTransactions, start, end, accounts)
     .map(normalizeCanonicalTransaction)
@@ -219,16 +219,6 @@ export function computeContributionRedemptionTotals({
   };
 }
 
-export function computeAutomaticSharesByAccountId({
-  scenario,
-  accounts = [],
-  projectionsIndex,
-  asOfDate = null,
-  fundSettings
-}) {
-  throw new Error('computeAutomaticSharesByAccountId was removed; use computeFixedSharesReport');
-}
-
 export function computeFixedSharesReport({
   scenario,
   accounts = [],
@@ -275,8 +265,8 @@ export function computeInvestorFlows({
   asOfDate = null
 }) {
   const equityAccounts = accounts.filter(a => getAccountTypeId(a) === 3); // Equity ID
-  const start = toDateOrNull(scenario?.startDate) || new Date(0);
-  const end = asOfDate || toDateOrNull(scenario?.endDate) || new Date();
+  const start = toDateOrNull(scenario?.projection?.config?.startDate) || new Date(0);
+  const end = asOfDate || toDateOrNull(scenario?.projection?.config?.endDate) || new Date();
 
   // Authoritative model: scenario.transactions with status.name = planned.
   const planned = (scenario?.transactions || []).filter((tx) => getStatusName(tx) === 'planned');

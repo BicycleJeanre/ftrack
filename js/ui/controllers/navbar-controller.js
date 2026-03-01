@@ -1,33 +1,29 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 import { downloadAppData, uploadAppData } from '../../app/services/export-service.js';
-import { notifyError, notifySuccess } from '../../shared/notifications.js';
+import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
 import { openValidateDataModal } from '../components/modals/validate-data-modal.js';
 
 // Web-only: Show clear data button for browser storage management
-const clearDataBtn = '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>';
+const clearDataBtn = '<button id="nav-clear" class="icon-btn icon-btn--danger" title="Clear all data from browser storage">⊗ Clear</button>';
 
 // Build navigation hrefs relative to this module's URL so it works when hosted
 // under a sub-path (e.g., GitHub Pages /<repo>/...) and in local dev.
 const repoRootUrl = new URL('../../../', import.meta.url);
 
 const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;
-const homeHref = new URL('index.html', repoRootUrl).href;
-const forecastHref = new URL('pages/forecast.html', repoRootUrl).href;
-const documentationHref = new URL('pages/documentation.html', repoRootUrl).href;
+const ftrackHref = new URL('pages/ftrack.html', repoRootUrl).href;
 
 const navLinks = `
   <div class="navbar-brand">
     <img src="${logoPath}" alt="FTrack" class="navbar-logo" />
     <span class="navbar-title">FTrack</span>
   </div>
-  <a href="${homeHref}" id="nav-home">Home</a>
-  <a href="${forecastHref}" id="nav-forecast">Forecast</a>
-  <a href="${documentationHref}" id="nav-documentation">Documentation</a>
+  <a href="${ftrackHref}" id="nav-ftrack">FTrack</a>
   <div class="nav-spacer"></div>
-  <button id="nav-theme" class="btn btn-ghost" title="Toggle theme"></button>
-  <button id="nav-export" class="btn btn-secondary" title="Export data to file">Export Data</button>
-  <button id="nav-import" class="btn btn-secondary" title="Import data from file">Import Data</button>
-  <button id="nav-validate" class="btn btn-secondary" title="Validate data file for errors">Validate Data</button>
+  <button id="nav-theme" class="icon-btn" title="Toggle theme"></button>
+  <button id="nav-export" class="icon-btn" title="Export data to file">⬆ Export</button>
+  <button id="nav-import" class="icon-btn" title="Import data from file">⬇ Import</button>
+  <button id="nav-validate" class="icon-btn" title="Validate data file for errors">⊘ Validate</button>
   ${clearDataBtn}
 `;
 
@@ -41,9 +37,9 @@ function getPage() {
 
 function highlightActive() {
   var navMap = {
-    'index.html': 'nav-home',
-    'forecast.html': 'nav-forecast',
-    'documentation.html': 'nav-documentation'
+    'ftrack.html': 'nav-ftrack',
+    'forecast.html': 'nav-ftrack',
+    'index.html': 'nav-ftrack'
   };
   var activeId = navMap[getPage()];
   if (activeId) {
@@ -65,7 +61,7 @@ async function attachDataHandlers() {
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     if (themeBtn) {
-      themeBtn.textContent = theme === 'dark' ? 'Light Theme' : 'Dark Theme';
+      themeBtn.textContent = theme === 'dark' ? '☀ Light' : '☾ Dark';
     }
   }
 
@@ -120,9 +116,9 @@ async function attachDataHandlers() {
   // Clear data button (web only)
   var clearBtn = document.getElementById('nav-clear');
   if (clearBtn) {
-    clearBtn.addEventListener('click', function(e) {
+    clearBtn.addEventListener('click', async function(e) {
       e.preventDefault();
-      if (confirm('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) {
+      if (await confirmDialog('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) {
         try {
           localStorage.removeItem('ftrack:app-data');
           notifySuccess('All data cleared successfully. The page will now reload.');

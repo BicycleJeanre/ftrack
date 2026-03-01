@@ -206,8 +206,8 @@ class KeyboardShortcuts {
             </div>
 
             <div class="shortcuts-footer">
-                <button id="close-shortcuts-help" class="shortcuts-close">
-                    Close
+                <button id="close-shortcuts-help" class="icon-btn" title="Close">
+                    ✕
                 </button>
             </div>
         `;
@@ -283,4 +283,3 @@ const keyboardShortcuts = new KeyboardShortcuts();
 
 // Export for use in other modules
 export default keyboardShortcuts;
-export { KeyboardShortcuts };

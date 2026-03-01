@@ -183,10 +183,35 @@ function mergeFloorConstraints({ goals, constraints }) {
   return floors;
 }
 
+function getAdvancedGoalSolverWindow(scenario) {
+  const projectionConfig = scenario?.projection?.config || {};
+  const fallbackStart = projectionConfig.startDate || formatDateOnly(new Date());
+  const fallbackEnd = projectionConfig.endDate || fallbackStart;
+
+  const planning = scenario?.planning && typeof scenario.planning === 'object' ? scenario.planning : {};
+  const raw = planning?.advancedGoalSolver && typeof planning.advancedGoalSolver === 'object' ? planning.advancedGoalSolver : {};
+
+  const startDate = raw.startDate || fallbackStart;
+  const endDate = raw.endDate || fallbackEnd;
+
+  return startDate <= endDate ? { startDate, endDate } : { startDate: endDate, endDate: startDate };
+}
+
+function getSolverProjectionOptions(scenario) {
+  const window = getAdvancedGoalSolverWindow(scenario);
+  return {
+    startDate: window.startDate,
+    endDate: window.endDate,
+    periodTypeId: 3, // Month (solver constraints are monthly)
+    source: 'transactions'
+  };
+}
+
 function buildGoalRequirements({ scenario, goals }) {
   const accounts = scenario?.accounts || [];
-  const scenarioStart = scenario?.startDate || formatDateOnly(new Date());
-  const scenarioEnd = scenario?.endDate || scenarioStart;
+  const solverWindow = getAdvancedGoalSolverWindow(scenario);
+  const scenarioStart = solverWindow.startDate;
+  const scenarioEnd = solverWindow.endDate;
   const scenarioStartKey = toDateKey(scenarioStart);
   const scenarioEndKey = toDateKey(scenarioEnd);
 
@@ -406,8 +431,9 @@ function getBalanceAtOrBefore(records, dateStr, startingBalanceFallback = 0) {
 
 function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, floorsByAccountId }) {
   const accounts = scenario?.accounts || [];
-  const scenarioStart = scenario?.startDate || formatDateOnly(new Date());
-  const scenarioEnd = scenario?.endDate || scenarioStart;
+  const solverWindow = getAdvancedGoalSolverWindow(scenario);
+  const scenarioStart = solverWindow.startDate;
+  const scenarioEnd = solverWindow.endDate;
 
   const failures = [];
 
@@ -482,17 +508,19 @@ function scaleAmounts(amountsByGoalId, scale) {
   return next;
 }
 
-async function findFloorSafeScale({ scenario, requirements, amountsByGoalId, constraints, floorsByAccountId }) {
+async function findFloorSafeScale({ scenario, requirements, amountsByGoalId, constraints, floorsByAccountId, projectionOptions = null }) {
   let lo = 0;
   let hi = 1;
   let best = 0;
+
+  const options = projectionOptions || getSolverProjectionOptions(scenario);
 
   for (let i = 0; i < 10; i++) {
     const mid = (lo + hi) / 2;
     const scaled = scaleAmounts(amountsByGoalId, mid);
     const txs = buildSuggestedTransactions({ scenario, requirements, amountsByGoalId: scaled, constraints });
     const scenarioForCheck = { ...scenario, transactions: [...(scenario.transactions || []), ...txs] };
-    const projections = await generateProjectionsForScenarioSafe(scenarioForCheck);
+    const projections = await generateProjectionsForScenarioSafe(scenarioForCheck, options);
     const idx = indexProjectionsByAccountId(projections);
     const { ok } = evaluateGoals({ scenario: scenarioForCheck, goals: [], requirements, projectionsByAccountId: idx, floorsByAccountId });
     if (ok) {
@@ -509,9 +537,7 @@ async function findFloorSafeScale({ scenario, requirements, amountsByGoalId, con
 export async function solveAdvancedGoals({ scenario, settings }) {
   try {
     const lp = await getLpSolver();
-    const nowDate = formatDateOnly(new Date());
-    const scenarioStart = scenario?.startDate || nowDate;
-    const scenarioEnd = scenario?.endDate || scenarioStart;
+    const projectionOptions = getSolverProjectionOptions(scenario);
 
     const goals = sortGoals((settings?.goals || []).map(normalizeGoal));
     const constraints = settings?.constraints || {};
@@ -608,7 +634,7 @@ export async function solveAdvancedGoals({ scenario, settings }) {
     for (let iter = 0; iter < 5; iter++) {
       const txs = buildSuggestedTransactions({ scenario, requirements: selectedRequirements, amountsByGoalId: refinedAmounts, constraints });
       const scenarioForCheck = { ...scenario, transactions: [...(scenario.transactions || []), ...txs] };
-      const projections = await generateProjectionsForScenarioSafe(scenarioForCheck);
+      const projections = await generateProjectionsForScenarioSafe(scenarioForCheck, projectionOptions);
       const idx = indexProjectionsByAccountId(projections);
 
       const evalRes = evaluateGoals({
@@ -630,7 +656,8 @@ export async function solveAdvancedGoals({ scenario, settings }) {
           requirements: selectedRequirements,
           amountsByGoalId: refinedAmounts,
           constraints,
-          floorsByAccountId
+          floorsByAccountId,
+          projectionOptions
         });
         refinedAmounts = scaleAmounts(refinedAmounts, scale);
         warnings.push('Min-balance floors required scaling down suggested contributions.');

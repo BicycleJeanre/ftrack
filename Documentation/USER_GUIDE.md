@@ -1,7 +1,7 @@
 # FTrack Usage Guide
 
-**Version**: 0.8.3-beta  
-**Last Updated**: February 17, 2026  
+**Version**: 0.8.4-beta  
+**Last Updated**: February 22, 2026  
 **Audience**: New users, no accounting background required
 
 ---
@@ -136,35 +136,35 @@ Before diving into the app, let's understand the key concepts FTrack uses.
 3. Change planned transactions in each scenario
 4. Compare the projections to see which future looks better
 
+**Versioning note**: When you duplicate a scenario, FTrack creates a new scenario with an incremented version and lineage. This keeps your baseline intact and makes comparisons easier.
+
 **Why they matter**: Scenarios let you experiment without risk. Test different financial strategies before committing.
 
-### 2.7 Scenario Types
+### 2.7 Workflows (Forecast UI Presets)
 
-FTrack supports different scenario types depending on what you are trying to model.
+FTrack supports different **workflows** depending on what you are trying to do. Workflows are selected in the Forecast left navigation and control which cards are shown (Summary, Budget, Generate Plan, etc.).
+
+Important: workflows do not “tag” a scenario. A scenario is your data; a workflow is your view.
 
 2.7.1 Budget
 
-2.7.1.1 Includes Budget and Actual Transactions for plan vs actual tracking.
+2.7.1.1 Includes budgets and plan vs actual tracking.
 
 2.7.2 General
 
-2.7.2.1 A lighter planning scenario focused on accounts, transactions, and projections.
+2.7.2.1 Lightweight planning with summary totals.
 
 2.7.3 Funds
 
-2.7.3.1 Models a pooled fund with ownership expressed as shares.
+2.7.3.1 Models a pooled fund with NAV and share-based ownership.
 
 2.7.4 Debt Repayment
 
-2.7.4.1 Optimized for payoff strategies, interest, and payoff dates.
-
-2.7.4.2 Supports variable-rate interest using an account rate schedule.
+2.7.4.1 Optimized for payoff strategies, interest, and payoff dates (supports variable-rate schedules).
 
 2.7.5 Goal-Based
 
-2.7.5.1 Uses per-account Goal Amount and Goal Date fields.
-
-2.7.5.2 Includes a simple Generate Plan flow that creates a planned contribution transaction.
+2.7.5.1 Uses per-account Goal Amount and Goal Date fields, plus a simple Generate Plan.
 
 2.7.6 Advanced Goal Solver
 
@@ -181,6 +181,12 @@ FTrack supports different scenario types depending on what you are trying to mod
 2.8.2 Advanced Goal Solver planning is scenario-centric.
 
 2.8.2.1 Use Generate Plan to define goals and constraints, solve, and apply the solution.
+
+2.8.3 Planning windows.
+
+2.8.3.1 Goal planning uses an explicit planning window (separate from the projection window).
+
+2.8.3.2 If you want projections to validate a plan to a goal date, extend the scenario projection End date to cover the same horizon.
 
 ---
 

@@ -4,11 +4,17 @@
  * Single source of truth for data persistence operations
  */
 
+import {
+    assertSchemaVersion43,
+    createDefaultAppData,
+    sanitizeAppDataForWrite
+} from '../../shared/app-data-utils.js';
+import { migrateAppData } from '../../shared/migration-utils.js';
+import { notifySuccess } from '../../shared/notifications.js';
+
 // Web storage key
 const STORAGE_KEY = 'ftrack:app-data';
-const BACKUP_KEY = 'ftrack:backup';
 
-let writeQueue = Promise.resolve(); // serialize writes to avoid concurrent truncation
 let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
 
 /**
@@ -16,22 +22,28 @@ let transactionQueue = Promise.resolve(); // serialize transactions (read-modify
  * @returns {Promise<Object>} - The complete app data object
  */
 export async function read() {
+    let parsed = null;
     try {
         const dataString = localStorage.getItem(STORAGE_KEY);
         if (!dataString) {
-            return { scenarios: [] };
+            return createDefaultAppData();
         }
 
-        const parsed = JSON.parse(dataString);
-        if (!parsed || typeof parsed !== 'object') {
-            return { scenarios: [] };
+        parsed = JSON.parse(dataString);
+        assertSchemaVersion43(parsed);
+        return sanitizeAppDataForWrite(parsed);
+    } catch (err) {
+        if (err && err.name === 'SchemaVersionError' && parsed) {
+            try {
+                const migrated = migrateAppData(parsed);
+                await write(migrated);
+                notifySuccess('Your data has been automatically updated to the latest format.');
+                return migrated;
+            } catch (_migrationErr) {
+                throw err;
+            }
         }
-        if (!Array.isArray(parsed.scenarios)) {
-            parsed.scenarios = [];
-        }
-        return parsed;
-    } catch (_) {
-        return { scenarios: [] };
+        return createDefaultAppData();
     }
 }
 
@@ -42,7 +54,9 @@ export async function read() {
  */
 export async function write(data) {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        assertSchemaVersion43(data);
+        const sanitized = sanitizeAppDataForWrite(data);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
     } catch (err) {
         if (err.name === 'QuotaExceededError') {
             throw new Error('Storage quota exceeded. Please export and clear old data.');
@@ -114,26 +128,6 @@ export async function transaction(modifyFn) {
 }
 
 /**
- * Backup current data
- * @returns {Promise<void>}
- */
-export async function backup() {
-    const data = await read();
-    localStorage.setItem(BACKUP_KEY, JSON.stringify(data));
-}
-
-/**
- * Restore from backup
- * @returns {Promise<void>}
- */
-export async function restore() {
-    const backup = localStorage.getItem(BACKUP_KEY);
-    if (backup) {
-        localStorage.setItem(STORAGE_KEY, backup);
-    }
-}
-
-/**
  * Clear all data
  * @returns {Promise<void>}
  */
@@ -141,15 +135,3 @@ export async function clear() {
     localStorage.removeItem(STORAGE_KEY);
 }
 
-/**
- * Get storage usage information
- * @returns {Object} - Object with used, quota, and percentage
- */
-export function getStorageUsage() {
-    const data = localStorage.getItem(STORAGE_KEY) || '';
-    return {
-        used: new Blob([data]).size,
-        quota: 5 * 1024 * 1024, // 5MB typical limit
-        percentage: (new Blob([data]).size / (5 * 1024 * 1024)) * 100
-    };
-}

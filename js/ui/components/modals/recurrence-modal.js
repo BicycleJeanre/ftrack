@@ -61,11 +61,11 @@ export function openRecurrenceModal(currentValue, onSave) {
         </div>
 
         <div class="modal-periodic-actions">
-            <button id="cancelBtn" class="modal-periodic-button modal-periodic-cancel">
-                Cancel
+            <button id="cancelBtn" class="icon-btn" title="Cancel">
+                ✕
             </button>
-            <button id="saveBtn" class="modal-periodic-button modal-periodic-save">
-                Save
+            <button id="saveBtn" class="icon-btn icon-btn--primary" title="Save">
+                ✓
             </button>
         </div>
     `;

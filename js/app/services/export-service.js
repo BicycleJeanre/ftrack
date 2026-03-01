@@ -4,7 +4,7 @@
  */
 
 import { exportAppData, importAppData } from './data-service.js';
-import { notifyError, notifySuccess } from '../../shared/notifications.js';
+import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
 
 /**
  * Download app data as JSON file
@@ -76,7 +76,7 @@ export async function uploadAppData(merge = false) {
     
     // Confirm action
     const action = merge ? 'merge with' : 'replace';
-    const confirmed = confirm(`This will ${action} your current data. Continue?`);
+    const confirmed = await confirmDialog(`This will ${action} your current data. Continue?`);
     
     if (!confirmed) {
       return false;

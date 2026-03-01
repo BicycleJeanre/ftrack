@@ -58,7 +58,9 @@
 
 6.1.1 Confirm the file is valid JSON.
 
-6.1.2 Confirm it was exported from FTrack.
+6.1.2 Confirm it was exported from this version of FTrack (schemaVersion 43).
+
+6.1.3 If you have an older export, migrate it using the standalone migration tool (`QC/migrate-app-data-to-schema43.js`) before importing.
 
 6.2 You hit storage limits.
 

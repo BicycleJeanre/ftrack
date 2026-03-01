@@ -4,7 +4,7 @@
 
 import { generateRecurrenceDates, calculatePeriodicChange } from './calculation-engine.js';
 import { expandPeriodicChangeForCalculation } from './periodic-change-utils.js';
-import { getScenario, saveProjections } from '../../app/services/data-service.js';
+import { getScenario, saveProjectionBundle } from '../../app/services/data-service.js';
 import { parseDateOnly, formatDateOnly } from '../../shared/date-utils.js';
 import { expandTransactions } from './transaction-expander.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
@@ -82,13 +82,52 @@ export async function generateProjections(scenarioId, options = {}) {
     throw new Error(`Scenario ${scenarioId} not found`);
   }
 
+  const projectionConfig = getProjectionConfig({ scenario, options });
   const projections = await generateProjectionsForScenario(scenario, options, lookupData);
-  await saveProjections(scenarioId, projections);
+
+  await saveProjectionBundle(scenarioId, {
+    config: projectionConfig,
+    rows: projections,
+    generatedAt: new Date().toISOString()
+  });
+
   return projections;
 }
 
+function coercePeriodTypeId(value) {
+  if (typeof value === 'number') return value;
+  if (value && typeof value === 'object') {
+    const id = Number(value.id);
+    return Number.isFinite(id) ? id : null;
+  }
+  const str = value != null ? String(value).toLowerCase() : '';
+  if (str === 'day' || str === 'daily') return 1;
+  if (str === 'week' || str === 'weekly') return 2;
+  if (str === 'month' || str === 'monthly') return 3;
+  if (str === 'quarter' || str === 'quarterly') return 4;
+  if (str === 'year' || str === 'yearly') return 5;
+  return null;
+}
+
+function getProjectionConfig({ scenario, options = {} }) {
+  const config = scenario?.projection?.config || {};
+  const startDate = options.startDate || config.startDate || null;
+  const endDate = options.endDate || config.endDate || null;
+  const periodTypeIdRaw = options.periodTypeId ?? config.periodTypeId ?? 3;
+  const periodTypeId = coercePeriodTypeId(periodTypeIdRaw) || 3;
+  const source = options.source || config.source || 'transactions';
+
+  return {
+    startDate,
+    endDate,
+    periodTypeId,
+    source: source === 'budget' ? 'budget' : 'transactions'
+  };
+}
+
 export async function generateProjectionsForScenario(scenario, options = {}, lookupDataOverride = null) {
-  const source = options.source || 'transactions';
+  const projectionConfig = getProjectionConfig({ scenario, options });
+  const source = projectionConfig.source || 'transactions';
   const lookupData = lookupDataOverride || (await loadLookup('lookup-data.json'));
 
   const accounts = scenario.accounts || [];
@@ -115,8 +154,11 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
     plannedTransactions = (scenario.transactions || []).filter((tx) => statusName(tx) === 'planned');
   }
 
-  const startDate = parseDateOnly(scenario.startDate);
-  const endDate = parseDateOnly(scenario.endDate);
+  const startDate = parseDateOnly(projectionConfig.startDate);
+  const endDate = parseDateOnly(projectionConfig.endDate);
+  if (!startDate || !endDate) {
+    throw new Error('Scenario projection config missing startDate or endDate');
+  }
 
   const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
 
@@ -150,10 +192,8 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
 
   const projections = [];
   
-  // Extract period type ID (1=Day, 2=Week, 3=Month, 4=Quarter, 5=Year)
-  const periodTypeId = typeof scenario.projectionPeriod === 'number'
-    ? scenario.projectionPeriod
-    : scenario.projectionPeriod || 3; // Default to Month (ID 3)
+  // Projection period type is an engine-only concept (not tied to UI view period controls).
+  const periodTypeId = Number(projectionConfig.periodTypeId) || 3;
   
   const periodIdToString = {
     1: 'daily',
@@ -460,23 +500,10 @@ function generatePeriods(start, end, periodicity) {
 }
 
 /**
- * Format date as YYYY-MM-DD
- * @param {Date} date - Date to format
- * @returns {string} - Formatted date string
- */
-function formatDate(date) {
-  // Use local date components to avoid UTC offset causing previous-day dates
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-/**
  * Clear projections for a scenario
  * @param {number} scenarioId - The scenario ID
  * @returns {Promise<void>}
  */
 export async function clearProjections(scenarioId) {
-  await saveProjections(scenarioId, []);
+  await saveProjectionBundle(scenarioId, { rows: [], generatedAt: null });
 }
