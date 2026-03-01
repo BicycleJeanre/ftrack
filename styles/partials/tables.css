@@ -289,6 +289,17 @@ body .tabulator .tabulator-row.budget-row-frozen .tabulator-cell {
   color: var(--color-zero) !important;
 }
 
+/* Per-group calc row status-netchange colours */
+.tabulator .tabulator-row.tabulator-calcs .status-netchange.positive {
+  color: var(--color-positive) !important;
+}
+.tabulator .tabulator-row.tabulator-calcs .status-netchange.negative {
+  color: var(--color-negative) !important;
+}
+.tabulator .tabulator-row.tabulator-calcs .status-netchange.zero {
+  color: var(--color-zero) !important;
+}
+
 .tabulator-print-table-group {
   background: var(--bg-elevated) !important;
 }
@@ -298,8 +309,8 @@ html body .tabulator .tabulator-row.tabulator-group {
   background: var(--bg-elevated) !important;
 }
 
-/* Top calc row - sticky below header */
-.tabulator .tabulator-row.tabulator-calcs.tabulator-calcs-top {
+/* Top calc row - sticky below header (global table total only) */
+.tabulator .tabulator-calcs-holder .tabulator-row.tabulator-calcs.tabulator-calcs-top {
   position: sticky;
   top: var(--header-height, 48px);
   z-index: 15;
@@ -307,6 +318,21 @@ html body .tabulator .tabulator-row.tabulator-group {
   border-top: none !important;
   font-weight: 600;
   padding-top: 8px;
+}
+
+/* Per-group total row (groupCalcs: "top") inside the table body */
+.tabulator .tabulator-tableholder .tabulator-row.tabulator-calcs.tabulator-calcs-top {
+  background: var(--bg-elevated) !important;
+  border-top: 1px solid var(--border-secondary) !important;
+  border-bottom: 2px solid var(--border-secondary) !important;
+  font-weight: 600;
+}
+
+.tabulator .tabulator-tableholder .tabulator-row.tabulator-calcs.tabulator-calcs-top .tabulator-cell {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  border-color: var(--border-secondary) !important;
 }
 
 /* ==================================== Tabulator Inline Editing ====================================*/
@@ -361,7 +387,7 @@ html body .tabulator .tabulator-row.tabulator-group {
   border-top: none !important;
 }
 
-.tabulator .tabulator-row.tabulator-calcs.tabulator-calcs-top {
+.tabulator .tabulator-calcs-holder .tabulator-row.tabulator-calcs.tabulator-calcs-top {
   background: var(--bg-tertiary) !important;
   color: var(--text-primary) !important;
 }
