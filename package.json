@@ -1,6 +1,6 @@
 {
   "name": "ftrack",
-  "version": "0.8.5-beta",
+  "version": "0.90-beta",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
