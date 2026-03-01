@@ -320,6 +320,27 @@ html body .tabulator .tabulator-row.tabulator-group {
   padding-top: 8px;
 }
 
+/* Column calcs holder (topCalc) — Tabulator 6.x renders a .tabulator-calcs-holder
+   container with background:#f3f3f3 !important in its bundled CSS; override here. */
+.tabulator .tabulator-calcs-holder,
+.tabulator .tabulator-calcs-holder.tabulator-calcs-top {
+  background: var(--bg-elevated) !important;
+  border-top: 1px solid var(--border-secondary) !important;
+  border-bottom: 1px solid var(--border-secondary) !important;
+  font-weight: 600;
+}
+
+.tabulator .tabulator-calcs-holder .tabulator-row {
+  background: var(--bg-elevated) !important;
+}
+
+.tabulator .tabulator-calcs-holder .tabulator-row .tabulator-cell {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  border-color: var(--border-secondary) !important;
+}
+
 /* Per-group total row (groupCalcs: "top") inside the table body */
 .tabulator .tabulator-tableholder .tabulator-row.tabulator-calcs.tabulator-calcs-top {
   background: var(--bg-elevated) !important;

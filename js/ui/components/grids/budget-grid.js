@@ -622,9 +622,6 @@ export async function loadBudgetGrid({
         const accountSelect = document.createElement('select');
         accountSelect.id = 'budget-account-select';
         accountSelect.className = 'input-select';
-        const allAccountsOpt = document.createElement('option');
-        allAccountsOpt.value = ''; allAccountsOpt.textContent = 'All Accounts';
-        accountSelect.appendChild(allAccountsOpt);
         accounts.forEach((a) => {
           const opt = document.createElement('option');
           opt.value = String(a.id);
@@ -632,7 +629,12 @@ export async function loadBudgetGrid({
           accountSelect.appendChild(opt);
         });
         const curAccountId = state?.getTransactionFilterAccountId?.();
-        if (curAccountId) accountSelect.value = String(curAccountId);
+        const firstAccountId = accounts[0]?.id != null ? Number(accounts[0].id) : null;
+        const effectiveAccountId = curAccountId || firstAccountId;
+        if (effectiveAccountId) {
+          accountSelect.value = String(effectiveAccountId);
+          if (!curAccountId) state?.setTransactionFilterAccountId?.(effectiveAccountId);
+        }
         controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
 
         // Group By
@@ -721,7 +723,7 @@ export async function loadBudgetGrid({
         nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
 
         accountSelect.addEventListener('change', () => {
-          state?.setTransactionFilterAccountId?.(accountSelect.value ? Number(accountSelect.value) : null);
+          state?.setTransactionFilterAccountId?.(Number(accountSelect.value));
           applyBudgetDetailFilters({ state, periods, callbacks });
         });
 
@@ -975,9 +977,6 @@ export async function loadBudgetGrid({
       const accountSelect = document.createElement('select');
       accountSelect.id = 'budget-account-select';
       accountSelect.className = 'input-select';
-      const allAccountsOpt = document.createElement('option');
-      allAccountsOpt.value = ''; allAccountsOpt.textContent = 'All Accounts';
-      accountSelect.appendChild(allAccountsOpt);
       accounts.forEach((a) => {
         const opt = document.createElement('option');
         opt.value = String(a.id);
@@ -1056,8 +1055,8 @@ export async function loadBudgetGrid({
       nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
 
       accountSelect.addEventListener('change', () => {
-        state?.setTransactionFilterAccountId?.(accountSelect.value ? Number(accountSelect.value) : null);
-        reload();
+        state?.setTransactionFilterAccountId?.(Number(accountSelect.value));
+        applyMasterBudgetTableFilters({ tables, state, callbacks });
       });
     }
   }

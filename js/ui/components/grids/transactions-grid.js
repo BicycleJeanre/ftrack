@@ -31,6 +31,20 @@ const transactionsGridState = new GridStateManager('transactions');
 let lastTransactionsDetailTable = null;
 let lastTransactionsDetailTableReady = false;
 
+function applyTransactionsDetailFilters({ state, callbacks }) {
+  if (!lastTransactionsDetailTable || !lastTransactionsDetailTableReady) return;
+  const accountId = state?.getTransactionFilterAccountId?.();
+  if (accountId) {
+    lastTransactionsDetailTable.setFilter((data) =>
+      Number(data.primaryAccountId) === Number(accountId) ||
+      Number(data.secondaryAccountId) === Number(accountId)
+    );
+  } else {
+    lastTransactionsDetailTable.clearFilter();
+  }
+  callbacks?.updateTransactionTotals?.();
+}
+
 function renderTransactionsRowDetails({ row, rowData, reload }) {
   const rowEl = row.getElement();
   if (!rowEl) return;
@@ -817,7 +831,7 @@ export async function loadMasterTransactionsGrid({
     }
 
     const accountFilterId = state?.getTransactionFilterAccountId?.();
-    if (accountFilterId) {
+    if (accountFilterId && workflowConfig?.transactionsMode !== 'detail') {
       allTransactions = allTransactions.filter((tx) =>
         Number(tx.primaryAccountId) === Number(accountFilterId) ||
         Number(tx.secondaryAccountId) === Number(accountFilterId)
@@ -988,9 +1002,8 @@ export async function loadMasterTransactionsGrid({
 
           // Event listeners
           accountFilterSelect.addEventListener('change', (e) => {
-            const nextId = e.target.value ? Number(e.target.value) : null;
-            state?.setTransactionFilterAccountId?.(nextId);
-            loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+            state?.setTransactionFilterAccountId?.(Number(e.target.value));
+            applyTransactionsDetailFilters({ state, callbacks });
           });
           periodTypeSelect.addEventListener('change', async () => {
             state?.setActualPeriodType?.(periodTypeSelect.value);
@@ -1244,7 +1257,7 @@ export async function loadMasterTransactionsGrid({
           } catch (_) {
             // ignore
           }
-          callbacks?.updateTransactionTotals?.();
+          applyTransactionsDetailFilters({ state, callbacks });
         });
 
         lastTransactionsDetailTable = txTable;
