@@ -959,17 +959,14 @@ export async function loadMasterTransactionsGrid({
         }
       }
 
-      // --- Totals toolbar (stable; selects moved to title bar) ---
-      let toolbar = container.querySelector(':scope > .grid-toolbar#transactionsContent');
-      if (!toolbar) {
+      // --- Totals container (stable; selects moved to title bar) ---
+      let totalsContainer = container.querySelector(':scope > .transaction-totals-container#transactionsContent');
+      if (!totalsContainer) {
         gridContainer.innerHTML = '';
-        toolbar = document.createElement('div');
-        toolbar.className = 'grid-toolbar';
-        toolbar.id = 'transactionsContent'; // required for updateTransactionTotals to locate .toolbar-totals
-        const totalsEl = document.createElement('div');
-        totalsEl.className = 'toolbar-totals';
-        toolbar.appendChild(totalsEl);
-        container.insertBefore(toolbar, gridContainer);
+        totalsContainer = document.createElement('div');
+        totalsContainer.className = 'transaction-totals-container';
+        totalsContainer.id = 'transactionsContent';
+        container.insertBefore(totalsContainer, gridContainer);
       }
 
       const columns = [

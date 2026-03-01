@@ -586,8 +586,7 @@ body.dashboard-shell {
 }
 
 .dash-row-controls .icon-btn,
-.card-header-controls .icon-btn,
-.projections-icon-toolbar .icon-btn {
+.card-header-controls .icon-btn {
   min-width: var(--dashboard-icon-btn-size);
   min-height: var(--dashboard-icon-btn-size);
   padding: 4px;
@@ -858,8 +857,7 @@ body.dashboard-shell {
 }
 
 /* Toolbar/totals if present (fixed height) */
-#projectionsSection:not(.mode-detail) .grid-toolbar,
-#projectionsSection:not(.mode-detail) .projections-icon-toolbar {
+#projectionsSection:not(.mode-detail) .grid-toolbar {
   flex: 0 0 auto;
   overflow: hidden;
 }
@@ -1233,12 +1231,20 @@ body.dashboard-shell {
   color: var(--text-muted);
   font-size: 0.9em;
   white-space: nowrap;
+  transition: color var(--transition-fast);
 }
 
 .summary-card-row .value {
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
+}
+
+/* Darken labels on summary card hover for better contrast */
+.summary-card:hover .summary-card-row .label,
+.account-card:hover .summary-card-row .label,
+.grid-summary-card:hover .summary-card-row .label {
+  color: var(--text-secondary);
 }
 
 /* interest/value semantic colors */
@@ -1284,11 +1290,13 @@ body.dashboard-shell {
   border-left: 4px solid var(--accent-primary);
 }
 
-/* Budget totals: 3-column flexible row layout inside the overall-total card */
-.budget-totals-container {
+/* Budget and transaction totals: 3-column flexible row layout inside the overall-total card */
+.budget-totals-container,
+.transaction-totals-container {
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
+  margin-bottom: 16px;
 }
 
 .budget-totals-rows {
@@ -1546,6 +1554,23 @@ body.dashboard-shell {
 .tag-input-row .accounts-detail-input {
   flex: 1;
   min-width: 0;
+}
+
+.tags-content-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.tags-content-row .tag-chips {
+  flex: 1;
+  min-width: 150px;
+}
+
+.tags-content-row .tag-input-row {
+  flex: 1;
+  min-width: 200px;
 }
 
 .summary-card-field,

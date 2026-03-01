@@ -304,7 +304,9 @@ html body .tabulator .tabulator-row.tabulator-group {
   top: var(--header-height, 48px);
   z-index: 15;
   border-bottom: 2px solid var(--border-primary) !important;
+  border-top: none !important;
   font-weight: 600;
+  padding-top: 8px;
 }
 
 /* ==================================== Tabulator Inline Editing ====================================*/
@@ -356,6 +358,7 @@ html body .tabulator .tabulator-row.tabulator-group {
 .tabulator .tabulator-calcs-holder {
   display: block !important;
   background: var(--bg-tertiary) !important;
+  border-top: none !important;
 }
 
 .tabulator .tabulator-row.tabulator-calcs.tabulator-calcs-top {
@@ -429,4 +432,5 @@ html body .tabulator .tabulator-row.tabulator-group {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   border-top: 1px solid var(--border-primary);
+  margin-top: 4px;
 }

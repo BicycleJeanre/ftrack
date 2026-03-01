@@ -159,130 +159,6 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
   });
 }
 
-function createProjectionsIconToolbar({ scenarioState, state, reload }) {
-  const toolbar = document.createElement('div');
-  toolbar.className = 'projections-icon-toolbar';
-
-  const currentScenario = scenarioState?.get?.();
-
-  const filterWrapper = document.createElement('div');
-  filterWrapper.style.position = 'relative';
-
-  const filterBtn = document.createElement('button');
-  filterBtn.className = 'icon-btn' + (Number(state?.getProjectionAccountFilterId?.()) > 0 ? ' icon-btn--active' : '');
-  filterBtn.title = 'Filter by account';
-  filterBtn.textContent = '⊙';
-
-  const filterDropdown = document.createElement('div');
-  filterDropdown.className = 'projections-filter-dropdown hidden';
-
-  const filterSelect = document.createElement('select');
-  filterSelect.className = 'input-select projections-filter-select';
-
-  const allOpt = document.createElement('option');
-  allOpt.value = '0';
-  allOpt.textContent = 'All Accounts';
-  filterSelect.appendChild(allOpt);
-  (currentScenario?.accounts || []).forEach((a) => {
-    const opt = document.createElement('option');
-    opt.value = String(a.id);
-    opt.textContent = a.name || 'Unnamed';
-    filterSelect.appendChild(opt);
-  });
-  filterSelect.value = String(Number(state?.getProjectionAccountFilterId?.()) || 0);
-
-  filterSelect.addEventListener('change', async () => {
-    const selectedId = Number(filterSelect.value) || 0;
-    state?.setProjectionAccountFilterId?.(selectedId > 0 ? selectedId : null);
-    filterDropdown.classList.add('hidden');
-    await reload();
-  });
-  filterDropdown.appendChild(filterSelect);
-
-  filterBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    filterDropdown.classList.toggle('hidden');
-  });
-  document.addEventListener('click', () => filterDropdown.classList.add('hidden'), { once: true });
-
-  filterWrapper.appendChild(filterBtn);
-  filterWrapper.appendChild(filterDropdown);
-  toolbar.appendChild(filterWrapper);
-
-  const regenBtn = document.createElement('button');
-  regenBtn.className = 'icon-btn';
-  regenBtn.title = 'Regenerate projections';
-  regenBtn.textContent = '↺';
-
-  regenBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const prevText = regenBtn.textContent;
-    try {
-      regenBtn.textContent = '…';
-      regenBtn.disabled = true;
-      const scenario = scenarioState?.get?.();
-      if (!scenario?.id) return;
-      const projConfig = scenario?.projection?.config || {};
-      await generateProjections(scenario.id, {
-        source: projConfig.source || 'transactions',
-        startDate: projConfig.startDate,
-        endDate: projConfig.endDate,
-        periodTypeId: projConfig.periodTypeId
-      });
-      const refreshed = await getScenario(scenario.id);
-      scenarioState?.set?.(refreshed);
-      await reload();
-    } catch (err) {
-      notifyError('Failed to regenerate projections: ' + (err?.message || String(err)));
-    } finally {
-      if (regenBtn.isConnected) {
-        regenBtn.textContent = prevText;
-        regenBtn.disabled = false;
-      }
-    }
-  });
-  toolbar.appendChild(regenBtn);
-
-  const periodBtn = document.createElement('button');
-  periodBtn.className = 'icon-btn';
-  periodBtn.title = 'Set projection period';
-  periodBtn.textContent = '⊞';
-
-  periodBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const scenario = scenarioState?.get?.();
-    const projConfig = scenario?.projection?.config || {};
-    openTimeframeModal({
-      title: 'Set Projection Period',
-      showPeriodType: true,
-      defaultPeriodTypeId: projConfig.periodTypeId || 3,
-      onConfirm: async ({ startDate, endDate, periodTypeId }) => {
-        try {
-          periodBtn.disabled = true;
-          const current = scenarioState?.get?.();
-          if (!current?.id) return;
-          await generateProjections(current.id, {
-            source: current?.projection?.config?.source || 'transactions',
-            startDate,
-            endDate,
-            periodTypeId
-          });
-          const refreshed = await getScenario(current.id);
-          scenarioState?.set?.(refreshed);
-          await reload();
-        } catch (err) {
-          notifyError('Failed to set projection period: ' + (err?.message || String(err)));
-        } finally {
-          if (periodBtn.isConnected) periodBtn.disabled = false;
-        }
-      }
-    });
-  });
-  toolbar.appendChild(periodBtn);
-
-  return toolbar;
-}
-
 async function buildProjectionsHeaderControls({ controls, container, currentScenario, scenarioState, state, reload, logger, onGroupChange }) {
   controls.innerHTML = '';
 
@@ -639,21 +515,10 @@ export async function loadProjectionsGrid({
     }
     projectionsGridContainer.classList.add('grid-detail');
 
-    // Totals bar
-    const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
-    existingToolbars.forEach((el) => el.remove());
-    const totalsBar = document.createElement('div');
-    totalsBar.className = 'grid-toolbar';
-    const totalsContainer = document.createElement('div');
-    totalsContainer.className = 'toolbar-totals';
-    totalsBar.appendChild(totalsContainer);
-
     container.innerHTML = '';
-    container.appendChild(totalsBar);
     container.appendChild(projectionsGridContainer);
 
     const filteredRows = callbacks?.getFilteredProjections?.() || getScenarioProjectionRows(currentScenario);
-    callbacks?.updateProjectionTotals?.(totalsContainer, filteredRows);
 
     const accounts = currentScenario.accounts || [];
     const accountMap = new Map((accounts || []).map((account) => [Number(account.id), account]));
@@ -794,8 +659,6 @@ export async function loadProjectionsSection({
   }
 
   projectionsGridContainer.classList.remove('grid-detail');
-
-  container.querySelectorAll(':scope > .projections-icon-toolbar').forEach((el) => el.remove());
 
   try {
     try {

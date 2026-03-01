@@ -138,29 +138,6 @@
   background: var(--danger-hover);
 }
 
-.projections-icon-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) 0;
-}
-
-.projections-filter-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 100;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-sm);
-  padding: var(--space-xs);
-  min-width: 160px;
-}
-
-.projections-filter-dropdown.hidden {
-  display: none;
-}
-
 .btn-delete {
   color: var(--danger) !important;
   background: transparent !important;

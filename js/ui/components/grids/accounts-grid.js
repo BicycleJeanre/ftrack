@@ -18,7 +18,7 @@ import { openTagEditorModal } from '../modals/tag-editor-modal.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 import { GridStateManager } from './grid-state.js';
-import { formatCurrency } from '../../../shared/format-utils.js';
+import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
 
 const accountsGridState = new GridStateManager('accounts');
 let lastAccountsTable = null;
@@ -75,44 +75,6 @@ function renderAccountsRowDetails({
 
   const grid = document.createElement('div');
   grid.className = 'accounts-row-details-grid';
-
-  const typeSelect = createAccountTypeSelect({
-    lookupData,
-    currentValue: rowData?.type || null
-  });
-  typeSelect.addEventListener('change', async () => {
-    const scenario = scenarioState?.get?.();
-    if (!scenario) return;
-    const nextTypeId = typeSelect.value;
-    const nextType = (lookupData?.accountTypes || []).find((type) => String(type.id) === String(nextTypeId)) || null;
-    try {
-      await AccountManager.update(scenario.id, rowData.id, { type: nextType });
-      row.update({ type: nextType, accountType: nextType?.name || 'Unknown' });
-    } catch (err) {
-      logger?.error?.('[AccountsGrid] Failed to update type', err);
-    }
-  });
-  grid.appendChild(createDetailField({ label: 'Type', inputEl: typeSelect }));
-
-  const startingBalanceInput = document.createElement('input');
-  startingBalanceInput.type = 'number';
-  startingBalanceInput.step = '0.01';
-  startingBalanceInput.className = 'accounts-detail-input';
-  startingBalanceInput.value = rowData?.startingBalance ?? 0;
-  startingBalanceInput.addEventListener('blur', async () => {
-    const scenario = scenarioState?.get?.();
-    if (!scenario) return;
-    const nextBalance = Number(startingBalanceInput.value || 0);
-    try {
-      await AccountManager.update(scenario.id, rowData.id, {
-        startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance
-      });
-      row.update({ startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance });
-    } catch (err) {
-      logger?.error?.('[AccountsGrid] Failed to update starting balance', err);
-    }
-  });
-  grid.appendChild(createDetailField({ label: 'Starting Balance', inputEl: startingBalanceInput }));
 
   const descriptionInput = document.createElement('input');
   descriptionInput.type = 'text';
@@ -180,86 +142,101 @@ function renderAccountsRowDetails({
   const tagsLabel = document.createElement('label');
   tagsLabel.className = 'accounts-detail-label';
   tagsLabel.textContent = 'Tags';
-  const tagsValue = document.createElement('div');
-  tagsValue.className = 'accounts-detail-tags';
-  const renderTags = (tags = []) => {
-    tagsValue.innerHTML = '';
-    if (!Array.isArray(tags) || tags.length === 0) {
+
+  const cardTags = [...(rowData?.tags || [])];
+  const tagsChipsEl = document.createElement('div');
+  tagsChipsEl.className = 'tag-chips';
+
+  const renderTags = () => {
+    tagsChipsEl.innerHTML = '';
+    if (cardTags.length === 0) {
       const empty = document.createElement('span');
       empty.className = 'text-secondary';
       empty.textContent = 'No tags';
-      tagsValue.appendChild(empty);
+      tagsChipsEl.appendChild(empty);
       return;
     }
-    tags.forEach((tag) => {
+    cardTags.forEach((tag, idx) => {
       const chip = document.createElement('span');
       chip.className = 'tag-badge';
-      chip.textContent = tag;
-      tagsValue.appendChild(chip);
+      chip.innerHTML = `${tag} <button type="button" class="tag-remove" aria-label="Remove tag">&times;</button>`;
+      chip.querySelector('.tag-remove').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        cardTags.splice(idx, 1);
+        renderTags();
+        const scenario = scenarioState?.get?.();
+        if (!scenario) return;
+        try {
+          await AccountManager.update(scenario.id, rowData.id, { tags: cardTags });
+          row.update({ tags: cardTags });
+        } catch (err) {
+          logger?.error?.('[AccountsGrid] Failed to update tags', err);
+        }
+      });
+      tagsChipsEl.appendChild(chip);
     });
   };
-  renderTags(rowData?.tags || []);
+  renderTags();
 
-  const tagsButton = document.createElement('button');
-  tagsButton.className = 'icon-btn';
-  tagsButton.textContent = '⊞';
-  tagsButton.title = 'Edit Tags';
-  tagsButton.addEventListener('click', () => {
-    openTagEditorModal(rowData?.tags || [], 'account', async (newTags) => {
-      const scenario = scenarioState?.get?.();
-      if (!scenario) return;
-      try {
-        await AccountManager.update(scenario.id, rowData.id, { tags: newTags });
-        row.update({ tags: newTags });
-        renderTags(newTags);
-      } catch (err) {
-        logger?.error?.('[AccountsGrid] Failed to update tags', err);
-      }
-    });
+  const tagInputRow = document.createElement('div');
+  tagInputRow.className = 'tag-input-row';
+
+  const tagInput = document.createElement('input');
+  tagInput.type = 'text';
+  tagInput.className = 'accounts-detail-input';
+  tagInput.placeholder = 'Add tag…';
+  tagInput.autocomplete = 'off';
+
+  const addTagFn = () => {
+    const val = tagInput.value.trim().toLowerCase();
+    if (val && !cardTags.includes(val)) {
+      cardTags.push(val);
+      renderTags();
+    }
+    tagInput.value = '';
+  };
+
+  tagInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      addTagFn();
+    }
   });
+
+  tagInput.addEventListener('blur', async () => {
+    if (cardTags.length === 0) return;
+    const scenario = scenarioState?.get?.();
+    if (!scenario) return;
+    try {
+      await AccountManager.update(scenario.id, rowData.id, { tags: cardTags });
+      row.update({ tags: cardTags });
+    } catch (err) {
+      logger?.error?.('[AccountsGrid] Failed to update tags', err);
+    }
+  });
+
+  const addTagBtn = document.createElement('button');
+  addTagBtn.type = 'button';
+  addTagBtn.className = 'icon-btn';
+  addTagBtn.textContent = '⊕';
+  addTagBtn.title = 'Add Tag';
+  addTagBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    addTagFn();
+  });
+
+  tagInputRow.appendChild(tagInput);
+  tagInputRow.appendChild(addTagBtn);
+
+  const tagsContentRow = document.createElement('div');
+  tagsContentRow.className = 'tags-content-row';
+  tagsContentRow.appendChild(tagsChipsEl);
+  tagsContentRow.appendChild(tagInputRow);
 
   tagsField.appendChild(tagsLabel);
-  tagsField.appendChild(tagsValue);
-  tagsField.appendChild(tagsButton);
+  tagsField.appendChild(tagsContentRow);
   grid.appendChild(tagsField);
-
-  const periodicField = document.createElement('div');
-  periodicField.className = 'accounts-detail-field';
-  const periodicLabel = document.createElement('label');
-  periodicLabel.className = 'accounts-detail-label';
-  periodicLabel.textContent = 'Periodic Change';
-  const periodicValue = document.createElement('div');
-  periodicValue.className = 'accounts-detail-value';
-  periodicValue.textContent = rowData?.periodicChangeSummary || 'None';
-
-  const periodicButton = document.createElement('button');
-  periodicButton.className = 'icon-btn';
-  periodicButton.textContent = '⊞';
-  periodicButton.title = 'Edit Periodic Change';
-  periodicButton.addEventListener('click', () => {
-    openPeriodicChangeModal(rowData?.periodicChange, async (newPeriodicChange) => {
-      const scenario = scenarioState?.get?.();
-      if (!scenario) return;
-      try {
-        const summary = await getPeriodicChangeDescription(newPeriodicChange);
-        await AccountManager.update(scenario.id, rowData.id, {
-          periodicChange: newPeriodicChange
-        });
-        row.update({
-          periodicChange: newPeriodicChange,
-          periodicChangeSummary: summary
-        });
-        periodicValue.textContent = summary || 'None';
-      } catch (err) {
-        logger?.error?.('[AccountsGrid] Failed to update periodic change', err);
-      }
-    });
-  });
-
-  periodicField.appendChild(periodicLabel);
-  periodicField.appendChild(periodicValue);
-  periodicField.appendChild(periodicButton);
-  grid.appendChild(periodicField);
 
   if (workflowConfig?.supportsPeriodicChangeSchedule) {
     const scheduleField = document.createElement('div');
@@ -887,7 +864,104 @@ export function buildAccountsGridColumns({
       },
       { confirmMessage: (rowData) => `Delete account: ${rowData.name}?` }
     ),
-    createTextColumn('Account Name', 'name', { widthGrow: 2 })
+    createTextColumn('Account Name', 'name', { widthGrow: 2 }),
+    {
+      title: 'Type',
+      field: 'accountType',
+      widthGrow: 1,
+      headerFilter: 'list',
+      headerFilterParams: {
+        values: (lookupData?.accountTypes || []).reduce((acc, type) => {
+          acc[type.name] = type.name;
+          return acc;
+        }, {})
+      },
+      headerFilterFunc: function (headerValue, rowValue) {
+        return (rowValue || '').includes(headerValue);
+      },
+      editor: 'select',
+      editorParams: {
+        values: (lookupData?.accountTypes || []).reduce((acc, type) => {
+          acc[String(type.id)] = type.name;
+          return acc;
+        }, {})
+      },
+      formatter: (cell) => cell.getValue() || '',
+      cellEdited: async (cell) => {
+        const scenario = scenarioState?.get?.();
+        if (!scenario) return;
+        const rowData = cell.getRow().getData();
+        const nextTypeId = cell.getValue();
+        const nextType = (lookupData?.accountTypes || []).find((type) => String(type.id) === String(nextTypeId)) || null;
+        try {
+          await AccountManager.update(scenario.id, rowData.id, { type: nextType });
+          cell.getRow().update({ type: nextType, accountType: nextType?.name || 'Unknown' });
+        } catch (err) {
+          logger?.error?.('[AccountsGrid] Failed to update type', err);
+        }
+      }
+    },
+    {
+      title: 'Starting Balance',
+      field: 'startingBalance',
+      widthGrow: 1,
+      hozAlign: 'right',
+      headerFilter: 'input',
+      headerFilterFunc: function (headerValue, rowValue) {
+        const numValue = Number(rowValue || 0);
+        return formatCurrency(numValue).toLowerCase().includes(headerValue.toLowerCase());
+      },
+      editor: 'input',
+      formatter: (cell) => {
+        const value = cell.getValue() || 0;
+        const formatted = formatCurrency(value);
+        const colorClass = numValueClass(value);
+        return `<span class="${colorClass}">${formatted}</span>`;
+      },
+      cellEdited: async (cell) => {
+        const scenario = scenarioState?.get?.();
+        if (!scenario) return;
+        const rowData = cell.getRow().getData();
+        const nextBalance = Number(cell.getValue() || 0);
+        try {
+          await AccountManager.update(scenario.id, rowData.id, {
+            startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance
+          });
+          cell.getRow().update({ startingBalance: Number.isNaN(nextBalance) ? 0 : nextBalance });
+        } catch (err) {
+          logger?.error?.('[AccountsGrid] Failed to update starting balance', err);
+        }
+      }
+    },
+    {
+      title: 'Periodic Change',
+      field: 'periodicChangeSummary',
+      widthGrow: 1,
+      headerFilter: 'input',
+      headerFilterFunc: function (headerValue, rowValue) {
+        return (rowValue || '').toLowerCase().includes(headerValue.toLowerCase());
+      },
+      formatter: (cell) => cell.getValue() || 'None',
+      cellClick: (e, cell) => {
+        const scenario = scenarioState?.get?.();
+        if (!scenario) return;
+        const rowData = cell.getRow().getData();
+        openPeriodicChangeModal(rowData?.periodicChange, async (newPeriodicChange) => {
+          try {
+            const summary = await getPeriodicChangeDescription(newPeriodicChange);
+            await AccountManager.update(scenario.id, rowData.id, {
+              periodicChange: newPeriodicChange
+            });
+            cell.getRow().update({
+              periodicChange: newPeriodicChange,
+              periodicChangeSummary: summary
+            });
+          } catch (err) {
+            logger?.error?.('[AccountsGrid] Failed to update periodic change', err);
+          }
+        });
+      }
+    }
   ];
 
   return columns;

@@ -10,11 +10,21 @@ export function renderMoneyTotals(targetEl, totals, currency = 'ZAR') {
   const moneyOut = formatCurrency(totals.moneyOut || 0, currency);
   const net = formatCurrency(totals.net || 0, currency);
 
-  targetEl.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Money In:</span> <span class="value positive">${moneyIn}</span></span>
-      <span class="toolbar-total-item"><span class="label">Money Out:</span> <span class="value negative">${moneyOut}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${numValueClass(totals.net)}">${net}</span></span>
-    `;
+  const items = [
+    { label: 'Money In', value: moneyIn, cls: 'positive' },
+    { label: 'Money Out', value: moneyOut, cls: 'negative' },
+    { label: 'Net', value: net, cls: numValueClass(totals.net) }
+  ];
+
+  const rows = items.map(({ label, value, cls }) =>
+    `<div class="summary-card-row"><span class="label">${label}</span><span class="value ${cls}">${value}</span></div>`
+  ).join('');
+
+  targetEl.innerHTML =
+    `<div class="summary-card overall-total">
+      <div class="summary-card-title">TRANSACTION TOTALS</div>
+      <div class="budget-totals-rows">${rows}</div>
+    </div>`;
 }
 
 export function renderBudgetTotals(targetEl, totals, currency = 'ZAR') {
