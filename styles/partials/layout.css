@@ -1347,6 +1347,13 @@ body.dashboard-shell {
   border-color: var(--accent-hover) !important;
 }
 
+#summaryCardsContent > .summary-card.overall-total:hover .summary-card-title,
+#summaryCardsContent > .summary-card.overall-total:hover .summary-card-row .label,
+#summaryCardsContent > .summary-card.overall-total:hover .summary-card-row .value,
+#summaryCardsContent > .summary-card.overall-total:hover .summary-card-amount {
+  color: var(--bg-primary) !important;
+}
+
 /* Transaction card header row: secondary account name + type badge */
 .grid-summary-header {
   display: flex;
