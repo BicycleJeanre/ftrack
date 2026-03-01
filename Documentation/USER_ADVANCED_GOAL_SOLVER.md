@@ -1,8 +1,8 @@
-# Advanced Goal Solver
+# Goal Workshop — Advanced Mode
 
 ## 1.0 Purpose
 
-1.1 The Advanced Goal Solver helps you generate planned transactions that satisfy one or more account goals by specific dates, while respecting optional constraints.
+1.1 The Goal Workshop Advanced mode helps you generate planned transactions that satisfy one or more account goals by specific dates, while respecting optional constraints.
 
 1.2 It uses the scenario’s current accounts, starting balances, and projection engine to validate that the suggested transactions actually achieve the goals.
 
@@ -16,9 +16,11 @@
 
 2.1.3 **Start Date / End Date**:
 
-2.1.3.1 If blank, Start Date defaults to the scenario start date.
+2.1.3.1 If blank, Start Date defaults to the solver planning window start date.
 
-2.1.3.2 If blank, End Date defaults to the scenario end date.
+2.1.3.2 If blank, End Date defaults to the solver planning window end date.
+
+2.1.3.3 The solver planning window is set at the top of the Generate Plan card (Goal Workshop workflow) and defaults to the scenario projection window.
 
 2.1.4 **Priority**: lower numbers are solved first. If two goals conflict, priority decides which goal is favoured.
 
@@ -84,7 +86,7 @@
 
 ### 3.1 Pay off a home loan 1 year sooner
 
-3.1.1 Scenario: Advanced Goal Solver.
+3.1.1 Workflow: Goal Workshop (Advanced mode).
 
 3.1.2 Accounts: ensure your loan and your funding account exist in the scenario and have correct starting balances.
 
@@ -158,6 +160,6 @@
 
 ## 5.0 Related Documents
 
-5.1 Goal Planning explains the Goal-Based Generate Plan flow and how account goal fields work.
+5.1 Goal Workshop Simple mode explains the Generate Plan flow and how account goal fields work.
 
 5.2 Debt Repayment explains debt-focused modeling and variable-rate schedules.

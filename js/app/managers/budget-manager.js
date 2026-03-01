@@ -31,20 +31,11 @@
 
 
 import * as DataStore from '../services/storage-service.js';
+import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
+import { allocateNextId } from '../../shared/app-data-utils.js';
 import { expandTransactions } from '../../domain/calculations/transaction-expander.js';
 import { getRecurrenceDescription } from '../../domain/calculations/recurrence-utils.js';
-import { parseDateOnly } from '../../shared/date-utils.js';
-
-/**
- * Get all budget occurrences for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of budget occurrences
- */
-export async function getAll(scenarioId) {
-    const data = await DataStore.read();
-    const scenario = data.scenarios?.find(s => s.id === scenarioId);
-    return scenario?.budgets || [];
-}
+import { getScenarioBudgetWindowConfig } from '../../shared/app-data-utils.js';
 
 /**
  * Save all budget occurrences for a scenario
@@ -60,12 +51,7 @@ export async function saveAll(scenarioId, budgets) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
 
-        // Assign IDs to new budget occurrences
-        const maxId = budgets.length > 0 && budgets.some(b => b.id)
-            ? Math.max(...budgets.filter(b => b.id).map(b => b.id))
-            : 0;
-
-        let nextId = maxId + 1;
+        let nextId = allocateNextId(budgets);
 
         data.scenarios[scenarioIndex].budgets = budgets.map(budget => {
             // Normalize budget to storage format: only store IDs, not objects
@@ -88,18 +74,12 @@ export async function saveAll(scenarioId, budgets) {
                 };
             }
 
-            // Extract IDs from objects if present, otherwise use ID fields directly
-            const extractId = (obj, idField) => {
-                if (obj && typeof obj === 'object' && obj.id !== undefined) return obj.id;
-                return idField || null;
-            };
-
             const normalized = {
                 id: budget.id || nextId++,
                 sourceTransactionId: budget.sourceTransactionId || null,
-                primaryAccountId: extractId(budget.primaryAccount, budget.primaryAccountId),
-                secondaryAccountId: extractId(budget.secondaryAccount, budget.secondaryAccountId),
-                transactionTypeId: extractId(budget.transactionType, budget.transactionTypeId),
+                primaryAccountId: budget.primaryAccountId ?? null,
+                secondaryAccountId: budget.secondaryAccountId ?? null,
+                transactionTypeId: budget.transactionTypeId ?? null,
                 amount: Math.abs(budget.amount || 0),
                 description: budget.description || '',
                 recurrenceDescription: budget.recurrenceDescription || '',
@@ -128,30 +108,46 @@ export async function saveAll(scenarioId, budgets) {
 }
 
 /**
- * Create budgets from planned transactions with recurrence expansion
- * Expands each transaction's recurrence into individual dated budget occurrences
+ * Create budgets from projections
+ * Uses the shared transaction expansion logic over the projection window
  * @param {number} scenarioId - The scenario ID
  * @returns {Promise<Array>} - The created budgets (expanded occurrences)
  */
 export async function createFromProjections(scenarioId) {
     const data = await DataStore.read();
-    const scenario = data.scenarios.find(s => s.id === scenarioId);
+    const scenario = data.scenarios?.find(s => s.id === scenarioId);
 
     if (!scenario) {
         throw new Error(`Scenario ${scenarioId} not found`);
     }
 
-// Get scenario date range — always use parseDateOnly, never new Date(), to avoid timezone shifts
-        const startDate = parseDateOnly(scenario.startDate);
-        const endDate = parseDateOnly(scenario.endDate);
+    // Budget uses its own independent window configuration
+    const budgetWindowConfig = getScenarioBudgetWindowConfig(scenario);
+    if (!budgetWindowConfig) {
+        throw new Error(`Scenario ${scenarioId} is missing budget window configuration`);
+    }
+
+    const windowStart = budgetWindowConfig.startDate;
+    const windowEnd = budgetWindowConfig.endDate;
+    if (!windowStart || !windowEnd) {
+        throw new Error(`Scenario ${scenarioId} budget window must have both start and end dates`);
+    }
+
+    // Always use parseDateOnly, never new Date(), to avoid timezone shifts
+    const startDate = parseDateOnly(windowStart);
+    const endDate = parseDateOnly(windowEnd);
 
     // Use the same expansion logic as the projection engine (handles recurring + non-recurring)
     const statusName = tx => typeof tx.status === 'object' ? tx.status.name : tx.status;
     const plannedTransactions = (scenario.transactions || [])
         .filter(tx => statusName(tx) === 'planned');
 
-    const accounts = scenario.accounts || [];
-    const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
+    const expandedTransactions = expandTransactions(
+        plannedTransactions,
+        startDate,
+        endDate,
+        scenario.accounts || []
+    );
 
     // Map expanded occurrences to budget entries (id: 0 — saveAll will assign proper IDs)
     const newEntries = expandedTransactions.map(tx => ({
@@ -180,40 +176,6 @@ export async function createFromProjections(scenarioId) {
     });
 
     return await saveAll(scenarioId, [...existingActuals, ...newEntries]);
-}
-
-/**
- * Update a specific budget occurrence
- * @param {number} scenarioId - The scenario ID
- * @param {number} budgetId - The budget occurrence ID
- * @param {Object} updates - The fields to update
- * @returns {Promise<Object>} - The updated budget occurrence
- */
-export async function update(scenarioId, budgetId, updates) {
-    return await DataStore.transaction(async (data) => {
-        const scenario = data.scenarios.find(s => s.id === scenarioId);
-        
-        if (!scenario) {
-            throw new Error(`Scenario ${scenarioId} not found`);
-        }
-        
-        if (!scenario.budgets) {
-            scenario.budgets = [];
-        }
-        
-        const budgetIndex = scenario.budgets.findIndex(b => b.id === budgetId);
-        
-        if (budgetIndex === -1) {
-            throw new Error(`Budget occurrence ${budgetId} not found`);
-        }
-        
-        scenario.budgets[budgetIndex] = {
-            ...scenario.budgets[budgetIndex],
-            ...updates
-        };
-        
-        return data;
-    });
 }
 
 /**

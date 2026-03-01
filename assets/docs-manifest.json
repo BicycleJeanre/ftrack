@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-17T16:35:25.331Z",
+  "generatedAt": "2026-03-01T07:10:44.014Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -18,7 +18,7 @@
     },
     {
       "id": "CONCEPTS_GOAL_PLANNING",
-      "title": "Goal Planning",
+      "title": "Goal Workshop",
       "category": "Concepts",
       "file": "Documentation/CONCEPTS_GOAL_PLANNING.md",
       "kind": "md"
@@ -53,7 +53,7 @@
     },
     {
       "id": "CONCEPTS_SCENARIOS",
-      "title": "Scenario Planning",
+      "title": "Scenarios and Workflows",
       "category": "Concepts",
       "file": "Documentation/CONCEPTS_SCENARIOS.md",
       "kind": "md"
@@ -94,13 +94,6 @@
       "kind": "md"
     },
     {
-      "id": "OTHER_MONETIZATION_OPTIONS",
-      "title": "Monetization Options",
-      "category": "Other",
-      "file": "Documentation/OTHER_MONETIZATION_OPTIONS.md",
-      "kind": "md"
-    },
-    {
       "id": "TECH_DATA_SCHEMA",
       "title": "Data Schema",
       "category": "Technical",
@@ -108,10 +101,24 @@
       "kind": "md"
     },
     {
+      "id": "TECH_UI_STYLE_GUIDE",
+      "title": "FTrack UI Style Guide",
+      "category": "Technical",
+      "file": "Documentation/TECH_UI_STYLE_GUIDE.md",
+      "kind": "md"
+    },
+    {
       "id": "TECH_QC_METHOD",
       "title": "QC Method Summary",
       "category": "Technical",
       "file": "Documentation/TECH_QC_METHOD.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_REFACTOR_AUDIT",
+      "title": "Refactor Audit Report",
+      "category": "Technical",
+      "file": "Documentation/TECH_REFACTOR_AUDIT.md",
       "kind": "md"
     },
     {
@@ -136,10 +143,17 @@
       "kind": "md"
     },
     {
-      "id": "USER_ADVANCED_GOAL_SOLVER",
-      "title": "Advanced Goal Solver",
-      "category": "User",
-      "file": "Documentation/USER_ADVANCED_GOAL_SOLVER.md",
+      "id": "TECH_IMPLEMENTATION_PLAN",
+      "title": "Workflow Refactor Implementation Plan",
+      "category": "Technical",
+      "file": "Documentation/TECH_IMPLEMENTATION_PLAN.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_REFACTOR_WORKFLOWS",
+      "title": "Workflow-Based Scenarios Refactor",
+      "category": "Technical",
+      "file": "Documentation/TECH_REFACTOR_WORKFLOWS.md",
       "kind": "md"
     },
     {
@@ -172,7 +186,7 @@
     },
     {
       "id": "USER_FUNDS",
-      "title": "Funds Scenarios",
+      "title": "Funds Workflow",
       "category": "User",
       "file": "Documentation/USER_FUNDS.md",
       "kind": "md"
@@ -185,8 +199,15 @@
       "kind": "md"
     },
     {
+      "id": "USER_ADVANCED_GOAL_SOLVER",
+      "title": "Goal Workshop — Advanced Mode",
+      "category": "User",
+      "file": "Documentation/USER_ADVANCED_GOAL_SOLVER.md",
+      "kind": "md"
+    },
+    {
       "id": "USER_GOAL_PLANNING",
-      "title": "Goal Planning",
+      "title": "Goal Workshop — Simple Mode",
       "category": "User",
       "file": "Documentation/USER_GOAL_PLANNING.md",
       "kind": "md"

@@ -30,7 +30,7 @@
 
 3.1 Fixed rate.
 
-3.1.1 One periodic change definition applies for the whole scenario window.
+3.1.1 One periodic change definition applies for the whole projection window.
 
 3.2 Variable rate.
 
@@ -48,7 +48,7 @@
 
 ## 5.0 What Debt Repayment Shows
 
-5.1 Debt Repayment scenarios emphasize.
+5.1 Debt Repayment workflow emphasizes.
 
 5.1.1 Interest paid over time.
 
@@ -56,7 +56,7 @@
 
 5.1.3 Payoff date per debt.
 
-5.2 Budget and actual tracking are not the focus of this scenario type.
+5.2 Budget and actual tracking are not the focus of this workflow.
 
 ## 6.0 Related Documents
 

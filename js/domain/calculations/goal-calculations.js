@@ -131,57 +131,12 @@ export function calculateMonthsToGoal(presentValue, futureValue, monthlyContribu
 }
 
 /**
- * Validate goal parameters and return any errors
- * 
- * @param {object} params - Goal parameters
- * @param {number} params.presentValue - Starting balance
- * @param {number} params.futureValue - Target goal amount
- * @param {number} params.monthlyContribution - Monthly contribution
- * @param {number} params.months - Number of months to goal
- * @param {number} params.annualRate - Annual interest rate
- * @returns {string[]} - Array of error messages (empty if valid)
- */
-export function validateGoalParameters(params) {
-    const errors = [];
-    
-    const { presentValue, futureValue, monthlyContribution, months, annualRate } = params;
-    
-    if (presentValue === null || presentValue === undefined || presentValue < 0) {
-        errors.push('Present value must be a non-negative number');
-    }
-    
-    if (futureValue === null || futureValue === undefined || futureValue < 0) {
-        errors.push('Future value must be a non-negative number');
-    }
-    
-    if (monthlyContribution !== null && monthlyContribution !== undefined) {
-        if (monthlyContribution < 0) {
-            errors.push('Monthly contribution must be non-negative');
-        }
-    }
-    
-    if (months !== null && months !== undefined) {
-        if (months <= 0) {
-            errors.push('Months must be greater than 0');
-        }
-    }
-    
-    if (annualRate !== null && annualRate !== undefined) {
-        if (annualRate < -1) {
-            errors.push('Annual rate must be greater than -100%');
-        }
-    }
-    
-    return errors;
-}
-
-/**
  * Get contribution frequency in months
  * 
  * @param {number} frequencyId - Frequency lookup ID (1=Daily, 2=Weekly, 3=Monthly, 4=Quarterly, 5=Yearly)
  * @returns {number} - Number of months between contributions
  */
-export function getFrequencyInMonths(frequencyId) {
+function getFrequencyInMonths(frequencyId) {
     const frequencyMap = {
         1: 0.033,    // Daily (1/30 months)
         2: 0.231,    // Weekly (1/4.33 months)
@@ -243,23 +198,3 @@ export function calculateMonthsBetweenDates(startDate, endDate) {
     return yearDiff * 12 + monthDiff;
 }
 
-/**
- * Get a summary string for a goal
- * 
- * @param {number} amount - Contribution amount
- * @param {number} frequencyId - Frequency ID
- * @param {string} goalAmount - Goal amount
- * @param {string} goalDate - Goal date
- * @returns {string} - Summary string
- */
-export function getGoalSummary(amount, frequencyId, goalAmount, goalDate) {
-    const frequencyName = getFrequencyName(frequencyId);
-    const formattedAmount = Math.round(amount * 100) / 100;
-    const formattedGoal = Math.round(goalAmount * 100) / 100;
-    
-    const goalDateObj = new Date(goalDate);
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const formattedDate = `${monthNames[goalDateObj.getMonth()]} ${goalDateObj.getFullYear()}`;
-    
-    return `${formattedAmount}/${frequencyName.toLowerCase()} to reach ${formattedGoal} by ${formattedDate}`;
-}

@@ -1,149 +1,448 @@
 // forecast-layout.js
-// Forecast page layout builder extracted from forecast.js (no behavior change).
+// Forecast page layout builder.
+// Updated to render the dashboard shell (sidebar + topbar + dash rows).
 
-export function buildGridContainer() {
+import { downloadAppData, uploadAppData } from '../../../app/services/export-service.js';
+import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
+import { getTheme, setTheme } from '../../../config.js';
+
+const repoRootUrl = new URL('../../../../', import.meta.url);
+const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;
+
+function buildIconButton({ title, svg, onClick, extraClass = '' }) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `icon-btn${extraClass ? ` ${extraClass}` : ''}`;
+  btn.title = title;
+  btn.setAttribute('aria-label', title);
+  btn.innerHTML = svg;
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClick?.();
+  });
+  return btn;
+}
+
+function buildBurgerButton({ onClick }) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'burger-menu icon-btn';
+  btn.title = 'Menu';
+  btn.setAttribute('aria-label', 'Menu');
+  btn.innerHTML = `
+    <span class="burger-line"></span>
+    <span class="burger-line"></span>
+    <span class="burger-line"></span>
+  `;
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    onClick?.();
+  });
+  return btn;
+}
+
+function applyTheme(themeBtn) {
+  const theme = getTheme();
+  document.documentElement.setAttribute('data-theme', theme);
+  if (themeBtn) themeBtn.textContent = theme === 'dark' ? '☀ Light' : '☾ Dark';
+}
+
+function buildTopbarActions() {
+  const actions = document.createElement('div');
+  actions.className = 'topbar-actions';
+
+  const themeBtn = document.createElement('button');
+  themeBtn.type = 'button';
+  themeBtn.className = 'icon-btn';
+  themeBtn.title = 'Toggle theme';
+  applyTheme(themeBtn);
+  themeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const nextTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    applyTheme(themeBtn);
+  });
+
+  const exportBtn = document.createElement('button');
+  exportBtn.type = 'button';
+  exportBtn.className = 'icon-btn';
+  exportBtn.title = 'Export data to file';
+  exportBtn.textContent = '⬆ Export';
+  exportBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      await downloadAppData();
+    } catch (err) {
+      notifyError('Export failed: ' + err.message);
+    }
+  });
+
+  const importBtn = document.createElement('button');
+  importBtn.type = 'button';
+  importBtn.className = 'icon-btn';
+  importBtn.title = 'Import data from file';
+  importBtn.textContent = '⬇ Import';
+  importBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      await uploadAppData(false);
+    } catch (err) {
+      notifyError('Import failed: ' + err.message);
+    }
+  });
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.className = 'icon-btn icon-btn--danger';
+  clearBtn.title = 'Clear all data from browser storage';
+  clearBtn.textContent = '⊗ Clear';
+  clearBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!await confirmDialog('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) return;
+    try {
+      localStorage.removeItem('ftrack:app-data');
+      notifySuccess('All data cleared successfully. The page will now reload.');
+      window.location.reload();
+    } catch (err) {
+      notifyError('Failed to clear data: ' + err.message);
+    }
+  });
+
+  actions.appendChild(themeBtn);
+  actions.appendChild(exportBtn);
+  actions.appendChild(importBtn);
+  actions.appendChild(clearBtn);
+  return actions;
+}
+
+function buildDashRow({ id, title, defaultCollapsed = false, showControls = true, onToggle }) {
+  const row = document.createElement('section');
+  row.className = 'dash-row';
+  row.id = id;
+  if (defaultCollapsed) row.classList.add('collapsed');
+
+  const header = document.createElement('div');
+  header.className = 'dash-row-header';
+
+  const chevron = document.createElement('span');
+  chevron.className = 'dash-row-chevron';
+  chevron.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  const titleEl = document.createElement('span');
+  titleEl.className = 'dash-row-title';
+  titleEl.textContent = title;
+
+  if (showControls) {
+    const controls = document.createElement('div');
+    controls.className = 'dash-row-controls';
+
+    const refreshBtn = buildIconButton({
+      title: 'Refresh',
+      svg: '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      onClick: () => document.dispatchEvent(new CustomEvent('forecast:refresh'))
+    });
+
+    controls.appendChild(refreshBtn);
+
+    header.appendChild(chevron);
+    header.appendChild(titleEl);
+    header.appendChild(controls);
+  } else {
+    // Only chevron and title
+    header.appendChild(chevron);
+    header.appendChild(titleEl);
+  }
+
+  header.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    row.classList.toggle('collapsed');
+    onToggle?.(!row.classList.contains('collapsed'));
+  });
+
+  const body = document.createElement('div');
+  body.className = 'dash-row-body';
+
+  row.appendChild(header);
+  row.appendChild(body);
+  return { row, body };
+}
+
+export function buildGridContainer({ accordionStates = {}, onAccordionToggle } = {}) {
   const forecastEl = getEl('panel-forecast');
+  forecastEl.innerHTML = '';
 
-  // Scenarios section with accordion (at the top)
-  const scenarioSection = document.createElement('div');
-  scenarioSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
+  document.body.classList.add('dashboard-shell');
 
-  const scenarioHeader = document.createElement('div');
-  scenarioHeader.className = 'pointer flex-between accordion-header section-padding';
-  scenarioHeader.innerHTML = `<h2 class="text-main section-title">Scenarios</h2><span class="accordion-arrow">&#9662;</span>`;
-  scenarioHeader.addEventListener('click', () => window.toggleAccordion('scenarioContent'));
-  window.add(scenarioSection, scenarioHeader);
+  const app = document.createElement('div');
+  app.className = 'app-container';
 
-  const scenarioContent = document.createElement('div');
-  scenarioContent.id = 'scenarioContent';
-  scenarioContent.className = 'accordion-content hidden';
-  window.add(scenarioSection, scenarioContent);
+  const backdrop = document.createElement('div');
+  backdrop.className = 'sidebar-backdrop hidden';
+
+  const sidebar = document.createElement('aside');
+  sidebar.className = 'sidebar collapsed';
+
+  const sidebarHeader = document.createElement('div');
+  sidebarHeader.className = 'sidebar-header';
+
+  const sidebarBrand = document.createElement('div');
+  sidebarBrand.className = 'sidebar-brand';
+  const sidebarLogo = document.createElement('img');
+  sidebarLogo.className = 'sidebar-logo';
+  sidebarLogo.src = logoPath;
+  sidebarLogo.alt = 'FTrack';
+
+  const sidebarTitle = document.createElement('div');
+  sidebarTitle.className = 'sidebar-app-title';
+  sidebarTitle.textContent = 'FTrack';
+
+  sidebarBrand.appendChild(sidebarLogo);
+  sidebarBrand.appendChild(sidebarTitle);
+  sidebarHeader.appendChild(sidebarBrand);
+
+  const sidebarContent = document.createElement('div');
+  sidebarContent.className = 'sidebar-content';
+
+  const scenariosSection = document.createElement('div');
+  scenariosSection.className = 'sidebar-section';
+  const scenariosTitle = document.createElement('div');
+  scenariosTitle.className = 'sidebar-section-title';
+  scenariosTitle.textContent = 'Scenarios';
 
   const scenarioSelector = document.createElement('div');
   scenarioSelector.id = 'scenario-selector';
-  window.add(scenarioContent, scenarioSelector);
-  window.add(forecastEl, scenarioSection);
+  scenarioSelector.className = 'sidebar-scenarios-container';
+  scenariosSection.appendChild(scenariosTitle);
+  scenariosSection.appendChild(scenarioSelector);
 
-  // Summary Cards section with accordion (NEW - for debt repayment scenarios)
-  const summaryCardsSection = document.createElement('div');
-  summaryCardsSection.id = 'summaryCardsSection';
-  summaryCardsSection.className = 'bg-main bordered rounded shadow-lg mb-lg hidden';
+  const workflowSection = document.createElement('div');
+  workflowSection.className = 'sidebar-section';
+  const workflowTitle = document.createElement('div');
+  workflowTitle.className = 'sidebar-section-title';
+  workflowTitle.textContent = 'Workflows';
 
-  const summaryCardsHeader = document.createElement('div');
-  summaryCardsHeader.className = 'pointer flex-between accordion-header section-padding';
-  summaryCardsHeader.innerHTML = `<h2 class="text-main section-title">Summary</h2><span class="accordion-arrow">&#9662;</span>`;
-  summaryCardsHeader.addEventListener('click', () => window.toggleAccordion('summaryCardsContent'));
-  window.add(summaryCardsSection, summaryCardsHeader);
+  const workflowNav = document.createElement('div');
+  workflowNav.id = 'workflowNav';
+  workflowNav.className = 'forecast-workflow-nav';
+  workflowSection.appendChild(workflowTitle);
+  workflowSection.appendChild(workflowNav);
 
+  sidebarContent.appendChild(scenariosSection);
+  sidebarContent.appendChild(workflowSection);
+
+  sidebar.appendChild(sidebarHeader);
+  sidebar.appendChild(sidebarContent);
+
+  const main = document.createElement('main');
+  main.className = 'main-content';
+
+  const topbar = document.createElement('div');
+  topbar.className = 'topbar';
+
+  const toggleSidebar = () => {
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+    if (isMobile) {
+      const open = sidebar.classList.toggle('open');
+      backdrop.classList.toggle('hidden', !open);
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
+  };
+
+  const burger = buildBurgerButton({ onClick: toggleSidebar });
+
+  const topbarLogo = document.createElement('img');
+  topbarLogo.className = 'topbar-logo';
+  topbarLogo.src = logoPath;
+  topbarLogo.alt = 'FTrack';
+
+  const pageTitle = document.createElement('div');
+  pageTitle.className = 'page-title';
+  pageTitle.textContent = 'FTrack';
+
+  topbar.appendChild(burger);
+  topbar.appendChild(topbarLogo);
+  topbar.appendChild(pageTitle);
+  topbar.appendChild(buildTopbarActions());
+
+  const contentArea = document.createElement('div');
+  contentArea.className = 'content-area';
+  const dashLayout = document.createElement('div');
+  dashLayout.className = 'dash-layout';
+
+  // SUMMARY ROW: Only the summary cards grid should be rendered here.
+  const { row: summaryCardsSection, body: summaryCardsBody } = buildDashRow({
+     id: 'summaryCardsSection',
+     title: 'Summary',
+     defaultCollapsed: accordionStates['summaryCardsSection'] !== true,
+     onToggle: (isOpen) => onAccordionToggle?.('summaryCardsSection', isOpen)
+  });
   const summaryCardsContent = document.createElement('div');
   summaryCardsContent.id = 'summaryCardsContent';
-  summaryCardsContent.className = 'accordion-content section-content';
-  window.add(summaryCardsSection, summaryCardsContent);
+  summaryCardsBody.appendChild(summaryCardsContent);
+  dashLayout.appendChild(summaryCardsSection);
 
-  window.add(forecastEl, summaryCardsSection);
-
-  // Accounts section with accordion
-  const accountsSection = document.createElement('div');
-  accountsSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
-
-  const accountsHeader = document.createElement('div');
-  accountsHeader.className = 'pointer flex-between accordion-header section-padding';
-  accountsHeader.innerHTML = `<h2 class="text-main section-title">Accounts</h2><span class="accordion-arrow">&#9662;</span>`;
-  accountsHeader.addEventListener('click', () => window.toggleAccordion('accountsContent'));
-  window.add(accountsSection, accountsHeader);
-
-  const accountsContent = document.createElement('div');
-  accountsContent.id = 'accountsContent';
-  accountsContent.className = 'accordion-content hidden';
-  window.add(accountsSection, accountsContent);
-
-  const accountsTable = document.createElement('div');
-  accountsTable.id = 'accountsTable';
-  window.add(accountsContent, accountsTable);
-  window.add(forecastEl, accountsSection);
-
-  // Generate Plan section (Goal-Based scenarios only)
-  const generatePlanSection = document.createElement('div');
-  generatePlanSection.id = 'generatePlanSection';
-  generatePlanSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
-  generatePlanSection.style.display = 'none'; // Hidden by default
-
-  const generatePlanHeader = document.createElement('div');
-  generatePlanHeader.className = 'pointer flex-between accordion-header section-padding';
-  generatePlanHeader.innerHTML = `<h2 class="text-main section-title">Generate Plan</h2><span class="accordion-arrow">&#9662;</span>`;
-  generatePlanHeader.addEventListener('click', () => window.toggleAccordion('generatePlanContent'));
-  window.add(generatePlanSection, generatePlanHeader);
-
+  const { row: generatePlanSection, body: generatePlanBody } = buildDashRow({
+    id: 'generatePlanSection',
+    title: 'Generate Plan',
+    defaultCollapsed: accordionStates['generatePlanSection'] !== true,
+    onToggle: (isOpen) => onAccordionToggle?.('generatePlanSection', isOpen)
+  });
+  generatePlanSection.style.display = 'none';
   const generatePlanContent = document.createElement('div');
   generatePlanContent.id = 'generatePlanContent';
-  generatePlanContent.className = 'accordion-content hidden';
-  window.add(generatePlanSection, generatePlanContent);
-  window.add(forecastEl, generatePlanSection);
+  generatePlanBody.appendChild(generatePlanContent);
+  dashLayout.appendChild(generatePlanSection);
 
-  // Transactions section (unified planned and actual)
-  const transactionsSection = document.createElement('div');
-  transactionsSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
+  const { row: middleRow, body: middleBody } = buildDashRow({
+    id: 'row-middle',
+    title: 'Accounts & Transactions',
+    defaultCollapsed: accordionStates['row-middle'] !== true,
+    onToggle: (isOpen) => onAccordionToggle?.('row-middle', isOpen)
+  });
+  middleRow.classList.add('row-middle');
+  middleBody.style.padding = '0';
+  middleBody.style.overflow = 'hidden';
 
-  const transactionsHeader = document.createElement('div');
-  transactionsHeader.className = 'pointer flex-between accordion-header section-padding';
-  transactionsHeader.innerHTML = `<h2 class="text-main section-title">Transactions</h2><span class="accordion-arrow">&#9662;</span>`;
-  transactionsHeader.addEventListener('click', () => window.toggleAccordion('transactionsContent'));
-  window.add(transactionsSection, transactionsHeader);
+  const panels = document.createElement('div');
+  panels.className = 'middle-panels';
 
-  const transactionsContent = document.createElement('div');
-  transactionsContent.id = 'transactionsContent';
-  transactionsContent.className = 'accordion-content section-content hidden';
-  window.add(transactionsSection, transactionsContent);
+  const accountsPanel = document.createElement('div');
+  accountsPanel.className = 'dash-panel forecast-card';
+  accountsPanel.id = 'accountsSection';
+  const accountsHeader = document.createElement('div');
+  accountsHeader.className = 'dash-panel-header card-header';
+  const accountsHeaderLeft = document.createElement('div');
+  accountsHeaderLeft.className = 'card-header-actions';
+  const accountsLabel = document.createElement('div');
+  accountsLabel.className = 'dash-panel-label';
+  accountsLabel.textContent = 'Accounts';
+  accountsHeaderLeft.appendChild(accountsLabel);
+  const accountsControls = document.createElement('div');
+  accountsControls.className = 'card-header-controls';
+  accountsHeader.appendChild(accountsHeaderLeft);
+  accountsHeader.appendChild(accountsControls);
+  const accountsBody = document.createElement('div');
+  accountsBody.className = 'dash-panel-body';
+  const accountsTable = document.createElement('div');
+  accountsTable.id = 'accountsTable';
+  accountsBody.appendChild(accountsTable);
+  accountsPanel.appendChild(accountsHeader);
+  accountsPanel.appendChild(accountsBody);
 
+  const txPanel = document.createElement('div');
+  txPanel.className = 'dash-panel forecast-card';
+  txPanel.id = 'transactionsSection';
+  const txHeader = document.createElement('div');
+  txHeader.className = 'dash-panel-header card-header';
+  const txHeaderLeft = document.createElement('div');
+  txHeaderLeft.className = 'card-header-actions';
+  const txLabel = document.createElement('div');
+  txLabel.className = 'dash-panel-label';
+  txLabel.textContent = 'Transactions';
+  txHeaderLeft.appendChild(txLabel);
+  const txControls = document.createElement('div');
+  txControls.className = 'card-header-controls';
+  txHeader.appendChild(txHeaderLeft);
+  txHeader.appendChild(txControls);
+  const txBody = document.createElement('div');
+  txBody.className = 'dash-panel-body';
   const transactionsTable = document.createElement('div');
   transactionsTable.id = 'transactionsTable';
-  window.add(transactionsContent, transactionsTable);
+  txBody.appendChild(transactionsTable);
+  txPanel.appendChild(txHeader);
+  txPanel.appendChild(txBody);
 
-  window.add(forecastEl, transactionsSection);
+  panels.appendChild(accountsPanel);
+  panels.appendChild(txPanel);
+  middleBody.appendChild(panels);
+  dashLayout.appendChild(middleRow);
 
-  // Budget section
-  const budgetSection = document.createElement('div');
-  budgetSection.id = 'budgetSection';
-  budgetSection.className = 'bg-main bordered rounded shadow-lg mb-lg';
-
+  const { row: budgetSection, body: budgetBody } = buildDashRow({
+    id: 'budgetSection',
+    title: 'Budget',
+    defaultCollapsed: accordionStates['budgetSection'] !== true,
+    onToggle: (isOpen) => onAccordionToggle?.('budgetSection', isOpen)
+  });
+  const budgetCard = document.createElement('div');
+  budgetCard.className = 'forecast-card';
   const budgetHeader = document.createElement('div');
-  budgetHeader.id = 'budgetAccordionHeader';
-  budgetHeader.className = 'pointer flex-between accordion-header section-padding';
-  budgetHeader.innerHTML = `<h2 class="text-main section-title">Budget</h2><span class="accordion-arrow">&#9662;</span>`;
-  budgetHeader.addEventListener('click', () => window.toggleAccordion('budgetContent'));
-  window.add(budgetSection, budgetHeader);
-
+  budgetHeader.className = 'dash-panel-header card-header';
+  const budgetHeaderLeft = document.createElement('div');
+  budgetHeaderLeft.className = 'card-header-actions';
+  const budgetLabel = document.createElement('div');
+  budgetLabel.className = 'dash-panel-label';
+  budgetLabel.textContent = 'Budget';
+  budgetHeaderLeft.appendChild(budgetLabel);
+  const budgetControls = document.createElement('div');
+  budgetControls.className = 'card-header-controls';
+  budgetHeader.appendChild(budgetHeaderLeft);
+  budgetHeader.appendChild(budgetControls);
   const budgetContent = document.createElement('div');
-  budgetContent.id = 'budgetContent';
-  budgetContent.className = 'accordion-content section-content hidden';
-  window.add(budgetSection, budgetContent);
-
+  budgetContent.className = 'section-content';
   const budgetTable = document.createElement('div');
   budgetTable.id = 'budgetTable';
-  window.add(budgetContent, budgetTable);
+  budgetContent.appendChild(budgetTable);
+  budgetCard.appendChild(budgetHeader);
+  budgetCard.appendChild(budgetContent);
+  budgetBody.appendChild(budgetCard);
+  dashLayout.appendChild(budgetSection);
 
-  window.add(forecastEl, budgetSection);
-
-  // Projections section (full width)
-  const projectionsSection = document.createElement('div');
-  projectionsSection.id = 'projectionsSection';
-  projectionsSection.className = 'bg-main bordered rounded shadow-lg';
-  projectionsSection.classList.add('mb-lg');
-
+  const { row: projectionsSection, body: projectionsBody } = buildDashRow({
+    id: 'projectionsSection',
+    title: 'Projections',
+    defaultCollapsed: accordionStates['projectionsSection'] !== true,
+    onToggle: (isOpen) => onAccordionToggle?.('projectionsSection', isOpen)
+  });
+  const projectionsCard = document.createElement('div');
+  projectionsCard.className = 'forecast-card';
   const projectionsHeader = document.createElement('div');
-  projectionsHeader.id = 'projectionsAccordionHeader';
-  projectionsHeader.className = 'pointer flex-between accordion-header section-padding';
-  projectionsHeader.innerHTML = `<h2 class="text-main section-title">Projections</h2><span class="accordion-arrow">&#9662;</span>`;
-  projectionsHeader.addEventListener('click', () => window.toggleAccordion('projectionsContent'));
-  window.add(projectionsSection, projectionsHeader);
-
+  projectionsHeader.className = 'dash-panel-header card-header';
+  const projectionsHeaderLeft = document.createElement('div');
+  projectionsHeaderLeft.className = 'card-header-actions';
+  const projectionsLabel = document.createElement('div');
+  projectionsLabel.className = 'dash-panel-label';
+  projectionsLabel.textContent = 'Projections';
+  projectionsHeaderLeft.appendChild(projectionsLabel);
+  const projectionsControls = document.createElement('div');
+  projectionsControls.className = 'card-header-controls';
+  projectionsHeader.appendChild(projectionsHeaderLeft);
+  projectionsHeader.appendChild(projectionsControls);
+  const projectionsContentWrap = document.createElement('div');
+  projectionsContentWrap.className = 'section-content';
   const projectionsContent = document.createElement('div');
   projectionsContent.id = 'projectionsContent';
-  projectionsContent.className = 'accordion-content hidden';
-  window.add(projectionsSection, projectionsContent);
-  window.add(forecastEl, projectionsSection);
+  projectionsContentWrap.appendChild(projectionsContent);
+  projectionsCard.appendChild(projectionsHeader);
+  projectionsCard.appendChild(projectionsContentWrap);
+  projectionsBody.appendChild(projectionsCard);
+  dashLayout.appendChild(projectionsSection);
+
+  contentArea.appendChild(dashLayout);
+  main.appendChild(topbar);
+  main.appendChild(contentArea);
+
+  app.appendChild(sidebar);
+  app.appendChild(main);
+  app.appendChild(backdrop);
+  forecastEl.appendChild(app);
+
+  backdrop.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    backdrop.classList.add('hidden');
+  });
+
+  window.addEventListener('resize', () => {
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+    if (!isMobile) {
+      sidebar.classList.remove('open');
+      backdrop.classList.add('hidden');
+    }
+  });
 
   return {
+    workflowNav,
     scenarioSelector,
     summaryCardsContent,
     accountsTable,

@@ -1,21 +1,132 @@
 // forecast-projections-section.js
 // Projections section/grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, refreshGridData, createDateColumn, createTextColumn, createMoneyColumn, formatMoneyDisplay } from '../grids/grid-factory.js';
-import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
-import { notifyError, notifySuccess } from '../../../shared/notifications.js';
-import { loadLookup } from '../../../app/services/lookup-service.js';
+import { createGrid, createDateColumn, createTextColumn, createMoneyColumn } from '../grids/grid-factory.js';
+import { formatDateOnly } from '../../../shared/date-utils.js';
+import { notifyError } from '../../../shared/notifications.js';
 import { GridStateManager } from '../grids/grid-state.js';
+import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
+import { openTimeframeModal } from '../modals/timeframe-modal.js';
+import { formatCurrency, formatMoneyDisplay, numValueClass } from '../../../shared/format-utils.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
 
-import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
-import { calculatePeriodicChange } from '../../../domain/calculations/calculation-engine.js';
-import { expandPeriodicChangeForCalculation } from '../../../domain/calculations/periodic-change-utils.js';
 
 const projectionsGridState = new GridStateManager('projections');
 let lastProjectionsTable = null;
+
+function renderProjectionsRowDetails({ row, rowData }) {
+  const rowEl = row.getElement();
+  if (!rowEl) return;
+
+  let detailsEl = rowEl.querySelector('.grid-row-details');
+  if (!detailsEl) {
+    detailsEl = document.createElement('div');
+    detailsEl.className = 'grid-row-details';
+    rowEl.appendChild(detailsEl);
+  }
+
+  if (!rowData?._detailsOpen) {
+    detailsEl.style.display = 'none';
+    detailsEl.innerHTML = '';
+    rowEl.classList.remove('grid-row-expanded');
+    return;
+  }
+
+  detailsEl.style.display = 'block';
+  detailsEl.innerHTML = '';
+  rowEl.classList.add('grid-row-expanded');
+
+  const grid = document.createElement('div');
+  grid.className = 'grid-row-details-grid';
+
+  const addField = (label, value) => {
+    const field = document.createElement('div');
+    field.className = 'grid-detail-field';
+    const labelEl = document.createElement('label');
+    labelEl.className = 'grid-detail-label';
+    labelEl.textContent = label;
+    const valueEl = document.createElement('div');
+    valueEl.className = 'grid-detail-value';
+    valueEl.textContent = value || '—';
+    field.appendChild(labelEl);
+    field.appendChild(valueEl);
+    grid.appendChild(field);
+  };
+
+  const addMoneyField = (label, value) => {
+    const field = document.createElement('div');
+    field.className = 'grid-detail-field';
+    const labelEl = document.createElement('label');
+    labelEl.className = 'grid-detail-label';
+    labelEl.textContent = label;
+    const valueEl = document.createElement('div');
+    valueEl.className = 'grid-detail-value';
+    valueEl.innerHTML = formatMoneyDisplay(value) || '—';
+    field.appendChild(labelEl);
+    field.appendChild(valueEl);
+    grid.appendChild(field);
+  };
+
+  addField('Account', rowData?.accountName || rowData?.account);
+  addMoneyField('Income', Number(rowData?.income || 0));
+  addMoneyField('Expenses', Math.abs(Number(rowData?.expenses || 0)));
+  addMoneyField('Net Change', Number(rowData?.netChange || 0));
+
+  detailsEl.appendChild(grid);
+}
+
+function renderProjectionsSummaryList({ container, projections, accounts = [] }) {
+  container.innerHTML = '';
+
+  const list = document.createElement('div');
+  list.className = 'grid-summary-list';
+  container.appendChild(list);
+
+  if (!projections || projections.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'scenarios-list-placeholder';
+    empty.textContent = 'No projections available. Generate projections to see results.';
+    list.appendChild(empty);
+    return;
+  }
+
+  projections.forEach((row) => {
+    const card = document.createElement('div');
+    card.className = 'grid-summary-card';
+
+    const title = document.createElement('span');
+    title.className = 'grid-summary-title';
+    title.textContent = row?.accountName || row?.account || 'Account';
+
+    const projAcct = accounts.find((a) => Number(a.id) === Number(row?.accountId));
+    const projCurrency = projAcct?.currency?.code || projAcct?.currency?.name || 'ZAR';
+
+    const income = document.createElement('span');
+    income.className = `grid-summary-income ${numValueClass(Number(row?.income || 0))}`;
+    income.textContent = `↑ ${formatCurrency(Number(row?.income || 0), projCurrency)}`;
+
+    const expenses = document.createElement('span');
+    expenses.className = 'grid-summary-expenses';
+    expenses.textContent = `↓ ${formatCurrency(Math.abs(Number(row?.expenses || 0)), projCurrency)}`;
+
+    const date = document.createElement('span');
+    date.className = 'grid-summary-date';
+    date.textContent = row?.date || 'No date';
+
+    const net = document.createElement('span');
+    net.className = `grid-summary-type ${numValueClass(Number(row?.netChange || 0))}`;
+    net.textContent = `Net ${formatCurrency(Number(row?.netChange || 0), projCurrency)}`;
+
+    card.appendChild(title);
+    card.appendChild(income);
+    card.appendChild(expenses);
+    card.appendChild(date);
+    card.appendChild(net);
+    list.appendChild(card);
+  });
+}
 
 function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable, state } = {}) {
   if (!projectionsTable) return;
@@ -48,10 +159,311 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
   });
 }
 
-export async function loadProjectionsSection({
+async function buildProjectionsHeaderControls({ controls, container, currentScenario, scenarioState, state, reload, logger, onGroupChange }) {
+  controls.innerHTML = '';
+
+  const regenBtn = document.createElement('button');
+  regenBtn.className = 'icon-btn';
+  regenBtn.title = 'Regenerate projections';
+  regenBtn.textContent = '↺';
+  regenBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const prevText = regenBtn.textContent;
+    try {
+      regenBtn.textContent = '…';
+      regenBtn.disabled = true;
+      const scenario = scenarioState?.get?.();
+      if (!scenario?.id) return;
+      const projConfig = scenario?.projection?.config || {};
+      await generateProjections(scenario.id, {
+        source: projConfig.source || 'transactions',
+        startDate: projConfig.startDate,
+        endDate: projConfig.endDate,
+        periodTypeId: projConfig.periodTypeId
+      });
+      const refreshed = await getScenario(scenario.id);
+      scenarioState?.set?.(refreshed);
+      await reload();
+    } catch (err) {
+      notifyError('Failed to regenerate projections: ' + (err?.message || String(err)));
+    } finally {
+      if (regenBtn.isConnected) {
+        regenBtn.textContent = prevText;
+        regenBtn.disabled = false;
+      }
+    }
+  });
+
+  const setPeriodBtn = document.createElement('button');
+  setPeriodBtn.className = 'icon-btn';
+  setPeriodBtn.title = 'Set projection period';
+  setPeriodBtn.textContent = '⊞';
+  setPeriodBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const scenario = scenarioState?.get?.();
+    const projConfig = scenario?.projection?.config || {};
+    openTimeframeModal({
+      title: 'Set Projection Period',
+      showPeriodType: true,
+      defaultPeriodTypeId: projConfig.periodTypeId || 3,
+      onConfirm: async ({ startDate, endDate, periodTypeId }) => {
+        try {
+          setPeriodBtn.disabled = true;
+          const current = scenarioState?.get?.();
+          if (!current?.id) return;
+          await generateProjections(current.id, {
+            source: current?.projection?.config?.source || 'transactions',
+            startDate,
+            endDate,
+            periodTypeId
+          });
+          const refreshed = await getScenario(current.id);
+          scenarioState?.set?.(refreshed);
+          await reload();
+        } catch (err) {
+          notifyError('Failed to set projection period: ' + (err?.message || String(err)));
+        } finally {
+          if (setPeriodBtn.isConnected) setPeriodBtn.disabled = false;
+        }
+      }
+    });
+  });
+
+  const generateBtn = document.createElement('button');
+  generateBtn.className = 'icon-btn';
+  generateBtn.title = 'Generate projections';
+  generateBtn.textContent = '⊕';
+  generateBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const prevText = generateBtn.textContent;
+    try {
+      generateBtn.textContent = '…';
+      generateBtn.disabled = true;
+      const scenario = scenarioState?.get?.();
+      if (!scenario?.id) return;
+      const projConfig = scenario?.projection?.config || {};
+      await generateProjections(scenario.id, {
+        source: projConfig.source || 'transactions',
+        startDate: projConfig.startDate,
+        endDate: projConfig.endDate,
+        periodTypeId: projConfig.periodTypeId
+      });
+      const refreshed = await getScenario(scenario.id);
+      scenarioState?.set?.(refreshed);
+      await reload();
+    } catch (err) {
+      notifyError('Failed to generate projections: ' + (err?.message || String(err)));
+    } finally {
+      if (generateBtn.isConnected) {
+        generateBtn.textContent = prevText;
+        generateBtn.disabled = false;
+      }
+    }
+  });
+
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'icon-btn';
+  clearBtn.title = 'Clear projections';
+  clearBtn.textContent = '⊗';
+  clearBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const prevText = clearBtn.textContent;
+    try {
+      clearBtn.textContent = '…';
+      clearBtn.disabled = true;
+      const scenario = scenarioState?.get?.();
+      if (!scenario?.id) return;
+      await clearProjections(scenario.id);
+      const refreshed = await getScenario(scenario.id);
+      scenarioState?.set?.(refreshed);
+      await reload();
+    } catch (err) {
+      notifyError('Failed to clear projections: ' + (err?.message || String(err)));
+    } finally {
+      if (clearBtn.isConnected) {
+        clearBtn.textContent = prevText;
+        clearBtn.disabled = false;
+      }
+    }
+  });
+
+  // --- Compact filter items in header ---
+  const makeHeaderFilter = (id, labelText, selectEl) => {
+    const item = document.createElement('div');
+    item.className = 'header-filter-item';
+    const label = document.createElement('label');
+    label.htmlFor = id;
+    label.textContent = labelText;
+    item.appendChild(label);
+    item.appendChild(selectEl);
+    return item;
+  };
+
+  const viewByType = state?.getProjectionPeriodType?.() || 'Month';
+  let projectionPeriods = state?.getProjectionPeriods?.() || [];
+  if (!projectionPeriods.length || state?.getProjectionPeriodType?.() !== viewByType) {
+    try {
+      projectionPeriods = await getScenarioPeriods(currentScenario.id, viewByType);
+    } catch (err) {
+      logger?.error?.('[Forecast] Failed to load projection periods', err);
+      projectionPeriods = [];
+    }
+    state?.setProjectionPeriods?.(projectionPeriods);
+  }
+
+  let projectionPeriod = state?.getProjectionPeriod?.();
+  const hasValidPeriod = projectionPeriod && projectionPeriods.some((p) => p.id === projectionPeriod);
+  if (projectionPeriods.length && !hasValidPeriod) {
+    projectionPeriod = projectionPeriods[0]?.id || null;
+    state?.setProjectionPeriod?.(projectionPeriod);
+  } else if (!projectionPeriods.length) {
+    projectionPeriod = null;
+    state?.setProjectionPeriod?.(null);
+  }
+
+  // Account filter
+  const accountSelect = document.createElement('select');
+  accountSelect.id = 'projections-account-filter-select';
+  accountSelect.className = 'input-select';
+  const accountAllOption = document.createElement('option');
+  accountAllOption.value = '0';
+  accountAllOption.textContent = 'All Accounts';
+  accountSelect.appendChild(accountAllOption);
+  (currentScenario.accounts || []).forEach((account) => {
+    const option = document.createElement('option');
+    option.value = String(account.id);
+    option.textContent = account.name || 'Unnamed';
+    accountSelect.appendChild(option);
+  });
+  const activeAccount = Number(state?.getProjectionAccountFilterId?.() || 0);
+  accountSelect.value = activeAccount > 0 ? String(activeAccount) : '0';
+  accountSelect.addEventListener('change', async () => {
+    const selectedId = Number(accountSelect.value) || 0;
+    state?.setProjectionAccountFilterId?.(selectedId > 0 ? selectedId : null);
+    await reload();
+  });
+  controls.appendChild(makeHeaderFilter('projections-account-filter-select', 'Account:', accountSelect));
+
+  // Group By filter
+  const groupSelect = document.createElement('select');
+  groupSelect.id = 'projections-grouping-select';
+  groupSelect.className = 'input-select';
+  ['None', 'Account', 'Account Type'].forEach((optionLabel) => {
+    const option = document.createElement('option');
+    option.value = optionLabel;
+    option.textContent = optionLabel;
+    groupSelect.appendChild(option);
+  });
+  const storedGroup = container.dataset.projectionsGroupBy || 'None';
+  groupSelect.value = storedGroup;
+  container.dataset.projectionsGroupBy = storedGroup;
+  const getGroupField = (value) => (value === 'Account' ? 'account' : value === 'Account Type' ? 'accountType' : null);
+  groupSelect.addEventListener('change', () => {
+    const nextValue = groupSelect.value;
+    container.dataset.projectionsGroupBy = nextValue;
+    const field = getGroupField(nextValue);
+    onGroupChange?.(field);
+  });
+  controls.appendChild(makeHeaderFilter('projections-grouping-select', 'Group:', groupSelect));
+
+  // View By filter
+  const viewSelect = document.createElement('select');
+  viewSelect.id = 'projections-viewby-select';
+  viewSelect.className = 'input-select';
+  ['Day', 'Week', 'Month', 'Quarter', 'Year'].forEach((value) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    viewSelect.appendChild(option);
+  });
+  viewSelect.value = viewByType;
+  viewSelect.addEventListener('change', async () => {
+    const nextView = viewSelect.value;
+    state?.setProjectionPeriodType?.(nextView);
+    let nextPeriods = [];
+    try {
+      nextPeriods = await getScenarioPeriods(currentScenario.id, nextView);
+    } catch (err) {
+      logger?.error?.('[Forecast] Failed to load projection periods', err);
+      nextPeriods = [];
+    }
+    state?.setProjectionPeriods?.(nextPeriods);
+    const nextPeriodId = nextPeriods.length ? nextPeriods[0]?.id : null;
+    state?.setProjectionPeriod?.(nextPeriodId);
+    await reload();
+  });
+  controls.appendChild(makeHeaderFilter('projections-viewby-select', 'View:', viewSelect));
+
+  // Period selector + nav
+  const periodSelect = document.createElement('select');
+  periodSelect.id = 'projections-period-select';
+  periodSelect.className = 'input-select';
+  const allPeriodOption = document.createElement('option');
+  allPeriodOption.value = '';
+  allPeriodOption.textContent = 'All';
+  periodSelect.appendChild(allPeriodOption);
+  projectionPeriods.forEach((period) => {
+    if (!period?.id) return;
+    const option = document.createElement('option');
+    option.value = period.id;
+    option.textContent = period.label || period.id;
+    periodSelect.appendChild(option);
+  });
+  periodSelect.value = projectionPeriod || '';
+  periodSelect.addEventListener('change', async () => {
+    state?.setProjectionPeriod?.(periodSelect.value || null);
+    await reload();
+  });
+
+  const periodIds = [null, ...(projectionPeriods.map((p) => p.id || null))];
+  const setPeriodSelection = async (id) => {
+    periodSelect.value = id || '';
+    state?.setProjectionPeriod?.(id || null);
+    await reload();
+  };
+
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'period-btn';
+  prevBtn.textContent = '◀';
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'period-btn';
+  nextBtn.textContent = '▶';
+  const changePeriodBy = async (offset) => {
+    const currentId = state?.getProjectionPeriod?.() ?? null;
+    const currentIndex = periodIds.findIndex((id) => id === currentId);
+    const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+    const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
+    await setPeriodSelection(periodIds[nextIndex] ?? null);
+  };
+  prevBtn.addEventListener('click', async (e) => { e.preventDefault(); await changePeriodBy(-1); });
+  nextBtn.addEventListener('click', async (e) => { e.preventDefault(); await changePeriodBy(1); });
+
+  const periodItem = document.createElement('div');
+  periodItem.className = 'header-filter-item';
+  const periodLabel = document.createElement('label');
+  periodLabel.htmlFor = 'projections-period-select';
+  periodLabel.textContent = 'Period:';
+  periodItem.appendChild(periodLabel);
+  periodItem.appendChild(periodSelect);
+  periodItem.appendChild(prevBtn);
+  periodItem.appendChild(nextBtn);
+  controls.appendChild(periodItem);
+
+  const iconActions = document.createElement('div');
+  iconActions.className = 'header-icon-actions';
+  iconActions.appendChild(regenBtn);
+  iconActions.appendChild(setPeriodBtn);
+  iconActions.appendChild(generateBtn);
+  iconActions.appendChild(clearBtn);
+  controls.appendChild(iconActions);
+}
+
+export async function loadProjectionsGrid({
   container,
   scenarioState,
-  getScenarioTypeConfig,
+  getWorkflowConfig,
   state,
   tables,
   callbacks,
@@ -59,6 +471,178 @@ export async function loadProjectionsSection({
 }) {
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
+
+  const reloadGrid = async () =>
+    loadProjectionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+
+  try {
+    projectionsGridState.capture(lastProjectionsTable, {
+      groupBy: '#projections-grouping-select',
+      account: '#projections-account-filter-select'
+    });
+  } catch (_) {
+    // ignore
+  }
+
+  // --- Card header controls (icon-btn pattern, same as accounts grid) ---
+  const projectionsSection = container.closest('.forecast-card');
+  const projectionsHeader = projectionsSection?.querySelector(':scope > .card-header');
+  if (projectionsHeader) {
+    projectionsHeader.classList.add('card-header--filters-inline');
+    const controls = projectionsHeader.querySelector('.card-header-controls');
+    if (controls) {
+      await buildProjectionsHeaderControls({
+        controls,
+        container,
+        currentScenario,
+        scenarioState,
+        state,
+        reload: reloadGrid,
+        logger,
+        onGroupChange: (field) => { if (lastProjectionsTable) lastProjectionsTable.setGroupBy(field); }
+      });
+    }
+  }
+
+  try {
+    let projectionsGridContainer = container.querySelector('#projectionsGrid');
+    if (!projectionsGridContainer) {
+      projectionsGridContainer = document.createElement('div');
+      projectionsGridContainer.id = 'projectionsGrid';
+      projectionsGridContainer.className = 'grid-container projections-grid';
+    } else {
+      projectionsGridContainer.innerHTML = '';
+    }
+    projectionsGridContainer.classList.add('grid-detail');
+
+    container.innerHTML = '';
+    container.appendChild(projectionsGridContainer);
+
+    const filteredRows = callbacks?.getFilteredProjections?.() || getScenarioProjectionRows(currentScenario);
+
+    const accounts = currentScenario.accounts || [];
+    const accountMap = new Map((accounts || []).map((account) => [Number(account.id), account]));
+
+    const tableData = filteredRows.map((row, index) => {
+      const accountId = Number(row.accountId);
+      const account = accountMap.get(accountId);
+      const accountTypeRaw = account?.type || row.accountType;
+      const accountTypeName =
+        accountTypeRaw && typeof accountTypeRaw === 'object'
+          ? accountTypeRaw?.name
+          : accountTypeRaw || '';
+      const income = Number(row.income || 0);
+      const expenses = Number(row.expenses || 0);
+      const netChange = row.netChange != null ? Number(row.netChange) : income - expenses;
+      return {
+        ...row,
+        id: row.id ?? `${accountId || 'account'}-${row.date || index}`,
+        account: account?.name || row.accountName || '',
+        accountType: accountTypeName,
+        balance: Number(row.balance || 0),
+        income,
+        expenses,
+        netChange
+      };
+    });
+
+    try {
+      await lastProjectionsTable?.destroy?.();
+    } catch (_) {
+      // ignore
+    }
+
+    lastProjectionsTable = await createGrid(projectionsGridContainer, {
+      data: tableData,
+      columns: [
+        createDateColumn('Date', 'date', { width: 120 }),
+        createTextColumn('Account', 'account', { responsive: 4 }),
+        {
+          title: 'Account Type', field: 'accountType', responsive: 5, widthGrow: 1,
+          formatter: (cell) => {
+            const name = cell.getValue() || '';
+            const cls = name.toLowerCase();
+            return name ? `<span class="grid-summary-type account-type--${cls}">${name}</span>` : '';
+          }
+        },
+        createMoneyColumn('Balance', 'balance', { topCalc: 'sum' }),
+        createMoneyColumn('Income', 'income', { topCalc: 'sum' }),
+        createMoneyColumn('Expenses', 'expenses', { topCalc: 'sum' }),
+        createMoneyColumn('Net Change', 'netChange', { topCalc: 'sum' })
+      ],
+      initialSort: [{ column: 'date', dir: 'asc' }],
+      rowFormatter: (row) => renderProjectionsRowDetails({ row, rowData: row.getData() })
+    });
+
+    const toggleRowDetails = (row) => {
+      const rowData = row.getData();
+      rowData._detailsOpen = !rowData._detailsOpen;
+      renderProjectionsRowDetails({ row, rowData });
+    };
+
+    lastProjectionsTable.on('rowClick', (event, row) => {
+      toggleRowDetails(row);
+    });
+
+    lastProjectionsTable.on('tableBuilt', () => {
+      try {
+        projectionsGridState.restore(lastProjectionsTable);
+      } catch (_) {
+        // ignore
+      }
+      try {
+        projectionsGridState.restoreDropdowns(
+          {
+            groupBy: '#projections-grouping-select',
+            account: '#projections-account-filter-select'
+          },
+          { dispatchChange: false }
+        );
+      } catch (_) {
+        // ignore
+      }
+    });
+  } catch (err) {
+    logger?.error?.('[Forecast] loadProjectionsGrid failed', err);
+  }
+}
+
+export async function loadProjectionsSection({
+  container,
+  scenarioState,
+  getWorkflowConfig,
+  state,
+  tables,
+  callbacks,
+  logger
+}) {
+  const workflowConfig = getWorkflowConfig?.();
+  if (workflowConfig?.id === 'projections-detail') {
+    return loadProjectionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+  }
+
+  let currentScenario = scenarioState?.get?.();
+  if (!currentScenario) return;
+
+  container.querySelectorAll(':scope > .filter-bar, :scope > .toolbar-totals, :scope > .projections-detail-toolbar').forEach((el) => el.remove());
+
+  const projectionsSection = container.closest('.forecast-card');
+  const projectionsHeader = projectionsSection?.querySelector(':scope > .card-header');
+  if (projectionsHeader) {
+    projectionsHeader.classList.add('card-header--filters-inline');
+    const controls = projectionsHeader.querySelector('.card-header-controls');
+    if (controls) {
+      await buildProjectionsHeaderControls({
+        controls,
+        container,
+        currentScenario,
+        scenarioState,
+        state,
+        reload: async () => loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger }),
+        logger
+      });
+    }
+  }
 
   try {
     projectionsGridState.capture(lastProjectionsTable, {
@@ -81,753 +665,42 @@ export async function loadProjectionsSection({
     window.add(container, projectionsGridContainer);
   }
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'grid-toolbar';
-
-  const buttonContainer = document.createElement('div');
-  buttonContainer.className = 'toolbar-item';
-
-  const generateButton = document.createElement('button');
-  generateButton.className = 'btn btn-primary';
-  generateButton.textContent = 'Generate Projections';
-  generateButton.addEventListener('click', async () => {
-    try {
-      generateButton.textContent = 'Generating...';
-      generateButton.disabled = true;
-
-      currentScenario = scenarioState?.get?.();
-
-      await generateProjections(currentScenario.id, {
-        periodicity: 'monthly',
-        source: 'transactions'
-      });
-
-      const refreshed = await getScenario(currentScenario.id);
-      scenarioState?.set?.(refreshed);
-      currentScenario = refreshed;
-
-      await loadProjectionsSection({
-        container,
-        scenarioState,
-        getScenarioTypeConfig,
-        state,
-        tables,
-        callbacks,
-        logger
-      });
-
-      const typeConfig = getScenarioTypeConfig?.();
-      if (typeConfig?.showSummaryCards) {
-        await callbacks?.loadSummaryCards?.(callbacks?.getEl?.('summaryCardsContent'));
-      }
-    } catch (err) {
-      notifyError('Failed to generate projections: ' + err.message);
-    } finally {
-      generateButton.textContent = 'Generate Projections';
-      generateButton.disabled = false;
-    }
-  });
-  window.add(buttonContainer, generateButton);
-
-  const clearButton = document.createElement('button');
-  clearButton.className = 'btn';
-  clearButton.textContent = 'Clear Projections';
-  clearButton.addEventListener('click', async () => {
-    try {
-      currentScenario = scenarioState?.get?.();
-
-      await clearProjections(currentScenario.id);
-
-      const refreshed = await getScenario(currentScenario.id);
-      scenarioState?.set?.(refreshed);
-
-      await loadProjectionsSection({
-        container,
-        scenarioState,
-        getScenarioTypeConfig,
-        state,
-        tables,
-        callbacks,
-        logger
-      });
-    } catch (err) {
-      notifyError('Failed to clear projections: ' + err.message);
-    }
-  });
-  window.add(buttonContainer, clearButton);
-
-  const refreshButton = document.createElement('button');
-  refreshButton.className = 'btn';
-  refreshButton.textContent = 'Refresh';
-  refreshButton.addEventListener('click', async () => {
-    const prevText = refreshButton.textContent;
-    try {
-      refreshButton.textContent = 'Refreshing...';
-      refreshButton.disabled = true;
-
-      const scenario = scenarioState?.get?.();
-      if (scenario?.id) {
-        const refreshed = await getScenario(scenario.id);
-        scenarioState?.set?.(refreshed);
-      }
-
-      await loadProjectionsSection({
-        container,
-        scenarioState,
-        getScenarioTypeConfig,
-        state,
-        tables,
-        callbacks,
-        logger
-      });
-    } catch (err) {
-      notifyError('Failed to refresh projections: ' + (err?.message || String(err)));
-    } finally {
-      if (refreshButton.isConnected) {
-        refreshButton.textContent = prevText;
-        refreshButton.disabled = false;
-      }
-    }
-  });
-  window.add(buttonContainer, refreshButton);
-
-  window.add(toolbar, buttonContainer);
-
-  const accountFilter = document.createElement('div');
-  accountFilter.className = 'toolbar-item account-filter';
-  accountFilter.innerHTML = `
-    <label for="projections-account-filter-select" class="text-muted control-label">Account:</label>
-    <select id="projections-account-filter-select" class="input-select control-select">
-    </select>
-  `;
-  window.add(toolbar, accountFilter);
-
-  const groupingControl = document.createElement('div');
-  groupingControl.className = 'toolbar-item grouping-control';
-  groupingControl.innerHTML = `
-    <label for="projections-grouping-select" class="text-muted control-label">Group By:</label>
-    <select id="projections-grouping-select" class="input-select control-select">
-      <option value="">None</option>
-      <option value="accountType">Account Type</option>
-      <option value="secondaryAccount">Secondary Account</option>
-    </select>
-  `;
-  window.add(toolbar, groupingControl);
-
-  const periodTypeControl = document.createElement('div');
-  periodTypeControl.className = 'toolbar-item period-type-control';
-  periodTypeControl.innerHTML = `
-    <label for="projections-period-type-select" class="text-muted control-label">View By:</label>
-    <select id="projections-period-type-select" class="input-select control-select">
-      <option value="Day">Day</option>
-      <option value="Week">Week</option>
-      <option value="Month">Month</option>
-      <option value="Quarter">Quarter</option>
-      <option value="Year">Year</option>
-    </select>
-  `;
-  window.add(toolbar, periodTypeControl);
-
-  const periodFilter = document.createElement('div');
-  periodFilter.className = 'toolbar-item period-filter';
-  periodFilter.innerHTML = `
-    <label for="projections-period-select" class="text-muted control-label">Period:</label>
-    <select id="projections-period-select" class="input-select control-select"></select>
-    <button id="projections-prev-period-btn" class="btn btn-ghost control-button" title="Previous Period">&#9664;</button>
-    <button id="projections-next-period-btn" class="btn btn-ghost control-button" title="Next Period">&#9654;</button>
-  `;
-  window.add(toolbar, periodFilter);
-
-  const totalsInline = document.createElement('div');
-  totalsInline.className = 'toolbar-item toolbar-totals';
-  toolbar.appendChild(totalsInline);
-
-  // Insert toolbar above the grid so it doesn't jump to the bottom on refresh.
-  container.insertBefore(toolbar, projectionsGridContainer);
-
-  const periodTypeSelect = document.getElementById('projections-period-type-select');
-  if (periodTypeSelect) {
-    periodTypeSelect.value = state?.getProjectionPeriodType?.();
-  }
-
-  const projectionPeriodType = state?.getProjectionPeriodType?.();
-  const projectionPeriods = await getScenarioPeriods(currentScenario.id, projectionPeriodType);
-  state?.setProjectionPeriods?.(projectionPeriods);
-
-  const periodSelect = document.getElementById('projections-period-select');
-  if (periodSelect) {
-    periodSelect.innerHTML = '<option value="">-- All Periods --</option>';
-    projectionPeriods.forEach((period) => {
-      const option = document.createElement('option');
-      option.value = period.id;
-      option.textContent =
-        period.label || `${formatDateOnly(period.startDate) || ''} to ${formatDateOnly(period.endDate) || ''}`;
-      periodSelect.appendChild(option);
-    });
-
-    periodSelect.value = state?.getProjectionPeriod?.() || '';
-
-    periodSelect.addEventListener('change', async (e) => {
-      state?.setProjectionPeriod?.(e.target.value);
-      applyProjectionsPeriodFilter({ state });
-      callbacks?.updateProjectionTotals?.(container, callbacks?.getFilteredProjections?.());
-    });
-
-    document.getElementById('projections-prev-period-btn')?.addEventListener('click', async () => {
-      const currentPeriod = state?.getProjectionPeriod?.();
-      const currentIndex = projectionPeriods.findIndex((p) => p.id === currentPeriod);
-      if (currentIndex > 0) {
-        state?.setProjectionPeriod?.(projectionPeriods[currentIndex - 1].id);
-        periodSelect.value = projectionPeriods[currentIndex - 1].id;
-        applyProjectionsPeriodFilter({ state });
-        callbacks?.updateProjectionTotals?.(container, callbacks?.getFilteredProjections?.());
-      }
-    });
-
-    document.getElementById('projections-next-period-btn')?.addEventListener('click', async () => {
-      const currentPeriod = state?.getProjectionPeriod?.();
-      const currentIndex = projectionPeriods.findIndex((p) => p.id === currentPeriod);
-      if (currentIndex >= 0 && currentIndex < projectionPeriods.length - 1) {
-        state?.setProjectionPeriod?.(projectionPeriods[currentIndex + 1].id);
-        periodSelect.value = projectionPeriods[currentIndex + 1].id;
-        applyProjectionsPeriodFilter({ state });
-        callbacks?.updateProjectionTotals?.(container, callbacks?.getFilteredProjections?.());
-      }
-    });
-
-    document.getElementById('projections-period-type-select')?.addEventListener('change', async (e) => {
-      state?.setProjectionPeriodType?.(e.target.value);
-      state?.setProjectionPeriod?.(null);
-      await loadProjectionsSection({
-        container,
-        scenarioState,
-        getScenarioTypeConfig,
-        state,
-        tables,
-        callbacks,
-        logger
-      });
-    });
-  }
-
-  const projectionsAccountFilterSelect = document.getElementById('projections-account-filter-select');
-  if (projectionsAccountFilterSelect) {
-    projectionsAccountFilterSelect.innerHTML = '';
-    (currentScenario.accounts || []).forEach((account) => {
-      const option = document.createElement('option');
-      option.value = account.id;
-      option.textContent = account.name;
-      projectionsAccountFilterSelect.appendChild(option);
-    });
-
-    const firstAccountId = currentScenario.accounts?.[0]?.id;
-    const currentProjectionAccountFilter = state?.getProjectionAccountFilterId?.();
-
-    const isValidAccountId = (id) => (currentScenario.accounts || []).some((a) => Number(a.id) === Number(id));
-    const initialAccountId = isValidAccountId(currentProjectionAccountFilter)
-      ? currentProjectionAccountFilter
-      : (firstAccountId || null);
-
-    projectionsAccountFilterSelect.value = initialAccountId || '';
-
-    if (!isValidAccountId(currentProjectionAccountFilter)) {
-      state?.setProjectionAccountFilterId?.(initialAccountId);
-    }
-
-    projectionsAccountFilterSelect.addEventListener('change', async (e) => {
-      const nextId = e.target.value ? Number(e.target.value) : null;
-      state?.setProjectionAccountFilterId?.(nextId);
-
-      const gridContainer = document.getElementById('projectionsGrid');
-      if (gridContainer) {
-        await loadProjectionsGrid({
-          container: gridContainer,
-          scenarioState,
-          state,
-          tables,
-          callbacks,
-          logger
-        });
-        callbacks?.updateProjectionTotals?.(container);
-      }
-    });
-  }
-
-  await loadProjectionsGrid({
-    container: projectionsGridContainer,
-    scenarioState,
-    state,
-    tables,
-    callbacks,
-    logger
-  });
+  projectionsGridContainer.classList.remove('grid-detail');
 
   try {
-    projectionsGridState.restore(lastProjectionsTable, { restoreGroupBy: false });
-    projectionsGridState.restoreDropdowns({
-      groupBy: '#projections-grouping-select',
-      account: '#projections-account-filter-select'
-    }, { dispatchChange: false });
-
-    const projectionsAccountFilterSelect = document.getElementById('projections-account-filter-select');
-    if (projectionsAccountFilterSelect) {
-      const accounts = currentScenario.accounts || [];
-      const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
-      const candidateId = projectionsAccountFilterSelect.value ? Number(projectionsAccountFilterSelect.value) : null;
-      const nextId = isValidAccountId(candidateId)
-        ? candidateId
-        : (accounts?.[0]?.id != null ? Number(accounts[0].id) : null);
-
-      if (nextId != null) {
-        projectionsAccountFilterSelect.value = String(nextId);
-      }
-
-      state?.setProjectionAccountFilterId?.(nextId);
-    }
-  } catch (_) {
-    // ignore
-  }
-}
-
-export async function refreshProjectionsSection(args) {
-  return loadProjectionsSection(args);
-}
-
-export async function loadProjectionsGrid({ container, scenarioState, state, tables, callbacks, logger }) {
-  const currentScenario = scenarioState?.get?.();
-  if (!currentScenario) return;
-
-  // Keep the grid container stable to reduce scroll jumps.
-  // (We refresh Tabulator data instead of rebuilding DOM.)
-
-  try {
-    const projectionsForTotals = callbacks?.getFilteredProjections?.();
-
-    // For performance: build table data for all periods (account-filtered only) and
-    // apply the period selection as a Tabulator filter instead of rebuilding/recomputing.
-    const projectionsAccountFilterId = state?.getProjectionAccountFilterId?.() ?? state?.getTransactionFilterAccountId?.();
-    let filteredProjections = currentScenario.projections || [];
-    if (projectionsAccountFilterId) {
-      const accountExists = (currentScenario.accounts || []).some((a) => Number(a.id) === Number(projectionsAccountFilterId));
-      if (accountExists) {
-        filteredProjections = filteredProjections.filter((p) => Number(p.accountId) === Number(projectionsAccountFilterId));
-      }
-    }
-
-    const projectionsGroupingSelect = document.getElementById('projections-grouping-select');
-    const groupField = projectionsGroupingSelect?.value || '';
-    const isCounterpartyMode = groupField === 'secondaryAccount';
-    const groupFieldAtBuildTime = groupField;
-    const isCounterpartyModeAtBuildTime = isCounterpartyMode;
-
-    const getId = (value) => (typeof value === 'object' ? value?.id : value);
-    const getStatusName = (record) => (typeof record?.status === 'object' ? record?.status?.name : record?.status);
-
-    const lookupData = await loadLookup('lookup-data.json');
-    const accountTypeIdToName = new Map((lookupData?.accountTypes || []).map((t) => [Number(t.id), String(t.name || '')]));
-
-    const accountMap = new Map((currentScenario.accounts || []).map((a) => [a.id, a]));
-
-    const normalizeDateOnly = (value) => {
-      if (!value) return null;
-      if (value instanceof Date && !Number.isNaN(value.getTime())) {
-        const d = new Date(value);
-        d.setHours(0, 0, 0, 0);
-        return d;
-      }
-      if (typeof value === 'string') return parseDateOnly(value);
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return null;
-      d.setHours(0, 0, 0, 0);
-      return d;
-    };
-
-    const formatDateKey = (dateValue) => {
-      if (!dateValue) return '';
-      if (typeof dateValue === 'string') return dateValue;
-      const d = new Date(dateValue);
-      if (Number.isNaN(d.getTime())) return String(dateValue);
-      return formatDateOnly(d);
-    };
-
-    const projectionPeriods = state?.getProjectionPeriods?.() || [];
-    const normalizedPeriods = (projectionPeriods || [])
-      .map((p) => {
-        const start = normalizeDateOnly(p?.startDate);
-        const end = normalizeDateOnly(p?.endDate);
-        if (!start || !end) return null;
-        return {
-          ...p,
-          _start: start,
-          _end: end,
-          _labelDate: formatDateOnly(start)
-        };
-      })
-      .filter(Boolean);
-
-    const findPeriodLabelForDate = (dateObj) => {
-      if (!dateObj) return null;
-      for (const period of normalizedPeriods) {
-        if (dateObj >= period._start && dateObj <= period._end) return period._labelDate;
-      }
-      return null;
-    };
-
-    const round2 = (value) => {
-      const rounded = Math.round(Number(value || 0) * 100) / 100;
-      return Object.is(rounded, -0) ? 0 : rounded;
-    };
-
-    const formatCurrency = (value) => {
-      const safe = round2(value);
-      return new Intl.NumberFormat('en-ZA', {
-        style: 'currency',
-        currency: 'ZAR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(safe);
-    };
-
-    const formatBalanceHtml = (value) => {
-      return formatMoneyDisplay(round2(value));
-    };
-
-    const formatNetChangeHtml = (value) => {
-      return formatMoneyDisplay(round2(value));
-    };
-
-    const buildAccountLevelRows = () => {
-      return (filteredProjections || []).map((p) => {
-        const account = accountMap.get(p.accountId) || null;
-        const accountTypeId = typeof account?.type === 'object' ? Number(account?.type?.id) : Number(account?.type);
-        const accountType = accountTypeIdToName.get(accountTypeId) || '';
-
-        return {
-          date: p.date,
-          account: account?.name || '',
-          accountType,
-          balance: p.balance || 0,
-          income: p.income || 0,
-          expenses: -Math.abs(p.expenses || 0),
-          netChange: p.netChange || 0
-        };
-      });
-    };
-
-    const buildCounterpartyRowsForSelectedAccount = () => {
-      const selectedAccountId = state?.getProjectionAccountFilterId?.();
-      if (!selectedAccountId) {
-        notifyError('Select an Account to group by Secondary Account.');
-        return [];
-      }
-
-      const selectedAccountProjections = (filteredProjections || []).filter((p) => Number(p.accountId) === Number(selectedAccountId));
-      const allowedPeriodLabels = new Set(selectedAccountProjections.map((p) => String(p.date || '')));
-      const balanceByPeriodLabel = new Map(selectedAccountProjections.map((p) => [String(p.date || ''), Number(p.balance || 0)]));
-      const interestByPeriodLabel = new Map(selectedAccountProjections.map((p) => [String(p.date || ''), Number(p.interest || 0)]));
-
-      const plannedTransactions = (currentScenario.transactions || []).filter((tx) => getStatusName(tx) === 'planned');
-      const startDate = normalizeDateOnly(currentScenario.startDate);
-      const endDate = normalizeDateOnly(currentScenario.endDate);
-      const accounts = currentScenario.accounts || [];
-
-      if (!startDate || !endDate) {
-        notifyError('Scenario start/end dates are missing or invalid.');
-        return [];
-      }
-
-      const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
-
-      const transactionOccurrences = expandedTransactions.map((txn) => {
-        const occDate = txn._occurrenceDate || normalizeDateOnly(txn.effectiveDate);
-        let amount = Number(txn.amount || 0);
-        if (txn.periodicChange) {
-          const expandedPC = expandPeriodicChangeForCalculation(txn.periodicChange, lookupData);
-          if (expandedPC) {
-            const txnStartDate = txn.recurrence?.startDate ? normalizeDateOnly(txn.recurrence.startDate) : startDate;
-            const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
-            amount = calculatePeriodicChange(amount, expandedPC, yearsDiff);
-          }
-        }
-
-        return {
-          date: occDate,
-          periodLabel: findPeriodLabelForDate(occDate),
-          primaryAccountId: txn.primaryAccountId,
-          secondaryAccountId: txn.secondaryAccountId,
-          transactionTypeId: txn.transactionTypeId,
-          amount
-        };
-      });
-
-      const totalsByKey = new Map();
-
-      const getOrCreate = (periodLabel, secondaryAccount) => {
-        const key = `${periodLabel}::${secondaryAccount}`;
-        let existing = totalsByKey.get(key);
-        if (!existing) {
-          existing = {
-            date: periodLabel,
-            secondaryAccount,
-            balance: Number(balanceByPeriodLabel.get(periodLabel) || 0),
-            _income: 0,
-            _expenses: 0
-          };
-          totalsByKey.set(key, existing);
-        }
-        return existing;
-      };
-
-      transactionOccurrences.forEach((txn) => {
-        const periodLabel = txn.periodLabel;
-        if (!periodLabel || !allowedPeriodLabels.has(String(periodLabel))) return;
-
-        const absAmount = Math.abs(Number(txn.amount || 0));
-        if (!absAmount) return;
-
-        const isMoneyIn = Number(txn.transactionTypeId) === 1;
-
-        let counterpartyAccountId = null;
-        let incomeDelta = 0;
-        let expenseDelta = 0;
-
-        if (Number(txn.primaryAccountId) === Number(selectedAccountId)) {
-          counterpartyAccountId = txn.secondaryAccountId || null;
-          if (isMoneyIn) incomeDelta = absAmount;
-          else expenseDelta = absAmount;
-        } else if (Number(txn.secondaryAccountId) === Number(selectedAccountId)) {
-          counterpartyAccountId = txn.primaryAccountId || null;
-          if (isMoneyIn) expenseDelta = absAmount;
-          else incomeDelta = absAmount;
-        } else {
-          return;
-        }
-
-        const counterpartyAccount = counterpartyAccountId ? accountMap.get(counterpartyAccountId) : null;
-        const secondaryAccount = counterpartyAccount?.name || 'Unassigned';
-
-        const row = getOrCreate(periodLabel, secondaryAccount);
-        row._income += incomeDelta;
-        row._expenses += expenseDelta;
-      });
-
-      // Add periodic-change interest as its own counterparty bucket so totals reconcile.
-      for (const [periodLabel, interest] of interestByPeriodLabel.entries()) {
-        if (!periodLabel || !allowedPeriodLabels.has(String(periodLabel))) continue;
-        const interestValue = Number(interest || 0);
-        if (!interestValue) continue;
-
-        const row = getOrCreate(periodLabel, 'Interest');
-        if (interestValue >= 0) row._income += interestValue;
-        else row._expenses += Math.abs(interestValue);
-      }
-
-      return Array.from(totalsByKey.values())
-        .map((r) => {
-          const income = round2(r._income);
-          const expensesAbs = round2(r._expenses);
-          const netChange = round2(income - expensesAbs);
-          return {
-            date: r.date,
-            secondaryAccount: r.secondaryAccount,
-            balance: round2(r.balance),
-            income,
-            expenses: -Math.abs(expensesAbs),
-            netChange
-          };
-        })
-        .filter((r) => r.income !== 0 || r.expenses !== 0 || r.netChange !== 0);
-    };
-
-    const transformedData = isCounterpartyMode ? buildCounterpartyRowsForSelectedAccount() : buildAccountLevelRows();
-
-    const computeEndingBalance = (rows) => {
-      if (!Array.isArray(rows) || rows.length === 0) return 0;
-      let maxDate = null;
-      rows.forEach((r) => {
-        const key = formatDateKey(r?.date);
-        if (!key) return;
-        if (!maxDate || key > maxDate) maxDate = key;
-      });
-      if (!maxDate) return 0;
-      return rows
-        .filter((r) => formatDateKey(r?.date) === maxDate)
-        .reduce((sum, r) => sum + Number(r?.balance || 0), 0);
-    };
-
-    const computeEndingBalanceSingleAccount = (rows) => {
-      if (!Array.isArray(rows) || rows.length === 0) return 0;
-      let maxDate = null;
-      rows.forEach((r) => {
-        const key = formatDateKey(r?.date);
-        if (!key) return;
-        if (!maxDate || key > maxDate) maxDate = key;
-      });
-      if (!maxDate) return 0;
-      const row = rows.find((r) => formatDateKey(r?.date) === maxDate);
-      return Number(row?.balance || 0);
-    };
-
-    const endingBalanceCalc = isCounterpartyMode ? computeEndingBalanceSingleAccount : computeEndingBalance;
-
-    const netChangeBottomCalc = (values) => {
-      const sum = (Array.isArray(values) ? values : []).reduce((acc, v) => acc + Number(v || 0), 0);
-      return round2(sum);
-    };
-
-    const columns = isCounterpartyMode
-      ? [
-          createDateColumn('Date', 'date', { widthGrow: 1 }),
-          createTextColumn('Secondary Account', 'secondaryAccount', { widthGrow: 2 }),
-          createMoneyColumn('Projected Balance', 'balance', {
-            widthGrow: 2,
-            bottomCalc: (values, data) => endingBalanceCalc(data),
-            bottomCalcFormatter: (cell) => {
-              const value = Number(cell.getValue() || 0);
-              return formatBalanceHtml(value);
-            }
-          }),
-          createMoneyColumn('Projected Income', 'income', { widthGrow: 2 }),
-          createMoneyColumn('Projected Expenses', 'expenses', { widthGrow: 2 }),
-          {
-            title: 'Net Change',
-            field: 'netChange',
-            widthGrow: 2,
-            bottomCalc: netChangeBottomCalc,
-            bottomCalcFormatter: (cell) => formatNetChangeHtml(cell.getValue()),
-            formatter: function (cell) {
-              const value = cell.getValue();
-              return formatNetChangeHtml(value);
-            },
-            headerHozAlign: 'right',
-            hozAlign: 'right'
-          }
-        ]
-      : [
-          createDateColumn('Date', 'date', { widthGrow: 1 }),
-          createTextColumn('Account', 'account', { widthGrow: 2 }),
-          createMoneyColumn('Projected Balance', 'balance', {
-            widthGrow: 2,
-            bottomCalc: (values, data) => endingBalanceCalc(data),
-            bottomCalcFormatter: (cell) => {
-              const value = Number(cell.getValue() || 0);
-              return formatBalanceHtml(value);
-            }
-          }),
-          createMoneyColumn('Projected Income', 'income', { widthGrow: 2 }),
-          createMoneyColumn('Projected Expenses', 'expenses', { widthGrow: 2 }),
-          {
-            title: 'Net Change',
-            field: 'netChange',
-            widthGrow: 2,
-            bottomCalc: netChangeBottomCalc,
-            bottomCalcFormatter: (cell) => formatNetChangeHtml(cell.getValue()),
-            formatter: function (cell) {
-              const value = cell.getValue();
-              return formatNetChangeHtml(value);
-            },
-            headerHozAlign: 'right',
-            hozAlign: 'right'
-          }
-        ];
-
-    const columnsKey = isCounterpartyModeAtBuildTime ? 'projections-counterparty' : 'projections-default';
-
-    let projectionsTable = lastProjectionsTable;
-    const shouldRebuildTable =
-      !projectionsTable ||
-      projectionsTable?.element !== container ||
-      projectionsTable?.__ftrackColumnsKey !== columnsKey;
-
-    let didCreateNewTable = false;
-
-    if (shouldRebuildTable) {
-      didCreateNewTable = true;
-      try {
-        projectionsTable?.destroy?.();
-      } catch (_) {
-        // ignore
-      }
-
-      projectionsTable = await createGrid(container, {
-        data: transformedData,
-        layout: 'fitColumns',
-        columns
-      });
-
-      projectionsTable.__ftrackColumnsKey = columnsKey;
-      lastProjectionsTable = projectionsTable;
-    } else {
-      await refreshGridData(projectionsTable, transformedData);
-      lastProjectionsTable = projectionsTable;
-    }
-
-    // Apply period filter after data refresh/build.
     try {
-      applyProjectionsPeriodFilter({ projectionsTable, state });
+      lastProjectionsTable = null;
     } catch (_) {
       // ignore
     }
 
-    if (projectionsGroupingSelect) {
-      const formatGroupLabel = (val) => {
-        if (val === null || val === undefined || val === '') return 'Unspecified';
-        if (typeof val === 'object') return val.name || val.label || val.description || 'Unspecified';
-        return String(val);
-      };
+    let rows = getScenarioProjectionRows(currentScenario);
+    const accountFilterId = state?.getProjectionAccountFilterId?.();
+    if (accountFilterId) {
+      rows = rows.filter((row) => Number(row.accountId) === Number(accountFilterId));
+    }
 
-      const applyGrouping = () => {
-        const nextGroupField = groupFieldAtBuildTime;
-        if (!nextGroupField) {
-          projectionsTable.setGroupBy(false);
-          return;
-        }
-
-        projectionsTable.setGroupBy(nextGroupField);
-        projectionsTable.setGroupHeader((value, count, data, group) => {
-          const netChangeSubtotal = round2(data.reduce((sum, row) => sum + Number(row.netChange || 0), 0));
-          const formattedNet = formatNetChangeHtml(netChangeSubtotal);
-
-          const label = formatGroupLabel(value);
-
-          if (isCounterpartyModeAtBuildTime) {
-            return `${label} (${count} periods, Net Change: ${formattedNet})`;
-          }
-
-          const endingBalance = endingBalanceCalc(data);
-          const formattedEnding = formatBalanceHtml(endingBalance);
-
-          let maxDate = null;
-          data.forEach((r) => {
-            const key = formatDateKey(r?.date);
-            if (!key) return;
-            if (!maxDate || key > maxDate) maxDate = key;
-          });
-
-          const dateSuffix = maxDate ? ` (${maxDate})` : '';
-          return `${label} (${count} periods, Ending Balance${dateSuffix}: ${formattedEnding}, Net Change: ${formattedNet})`;
+    const projectionPeriod = state?.getProjectionPeriod?.();
+    const projectionPeriods = state?.getProjectionPeriods?.() || [];
+    if (projectionPeriod) {
+      const selectedPeriod = projectionPeriods.find((p) => p.id === projectionPeriod);
+      if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
+        const start = formatDateOnly(new Date(selectedPeriod.startDate));
+        const end = formatDateOnly(new Date(selectedPeriod.endDate));
+        rows = rows.filter((row) => {
+          const rowKey = typeof row.date === 'string' ? row.date : formatDateOnly(new Date(row.date));
+          return rowKey >= start && rowKey <= end;
         });
-      };
-
-      // Avoid accumulating listeners across reloads.
-      projectionsGroupingSelect.onchange = async () => {
-        await loadProjectionsGrid({ container, scenarioState, state, tables, callbacks, logger });
-      };
-
-      if (didCreateNewTable) {
-        // Tabulator isn't guaranteed to be built at this point.
-        // Apply grouping after table initialization to avoid initGuard warnings/errors.
-        projectionsTable.on('tableBuilt', () => {
-          applyGrouping();
-        });
-      } else {
-        applyGrouping();
       }
     }
 
-    callbacks?.updateProjectionTotals?.(callbacks?.getEl?.('projectionsContent'), projectionsForTotals ?? filteredProjections);
+    renderProjectionsSummaryList({
+      container: projectionsGridContainer,
+      projections: rows,
+      accounts: currentScenario?.accounts || []
+    });
   } catch (err) {
-    logger?.error?.('[Forecast] loadProjectionsGrid failed', err);
-    notifyError(`Failed to load projections: ${err?.message || String(err)}`);
+    logger?.error?.('[Forecast] loadProjectionsSection failed', err);
   }
 }
+

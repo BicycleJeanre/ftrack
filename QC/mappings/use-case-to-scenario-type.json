@@ -3,7 +3,8 @@
   "source": "Documentation/TECH_QC_METHOD.md",
   "scenarioTypeMappings": {
     "Budget": {
-      "testFile": "QC/tests/scenario-types/budget.test.js",
+      "testFile": "QC/tests/workflows/budget.test.js",
+      "scenarioIds": [101],
       "useCases": [
         "UC-A1",
         "UC-A2",
@@ -19,7 +20,8 @@
       ]
     },
     "General": {
-      "testFile": "QC/tests/scenario-types/general.test.js",
+      "testFile": "QC/tests/workflows/general.test.js",
+      "scenarioIds": [102, 103, 108],
       "useCases": [
         "UC-B1",
         "UC-B2",
@@ -46,14 +48,16 @@
       ]
     },
     "Funds": {
-      "testFile": "QC/tests/scenario-types/funds.test.js",
+      "testFile": "QC/tests/workflows/funds.test.js",
+      "scenarioIds": [105],
       "useCases": [
         "UC-E3",
         "UC-S8"
       ]
     },
     "Debt Repayment": {
-      "testFile": "QC/tests/scenario-types/debt-repayment.test.js",
+      "testFile": "QC/tests/workflows/debt-repayment.test.js",
+      "scenarioIds": [104],
       "useCases": [
         "UC-D1",
         "UC-D2",
@@ -64,15 +68,11 @@
         "UC-S7"
       ]
     },
-    "Goal-Based": {
-      "testFile": "QC/tests/scenario-types/goal-based.test.js",
+    "Goal Workshop": {
+      "testFile": "QC/tests/workflows/goal-workshop.test.js",
+      "scenarioIds": [106, 107],
       "useCases": [
-        "UC-S4"
-      ]
-    },
-    "Advanced Goal Solver": {
-      "testFile": "QC/tests/scenario-types/advanced-goal-solver.test.js",
-      "useCases": [
+        "UC-S4",
         "UC-E4",
         "UC-S9"
       ]
@@ -235,7 +235,7 @@
     },
     "UC-E4": {
       "scenarioType": [
-        "Advanced Goal Solver"
+        "Goal Workshop"
       ],
       "inputGroup": "E",
       "category": "Scenario Type"
@@ -304,7 +304,7 @@
         "Budget",
         "General",
         "Debt Repayment",
-        "Goal-Based"
+        "Goal Workshop"
       ],
       "inputGroup": "A,C,D",
       "category": "Summary"
@@ -340,7 +340,7 @@
     },
     "UC-S9": {
       "scenarioType": [
-        "Advanced Goal Solver"
+        "Goal Workshop"
       ],
       "inputGroup": "E",
       "category": "Summary"

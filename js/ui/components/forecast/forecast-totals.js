@@ -18,8 +18,8 @@ export function updateTransactionTotals(table, filteredRows = null) {
     typeIdField: 'transactionTypeId'
   });
 
-  const toolbarTotals = document.querySelector('#transactionsContent .toolbar-totals');
-  renderMoneyTotals(toolbarTotals, txTotals);
+  const transactionsContainer = document.querySelector('#transactionsContent');
+  renderMoneyTotals(transactionsContainer, txTotals);
 }
 
 export function updateBudgetTotals(table, filteredRows = null) {
@@ -37,6 +37,6 @@ export function updateBudgetTotals(table, filteredRows = null) {
     typeIdField: 'transactionTypeId'
   });
 
-  const toolbarTotals = document.querySelector('#budgetContent .toolbar-totals');
-  renderBudgetTotals(toolbarTotals, budgetTotals);
+  const budgetTotalsContainer = document.querySelector('#budgetContent');
+  renderBudgetTotals(budgetTotalsContainer, budgetTotals);
 }

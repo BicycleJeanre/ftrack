@@ -7,30 +7,26 @@ const { execSync } = require('child_process');
 const TODAY = new Date().toISOString().split('T')[0];
 const OUTPUT_DEFAULT = path.join(__dirname, 'reports', `qc-report-${TODAY}.md`);
 
-const SCENARIO_RUNNERS = [
+const WORKFLOW_RUNNERS = [
   {
-    scenarioType: 'Budget',
-    command: 'node QC/tests/scenario-types/budget.test.js'
+    workflow: 'Budget',
+    command: 'node QC/tests/workflows/budget.test.js'
   },
   {
-    scenarioType: 'General',
-    command: 'node QC/tests/scenario-types/general.test.js'
+    workflow: 'General',
+    command: 'node QC/tests/workflows/general.test.js'
   },
   {
-    scenarioType: 'Funds',
-    command: 'node QC/tests/scenario-types/funds.test.js'
+    workflow: 'Funds',
+    command: 'node QC/tests/workflows/funds.test.js'
   },
   {
-    scenarioType: 'Debt Repayment',
-    command: 'node QC/tests/scenario-types/debt-repayment.test.js'
+    workflow: 'Debt Repayment',
+    command: 'node QC/tests/workflows/debt-repayment.test.js'
   },
   {
-    scenarioType: 'Goal-Based',
-    command: 'node QC/tests/scenario-types/goal-based.test.js'
-  },
-  {
-    scenarioType: 'Advanced Goal Solver',
-    command: 'node QC/tests/scenario-types/advanced-goal-solver.test.js'
+    workflow: 'Goal Workshop',
+    command: 'node QC/tests/workflows/goal-workshop.test.js'
   }
 ];
 
@@ -60,7 +56,7 @@ function extractJsonObjectFromText(text) {
   return JSON.parse(jsonString);
 }
 
-function runScenarioTypeScript({ scenarioType, command }) {
+function runWorkflowScript({ workflow, command }) {
   try {
     const stdout = execSync(command, {
       cwd: path.join(__dirname, '..'),
@@ -70,7 +66,7 @@ function runScenarioTypeScript({ scenarioType, command }) {
     });
 
     return {
-      scenarioType,
+      workflow,
       command,
       passed: true,
       result: extractJsonObjectFromText(stdout),
@@ -89,7 +85,7 @@ function runScenarioTypeScript({ scenarioType, command }) {
     }
 
     return {
-      scenarioType,
+      workflow,
       command,
       passed: false,
       result: parsedResult,
@@ -118,7 +114,7 @@ function summarizeScenarioRun(run) {
   const universalMismatches = universal.reduce((sum, item) => sum + (item.mismatchCount || 0), 0);
 
   return {
-    scenarioType: run.scenarioType,
+    workflow: run.workflow,
     command: run.command,
     passed: Boolean(result.passed) && run.passed,
     checkedScenarioCount: comparison.checkedScenarioCount || 0,
@@ -153,7 +149,7 @@ function generateReport(runSummaries) {
   markdown += `**Overall Status**: ${overallPassed ? '✅ PASS' : '❌ FAIL'}\n\n`;
 
   markdown += `## 1.0 Summary\n\n`;
-  markdown += `- Scenario-type runs: ${runSummaries.length}\n`;
+  markdown += `- Workflow runs: ${runSummaries.length}\n`;
   markdown += `- Passed: ${passedRuns}\n`;
   markdown += `- Failed: ${failedRuns.length}\n`;
   markdown += `- Checked scenarios: ${totalCheckedScenarios}\n`;
@@ -161,13 +157,13 @@ function generateReport(runSummaries) {
   markdown += `- Universal checks: ${totalUniversalChecks}\n`;
   markdown += `- Total mismatches: ${totalMismatches}\n\n`;
 
-  markdown += `## 2.0 Scenario-Type Results\n\n`;
-  markdown += `| Scenario Type | Status | Checked Scenarios | Checked Use Cases | Universal Checks | Mismatches |\n`;
+  markdown += `## 2.0 Workflow Results\n\n`;
+  markdown += `| Workflow | Status | Checked Scenarios | Checked Use Cases | Universal Checks | Mismatches |\n`;
   markdown += `|---|---|---:|---:|---:|---:|\n`;
 
   runSummaries.forEach((run) => {
     const rowMismatchCount = run.comparisonMismatchCount + run.universalMismatches;
-    markdown += `| ${run.scenarioType} | ${run.passed ? '✅ PASS' : '❌ FAIL'} | ${run.checkedScenarioCount} | ${run.checkedUseCaseCount} | ${run.universalChecks} | ${rowMismatchCount} |\n`;
+    markdown += `| ${run.workflow} | ${run.passed ? '✅ PASS' : '❌ FAIL'} | ${run.checkedScenarioCount} | ${run.checkedUseCaseCount} | ${run.universalChecks} | ${rowMismatchCount} |\n`;
   });
 
   markdown += `\n## 3.0 Failure Details\n\n`;
@@ -175,7 +171,7 @@ function generateReport(runSummaries) {
     markdown += `- No mismatches found across all scenario-type QC runs.\n\n`;
   } else {
     failedRuns.forEach((run, index) => {
-      markdown += `### 3.${index + 1} ${run.scenarioType}\n\n`;
+      markdown += `### 3.${index + 1} ${run.workflow}\n\n`;
       markdown += `- Command: \`${run.command}\`\n`;
       markdown += `- Comparison mismatches: ${run.comparisonMismatchCount}\n`;
       markdown += `- Universal mismatches: ${run.universalMismatches}\n`;
@@ -208,7 +204,7 @@ function generateReport(runSummaries) {
   }
 
   markdown += `## 4.0 Commands Used\n\n`;
-  SCENARIO_RUNNERS.forEach((runner) => {
+  WORKFLOW_RUNNERS.forEach((runner) => {
     markdown += `- \`${runner.command}\`\n`;
   });
   markdown += '\n';
@@ -231,8 +227,8 @@ function ensureOutputDirectory(filePath) {
 function main() {
   const { outputPath } = parseArgs();
 
-  const runSummaries = SCENARIO_RUNNERS
-    .map(runScenarioTypeScript)
+  const runSummaries = WORKFLOW_RUNNERS
+    .map(runWorkflowScript)
     .map(summarizeScenarioRun);
 
   const { markdown, overallPassed, failedRuns, passedRuns } = generateReport(runSummaries);

@@ -7,16 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Consolidated Goal-Based and Advanced Goal Solver into a single **Goal Workshop** workflow with Simple and Advanced mode toggle.
+  - Mode is persisted per scenario via `scenario.planning.goalWorkshopMode`; auto-detected from existing AGS goals for migrated scenarios.
+  - Existing scenario data is fully backward-compatible; no migration script required.
+
 ## [0.8.5-beta] - 2026-02-28
 
 ### Added
 
-- Advanced Goal Solver scenario type with a multi-goal Generate Plan flow
+- Advanced Goal Solver workflow with a multi-goal Generate Plan flow
 - Documentation coverage for goal planning and debt repayment
   - Goal Planning user guide
   - Debt Repayment user guide
   - Goal Planning and Debt Repayment concept references
-- Debt Repayment scenario type with Summary Cards component
+- Debt Repayment workflow with Summary Cards component
   - Per-account summary cards showing starting balance, projected end, interest earned/paid
   - Zero crossing date tracking (when debt balance reaches $0)
   - Account type filtering (All/Liability/Asset)
@@ -77,8 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- User documentation for Budget workflow, Funds scenarios, and Import and Export
-- Overview guidance for choosing scenario types and goal planning modes
+- User documentation for Budget workflow, Funds workflow, and Import and Export
+- Overview guidance for choosing workflows and goal planning modes
 
 ### Changed
 
@@ -88,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Scenario setup reliability and grid refresh after scenario type and period type changes
+- Scenario setup reliability and grid refresh after workflow and period type changes
 - Safer bootstrap when storage is empty or corrupt
 - GitHub Pages asset loading when hosted under a repo subpath
 

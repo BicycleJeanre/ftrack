@@ -2,17 +2,7 @@
 // Unified business logic for transaction operations
 
 import * as DataStore from '../services/storage-service.js';
-
-/**
- * Get all transactions for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of transactions
- */
-export async function getAll(scenarioId) {
-    const data = await DataStore.read();
-    const scenario = data.scenarios?.find(s => s.id === scenarioId);
-    return scenario?.transactions || [];
-}
+import { allocateNextId } from '../../shared/app-data-utils.js';
 
 /**
  * Save all transactions for a scenario
@@ -28,12 +18,7 @@ export async function saveAll(scenarioId, transactions) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
 
-        // Assign IDs to new transactions
-        const maxId = transactions.length > 0 && transactions.some(t => t.id)
-            ? Math.max(...transactions.filter(t => t.id).map(t => t.id))
-            : 0;
-
-        let nextId = maxId + 1;
+        let nextId = allocateNextId(transactions);
 
         data.scenarios[scenarioIndex].transactions = transactions.map(txn => {
             const id = (!txn.id || txn.id === 0) ? nextId++ : txn.id;
@@ -90,87 +75,54 @@ export async function saveAll(scenarioId, transactions) {
 }
 
 /**
- * Get transactions for a specific period
- * @param {number} scenarioId - The scenario ID
- * @param {string} periodId - The period ID (or 'all' for all transactions)
- * @returns {Promise<Array>} - Array of transactions
- */
-export async function getByPeriod(scenarioId, periodId) {
-    const transactions = await getAll(scenarioId);
-    if (periodId === 'all') {
-        return transactions;
-    }
-    // Filter by period - this would need to be implemented based on effectiveDate
-    // For now, return all transactions
-    return transactions;
-}
-
-/**
- * Create a new planned transaction
+ * Create a new transaction using canonical normalization (matches saveAll rules).
  * @param {number} scenarioId - The scenario ID
  * @param {Object} txnData - The transaction data
- * @returns {Promise<Object>} - The created transaction
+ * @returns {Promise<Object>} - Full app-data after creation (extract last transaction from scenario)
  */
-export async function createPlanned(scenarioId, txnData) {
+export async function create(scenarioId, txnData) {
     return await DataStore.transaction(async (data) => {
         const scenario = data.scenarios.find(s => s.id === scenarioId);
-        
-        if (!scenario) {
-            throw new Error(`Scenario ${scenarioId} not found`);
+        if (!scenario) throw new Error(`Scenario ${scenarioId} not found`);
+        if (!scenario.transactions) scenario.transactions = [];
+
+        const transactionTypeId  = txnData.transactionTypeId  ?? 2;
+        const primaryAccountId   = txnData.primaryAccountId   ?? null;
+        const secondaryAccountId = txnData.secondaryAccountId ?? null;
+
+        let status;
+        if (txnData.status && typeof txnData.status === 'object' && txnData.status.name) {
+            status = {
+                name:         txnData.status.name,
+                actualAmount: txnData.status.actualAmount ?? txnData.actualAmount ?? null,
+                actualDate:   txnData.status.actualDate   ?? txnData.actualDate   ?? null
+            };
+        } else {
+            status = {
+                name:         txnData.status === 'actual' ? 'actual' : 'planned',
+                actualAmount: txnData.actualAmount || null,
+                actualDate:   txnData.actualDate   || null
+            };
         }
-        
-        if (!scenario.plannedTransactions) {
-            scenario.plannedTransactions = [];
+        if (status.actualAmount !== null && status.actualAmount !== undefined) {
+            status.actualAmount = Math.abs(Number(status.actualAmount) || 0);
         }
-        
-        const maxId = scenario.plannedTransactions.length > 0
-            ? Math.max(...scenario.plannedTransactions.map(t => t.id || 0))
-            : 0;
-        
+
         const newTxn = {
-            id: maxId + 1,
-            ...txnData
+            id:                  allocateNextId(scenario.transactions),
+            primaryAccountId,
+            secondaryAccountId,
+            transactionTypeId,
+            amount:              Math.abs(txnData.amount || 0),
+            effectiveDate:       txnData.effectiveDate || txnData.plannedDate || txnData.recurrence?.startDate || null,
+            description:         txnData.description   || '',
+            recurrence:          txnData.recurrence    || null,
+            periodicChange:      txnData.periodicChange || null,
+            status,
+            tags:                txnData.tags || []
         };
-        
-        scenario.plannedTransactions.push(newTxn);
-        return data;
-    });
-}
 
-/**
- * Delete a planned transaction
- * @param {number} scenarioId - The scenario ID
- * @param {number} txnId - The transaction ID
- * @returns {Promise<void>}
- */
-export async function deletePlanned(scenarioId, txnId) {
-    return await DataStore.transaction(async (data) => {
-        const scenario = data.scenarios.find(s => s.id === scenarioId);
-        
-        if (!scenario) {
-            throw new Error(`Scenario ${scenarioId} not found`);
-        }
-        
-        scenario.plannedTransactions = scenario.plannedTransactions.filter(t => t.id !== txnId);
-        return data;
-    });
-}
-
-/**
- * Delete an actual transaction
- * @param {number} scenarioId - The scenario ID
- * @param {number} txnId - The transaction ID
- * @returns {Promise<void>}
- */
-export async function deleteActual(scenarioId, txnId) {
-    return await DataStore.transaction(async (data) => {
-        const scenario = data.scenarios.find(s => s.id === scenarioId);
-        
-        if (!scenario) {
-            throw new Error(`Scenario ${scenarioId} not found`);
-        }
-        
-        scenario.actualTransactions = scenario.actualTransactions.filter(t => t.id !== txnId);
+        scenario.transactions.push(newTxn);
         return data;
     });
 }

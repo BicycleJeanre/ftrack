@@ -2,6 +2,8 @@
 // Forecast projections filtering and totals rendering extracted from forecast.js.
 
 import { parseDateOnly } from '../../../shared/date-utils.js';
+import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
+import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
 
 export function getFilteredProjections({
   currentScenario,
@@ -12,7 +14,7 @@ export function getFilteredProjections({
 }) {
   if (!currentScenario) return [];
 
-  let filtered = currentScenario.projections || [];
+  let filtered = getScenarioProjectionRows(currentScenario);
 
   const accountFilterId = projectionsAccountFilterId ?? transactionFilterAccountId;
 
@@ -61,13 +63,6 @@ export function updateProjectionTotals(container, projections) {
     return acc;
   }, { income: 0, expenses: 0, net: 0 });
 
-  const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value);
-
   const displayExpenses = -Math.abs(totals.expenses);
 
   const parseDateKey = (dateValue) => {
@@ -102,11 +97,11 @@ export function updateProjectionTotals(container, projections) {
   const toolbarTotals = container.querySelector('.toolbar-totals');
   if (toolbarTotals) {
     toolbarTotals.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Start Bal${firstDateKey ? ` (${firstDateKey})` : ''}:</span> <span class="value ${firstBalance >= 0 ? 'positive' : 'negative'}">${formatCurrency(firstBalance)}</span></span>
-      <span class="toolbar-total-item"><span class="label">End Bal${lastDateKey ? ` (${lastDateKey})` : ''}:</span> <span class="value ${lastBalance >= 0 ? 'positive' : 'negative'}">${formatCurrency(lastBalance)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Start Bal${firstDateKey ? ` (${firstDateKey})` : ''}:</span> <span class="value ${numValueClass(firstBalance)}">${formatCurrency(firstBalance)}</span></span>
+      <span class="toolbar-total-item"><span class="label">End Bal${lastDateKey ? ` (${lastDateKey})` : ''}:</span> <span class="value ${numValueClass(lastBalance)}">${formatCurrency(lastBalance)}</span></span>
       <span class="toolbar-total-item"><span class="label">Income:</span> <span class="value positive">${formatCurrency(totalIncome)}</span></span>
       <span class="toolbar-total-item"><span class="label">Expenses:</span> <span class="value negative">${formatCurrency(totalExpenses)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${totalNet >= 0 ? 'positive' : 'negative'}">${formatCurrency(totalNet)}</span></span>
+      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${numValueClass(totalNet)}">${formatCurrency(totalNet)}</span></span>
     `;
   }
 }

@@ -127,6 +127,7 @@ export function mapEditToCanonical(tx, { field, value, isFlipped }) {
   const resolveTypeId = (val) => {
     if (val && typeof val === 'object') return val.id ?? (val.name === 'Money In' ? MONEY_IN : MONEY_OUT);
     if (val === MONEY_IN || val === MONEY_OUT) return val;
+    if (typeof val === 'string') return val === 'Money In' ? MONEY_IN : MONEY_OUT;
     return MONEY_OUT;
   };
 
@@ -135,7 +136,7 @@ export function mapEditToCanonical(tx, { field, value, isFlipped }) {
       updated.secondaryAccountId = value?.id || null;
     } else if (field === 'secondaryAccount') {
       updated.primaryAccountId = value?.id || null;
-    } else if (field === 'transactionType') {
+    } else if (field === 'transactionType' || field === 'transactionTypeName') {
       const selected = resolveTypeId(value);
       updated.transactionTypeId = selected === MONEY_IN ? MONEY_OUT : MONEY_IN;
     } else if (field === 'amount' || field === 'plannedAmount') {
@@ -149,7 +150,7 @@ export function mapEditToCanonical(tx, { field, value, isFlipped }) {
       updated.primaryAccountId = value?.id || null;
     } else if (field === 'secondaryAccount') {
       updated.secondaryAccountId = value?.id || null;
-    } else if (field === 'transactionType') {
+    } else if (field === 'transactionType' || field === 'transactionTypeName') {
       updated.transactionTypeId = resolveTypeId(value);
     } else if (field === 'amount' || field === 'plannedAmount') {
       updated.amount = normalizeAmount(value);
