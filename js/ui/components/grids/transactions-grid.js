@@ -31,7 +31,7 @@ const transactionsGridState = new GridStateManager('transactions');
 let lastTransactionsDetailTable = null;
 let lastTransactionsDetailTableReady = false;
 
-function renderTransactionsRowDetails({ row, rowData }) {
+function renderTransactionsRowDetails({ row, rowData, reload }) {
   const rowEl = row.getElement();
   if (!rowEl) return;
 
@@ -70,26 +70,150 @@ function renderTransactionsRowDetails({ row, rowData }) {
     grid.appendChild(field);
   };
 
-  addField('Primary Account', rowData?.primaryAccountName);
   addField('Secondary Account', rowData?.secondaryAccountName);
-  addField('Recurrence', rowData?.recurrenceSummary || rowData?.recurrenceDescription);
-  addField('Periodic Change', rowData?.periodicChangeSummary);
 
+  // --- Recurrence (clickable → modal) ---
+  let currentRecurrence = rowData?.recurrence ?? null;
+  const recurrenceField = document.createElement('div');
+  recurrenceField.className = 'grid-detail-field';
+  const recurrenceLabel = document.createElement('label');
+  recurrenceLabel.className = 'grid-detail-label';
+  recurrenceLabel.textContent = 'Recurrence';
+  const recurrenceValue = document.createElement('div');
+  recurrenceValue.className = 'accounts-detail-value accounts-detail-value--clickable';
+  recurrenceValue.title = 'Click to edit recurrence';
+  const updateRecurrenceLabel = async (rec) => {
+    recurrenceValue.textContent = rec ? (await getRecurrenceDescription(rec)) || 'None' : 'None';
+  };
+  updateRecurrenceLabel(currentRecurrence);
+  recurrenceValue.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openRecurrenceModal(currentRecurrence, async (newRec) => {
+      currentRecurrence = newRec;
+      await updateRecurrenceLabel(newRec);
+      const scenarioId = rowData?._scenarioId;
+      if (!scenarioId) return;
+      const allTxs = await getTransactions(scenarioId);
+      const idx = allTxs.findIndex((t) => Number(t.id) === Number(rowData.originalTransactionId || rowData.id));
+      if (idx === -1) return;
+      allTxs[idx] = { ...allTxs[idx], recurrence: newRec };
+      await TransactionManager.saveAll(scenarioId, allTxs);
+      await reload?.();
+    });
+  });
+  recurrenceField.appendChild(recurrenceLabel);
+  recurrenceField.appendChild(recurrenceValue);
+  grid.appendChild(recurrenceField);
+
+  // --- Periodic Change (clickable → modal) ---
+  let currentPeriodicChange = rowData?.periodicChange ?? null;
+  const periodicField = document.createElement('div');
+  periodicField.className = 'grid-detail-field';
+  const periodicLabel = document.createElement('label');
+  periodicLabel.className = 'grid-detail-label';
+  periodicLabel.textContent = 'Periodic Change';
+  const periodicValue = document.createElement('div');
+  periodicValue.className = 'accounts-detail-value accounts-detail-value--clickable';
+  periodicValue.title = 'Click to edit periodic change';
+  const updatePeriodicLabel = async (pc) => {
+    periodicValue.textContent = pc ? (await getPeriodicChangeDescription(pc)) || 'None' : 'None';
+  };
+  updatePeriodicLabel(currentPeriodicChange);
+  periodicValue.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openPeriodicChangeModal(currentPeriodicChange, async (newPc) => {
+      currentPeriodicChange = newPc;
+      await updatePeriodicLabel(newPc);
+      const scenarioId = rowData?._scenarioId;
+      if (!scenarioId) return;
+      const allTxs = await getTransactions(scenarioId);
+      const idx = allTxs.findIndex((t) => Number(t.id) === Number(rowData.originalTransactionId || rowData.id));
+      if (idx === -1) return;
+      allTxs[idx] = { ...allTxs[idx], periodicChange: newPc };
+      await TransactionManager.saveAll(scenarioId, allTxs);
+      await reload?.();
+    });
+  });
+  periodicField.appendChild(periodicLabel);
+  periodicField.appendChild(periodicValue);
+  grid.appendChild(periodicField);
+
+  // --- Tags (inline chip/input pattern matching accounts-grid detail) ---
+  const cardTags = [...(rowData?.tags || [])];
   const tagsField = document.createElement('div');
   tagsField.className = 'grid-detail-field';
   const tagsLabel = document.createElement('label');
   tagsLabel.className = 'grid-detail-label';
   tagsLabel.textContent = 'Tags';
-  const tagsValue = document.createElement('div');
-  tagsValue.className = 'grid-detail-tags';
-  const tags = rowData?.tags || [];
-  if (!Array.isArray(tags) || tags.length === 0) {
-    tagsValue.textContent = '—';
-  } else {
-    tagsValue.innerHTML = tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('');
-  }
+  const tagsChipsEl = document.createElement('div');
+  tagsChipsEl.className = 'tag-chips';
+  const saveDetailTags = async () => {
+    const scenarioId = rowData?._scenarioId;
+    if (!scenarioId) return;
+    const allTxs = await getTransactions(scenarioId);
+    const idx = allTxs.findIndex((t) => Number(t.id) === Number(rowData.originalTransactionId || rowData.id));
+    if (idx === -1) return;
+    allTxs[idx] = { ...allTxs[idx], tags: [...cardTags] };
+    await TransactionManager.saveAll(scenarioId, allTxs);
+  };
+  const renderDetailTags = () => {
+    tagsChipsEl.innerHTML = '';
+    if (cardTags.length === 0) {
+      const empty = document.createElement('span');
+      empty.className = 'text-secondary';
+      empty.textContent = 'No tags';
+      tagsChipsEl.appendChild(empty);
+      return;
+    }
+    cardTags.forEach((tag, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-badge';
+      chip.innerHTML = `${tag} <button type="button" class="tag-remove" aria-label="Remove tag">&times;</button>`;
+      chip.querySelector('.tag-remove').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        cardTags.splice(idx, 1);
+        renderDetailTags();
+        await saveDetailTags();
+      });
+      tagsChipsEl.appendChild(chip);
+    });
+  };
+  renderDetailTags();
+  const tagInputRow = document.createElement('div');
+  tagInputRow.className = 'tag-input-row';
+  const tagInput = document.createElement('input');
+  tagInput.type = 'text';
+  tagInput.className = 'accounts-detail-input';
+  tagInput.placeholder = 'Add tag\u2026';
+  tagInput.autocomplete = 'off';
+  const addTagFn = async () => {
+    const val = tagInput.value.trim().toLowerCase();
+    if (val && !cardTags.includes(val)) {
+      cardTags.push(val);
+      renderDetailTags();
+      await saveDetailTags();
+    }
+    tagInput.value = '';
+  };
+  tagInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); addTagFn(); }
+  });
+  tagInput.addEventListener('blur', () => { if (cardTags.length > 0) saveDetailTags(); });
+  const addTagBtn = document.createElement('button');
+  addTagBtn.type = 'button';
+  addTagBtn.className = 'icon-btn';
+  addTagBtn.textContent = '\u2295';
+  addTagBtn.title = 'Add Tag';
+  addTagBtn.addEventListener('click', (e) => { e.stopPropagation(); addTagFn(); });
+  tagInputRow.appendChild(tagInput);
+  tagInputRow.appendChild(addTagBtn);
+  const tagsContentRow = document.createElement('div');
+  tagsContentRow.className = 'tags-content-row';
+  tagsContentRow.style.flexWrap = 'nowrap';
+  tagsContentRow.appendChild(tagsChipsEl);
+  tagsContentRow.appendChild(tagInputRow);
   tagsField.appendChild(tagsLabel);
-  tagsField.appendChild(tagsValue);
+  tagsField.appendChild(tagsContentRow);
   grid.appendChild(tagsField);
 
   detailsEl.appendChild(grid);
@@ -255,6 +379,7 @@ function renderTransactionsSummaryList({
           e.stopPropagation();
           cardTags.splice(idx, 1);
           renderCardTags();
+          tagInput.focus();
         });
         tagsChipsEl.appendChild(chip);
       });
@@ -339,20 +464,6 @@ function renderTransactionsSummaryList({
     periodicField.appendChild(periodicFieldLabel);
     periodicField.appendChild(periodicValue);
 
-    // -- Form actions --
-    const formActions = document.createElement('div');
-    formActions.className = 'grid-summary-form-actions';
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'icon-btn icon-btn--primary';
-    saveBtn.textContent = '✓';
-    saveBtn.title = 'Save';
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'icon-btn';
-    cancelBtn.textContent = '✕';
-    cancelBtn.title = 'Cancel';
-    formActions.appendChild(saveBtn);
-    formActions.appendChild(cancelBtn);
-
     const addField = (label, inputEl) => {
       const field = document.createElement('div');
       field.className = 'grid-summary-field';
@@ -373,15 +484,25 @@ function renderTransactionsSummaryList({
     form.appendChild(tagsField);
     form.appendChild(recurrenceField);
     form.appendChild(periodicField);
-    form.appendChild(formActions);
+
+    function handleDocMouseDown(e) {
+      if (document.querySelector('.modal-overlay')) return;
+      if (!card.contains(e.target)) {
+        document.removeEventListener('mousedown', handleDocMouseDown);
+        exitEdit();
+        doSave();
+      }
+    }
 
     const enterEdit = () => {
       form.style.display = 'grid';
       content.style.display = 'none';
       actions.style.display = 'none';
+      document.addEventListener('mousedown', handleDocMouseDown);
     };
 
     const exitEdit = () => {
+      document.removeEventListener('mousedown', handleDocMouseDown);
       form.style.display = 'none';
       content.style.display = 'block';
       actions.style.display = 'flex';
@@ -393,25 +514,7 @@ function renderTransactionsSummaryList({
       enterEdit();
     });
 
-    cancelBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      descInput.value = tx?.description || '';
-      amountInput.value = Number(tx?.amount || 0);
-      dateInput.value = tx?.effectiveDate || '';
-      typeSelect.value = String(tx?.transactionTypeId || 2);
-      secondaryAccountSelect.value = tx?.secondaryAccountId ? String(tx.secondaryAccountId) : '';
-      statusSelect.value = statusName;
-      cardTags.splice(0, cardTags.length, ...(tx?.tags || []));
-      renderCardTags();
-      currentRecurrence = tx?.recurrence ?? null;
-      updateRecurrenceLabel(currentRecurrence);
-      currentPeriodicChange = tx?.periodicChange ?? null;
-      updatePeriodicLabel(currentPeriodicChange);
-      exitEdit();
-    });
-
-    saveBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
+    const doSave = async () => {
       const scenario = tx?._scenarioId;
       if (!scenario) return;
       const allTxs = await getTransactions(scenario);
@@ -419,7 +522,6 @@ function renderTransactionsSummaryList({
       if (idx === -1) return;
 
       const prevStatus = allTxs[idx].status;
-      const prevStatusName = typeof prevStatus === 'object' ? prevStatus?.name : (prevStatus || 'planned');
       const newStatusName = statusSelect.value;
       const updatedStatus = typeof prevStatus === 'object'
         ? { ...prevStatus, name: newStatusName }
@@ -441,6 +543,16 @@ function renderTransactionsSummaryList({
 
       await TransactionManager.saveAll(scenario, allTxs);
       await onRefresh?.();
+    };
+
+    form.addEventListener('focusout', () => {
+      setTimeout(async () => {
+        if (document.querySelector('.modal-overlay')) return;
+        if (form.style.display !== 'grid') return;
+        if (!form.contains(document.activeElement)) {
+          await doSave();
+        }
+      }, 0);
     });
 
     duplicateBtn.addEventListener('click', async (e) => {
@@ -1044,7 +1156,26 @@ export async function loadMasterTransactionsGrid({
           }
         },
         createMoneyColumn('Amount', 'amount', { widthGrow: 1 }),
-        createTextColumn('Recurrence', 'recurrenceSummary', { widthGrow: 1 }),
+        {
+          title: 'Recurrence', field: 'recurrenceSummary', widthGrow: 1, headerSort: true,
+          formatter: (cell) => {
+            const val = cell.getValue() || '\u2014';
+            return `<div class="accounts-detail-value--clickable" title="Click to edit recurrence">${val}</div>`;
+          },
+          cellClick: (e, cell) => {
+            const row = cell.getRow().getData();
+            const scenarioId = row._scenarioId;
+            if (!scenarioId) return;
+            openRecurrenceModal(row.recurrence ?? null, async (newRec) => {
+              const allTxs = await getTransactions(scenarioId);
+              const idx = allTxs.findIndex((t) => Number(t.id) === Number(row.originalTransactionId || row.id));
+              if (idx === -1) return;
+              allTxs[idx] = { ...allTxs[idx], recurrence: newRec };
+              await TransactionManager.saveAll(scenarioId, allTxs);
+              await reload();
+            });
+          }
+        },
         createDateColumn('Date', 'effectiveDate', { editor: 'input', editable: true }),
       ];
 
@@ -1060,7 +1191,7 @@ export async function loadMasterTransactionsGrid({
           data: displayRows,
           columns,
           rowFormatter: (row) => {
-            renderTransactionsRowDetails({ row, rowData: row.getData() });
+            renderTransactionsRowDetails({ row, rowData: row.getData(), reload });
           },
           cellEdited: async (cell) => {
             try {
