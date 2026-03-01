@@ -410,6 +410,32 @@ function isCompletedRow(rowData) {
   return false;
 }
 
+/**
+ * If the scenario is missing a budgetWindow config, open the timeframe modal so the user
+ * can set one first. Once a valid config exists (or immediately if already set), calls onReady.
+ */
+function requireBudgetWindow({ scenario, scenarioState, onReady }) {
+  const existing = getScenarioBudgetWindowConfig(scenario);
+  if (existing?.startDate && existing?.endDate) {
+    onReady();
+    return;
+  }
+  openTimeframeModal({
+    title: 'Set Budget Window',
+    showPeriodType: false,
+    onConfirm: async ({ startDate, endDate }) => {
+      try {
+        await ScenarioManager.update(scenario.id, { budgetWindow: { config: { startDate, endDate } } });
+        const refreshed = await getScenario(scenario.id);
+        scenarioState?.set?.(refreshed);
+        onReady();
+      } catch (err) {
+        notifyError('Failed to set budget window: ' + (err?.message || String(err)));
+      }
+    }
+  });
+}
+
 function applyMasterBudgetTableFilters({ tables, state, callbacks }) {
   const masterBudgetTable = tables?.getMasterBudgetTable?.();
   if (!masterBudgetTable) return;
@@ -653,47 +679,115 @@ export async function loadBudgetGrid({
         });
         controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
 
-        // Icon actions — add entry only (no refresh)
+        // Icon actions — generate and add
         const iconActions = document.createElement('div');
         iconActions.className = 'header-icon-actions';
+        const generateFromProjectionsBtn = document.createElement('button');
+        generateFromProjectionsBtn.className = 'icon-btn';
+        generateFromProjectionsBtn.title = 'Generate from Expanded Transactions';
+        generateFromProjectionsBtn.textContent = '⊞';
         const addButton = document.createElement('button');
         addButton.className = 'icon-btn';
         addButton.title = 'Add budget entry';
         addButton.textContent = '⊕';
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'icon-btn';
+        clearBtn.title = 'Clear budget';
+        clearBtn.textContent = '⊗';
+        iconActions.appendChild(generateFromProjectionsBtn);
         iconActions.appendChild(addButton);
+        iconActions.appendChild(clearBtn);
         controls.appendChild(iconActions);
 
         // --- Event handlers ---
-        addButton.addEventListener('click', async (e) => {
+        clearBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
+          if (!await confirmDialog('Clear all budget entries?')) return;
+          const prevText = clearBtn.textContent;
           try {
+            clearBtn.textContent = '…';
+            clearBtn.disabled = true;
             currentScenario = scenarioState?.get?.();
-            const allBudgetsForAdd = await getBudget(currentScenario.id);
-            let defaultDate = formatDateOnly(new Date());
-            const livePeriods = state?.getPeriods?.() || [];
-            const livePeriod = state?.getBudgetPeriod?.();
-            if (livePeriod) {
-              const sel = livePeriods.find((p) => String(p.id) === String(livePeriod));
-              if (sel?.startDate) defaultDate = formatDateOnly(new Date(sel.startDate));
-            }
-            const acctSnapshot = state?.getTransactionFilterAccountId?.();
-            const firstAccId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
-            const isValidId = (id) => accounts.some((a) => Number(a.id) === Number(id));
-            const primaryAccountId = isValidId(acctSnapshot) ? acctSnapshot : firstAccId;
-            allBudgetsForAdd.push({
-              id: null, sourceTransactionId: null,
-              primaryAccountId, secondaryAccountId: null,
-              transactionTypeId: 2, amount: 0, description: '',
-              occurrenceDate: defaultDate, recurrenceDescription: 'One time',
-              status: { name: 'planned', actualAmount: null, actualDate: null }
-            });
-            await BudgetManager.saveAll(currentScenario.id, allBudgetsForAdd);
+            if (!currentScenario?.id) return;
+            await BudgetManager.clearAll(currentScenario.id);
             const refreshed = await getScenario(currentScenario.id);
             scenarioState?.set?.(refreshed);
             await reload();
           } catch (err) {
-            notifyError('Failed to create budget entry. Please try again.');
+            notifyError('Failed to clear budget: ' + (err?.message || String(err)));
+          } finally {
+            if (clearBtn.isConnected) {
+              clearBtn.textContent = prevText;
+              clearBtn.disabled = false;
+            }
           }
+        });
+
+        generateFromProjectionsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentScenario = scenarioState?.get?.();
+          openTimeframeModal({
+            title: 'Generate from Expanded Transactions',
+            showPeriodType: false,
+            onConfirm: async ({ startDate, endDate }) => {
+              const prevText = generateFromProjectionsBtn.textContent;
+              try {
+                generateFromProjectionsBtn.disabled = true;
+                await ScenarioManager.update(currentScenario.id, { budgetWindow: { config: { startDate, endDate } } });
+                await BudgetManager.createFromProjections(currentScenario.id);
+                const refreshed = await getScenario(currentScenario.id);
+                scenarioState?.set?.(refreshed);
+                await reload();
+                notifySuccess('Budget generated from expanded transactions.');
+              } catch (err) {
+                notifyError('Failed to generate from projections: ' + (err?.message || String(err)));
+              } finally {
+                if (generateFromProjectionsBtn.isConnected) {
+                  generateFromProjectionsBtn.disabled = false;
+                  generateFromProjectionsBtn.textContent = prevText;
+                }
+              }
+            }
+          });
+        });
+
+        addButton.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentScenario = scenarioState?.get?.();
+          requireBudgetWindow({
+            scenario: currentScenario,
+            scenarioState,
+            onReady: async () => {
+              try {
+                currentScenario = scenarioState?.get?.();
+                const allBudgetsForAdd = await getBudget(currentScenario.id);
+                let defaultDate = formatDateOnly(new Date());
+                const livePeriods = state?.getPeriods?.() || [];
+                const livePeriod = state?.getBudgetPeriod?.();
+                if (livePeriod) {
+                  const sel = livePeriods.find((p) => String(p.id) === String(livePeriod));
+                  if (sel?.startDate) defaultDate = formatDateOnly(new Date(sel.startDate));
+                }
+                const acctSnapshot = state?.getTransactionFilterAccountId?.();
+                const firstAccId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
+                const isValidId = (id) => accounts.some((a) => Number(a.id) === Number(id));
+                const primaryAccountId = isValidId(acctSnapshot) ? acctSnapshot : firstAccId;
+                allBudgetsForAdd.push({
+                  id: null, sourceTransactionId: null,
+                  primaryAccountId, secondaryAccountId: null,
+                  transactionTypeId: 2, amount: 0, description: '',
+                  occurrenceDate: defaultDate, recurrenceDescription: 'One time',
+                  status: { name: 'planned', actualAmount: null, actualDate: null }
+                });
+                await BudgetManager.saveAll(currentScenario.id, allBudgetsForAdd);
+                const refreshed = await getScenario(currentScenario.id);
+                scenarioState?.set?.(refreshed);
+                await reload();
+              } catch (err) {
+                notifyError('Failed to create budget entry. Please try again.');
+              }
+            }
+          });
         });
 
         periodTypeSelect.addEventListener('change', async () => {
@@ -987,45 +1081,113 @@ export async function loadBudgetGrid({
       if (curAccountId) accountSelect.value = String(curAccountId);
       controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
 
-      // Icon actions — add entry
+      // Icon actions — generate and add
       const iconActions = document.createElement('div');
       iconActions.className = 'header-icon-actions';
+      const generateFromProjectionsBtn = document.createElement('button');
+      generateFromProjectionsBtn.className = 'icon-btn';
+      generateFromProjectionsBtn.title = 'Generate from Expanded Transactions';
+      generateFromProjectionsBtn.textContent = '⊞';
       const addButton = document.createElement('button');
       addButton.className = 'icon-btn';
       addButton.title = 'Add Budget Entry';
       addButton.textContent = '+';
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'icon-btn';
+      clearBtn.title = 'Clear budget';
+      clearBtn.textContent = '⊗';
+      iconActions.appendChild(generateFromProjectionsBtn);
       iconActions.appendChild(addButton);
+      iconActions.appendChild(clearBtn);
       controls.appendChild(iconActions);
 
       // --- Event handlers ---
-      addButton.addEventListener('click', async (e) => {
+      clearBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        if (!await confirmDialog('Clear all budget entries?')) return;
+        const prevText = clearBtn.textContent;
         try {
+          clearBtn.textContent = '…';
+          clearBtn.disabled = true;
           currentScenario = scenarioState?.get?.();
-          const currentBudgets = await getBudget(currentScenario.id);
-          let defaultDate = formatDateOnly(new Date());
-          const livePeriods = state?.getPeriods?.() || [];
-          const liveBudgetPeriod = state?.getBudgetPeriod?.();
-          if (liveBudgetPeriod) {
-            const selectedPeriod = livePeriods.find((p) => String(p.id) === String(liveBudgetPeriod));
-            if (selectedPeriod?.startDate) defaultDate = formatDateOnly(new Date(selectedPeriod.startDate));
-          }
-          const snapshotAcctId = state?.getTransactionFilterAccountId?.();
-          const primaryAccountId = isValidAccountId(snapshotAcctId) ? snapshotAcctId : firstAccountId;
-          currentBudgets.push({
-            id: null, sourceTransactionId: null,
-            primaryAccountId, secondaryAccountId: null,
-            transactionTypeId: 2, amount: 0, description: '',
-            occurrenceDate: defaultDate, recurrenceDescription: 'One time',
-            status: { name: 'planned', actualAmount: null, actualDate: null }
-          });
-          await BudgetManager.saveAll(currentScenario.id, currentBudgets);
+          if (!currentScenario?.id) return;
+          await BudgetManager.clearAll(currentScenario.id);
           const refreshed = await getScenario(currentScenario.id);
           scenarioState?.set?.(refreshed);
           await reload();
         } catch (err) {
-          notifyError('Failed to create budget entry. Please try again.');
+          notifyError('Failed to clear budget: ' + (err?.message || String(err)));
+        } finally {
+          if (clearBtn.isConnected) {
+            clearBtn.textContent = prevText;
+            clearBtn.disabled = false;
+          }
         }
+      });
+
+      generateFromProjectionsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentScenario = scenarioState?.get?.();
+        openTimeframeModal({
+          title: 'Generate from Expanded Transactions',
+          showPeriodType: false,
+          onConfirm: async ({ startDate, endDate }) => {
+            const prevText = generateFromProjectionsBtn.textContent;
+            try {
+              generateFromProjectionsBtn.disabled = true;
+              await ScenarioManager.update(currentScenario.id, { budgetWindow: { config: { startDate, endDate } } });
+              await BudgetManager.createFromProjections(currentScenario.id);
+              const refreshed = await getScenario(currentScenario.id);
+              scenarioState?.set?.(refreshed);
+              await reload();
+              notifySuccess('Budget generated from expanded transactions.');
+            } catch (err) {
+              notifyError('Failed to generate from expanded transactions: ' + (err?.message || String(err)));
+            } finally {
+              if (generateFromProjectionsBtn.isConnected) {
+                generateFromProjectionsBtn.disabled = false;
+                generateFromProjectionsBtn.textContent = prevText;
+              }
+            }
+          }
+        });
+      });
+
+      addButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentScenario = scenarioState?.get?.();
+        requireBudgetWindow({
+          scenario: currentScenario,
+          scenarioState,
+          onReady: async () => {
+            try {
+              currentScenario = scenarioState?.get?.();
+              const currentBudgets = await getBudget(currentScenario.id);
+              let defaultDate = formatDateOnly(new Date());
+              const livePeriods = state?.getPeriods?.() || [];
+              const liveBudgetPeriod = state?.getBudgetPeriod?.();
+              if (liveBudgetPeriod) {
+                const selectedPeriod = livePeriods.find((p) => String(p.id) === String(liveBudgetPeriod));
+                if (selectedPeriod?.startDate) defaultDate = formatDateOnly(new Date(selectedPeriod.startDate));
+              }
+              const snapshotAcctId = state?.getTransactionFilterAccountId?.();
+              const primaryAccountId = isValidAccountId(snapshotAcctId) ? snapshotAcctId : firstAccountId;
+              currentBudgets.push({
+                id: null, sourceTransactionId: null,
+                primaryAccountId, secondaryAccountId: null,
+                transactionTypeId: 2, amount: 0, description: '',
+                occurrenceDate: defaultDate, recurrenceDescription: 'One time',
+                status: { name: 'planned', actualAmount: null, actualDate: null }
+              });
+              await BudgetManager.saveAll(currentScenario.id, currentBudgets);
+              const refreshed = await getScenario(currentScenario.id);
+              scenarioState?.set?.(refreshed);
+              await reload();
+            } catch (err) {
+              notifyError('Failed to create budget entry. Please try again.');
+            }
+          }
+        });
       });
 
       periodTypeSelect.addEventListener('change', async () => {
