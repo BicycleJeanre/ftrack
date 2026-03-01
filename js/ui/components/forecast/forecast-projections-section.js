@@ -557,7 +557,14 @@ export async function loadProjectionsGrid({
       columns: [
         createDateColumn('Date', 'date', { width: 120 }),
         createTextColumn('Account', 'account', { responsive: 4 }),
-        createTextColumn('Account Type', 'accountType', { responsive: 5 }),
+        {
+          title: 'Account Type', field: 'accountType', responsive: 5, widthGrow: 1,
+          formatter: (cell) => {
+            const name = cell.getValue() || '';
+            const cls = name.toLowerCase();
+            return name ? `<span class="grid-summary-type account-type--${cls}">${name}</span>` : '';
+          }
+        },
         createMoneyColumn('Balance', 'balance', { topCalc: 'sum' }),
         createMoneyColumn('Income', 'income', { topCalc: 'sum' }),
         createMoneyColumn('Expenses', 'expenses', { topCalc: 'sum' }),

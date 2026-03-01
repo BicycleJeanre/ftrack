@@ -1390,6 +1390,37 @@ body.dashboard-shell {
   color: var(--danger);
 }
 
+/* Account type pill modifiers */
+.grid-summary-type.account-type--asset {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+.grid-summary-type.account-type--liability {
+  background: rgba(251, 146, 60, 0.12);
+  border-color: rgba(251, 146, 60, 0.35);
+  color: #fb923c;
+}
+
+.grid-summary-type.account-type--equity {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.35);
+  color: #a78bfa;
+}
+
+.grid-summary-type.account-type--income {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.35);
+  color: #4ade80;
+}
+
+.grid-summary-type.account-type--expense {
+  background: var(--danger-subtle);
+  border-color: var(--danger-hover);
+  color: var(--danger);
+}
+
 /* Summary card content layout */
 .summary-card-content,
 .account-card-content,

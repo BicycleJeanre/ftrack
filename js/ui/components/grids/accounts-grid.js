@@ -8,6 +8,7 @@ import {
   refreshGridData,
   createDuplicateColumn,
   createDeleteColumn,
+  createListEditor,
   createTextColumn,
   createMoneyColumn,
   createDateColumn
@@ -801,7 +802,9 @@ export function buildAccountsGridColumns({
         },
         formatter: function (cell) {
           const value = cell.getValue();
-          return value?.name || '';
+          const name = value?.name || '';
+          const cls = name.toLowerCase();
+          return name ? `<span class="grid-summary-type account-type--${cls}">${name}</span>` : '';
         },
         editor: 'list',
         editable: true,
@@ -881,20 +884,19 @@ export function buildAccountsGridColumns({
       headerFilterFunc: function (headerValue, rowValue) {
         return (rowValue || '').includes(headerValue);
       },
-      editor: 'select',
-      editorParams: {
-        values: (lookupData?.accountTypes || []).reduce((acc, type) => {
-          acc[String(type.id)] = type.name;
-          return acc;
-        }, {})
+      ...createListEditor((lookupData?.accountTypes || []).map((t) => t.name)),
+      editable: true,
+      formatter: (cell) => {
+        const name = cell.getValue() || '';
+        const cls = name.toLowerCase();
+        return name ? `<span class="grid-summary-type account-type--${cls}">${name}</span>` : '';
       },
-      formatter: (cell) => cell.getValue() || '',
       cellEdited: async (cell) => {
         const scenario = scenarioState?.get?.();
         if (!scenario) return;
         const rowData = cell.getRow().getData();
-        const nextTypeId = cell.getValue();
-        const nextType = (lookupData?.accountTypes || []).find((type) => String(type.id) === String(nextTypeId)) || null;
+        const nextTypeName = cell.getValue();
+        const nextType = (lookupData?.accountTypes || []).find((type) => type.name === nextTypeName) || null;
         try {
           await AccountManager.update(scenario.id, rowData.id, { type: nextType });
           cell.getRow().update({ type: nextType, accountType: nextType?.name || 'Unknown' });

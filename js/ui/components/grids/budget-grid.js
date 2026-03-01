@@ -1,7 +1,7 @@
 // forecast-budget-grid.js
 // Budget grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, refreshGridData, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn } from './grid-factory.js';
+import { createGrid, refreshGridData, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn, createListEditor } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
@@ -744,7 +744,15 @@ export async function loadBudgetGrid({
       ),
       createTextColumn('Primary', 'primaryAccountName', { widthGrow: 1 }),
       createTextColumn('Secondary', 'secondaryAccountName', { widthGrow: 1 }),
-      { title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1 },
+      {
+        title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1,
+        ...createListEditor(['Money In', 'Money Out']),
+        formatter: (cell) => {
+          const val = cell.getValue();
+          const cls = val === 'Money Out' ? 'money-out' : 'money-in';
+          return `<span class="grid-summary-type ${cls}">${val}</span>`;
+        }
+      },
       createMoneyColumn('Planned', 'plannedAmount', { widthGrow: 1 }),
       createDateColumn('Date', 'occurrenceDate', { editor: 'input', editable: true }),
       createTextColumn('Recurrence', 'recurrenceDescription', { widthGrow: 1 }),
@@ -776,6 +784,7 @@ export async function loadBudgetGrid({
             const value = cell.getValue();
             if (field === 'occurrenceDate') allBudgetsForEdit[idx].occurrenceDate = value;
             if (field === 'description') allBudgetsForEdit[idx].description = value;
+            if (field === 'transactionTypeName') allBudgetsForEdit[idx].transactionTypeId = value === 'Money Out' ? 2 : 1;
             await BudgetManager.saveAll(scenarioId, allBudgetsForEdit);
             callbacks?.updateBudgetTotals?.();
           } catch (err) {
