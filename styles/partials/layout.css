@@ -44,6 +44,16 @@
   min-width: 0;
   max-width: none;
 }
+
+/* Transaction, budget, and projection cards must fill full width of grid */
+.master-transactions-grid .grid-summary-card,
+.budget-grid .grid-summary-card,
+.projections-grid .grid-summary-card {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
 /* Ensure the summary area is visible even when empty or when layout collapses */
 #summaryCardsContent {
   min-height: 140px;
@@ -672,8 +682,18 @@ body.dashboard-shell {
   max-height: 500px;
   overflow-y: auto;
   overflow-x: hidden;
-  flex: 0 1 auto;
+  flex: 1;
+  min-height: 0;
   max-width: 100%;
+}
+
+/* Wrappers for transaction and budget tables must fill width */
+#transactionsTable,
+#budgetTable,
+#projectionsContent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Detail workflow mode: hide the outer accordion header, force-expand the body,
@@ -701,6 +721,157 @@ body.dashboard-shell {
   max-height: none;
   overflow-y: visible;
   flex: none;
+}
+
+/* ==================================== Summary Mode: Single Scroll Fix ====================================*/
+/* In summary mode (non-detail workflows), accordion bodies are flex containers (no scroll),
+   while inner panels/lists scroll independently and fit their parent height. */
+
+/* Summary cards section: accordion body is flex container, content list scrolls alone */
+#summaryCardsSection .dash-row-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+#summaryCardsContent {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding: 14px 16px;
+}
+
+/* Middle row (Accounts/Transactions): side-by-side panels, each scrolls independently */
+#row-middle:not(.mode-detail) .dash-row-body {
+  display: flex;
+  flex-direction: row;
+  padding: 0;
+  overflow: hidden;
+}
+
+#row-middle:not(.mode-detail) .middle-panels {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Each panel within middle row grows to fill height; grid container inside scrolls */
+#row-middle:not(.mode-detail) .dash-panel {
+  flex: 1;
+  overflow: hidden;
+}
+
+#row-middle:not(.mode-detail) .dash-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding: var(--spacing-sm);
+}
+
+#row-middle:not(.mode-detail) .grid-container {
+  max-height: none;
+  width: 100%;
+}
+
+/* Budget section: accordion body is flex column; totals bar fixed, grid scrolls */
+#budgetSection:not(.mode-detail) .dash-row-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Make forecast-card fill row body and be flex container */
+#budgetSection:not(.mode-detail) .forecast-card {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Section-content is flex container distributing to totals and grid */
+#budgetSection:not(.mode-detail) .section-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+/* BudgetTable container must also flex to pass height constraint down */
+#budgetSection:not(.mode-detail) #budgetTable {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Totals bar (fixed height, doesn't scroll) */
+#budgetSection:not(.mode-detail) .budget-totals-container,
+#budgetSection:not(.mode-detail) #budgetContent {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+/* Grid container fills remaining height and scrolls */
+#budgetSection:not(.mode-detail) .grid-container {
+  flex: 1;
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Projections section: same as Budget (fixed header if present, scrollable grid) */
+#projectionsSection:not(.mode-detail) .dash-row-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Make forecast-card fill row body and be flex container */
+#projectionsSection:not(.mode-detail) .forecast-card {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Section-content is flex container distributing to totals and grid */
+#projectionsSection:not(.mode-detail) .section-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+/* ProjectionsContent container must also flex to pass height constraint down */
+#projectionsSection:not(.mode-detail) #projectionsContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Toolbar/totals if present (fixed height) */
+#projectionsSection:not(.mode-detail) .grid-toolbar,
+#projectionsSection:not(.mode-detail) .projections-icon-toolbar {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+/* Grid container fills remaining height and scrolls */
+#projectionsSection:not(.mode-detail) .grid-container {
+  flex: 1;
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  width: 100%;
 }
 
 .forecast-main {
@@ -922,14 +1093,30 @@ body.dashboard-shell {
 .accounts-summary-list,
 .grid-summary-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--spacing-sm);
   width: 100%;
   padding: var(--spacing-sm);
+  max-width: 100%;
+}
+
+/* Budget and Projections: responsive multi-column layout */
+.budget-grid .grid-summary-list,
+.projections-grid .grid-summary-list {
+  grid-template-columns: 1fr;
+}
+
+/* Two columns for wider screens (budget & projections only) */
+@media (min-width: 900px) {
+  .budget-grid .grid-summary-list,
+  .projections-grid .grid-summary-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* Projection summary cards: prefer single-line row, wrap only when squeezed */
-.grid-summary-list .grid-summary-card {
+.projections-grid .grid-summary-card,
+.budget-grid .grid-summary-card {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
@@ -937,10 +1124,22 @@ body.dashboard-shell {
   max-width: none;
 }
 
-.grid-summary-list .grid-summary-title {
-  flex-shrink: 0;
+.budget-grid .grid-summary-title,
+.projections-grid .grid-summary-title {
+  flex-shrink: 1;
   white-space: nowrap;
-  word-break: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Allow title to wrap at very narrow widths */
+@media (max-width: 500px) {
+  .budget-grid .grid-summary-title,
+  .projections-grid .grid-summary-title {
+    white-space: normal;
+    word-break: break-word;
+  }
 }
 
 .grid-summary-list .grid-summary-date {
@@ -948,6 +1147,7 @@ body.dashboard-shell {
   white-space: nowrap;
   font-size: 0.85em;
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .grid-summary-list .grid-summary-income,
@@ -982,6 +1182,11 @@ body.dashboard-shell {
   width: 100%;
 }
 
+/* Cards in transaction grid must fill full width */
+.master-transactions-grid .grid-summary-card {
+  width: 100%;
+}
+
 /* Summary cards: unified class for account and grid items */
 .summary-card,
 .account-card,
@@ -998,6 +1203,9 @@ body.dashboard-shell {
   /* Only transition non-layout properties to avoid reflow/jitter (avoid 'all') */
   transition: box-shadow var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
   width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
 }
 
 .summary-card:hover,
@@ -1533,10 +1741,6 @@ body.dashboard-shell {
 
 /* ==================================== Budget Summary Card Overrides ====================================*/
 
-.budget-grid .grid-summary-list {
-  grid-template-columns: repeat(2, 1fr);
-}
-
 .budget-grid .grid-summary-card {
   padding: 6px 10px;
   width: 100%;
@@ -1571,7 +1775,19 @@ body.dashboard-shell {
   font-size: 0.8em;
   color: var(--text-muted);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-top: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Allow flow text to wrap at narrow widths */
+@media (max-width: 500px) {
+  .grid-summary-flow {
+    white-space: normal;
+    word-break: break-word;
+  }
 }
 
 .budget-grid .grid-summary-actions {
@@ -1582,6 +1798,7 @@ body.dashboard-shell {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   width: 100%;
   margin-top: 2px;
