@@ -10,11 +10,13 @@ import * as DataStore from './storage-service.js';
 import { notifyError } from '../../shared/notifications.js';
 import {
   DEFAULT_PERIOD_TYPE_ID,
+  CURRENT_SCHEMA_VERSION,
   assertSchemaVersion43,
   sanitizeScenarioForWrite,
   allocateNextId,
   normalizeUiState
 } from '../../shared/app-data-utils.js';
+import { migrateAppData } from '../../shared/migration-utils.js';
 
 // ============================================================================
 // DATA FILE OPERATIONS
@@ -292,13 +294,16 @@ export async function exportAppData() {
  */
 export async function importAppData(jsonString, merge = false) {
   try {
-    const importedData = JSON.parse(jsonString);
+    let importedData = JSON.parse(jsonString);
     
     // Validate basic structure
     if (!importedData.scenarios || !Array.isArray(importedData.scenarios)) {
       throw new Error('Invalid app data format: missing scenarios array');
     }
 
+    if (importedData.schemaVersion !== CURRENT_SCHEMA_VERSION) {
+      importedData = migrateAppData(importedData);
+    }
     assertSchemaVersion43(importedData);
     if (!importedData.uiState || typeof importedData.uiState !== 'object') {
       throw new Error('Invalid app data format: missing uiState object');

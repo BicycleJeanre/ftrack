@@ -9,6 +9,8 @@ import {
     createDefaultAppData,
     sanitizeAppDataForWrite
 } from '../../shared/app-data-utils.js';
+import { migrateAppData } from '../../shared/migration-utils.js';
+import { notifySuccess } from '../../shared/notifications.js';
 
 // Web storage key
 const STORAGE_KEY = 'ftrack:app-data';
@@ -20,18 +22,26 @@ let transactionQueue = Promise.resolve(); // serialize transactions (read-modify
  * @returns {Promise<Object>} - The complete app data object
  */
 export async function read() {
+    let parsed = null;
     try {
         const dataString = localStorage.getItem(STORAGE_KEY);
         if (!dataString) {
             return createDefaultAppData();
         }
 
-        const parsed = JSON.parse(dataString);
+        parsed = JSON.parse(dataString);
         assertSchemaVersion43(parsed);
         return sanitizeAppDataForWrite(parsed);
     } catch (err) {
-        if (err && err.name === 'SchemaVersionError') {
-            throw err;
+        if (err && err.name === 'SchemaVersionError' && parsed) {
+            try {
+                const migrated = migrateAppData(parsed);
+                await write(migrated);
+                notifySuccess('Your data has been automatically updated to the latest format.');
+                return migrated;
+            } catch (_migrationErr) {
+                throw err;
+            }
         }
         return createDefaultAppData();
     }
