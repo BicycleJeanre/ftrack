@@ -494,26 +494,33 @@ async function buildScenarioGrid(container) {
     };
 
     // Keep the scenario grid container stable to reduce scroll jumps.
-    // Remove any existing add buttons (defensive)
-    const existingScenarioAdds = container.querySelectorAll('.icon-btn[title="Add New Scenario"]');
-    existingScenarioAdds.forEach(el => el.remove());
+    // Add button to the Scenarios section header (sibling of this container)
+    const sidebarSection = container.closest('.sidebar-section');
+    if (sidebarSection) {
+      const sectionTitle = sidebarSection.querySelector('.sidebar-section-title');
+      if (sectionTitle) {
+        // Remove any existing button
+        const existingBtn = sectionTitle.querySelector('.icon-btn');
+        if (existingBtn) existingBtn.remove();
 
-    const addScenarioBtn = document.createElement('button');
-    addScenarioBtn.className = 'icon-btn';
-    addScenarioBtn.textContent = '⊕';
-    addScenarioBtn.title = 'Add New Scenario';
-    addScenarioBtn.addEventListener('click', async () => {
-      try {
-        await ScenarioManager.create({
-          name: 'New Scenario',
-          description: ''
+        const addScenarioBtn = document.createElement('button');
+        addScenarioBtn.className = 'icon-btn';
+        addScenarioBtn.textContent = '⊕';
+        addScenarioBtn.title = 'Add New Scenario';
+        addScenarioBtn.addEventListener('click', async () => {
+          try {
+            await ScenarioManager.create({
+              name: 'New Scenario',
+              description: ''
+            });
+            await buildScenarioGrid(container);
+          } catch (err) {
+            notifyError('Failed to create scenario: ' + (err?.message || 'Unknown error'));
+          }
         });
-        await buildScenarioGrid(container);
-      } catch (err) {
-        notifyError('Failed to create scenario: ' + (err?.message || 'Unknown error'));
+        sectionTitle.appendChild(addScenarioBtn);
       }
-    });
-    window.add(container, addScenarioBtn);
+    }
 
     // Create/reuse list container
     let listContainer = container.querySelector('#scenariosList');
@@ -754,7 +761,7 @@ async function buildScenarioGrid(container) {
 }
 
 /**
- * Load the Generate Plan section for goal-based scenarios
+ * Load the Generate Plan section for Goal Workshop scenarios
  */
 async function loadGeneratePlanSection(container) {
   return loadGeneratePlanSectionCore({

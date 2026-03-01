@@ -347,6 +347,10 @@ body.dashboard-shell {
   letter-spacing: 0.5px;
   color: var(--text-secondary);
   margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
 }
 
 .sidebar-item {
