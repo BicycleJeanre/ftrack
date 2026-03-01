@@ -801,12 +801,16 @@ export async function loadMasterTransactionsGrid({
   gridContainer.classList.remove('grid-detail');
 
   try {
-    try {
-      const existingTable = tables?.getMasterTransactionsTable?.();
-      existingTable?.destroy?.();
-      tables?.setMasterTransactionsTable?.(null);
-    } catch (_) {
-      // ignore
+    // In detail mode the table is kept alive and updated in-place via refreshGridData;
+    // destroying it here would clear the DOM before the data refresh can run.
+    if (workflowConfig?.transactionsMode !== 'detail') {
+      try {
+        const existingTable = tables?.getMasterTransactionsTable?.();
+        existingTable?.destroy?.();
+        tables?.setMasterTransactionsTable?.(null);
+      } catch (_) {
+        // ignore
+      }
     }
 
     const actualPeriodType = state?.getActualPeriodType?.();
@@ -863,7 +867,41 @@ export async function loadMasterTransactionsGrid({
         r.periodicChangeSummary = r.periodicChange ? (await getPeriodicChangeDescription(r.periodicChange)) || '' : '';
       }));
 
-      const reload = () => loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+      // Data-only reload: fetch fresh transactions and update the live Tabulator instance
+      // without tearing it down. Falls back to a full rebuild only if the table is not ready.
+      const reload = async () => {
+        if (!lastTransactionsDetailTable || !lastTransactionsDetailTableReady) {
+          return loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        }
+        try {
+          const refreshedScenario = await getScenario(currentScenario.id);
+          scenarioState?.set?.(refreshedScenario);
+          let freshTxs = await getTransactions(refreshedScenario.id);
+          const currentPeriod = state?.getActualPeriod?.();
+          const currentPeriods = state?.getPeriods?.() || [];
+          if (currentPeriod) {
+            const selectedPeriod = currentPeriods.find((p) => p.id === currentPeriod);
+            if (selectedPeriod) {
+              freshTxs = expandTransactions(freshTxs, selectedPeriod.startDate, selectedPeriod.endDate, refreshedScenario.accounts);
+            }
+          }
+          const freshAccounts = refreshedScenario.accounts || [];
+          const normalizedTxs = freshTxs.map((tx) => ({ ...normalizeCanonicalTransaction(tx), _scenarioId: refreshedScenario.id }));
+          const freshRows = normalizedTxs
+            .flatMap((tx) => transformTransactionToRows(tx, freshAccounts).filter((r) => !String(r.id).endsWith('_flipped')))
+            .map((r) => ({ ...r, statusName: r.status?.name || (typeof r.status === 'string' ? r.status : 'planned') }));
+          await Promise.all(freshRows.map(async (r) => {
+            r.recurrenceSummary = r.recurrence ? (await getRecurrenceDescription(r.recurrence)) || '' : '';
+            r.periodicChangeSummary = r.periodicChange ? (await getPeriodicChangeDescription(r.periodicChange)) || '' : '';
+          }));
+          await refreshGridData(lastTransactionsDetailTable, freshRows);
+          callbacks?.updateTransactionTotals?.();
+          callbacks?.refreshSummaryCards?.();
+        } catch (err) {
+          // If the data-only update fails for any reason, fall back to full rebuild.
+          return loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        }
+      };
 
       // --- Build header controls for detail mode (periods now available) ---
       if (transactionsHeader) {
