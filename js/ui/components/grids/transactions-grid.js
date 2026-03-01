@@ -1213,7 +1213,20 @@ export async function loadMasterTransactionsGrid({
           },
           { headerTooltip: 'Duplicate Transaction' }
         ),
-        createTextColumn('Secondary', 'secondaryAccountName', { widthGrow: 1 }),
+        {
+          title: 'Secondary', field: 'secondaryAccountName',
+          minWidth: 90, widthGrow: 1, headerSort: true, headerFilter: 'input',
+          editor: 'list',
+          editorParams: {
+            values: [
+              { label: '\u2014 None \u2014', value: '' },
+              ...(currentScenario.accounts || [])
+                .filter((a) => a.name !== 'Select Account')
+                .map((a) => ({ label: a.name, value: a.name }))
+            ]
+          },
+          formatter: (cell) => cell.getValue() || '\u2014',
+        },
         {
           title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1, headerSort: true, headerFilter: 'input',
           ...createListEditor(['Money In', 'Money Out']),
@@ -1272,6 +1285,11 @@ export async function loadMasterTransactionsGrid({
               if (idx === -1) return;
               const isFlipped = String(row.id).endsWith('_flipped');
               const updated = mapEditToCanonical(allTxs[idx], { field: cell.getField(), value: cell.getValue(), isFlipped });
+              if (cell.getField() === 'secondaryAccountName') {
+                const accName = cell.getValue();
+                const acc = (currentScenario.accounts || []).find((a) => a.name === accName);
+                updated.secondaryAccountId = acc?.id ?? null;
+              }
               allTxs[idx] = updated;
               await TransactionManager.saveAll(scenarioId, allTxs);
               callbacks?.refreshSummaryCards?.();
