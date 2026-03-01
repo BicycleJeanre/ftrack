@@ -55,6 +55,7 @@ function renderAccountsRowDetails({
 }) {
   const rowEl = row.getElement();
   if (!rowEl) return;
+  if (rowEl.classList.contains('tabulator-group')) return;
 
   let detailsEl = rowEl.querySelector('.accounts-row-details');
   if (!detailsEl) {
@@ -1124,6 +1125,12 @@ export async function loadAccountsGrid({
       gridContainer.id = 'accountsGrid';
       gridContainer.className = 'grid-container accounts-grid';
       window.add(container, gridContainer);
+    }
+
+    if (workflowConfig?.accountsMode === 'detail') {
+      gridContainer.classList.add('grid-detail');
+    } else {
+      gridContainer.classList.remove('grid-detail');
     }
 
     const accounts = await AccountManager.getAll(currentScenario.id);
