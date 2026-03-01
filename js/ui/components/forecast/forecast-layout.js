@@ -45,7 +45,7 @@ function buildBurgerButton({ onClick }) {
 function applyTheme(themeBtn) {
   const theme = getTheme();
   document.documentElement.setAttribute('data-theme', theme);
-  if (themeBtn) themeBtn.textContent = theme === 'dark' ? 'Light Theme' : 'Dark Theme';
+  if (themeBtn) themeBtn.textContent = theme === 'dark' ? '☀ Light' : '☾ Dark';
 }
 
 function buildTopbarActions() {
@@ -54,7 +54,7 @@ function buildTopbarActions() {
 
   const themeBtn = document.createElement('button');
   themeBtn.type = 'button';
-  themeBtn.className = 'btn btn-ghost';
+  themeBtn.className = 'icon-btn';
   themeBtn.title = 'Toggle theme';
   applyTheme(themeBtn);
   themeBtn.addEventListener('click', (e) => {
@@ -66,9 +66,9 @@ function buildTopbarActions() {
 
   const exportBtn = document.createElement('button');
   exportBtn.type = 'button';
-  exportBtn.className = 'btn btn-secondary';
+  exportBtn.className = 'icon-btn';
   exportBtn.title = 'Export data to file';
-  exportBtn.textContent = 'Export Data';
+  exportBtn.textContent = '⬆ Export';
   exportBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     try {
@@ -80,9 +80,9 @@ function buildTopbarActions() {
 
   const importBtn = document.createElement('button');
   importBtn.type = 'button';
-  importBtn.className = 'btn btn-secondary';
+  importBtn.className = 'icon-btn';
   importBtn.title = 'Import data from file';
-  importBtn.textContent = 'Import Data';
+  importBtn.textContent = '⬇ Import';
   importBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     try {
@@ -94,9 +94,9 @@ function buildTopbarActions() {
 
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
-  clearBtn.className = 'btn btn-danger';
+  clearBtn.className = 'icon-btn icon-btn--danger';
   clearBtn.title = 'Clear all data from browser storage';
-  clearBtn.textContent = 'Clear Data';
+  clearBtn.textContent = '⊗ Clear';
   clearBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     if (!await confirmDialog('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) return;

@@ -201,8 +201,9 @@ function renderAccountsRowDetails({
   renderTags(rowData?.tags || []);
 
   const tagsButton = document.createElement('button');
-  tagsButton.className = 'btn accounts-detail-btn';
-  tagsButton.textContent = 'Edit Tags';
+  tagsButton.className = 'icon-btn';
+  tagsButton.textContent = '⊞';
+  tagsButton.title = 'Edit Tags';
   tagsButton.addEventListener('click', () => {
     openTagEditorModal(rowData?.tags || [], 'account', async (newTags) => {
       const scenario = scenarioState?.get?.();
@@ -232,8 +233,9 @@ function renderAccountsRowDetails({
   periodicValue.textContent = rowData?.periodicChangeSummary || 'None';
 
   const periodicButton = document.createElement('button');
-  periodicButton.className = 'btn accounts-detail-btn';
-  periodicButton.textContent = 'Edit Periodic Change';
+  periodicButton.className = 'icon-btn';
+  periodicButton.textContent = '⊞';
+  periodicButton.title = 'Edit Periodic Change';
   periodicButton.addEventListener('click', () => {
     openPeriodicChangeModal(rowData?.periodicChange, async (newPeriodicChange) => {
       const scenario = scenarioState?.get?.();
@@ -270,8 +272,9 @@ function renderAccountsRowDetails({
     scheduleValue.textContent = rowData?.periodicChangeScheduleSummary || 'None';
 
     const scheduleButton = document.createElement('button');
-    scheduleButton.className = 'btn accounts-detail-btn';
-    scheduleButton.textContent = 'Edit Schedule';
+    scheduleButton.className = 'icon-btn';
+    scheduleButton.textContent = '⊞';
+    scheduleButton.title = 'Edit Schedule';
     scheduleButton.addEventListener('click', () => {
       openPeriodicChangeScheduleModal(
         {
@@ -534,8 +537,9 @@ function renderAccountsSummaryList({
 
     const addTagBtn = document.createElement('button');
     addTagBtn.type = 'button';
-    addTagBtn.className = 'btn';
-    addTagBtn.textContent = 'Add';
+    addTagBtn.className = 'icon-btn';
+    addTagBtn.textContent = '⊕';
+    addTagBtn.title = 'Add Tag';
     addTagBtn.addEventListener('click', (e) => { e.stopPropagation(); addTagFn(); });
 
     tagInputRow.appendChild(tagInput);
@@ -560,8 +564,9 @@ function renderAccountsSummaryList({
       scheduleValueEl.textContent = account?.periodicChangeScheduleSummary || 'None';
       const scheduleEditBtn = document.createElement('button');
       scheduleEditBtn.type = 'button';
-      scheduleEditBtn.className = 'btn accounts-detail-btn';
-      scheduleEditBtn.textContent = 'Edit Schedule';
+      scheduleEditBtn.className = 'icon-btn';
+      scheduleEditBtn.textContent = '⊞';
+      scheduleEditBtn.title = 'Edit Schedule';
       scheduleEditBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         openPeriodicChangeScheduleModal(
@@ -598,12 +603,14 @@ function renderAccountsSummaryList({
     formActions.className = 'account-card-form-actions';
 
     const saveBtn = document.createElement('button');
-    saveBtn.className = 'btn btn-primary';
-    saveBtn.textContent = 'Save';
+    saveBtn.className = 'icon-btn icon-btn--primary';
+    saveBtn.textContent = '✓';
+    saveBtn.title = 'Save';
 
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'icon-btn';
+    cancelBtn.textContent = '✕';
+    cancelBtn.title = 'Cancel';
 
     formActions.appendChild(saveBtn);
     formActions.appendChild(cancelBtn);

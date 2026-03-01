@@ -54,12 +54,14 @@ export function confirmDialog(message) {
     btnRow.className = 'confirm-dialog-actions';
 
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'icon-btn';
+    cancelBtn.textContent = '✕';
+    cancelBtn.title = 'Cancel';
 
     const confirmBtn = document.createElement('button');
-    confirmBtn.className = 'btn btn-danger';
-    confirmBtn.textContent = 'Confirm';
+    confirmBtn.className = 'icon-btn icon-btn--danger';
+    confirmBtn.textContent = '✓';
+    confirmBtn.title = 'Confirm';
 
     btnRow.appendChild(cancelBtn);
     btnRow.appendChild(confirmBtn);

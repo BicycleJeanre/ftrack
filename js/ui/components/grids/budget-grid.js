@@ -243,11 +243,13 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh }) {
     const formActions = document.createElement('div');
     formActions.className = 'grid-summary-form-actions';
     const saveBtn = document.createElement('button');
-    saveBtn.className = 'btn btn-primary';
-    saveBtn.textContent = 'Save';
+    saveBtn.className = 'icon-btn icon-btn--primary';
+    saveBtn.textContent = '✓';
+    saveBtn.title = 'Save';
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'icon-btn';
+    cancelBtn.textContent = '✕';
+    cancelBtn.title = 'Cancel';
     formActions.appendChild(saveBtn);
     formActions.appendChild(cancelBtn);
 

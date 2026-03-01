@@ -155,15 +155,17 @@ export function openTagEditorModal(currentTags = [], entityType = 'default', onS
   footer.className = 'modal-footer';
 
   const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'btn btn-secondary';
-  cancelBtn.textContent = 'Cancel';
+  cancelBtn.className = 'icon-btn';
+  cancelBtn.textContent = '✕';
+  cancelBtn.title = 'Cancel';
   cancelBtn.addEventListener('click', () => {
     overlay.remove();
   });
 
   const saveBtn = document.createElement('button');
-  saveBtn.className = 'btn btn-primary';
-  saveBtn.textContent = 'Save Tags';
+  saveBtn.className = 'icon-btn icon-btn--primary';
+  saveBtn.textContent = '✓';
+  saveBtn.title = 'Save Tags';
   saveBtn.addEventListener('click', () => {
     onSave(tags);
     overlay.remove();

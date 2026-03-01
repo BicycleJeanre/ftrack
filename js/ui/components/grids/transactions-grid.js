@@ -267,8 +267,9 @@ function renderTransactionsSummaryList({
     tagInput.style.cssText = 'flex:1;width:auto;';
     const addTagBtn = document.createElement('button');
     addTagBtn.type = 'button';
-    addTagBtn.className = 'btn';
-    addTagBtn.textContent = 'Add';
+    addTagBtn.className = 'icon-btn';
+    addTagBtn.textContent = '⊕';
+    addTagBtn.title = 'Add Tag';
     const addTagFn = () => {
       const val = tagInput.value.trim().toLowerCase();
       if (val && !cardTags.includes(val)) { cardTags.push(val); renderCardTags(); }
@@ -342,11 +343,13 @@ function renderTransactionsSummaryList({
     const formActions = document.createElement('div');
     formActions.className = 'grid-summary-form-actions';
     const saveBtn = document.createElement('button');
-    saveBtn.className = 'btn btn-primary';
-    saveBtn.textContent = 'Save';
+    saveBtn.className = 'icon-btn icon-btn--primary';
+    saveBtn.textContent = '✓';
+    saveBtn.title = 'Save';
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'icon-btn';
+    cancelBtn.textContent = '✕';
+    cancelBtn.title = 'Cancel';
     formActions.appendChild(saveBtn);
     formActions.appendChild(cancelBtn);
 

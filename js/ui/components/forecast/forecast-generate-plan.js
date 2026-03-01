@@ -166,12 +166,13 @@ function renderGeneratePlanToolbar({ container, onRefresh }) {
   buttonContainer.className = 'toolbar-item';
 
   const refreshButton = document.createElement('button');
-  refreshButton.className = 'btn';
-  refreshButton.textContent = 'Refresh';
+  refreshButton.className = 'icon-btn';
+  refreshButton.textContent = '⟳';
+  refreshButton.title = 'Refresh';
   refreshButton.addEventListener('click', async () => {
     const prevText = refreshButton.textContent;
     try {
-      refreshButton.textContent = 'Refreshing...';
+      refreshButton.textContent = '...';
       refreshButton.disabled = true;
       await onRefresh?.();
     } finally {
@@ -1161,13 +1162,13 @@ export async function loadGeneratePlanSection({
   buttonDiv.className = 'generate-plan-buttons';
 
   const generateBtn = document.createElement('button');
-  generateBtn.className = 'btn btn-primary';
-  generateBtn.textContent = 'Generate Plan';
+  generateBtn.className = 'icon-btn icon-btn--primary';
+  generateBtn.textContent = '▶ Generate Plan';
   generateBtn.id = 'goal-generate-btn';
 
   const resetBtn = document.createElement('button');
-  resetBtn.className = 'btn btn-secondary';
-  resetBtn.textContent = 'Reset';
+  resetBtn.className = 'icon-btn';
+  resetBtn.textContent = '↺ Reset';
   resetBtn.id = 'goal-reset-btn';
 
   window.add(buttonDiv, generateBtn);

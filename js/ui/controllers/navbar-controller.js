@@ -4,7 +4,7 @@ import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifica
 import { openValidateDataModal } from '../components/modals/validate-data-modal.js';
 
 // Web-only: Show clear data button for browser storage management
-const clearDataBtn = '<button id="nav-clear" class="btn btn-danger" title="Clear all data from browser storage">Clear Data</button>';
+const clearDataBtn = '<button id="nav-clear" class="icon-btn icon-btn--danger" title="Clear all data from browser storage">⊗ Clear</button>';
 
 // Build navigation hrefs relative to this module's URL so it works when hosted
 // under a sub-path (e.g., GitHub Pages /<repo>/...) and in local dev.
@@ -20,10 +20,10 @@ const navLinks = `
   </div>
   <a href="${ftrackHref}" id="nav-ftrack">FTrack</a>
   <div class="nav-spacer"></div>
-  <button id="nav-theme" class="btn btn-ghost" title="Toggle theme"></button>
-  <button id="nav-export" class="btn btn-secondary" title="Export data to file">Export Data</button>
-  <button id="nav-import" class="btn btn-secondary" title="Import data from file">Import Data</button>
-  <button id="nav-validate" class="btn btn-secondary" title="Validate data file for errors">Validate Data</button>
+  <button id="nav-theme" class="icon-btn" title="Toggle theme"></button>
+  <button id="nav-export" class="icon-btn" title="Export data to file">⬆ Export</button>
+  <button id="nav-import" class="icon-btn" title="Import data from file">⬇ Import</button>
+  <button id="nav-validate" class="icon-btn" title="Validate data file for errors">⊘ Validate</button>
   ${clearDataBtn}
 `;
 
@@ -61,7 +61,7 @@ async function attachDataHandlers() {
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     if (themeBtn) {
-      themeBtn.textContent = theme === 'dark' ? 'Light Theme' : 'Dark Theme';
+      themeBtn.textContent = theme === 'dark' ? '☀ Light' : '☾ Dark';
     }
   }
 

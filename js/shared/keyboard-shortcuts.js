@@ -206,8 +206,8 @@ class KeyboardShortcuts {
             </div>
 
             <div class="shortcuts-footer">
-                <button id="close-shortcuts-help" class="shortcuts-close">
-                    Close
+                <button id="close-shortcuts-help" class="icon-btn" title="Close">
+                    ✕
                 </button>
             </div>
         `;

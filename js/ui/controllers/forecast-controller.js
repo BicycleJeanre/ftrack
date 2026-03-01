@@ -495,12 +495,13 @@ async function buildScenarioGrid(container) {
 
     // Keep the scenario grid container stable to reduce scroll jumps.
     // Remove any existing add buttons (defensive)
-    const existingScenarioAdds = container.querySelectorAll('.btn-add');
+    const existingScenarioAdds = container.querySelectorAll('.icon-btn[title="Add New Scenario"]');
     existingScenarioAdds.forEach(el => el.remove());
 
     const addScenarioBtn = document.createElement('button');
-    addScenarioBtn.className = 'btn btn-primary btn-add';
-    addScenarioBtn.textContent = '+ Add New';
+    addScenarioBtn.className = 'icon-btn';
+    addScenarioBtn.textContent = '⊕';
+    addScenarioBtn.title = 'Add New Scenario';
     addScenarioBtn.addEventListener('click', async () => {
       try {
         await ScenarioManager.create({
@@ -629,12 +630,14 @@ async function buildScenarioGrid(container) {
         formActions.className = 'grid-summary-form-actions';
 
         const saveBtn = document.createElement('button');
-        saveBtn.className = 'btn btn-primary';
-        saveBtn.textContent = 'Save';
+        saveBtn.className = 'icon-btn icon-btn--primary';
+        saveBtn.textContent = '✓';
+        saveBtn.title = 'Save';
 
         const cancelBtn = document.createElement('button');
-        cancelBtn.className = 'btn';
-        cancelBtn.textContent = 'Cancel';
+        cancelBtn.className = 'icon-btn';
+        cancelBtn.textContent = '✕';
+        cancelBtn.title = 'Cancel';
 
         formActions.appendChild(saveBtn);
         formActions.appendChild(cancelBtn);

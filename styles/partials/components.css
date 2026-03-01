@@ -91,9 +91,17 @@
   border: none;
   color: var(--text-secondary);
   padding: 8px;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 42px;
+  min-height: 42px;
   border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 0.95em;
 }
 
 .icon-btn svg {
@@ -110,6 +118,24 @@
 .icon-btn--active {
   color: var(--text-primary);
   background: var(--bg-tertiary);
+}
+
+.icon-btn--primary {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.icon-btn--primary:hover {
+  background: var(--accent-hover);
+}
+
+.icon-btn--danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.icon-btn--danger:hover {
+  background: var(--danger-hover);
 }
 
 .projections-icon-toolbar {

@@ -67,11 +67,11 @@ export function openTimeframeModal({
     ` : ''}
 
     <div class="modal-periodic-actions">
-      <button id="timeframe-cancel-btn" class="modal-periodic-button modal-periodic-cancel">
-        Cancel
+      <button id="timeframe-cancel-btn" class="icon-btn" title="Cancel">
+        ✕
       </button>
-      <button id="timeframe-confirm-btn" class="modal-periodic-button modal-periodic-save">
-        Generate
+      <button id="timeframe-confirm-btn" class="icon-btn icon-btn--primary" title="Generate">
+        ✓
       </button>
     </div>
   `;

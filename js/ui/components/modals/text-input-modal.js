@@ -11,8 +11,8 @@ export function openTextInputModal(title, defaultValue = '', placeholder = '', o
       <input id="modalTextInput" class="modal-text-input-input" placeholder="${placeholder}" value="${defaultValue}">
     </div>
     <div class="modal-text-input-actions">
-      <button id="modalCancel" class="modal-text-input-button modal-text-input-cancel">Cancel</button>
-      <button id="modalSave" class="modal-text-input-button modal-text-input-save">Save</button>
+      <button id="modalCancel" class="icon-btn" title="Cancel">✕</button>
+      <button id="modalSave" class="icon-btn icon-btn--primary" title="Save">✓</button>
     </div>
   `;
 
