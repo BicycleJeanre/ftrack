@@ -16,6 +16,7 @@ import keyboardShortcuts from '../../shared/keyboard-shortcuts.js';
 import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
+import { initTooltips } from '../../shared/tooltips.js';
 import { getScenarioProjectionRows, mapPeriodTypeNameToId } from '../../shared/app-data-utils.js';
 import { DEFAULT_WORKFLOW_ID, WORKFLOWS, getWorkflowById } from '../../shared/workflow-registry.js';
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
@@ -1946,6 +1947,7 @@ function renderWorkflowNav(container) {
 // Initialize the page
 async function init() {
   loadGlobals();
+  initTooltips();
   await loadUiState();
   const containers = buildGridContainer({
     accordionStates: uiState?.accordionStates || {},

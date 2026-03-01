@@ -1013,3 +1013,26 @@ input[type="checkbox"] {
   justify-content: flex-end;
   gap: var(--spacing-sm);
 }
+
+/* ==================================== Tooltips ====================================*/
+
+.app-tooltip {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  padding: 4px 8px;
+  max-width: 220px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.app-tooltip--visible {
+  opacity: 1;
+}

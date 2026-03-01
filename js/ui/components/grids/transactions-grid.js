@@ -921,10 +921,12 @@ export async function loadMasterTransactionsGrid({
           prevBtn.type = 'button';
           prevBtn.className = 'period-btn';
           prevBtn.textContent = '◀';
+          prevBtn.title = 'Previous period';
           const nextBtn = document.createElement('button');
           nextBtn.type = 'button';
           nextBtn.className = 'period-btn';
           nextBtn.textContent = '▶';
+          nextBtn.title = 'Next period';
 
           const periodItem = document.createElement('div');
           periodItem.className = 'header-filter-item';
