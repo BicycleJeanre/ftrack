@@ -159,7 +159,7 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
   });
 }
 
-async function buildProjectionsHeaderControls({ controls, container, currentScenario, scenarioState, state, reload, logger, onGroupChange }) {
+async function buildProjectionsHeaderControls({ controls, container, currentScenario, scenarioState, state, reload, logger }) {
   controls.innerHTML = '';
 
   const regenBtn = document.createElement('button');
@@ -206,6 +206,8 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
       title: 'Set Projection Period',
       showPeriodType: true,
       defaultPeriodTypeId: projConfig.periodTypeId || 3,
+      defaultStartDate: projConfig.startDate || null,
+      defaultEndDate: projConfig.endDate || null,
       onConfirm: async ({ startDate, endDate, periodTypeId }) => {
         try {
           setPeriodBtn.disabled = true;
@@ -340,7 +342,19 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   accountSelect.addEventListener('change', async () => {
     const selectedId = Number(accountSelect.value) || 0;
     state?.setProjectionAccountFilterId?.(selectedId > 0 ? selectedId : null);
-    await reload();
+    
+    if (lastProjectionsTable) {
+      // Detail view: use Tabulator filter
+      if (selectedId > 0) {
+        lastProjectionsTable.setFilter('accountId', '=', selectedId);
+      } else {
+        lastProjectionsTable.clearFilter();
+      }
+      callbacks?.updateProjectionTotals?.();
+    } else {
+      // Summary view: reload with filtered data
+      await reload();
+    }
   });
   controls.appendChild(makeHeaderFilter('projections-account-filter-select', 'Account:', accountSelect));
 
@@ -362,7 +376,10 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     const nextValue = groupSelect.value;
     container.dataset.projectionsGroupBy = nextValue;
     const field = getGroupField(nextValue);
-    onGroupChange?.(field);
+    // Apply grouping directly to table if available (both detail and summary paths)
+    if (lastProjectionsTable) {
+      lastProjectionsTable.setGroupBy(field ? [field] : []);
+    }
   });
   controls.appendChild(makeHeaderFilter('projections-grouping-select', 'Group:', groupSelect));
 
@@ -411,15 +428,32 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   });
   periodSelect.value = projectionPeriod || '';
   periodSelect.addEventListener('change', async () => {
-    state?.setProjectionPeriod?.(periodSelect.value || null);
-    await reload();
+    const selectedPeriodId = periodSelect.value || null;
+    state?.setProjectionPeriod?.(selectedPeriodId);
+    
+    if (lastProjectionsTable) {
+      // Detail view: use Tabulator filter
+      applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
+      callbacks?.updateProjectionTotals?.();
+    } else {
+      // Summary view: reload with filtered data
+      await reload();
+    }
   });
 
   const periodIds = [null, ...(projectionPeriods.map((p) => p.id || null))];
   const setPeriodSelection = async (id) => {
     periodSelect.value = id || '';
     state?.setProjectionPeriod?.(id || null);
-    await reload();
+    
+    if (lastProjectionsTable) {
+      // Detail view: use Tabulator filter
+      applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
+      callbacks?.updateProjectionTotals?.();
+    } else {
+      // Summary view: reload with filtered data
+      await reload();
+    }
   };
 
   const prevBtn = document.createElement('button');
@@ -498,8 +532,7 @@ export async function loadProjectionsGrid({
         scenarioState,
         state,
         reload: reloadGrid,
-        logger,
-        onGroupChange: (field) => { if (lastProjectionsTable) lastProjectionsTable.setGroupBy(field); }
+        logger
       });
     }
   }
