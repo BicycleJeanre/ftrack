@@ -33,11 +33,11 @@ let lastTransactionsDetailTableReady = false;
 
 function applyTransactionsDetailFilters({ state, callbacks }) {
   if (!lastTransactionsDetailTable || !lastTransactionsDetailTableReady) return;
-  const accountId = state?.getTransactionFilterAccountId?.();
+  const accountId = state?.getTransactionsAccountFilterId?.();
   if (accountId) {
+    // Use perspectiveAccountId since transactions are transformed to perspective rows
     lastTransactionsDetailTable.setFilter((data) =>
-      Number(data.primaryAccountId) === Number(accountId) ||
-      Number(data.secondaryAccountId) === Number(accountId)
+      data.perspectiveAccountId && Number(data.perspectiveAccountId) === Number(accountId)
     );
   } else {
     lastTransactionsDetailTable.clearFilter();
@@ -237,7 +237,8 @@ function renderTransactionsSummaryList({
   container,
   transactions,
   accounts,
-  onRefresh
+  onRefresh,
+  filterAccountId
 }) {
   container.innerHTML = '';
 
@@ -255,6 +256,17 @@ function renderTransactionsSummaryList({
 
   const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
   const findAccountName = (id) => visibleAccounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
+
+  // Transform transactions to perspective rows using shared transformer
+  const allPerspectiveRows = transactions.flatMap((tx) => {
+    const normalized = normalizeCanonicalTransaction(tx);
+    return transformTransactionToRows(normalized, visibleAccounts);
+  });
+
+  // Filter to current account perspective or show only primary rows
+  const displayTransactions = filterAccountId
+    ? allPerspectiveRows.filter(r => Number(r.perspectiveAccountId) === Number(filterAccountId))
+    : allPerspectiveRows.filter(r => !String(r.id).endsWith('_flipped'));
 
   const buildAccountSelect = (selectedId, includeNone = false) => {
     const sel = document.createElement('select');
@@ -275,21 +287,24 @@ function renderTransactionsSummaryList({
     return sel;
   };
 
-  transactions.forEach((tx) => {
+  displayTransactions.forEach((tx) => {
+    // Get original transaction ID (handle flipped rows)
+    const originalTransactionId = tx.originalTransactionId || (String(tx.id).endsWith('_flipped') ? String(tx.id).replace('_flipped', '') : tx.id);
     const card = document.createElement('div');
     card.className = 'grid-summary-card';
 
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
 
-    const typeName = Number(tx.transactionTypeId) === 1 ? 'Money In' : 'Money Out';
+    // Use perspective-transformed values
+    const typeName = tx.transactionTypeName || (Number(tx.transactionTypeId) === 1 ? 'Money In' : 'Money Out');
     const isMoneyOut = Number(tx.transactionTypeId) === 2;
-    const primaryAcct = visibleAccounts.find((a) => Number(a.id) === Number(tx.primaryAccountId));
-    const currency = primaryAcct?.currency?.code || primaryAcct?.currency?.name || 'ZAR';
-    const unsignedAmt = Math.abs(Number(tx.amount || 0));
+    const perspectiveAcct = visibleAccounts.find((a) => Number(a.id) === Number(tx.perspectiveAccountId || tx.primaryAccountId));
+    const currency = perspectiveAcct?.currency?.code || perspectiveAcct?.currency?.name || 'ZAR';
+    const unsignedAmt = Math.abs(Number(tx.plannedAmount || tx.amount || 0));
     const formattedAmt = formatCurrency(unsignedAmt, currency);
-    const secondaryName = findAccountName(tx.secondaryAccountId);
-    const primaryName = findAccountName(tx.primaryAccountId);
+    const secondaryName = tx.secondaryAccountName || findAccountName(tx.secondaryAccountId);
+    const primaryName = tx.primaryAccountName || findAccountName(tx.primaryAccountId);
 
     // Line 1: secondary account name + amount (amount pushed right)
     const rowPrimary = document.createElement('div');
@@ -532,7 +547,7 @@ function renderTransactionsSummaryList({
       const scenario = tx?._scenarioId;
       if (!scenario) return;
       const allTxs = await getTransactions(scenario);
-      const idx = allTxs.findIndex((t) => Number(t.id) === Number(tx.id));
+      const idx = allTxs.findIndex((t) => Number(t.id) === Number(originalTransactionId));
       if (idx === -1) return;
 
       const prevStatus = allTxs[idx].status;
@@ -589,7 +604,7 @@ function renderTransactionsSummaryList({
       const scenario = tx?._scenarioId;
       if (!scenario) return;
       const allTxs = await getTransactions(scenario);
-      const source = allTxs.find((t) => Number(t.id) === Number(tx.id));
+      const source = allTxs.find((t) => Number(t.id) === Number(originalTransactionId));
       if (!source) return;
       const cloned = { ...source, id: 0 };
       allTxs.push(cloned);
@@ -603,7 +618,7 @@ function renderTransactionsSummaryList({
       if (!scenario) return;
       if (!await confirmDialog('Delete this transaction?')) return;
       const allTxs = await getTransactions(scenario);
-      const filtered = allTxs.filter((t) => Number(t.id) !== Number(tx.id));
+      const filtered = allTxs.filter((t) => Number(t.id) !== Number(originalTransactionId));
       await TransactionManager.saveAll(scenario, filtered);
       await onRefresh?.();
     });
@@ -673,18 +688,18 @@ export async function loadMasterTransactionsGrid({
             opt.textContent = account.name;
             accountFilterSelect.appendChild(opt);
           });
-        const currentFilterId = state?.getTransactionFilterAccountId?.();
+        const currentFilterId = state?.getTransactionsAccountFilterId?.();
         const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
         const initialFilterId = currentFilterId || firstAccountId || null;
         if (initialFilterId) {
           accountFilterSelect.value = String(initialFilterId);
           if (!currentFilterId) {
-            state?.setTransactionFilterAccountId?.(Number(initialFilterId));
+            state?.setTransactionsAccountFilterId?.(Number(initialFilterId));
           }
         }
         accountFilterSelect.addEventListener('change', (e) => {
           const nextId = e.target.value ? Number(e.target.value) : null;
-          state?.setTransactionFilterAccountId?.(nextId);
+          state?.setTransactionsAccountFilterId?.(nextId);
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
         accountFilterItem.appendChild(accountFilterLabel);
@@ -709,9 +724,9 @@ export async function loadMasterTransactionsGrid({
           try {
             currentScenario = scenarioState?.get?.();
 
-            const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+            const transactionFilterAccountId = state?.getTransactionsAccountFilterId?.();
             const actualPeriod = state?.getActualPeriod?.();
-            const periods = state?.getPeriods?.() || [];
+            const periods = state?.getTransactionsPeriods?.() || [];
 
             const accountIds = (currentScenario.accounts || []).map((acc) => acc.id);
             const filteredAccountId =
@@ -815,10 +830,10 @@ export async function loadMasterTransactionsGrid({
 
     const actualPeriodType = state?.getActualPeriodType?.();
     const actualPeriod = state?.getActualPeriod?.();
-    let periods = state?.getPeriods?.();
+    let periods = state?.getTransactionsPeriods?.();
     if (!periods || periods.length === 0) {
       periods = await getScenarioPeriods(currentScenario.id, actualPeriodType);
-      state?.setPeriods?.(periods);
+      state?.setTransactionsPeriods?.(periods);
     }
 
     let allTransactions = await getTransactions(currentScenario.id);
@@ -835,12 +850,9 @@ export async function loadMasterTransactionsGrid({
     }
 
     const accountFilterId = state?.getTransactionFilterAccountId?.();
-    if (accountFilterId && workflowConfig?.transactionsMode !== 'detail') {
-      allTransactions = allTransactions.filter((tx) =>
-        Number(tx.primaryAccountId) === Number(accountFilterId) ||
-        Number(tx.secondaryAccountId) === Number(accountFilterId)
-      );
-    }
+    // Don't pre-filter by account - filtering is done during transformation and rendering
+    // Account filtering will be applied in detail via applyTransactionsDetailFilters
+    // and in summary via renderTransactionsSummaryList with perspective rows
 
     allTransactions = allTransactions.map((tx) => ({
       ...normalizeCanonicalTransaction(tx),
@@ -878,7 +890,7 @@ export async function loadMasterTransactionsGrid({
           scenarioState?.set?.(refreshedScenario);
           let freshTxs = await getTransactions(refreshedScenario.id);
           const currentPeriod = state?.getActualPeriod?.();
-          const currentPeriods = state?.getPeriods?.() || [];
+          const currentPeriods = state?.getTransactionsPeriods?.() || [];
           if (currentPeriod) {
             const selectedPeriod = currentPeriods.find((p) => p.id === currentPeriod);
             if (selectedPeriod) {
@@ -932,12 +944,12 @@ export async function loadMasterTransactionsGrid({
               opt.textContent = account.name;
               accountFilterSelect.appendChild(opt);
             });
-          const txCurrentFilterId = state?.getTransactionFilterAccountId?.();
+          const txCurrentFilterId = state?.getTransactionsAccountFilterId?.();
           const txFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
           const txInitialFilterId = txCurrentFilterId || txFirstAccountId || null;
           if (txInitialFilterId) {
             accountFilterSelect.value = String(txInitialFilterId);
-            if (!txCurrentFilterId) state?.setTransactionFilterAccountId?.(Number(txInitialFilterId));
+            if (!txCurrentFilterId) state?.setTransactionsAccountFilterId?.(Number(txInitialFilterId));
           }
           controls.appendChild(makeHeaderFilter('tx-account-filter-select', 'Account:', accountFilterSelect));
 
@@ -945,7 +957,7 @@ export async function loadMasterTransactionsGrid({
           const periodTypeSelect = document.createElement('select');
           periodTypeSelect.id = 'tx-period-type-select';
           periodTypeSelect.className = 'input-select';
-          ['Month', 'Quarter', 'Year'].forEach((pt) => {
+          ['Day', 'Week', 'Month', 'Quarter', 'Year'].forEach((pt) => {
             const opt = document.createElement('option');
             opt.value = pt; opt.textContent = pt;
             periodTypeSelect.appendChild(opt);
@@ -1040,12 +1052,12 @@ export async function loadMasterTransactionsGrid({
 
           // Event listeners
           accountFilterSelect.addEventListener('change', (e) => {
-            state?.setTransactionFilterAccountId?.(Number(e.target.value));
+            state?.setTransactionsAccountFilterId?.(Number(e.target.value));
             applyTransactionsDetailFilters({ state, callbacks });
           });
           periodTypeSelect.addEventListener('change', async () => {
             state?.setActualPeriodType?.(periodTypeSelect.value);
-            state?.setPeriods?.([]);
+            state?.setTransactionsPeriods?.([]);
             state?.setActualPeriod?.(null);
             await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           });
@@ -1082,9 +1094,9 @@ export async function loadMasterTransactionsGrid({
             e.stopPropagation();
             try {
               currentScenario = scenarioState?.get?.();
-              const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+              const transactionFilterAccountId = state?.getTransactionsAccountFilterId?.();
               const actualPeriod = state?.getActualPeriod?.();
-              const localPeriods = state?.getPeriods?.() || [];
+              const localPeriods = state?.getTransactionsPeriods?.() || [];
               const accountIds = (currentScenario.accounts || []).map((acc) => acc.id);
               const filteredAccountId =
                 transactionFilterAccountId && accountIds.includes(transactionFilterAccountId)
@@ -1332,6 +1344,7 @@ export async function loadMasterTransactionsGrid({
         container: gridContainer,
         transactions: allTransactions,
         accounts: currentScenario.accounts || [],
+        filterAccountId: accountFilterId,
         onRefresh: async () => {
           await loadMasterTransactionsGrid({
             container,

@@ -71,15 +71,17 @@ import { generateProjections, clearProjections } from '../../domain/calculations
 let currentScenario = null;
 let uiState = null;
 let currentWorkflowId = DEFAULT_WORKFLOW_ID;
-let transactionFilterAccountId = null; // Track account filter for transactions view (independent of account grid selection)
-let projectionsAccountFilterId = null; // Track account filter for projections view (independent of transactions filter)
+let transactionsAccountFilterId = null; // Track account filter for transactions view (independent of budget/projections)
+let budgetAccountFilterId = null; // Track account filter for budget view (independent of transactions/projections)
+let projectionsAccountFilterId = null; // Track account filter for projections view (independent of transactions/budget)
 let actualPeriod = null; // Selected period for actual transactions
 let actualPeriodType = 'Month'; // Selected period type for transactions view
 let projectionPeriod = null; // Selected period for projections view
 let projectionPeriodType = 'Month'; // Selected period type for projections view
 let budgetPeriod = null; // Selected period for budget view
 let budgetPeriodType = 'Month'; // Selected period type for budget view
-let periods = []; // Calculated periods for current scenario
+let transactionsPeriods = []; // Calculated periods for transactions view
+let budgetPeriods = []; // Calculated periods for budget view
 let projectionPeriods = []; // Calculated periods for projections view
 let budgetGridLoadToken = 0; // Prevent stale budget renders
 let scenariosTable = null; // Store scenarios table instance to preserve selection/scroll
@@ -197,7 +199,8 @@ async function setCurrentScenarioById(scenarioId) {
   if (!next) return;
 
   currentScenario = next;
-  transactionFilterAccountId = null;
+  transactionsAccountFilterId = null;
+  budgetAccountFilterId = null;
   projectionsAccountFilterId = null;
 
   await patchUiState({
@@ -808,9 +811,9 @@ async function loadMasterTransactionsGrid(container) {
     },
     getWorkflowConfig,
     state: {
-      getTransactionFilterAccountId: () => transactionFilterAccountId,
-      setTransactionFilterAccountId: (nextId) => {
-        transactionFilterAccountId = nextId;
+      getTransactionsAccountFilterId: () => transactionsAccountFilterId,
+      setTransactionsAccountFilterId: (nextId) => {
+        transactionsAccountFilterId = nextId;
       },
       getActualPeriod: () => actualPeriod,
       setActualPeriod: (nextPeriod) => {
@@ -827,9 +830,9 @@ async function loadMasterTransactionsGrid(container) {
           }
         });
       },
-      getPeriods: () => periods,
-      setPeriods: (nextPeriods) => {
-        periods = nextPeriods;
+      getTransactionsPeriods: () => transactionsPeriods,
+      setTransactionsPeriods: (nextPeriods) => {
+        transactionsPeriods = nextPeriods;
       }
     },
     tables: {
@@ -861,9 +864,9 @@ async function loadBudgetGrid(container) {
       }
     },
     state: {
-      getTransactionFilterAccountId: () => transactionFilterAccountId,
-      setTransactionFilterAccountId: (nextId) => {
-        transactionFilterAccountId = nextId;
+      getBudgetAccountFilterId: () => budgetAccountFilterId,
+      setBudgetAccountFilterId: (nextId) => {
+        budgetAccountFilterId = nextId;
       },
       getBudgetPeriod: () => budgetPeriod,
       setBudgetPeriod: (nextPeriod) => {
@@ -880,9 +883,9 @@ async function loadBudgetGrid(container) {
           }
         });
       },
-      getPeriods: () => periods,
-      setPeriods: (nextPeriods) => {
-        periods = nextPeriods;
+      getBudgetPeriods: () => budgetPeriods,
+      setBudgetPeriods: (nextPeriods) => {
+        budgetPeriods = nextPeriods;
       },
       bumpBudgetGridLoadToken: () => ++budgetGridLoadToken,
       getBudgetGridLoadToken: () => budgetGridLoadToken,
