@@ -455,6 +455,10 @@ function applyMasterBudgetTableFilters({ tables, state, callbacks }) {
     periodEnd.setHours(23, 59, 59, 999);
   }
 
+  // Convert period boundaries to date strings for fast comparison
+  const periodStartStr = periodStart ? formatDateOnly(periodStart) : null;
+  const periodEndStr = periodEnd ? formatDateOnly(periodEnd) : null;
+
   masterBudgetTable.setFilter((data) => {
     if (!data) return false;
 
@@ -467,10 +471,10 @@ function applyMasterBudgetTableFilters({ tables, state, callbacks }) {
       }
     }
 
-    if (periodStart && periodEnd) {
-      const occ = data.occurrenceDate ? new Date(data.occurrenceDate) : null;
-      if (!occ || Number.isNaN(occ.getTime())) return false;
-      if (occ < periodStart || occ > periodEnd) return false;
+    if (periodStartStr && periodEndStr) {
+      const occStr = data.occurrenceDate; // Already a string (YYYY-MM-DD)
+      if (!occStr) return false;
+      if (occStr < periodStartStr || occStr > periodEndStr) return false;
     }
 
     return true;
@@ -510,6 +514,48 @@ function applyBudgetDetailFilters({ state, periods, callbacks }) {
   });
 
   callbacks?.updateBudgetTotals?.();
+}
+
+function applyBudgetSummaryFilters({ budgets, state, periods, accounts, gridContainer, reload }) {
+  // Pre-compute filter criteria
+  const budgetPeriod = state?.getBudgetPeriod?.();
+  const accountFilterId = state?.getTransactionFilterAccountId?.();
+  
+  let periodStart = null, periodEnd = null;
+  if (budgetPeriod) {
+    const selectedPeriod = periods.find((p) => String(p.id) === String(budgetPeriod));
+    if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
+      periodStart = new Date(selectedPeriod.startDate);
+      periodEnd = new Date(selectedPeriod.endDate);
+    }
+  }
+  
+  // Filter budgets
+  const filtered = budgets.filter((b) => {
+    // Account filter
+    if (accountFilterId) {
+      const matches = Number(b.primaryAccountId) === Number(accountFilterId) ||
+                     Number(b.secondaryAccountId) === Number(accountFilterId);
+      if (!matches) return false;
+    }
+    
+    // Period filter
+    if (periodStart && periodEnd) {
+      const occ = b.occurrenceDate ? new Date(b.occurrenceDate) : null;
+      if (!occ || Number.isNaN(occ.getTime())) return false;
+      if (occ < periodStart || occ > periodEnd) return false;
+    }
+    
+    return true;
+  });
+  
+  // Re-render only the filtered list
+  renderBudgetSummaryList({
+    container: gridContainer,
+    budgets: filtered,
+    accounts,
+    onRefresh: reload
+  });
 }
 
 export async function loadBudgetGrid({
@@ -594,6 +640,9 @@ export async function loadBudgetGrid({
           return item;
         };
 
+        // Debounce period type changes
+        let periodTypeChangeTimeout = null;
+
         // View By (period type)
         const periodTypeSelect = document.createElement('select');
         periodTypeSelect.id = 'budget-period-type-select';
@@ -604,6 +653,15 @@ export async function loadBudgetGrid({
           periodTypeSelect.appendChild(opt);
         });
         periodTypeSelect.value = budgetPeriodType;
+        periodTypeSelect.addEventListener('change', async () => {
+          clearTimeout(periodTypeChangeTimeout);
+          periodTypeChangeTimeout = setTimeout(async () => {
+            state?.setBudgetPeriodType?.(periodTypeSelect.value);
+            state?.setPeriods?.([]);
+            state?.setBudgetPeriod?.(null);
+            await reload();
+          }, 150);
+        });
         controls.appendChild(makeHeaderFilter('budget-period-type-select', 'View:', periodTypeSelect));
 
         // Period + ◀ ▶ navigation
@@ -804,6 +862,9 @@ export async function loadBudgetGrid({
 
         const periodIds = [null, ...periods.map((p) => p.id || null)];
         const changePeriodBy = (offset) => {
+          if (prevBtn.disabled || nextBtn.disabled) return; // Prevent concurrent
+          prevBtn.disabled = nextBtn.disabled = true;
+          
           const currentId = state?.getBudgetPeriod?.() ?? null;
           const currentIndex = periodIds.findIndex((id) => id === currentId);
           const safeIndex = currentIndex === -1 ? 0 : currentIndex;
@@ -812,6 +873,10 @@ export async function loadBudgetGrid({
           periodSelect.value = nextId ? String(nextId) : '';
           state?.setBudgetPeriod?.(nextId);
           applyBudgetDetailFilters({ state, periods, callbacks });
+          
+          setTimeout(() => {
+            prevBtn.disabled = nextBtn.disabled = false;
+          }, 100);
         };
         prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
         nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
@@ -995,7 +1060,26 @@ export async function loadBudgetGrid({
     state?.setTransactionFilterAccountId?.(effectiveTransactionFilterAccountId);
   }
 
+  // Cache budget data to avoid refetching on filter changes
+  let cachedBudgets = null;
+  let cachedBudgetLoadToken = null;
+
   const reload = () => loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
+
+  const refreshFilters = () => {
+    if (!cachedBudgets) return;
+    const token = state?.getBudgetGridLoadToken?.();
+    if (token !== cachedBudgetLoadToken) return; // Data invalidated, need full reload
+    
+    applyBudgetSummaryFilters({
+      budgets: cachedBudgets,
+      state,
+      periods,
+      accounts: currentScenario.accounts || [],
+      gridContainer,
+      reload
+    });
+  };
 
   // --- Build filter toolbar in header (mirrors detail mode) ---
   const budgetSection = container.closest('.forecast-card');
@@ -1017,6 +1101,9 @@ export async function loadBudgetGrid({
         return item;
       };
 
+      // Debounce period type changes
+      let periodTypeChangeTimeout = null;
+
       // View By (period type)
       const periodTypeSelect = document.createElement('select');
       periodTypeSelect.id = 'budget-period-type-select';
@@ -1027,6 +1114,15 @@ export async function loadBudgetGrid({
         periodTypeSelect.appendChild(opt);
       });
       periodTypeSelect.value = budgetPeriodType;
+      periodTypeSelect.addEventListener('change', async () => {
+        clearTimeout(periodTypeChangeTimeout);
+        periodTypeChangeTimeout = setTimeout(async () => {
+          state?.setBudgetPeriodType?.(periodTypeSelect.value);
+          state?.setPeriods?.([]);
+          state?.setBudgetPeriod?.(null);
+          await reload();
+        }, 150);
+      });
       controls.appendChild(makeHeaderFilter('budget-period-type-select', 'View:', periodTypeSelect));
 
       // Period + ◀ ▶ navigation
@@ -1191,19 +1287,25 @@ export async function loadBudgetGrid({
       });
 
       periodTypeSelect.addEventListener('change', async () => {
-        state?.setBudgetPeriodType?.(periodTypeSelect.value);
-        state?.setPeriods?.([]);
-        state?.setBudgetPeriod?.(null);
-        await reload();
+        clearTimeout(periodTypeChangeTimeout);
+        periodTypeChangeTimeout = setTimeout(async () => {
+          state?.setBudgetPeriodType?.(periodTypeSelect.value);
+          state?.setPeriods?.([]);
+          state?.setBudgetPeriod?.(null);
+          await reload();
+        }, 150);
       });
 
       periodSelect.addEventListener('change', () => {
         state?.setBudgetPeriod?.(periodSelect.value || null);
-        reload();
+        refreshFilters();
       });
 
       const periodIds = [null, ...periods.map((p) => p.id || null)];
       const changePeriodBy = (offset) => {
+        if (prevBtn.disabled || nextBtn.disabled) return; // Prevent concurrent
+        prevBtn.disabled = nextBtn.disabled = true;
+        
         const currentId = state?.getBudgetPeriod?.() ?? null;
         const currentIndex = periodIds.findIndex((id) => id === currentId);
         const safeIndex = currentIndex === -1 ? 0 : currentIndex;
@@ -1211,7 +1313,11 @@ export async function loadBudgetGrid({
         const nextId = periodIds[nextIndex] ?? null;
         periodSelect.value = nextId ? String(nextId) : '';
         state?.setBudgetPeriod?.(nextId);
-        reload();
+        refreshFilters();
+        
+        setTimeout(() => {
+          prevBtn.disabled = nextBtn.disabled = false;
+        }, 100);
       };
       prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
       nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
@@ -1250,8 +1356,10 @@ export async function loadBudgetGrid({
       // ignore
     }
 
-    let budgets = await getBudget(currentScenario.id);
+    cachedBudgets = await getBudget(currentScenario.id);
+    cachedBudgetLoadToken = state?.getBudgetGridLoadToken?.();
     const budgetPeriod = state?.getBudgetPeriod?.();
+    let budgets = cachedBudgets;
 
     if (budgetPeriod) {
       const selectedPeriod = periods.find((p) => String(p.id) === String(budgetPeriod));
