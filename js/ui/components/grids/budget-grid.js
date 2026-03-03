@@ -98,7 +98,6 @@ function renderBudgetRowDetails({ row, rowData }) {
 
 function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filterAccountId, groupByField }) {
   container.innerHTML = '';
-
   const list = document.createElement('div');
   list.className = 'grid-summary-list';
   container.appendChild(list);
@@ -124,10 +123,15 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     return transformTransactionToRows(normalized, visibleAccounts);
   });
 
-  // Filter to current account perspective or show only primary rows
-  const displayBudgets = filterAccountId
+  // Filter to current account perspective or show only primary rows.
+  // Also normalise statusName so group-by works (transformer stores status.name not statusName).
+  const displayBudgets = (filterAccountId
     ? allPerspectiveRows.filter(r => Number(r.perspectiveAccountId) === Number(filterAccountId))
-    : allPerspectiveRows.filter(r => !String(r.id).endsWith('_flipped'));
+    : allPerspectiveRows.filter(r => !String(r.id).endsWith('_flipped'))
+  ).map(r => ({
+    ...r,
+    statusName: (typeof r.status === 'object' ? r.status?.name : r.status) || 'planned'
+  }));
 
   const buildAccountSelect = (selectedId, includeNone = false) => {
     const sel = document.createElement('select');
@@ -148,7 +152,29 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     return sel;
   };
 
-  displayBudgets.forEach((budget) => {
+  // Sort by groupByField for consistent grouping
+  const sortedBudgets = groupByField
+    ? [...displayBudgets].sort((a, b) => {
+        const ka = String(a[groupByField] || '');
+        const kb = String(b[groupByField] || '');
+        return ka < kb ? -1 : ka > kb ? 1 : 0;
+      })
+    : displayBudgets;
+
+  let lastGroupKey = null;
+
+  sortedBudgets.forEach((budget) => {
+    // Insert group header when groupByField changes
+    if (groupByField) {
+      const groupKey = String(budget[groupByField] || 'Other');
+      if (groupKey !== lastGroupKey) {
+        lastGroupKey = groupKey;
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'grid-summary-group-header';
+        groupHeader.textContent = groupKey;
+        list.appendChild(groupHeader);
+      }
+    }
     // Get original budget ID (handle flipped rows)
     const originalBudgetId = budget._budgetId || budget.id;
     const card = document.createElement('div');
@@ -486,30 +512,19 @@ function applyMasterBudgetTableFilters({ tables, state, callbacks }) {
   const periods = state?.getBudgetPeriods?.() || [];
   const selectedPeriod = budgetPeriodId ? periods.find((p) => p.id === budgetPeriodId) : null;
 
-  let periodStart = null;
-  let periodEnd = null;
-  if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
-    periodStart = new Date(selectedPeriod.startDate);
-    periodStart.setHours(0, 0, 0, 0);
-
-    periodEnd = new Date(selectedPeriod.endDate);
-    periodEnd.setHours(23, 59, 59, 999);
-  }
-
   // Convert period boundaries to date strings for fast comparison
-  const periodStartStr = periodStart ? formatDateOnly(periodStart) : null;
-  const periodEndStr = periodEnd ? formatDateOnly(periodEnd) : null;
+  const periodStartStr = selectedPeriod?.startDate ? formatDateOnly(selectedPeriod.startDate) : null;
+  const periodEndStr = selectedPeriod?.endDate ? formatDateOnly(selectedPeriod.endDate) : null;
 
   masterBudgetTable.setFilter((data) => {
     if (!data) return false;
 
-    // Preserve historical behavior: when no account filter is selected, hide flipped rows.
-    if (!transactionFilterAccountId && String(data.id).includes('_flipped')) return false;
-
-    if (transactionFilterAccountId) {
-      if (data.perspectiveAccountId && Number(data.perspectiveAccountId) !== Number(transactionFilterAccountId)) {
-        return false;
-      }
+    if (budgetAccountFilterId) {
+      // Show only the perspective matching the selected account
+      if (Number(data.perspectiveAccountId) !== Number(budgetAccountFilterId)) return false;
+    } else {
+      // No account filter — hide flipped rows to avoid duplicates
+      if (String(data.id).endsWith('_flipped')) return false;
     }
 
     if (periodStartStr && periodEndStr) {
@@ -529,34 +544,28 @@ function applyBudgetDetailFilters({ state, periods, callbacks }) {
 
   const accountId = state?.getBudgetAccountFilterId?.();
   const periodId  = state?.getBudgetPeriod?.();
-  const statusFilter = state?.getBudgetStatusFilter?.();
   const selectedPeriod = periodId ? periods.find((p) => String(p.id) === String(periodId)) : null;
 
-  let periodStart = null;
-  let periodEnd = null;
+  let periodStartStr = null;
+  let periodEndStr = null;
   if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
-    periodStart = new Date(selectedPeriod.startDate);
-    periodStart.setHours(0, 0, 0, 0);
-    periodEnd = new Date(selectedPeriod.endDate);
-    periodEnd.setHours(23, 59, 59, 999);
+    periodStartStr = formatDateOnly(selectedPeriod.startDate);
+    periodEndStr = formatDateOnly(selectedPeriod.endDate);
   }
 
   lastBudgetDetailTable.setFilter((data) => {
     if (!data) return false;
     if (accountId) {
-      // Use perspectiveAccountId since budgets are now transformed to perspective rows
-      if (data.perspectiveAccountId && Number(data.perspectiveAccountId) !== Number(accountId)) {
-        return false;
-      }
+      // Show only the perspective matching the selected account
+      if (Number(data.perspectiveAccountId) !== Number(accountId)) return false;
+    } else {
+      // No account filter — hide flipped rows to avoid duplicates
+      if (String(data.id).endsWith('_flipped')) return false;
     }
-    if (periodStart && periodEnd) {
-      const occ = data.occurrenceDate ? new Date(data.occurrenceDate) : null;
-      if (!occ || Number.isNaN(occ.getTime())) return false;
-      if (occ < periodStart || occ > periodEnd) return false;
-    }
-    if (statusFilter) {
-      const statusName = typeof data?.status === 'object' ? (data.status?.name || 'planned') : (data?.status || 'planned');
-      if (statusName !== statusFilter) return false;
+    if (periodStartStr && periodEndStr) {
+      const occStr = data.occurrenceDate;
+      if (!occStr) return false;
+      if (occStr < periodStartStr || occStr > periodEndStr) return false;
     }
     return true;
   });
@@ -568,31 +577,24 @@ function applyBudgetSummaryFilters({ budgets, state, periods, accounts, gridCont
   // Pre-compute filter criteria
   const budgetPeriod = state?.getBudgetPeriod?.();
   const accountFilterId = state?.getBudgetAccountFilterId?.();
-  const statusFilter = state?.getBudgetStatusFilter?.();
-  const groupByField = state?.getBudgetGroupBy?.();
+  const groupByField = state?.getGroupBy?.();
   
-  let periodStart = null, periodEnd = null;
+  let periodStartStr = null, periodEndStr = null;
   if (budgetPeriod) {
     const selectedPeriod = periods.find((p) => String(p.id) === String(budgetPeriod));
     if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
-      periodStart = new Date(selectedPeriod.startDate);
-      periodEnd = new Date(selectedPeriod.endDate);
+      periodStartStr = formatDateOnly(selectedPeriod.startDate);
+      periodEndStr = formatDateOnly(selectedPeriod.endDate);
     }
   }
   
   // Filter budgets by period only - account filtering happens during transformation
   const filtered = budgets.filter((b) => {
     // Period filter
-    if (periodStart && periodEnd) {
-      const occ = b.occurrenceDate ? new Date(b.occurrenceDate) : null;
-      if (!occ || Number.isNaN(occ.getTime())) return false;
-      if (occ < periodStart || occ > periodEnd) return false;
-    }
-    
-    // Status filter
-    if (statusFilter) {
-      const statusName = typeof b?.status === 'object' ? (b.status?.name || 'planned') : (b?.status || 'planned');
-      if (statusName !== statusFilter) return false;
+    if (periodStartStr && periodEndStr) {
+      const occStr = b.occurrenceDate;
+      if (!occStr) return false;
+      if (occStr < periodStartStr || occStr > periodEndStr) return false;
     }
     
     return true;
@@ -658,11 +660,11 @@ export async function loadBudgetGrid({
     const accounts = currentScenario.accounts || [];
     const findAccountName = (id) => accounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
 
-    // Transform budgets to perspective rows using shared transformer
+    // Transform budgets to perspective rows using shared transformer.
+    // Keep flipped rows so the account filter can show entries from either perspective.
     const displayRows = allBudgets.flatMap((b) => {
       const normalized = normalizeBudgetForTransform({ ...b, _scenarioId: currentScenario.id });
-      return transformTransactionToRows(normalized, accounts)
-        .filter((r) => !String(r.id).endsWith('_flipped'));
+      return transformTransactionToRows(normalized, accounts);
     }).map((r) => ({
       ...r,
       _scenarioId: currentScenario.id,
@@ -791,20 +793,6 @@ export async function loadBudgetGrid({
         }
         controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
 
-        // Status filter
-        const statusSelect = document.createElement('select');
-        statusSelect.id = 'budget-status-select';
-        statusSelect.className = 'input-select';
-        ['', 'planned', 'actual'].forEach((status) => {
-          const opt = document.createElement('option');
-          opt.value = status;
-          opt.textContent = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'All';
-          statusSelect.appendChild(opt);
-        });
-        const currentStatus = state?.getBudgetStatusFilter?.();
-        if (currentStatus) statusSelect.value = currentStatus;
-        controls.appendChild(makeHeaderFilter('budget-status-select', 'Status:', statusSelect));
-
         // Group By
         const groupBySelect = document.createElement('select');
         groupBySelect.id = 'budget-grouping-select';
@@ -819,7 +807,7 @@ export async function loadBudgetGrid({
           opt.value = value; opt.textContent = label;
           groupBySelect.appendChild(opt);
         });
-        const currentGroupBy = state?.getBudgetGroupBy?.();
+        const currentGroupBy = state?.getGroupBy?.();
         if (currentGroupBy) groupBySelect.value = currentGroupBy;
         controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
 
@@ -885,7 +873,7 @@ export async function loadBudgetGrid({
                 await reload();
                 notifySuccess('Budget generated from expanded transactions.');
               } catch (err) {
-                notifyError('Failed to generate from projections: ' + (err?.message || String(err)));
+                notifyError(err?.message || 'Failed to generate from projections.');
               } finally {
                 if (generateFromProjectionsBtn.isConnected) {
                   generateFromProjectionsBtn.disabled = false;
@@ -911,7 +899,7 @@ export async function loadBudgetGrid({
                 const livePeriod = state?.getBudgetPeriod?.();
                 if (livePeriod) {
                   const sel = livePeriods.find((p) => String(p.id) === String(livePeriod));
-                  if (sel?.startDate) defaultDate = formatDateOnly(new Date(sel.startDate));
+                  if (sel?.startDate) defaultDate = formatDateOnly(sel.startDate);
                 }
                 const acctSnapshot = state?.getBudgetAccountFilterId?.();
                 const firstAccId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
@@ -973,15 +961,9 @@ export async function loadBudgetGrid({
           applyBudgetDetailFilters({ state, periods: freshPeriods, callbacks });
         });
 
-        statusSelect.addEventListener('change', () => {
-          state?.setBudgetStatusFilter?.(statusSelect.value);
-          const freshPeriods = state?.getBudgetPeriods?.() || [];
-          applyBudgetDetailFilters({ state, periods: freshPeriods, callbacks });
-        });
-
         groupBySelect.addEventListener('change', () => {
           const field = groupBySelect.value;
-          state?.setBudgetGroupBy?.(field);
+          state?.setGroupBy?.(field);
           lastBudgetDetailTable?.setGroupBy?.(field ? [field] : []);
         });
 
@@ -1292,20 +1274,6 @@ export async function loadBudgetGrid({
       if (curAccountId) accountSelect.value = String(curAccountId);
       controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
 
-        // Status filter
-        const statusSelect = document.createElement('select');
-        statusSelect.id = 'budget-status-select';
-        statusSelect.className = 'input-select';
-        ['', 'planned', 'actual'].forEach((status) => {
-          const opt = document.createElement('option');
-          opt.value = status;
-          opt.textContent = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'All';
-          statusSelect.appendChild(opt);
-        });
-        const currentStatus = state?.getBudgetStatusFilter?.();
-        if (currentStatus) statusSelect.value = currentStatus;
-        controls.appendChild(makeHeaderFilter('budget-status-select', 'Status:', statusSelect));
-
         // Group By
         const groupBySelect = document.createElement('select');
         groupBySelect.id = 'budget-grouping-select';
@@ -1320,7 +1288,7 @@ export async function loadBudgetGrid({
           opt.value = value; opt.textContent = label;
           groupBySelect.appendChild(opt);
         });
-        const currentGroupBy = state?.getBudgetGroupBy?.();
+        const currentGroupBy = state?.getGroupBy?.();
         if (currentGroupBy) groupBySelect.value = currentGroupBy;
         controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
 
@@ -1387,7 +1355,7 @@ export async function loadBudgetGrid({
               await reload();
               notifySuccess('Budget generated from expanded transactions.');
             } catch (err) {
-              notifyError('Failed to generate from expanded transactions: ' + (err?.message || String(err)));
+              notifyError(err?.message || 'Failed to generate from expanded transactions.');
             } finally {
               if (generateFromProjectionsBtn.isConnected) {
                 generateFromProjectionsBtn.disabled = false;
@@ -1413,7 +1381,7 @@ export async function loadBudgetGrid({
               const liveBudgetPeriod = state?.getBudgetPeriod?.();
               if (liveBudgetPeriod) {
                 const selectedPeriod = livePeriods.find((p) => String(p.id) === String(liveBudgetPeriod));
-                if (selectedPeriod?.startDate) defaultDate = formatDateOnly(new Date(selectedPeriod.startDate));
+                if (selectedPeriod?.startDate) defaultDate = formatDateOnly(selectedPeriod.startDate);
               }
               const snapshotAcctId = state?.getBudgetAccountFilterId?.();
               const primaryAccountId = isValidAccountId(snapshotAcctId) ? snapshotAcctId : firstAccountId;
@@ -1479,13 +1447,8 @@ export async function loadBudgetGrid({
         refreshFilters();
       });
 
-      statusSelect.addEventListener('change', () => {
-        state?.setBudgetStatusFilter?.(statusSelect.value);
-        refreshFilters();
-      });
-
       groupBySelect.addEventListener('change', () => {
-        state?.setBudgetGroupBy?.(groupBySelect.value);
+        state?.setGroupBy?.(groupBySelect.value);
         refreshFilters();
       });
     }
@@ -1519,7 +1482,7 @@ export async function loadBudgetGrid({
       // ignore
     }
 
-    cachedBudgets = await getBudget(currentScenario.id);
+    cachedBudgets = (await getBudget(currentScenario.id)).map(b => ({ ...b, _scenarioId: currentScenario.id }));
     cachedBudgetLoadToken = state?.getBudgetGridLoadToken?.();
     const budgetPeriod = state?.getBudgetPeriod?.();
     let budgets = cachedBudgets;
@@ -1527,12 +1490,12 @@ export async function loadBudgetGrid({
     if (budgetPeriod) {
       const selectedPeriod = periods.find((p) => String(p.id) === String(budgetPeriod));
       if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
-        const start = new Date(selectedPeriod.startDate);
-        const end = new Date(selectedPeriod.endDate);
+        const startStr = formatDateOnly(selectedPeriod.startDate);
+        const endStr = formatDateOnly(selectedPeriod.endDate);
         budgets = budgets.filter((b) => {
-          const occ = b.occurrenceDate ? new Date(b.occurrenceDate) : null;
-          if (!occ || Number.isNaN(occ.getTime())) return false;
-          return occ >= start && occ <= end;
+          const occStr = b.occurrenceDate;
+          if (!occStr) return false;
+          return occStr >= startStr && occStr <= endStr;
         });
       }
     }
@@ -1541,17 +1504,15 @@ export async function loadBudgetGrid({
     // Don't pre-filter by account here - let the render function handle perspective-based filtering
     // accountFilterId is passed to renderBudgetSummaryList for perspective filtering
 
-    budgets = budgets.map((b) => ({ ...b, _scenarioId: currentScenario.id }));
-
     renderBudgetSummaryList({
       container: gridContainer,
       budgets,
       accounts: currentScenario.accounts || [],
       onRefresh: reload,
       filterAccountId: accountFilterId,
-      groupByField: state?.getBudgetGroupBy?.()
+      groupByField: state?.getGroupBy?.()
     });
   } catch (err) {
-    // Keep existing behavior: errors are swallowed here.
+    notifyError(err?.message || 'Failed to reload budget summary.');
   }
 }

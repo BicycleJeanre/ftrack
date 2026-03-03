@@ -140,8 +140,8 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
     return;
   }
 
-  const startKey = formatDateOnly(new Date(selectedPeriod.startDate));
-  const endKey = formatDateOnly(new Date(selectedPeriod.endDate));
+  const startKey = selectedPeriod.startDate;
+  const endKey = selectedPeriod.endDate;
 
   const toDateKey = (value) => {
     if (!value) return '';
@@ -729,8 +729,8 @@ export async function loadProjectionsSection({
     if (projectionPeriod) {
       const selectedPeriod = projectionPeriods.find((p) => p.id === projectionPeriod);
       if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
-        const start = formatDateOnly(new Date(selectedPeriod.startDate));
-        const end = formatDateOnly(new Date(selectedPeriod.endDate));
+        const start = selectedPeriod.startDate;
+        const end = selectedPeriod.endDate;
         rows = rows.filter((row) => {
           const rowKey = typeof row.date === 'string' ? row.date : formatDateOnly(new Date(row.date));
           return rowKey >= start && rowKey <= end;

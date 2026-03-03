@@ -139,8 +139,8 @@ export async function createFromProjections(scenarioId) {
 
     // Use the same expansion logic as the projection engine (handles recurring + non-recurring)
     const statusName = tx => typeof tx.status === 'object' ? tx.status.name : tx.status;
-    const plannedTransactions = (scenario.transactions || [])
-        .filter(tx => statusName(tx) === 'planned');
+    const allTransactions = scenario.transactions || [];
+    const plannedTransactions = allTransactions.filter(tx => statusName(tx) === 'planned');
 
     const expandedTransactions = expandTransactions(
         plannedTransactions,
@@ -169,13 +169,26 @@ export async function createFromProjections(scenarioId) {
         tags: tx.tags || []
     }));
 
+    if (newEntries.length === 0) {
+        throw new Error('No planned transactions fall within the selected date range.');
+    }
+
     // Preserve completed entries; let saveAll handle all ID assignment
     const existingActuals = (scenario.budgets || []).filter(b => {
         const sName = typeof b.status === 'object' ? b.status?.name : b.status;
         return sName === 'actual';
     });
 
-    return await saveAll(scenarioId, [...existingActuals, ...newEntries]);
+    // Build a set of already-covered occurrences so regenerating doesn't create a
+    // duplicate planned entry alongside an existing actual for the same occurrence.
+    const actualKeys = new Set(
+        existingActuals.map(b => `${b.sourceTransactionId}|${b.occurrenceDate}`)
+    );
+    const dedupedNew = newEntries.filter(
+        e => !actualKeys.has(`${e.sourceTransactionId}|${e.occurrenceDate}`)
+    );
+
+    return await saveAll(scenarioId, [...existingActuals, ...dedupedNew]);
 }
 
 /**

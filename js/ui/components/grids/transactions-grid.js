@@ -6,7 +6,7 @@ import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openTextInputModal } from '../modals/text-input-modal.js';
-import { formatDateOnly } from '../../../shared/date-utils.js';
+import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
@@ -1025,8 +1025,8 @@ export async function loadMasterTransactionsGrid({
       if (selectedPeriod) {
         allTransactions = expandTransactions(
           allTransactions,
-          selectedPeriod.startDate,
-          selectedPeriod.endDate,
+          parseDateOnly(selectedPeriod.startDate),
+          parseDateOnly(selectedPeriod.endDate),
           currentScenario.accounts
         );
       }
@@ -1079,7 +1079,7 @@ export async function loadMasterTransactionsGrid({
           if (currentPeriod) {
             const selectedPeriod = currentPeriods.find((p) => p.id === currentPeriod);
             if (selectedPeriod) {
-              freshTxs = expandTransactions(freshTxs, selectedPeriod.startDate, selectedPeriod.endDate, refreshedScenario.accounts);
+              freshTxs = expandTransactions(freshTxs, parseDateOnly(selectedPeriod.startDate), parseDateOnly(selectedPeriod.endDate), refreshedScenario.accounts);
             }
           }
           const freshAccounts = refreshedScenario.accounts || [];
