@@ -33,7 +33,12 @@ let lastTransactionsDetailTableReady = false;
 
 function applyTransactionsDetailFilters({ state, callbacks }) {
   if (!lastTransactionsDetailTable || !lastTransactionsDetailTableReady) return;
+  
   const accountId = state?.getTransactionsAccountFilterId?.();
+  const statusFilter = state?.getStatusFilter?.();
+  const groupByField = state?.getGroupBy?.();
+  
+  // Apply account filter
   if (accountId) {
     // Use perspectiveAccountId since transactions are transformed to perspective rows
     lastTransactionsDetailTable.setFilter((data) =>
@@ -42,6 +47,19 @@ function applyTransactionsDetailFilters({ state, callbacks }) {
   } else {
     lastTransactionsDetailTable.clearFilter();
   }
+  
+  // Apply status filter
+  if (statusFilter) {
+    lastTransactionsDetailTable.addFilter('statusName', '=', statusFilter);
+  }
+  
+  // Apply grouping
+  if (groupByField) {
+    lastTransactionsDetailTable.setGroupBy([groupByField]);
+  } else {
+    lastTransactionsDetailTable.setGroupBy([]);
+  }
+  
   callbacks?.updateTransactionTotals?.();
 }
 
@@ -963,7 +981,7 @@ export async function loadMasterTransactionsGrid({
             periodTypeSelect.appendChild(opt);
           });
           periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
-          controls.appendChild(makeHeaderFilter('tx-period-type-select', 'View:', periodTypeSelect));
+          controls.appendChild(makeHeaderFilter('tx-period-type-select', 'Period Type:', periodTypeSelect));
 
           // Period + ◀ ▶ navigation
           const periodSelect = document.createElement('select');
@@ -1018,6 +1036,9 @@ export async function loadMasterTransactionsGrid({
             opt.value = value; opt.textContent = label;
             groupBySelect.appendChild(opt);
           });
+          // Restore grouping from state
+          const currentGroupBy = state?.getGroupBy?.() || '';
+          groupBySelect.value = currentGroupBy;
           controls.appendChild(makeHeaderFilter('tx-grouping-select', 'Group:', groupBySelect));
 
           // Status
@@ -1033,6 +1054,9 @@ export async function loadMasterTransactionsGrid({
             opt.value = value; opt.textContent = label;
             statusFilterSelect.appendChild(opt);
           });
+          // Restore status filter from state
+          const currentStatus = state?.getStatusFilter?.() || '';
+          statusFilterSelect.value = currentStatus;
           controls.appendChild(makeHeaderFilter('tx-status-filter-select', 'Status:', statusFilterSelect));
 
           // Icon actions
@@ -1080,11 +1104,14 @@ export async function loadMasterTransactionsGrid({
           nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
           groupBySelect.addEventListener('change', () => {
             const field = groupBySelect.value;
+            state?.setGroupBy?.(field || '');
             lastTransactionsDetailTable?.setGroupBy?.(field ? [field] : []);
           });
           statusFilterSelect.addEventListener('change', () => {
-            if (statusFilterSelect.value) {
-              lastTransactionsDetailTable?.setFilter?.('statusName', '=', statusFilterSelect.value);
+            const nextStatus = statusFilterSelect.value;
+            state?.setStatusFilter?.(nextStatus);
+            if (nextStatus) {
+              lastTransactionsDetailTable?.setFilter?.('statusName', '=', nextStatus);
             } else {
               lastTransactionsDetailTable?.clearFilter?.();
             }

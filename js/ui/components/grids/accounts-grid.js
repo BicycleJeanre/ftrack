@@ -44,6 +44,20 @@ function createDetailField({ label, inputEl }) {
   return field;
 }
 
+function applyAccountsDetailFilters({ activeTypeFilter }) {
+  if (!lastAccountsTable || !lastAccountsTable?.setFilter) return;
+
+  if (activeTypeFilter) {
+    const filterTypeName = activeTypeFilter;
+    lastAccountsTable.setFilter((data) => {
+      const accountTypeName = getAccountTypeName(data);
+      return accountTypeName === filterTypeName;
+    });
+  } else {
+    lastAccountsTable.clearFilter();
+  }
+}
+
 function renderAccountsRowDetails({
   row,
   rowData,
@@ -314,9 +328,14 @@ function createAccountTypeSelect({ lookupData, currentValue }) {
   return select;
 }
 
+function getAccountTypeName(account) {
+  return account?.type?.name || account?.accountType || 'Unspecified';
+}
+
 function renderAccountsSummaryList({
   container,
   accounts,
+  groupBy = '',
   lookupData,
   workflowConfig,
   scenarioState,
@@ -337,7 +356,30 @@ function renderAccountsSummaryList({
     return;
   }
 
-  accounts.forEach((account) => {
+  const shouldGroupByAccountType = groupBy === 'accountType';
+  const summaryAccounts = shouldGroupByAccountType
+    ? [...accounts].sort((left, right) => {
+      const leftType = getAccountTypeName(left);
+      const rightType = getAccountTypeName(right);
+      const typeOrder = leftType.localeCompare(rightType);
+      if (typeOrder !== 0) return typeOrder;
+      return String(left?.name || '').localeCompare(String(right?.name || ''));
+    })
+    : accounts;
+  let currentGroup = null;
+
+  summaryAccounts.forEach((account) => {
+    if (shouldGroupByAccountType) {
+      const accountTypeName = getAccountTypeName(account);
+      if (accountTypeName !== currentGroup) {
+        currentGroup = accountTypeName;
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'accounts-summary-group-header';
+        groupHeader.textContent = currentGroup;
+        list.appendChild(groupHeader);
+      }
+    }
+
     const card = document.createElement('div');
     card.className = 'account-card';
 
@@ -985,133 +1027,27 @@ export async function loadAccountsGrid({
     return;
   }
 
+  const workflowConfig = getWorkflowConfig?.();
+  const accountsModeKey = workflowConfig?.accountsMode === 'detail' ? 'detail' : 'summary';
+  const groupByStateKey = `groupBy:${accountsModeKey}`;
+  const typeFilterStateKey = `typeFilter:${accountsModeKey}`;
+
   try {
     accountsGridState.capture(lastAccountsTable, {
-      groupBy: '#account-grouping-select'
+      [groupByStateKey]: '#account-grouping-select',
+      [typeFilterStateKey]: '#account-type-filter-select'
     });
   } catch (_) {
     // Keep existing behavior: ignore state capture errors.
   }
 
-  const workflowConfig = getWorkflowConfig?.();
+  const dropdownState = accountsGridState?.state?.dropdowns || {};
+  const activeGroupBy = String(dropdownState[groupByStateKey] || '');
+  const activeTypeFilter = String(dropdownState[typeFilterStateKey] || '');
 
   if (!workflowConfig?.showAccounts) {
     container.innerHTML = '';
     return;
-  }
-
-  const accountsSection = container.closest('.forecast-card');
-  const accountsHeader = accountsSection?.querySelector(':scope > .card-header');
-  if (accountsHeader) {
-    const controls = accountsHeader.querySelector('.card-header-controls');
-    if (!controls) return;
-    controls.innerHTML = '';
-
-    const addButton = document.createElement('button');
-    addButton.className = 'icon-btn';
-    addButton.title = 'Add Account';
-    addButton.textContent = '+';
-
-    const refreshButton = document.createElement('button');
-    refreshButton.className = 'icon-btn';
-    refreshButton.title = 'Refresh Accounts';
-    refreshButton.textContent = '⟳';
-
-    if (workflowConfig?.accountsMode === 'detail') {
-      accountsHeader.classList.add('card-header--filters-inline');
-
-      const groupByItem = document.createElement('div');
-      groupByItem.className = 'header-filter-item';
-      const groupByLabel = document.createElement('label');
-      groupByLabel.htmlFor = 'account-grouping-select';
-      groupByLabel.textContent = 'Group By:';
-      const groupBySelect = document.createElement('select');
-      groupBySelect.id = 'account-grouping-select';
-      groupBySelect.className = 'input-select';
-      [
-        { value: '', label: 'None' },
-        { value: 'accountType', label: 'Account Type' }
-      ].forEach(({ value, label }) => {
-        const opt = document.createElement('option');
-        opt.value = value; opt.textContent = label;
-        groupBySelect.appendChild(opt);
-      });
-      groupByItem.appendChild(groupByLabel);
-      groupByItem.appendChild(groupBySelect);
-      controls.appendChild(groupByItem);
-
-      const iconActions = document.createElement('div');
-      iconActions.className = 'header-icon-actions';
-      iconActions.appendChild(addButton);
-      iconActions.appendChild(refreshButton);
-      controls.appendChild(iconActions);
-
-      groupBySelect.addEventListener('change', () => {
-        const field = groupBySelect.value;
-        lastAccountsTable?.setGroupBy?.(field ? [field] : []);
-      });
-    } else {
-      accountsHeader.classList.remove('card-header--filters-inline');
-      controls.appendChild(addButton);
-      controls.appendChild(refreshButton);
-    }
-
-    addButton.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const scenario = scenarioState?.get?.();
-
-      const data = await AccountManager.create(scenario.id, {
-        name: 'New Account',
-        type: null,
-        currency: null,
-        startingBalance: 0
-      });
-      const updatedScenario = data.scenarios.find((s) => s.id === scenario.id);
-      const newAccount = updatedScenario.accounts[updatedScenario.accounts.length - 1];
-
-      if (!scenario.accounts) scenario.accounts = [];
-      scenario.accounts.push(newAccount);
-
-      // Always reload in summary mode.
-      await loadAccountsGrid({
-        container,
-        scenarioState,
-        getWorkflowConfig,
-        reloadMasterTransactionsGrid,
-        logger
-      });
-      return;
-
-      const rowData = {
-        ...newAccount,
-        accountType: newAccount.type?.name || 'Unknown'
-      };
-      lastAccountsTable.addRow(rowData, false);
-    });
-
-    refreshButton.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const prevText = refreshButton.textContent;
-      try {
-        refreshButton.textContent = '...';
-        refreshButton.disabled = true;
-
-        await loadAccountsGrid({
-          container,
-          scenarioState,
-          getWorkflowConfig,
-          reloadMasterTransactionsGrid,
-          logger
-        });
-      } catch (err) {
-        notifyError('Failed to refresh accounts: ' + (err?.message || String(err)));
-      } finally {
-        if (refreshButton.isConnected) {
-          refreshButton.textContent = prevText;
-          refreshButton.disabled = false;
-        }
-      }
-    });
   }
 
   // Keep the grid container stable to reduce scroll jumps.
@@ -1149,10 +1085,170 @@ export async function loadAccountsGrid({
 
     const lookupData = await loadLookup('lookup-data.json');
 
+    const accountsSection = container.closest('.forecast-card');
+    const accountsHeader = accountsSection?.querySelector(':scope > .card-header');
+    if (accountsHeader) {
+      const controls = accountsHeader.querySelector('.card-header-controls');
+      if (!controls) return;
+      controls.innerHTML = '';
+      accountsHeader.classList.add('card-header--filters-inline');
+
+      const groupByItem = document.createElement('div');
+      groupByItem.className = 'header-filter-item';
+      const groupByLabel = document.createElement('label');
+      groupByLabel.htmlFor = 'account-grouping-select';
+      groupByLabel.textContent = 'Group By:';
+      const groupBySelect = document.createElement('select');
+      groupBySelect.id = 'account-grouping-select';
+      groupBySelect.className = 'input-select';
+      [
+        { value: '', label: 'None' },
+        { value: 'accountType', label: 'Account Type' }
+      ].forEach(({ value, label }) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        groupBySelect.appendChild(opt);
+      });
+      groupBySelect.value = activeGroupBy;
+      groupByItem.appendChild(groupByLabel);
+      groupByItem.appendChild(groupBySelect);
+      controls.appendChild(groupByItem);
+
+      const typeFilterItem = document.createElement('div');
+      typeFilterItem.className = 'header-filter-item';
+      const typeFilterLabel = document.createElement('label');
+      typeFilterLabel.htmlFor = 'account-type-filter-select';
+      typeFilterLabel.textContent = 'Type:';
+      const typeFilterSelect = document.createElement('select');
+      typeFilterSelect.id = 'account-type-filter-select';
+      typeFilterSelect.className = 'input-select';
+      const allTypeOption = document.createElement('option');
+      allTypeOption.value = '';
+      allTypeOption.textContent = 'All';
+      typeFilterSelect.appendChild(allTypeOption);
+      (lookupData?.accountTypes || []).forEach((accountType) => {
+        const option = document.createElement('option');
+        option.value = accountType.name;
+        option.textContent = accountType.name;
+        typeFilterSelect.appendChild(option);
+      });
+      typeFilterSelect.value = activeTypeFilter;
+      typeFilterItem.appendChild(typeFilterLabel);
+      typeFilterItem.appendChild(typeFilterSelect);
+      controls.appendChild(typeFilterItem);
+
+      const addButton = document.createElement('button');
+      addButton.className = 'icon-btn';
+      addButton.title = 'Add Account';
+      addButton.textContent = '+';
+
+      const refreshButton = document.createElement('button');
+      refreshButton.className = 'icon-btn';
+      refreshButton.title = 'Refresh Accounts';
+      refreshButton.textContent = '⟳';
+
+      const iconActions = document.createElement('div');
+      iconActions.className = 'header-icon-actions';
+      iconActions.appendChild(addButton);
+      iconActions.appendChild(refreshButton);
+      controls.appendChild(iconActions);
+
+      groupBySelect.addEventListener('change', async () => {
+        accountsGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
+        if (workflowConfig?.accountsMode === 'detail') {
+          const field = groupBySelect.value;
+          lastAccountsTable?.setGroupBy?.(field ? [field] : []);
+          return;
+        }
+
+        await loadAccountsGrid({
+          container,
+          scenarioState,
+          getWorkflowConfig,
+          reloadMasterTransactionsGrid,
+          logger
+        });
+      });
+
+      typeFilterSelect.addEventListener('change', async () => {
+        accountsGridState.state.dropdowns[typeFilterStateKey] = typeFilterSelect.value;
+        if (workflowConfig?.accountsMode === 'detail') {
+          applyAccountsDetailFilters({ activeTypeFilter: typeFilterSelect.value });
+          return;
+        }
+
+        await loadAccountsGrid({
+          container,
+          scenarioState,
+          getWorkflowConfig,
+          reloadMasterTransactionsGrid,
+          logger
+        });
+      });
+
+      addButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const scenario = scenarioState?.get?.();
+
+        const preselectedType = activeTypeFilter
+          ? (lookupData?.accountTypes || []).find((type) => type.name === activeTypeFilter) || null
+          : null;
+
+        const data = await AccountManager.create(scenario.id, {
+          name: 'New Account',
+          type: preselectedType,
+          currency: null,
+          startingBalance: 0
+        });
+        const updatedScenario = data.scenarios.find((s) => s.id === scenario.id);
+        const newAccount = updatedScenario.accounts[updatedScenario.accounts.length - 1];
+
+        if (!scenario.accounts) scenario.accounts = [];
+        scenario.accounts.push(newAccount);
+
+        await loadAccountsGrid({
+          container,
+          scenarioState,
+          getWorkflowConfig,
+          reloadMasterTransactionsGrid,
+          logger
+        });
+      });
+
+      refreshButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const prevText = refreshButton.textContent;
+        try {
+          refreshButton.textContent = '...';
+          refreshButton.disabled = true;
+
+          await loadAccountsGrid({
+            container,
+            scenarioState,
+            getWorkflowConfig,
+            reloadMasterTransactionsGrid,
+            logger
+          });
+        } catch (err) {
+          notifyError('Failed to refresh accounts: ' + (err?.message || String(err)));
+        } finally {
+          if (refreshButton.isConnected) {
+            refreshButton.textContent = prevText;
+            refreshButton.disabled = false;
+          }
+        }
+      });
+    }
+
     let accountsTable = lastAccountsTable;
 
     // Summary card list for all workflows except those requesting the full detail grid.
     if (workflowConfig?.accountsMode !== 'detail') {
+      const filteredAccounts = activeTypeFilter
+        ? displayAccounts.filter((account) => getAccountTypeName(account) === activeTypeFilter)
+        : displayAccounts;
+
       try {
         accountsTable?.destroy?.();
       } catch (_) {
@@ -1162,7 +1258,8 @@ export async function loadAccountsGrid({
       lastAccountsTable = null;
       renderAccountsSummaryList({
         container: gridContainer,
-        accounts: displayAccounts,
+        accounts: filteredAccounts,
+        groupBy: activeGroupBy,
         lookupData,
         workflowConfig,
         scenarioState,
@@ -1276,12 +1373,32 @@ export async function loadAccountsGrid({
       try {
         accountsGridState.restore(accountsTable, { restoreGroupBy: false });
         accountsGridState.restoreDropdowns({
-          groupBy: '#account-grouping-select'
-        });
+          [groupByStateKey]: '#account-grouping-select',
+          [typeFilterStateKey]: '#account-type-filter-select'
+        }, { dispatchChange: false });
+
+        const grouping = document.querySelector('#account-grouping-select')?.value || activeGroupBy;
+        accountsTable?.setGroupBy?.(grouping ? [grouping] : []);
+
+        // For detail mode, apply type filter using Tabulator's native filtering
+        if (workflowConfig?.accountsMode === 'detail') {
+          const typeFilter = document.querySelector('#account-type-filter-select')?.value || activeTypeFilter;
+          applyAccountsDetailFilters({ activeTypeFilter: typeFilter });
+        }
       } catch (_) {
         // Keep existing behavior: ignore state restore errors.
       }
     });
+    if (!shouldRebuildTable) {
+      const grouping = document.querySelector('#account-grouping-select')?.value || activeGroupBy;
+      accountsTable?.setGroupBy?.(grouping ? [grouping] : []);
+
+      // For detail mode, apply type filter using Tabulator's native filtering
+      if (workflowConfig?.accountsMode === 'detail') {
+        const typeFilter = document.querySelector('#account-type-filter-select')?.value || activeTypeFilter;
+        applyAccountsDetailFilters({ activeTypeFilter: typeFilter });
+      }
+    }
   } catch (err) {
     logger?.error?.('[Forecast] Failed to load accounts grid:', err);
   }

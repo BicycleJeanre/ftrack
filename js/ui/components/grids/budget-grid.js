@@ -96,7 +96,7 @@ function renderBudgetRowDetails({ row, rowData }) {
   detailsEl.appendChild(grid);
 }
 
-function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filterAccountId }) {
+function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filterAccountId, groupByField }) {
   container.innerHTML = '';
 
   const list = document.createElement('div');
@@ -529,6 +529,7 @@ function applyBudgetDetailFilters({ state, periods, callbacks }) {
 
   const accountId = state?.getBudgetAccountFilterId?.();
   const periodId  = state?.getBudgetPeriod?.();
+  const statusFilter = state?.getBudgetStatusFilter?.();
   const selectedPeriod = periodId ? periods.find((p) => String(p.id) === String(periodId)) : null;
 
   let periodStart = null;
@@ -553,6 +554,10 @@ function applyBudgetDetailFilters({ state, periods, callbacks }) {
       if (!occ || Number.isNaN(occ.getTime())) return false;
       if (occ < periodStart || occ > periodEnd) return false;
     }
+    if (statusFilter) {
+      const statusName = typeof data?.status === 'object' ? (data.status?.name || 'planned') : (data?.status || 'planned');
+      if (statusName !== statusFilter) return false;
+    }
     return true;
   });
 
@@ -563,6 +568,8 @@ function applyBudgetSummaryFilters({ budgets, state, periods, accounts, gridCont
   // Pre-compute filter criteria
   const budgetPeriod = state?.getBudgetPeriod?.();
   const accountFilterId = state?.getBudgetAccountFilterId?.();
+  const statusFilter = state?.getBudgetStatusFilter?.();
+  const groupByField = state?.getBudgetGroupBy?.();
   
   let periodStart = null, periodEnd = null;
   if (budgetPeriod) {
@@ -582,6 +589,12 @@ function applyBudgetSummaryFilters({ budgets, state, periods, accounts, gridCont
       if (occ < periodStart || occ > periodEnd) return false;
     }
     
+    // Status filter
+    if (statusFilter) {
+      const statusName = typeof b?.status === 'object' ? (b.status?.name || 'planned') : (b?.status || 'planned');
+      if (statusName !== statusFilter) return false;
+    }
+    
     return true;
   });
   
@@ -591,7 +604,8 @@ function applyBudgetSummaryFilters({ budgets, state, periods, accounts, gridCont
     budgets: filtered,
     accounts,
     onRefresh: reload,
-    filterAccountId: accountFilterId
+    filterAccountId: accountFilterId,
+    groupByField: groupByField
   });
 }
 
@@ -707,19 +721,16 @@ export async function loadBudgetGrid({
             await reload();
           }, 50);
         });
-        controls.appendChild(makeHeaderFilter('budget-period-type-select', 'View:', periodTypeSelect));
+        controls.appendChild(makeHeaderFilter('budget-period-type-select', 'Period Type:', periodTypeSelect));
 
         // Period + ◀ ▶ navigation
         const periodSelect = document.createElement('select');
         periodSelect.id = 'budget-period-select';
         periodSelect.className = 'input-select';
         
-        // Helper to rebuild period options
+        // Helper to rebuild period options - NO "All" option for budget
         const rebuildPeriodOptions = (freshPeriods) => {
           periodSelect.innerHTML = '';
-          const allPeriodsOpt = document.createElement('option');
-          allPeriodsOpt.value = ''; allPeriodsOpt.textContent = 'All';
-          periodSelect.appendChild(allPeriodsOpt);
           freshPeriods.forEach((p) => {
             const opt = document.createElement('option');
             opt.value = String(p.id);
@@ -727,8 +738,13 @@ export async function loadBudgetGrid({
             periodSelect.appendChild(opt);
           });
           const curPeriod = state?.getBudgetPeriod?.();
-          if (curPeriod) periodSelect.value = String(curPeriod);
-          else periodSelect.value = '';
+          if (curPeriod) {
+            periodSelect.value = String(curPeriod);
+          } else if (freshPeriods.length > 0) {
+            // Default to first period if none selected
+            periodSelect.value = String(freshPeriods[0].id);
+            state?.setBudgetPeriod?.(freshPeriods[0].id);
+          }
         };
         
         // Initial build - use fresh periods from state
@@ -775,6 +791,20 @@ export async function loadBudgetGrid({
         }
         controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
 
+        // Status filter
+        const statusSelect = document.createElement('select');
+        statusSelect.id = 'budget-status-select';
+        statusSelect.className = 'input-select';
+        ['', 'planned', 'actual'].forEach((status) => {
+          const opt = document.createElement('option');
+          opt.value = status;
+          opt.textContent = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'All';
+          statusSelect.appendChild(opt);
+        });
+        const currentStatus = state?.getBudgetStatusFilter?.();
+        if (currentStatus) statusSelect.value = currentStatus;
+        controls.appendChild(makeHeaderFilter('budget-status-select', 'Status:', statusSelect));
+
         // Group By
         const groupBySelect = document.createElement('select');
         groupBySelect.id = 'budget-grouping-select';
@@ -789,6 +819,8 @@ export async function loadBudgetGrid({
           opt.value = value; opt.textContent = label;
           groupBySelect.appendChild(opt);
         });
+        const currentGroupBy = state?.getBudgetGroupBy?.();
+        if (currentGroupBy) groupBySelect.value = currentGroupBy;
         controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
 
         // Icon actions — generate and add
@@ -941,10 +973,18 @@ export async function loadBudgetGrid({
           applyBudgetDetailFilters({ state, periods: freshPeriods, callbacks });
         });
 
+        statusSelect.addEventListener('change', () => {
+          state?.setBudgetStatusFilter?.(statusSelect.value);
+          const freshPeriods = state?.getBudgetPeriods?.() || [];
+          applyBudgetDetailFilters({ state, periods: freshPeriods, callbacks });
+        });
+
         groupBySelect.addEventListener('change', () => {
           const field = groupBySelect.value;
+          state?.setBudgetGroupBy?.(field);
           lastBudgetDetailTable?.setGroupBy?.(field ? [field] : []);
         });
+
       }
     }
 
@@ -1187,19 +1227,16 @@ export async function loadBudgetGrid({
           await reload();
         }, 50);
       });
-      controls.appendChild(makeHeaderFilter('budget-period-type-select', 'View:', periodTypeSelect));
+      controls.appendChild(makeHeaderFilter('budget-period-type-select', 'Period Type:', periodTypeSelect));
 
       // Period + ◀ ▶ navigation
       const periodSelect = document.createElement('select');
       periodSelect.id = 'budget-period-select';
       periodSelect.className = 'input-select';
       
-      // Helper to rebuild period options
+      // Helper to rebuild period options - NO "All" option for budget
       const rebuildPeriodOptions = (freshPeriods) => {
         periodSelect.innerHTML = '';
-        const allPeriodsOpt = document.createElement('option');
-        allPeriodsOpt.value = ''; allPeriodsOpt.textContent = 'All';
-        periodSelect.appendChild(allPeriodsOpt);
         freshPeriods.forEach((p) => {
           const opt = document.createElement('option');
           opt.value = String(p.id);
@@ -1207,8 +1244,13 @@ export async function loadBudgetGrid({
           periodSelect.appendChild(opt);
         });
         const curPeriod = state?.getBudgetPeriod?.();
-        if (curPeriod) periodSelect.value = String(curPeriod);
-        else periodSelect.value = '';
+        if (curPeriod) {
+          periodSelect.value = String(curPeriod);
+        } else if (freshPeriods.length > 0) {
+          // Default to first period if none selected
+          periodSelect.value = String(freshPeriods[0].id);
+          state?.setBudgetPeriod?.(freshPeriods[0].id);
+        }
       };
       
       // Initial build - use fresh periods from state
@@ -1250,7 +1292,39 @@ export async function loadBudgetGrid({
       if (curAccountId) accountSelect.value = String(curAccountId);
       controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
 
-      // Icon actions — generate and add
+        // Status filter
+        const statusSelect = document.createElement('select');
+        statusSelect.id = 'budget-status-select';
+        statusSelect.className = 'input-select';
+        ['', 'planned', 'actual'].forEach((status) => {
+          const opt = document.createElement('option');
+          opt.value = status;
+          opt.textContent = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'All';
+          statusSelect.appendChild(opt);
+        });
+        const currentStatus = state?.getBudgetStatusFilter?.();
+        if (currentStatus) statusSelect.value = currentStatus;
+        controls.appendChild(makeHeaderFilter('budget-status-select', 'Status:', statusSelect));
+
+        // Group By
+        const groupBySelect = document.createElement('select');
+        groupBySelect.id = 'budget-grouping-select';
+        groupBySelect.className = 'input-select';
+        [
+          { value: '', label: 'None' },
+          { value: 'transactionTypeName', label: 'Type' },
+          { value: 'secondaryAccountName', label: 'Secondary Account' },
+          { value: 'statusName', label: 'Status' }
+        ].forEach(({ value, label }) => {
+          const opt = document.createElement('option');
+          opt.value = value; opt.textContent = label;
+          groupBySelect.appendChild(opt);
+        });
+        const currentGroupBy = state?.getBudgetGroupBy?.();
+        if (currentGroupBy) groupBySelect.value = currentGroupBy;
+        controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
+
+        // Icon actions — generate and add
       const iconActions = document.createElement('div');
       iconActions.className = 'header-icon-actions';
       const generateFromProjectionsBtn = document.createElement('button');
@@ -1404,6 +1478,16 @@ export async function loadBudgetGrid({
         state?.setBudgetAccountFilterId?.(Number(accountSelect.value));
         refreshFilters();
       });
+
+      statusSelect.addEventListener('change', () => {
+        state?.setBudgetStatusFilter?.(statusSelect.value);
+        refreshFilters();
+      });
+
+      groupBySelect.addEventListener('change', () => {
+        state?.setBudgetGroupBy?.(groupBySelect.value);
+        refreshFilters();
+      });
     }
   }
 
@@ -1464,7 +1548,8 @@ export async function loadBudgetGrid({
       budgets,
       accounts: currentScenario.accounts || [],
       onRefresh: reload,
-      filterAccountId: accountFilterId
+      filterAccountId: accountFilterId,
+      groupByField: state?.getBudgetGroupBy?.()
     });
   } catch (err) {
     // Keep existing behavior: errors are swallowed here.

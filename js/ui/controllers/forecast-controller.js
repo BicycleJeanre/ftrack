@@ -83,6 +83,19 @@ let budgetPeriodType = 'Month'; // Selected period type for budget view
 let transactionsPeriods = []; // Calculated periods for transactions view
 let budgetPeriods = []; // Calculated periods for budget view
 let projectionPeriods = []; // Calculated periods for projections view
+
+// Transactions context - additional filter state
+let transactionsStatusFilter = ''; // '' = All, 'planned', 'actual'
+let transactionsGroupBy = ''; // '' = None, 'transactionTypeName', 'statusName', 'secondaryAccountName', 'recurrenceDescription'
+let transactionsAllPeriodsExpanded = false; // When period is All, show expanded transactions vs collapsed
+
+// Budget context - additional filter state
+let budgetStatusFilter = ''; // '' = All, 'planned', 'actual'
+let budgetGroupBy = ''; // '' = None, 'transactionTypeName', 'statusName', 'secondaryAccountName'
+
+// Projections context - additional filter state
+let projectionsGroupBy = ''; // '' = None, 'accountType', 'secondaryAccountName'
+
 let budgetGridLoadToken = 0; // Prevent stale budget renders
 let scenariosTable = null; // Store scenarios table instance to preserve selection/scroll
 let masterTransactionsTable = null; // Store transactions table instance for filtering
@@ -100,6 +113,60 @@ const PERIOD_TYPE_ID_TO_NAME = {
   4: 'Quarter',
   5: 'Year'
 };
+
+// ===== STATE INTERFACE FUNCTIONS =====
+// These provide getter/setter pairs for each filter context (Transactions, Budget, Projections)
+
+function createTransactionsStateInterface() {
+  return {
+    getAccountFilterId: () => transactionsAccountFilterId,
+    setAccountFilterId: (id) => { transactionsAccountFilterId = id; },
+    getStatusFilter: () => transactionsStatusFilter,
+    setStatusFilter: (status) => { transactionsStatusFilter = status; },
+    getPeriodType: () => actualPeriodType,
+    setPeriodType: (type) => { actualPeriodType = type; },
+    getPeriod: () => actualPeriod,
+    setPeriod: (periodId) => { actualPeriod = periodId; },
+    getPeriods: () => transactionsPeriods,
+    setPeriods: (periods) => { transactionsPeriods = periods; },
+    getGroupBy: () => transactionsGroupBy,
+    setGroupBy: (field) => { transactionsGroupBy = field; },
+    getAllPeriodsExpanded: () => transactionsAllPeriodsExpanded,
+    setAllPeriodsExpanded: (flag) => { transactionsAllPeriodsExpanded = flag; }
+  };
+}
+
+function createBudgetStateInterface() {
+  return {
+    getAccountFilterId: () => budgetAccountFilterId,
+    setAccountFilterId: (id) => { budgetAccountFilterId = id; },
+    getStatusFilter: () => budgetStatusFilter,
+    setStatusFilter: (status) => { budgetStatusFilter = status; },
+    getPeriodType: () => budgetPeriodType,
+    setPeriodType: (type) => { budgetPeriodType = type; },
+    getPeriod: () => budgetPeriod,
+    setPeriod: (periodId) => { budgetPeriod = periodId; },
+    getPeriods: () => budgetPeriods,
+    setPeriods: (periods) => { budgetPeriods = periods; },
+    getGroupBy: () => budgetGroupBy,
+    setGroupBy: (field) => { budgetGroupBy = field; }
+  };
+}
+
+function createProjectionsStateInterface() {
+  return {
+    getAccountFilterId: () => projectionsAccountFilterId,
+    setAccountFilterId: (id) => { projectionsAccountFilterId = id; },
+    getPeriodType: () => projectionPeriodType,
+    setPeriodType: (type) => { projectionPeriodType = type; },
+    getPeriod: () => projectionPeriod,
+    setPeriod: (periodId) => { projectionPeriod = periodId; },
+    getPeriods: () => projectionPeriods,
+    setPeriods: (periods) => { projectionPeriods = periods; },
+    getGroupBy: () => projectionsGroupBy,
+    setGroupBy: (field) => { projectionsGroupBy = field; }
+  };
+}
 
 function getPageScrollSnapshot() {
   try {
@@ -199,9 +266,23 @@ async function setCurrentScenarioById(scenarioId) {
   if (!next) return;
 
   currentScenario = next;
+  // Reset all filter state across contexts
+  // Transactions context
   transactionsAccountFilterId = null;
+  transactionsStatusFilter = '';
+  actualPeriod = null;
+  transactionsGroupBy = '';
+  transactionsAllPeriodsExpanded = false;
+  // Budget context
   budgetAccountFilterId = null;
+  budgetStatusFilter = '';
+  budgetPeriod = null;
+  budgetGroupBy = '';
+  // Projections context
   projectionsAccountFilterId = null;
+  projectionPeriod = null;
+  projectionsGroupBy = '';
+  // Note: Period types NOT reset (preserved across scenario changes)
 
   await patchUiState({
     lastScenarioId: currentScenario.id,
@@ -833,6 +914,18 @@ async function loadMasterTransactionsGrid(container) {
       getTransactionsPeriods: () => transactionsPeriods,
       setTransactionsPeriods: (nextPeriods) => {
         transactionsPeriods = nextPeriods;
+      },
+      getStatusFilter: () => transactionsStatusFilter,
+      setStatusFilter: (nextStatus) => {
+        transactionsStatusFilter = nextStatus;
+      },
+      getGroupBy: () => transactionsGroupBy,
+      setGroupBy: (nextField) => {
+        transactionsGroupBy = nextField;
+      },
+      getAllPeriodsExpanded: () => transactionsAllPeriodsExpanded,
+      setAllPeriodsExpanded: (nextFlag) => {
+        transactionsAllPeriodsExpanded = nextFlag;
       }
     },
     tables: {
@@ -886,6 +979,14 @@ async function loadBudgetGrid(container) {
       getBudgetPeriods: () => budgetPeriods,
       setBudgetPeriods: (nextPeriods) => {
         budgetPeriods = nextPeriods;
+      },
+      getStatusFilter: () => budgetStatusFilter,
+      setStatusFilter: (nextStatus) => {
+        budgetStatusFilter = nextStatus;
+      },
+      getGroupBy: () => budgetGroupBy,
+      setGroupBy: (nextField) => {
+        budgetGroupBy = nextField;
       },
       bumpBudgetGridLoadToken: () => ++budgetGridLoadToken,
       getBudgetGridLoadToken: () => budgetGridLoadToken,
@@ -1770,6 +1871,10 @@ async function loadProjectionsSection(container) {
       getProjectionPeriods: () => projectionPeriods,
       setProjectionPeriods: (nextPeriods) => {
         projectionPeriods = nextPeriods;
+      },
+      getGroupBy: () => projectionsGroupBy,
+      setGroupBy: (nextField) => {
+        projectionsGroupBy = nextField;
       }
     },
     tables: {

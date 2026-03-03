@@ -362,20 +362,22 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   const groupSelect = document.createElement('select');
   groupSelect.id = 'projections-grouping-select';
   groupSelect.className = 'input-select';
-  ['None', 'Account', 'Account Type'].forEach((optionLabel) => {
+  [
+    { value: '', label: 'None' },
+    { value: 'account', label: 'Account' },
+    { value: 'accountType', label: 'Account Type' },
+    { value: 'secondaryAccount', label: 'Secondary Account' }
+  ].forEach(({ value, label }) => {
     const option = document.createElement('option');
-    option.value = optionLabel;
-    option.textContent = optionLabel;
+    option.value = value;
+    option.textContent = label;
     groupSelect.appendChild(option);
   });
-  const storedGroup = container.dataset.projectionsGroupBy || 'None';
+  const storedGroup = state?.getGroupBy?.() || '';
   groupSelect.value = storedGroup;
-  container.dataset.projectionsGroupBy = storedGroup;
-  const getGroupField = (value) => (value === 'Account' ? 'account' : value === 'Account Type' ? 'accountType' : null);
   groupSelect.addEventListener('change', () => {
-    const nextValue = groupSelect.value;
-    container.dataset.projectionsGroupBy = nextValue;
-    const field = getGroupField(nextValue);
+    const field = groupSelect.value || '';
+    state?.setGroupBy?.(field);
     // Apply grouping directly to table if available (both detail and summary paths)
     if (lastProjectionsTable) {
       lastProjectionsTable.setGroupBy(field ? [field] : []);
@@ -409,7 +411,7 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     state?.setProjectionPeriod?.(nextPeriodId);
     await reload();
   });
-  controls.appendChild(makeHeaderFilter('projections-viewby-select', 'View:', viewSelect));
+  controls.appendChild(makeHeaderFilter('projections-viewby-select', 'Period Type:', viewSelect));
 
   // Period selector + nav
   const periodSelect = document.createElement('select');
@@ -564,6 +566,8 @@ export async function loadProjectionsGrid({
         accountTypeRaw && typeof accountTypeRaw === 'object'
           ? accountTypeRaw?.name
           : accountTypeRaw || '';
+      const secondaryAccountId = Number(row.secondaryAccountId);
+      const secondaryAccount = accountMap.get(secondaryAccountId);
       const income = Number(row.income || 0);
       const expenses = Number(row.expenses || 0);
       const netChange = row.netChange != null ? Number(row.netChange) : income - expenses;
@@ -571,6 +575,7 @@ export async function loadProjectionsGrid({
         ...row,
         id: row.id ?? `${accountId || 'account'}-${row.date || index}`,
         account: account?.name || row.accountName || '',
+        secondaryAccount: row.secondaryAccountName || secondaryAccount?.name || '',
         accountType: accountTypeName,
         balance: Number(row.balance || 0),
         income,
@@ -620,6 +625,12 @@ export async function loadProjectionsGrid({
     lastProjectionsTable.on('tableBuilt', () => {
       try {
         projectionsGridState.restore(lastProjectionsTable);
+      } catch (_) {
+        // ignore
+      }
+      try {
+        const currentGroupBy = state?.getGroupBy?.() || '';
+        lastProjectionsTable.setGroupBy(currentGroupBy ? [currentGroupBy] : []);
       } catch (_) {
         // ignore
       }
