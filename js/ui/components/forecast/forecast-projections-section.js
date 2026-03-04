@@ -2,12 +2,14 @@
 // Projections section/grid loader extracted from forecast.js (no behavior change).
 
 import { createGrid, createDateColumn, createTextColumn, createMoneyColumn } from '../grids/grid-factory.js';
-import { formatDateOnly } from '../../../shared/date-utils.js';
+import { parseDateOnly, formatDateOnly } from '../../../shared/date-utils.js';
 import { notifyError } from '../../../shared/notifications.js';
 import { GridStateManager } from '../grids/grid-state.js';
 import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 import { openTimeframeModal } from '../modals/timeframe-modal.js';
 import { formatCurrency, formatMoneyDisplay, numValueClass } from '../../../shared/format-utils.js';
+import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
+import { normalizeCanonicalTransaction, transformTransactionToRows } from '../../transforms/transaction-row-transformer.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
@@ -77,7 +79,163 @@ function renderProjectionsRowDetails({ row, rowData }) {
   detailsEl.appendChild(grid);
 }
 
-function renderProjectionsSummaryList({ container, projections, accounts = [] }) {
+function getProjectionSourceOccurrences({ scenario, state }) {
+  const projectionPeriods = state?.getProjectionPeriods?.() || [];
+  if (!projectionPeriods.length) return [];
+
+  const periodsWithBounds = projectionPeriods.filter((period) => period?.startDate && period?.endDate);
+  if (!periodsWithBounds.length) return [];
+
+  const startDate = parseDateOnly(periodsWithBounds[0].startDate);
+  const endDate = parseDateOnly(periodsWithBounds[periodsWithBounds.length - 1].endDate);
+  if (!startDate || !endDate) return [];
+
+  const source = scenario?.projection?.config?.source === 'budget' ? 'budget' : 'transactions';
+  const statusName = (entry) => (typeof entry?.status === 'object' ? entry?.status?.name : entry?.status);
+
+  const sourceItems = source === 'budget'
+    ? (scenario?.budgets || [])
+      .filter((budget) => statusName(budget) === 'planned')
+      .map((budget) => ({
+        id: budget.id,
+        primaryAccountId: budget.primaryAccountId,
+        secondaryAccountId: budget.secondaryAccountId,
+        transactionTypeId: budget.transactionTypeId,
+        amount: budget.amount,
+        description: budget.description,
+        recurrence: budget.recurrence,
+        effectiveDate: budget.date,
+        status: budget.status
+      }))
+    : (scenario?.transactions || []).filter((tx) => statusName(tx) === 'planned');
+
+  return expandTransactions(sourceItems, startDate, endDate, scenario?.accounts || []);
+}
+
+function normalizeProjectionOccurrenceForTransform(entry, source) {
+  if (source === 'budget') {
+    return normalizeCanonicalTransaction({
+      id: entry.id,
+      primaryAccountId: entry.primaryAccountId,
+      secondaryAccountId: entry.secondaryAccountId,
+      transactionTypeId: entry.transactionTypeId,
+      transactionType: entry.transactionType,
+      amount: entry.amount,
+      plannedAmount: entry.amount,
+      actualAmount: entry.status?.actualAmount ?? null,
+      description: entry.description,
+      effectiveDate: entry.effectiveDate,
+      recurrence: entry.recurrence,
+      status: entry.status || { name: 'planned' }
+    });
+  }
+  return normalizeCanonicalTransaction(entry);
+}
+
+function getPerspectiveSecondaryByAccountPeriod({ scenario, state, accountMap }) {
+  const projectionPeriods = state?.getProjectionPeriods?.() || [];
+  if (!projectionPeriods.length) return new Map();
+
+  const source = scenario?.projection?.config?.source === 'budget' ? 'budget' : 'transactions';
+  const occurrences = getProjectionSourceOccurrences({ scenario, state });
+  if (!occurrences.length) return new Map();
+
+  const toPeriodId = (dateValue) => {
+    const dateKey = typeof dateValue === 'string' ? dateValue : formatDateOnly(dateValue);
+    const period = projectionPeriods.find((p) => p?.startDate && p?.endDate && dateKey >= p.startDate && dateKey <= p.endDate);
+    return period?.id || null;
+  };
+
+  const byAccountPeriod = new Map();
+  occurrences.forEach((occurrence) => {
+    const periodId = toPeriodId(occurrence?._occurrenceDate || occurrence?.effectiveDate);
+    if (!periodId) return;
+
+    const transformedRows = transformTransactionToRows(
+      normalizeProjectionOccurrenceForTransform(occurrence, source),
+      scenario?.accounts || []
+    );
+
+    transformedRows.forEach((row) => {
+      const perspectiveAccountId = Number(row?.perspectiveAccountId || 0);
+      if (!perspectiveAccountId) return;
+      const secondaryAccountId = Number(row?.secondaryAccountId || 0);
+      const secondaryName =
+        row?.secondaryAccountName ||
+        accountMap.get(secondaryAccountId)?.name ||
+        'Unassigned';
+      const weight = Math.abs(Number(row?.plannedAmount ?? row?.amount ?? 0));
+      if (!weight) return;
+
+      const key = `${perspectiveAccountId}|${String(periodId)}`;
+      if (!byAccountPeriod.has(key)) byAccountPeriod.set(key, new Map());
+      const secondaryMap = byAccountPeriod.get(key);
+      secondaryMap.set(secondaryName, Number(secondaryMap.get(secondaryName) || 0) + weight);
+    });
+  });
+
+  return byAccountPeriod;
+}
+
+function explodeProjectionRowsBySecondary({ rows, scenario, state, accountMap }) {
+  const groupBy = state?.getGroupBy?.() || '';
+  if (groupBy !== 'secondaryAccount') return rows;
+
+  const projectionPeriods = state?.getProjectionPeriods?.() || [];
+  if (!projectionPeriods.length) return rows;
+
+  const secondaryByAccountPeriod = getPerspectiveSecondaryByAccountPeriod({ scenario, state, accountMap });
+  if (!secondaryByAccountPeriod.size) return rows;
+
+  const toPeriodId = (dateValue) => {
+    const dateKey = typeof dateValue === 'string' ? dateValue : formatDateOnly(dateValue);
+    const period = projectionPeriods.find((p) => p?.startDate && p?.endDate && dateKey >= p.startDate && dateKey <= p.endDate);
+    return period?.id || null;
+  };
+
+  const explodedRows = [];
+
+  rows.forEach((row, rowIndex) => {
+    const accountId = Number(row?.accountId || 0);
+    const periodId = toPeriodId(row?.date);
+    if (!periodId) {
+      explodedRows.push({ ...row, secondaryAccount: 'Unassigned' });
+      return;
+    }
+
+    const key = `${accountId}|${String(periodId)}`;
+    const secondaryMap = secondaryByAccountPeriod.get(key);
+    const entries = secondaryMap ? Array.from(secondaryMap.entries()) : [];
+
+    if (!entries.length) {
+      explodedRows.push({ ...row, secondaryAccount: 'Unassigned' });
+      return;
+    }
+
+    const total = entries.reduce((sum, [, value]) => sum + Number(value || 0), 0);
+    if (!total) {
+      explodedRows.push({ ...row, secondaryAccount: 'Unassigned' });
+      return;
+    }
+
+    entries.forEach(([secondaryName, weight], entryIndex) => {
+      const ratio = Number(weight || 0) / total;
+      explodedRows.push({
+        ...row,
+        id: `${row.id || `${accountId}-${rowIndex}`}-cp-${secondaryName}-${entryIndex}`,
+        secondaryAccount: secondaryName,
+        income: Number(row?.income || 0) * ratio,
+        expenses: Number(row?.expenses || 0) * ratio,
+        netChange: Number(row?.netChange || 0) * ratio,
+        balance: entryIndex === 0 ? Number(row?.balance || 0) : 0
+      });
+    });
+  });
+
+  return explodedRows;
+}
+
+function renderProjectionsSummaryList({ container, projections, accounts = [], groupByField = '' }) {
   container.innerHTML = '';
 
   const list = document.createElement('div');
@@ -92,7 +250,30 @@ function renderProjectionsSummaryList({ container, projections, accounts = [] })
     return;
   }
 
-  projections.forEach((row) => {
+  const sortedRows = groupByField
+    ? [...projections].sort((left, right) => {
+      const leftValue = String(left?.[groupByField] || 'Unassigned');
+      const rightValue = String(right?.[groupByField] || 'Unassigned');
+      const groupOrder = leftValue.localeCompare(rightValue);
+      if (groupOrder !== 0) return groupOrder;
+      return String(left?.date || '').localeCompare(String(right?.date || ''));
+    })
+    : projections;
+
+  let currentGroup = null;
+
+  sortedRows.forEach((row) => {
+    if (groupByField) {
+      const nextGroup = String(row?.[groupByField] || 'Unassigned');
+      if (nextGroup !== currentGroup) {
+        currentGroup = nextGroup;
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'grid-summary-group-header';
+        groupHeader.textContent = currentGroup;
+        list.appendChild(groupHeader);
+      }
+    }
+
     const card = document.createElement('div');
     card.className = 'grid-summary-card';
 
@@ -131,17 +312,19 @@ function renderProjectionsSummaryList({ container, projections, accounts = [] })
 function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable, state } = {}) {
   if (!projectionsTable) return;
 
+  const projectionAccountFilterId = Number(state?.getProjectionAccountFilterId?.() || 0);
   const projectionPeriod = state?.getProjectionPeriod?.();
   const projectionPeriods = state?.getProjectionPeriods?.() || [];
   const selectedPeriod = projectionPeriod ? projectionPeriods.find((p) => p.id === projectionPeriod) : null;
 
-  if (!selectedPeriod?.startDate || !selectedPeriod?.endDate) {
-    projectionsTable.clearFilter();
+  const hasPeriodFilter = Boolean(selectedPeriod?.startDate && selectedPeriod?.endDate);
+  if (!projectionAccountFilterId && !hasPeriodFilter) {
+    projectionsTable.setFilter([]);
     return;
   }
 
-  const startKey = selectedPeriod.startDate;
-  const endKey = selectedPeriod.endDate;
+  const startKey = selectedPeriod?.startDate;
+  const endKey = selectedPeriod?.endDate;
 
   const toDateKey = (value) => {
     if (!value) return '';
@@ -153,6 +336,10 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
   };
 
   projectionsTable.setFilter((row) => {
+    if (projectionAccountFilterId && Number(row?.accountId) !== projectionAccountFilterId) {
+      return false;
+    }
+    if (!hasPeriodFilter) return true;
     const rowKey = toDateKey(row?.date);
     if (!rowKey) return false;
     return rowKey >= startKey && rowKey <= endKey;
@@ -315,10 +502,8 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
 
   let projectionPeriod = state?.getProjectionPeriod?.();
   const hasValidPeriod = projectionPeriod && projectionPeriods.some((p) => p.id === projectionPeriod);
-  if (projectionPeriods.length && !hasValidPeriod) {
-    projectionPeriod = projectionPeriods[0]?.id || null;
-    state?.setProjectionPeriod?.(projectionPeriod);
-  } else if (!projectionPeriods.length) {
+  // If a specific period was selected but no longer exists, reset to "All"
+  if (projectionPeriod && !hasValidPeriod) {
     projectionPeriod = null;
     state?.setProjectionPeriod?.(null);
   }
@@ -345,10 +530,11 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     
     if (lastProjectionsTable) {
       // Detail view: use Tabulator filter
-      if (selectedId > 0) {
-        lastProjectionsTable.setFilter('accountId', '=', selectedId);
+      const currentGroup = state?.getGroupBy?.() || '';
+      if (currentGroup === 'secondaryAccount') {
+        await reload();
       } else {
-        lastProjectionsTable.clearFilter();
+        applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
       }
       callbacks?.updateProjectionTotals?.();
     } else {
@@ -375,12 +561,20 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   });
   const storedGroup = state?.getGroupBy?.() || '';
   groupSelect.value = storedGroup;
-  groupSelect.addEventListener('change', () => {
+  groupSelect.addEventListener('change', async () => {
+    const prevField = state?.getGroupBy?.() || '';
     const field = groupSelect.value || '';
     state?.setGroupBy?.(field);
     // Apply grouping directly to table if available (both detail and summary paths)
     if (lastProjectionsTable) {
-      lastProjectionsTable.setGroupBy(field ? [field] : []);
+      const needsDataReload = prevField === 'secondaryAccount' || field === 'secondaryAccount';
+      if (needsDataReload) {
+        await reload();
+      } else {
+        lastProjectionsTable.setGroupBy(field ? [field] : []);
+      }
+    } else {
+      await reload();
     }
   });
   controls.appendChild(makeHeaderFilter('projections-grouping-select', 'Group:', groupSelect));
@@ -553,12 +747,12 @@ export async function loadProjectionsGrid({
     container.innerHTML = '';
     container.appendChild(projectionsGridContainer);
 
-    const filteredRows = callbacks?.getFilteredProjections?.() || getScenarioProjectionRows(currentScenario);
+    const filteredRows = getScenarioProjectionRows(currentScenario);
 
     const accounts = currentScenario.accounts || [];
     const accountMap = new Map((accounts || []).map((account) => [Number(account.id), account]));
 
-    const tableData = filteredRows.map((row, index) => {
+    const tableDataBase = filteredRows.map((row, index) => {
       const accountId = Number(row.accountId);
       const account = accountMap.get(accountId);
       const accountTypeRaw = account?.type || row.accountType;
@@ -575,13 +769,20 @@ export async function loadProjectionsGrid({
         ...row,
         id: row.id ?? `${accountId || 'account'}-${row.date || index}`,
         account: account?.name || row.accountName || '',
-        secondaryAccount: row.secondaryAccountName || secondaryAccount?.name || '',
+        secondaryAccount: row.secondaryAccountName || row.secondaryAccount || secondaryAccount?.name || 'Unassigned',
         accountType: accountTypeName,
         balance: Number(row.balance || 0),
         income,
         expenses,
         netChange
       };
+    });
+
+    const tableData = explodeProjectionRowsBySecondary({
+      rows: tableDataBase,
+      scenario: currentScenario,
+      state,
+      accountMap
     });
 
     try {
@@ -631,6 +832,11 @@ export async function loadProjectionsGrid({
       try {
         const currentGroupBy = state?.getGroupBy?.() || '';
         lastProjectionsTable.setGroupBy(currentGroupBy ? [currentGroupBy] : []);
+      } catch (_) {
+        // ignore
+      }
+      try {
+        applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
       } catch (_) {
         // ignore
       }
@@ -738,10 +944,40 @@ export async function loadProjectionsSection({
       }
     }
 
+    const accountMap = new Map((currentScenario?.accounts || []).map((account) => [Number(account.id), account]));
+    const baseRows = rows.map((row, index) => {
+      const accountId = Number(row?.accountId || 0);
+      const account = accountMap.get(accountId);
+      const accountTypeRaw = account?.type || row?.accountType;
+      const accountType =
+        accountTypeRaw && typeof accountTypeRaw === 'object'
+          ? accountTypeRaw?.name
+          : accountTypeRaw || 'Unassigned';
+      const secondaryAccountId = Number(row?.secondaryAccountId || 0);
+      const secondaryAccount = accountMap.get(secondaryAccountId);
+
+      return {
+        ...row,
+        id: row.id ?? `${accountId}-${row?.date || index}`,
+        account: account?.name || row?.accountName || row?.account || 'Unassigned',
+        accountType,
+        secondaryAccount: row?.secondaryAccountName || row?.secondaryAccount || secondaryAccount?.name || 'Unassigned'
+      };
+    });
+    const groupedRows = explodeProjectionRowsBySecondary({
+      rows: baseRows,
+      scenario: currentScenario,
+      state,
+      accountMap
+    });
+
+    const groupByField = state?.getGroupBy?.() || '';
+
     renderProjectionsSummaryList({
       container: projectionsGridContainer,
-      projections: rows,
-      accounts: currentScenario?.accounts || []
+      projections: groupedRows,
+      accounts: currentScenario?.accounts || [],
+      groupByField
     });
   } catch (err) {
     logger?.error?.('[Forecast] loadProjectionsSection failed', err);
