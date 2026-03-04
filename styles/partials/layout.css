@@ -716,10 +716,35 @@ body.dashboard-shell {
   overflow-y: auto;
 }
 
+/* Budget uses section-content instead of dash-panel-body, needs same scroll behavior */
+.dash-row.mode-detail .section-content {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
 .dash-row.mode-detail .grid-container {
   max-height: none;
   overflow-y: visible;
   flex: none;
+}
+
+/* Budget detail mode: forecast-card must fill dash-row-body and establish flex context */
+#budgetSection.mode-detail .forecast-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Projections detail mode: same flex container setup as budget */
+#projectionsSection.mode-detail .forecast-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ==================================== Summary Mode: Single Scroll Fix ====================================*/
@@ -1096,6 +1121,26 @@ body.dashboard-shell {
   width: 100%;
   padding: var(--spacing-sm);
   max-width: 100%;
+}
+
+/* Group headers must span all columns and look like Tabulator group rows */
+.grid-summary-list .grid-summary-group-header {
+  grid-column: 1 / -1;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px var(--spacing-sm);
+  border-top: 1px solid var(--border-secondary);
+  border-bottom: 1px solid var(--border-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+.grid-summary-list .grid-summary-group-header:first-child {
+  margin-top: 0;
+  border-top: none;
 }
 
 /* Budget and Projections: responsive multi-column layout */

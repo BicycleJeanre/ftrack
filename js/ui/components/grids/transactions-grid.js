@@ -1,12 +1,12 @@
 // forecast-transactions-grid.js
 // Master transactions grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn, createListEditor } from './grid-factory.js';
+import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openTextInputModal } from '../modals/text-input-modal.js';
-import { formatDateOnly } from '../../../shared/date-utils.js';
+import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
@@ -33,15 +33,27 @@ let lastTransactionsDetailTableReady = false;
 
 function applyTransactionsDetailFilters({ state, callbacks }) {
   if (!lastTransactionsDetailTable || !lastTransactionsDetailTableReady) return;
-  const accountId = state?.getTransactionFilterAccountId?.();
+  
+  const accountId = state?.getTransactionsAccountFilterId?.();
+  const groupByField = state?.getGroupBy?.();
+  
+  // Apply account filter
   if (accountId) {
+    // Use perspectiveAccountId since transactions are transformed to perspective rows
     lastTransactionsDetailTable.setFilter((data) =>
-      Number(data.primaryAccountId) === Number(accountId) ||
-      Number(data.secondaryAccountId) === Number(accountId)
+      data.perspectiveAccountId && Number(data.perspectiveAccountId) === Number(accountId)
     );
   } else {
     lastTransactionsDetailTable.clearFilter();
   }
+  
+  // Apply grouping
+  if (groupByField) {
+    lastTransactionsDetailTable.setGroupBy([groupByField]);
+  } else {
+    lastTransactionsDetailTable.setGroupBy([]);
+  }
+  
   callbacks?.updateTransactionTotals?.();
 }
 
@@ -237,7 +249,9 @@ function renderTransactionsSummaryList({
   container,
   transactions,
   accounts,
-  onRefresh
+  onRefresh,
+  filterAccountId,
+  groupByField
 }) {
   container.innerHTML = '';
 
@@ -255,6 +269,26 @@ function renderTransactionsSummaryList({
 
   const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
   const findAccountName = (id) => visibleAccounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
+
+  // Transform transactions to perspective rows using shared transformer
+  const allPerspectiveRows = transactions.flatMap((tx) => {
+    const normalized = normalizeCanonicalTransaction(tx);
+    return transformTransactionToRows(normalized, visibleAccounts);
+  });
+
+  // Filter to current account perspective or show only primary rows
+  let displayTransactions = filterAccountId
+    ? allPerspectiveRows.filter(r => Number(r.perspectiveAccountId) === Number(filterAccountId))
+    : allPerspectiveRows.filter(r => !String(r.id).endsWith('_flipped'));
+
+  // Sort by groupByField if specified
+  if (groupByField) {
+    displayTransactions = displayTransactions.sort((a, b) => {
+      const valA = String(a[groupByField] || '');
+      const valB = String(b[groupByField] || '');
+      return valA.localeCompare(valB);
+    });
+  }
 
   const buildAccountSelect = (selectedId, includeNone = false) => {
     const sel = document.createElement('select');
@@ -275,21 +309,36 @@ function renderTransactionsSummaryList({
     return sel;
   };
 
-  transactions.forEach((tx) => {
+  // Render grouped cards with headers
+  let currentGroupValue = null;
+  displayTransactions.forEach((tx, idx) => {
+    // Insert group header if grouping is active and group value changed
+    if (groupByField) {
+      const groupValue = String(tx[groupByField] || '');
+      if (groupValue !== currentGroupValue) {
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'grid-summary-group-header';
+        groupHeader.textContent = groupValue || '(ungrouped)';
+        list.appendChild(groupHeader);
+        currentGroupValue = groupValue;
+      }
+    }
+
+    // Get original transaction ID (handle flipped rows)
+    const originalTransactionId = tx.originalTransactionId || (String(tx.id).endsWith('_flipped') ? String(tx.id).replace('_flipped', '') : tx.id);
     const card = document.createElement('div');
     card.className = 'grid-summary-card';
 
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
 
-    const typeName = Number(tx.transactionTypeId) === 1 ? 'Money In' : 'Money Out';
+    // Use perspective-transformed values with signed amounts
+    const typeName = tx.transactionTypeName || (Number(tx.transactionTypeId) === 1 ? 'Money In' : 'Money Out');
     const isMoneyOut = Number(tx.transactionTypeId) === 2;
-    const primaryAcct = visibleAccounts.find((a) => Number(a.id) === Number(tx.primaryAccountId));
-    const currency = primaryAcct?.currency?.code || primaryAcct?.currency?.name || 'ZAR';
-    const unsignedAmt = Math.abs(Number(tx.amount || 0));
-    const formattedAmt = formatCurrency(unsignedAmt, currency);
-    const secondaryName = findAccountName(tx.secondaryAccountId);
-    const primaryName = findAccountName(tx.primaryAccountId);
+    const signedAmount = Number(tx.plannedAmount || tx.amount || 0);
+    const formattedAmt = formatMoneyDisplay(signedAmount);
+    const secondaryName = tx.secondaryAccountName || findAccountName(tx.secondaryAccountId);
+    const primaryName = tx.primaryAccountName || findAccountName(tx.primaryAccountId);
 
     // Line 1: secondary account name + amount (amount pushed right)
     const rowPrimary = document.createElement('div');
@@ -300,8 +349,7 @@ function renderTransactionsSummaryList({
     title.textContent = secondaryName;
 
     const amountEl = document.createElement('span');
-    amountEl.className = `grid-summary-amount ${isMoneyOut ? 'negative' : 'positive'}`;
-    amountEl.textContent = formattedAmt;
+    amountEl.innerHTML = formattedAmt;
 
     rowPrimary.appendChild(title);
     rowPrimary.appendChild(amountEl);
@@ -532,7 +580,7 @@ function renderTransactionsSummaryList({
       const scenario = tx?._scenarioId;
       if (!scenario) return;
       const allTxs = await getTransactions(scenario);
-      const idx = allTxs.findIndex((t) => Number(t.id) === Number(tx.id));
+      const idx = allTxs.findIndex((t) => Number(t.id) === Number(originalTransactionId));
       if (idx === -1) return;
 
       const prevStatus = allTxs[idx].status;
@@ -589,7 +637,7 @@ function renderTransactionsSummaryList({
       const scenario = tx?._scenarioId;
       if (!scenario) return;
       const allTxs = await getTransactions(scenario);
-      const source = allTxs.find((t) => Number(t.id) === Number(tx.id));
+      const source = allTxs.find((t) => Number(t.id) === Number(originalTransactionId));
       if (!source) return;
       const cloned = { ...source, id: 0 };
       allTxs.push(cloned);
@@ -603,7 +651,7 @@ function renderTransactionsSummaryList({
       if (!scenario) return;
       if (!await confirmDialog('Delete this transaction?')) return;
       const allTxs = await getTransactions(scenario);
-      const filtered = allTxs.filter((t) => Number(t.id) !== Number(tx.id));
+      const filtered = allTxs.filter((t) => Number(t.id) !== Number(originalTransactionId));
       await TransactionManager.saveAll(scenario, filtered);
       await onRefresh?.();
     });
@@ -628,16 +676,21 @@ export async function loadMasterTransactionsGrid({
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
+  const workflowConfig = getWorkflowConfig?.();
+  const transactionsModeKey = workflowConfig?.transactionsMode === 'detail' ? 'detail' : 'summary';
+  const accountFilterStateKey = `accountFilter:${transactionsModeKey}`;
+  const groupByStateKey = `groupBy:${transactionsModeKey}`;
+
   try {
     const existingTable = tables?.getMasterTransactionsTable?.();
     transactionsGridState.capture(existingTable, {
-      groupBy: '#tx-grouping-select'
+      [groupByStateKey]: '#tx-grouping-select'
     });
   } catch (_) {
     // Keep existing behavior: ignore state capture errors.
   }
 
-  const workflowConfig = getWorkflowConfig?.();
+  const dropdownState = transactionsGridState?.state?.dropdowns || {};
 
   if (!workflowConfig?.showPlannedTransactions) {
     container.innerHTML = '';
@@ -673,23 +726,146 @@ export async function loadMasterTransactionsGrid({
             opt.textContent = account.name;
             accountFilterSelect.appendChild(opt);
           });
-        const currentFilterId = state?.getTransactionFilterAccountId?.();
+        // Default to stored state, or first account
         const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
-        const initialFilterId = currentFilterId || firstAccountId || null;
-        if (initialFilterId) {
-          accountFilterSelect.value = String(initialFilterId);
-          if (!currentFilterId) {
-            state?.setTransactionFilterAccountId?.(Number(initialFilterId));
-          }
+        const storedSummaryAccount = dropdownState[accountFilterStateKey];
+        const defaultSummaryAccount = storedSummaryAccount || (firstAccountId ? String(firstAccountId) : '');
+        if (defaultSummaryAccount) {
+          accountFilterSelect.value = defaultSummaryAccount;
+          transactionsGridState.state.dropdowns[accountFilterStateKey] = defaultSummaryAccount;
         }
+        // Account selector filters summary cards
         accountFilterSelect.addEventListener('change', (e) => {
-          const nextId = e.target.value ? Number(e.target.value) : null;
-          state?.setTransactionFilterAccountId?.(nextId);
+          transactionsGridState.state.dropdowns[accountFilterStateKey] = e.target.value;
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
         accountFilterItem.appendChild(accountFilterLabel);
         accountFilterItem.appendChild(accountFilterSelect);
         controls.appendChild(accountFilterItem);
+
+        // Period Type (summary mode)
+        const periodTypeSelect = document.createElement('select');
+        periodTypeSelect.id = 'tx-period-type-select-summary';
+        periodTypeSelect.className = 'input-select';
+        ['Day', 'Week', 'Month', 'Quarter', 'Year'].forEach((pt) => {
+          const opt = document.createElement('option');
+          opt.value = pt;
+          opt.textContent = pt;
+          periodTypeSelect.appendChild(opt);
+        });
+        periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
+        const periodTypeItem = document.createElement('div');
+        periodTypeItem.className = 'header-filter-item';
+        const periodTypeLabel = document.createElement('label');
+        periodTypeLabel.htmlFor = 'tx-period-type-select-summary';
+        periodTypeLabel.textContent = 'Period Type:';
+        periodTypeItem.appendChild(periodTypeLabel);
+        periodTypeItem.appendChild(periodTypeSelect);
+        controls.appendChild(periodTypeItem);
+
+        periodTypeSelect.addEventListener('change', async () => {
+          state?.setActualPeriodType?.(periodTypeSelect.value);
+          state?.setTransactionsPeriods?.([]);
+          state?.setActualPeriod?.(null);
+          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+
+        // Period selector (summary mode) - with ◀ ▶ navigation
+        const periodSelectSummary = document.createElement('select');
+        periodSelectSummary.id = 'tx-period-select-summary';
+        periodSelectSummary.className = 'input-select';
+        const allPeriodsOptSummary = document.createElement('option');
+        allPeriodsOptSummary.value = '';
+        allPeriodsOptSummary.textContent = 'All';
+        periodSelectSummary.appendChild(allPeriodsOptSummary);
+        
+        // Periods will be populated dynamically after they're loaded
+        const curPeriodSummary = state?.getActualPeriod?.();
+        if (curPeriodSummary) periodSelectSummary.value = String(curPeriodSummary);
+
+        const prevBtnSummary = document.createElement('button');
+        prevBtnSummary.type = 'button';
+        prevBtnSummary.className = 'period-btn';
+        prevBtnSummary.textContent = '◀';
+        prevBtnSummary.title = 'Previous period';
+
+        const nextBtnSummary = document.createElement('button');
+        nextBtnSummary.type = 'button';
+        nextBtnSummary.className = 'period-btn';
+        nextBtnSummary.textContent = '▶';
+        nextBtnSummary.title = 'Next period';
+
+        const periodItemSummary = document.createElement('div');
+        periodItemSummary.className = 'header-filter-item';
+        const periodLabelSummary = document.createElement('label');
+        periodLabelSummary.htmlFor = 'tx-period-select-summary';
+        periodLabelSummary.textContent = 'Period:';
+        periodItemSummary.appendChild(periodLabelSummary);
+        periodItemSummary.appendChild(periodSelectSummary);
+        periodItemSummary.appendChild(prevBtnSummary);
+        periodItemSummary.appendChild(nextBtnSummary);
+        controls.appendChild(periodItemSummary);
+
+        periodSelectSummary.addEventListener('change', async () => {
+          const nextPeriodId = periodSelectSummary.value ? String(periodSelectSummary.value) : null;
+          state?.setActualPeriod?.(nextPeriodId);
+          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+
+        prevBtnSummary.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const allPeriodsSummary = state?.getTransactionsPeriods?.() || [];
+          const currentIdx = allPeriodsSummary.findIndex((p) => p.id === state?.getActualPeriod?.());
+          if (currentIdx > 0) {
+            state?.setActualPeriod?.(String(allPeriodsSummary[currentIdx - 1].id));
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          }
+        });
+
+        nextBtnSummary.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const allPeriodsSummary = state?.getTransactionsPeriods?.() || [];
+          const currentIdx = allPeriodsSummary.findIndex((p) => p.id === state?.getActualPeriod?.());
+          if (currentIdx >= 0 && currentIdx < allPeriodsSummary.length - 1) {
+            state?.setActualPeriod?.(String(allPeriodsSummary[currentIdx + 1].id));
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          } else if (currentIdx === -1 && allPeriodsSummary.length > 0) {
+            state?.setActualPeriod?.(String(allPeriodsSummary[0].id));
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          }
+        });
+
+        // Group By (summary mode)
+        const groupBySelectSummary = document.createElement('select');
+        groupBySelectSummary.id = 'tx-grouping-select-summary';
+        groupBySelectSummary.className = 'input-select';
+        [
+          { value: '', label: 'None' },
+          { value: 'transactionTypeName', label: 'Transaction Type' },
+          { value: 'primaryAccountName', label: 'Primary Account' },
+          { value: 'secondaryAccountName', label: 'Secondary Account' }
+        ].forEach(({ value, label }) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          groupBySelectSummary.appendChild(opt);
+        });
+        const currentGroupBySummary = state?.getGroupBy?.() || '';
+        groupBySelectSummary.value = currentGroupBySummary;
+        const groupByItemSummary = document.createElement('div');
+        groupByItemSummary.className = 'header-filter-item';
+        const groupByLabelSummary = document.createElement('label');
+        groupByLabelSummary.htmlFor = 'tx-grouping-select-summary';
+        groupByLabelSummary.textContent = 'Group:';
+        groupByItemSummary.appendChild(groupByLabelSummary);
+        groupByItemSummary.appendChild(groupBySelectSummary);
+        controls.appendChild(groupByItemSummary);
+
+        groupBySelectSummary.addEventListener('change', () => {
+          transactionsGridState.state.dropdowns[groupByStateKey] = groupBySelectSummary.value;
+          state?.setGroupBy?.(groupBySelectSummary.value);
+          loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
 
         const addButton = document.createElement('button');
         addButton.className = 'icon-btn';
@@ -709,14 +885,16 @@ export async function loadMasterTransactionsGrid({
           try {
             currentScenario = scenarioState?.get?.();
 
-            const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+            // Summary mode stores account selection in dropdownState, not in state
+            const summaryAccountStr = transactionsGridState.state.dropdowns[accountFilterStateKey];
+            const summaryAccountId = summaryAccountStr ? Number(summaryAccountStr) : null;
             const actualPeriod = state?.getActualPeriod?.();
-            const periods = state?.getPeriods?.() || [];
+            const periods = state?.getTransactionsPeriods?.() || [];
 
             const accountIds = (currentScenario.accounts || []).map((acc) => acc.id);
             const filteredAccountId =
-              transactionFilterAccountId && accountIds.includes(transactionFilterAccountId)
-                ? transactionFilterAccountId
+              summaryAccountId && accountIds.includes(summaryAccountId)
+                ? summaryAccountId
                 : null;
             const defaultAccountId = filteredAccountId || (accountIds.length > 0 ? accountIds[0] : null);
 
@@ -815,10 +993,27 @@ export async function loadMasterTransactionsGrid({
 
     const actualPeriodType = state?.getActualPeriodType?.();
     const actualPeriod = state?.getActualPeriod?.();
-    let periods = state?.getPeriods?.();
+    let periods = state?.getTransactionsPeriods?.();
     if (!periods || periods.length === 0) {
       periods = await getScenarioPeriods(currentScenario.id, actualPeriodType);
-      state?.setPeriods?.(periods);
+      state?.setTransactionsPeriods?.(periods);
+    }
+
+    // Populate period selector in summary header (if it exists)
+    if (workflowConfig?.transactionsMode !== 'detail') {
+      const periodSelectSummary = transactionsHeader?.querySelector('#tx-period-select-summary');
+      if (periodSelectSummary && periodSelectSummary.children.length === 1) { // Only if "All" option exists
+        // Add period options
+        periods.forEach((p) => {
+          const opt = document.createElement('option');
+          opt.value = String(p.id);
+          opt.textContent = p.label || String(p.id);
+          periodSelectSummary.appendChild(opt);
+        });
+        // Restore period selection from state
+        const curPeriodSummary = state?.getActualPeriod?.();
+        if (curPeriodSummary) periodSelectSummary.value = String(curPeriodSummary);
+      }
     }
 
     let allTransactions = await getTransactions(currentScenario.id);
@@ -827,20 +1022,19 @@ export async function loadMasterTransactionsGrid({
       if (selectedPeriod) {
         allTransactions = expandTransactions(
           allTransactions,
-          selectedPeriod.startDate,
-          selectedPeriod.endDate,
+          parseDateOnly(selectedPeriod.startDate),
+          parseDateOnly(selectedPeriod.endDate),
           currentScenario.accounts
         );
       }
     }
 
-    const accountFilterId = state?.getTransactionFilterAccountId?.();
-    if (accountFilterId && workflowConfig?.transactionsMode !== 'detail') {
-      allTransactions = allTransactions.filter((tx) =>
-        Number(tx.primaryAccountId) === Number(accountFilterId) ||
-        Number(tx.secondaryAccountId) === Number(accountFilterId)
-      );
-    }
+    // For summary mode: use summary-scoped account filter; for detail mode: use detail-scoped filter (applied via Tabulator)
+    const summaryAccountFilterStr = workflowConfig?.transactionsMode !== 'detail' ? String(dropdownState[accountFilterStateKey] || '') : '';
+    const accountFilterId = summaryAccountFilterStr ? Number(summaryAccountFilterStr) : state?.getTransactionFilterAccountId?.();
+    // Don't pre-filter by account - filtering is done during transformation and rendering
+    // Account filtering will be applied in detail via applyTransactionsDetailFilters
+    // and in summary via renderTransactionsSummaryList with perspective rows
 
     allTransactions = allTransactions.map((tx) => ({
       ...normalizeCanonicalTransaction(tx),
@@ -853,9 +1047,9 @@ export async function loadMasterTransactionsGrid({
 
       const accounts = currentScenario.accounts || [];
 
-      // Expand to primary-perspective display rows (exclude flipped secondary rows)
+      // Keep all perspective rows (primary + flipped) — setFilter handles which to show
       const displayRows = allTransactions.flatMap((tx) =>
-        transformTransactionToRows(tx, accounts).filter((r) => !String(r.id).endsWith('_flipped'))
+        transformTransactionToRows(tx, accounts)
       ).map((r) => ({
         ...r,
         statusName: r.status?.name || (typeof r.status === 'string' ? r.status : 'planned')
@@ -878,17 +1072,17 @@ export async function loadMasterTransactionsGrid({
           scenarioState?.set?.(refreshedScenario);
           let freshTxs = await getTransactions(refreshedScenario.id);
           const currentPeriod = state?.getActualPeriod?.();
-          const currentPeriods = state?.getPeriods?.() || [];
+          const currentPeriods = state?.getTransactionsPeriods?.() || [];
           if (currentPeriod) {
             const selectedPeriod = currentPeriods.find((p) => p.id === currentPeriod);
             if (selectedPeriod) {
-              freshTxs = expandTransactions(freshTxs, selectedPeriod.startDate, selectedPeriod.endDate, refreshedScenario.accounts);
+              freshTxs = expandTransactions(freshTxs, parseDateOnly(selectedPeriod.startDate), parseDateOnly(selectedPeriod.endDate), refreshedScenario.accounts);
             }
           }
           const freshAccounts = refreshedScenario.accounts || [];
           const normalizedTxs = freshTxs.map((tx) => ({ ...normalizeCanonicalTransaction(tx), _scenarioId: refreshedScenario.id }));
           const freshRows = normalizedTxs
-            .flatMap((tx) => transformTransactionToRows(tx, freshAccounts).filter((r) => !String(r.id).endsWith('_flipped')))
+            .flatMap((tx) => transformTransactionToRows(tx, freshAccounts))
             .map((r) => ({ ...r, statusName: r.status?.name || (typeof r.status === 'string' ? r.status : 'planned') }));
           await Promise.all(freshRows.map(async (r) => {
             r.recurrenceSummary = r.recurrence ? (await getRecurrenceDescription(r.recurrence)) || '' : '';
@@ -920,7 +1114,7 @@ export async function loadMasterTransactionsGrid({
             return item;
           };
 
-          // Account filter
+          // Account selector with filtering capability
           const accountFilterSelect = document.createElement('select');
           accountFilterSelect.id = 'tx-account-filter-select';
           accountFilterSelect.className = 'input-select';
@@ -932,26 +1126,36 @@ export async function loadMasterTransactionsGrid({
               opt.textContent = account.name;
               accountFilterSelect.appendChild(opt);
             });
-          const txCurrentFilterId = state?.getTransactionFilterAccountId?.();
-          const txFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
-          const txInitialFilterId = txCurrentFilterId || txFirstAccountId || null;
-          if (txInitialFilterId) {
-            accountFilterSelect.value = String(txInitialFilterId);
-            if (!txCurrentFilterId) state?.setTransactionFilterAccountId?.(Number(txInitialFilterId));
+          // Default to stored state, or first account
+          const storedDetailAccount = dropdownState[accountFilterStateKey];
+          const detailFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
+          const defaultDetailAccount = storedDetailAccount || (detailFirstAccountId ? String(detailFirstAccountId) : '');
+          if (defaultDetailAccount) {
+            accountFilterSelect.value = defaultDetailAccount;
+            state?.setTransactionsAccountFilterId?.(Number(defaultDetailAccount));
+            transactionsGridState.state.dropdowns[accountFilterStateKey] = defaultDetailAccount;
           }
           controls.appendChild(makeHeaderFilter('tx-account-filter-select', 'Account:', accountFilterSelect));
+
+          // Handle account filter change - use Tabulator setFilter, no rebuild
+          accountFilterSelect.addEventListener('change', (e) => {
+            const nextId = e.target.value ? Number(e.target.value) : null;
+            state?.setTransactionsAccountFilterId?.(nextId);
+            transactionsGridState.state.dropdowns[accountFilterStateKey] = e.target.value;
+            applyTransactionsDetailFilters({ state, callbacks });
+          });
 
           // Period Type
           const periodTypeSelect = document.createElement('select');
           periodTypeSelect.id = 'tx-period-type-select';
           periodTypeSelect.className = 'input-select';
-          ['Month', 'Quarter', 'Year'].forEach((pt) => {
+          ['Day', 'Week', 'Month', 'Quarter', 'Year'].forEach((pt) => {
             const opt = document.createElement('option');
             opt.value = pt; opt.textContent = pt;
             periodTypeSelect.appendChild(opt);
           });
           periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
-          controls.appendChild(makeHeaderFilter('tx-period-type-select', 'View:', periodTypeSelect));
+          controls.appendChild(makeHeaderFilter('tx-period-type-select', 'Period Type:', periodTypeSelect));
 
           // Period + ◀ ▶ navigation
           const periodSelect = document.createElement('select');
@@ -1006,22 +1210,14 @@ export async function loadMasterTransactionsGrid({
             opt.value = value; opt.textContent = label;
             groupBySelect.appendChild(opt);
           });
+          // Restore detail-scoped grouping from state
+          const detailGroupBy = String(dropdownState[groupByStateKey] || '');
+          const currentGroupBy = detailGroupBy || state?.getGroupBy?.() || '';
+          groupBySelect.value = currentGroupBy;
+          if (currentGroupBy && !detailGroupBy) {
+            state?.setGroupBy?.(currentGroupBy);
+          }
           controls.appendChild(makeHeaderFilter('tx-grouping-select', 'Group:', groupBySelect));
-
-          // Status
-          const statusFilterSelect = document.createElement('select');
-          statusFilterSelect.id = 'tx-status-filter-select';
-          statusFilterSelect.className = 'input-select';
-          [
-            { value: '', label: 'All' },
-            { value: 'planned', label: 'Planned' },
-            { value: 'actual', label: 'Actual' }
-          ].forEach(({ value, label }) => {
-            const opt = document.createElement('option');
-            opt.value = value; opt.textContent = label;
-            statusFilterSelect.appendChild(opt);
-          });
-          controls.appendChild(makeHeaderFilter('tx-status-filter-select', 'Status:', statusFilterSelect));
 
           // Icon actions
           const iconActions = document.createElement('div');
@@ -1039,13 +1235,9 @@ export async function loadMasterTransactionsGrid({
           controls.appendChild(iconActions);
 
           // Event listeners
-          accountFilterSelect.addEventListener('change', (e) => {
-            state?.setTransactionFilterAccountId?.(Number(e.target.value));
-            applyTransactionsDetailFilters({ state, callbacks });
-          });
           periodTypeSelect.addEventListener('change', async () => {
             state?.setActualPeriodType?.(periodTypeSelect.value);
-            state?.setPeriods?.([]);
+            state?.setTransactionsPeriods?.([]);
             state?.setActualPeriod?.(null);
             await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           });
@@ -1067,24 +1259,18 @@ export async function loadMasterTransactionsGrid({
           prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
           nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
           groupBySelect.addEventListener('change', () => {
+            transactionsGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
             const field = groupBySelect.value;
+            state?.setGroupBy?.(field || '');
             lastTransactionsDetailTable?.setGroupBy?.(field ? [field] : []);
-          });
-          statusFilterSelect.addEventListener('change', () => {
-            if (statusFilterSelect.value) {
-              lastTransactionsDetailTable?.setFilter?.('statusName', '=', statusFilterSelect.value);
-            } else {
-              lastTransactionsDetailTable?.clearFilter?.();
-            }
-            callbacks?.updateTransactionTotals?.();
           });
           addButton.addEventListener('click', async (e) => {
             e.stopPropagation();
             try {
               currentScenario = scenarioState?.get?.();
-              const transactionFilterAccountId = state?.getTransactionFilterAccountId?.();
+              const transactionFilterAccountId = state?.getTransactionsAccountFilterId?.();
               const actualPeriod = state?.getActualPeriod?.();
-              const localPeriods = state?.getPeriods?.() || [];
+              const localPeriods = state?.getTransactionsPeriods?.() || [];
               const accountIds = (currentScenario.accounts || []).map((acc) => acc.id);
               const filteredAccountId =
                 transactionFilterAccountId && accountIds.includes(transactionFilterAccountId)
@@ -1308,8 +1494,12 @@ export async function loadMasterTransactionsGrid({
         txTable.on('tableBuilt', () => {
           lastTransactionsDetailTableReady = true;
           try {
+            // Clear any persisted column header filters to ensure all data is visible
+            txTable?.clearHeaderFilter?.();
             transactionsGridState.restore(txTable, { restoreGroupBy: true });
-            transactionsGridState.restoreDropdowns({ groupBy: '#tx-grouping-select' });
+            transactionsGridState.restoreDropdowns({
+              [groupByStateKey]: '#tx-grouping-select'
+            }, { dispatchChange: false });
           } catch (_) {
             // ignore
           }
@@ -1328,10 +1518,16 @@ export async function loadMasterTransactionsGrid({
       tables?.setMasterTransactionsTable?.(txTable);
     } else {
       // --- Summary mode: card list ---
+      // Resolve the summary account filter: stored state, or fall back to first account
+      const summaryFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
+      const summaryFilterAccountId = summaryAccountFilterStr ? Number(summaryAccountFilterStr)
+        : (summaryFirstAccountId ? Number(summaryFirstAccountId) : null);
       renderTransactionsSummaryList({
         container: gridContainer,
         transactions: allTransactions,
         accounts: currentScenario.accounts || [],
+        filterAccountId: summaryFilterAccountId,
+        groupByField: state?.getGroupBy?.() || '',
         onRefresh: async () => {
           await loadMasterTransactionsGrid({
             container,

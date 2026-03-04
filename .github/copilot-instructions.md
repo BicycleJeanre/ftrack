@@ -6,6 +6,10 @@
 
 ---
 
+NEVER EVER EVER use new Date(). ALWAYS use ONLY a date string. no timezones, no timestamps. 
+
+
+
 ## 1.0 Core Principles
 
 1.1 Keep responses concise and focused

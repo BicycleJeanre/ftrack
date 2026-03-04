@@ -26,19 +26,23 @@ function getDefaultDates() {
  * @param {string} options.title - Modal title (e.g., "Generate Projections")
  * @param {boolean} options.showPeriodType - Whether to show period type selector (true for projections, false for budget)
  * @param {number} options.defaultPeriodTypeId - Default period type (1-5)
+ * @param {string} options.defaultStartDate - Initial start date (YYYY-MM-DD format); uses default if not provided
+ * @param {string} options.defaultEndDate - Initial end date (YYYY-MM-DD format); uses default if not provided
  * @param {Function} options.onConfirm - Callback with {startDate, endDate, periodTypeId}
  */
 export function openTimeframeModal({
   title = 'Set Timeframe',
   showPeriodType = false,
   defaultPeriodTypeId = 3, // Month
+  defaultStartDate = null,
+  defaultEndDate = null,
   onConfirm
 } = {}) {
   const { modal, close } = createModal({ contentClass: 'modal-timeframe' });
 
   const defaults = getDefaultDates();
-  const startDate = defaults.startDate;
-  const endDate = defaults.endDate;
+  const startDate = defaultStartDate || defaults.startDate;
+  const endDate = defaultEndDate || defaults.endDate;
 
   modal.innerHTML = `
     <h2 class="modal-periodic-title">${escapeHtml(title)}</h2>

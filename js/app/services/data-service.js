@@ -242,7 +242,7 @@ export async function getBudget(scenarioId) {
  * @param {string} customPeriodType - Optional period type override (Day, Week, Month, Quarter, Year)
  * @returns {Promise<Array>} - Array of period objects
  */
-export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
+export async function getScenarioPeriods(scenarioId, customPeriodType = null, windowType = 'projection') {
   const PERIOD_ID_TO_NAME = {
     1: 'Day',
     2: 'Week',
@@ -254,15 +254,41 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null) {
   const scenario = await getScenario(scenarioId);
   if (!scenario) throw new Error(`Scenario ${scenarioId} not found`);
 
-  const windowStart = scenario?.projection?.config?.startDate;
-  const windowEnd   = scenario?.projection?.config?.endDate;
+  // Select window config based on windowType
+  let windowConfig;
+  if (windowType === 'budget') {
+    windowConfig = scenario?.budgetWindow?.config;
+    if (!windowConfig) {
+      throw new Error(`Scenario ${scenarioId} is missing budget window configuration`);
+    }
+  } else if (windowType === 'planning') {
+    // Future support for planning windows
+    windowConfig = scenario?.planning?.generatePlan;
+    if (!windowConfig) {
+      // Fall back to projection if planning window not set
+      windowConfig = scenario?.projection?.config;
+    }
+  } else {
+    // Default: projection window
+    windowConfig = scenario?.projection?.config;
+  }
+
+  if (!windowConfig) {
+    throw new Error(`Scenario ${scenarioId} is missing window configuration for type '${windowType}'`);
+  }
+
+  const windowStart = windowConfig.startDate;
+  const windowEnd = windowConfig.endDate;
+
   if (!windowStart || !windowEnd) {
-    throw new Error(`Scenario ${scenarioId} is missing projection window dates`);
+    throw new Error(`Scenario ${scenarioId} window (${windowType}) is missing startDate or endDate`);
   }
 
   let periodType = customPeriodType;
   if (!periodType) {
-    const periodTypeIdRaw = scenario?.projection?.config?.periodTypeId ?? 3;
+    // For budget window, default to Month if no periodTypeId is stored in budget config
+    // For projection/planning, use the config's periodTypeId
+    const periodTypeIdRaw = windowConfig.periodTypeId ?? 3;
     const periodTypeId = typeof periodTypeIdRaw === 'number'
       ? periodTypeIdRaw
       : (typeof periodTypeIdRaw === 'object' ? Number(periodTypeIdRaw?.id) : Number(periodTypeIdRaw)) || 3;
