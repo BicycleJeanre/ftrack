@@ -1,7 +1,7 @@
 // forecast-budget-grid.js
 // Budget grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, refreshGridData, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn, createListEditor } from './grid-factory.js';
+import { createGrid, refreshGridData, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
@@ -184,10 +184,10 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
 
-    // Use perspective-transformed values
+    // Use perspective-transformed values with signed amounts
     const isMoneyOut = Number(budget?.transactionTypeId) === 2;
-    const currency = findAccountCurrency(budget?.perspectiveAccountId || budget?.primaryAccountId);
-    const formattedAmt = formatCurrency(Math.abs(Number(budget?.plannedAmount || budget?.amount || 0)), currency);
+    const signedAmount = Number(budget?.plannedAmount || budget?.amount || 0);
+    const formattedAmt = formatMoneyDisplay(signedAmount);
     const primaryName = budget?.primaryAccountName || findAccountName(budget.primaryAccountId);
     const secondaryName = budget?.secondaryAccountName || findAccountName(budget.secondaryAccountId);
     const statusName = typeof budget?.status === 'object' ? (budget.status?.name || 'planned') : (budget?.status || 'planned');
@@ -208,8 +208,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     secondaryNameEl.textContent = secondaryName;
 
     const amountEl = document.createElement('span');
-    amountEl.className = `grid-summary-amount ${isMoneyOut ? 'negative' : 'positive'}`;
-    amountEl.textContent = formattedAmt;
+    amountEl.innerHTML = formattedAmt;
 
     rowPrimary.appendChild(checkbox);
     rowPrimary.appendChild(secondaryNameEl);
@@ -221,7 +220,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
 
     const flowEl = document.createElement('span');
     flowEl.className = 'grid-summary-flow';
-    flowEl.textContent = `${primaryName} \u2192 ${formattedAmt} \u2192 ${secondaryName}`;
+    flowEl.innerHTML = `${primaryName} \u2192 ${formattedAmt} \u2192 ${secondaryName}`;
 
     const dateEl = document.createElement('span');
     dateEl.className = 'grid-summary-date';
@@ -622,6 +621,20 @@ export async function loadBudgetGrid({
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
+  const budgetModeKey = state?.getBudgetMode?.() === 'detail' ? 'detail' : 'summary';
+  const groupByStateKey = `groupBy:${budgetModeKey}`;
+
+  try {
+    const existingTable = tables?.getMasterBudgetTable?.();
+    budgetGridState.capture(existingTable, {
+      [groupByStateKey]: '#budget-grouping-select'
+    });
+  } catch (_) {
+    // Keep existing behavior: ignore state capture errors.
+  }
+
+  const dropdownState = budgetGridState?.state?.dropdowns || {};
+
   const isBudgetDetailMode = state?.getBudgetMode?.() === 'detail';
 
   if (isBudgetDetailMode) {
@@ -652,7 +665,7 @@ export async function loadBudgetGrid({
     const budgetPeriodType = state?.getBudgetPeriodType?.() || 'Month';
     let periods = state?.getBudgetPeriods?.();
     if (!periods || periods.length === 0) {
-      periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType);
+      periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType, 'budget');
       state?.setBudgetPeriods?.(periods);
     }
 
@@ -670,8 +683,9 @@ export async function loadBudgetGrid({
       _scenarioId: currentScenario.id,
       // Perspective-aware account names already set by transformer
       transactionTypeName: r.transactionTypeName || (Number(r.transactionTypeId) === 2 ? 'Money Out' : 'Money In'),
-      plannedAmount: Math.abs(Number(r.plannedAmount || r.amount || 0)),
-      actualAmount: r.actualAmount != null ? Math.abs(Number(r.actualAmount)) : null,
+      // Keep signed amounts from transformer so color formatting is correct (Money Out is negative)
+      plannedAmount: r.plannedAmount != null ? Number(r.plannedAmount) : null,
+      actualAmount: r.actualAmount != null ? Number(r.actualAmount) : null,
       actualDate: r.actualDate || r.status?.actualDate || null,
       statusName: r.status?.name || 'planned',
       // Preserve budget-specific fields from normalized data
@@ -807,7 +821,8 @@ export async function loadBudgetGrid({
           opt.value = value; opt.textContent = label;
           groupBySelect.appendChild(opt);
         });
-        const currentGroupBy = state?.getGroupBy?.();
+        const detailGroupBy = String(dropdownState[groupByStateKey] || '');
+        const currentGroupBy = detailGroupBy || state?.getGroupBy?.();
         if (currentGroupBy) groupBySelect.value = currentGroupBy;
         controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
 
@@ -843,6 +858,7 @@ export async function loadBudgetGrid({
             if (!currentScenario?.id) return;
             await BudgetManager.clearAll(currentScenario.id);
             const refreshed = await getScenario(currentScenario.id);
+                          state?.setBudgetPeriods?.([]); // Clear period cache to refetch from new budget window
             scenarioState?.set?.(refreshed);
             state?.bumpBudgetGridLoadToken?.(); // Bump token after data modification
             await reload();
@@ -870,6 +886,7 @@ export async function loadBudgetGrid({
                 await BudgetManager.createFromProjections(currentScenario.id);
                 const refreshed = await getScenario(currentScenario.id);
                 scenarioState?.set?.(refreshed);
+                state?.setBudgetPeriods?.([]); // Clear period cache to refetch from new budget window
                 await reload();
                 notifySuccess('Budget generated from expanded transactions.');
               } catch (err) {
@@ -963,6 +980,7 @@ export async function loadBudgetGrid({
 
         groupBySelect.addEventListener('change', () => {
           const field = groupBySelect.value;
+          budgetGridState.state.dropdowns[groupByStateKey] = field;
           state?.setGroupBy?.(field);
           lastBudgetDetailTable?.setGroupBy?.(field ? [field] : []);
         });
@@ -1102,7 +1120,9 @@ export async function loadBudgetGrid({
         lastBudgetDetailTableReady = true;
         try {
           budgetGridState.restore(budgetTable, { restoreGroupBy: true });
-          budgetGridState.restoreDropdowns({ groupBy: '#budget-grouping-select' });
+          budgetGridState.restoreDropdowns({
+            [groupByStateKey]: '#budget-grouping-select'
+          }, { dispatchChange: false });
         } catch (_) { /* ignore */ }
         applyBudgetDetailFilters({ state, periods, callbacks });
       });
@@ -1134,7 +1154,7 @@ export async function loadBudgetGrid({
   const budgetPeriodType = state?.getBudgetPeriodType?.() || 'Month';
   let periods = state?.getBudgetPeriods?.();
   if (!periods || periods.length === 0) {
-    periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType);
+    periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType, 'budget');
     state?.setBudgetPeriods?.(periods);
   }
 
@@ -1288,7 +1308,8 @@ export async function loadBudgetGrid({
           opt.value = value; opt.textContent = label;
           groupBySelect.appendChild(opt);
         });
-        const currentGroupBy = state?.getGroupBy?.();
+        const summaryGroupBy = String(dropdownState[groupByStateKey] || '');
+        const currentGroupBy = summaryGroupBy || state?.getGroupBy?.();
         if (currentGroupBy) groupBySelect.value = currentGroupBy;
         controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
 
@@ -1351,6 +1372,7 @@ export async function loadBudgetGrid({
               await BudgetManager.createFromProjections(currentScenario.id);
               const refreshed = await getScenario(currentScenario.id);
               scenarioState?.set?.(refreshed);
+              state?.setBudgetPeriods?.([]); // Clear period cache to refetch from new budget window
               state?.bumpBudgetGridLoadToken?.(); // Bump token after data modification
               await reload();
               notifySuccess('Budget generated from expanded transactions.');
@@ -1448,17 +1470,11 @@ export async function loadBudgetGrid({
       });
 
       groupBySelect.addEventListener('change', () => {
+        budgetGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
         state?.setGroupBy?.(groupBySelect.value);
         refreshFilters();
       });
     }
-  }
-
-  const existingTable = tables?.getMasterBudgetTable?.();
-  try {
-    budgetGridState.capture(existingTable, { groupBy: '#budget-grouping-select' });
-  } catch (_) {
-    // Keep existing behavior: ignore state capture errors.
   }
 
   // Don't bump token here - only bump after actual data modifications

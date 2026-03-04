@@ -1,7 +1,7 @@
 // forecast-transactions-grid.js
 // Master transactions grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn, createListEditor } from './grid-factory.js';
+import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
@@ -332,13 +332,11 @@ function renderTransactionsSummaryList({
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
 
-    // Use perspective-transformed values
+    // Use perspective-transformed values with signed amounts
     const typeName = tx.transactionTypeName || (Number(tx.transactionTypeId) === 1 ? 'Money In' : 'Money Out');
     const isMoneyOut = Number(tx.transactionTypeId) === 2;
-    const perspectiveAcct = visibleAccounts.find((a) => Number(a.id) === Number(tx.perspectiveAccountId || tx.primaryAccountId));
-    const currency = perspectiveAcct?.currency?.code || perspectiveAcct?.currency?.name || 'ZAR';
-    const unsignedAmt = Math.abs(Number(tx.plannedAmount || tx.amount || 0));
-    const formattedAmt = formatCurrency(unsignedAmt, currency);
+    const signedAmount = Number(tx.plannedAmount || tx.amount || 0);
+    const formattedAmt = formatMoneyDisplay(signedAmount);
     const secondaryName = tx.secondaryAccountName || findAccountName(tx.secondaryAccountId);
     const primaryName = tx.primaryAccountName || findAccountName(tx.primaryAccountId);
 
@@ -351,8 +349,7 @@ function renderTransactionsSummaryList({
     title.textContent = secondaryName;
 
     const amountEl = document.createElement('span');
-    amountEl.className = `grid-summary-amount ${isMoneyOut ? 'negative' : 'positive'}`;
-    amountEl.textContent = formattedAmt;
+    amountEl.innerHTML = formattedAmt;
 
     rowPrimary.appendChild(title);
     rowPrimary.appendChild(amountEl);
