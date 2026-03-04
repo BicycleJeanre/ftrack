@@ -186,12 +186,24 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
 
     // Use perspective-transformed values with signed amounts
     const isMoneyOut = Number(budget?.transactionTypeId) === 2;
-    const signedAmount = Number(budget?.plannedAmount || budget?.amount || 0);
-    const formattedAmt = formatMoneyDisplay(signedAmount);
-    const primaryName = budget?.primaryAccountName || findAccountName(budget.primaryAccountId);
-    const secondaryName = budget?.secondaryAccountName || findAccountName(budget.secondaryAccountId);
     const statusName = typeof budget?.status === 'object' ? (budget.status?.name || 'planned') : (budget?.status || 'planned');
     const isCompleted = statusName === 'actual';
+    if (isCompleted) {
+      card.style.borderLeft = '3px solid var(--accent-primary)';
+      card.style.paddingLeft = '7px';
+    }
+    const signedPlannedAmount = Number(budget?.plannedAmount || budget?.amount || 0);
+    const rawActualAmount = hasValue(budget?.actualAmount) ? budget.actualAmount : budget?.status?.actualAmount;
+    const signedActualAmount = hasValue(rawActualAmount) ? Number(rawActualAmount) : null;
+    const actualDate = hasValue(budget?.actualDate) ? budget.actualDate : (hasValue(budget?.status?.actualDate) ? budget.status.actualDate : null);
+    const useActualDisplay = isCompleted;
+    const displayAmount = useActualDisplay ? signedActualAmount : signedPlannedAmount;
+    const formatOptionalMoney = (value) => (value === null || value === undefined || value === '') ? '—' : formatMoneyDisplay(value);
+    const formattedDisplayAmount = formatOptionalMoney(displayAmount);
+    const plainDisplayAmount = hasValue(displayAmount) ? formatCurrency(displayAmount) : '—';
+    const plainPlannedAmount = formatCurrency(signedPlannedAmount);
+    const primaryName = budget?.primaryAccountName || findAccountName(budget.primaryAccountId);
+    const secondaryName = budget?.secondaryAccountName || findAccountName(budget.secondaryAccountId);
 
     // Line 1: checkbox + secondary account name + amount
     const rowPrimary = document.createElement('div');
@@ -208,7 +220,23 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     secondaryNameEl.textContent = secondaryName;
 
     const amountEl = document.createElement('span');
-    amountEl.innerHTML = formattedAmt;
+    if (useActualDisplay) {
+      const actualAmountEl = document.createElement('span');
+      actualAmountEl.innerHTML = formattedDisplayAmount;
+
+      const plannedAmountEl = document.createElement('span');
+      plannedAmountEl.style.fontSize = '0.75em';
+      plannedAmountEl.style.color = 'var(--text-secondary)';
+      plannedAmountEl.textContent = `(Plan ${plainPlannedAmount})`;
+
+      amountEl.style.display = 'inline-flex';
+      amountEl.style.alignItems = 'center';
+      amountEl.style.gap = '6px';
+      amountEl.appendChild(actualAmountEl);
+      amountEl.appendChild(plannedAmountEl);
+    } else {
+      amountEl.innerHTML = formattedDisplayAmount;
+    }
 
     rowPrimary.appendChild(checkbox);
     rowPrimary.appendChild(secondaryNameEl);
@@ -220,11 +248,11 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
 
     const flowEl = document.createElement('span');
     flowEl.className = 'grid-summary-flow';
-    flowEl.innerHTML = `${primaryName} \u2192 ${formattedAmt} \u2192 ${secondaryName}`;
+    flowEl.textContent = `${primaryName} \u2192 ${plainDisplayAmount} \u2192 ${secondaryName}`;
 
     const dateEl = document.createElement('span');
     dateEl.className = 'grid-summary-date';
-    dateEl.textContent = budget?.occurrenceDate || '';
+    dateEl.textContent = useActualDisplay ? (actualDate || '') : (budget?.occurrenceDate || '');
 
     rowSecondary.appendChild(flowEl);
     rowSecondary.appendChild(dateEl);
@@ -367,9 +395,28 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
       const prevStatus = allBudgets[idx].status;
       const prevStatusName = typeof prevStatus === 'object' ? prevStatus?.name : (prevStatus || 'planned');
       const newStatusName = prevStatusName === 'actual' ? 'planned' : 'actual';
+      const existingActualAmountRaw = typeof prevStatus === 'object'
+        ? (hasValue(prevStatus?.actualAmount) ? prevStatus.actualAmount : allBudgets[idx]?.actualAmount)
+        : allBudgets[idx]?.actualAmount;
+      const existingActualDateRaw = typeof prevStatus === 'object'
+        ? (hasValue(prevStatus?.actualDate) ? prevStatus.actualDate : allBudgets[idx]?.actualDate)
+        : allBudgets[idx]?.actualDate;
+      const existingActualAmount = hasValue(existingActualAmountRaw) ? Math.abs(Number(existingActualAmountRaw)) : null;
+      const existingActualDate = hasValue(existingActualDateRaw) ? existingActualDateRaw : null;
+      const defaultActualAmount = Math.abs(Number(allBudgets[idx]?.amount ?? budget?.amount ?? 0));
+      const defaultActualDate = allBudgets[idx]?.occurrenceDate || budget?.occurrenceDate || null;
       const updatedStatus = typeof prevStatus === 'object'
-        ? { ...prevStatus, name: newStatusName }
-        : { name: newStatusName, actualAmount: null, actualDate: null };
+        ? {
+            ...prevStatus,
+            name: newStatusName,
+            actualAmount: newStatusName === 'actual' ? (existingActualAmount ?? defaultActualAmount) : existingActualAmount,
+            actualDate: newStatusName === 'actual' ? (existingActualDate ?? defaultActualDate) : existingActualDate
+          }
+        : {
+            name: newStatusName,
+            actualAmount: newStatusName === 'actual' ? (existingActualAmount ?? defaultActualAmount) : existingActualAmount,
+            actualDate: newStatusName === 'actual' ? (existingActualDate ?? defaultActualDate) : existingActualDate
+          };
       allBudgets[idx] = { ...allBudgets[idx], status: updatedStatus };
       await BudgetManager.saveAll(scenario, allBudgets);
       await onRefresh?.();
@@ -383,17 +430,35 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
       if (idx === -1) return;
       const prevStatus = allBudgets[idx].status;
       const newStatusName = statusSelect.value;
+      const enteredActualAmount = actualAmountInput.value !== '' ? Math.abs(Number(actualAmountInput.value)) : null;
+      const enteredActualDate = actualDateInput.value || null;
+      const existingActualAmountRaw = typeof prevStatus === 'object'
+        ? (hasValue(prevStatus?.actualAmount) ? prevStatus.actualAmount : allBudgets[idx]?.actualAmount)
+        : allBudgets[idx]?.actualAmount;
+      const existingActualDateRaw = typeof prevStatus === 'object'
+        ? (hasValue(prevStatus?.actualDate) ? prevStatus.actualDate : allBudgets[idx]?.actualDate)
+        : allBudgets[idx]?.actualDate;
+      const existingActualAmount = hasValue(existingActualAmountRaw) ? Math.abs(Number(existingActualAmountRaw)) : null;
+      const existingActualDate = hasValue(existingActualDateRaw) ? existingActualDateRaw : null;
+      const defaultActualAmount = Math.abs(Number(amountInput.value || allBudgets[idx]?.amount || 0));
+      const defaultActualDate = allBudgets[idx]?.occurrenceDate || null;
+      const resolvedActualAmount = newStatusName === 'actual'
+        ? (enteredActualAmount ?? existingActualAmount ?? defaultActualAmount)
+        : (enteredActualAmount ?? existingActualAmount);
+      const resolvedActualDate = newStatusName === 'actual'
+        ? (enteredActualDate || existingActualDate || defaultActualDate)
+        : (enteredActualDate || existingActualDate || null);
       const updatedStatus = typeof prevStatus === 'object'
         ? {
             ...prevStatus,
             name: newStatusName,
-            actualAmount: actualAmountInput.value !== '' ? Math.abs(Number(actualAmountInput.value)) : null,
-            actualDate: actualDateInput.value || null
+            actualAmount: resolvedActualAmount,
+            actualDate: resolvedActualDate
           }
         : {
             name: newStatusName,
-            actualAmount: actualAmountInput.value !== '' ? Math.abs(Number(actualAmountInput.value)) : null,
-            actualDate: actualDateInput.value || null
+            actualAmount: resolvedActualAmount,
+            actualDate: resolvedActualDate
           };
       allBudgets[idx] = {
         ...allBudgets[idx],
@@ -672,6 +737,7 @@ export async function loadBudgetGrid({
     const allBudgets = await getBudget(currentScenario.id);
     const accounts = currentScenario.accounts || [];
     const findAccountName = (id) => accounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
+    const secondaryAccountOptions = ['— None —', ...accounts.map((a) => a.name || String(a.id))];
 
     // Transform budgets to perspective rows using shared transformer.
     // Keep flipped rows so the account filter can show entries from either perspective.
@@ -1012,7 +1078,15 @@ export async function loadBudgetGrid({
         },
         { confirmMessage: (rowData) => `Delete budget entry: ${rowData.description || 'Untitled'}?` }
       ),
-      createTextColumn('Secondary', 'secondaryAccountName', { widthGrow: 1 }),
+      {
+        title: 'Secondary',
+        field: 'secondaryAccountName',
+        widthGrow: 1,
+        headerSort: true,
+        headerFilter: 'input',
+        headerHozAlign: 'left',
+        ...createListEditor(secondaryAccountOptions)
+      },
       {
         title: 'Type', field: 'transactionTypeName', minWidth: 90, widthGrow: 1,
         ...createListEditor(['Money In', 'Money Out']),
@@ -1054,15 +1128,21 @@ export async function loadBudgetGrid({
           const prevStatus = allBudgetsForToggle[idx].status;
           const prevStatusName = typeof prevStatus === 'object' ? prevStatus?.name : (prevStatus || 'planned');
           const newStatusName = prevStatusName === 'actual' ? 'planned' : 'actual';
-          // When marking as actual, default actual values to planned if not already set
-          const prevActualAmount = typeof prevStatus === 'object' ? prevStatus?.actualAmount : null;
-          const prevActualDate   = typeof prevStatus === 'object' ? prevStatus?.actualDate   : null;
+          // Default from planned only when no prior actual override is saved
+          const prevActualAmountRaw = typeof prevStatus === 'object'
+            ? (hasValue(prevStatus?.actualAmount) ? prevStatus.actualAmount : allBudgetsForToggle[idx]?.actualAmount)
+            : allBudgetsForToggle[idx]?.actualAmount;
+          const prevActualDateRaw = typeof prevStatus === 'object'
+            ? (hasValue(prevStatus?.actualDate) ? prevStatus.actualDate : allBudgetsForToggle[idx]?.actualDate)
+            : allBudgetsForToggle[idx]?.actualDate;
+          const prevActualAmount = hasValue(prevActualAmountRaw) ? Math.abs(Number(prevActualAmountRaw)) : null;
+          const prevActualDate = hasValue(prevActualDateRaw) ? prevActualDateRaw : null;
           const resolvedActualAmount = newStatusName === 'actual'
             ? (prevActualAmount ?? row.plannedAmount ?? null)
-            : null;
+            : prevActualAmount;
           const resolvedActualDate = newStatusName === 'actual'
             ? (prevActualDate ?? row.occurrenceDate ?? null)
-            : null;
+            : prevActualDate;
           const updatedStatus = typeof prevStatus === 'object'
             ? { ...prevStatus, name: newStatusName, actualAmount: resolvedActualAmount, actualDate: resolvedActualDate }
             : { name: newStatusName, actualAmount: resolvedActualAmount, actualDate: resolvedActualDate };
@@ -1101,6 +1181,33 @@ export async function loadBudgetGrid({
             if (field === 'occurrenceDate') allBudgetsForEdit[idx].occurrenceDate = value;
             if (field === 'description') allBudgetsForEdit[idx].description = value;
             if (field === 'transactionTypeName') allBudgetsForEdit[idx].transactionTypeId = value === 'Money Out' ? 2 : 1;
+            if (field === 'secondaryAccountName') {
+              if (!value || value === '— None —') {
+                allBudgetsForEdit[idx].secondaryAccountId = null;
+              } else {
+                const matchedAccount = accounts.find((a) => String(a.name || a.id) === String(value));
+                allBudgetsForEdit[idx].secondaryAccountId = matchedAccount ? Number(matchedAccount.id) : null;
+              }
+            }
+            if (field === 'plannedAmount') {
+              allBudgetsForEdit[idx].amount = Math.abs(Number(value || 0));
+            }
+            if (field === 'actualAmount') {
+              const prevStatus = allBudgetsForEdit[idx].status;
+              const normalizedActualAmount = value !== null && value !== undefined && value !== ''
+                ? Math.abs(Number(value))
+                : null;
+              allBudgetsForEdit[idx].status = typeof prevStatus === 'object'
+                ? { ...prevStatus, actualAmount: normalizedActualAmount }
+                : { name: prevStatus || 'planned', actualAmount: normalizedActualAmount, actualDate: null };
+            }
+            if (field === 'actualDate') {
+              const prevStatus = allBudgetsForEdit[idx].status;
+              const normalizedActualDate = value || null;
+              allBudgetsForEdit[idx].status = typeof prevStatus === 'object'
+                ? { ...prevStatus, actualDate: normalizedActualDate }
+                : { name: prevStatus || 'planned', actualAmount: null, actualDate: normalizedActualDate };
+            }
             await BudgetManager.saveAll(scenarioId, allBudgetsForEdit);
             state?.bumpBudgetGridLoadToken?.(); // Bump token after data modification
             callbacks?.updateBudgetTotals?.();

@@ -54,12 +54,13 @@ export async function saveAll(scenarioId, budgets) {
         let nextId = allocateNextId(budgets);
 
         data.scenarios[scenarioIndex].budgets = budgets.map(budget => {
+            const hasValue = (value) => value !== null && value !== undefined && value !== '';
             // Normalize budget to storage format: only store IDs, not objects
             let statusObj;
             if (budget.status && typeof budget.status === 'object') {
-                const actual = budget.status.actualAmount !== undefined && budget.status.actualAmount !== null
-                    ? Math.abs(budget.status.actualAmount)
-                    : budget.status.actualAmount;
+                const actual = hasValue(budget.status.actualAmount)
+                    ? Math.abs(Number(budget.status.actualAmount))
+                    : null;
                 statusObj = {
                     ...budget.status,
                     actualAmount: actual
@@ -67,11 +68,26 @@ export async function saveAll(scenarioId, budgets) {
             } else {
                 statusObj = {
                     name: budget.status || 'planned',
-                    actualAmount: budget.status?.actualAmount !== undefined && budget.status?.actualAmount !== null 
-                      ? Math.abs(budget.status.actualAmount) 
-                      : null,
+                    actualAmount: null,
                     actualDate: null 
                 };
+            }
+
+            const statusName = String(statusObj?.name || 'planned').toLowerCase();
+            if (statusName === 'actual') {
+                if (!hasValue(statusObj.actualAmount)) {
+                    statusObj.actualAmount = Math.abs(Number(budget.amount || 0));
+                }
+                if (!hasValue(statusObj.actualDate)) {
+                    statusObj.actualDate = budget.occurrenceDate || null;
+                }
+            } else {
+                statusObj.actualAmount = hasValue(statusObj.actualAmount)
+                    ? Math.abs(Number(statusObj.actualAmount))
+                    : null;
+                statusObj.actualDate = hasValue(statusObj.actualDate)
+                    ? statusObj.actualDate
+                    : null;
             }
 
             const normalized = {
