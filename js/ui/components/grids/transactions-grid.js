@@ -708,7 +708,7 @@ export async function loadMasterTransactionsGrid({
         // Detail-mode controls are built later, after periods are available.
         transactionsHeader.classList.add('card-header--filters-inline');
       } else {
-        transactionsHeader.classList.remove('card-header--filters-inline');
+        transactionsHeader.classList.add('card-header--filters-inline');
 
         const accountFilterItem = document.createElement('div');
         accountFilterItem.className = 'header-filter-item';
@@ -867,6 +867,10 @@ export async function loadMasterTransactionsGrid({
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
 
+        // Icon actions
+        const iconActions = document.createElement('div');
+        iconActions.className = 'header-icon-actions';
+        
         const addButton = document.createElement('button');
         addButton.className = 'icon-btn';
         addButton.title = 'Add Transaction';
@@ -877,8 +881,9 @@ export async function loadMasterTransactionsGrid({
         refreshButton.title = 'Refresh Transactions';
         refreshButton.textContent = '⟳';
 
-        controls.appendChild(addButton);
-        controls.appendChild(refreshButton);
+        iconActions.appendChild(addButton);
+        iconActions.appendChild(refreshButton);
+        controls.appendChild(iconActions);
 
         addButton.addEventListener('click', async (e) => {
           e.stopPropagation();
