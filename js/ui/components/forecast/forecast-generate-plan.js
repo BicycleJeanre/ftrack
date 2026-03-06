@@ -127,7 +127,8 @@ function buildGoalTypeOptions() {
     { value: 'reach_balance_by_date', label: 'Reach balance target' },
     { value: 'pay_down_by_date', label: 'Pay down to target' },
     { value: 'increase_by_delta', label: 'Increase by delta' },
-    { value: 'maintain_floor', label: 'Maintain floor' }
+    { value: 'maintain_floor', label: 'Maintain floor' },
+    { value: 'minimize_payment', label: 'Reach target (min payment)' }
   ];
 }
 
@@ -817,14 +818,19 @@ async function loadAdvancedGoalSolverSection({
     form.appendChild(deltaField);
     form.appendChild(floorField);
     form.appendChild(makeGField('Start', startDateInput));
-    form.appendChild(makeGField('End', endDateInput));
+    const endDateFieldEl = makeGField('End', endDateInput);
+    form.appendChild(endDateFieldEl);
     content.appendChild(form);
 
+    const endDateField = document.querySelector('[data-end-date-field]') || endDateInput.parentElement;
     const updateGAmountVisibility = () => {
       const t = typeSelect.value;
-      targetField.style.display = (t === 'reach_balance_by_date' || t === 'pay_down_by_date') ? '' : 'none';
+      targetField.style.display = (t === 'reach_balance_by_date' || t === 'pay_down_by_date' || t === 'minimize_payment') ? '' : 'none';
       deltaField.style.display = t === 'increase_by_delta' ? '' : 'none';
       floorField.style.display = t === 'maintain_floor' ? '' : 'none';
+      if (endDateInput.parentElement) {
+        endDateInput.parentElement.style.display = (t === 'minimize_payment') ? 'none' : '';
+      }
     };
     updateGAmountVisibility();
 

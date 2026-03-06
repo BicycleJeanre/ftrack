@@ -163,6 +163,7 @@ function calculateOneOffAdjustment({ requirement, recurringAmount, monthlyCount 
     targetAmount = startingBalance + goal.deltaAmount;
   } else if (goal.type === 'pay_down_by_date') {
     targetAmount = goal.targetAmount != null ? goal.targetAmount : 0;
+      const result = lp.Solve(model);
   } else {
     return 0;
   }
@@ -311,6 +312,31 @@ function buildGoalRequirements({ scenario, goals }) {
       // "Pay down" means move the balance toward the target from whichever side it's on.
       const toMove = Math.max(0, startingBalance < target ? target - startingBalance : startingBalance - target);
       requiredMonthly = toMove / monthsToGoal;
+    } else if (goal.type === 'minimize_payment') {
+      if (goal.targetAmount == null) {
+        issues.push(`Minimize-payment goal missing target amount for account: ${account.name}`);
+        continue;
+      }
+      // Force endDate to scenario end; ignore user input
+      const forcedEndDate = scenarioEnd;
+      const forcedMonthsToGoal = calculateMonthsBetweenDates(startDate, forcedEndDate);
+      if (!forcedMonthsToGoal || forcedMonthsToGoal <= 0) {
+        issues.push(`Goal cannot be solved: scenario must extend past start date for account: ${account.name}`);
+        continue;
+      }
+      requiredMonthly = calculateContributionAmount(startingBalance, goal.targetAmount, forcedMonthsToGoal, annualRate);
+      // Update monthsToGoal and endDate for this requirement
+      const req = {
+        goal,
+        account,
+        startDate,
+        endDate: forcedEndDate,
+        monthsToGoal: forcedMonthsToGoal,
+        requiredMonthly,
+        startingBalance
+      };
+      requirements.push(req);
+      continue;  // Skip the default push below
     } else {
       issues.push(`Unknown goal type: ${goal.type}`);
       continue;
@@ -374,6 +400,32 @@ function solveWithLp({ lp, requirements, constraints, lockedAccountIds, effectiv
     };
     if (model.constraints.totalOutflow) {
       model.variables[varName].totalOutflow = 1;
+    }
+  }
+
+  // Build account-level constraints for movement caps (enforces total per account, not per goal)
+  const accountsByAccountId = {};
+  for (const req of requirements) {
+    const accountId = String(req.goal.accountId);
+    if (!accountsByAccountId[accountId]) {
+      accountsByAccountId[accountId] = [];
+    }
+    accountsByAccountId[accountId].push(req);
+  }
+
+  for (const [accountId, reqs] of Object.entries(accountsByAccountId)) {
+    const perAccountCap = maxMovementByAccountId[accountId];
+    if (perAccountCap == null) continue;
+    
+    // Create account-level constraint
+    const accountCapKey = `acct_cap_${accountId}`;
+    model.constraints[accountCapKey] = { max: Math.max(0, asNumber(perAccountCap, 0)) };
+    
+    // Add variables to this constraint (sum of all goals on this account)
+    for (const req of reqs) {
+      const varName = `g_${String(req.goal.id).replaceAll('-', '_')}`;
+      if (!model.variables[varName]) continue;
+      model.variables[varName][accountCapKey] = 1;
     }
   }
 
@@ -522,7 +574,6 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
   const failures = [];
 
   for (const goal of goals) {
-    if (!goal.accountId) continue;
     const account = getAccountById(accounts, goal.accountId);
     const startingBalance = getStartingBalance(account);
     const records = projectionsByAccountId.get(Number(goal.accountId)) || [];
@@ -550,6 +601,7 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
           failures.push({ goalId: goal.id, type: goal.type, shortfall: endBal - target });
         }
       }
+      const result = lp.Solve(model);
     } else if (goal.type === 'increase_by_delta') {
       if (goal.deltaAmount == null) continue;
       const delta = endBal - startBal;
@@ -562,6 +614,11 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
       const minBal = Math.min(startingBalance, ...records.map((r) => asNumber(r.balance, startingBalance)));
       if (minBal + 1e-6 < floor) {
         failures.push({ goalId: goal.id, type: goal.type, shortfall: floor - minBal });
+      }
+    } else if (goal.type === 'minimize_payment') {
+      if (goal.targetAmount == null) continue;
+      if (endBal + 1e-6 < goal.targetAmount) {
+        failures.push({ goalId: goal.id, type: goal.type, shortfall: goal.targetAmount - endBal });
       }
     }
   }
