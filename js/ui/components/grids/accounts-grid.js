@@ -16,6 +16,7 @@ import {
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openPeriodicChangeScheduleModal } from '../modals/periodic-change-schedule-modal.js';
 import { openTagEditorModal } from '../modals/tag-editor-modal.js';
+import { createFilterModal } from '../modals/filter-modal.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 import { GridStateManager } from './grid-state.js';
@@ -1093,11 +1094,6 @@ export async function loadAccountsGrid({
       controls.innerHTML = '';
       accountsHeader.classList.add('card-header--filters-inline');
 
-      const groupByItem = document.createElement('div');
-      groupByItem.className = 'header-filter-item';
-      const groupByLabel = document.createElement('label');
-      groupByLabel.htmlFor = 'account-grouping-select';
-      groupByLabel.textContent = 'Group By:';
       const groupBySelect = document.createElement('select');
       groupBySelect.id = 'account-grouping-select';
       groupBySelect.className = 'input-select';
@@ -1111,15 +1107,7 @@ export async function loadAccountsGrid({
         groupBySelect.appendChild(opt);
       });
       groupBySelect.value = activeGroupBy;
-      groupByItem.appendChild(groupByLabel);
-      groupByItem.appendChild(groupBySelect);
-      controls.appendChild(groupByItem);
 
-      const typeFilterItem = document.createElement('div');
-      typeFilterItem.className = 'header-filter-item';
-      const typeFilterLabel = document.createElement('label');
-      typeFilterLabel.htmlFor = 'account-type-filter-select';
-      typeFilterLabel.textContent = 'Type:';
       const typeFilterSelect = document.createElement('select');
       typeFilterSelect.id = 'account-type-filter-select';
       typeFilterSelect.className = 'input-select';
@@ -1134,9 +1122,6 @@ export async function loadAccountsGrid({
         typeFilterSelect.appendChild(option);
       });
       typeFilterSelect.value = activeTypeFilter;
-      typeFilterItem.appendChild(typeFilterLabel);
-      typeFilterItem.appendChild(typeFilterSelect);
-      controls.appendChild(typeFilterItem);
 
       const addButton = document.createElement('button');
       addButton.className = 'icon-btn';
@@ -1148,11 +1133,31 @@ export async function loadAccountsGrid({
       refreshButton.title = 'Refresh Accounts';
       refreshButton.textContent = '⟳';
 
-      const iconActions = document.createElement('div');
-      iconActions.className = 'header-icon-actions';
-      iconActions.appendChild(addButton);
-      iconActions.appendChild(refreshButton);
-      controls.appendChild(iconActions);
+      const modalActions = document.createElement('div');
+      modalActions.className = 'modal-filter-actions';
+      modalActions.appendChild(addButton);
+      modalActions.appendChild(refreshButton);
+
+      const filterButton = document.createElement('button');
+      filterButton.type = 'button';
+      filterButton.className = 'icon-btn';
+      filterButton.title = 'Open filters';
+      filterButton.textContent = '⚙';
+      filterButton.setAttribute('aria-label', 'Filters');
+
+      createFilterModal({
+        id: 'accounts-filters-modal',
+        title: 'Filter Accounts',
+        trigger: filterButton,
+        items: [
+          { id: 'group-by', label: 'Group By:', control: groupBySelect },
+          { id: 'type', label: 'Type:', control: typeFilterSelect },
+          { id: 'actions', label: 'Actions:', control: modalActions }
+        ]
+      });
+
+      filterButton.style.marginLeft = 'auto';
+      controls.appendChild(filterButton);
 
       groupBySelect.addEventListener('change', async () => {
         accountsGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;

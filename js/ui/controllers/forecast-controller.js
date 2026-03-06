@@ -12,6 +12,7 @@ import { openRecurrenceModal } from '../components/modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../components/modals/periodic-change-modal.js';
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
+import { createFilterModal } from '../components/modals/filter-modal.js';
 import keyboardShortcuts from '../../shared/keyboard-shortcuts.js';
 import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';
@@ -1028,40 +1029,57 @@ async function loadDebtSummaryCards(container, options = {}) {
 
   const scrollSnapshot = getPageScrollSnapshot();
 
-  // Render account-type selector above the totals card (header refresh handles refresh)
+  // Render account-type selector in filter modal
   let filterSelect = container.querySelector('#summary-cards-type-filter');
   if (!options.simple) {
     // Remove any old filter holder or toolbars
     container.querySelectorAll(':scope > .summary-filter-holder, :scope > .summary-cards-toolbar').forEach((el) => el.remove());
     if (!filterSelect) {
-      // Clear previous content so we can insert fresh filter/summary
       container.innerHTML = '';
 
-      const filterHolder = document.createElement('div');
-      filterHolder.className = 'summary-filter-holder';
+      // Create filter controls
+      const typeSelect = document.createElement('select');
+      typeSelect.id = 'summary-cards-type-filter';
+      typeSelect.className = 'input-select control-select';
+      ['All', 'Liability', 'Asset'].forEach((option) => {
+        const opt = document.createElement('option');
+        opt.value = option;
+        opt.textContent = option;
+        typeSelect.appendChild(opt);
+      });
 
-      const filterItem = document.createElement('div');
-      filterItem.className = 'toolbar-item';
-      filterItem.innerHTML = `
-        <label for="summary-cards-type-filter" class="text-muted control-label">Account Type:</label>
-        <select id="summary-cards-type-filter" class="input-select control-select">
-          <option value="All">All</option>
-          <option value="Liability">Liability</option>
-          <option value="Asset">Asset</option>
-        </select>
-      `;
+      typeSelect.addEventListener('change', () => {
+        summaryCardsAccountTypeFilter = typeSelect.value;
+        loadDebtSummaryCards(container, options);
+      });
 
-      filterHolder.appendChild(filterItem);
-      container.appendChild(filterHolder);
-      filterSelect = filterItem.querySelector('#summary-cards-type-filter');
+      // Create filter button and modal
+      const filterButton = document.createElement('button');
+      filterButton.type = 'button';
+      filterButton.className = 'icon-btn';
+      filterButton.title = 'Open filters';
+      filterButton.textContent = '⚙';
+      filterButton.setAttribute('aria-label', 'Filters');
+
+      const filterModal = createFilterModal({
+        id: 'debt-summary-filter-modal',
+        title: 'Filter Debt Summary',
+        trigger: filterButton,
+        items: [
+          { id: 'account-type', label: 'Account Type:', control: typeSelect }
+        ]
+      });
+
+      // Create toolbar container
+      const toolbar = document.createElement('div');
+      toolbar.className = 'summary-filter-holder';
+      toolbar.appendChild(filterButton);
+      container.appendChild(toolbar);
+      filterSelect = typeSelect;
     }
 
     if (filterSelect) {
       filterSelect.value = summaryCardsAccountTypeFilter;
-      filterSelect.onchange = () => {
-        summaryCardsAccountTypeFilter = filterSelect.value;
-        loadDebtSummaryCards(container, options);
-      };
     }
   }
 
@@ -1535,37 +1553,57 @@ async function loadGeneralSummaryCards(container, options = {}) {
 
   let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
   if (!options.simple) {
-    toolbar = document.createElement('div');
-    toolbar.className = 'grid-toolbar summary-cards-toolbar';
+    // Create filter controls
+    const typeSelect = document.createElement('select');
+    typeSelect.id = 'general-summary-type-filter';
+    typeSelect.className = 'input-select control-select';
+    scopeOptions.forEach((option) => {
+      const opt = document.createElement('option');
+      opt.value = option;
+      opt.textContent = option;
+      typeSelect.appendChild(opt);
+    });
 
-    const typeItem = document.createElement('div');
-    typeItem.className = 'toolbar-item';
-    typeItem.innerHTML = `
-      <label for="general-summary-type-filter" class="text-muted control-label">Account Type:</label>
-      <select id="general-summary-type-filter" class="input-select control-select">
-        ${scopeOptions.map(o => `<option value="${o}">${o}</option>`).join('')}
-      </select>
-    `;
+    const accountSelect = document.createElement('select');
+    accountSelect.id = 'general-summary-account';
+    accountSelect.className = 'input-select control-select';
 
-    const accountItem = document.createElement('div');
-    accountItem.className = 'toolbar-item';
-    accountItem.innerHTML = `
-      <label for="general-summary-account" class="text-muted control-label">Account:</label>
-      <select id="general-summary-account" class="input-select control-select"></select>
-    `;
-
-    toolbar.appendChild(typeItem);
-    toolbar.appendChild(accountItem);
-    container.appendChild(toolbar);
-
-    // Populate and wire up the filters
-    const typeSelect = toolbar.querySelector('#general-summary-type-filter');
-    const accountSelect = toolbar.querySelector('#general-summary-account');
-    typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
-    typeSelect.onchange = async () => {
+    typeSelect.addEventListener('change', async () => {
       generalSummaryScope = typeSelect.value;
       await loadGeneralSummaryCards(container, options);
-    };
+    });
+
+    accountSelect.addEventListener('change', async () => {
+      generalSummaryAccountId = Number(accountSelect.value) || 0;
+      await loadGeneralSummaryCards(container, options);
+    });
+
+    // Create filter button and modal
+    const filterButton = document.createElement('button');
+    filterButton.type = 'button';
+    filterButton.className = 'icon-btn';
+    filterButton.title = 'Open filters';
+    filterButton.textContent = '⚙';
+    filterButton.setAttribute('aria-label', 'Filters');
+
+    const filterModal = createFilterModal({
+      id: 'general-summary-filter-modal',
+      title: 'Filter Summary',
+      trigger: filterButton,
+      items: [
+        { id: 'account-type', label: 'Account Type:', control: typeSelect },
+        { id: 'account', label: 'Account:', control: accountSelect }
+      ]
+    });
+
+    // Create toolbar container
+    toolbar = document.createElement('div');
+    toolbar.className = 'grid-toolbar summary-cards-toolbar';
+    toolbar.appendChild(filterButton);
+    container.appendChild(toolbar);
+
+    // Populate filter values
+    typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
 
     const selectedId = Number(generalSummaryAccountId) || 0;
     const opts = ['<option value="0">All</option>']
@@ -1579,10 +1617,6 @@ async function loadGeneralSummaryCards(container, options = {}) {
     accountSelect.innerHTML = opts;
     accountSelect.value = String(selectedId);
     generalSummaryAccountId = Number(accountSelect.value) || 0;
-    accountSelect.onchange = async () => {
-      generalSummaryAccountId = Number(accountSelect.value) || 0;
-      await loadGeneralSummaryCards(container, options);
-    };
   }
 
 

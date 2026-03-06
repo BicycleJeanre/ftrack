@@ -6,6 +6,7 @@ import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openTextInputModal } from '../modals/text-input-modal.js';
+import { createFilterModal } from '../modals/filter-modal.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
@@ -708,13 +709,9 @@ export async function loadMasterTransactionsGrid({
         // Detail-mode controls are built later, after periods are available.
         transactionsHeader.classList.add('card-header--filters-inline');
       } else {
-        transactionsHeader.classList.remove('card-header--filters-inline');
+        transactionsHeader.classList.add('card-header--filters-inline');
 
-        const accountFilterItem = document.createElement('div');
-        accountFilterItem.className = 'header-filter-item';
-        const accountFilterLabel = document.createElement('label');
-        accountFilterLabel.htmlFor = 'tx-account-filter-select';
-        accountFilterLabel.textContent = 'Account:';
+        // Create filter controls
         const accountFilterSelect = document.createElement('select');
         accountFilterSelect.id = 'tx-account-filter-select';
         accountFilterSelect.className = 'input-select';
@@ -726,7 +723,6 @@ export async function loadMasterTransactionsGrid({
             opt.textContent = account.name;
             accountFilterSelect.appendChild(opt);
           });
-        // Default to stored state, or first account
         const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
         const storedSummaryAccount = dropdownState[accountFilterStateKey];
         const defaultSummaryAccount = storedSummaryAccount || (firstAccountId ? String(firstAccountId) : '');
@@ -734,14 +730,10 @@ export async function loadMasterTransactionsGrid({
           accountFilterSelect.value = defaultSummaryAccount;
           transactionsGridState.state.dropdowns[accountFilterStateKey] = defaultSummaryAccount;
         }
-        // Account selector filters summary cards
         accountFilterSelect.addEventListener('change', (e) => {
           transactionsGridState.state.dropdowns[accountFilterStateKey] = e.target.value;
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
-        accountFilterItem.appendChild(accountFilterLabel);
-        accountFilterItem.appendChild(accountFilterSelect);
-        controls.appendChild(accountFilterItem);
 
         // Period Type (summary mode)
         const periodTypeSelect = document.createElement('select');
@@ -754,15 +746,6 @@ export async function loadMasterTransactionsGrid({
           periodTypeSelect.appendChild(opt);
         });
         periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
-        const periodTypeItem = document.createElement('div');
-        periodTypeItem.className = 'header-filter-item';
-        const periodTypeLabel = document.createElement('label');
-        periodTypeLabel.htmlFor = 'tx-period-type-select-summary';
-        periodTypeLabel.textContent = 'Period Type:';
-        periodTypeItem.appendChild(periodTypeLabel);
-        periodTypeItem.appendChild(periodTypeSelect);
-        controls.appendChild(periodTypeItem);
-
         periodTypeSelect.addEventListener('change', async () => {
           state?.setActualPeriodType?.(periodTypeSelect.value);
           state?.setTransactionsPeriods?.([]);
@@ -778,8 +761,13 @@ export async function loadMasterTransactionsGrid({
         allPeriodsOptSummary.value = '';
         allPeriodsOptSummary.textContent = 'All';
         periodSelectSummary.appendChild(allPeriodsOptSummary);
-        
-        // Periods will be populated dynamically after they're loaded
+        const summaryPeriods = state?.getTransactionsPeriods?.() || [];
+        summaryPeriods.forEach((p) => {
+          const opt = document.createElement('option');
+          opt.value = String(p.id);
+          opt.textContent = p.label || String(p.id);
+          periodSelectSummary.appendChild(opt);
+        });
         const curPeriodSummary = state?.getActualPeriod?.();
         if (curPeriodSummary) periodSelectSummary.value = String(curPeriodSummary);
 
@@ -795,16 +783,10 @@ export async function loadMasterTransactionsGrid({
         nextBtnSummary.textContent = '▶';
         nextBtnSummary.title = 'Next period';
 
-        const periodItemSummary = document.createElement('div');
-        periodItemSummary.className = 'header-filter-item';
-        const periodLabelSummary = document.createElement('label');
-        periodLabelSummary.htmlFor = 'tx-period-select-summary';
-        periodLabelSummary.textContent = 'Period:';
-        periodItemSummary.appendChild(periodLabelSummary);
-        periodItemSummary.appendChild(periodSelectSummary);
-        periodItemSummary.appendChild(prevBtnSummary);
-        periodItemSummary.appendChild(nextBtnSummary);
-        controls.appendChild(periodItemSummary);
+        const periodNavSummary = document.createElement('div');
+        periodNavSummary.className = 'period-nav';
+        periodNavSummary.appendChild(prevBtnSummary);
+        periodNavSummary.appendChild(nextBtnSummary);
 
         periodSelectSummary.addEventListener('change', async () => {
           const nextPeriodId = periodSelectSummary.value ? String(periodSelectSummary.value) : null;
@@ -852,20 +834,19 @@ export async function loadMasterTransactionsGrid({
         });
         const currentGroupBySummary = state?.getGroupBy?.() || '';
         groupBySelectSummary.value = currentGroupBySummary;
-        const groupByItemSummary = document.createElement('div');
-        groupByItemSummary.className = 'header-filter-item';
-        const groupByLabelSummary = document.createElement('label');
-        groupByLabelSummary.htmlFor = 'tx-grouping-select-summary';
-        groupByLabelSummary.textContent = 'Group:';
-        groupByItemSummary.appendChild(groupByLabelSummary);
-        groupByItemSummary.appendChild(groupBySelectSummary);
-        controls.appendChild(groupByItemSummary);
-
         groupBySelectSummary.addEventListener('change', () => {
           transactionsGridState.state.dropdowns[groupByStateKey] = groupBySelectSummary.value;
           state?.setGroupBy?.(groupBySelectSummary.value);
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
+
+        // Create filter button and modal
+        const filterButton = document.createElement('button');
+        filterButton.type = 'button';
+        filterButton.className = 'icon-btn';
+        filterButton.title = 'Open filters';
+        filterButton.textContent = '⚙';
+        filterButton.setAttribute('aria-label', 'Filters');
 
         const addButton = document.createElement('button');
         addButton.className = 'icon-btn';
@@ -877,8 +858,27 @@ export async function loadMasterTransactionsGrid({
         refreshButton.title = 'Refresh Transactions';
         refreshButton.textContent = '⟳';
 
-        controls.appendChild(addButton);
-        controls.appendChild(refreshButton);
+        const modalActions = document.createElement('div');
+        modalActions.className = 'modal-filter-actions';
+        modalActions.appendChild(addButton);
+        modalActions.appendChild(refreshButton);
+
+        const filterModal = createFilterModal({
+          id: 'tx-filters-summary-modal',
+          title: 'Filter Transactions',
+          trigger: filterButton,
+          items: [
+            { id: 'account', label: 'Account:', control: accountFilterSelect },
+            { id: 'period-type', label: 'Period Type:', control: periodTypeSelect },
+            { id: 'period', label: 'Period:', control: periodSelectSummary },
+            { id: 'period-nav', label: '', control: periodNavSummary },
+            { id: 'group-by', label: 'Group By:', control: groupBySelectSummary },
+            { id: 'actions', label: 'Actions:', control: modalActions }
+          ]
+        });
+
+        filterButton.style.marginLeft = 'auto';
+        controls.appendChild(filterButton);
 
         addButton.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -1103,17 +1103,6 @@ export async function loadMasterTransactionsGrid({
         if (controls) {
           controls.innerHTML = '';
 
-          const makeHeaderFilter = (id, labelText, selectEl) => {
-            const item = document.createElement('div');
-            item.className = 'header-filter-item';
-            const lbl = document.createElement('label');
-            lbl.htmlFor = id;
-            lbl.textContent = labelText;
-            item.appendChild(lbl);
-            item.appendChild(selectEl);
-            return item;
-          };
-
           // Account selector with filtering capability
           const accountFilterSelect = document.createElement('select');
           accountFilterSelect.id = 'tx-account-filter-select';
@@ -1126,7 +1115,6 @@ export async function loadMasterTransactionsGrid({
               opt.textContent = account.name;
               accountFilterSelect.appendChild(opt);
             });
-          // Default to stored state, or first account
           const storedDetailAccount = dropdownState[accountFilterStateKey];
           const detailFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
           const defaultDetailAccount = storedDetailAccount || (detailFirstAccountId ? String(detailFirstAccountId) : '');
@@ -1135,9 +1123,6 @@ export async function loadMasterTransactionsGrid({
             state?.setTransactionsAccountFilterId?.(Number(defaultDetailAccount));
             transactionsGridState.state.dropdowns[accountFilterStateKey] = defaultDetailAccount;
           }
-          controls.appendChild(makeHeaderFilter('tx-account-filter-select', 'Account:', accountFilterSelect));
-
-          // Handle account filter change - use Tabulator setFilter, no rebuild
           accountFilterSelect.addEventListener('change', (e) => {
             const nextId = e.target.value ? Number(e.target.value) : null;
             state?.setTransactionsAccountFilterId?.(nextId);
@@ -1151,18 +1136,25 @@ export async function loadMasterTransactionsGrid({
           periodTypeSelect.className = 'input-select';
           ['Day', 'Week', 'Month', 'Quarter', 'Year'].forEach((pt) => {
             const opt = document.createElement('option');
-            opt.value = pt; opt.textContent = pt;
+            opt.value = pt;
+            opt.textContent = pt;
             periodTypeSelect.appendChild(opt);
           });
           periodTypeSelect.value = state?.getActualPeriodType?.() || 'Month';
-          controls.appendChild(makeHeaderFilter('tx-period-type-select', 'Period Type:', periodTypeSelect));
+          periodTypeSelect.addEventListener('change', async () => {
+            state?.setActualPeriodType?.(periodTypeSelect.value);
+            state?.setTransactionsPeriods?.([]);
+            state?.setActualPeriod?.(null);
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          });
 
           // Period + ◀ ▶ navigation
           const periodSelect = document.createElement('select');
           periodSelect.id = 'tx-period-select';
           periodSelect.className = 'input-select';
           const allPeriodsOpt = document.createElement('option');
-          allPeriodsOpt.value = ''; allPeriodsOpt.textContent = 'All';
+          allPeriodsOpt.value = '';
+          allPeriodsOpt.textContent = 'All';
           periodSelect.appendChild(allPeriodsOpt);
           periods.forEach((p) => {
             const opt = document.createElement('option');
@@ -1178,73 +1170,23 @@ export async function loadMasterTransactionsGrid({
           prevBtn.className = 'period-btn';
           prevBtn.textContent = '◀';
           prevBtn.title = 'Previous period';
+
           const nextBtn = document.createElement('button');
           nextBtn.type = 'button';
           nextBtn.className = 'period-btn';
           nextBtn.textContent = '▶';
           nextBtn.title = 'Next period';
 
-          const periodItem = document.createElement('div');
-          periodItem.className = 'header-filter-item';
-          const periodLabel = document.createElement('label');
-          periodLabel.htmlFor = 'tx-period-select';
-          periodLabel.textContent = 'Period:';
-          periodItem.appendChild(periodLabel);
-          periodItem.appendChild(periodSelect);
-          periodItem.appendChild(prevBtn);
-          periodItem.appendChild(nextBtn);
-          controls.appendChild(periodItem);
+          const periodNav = document.createElement('div');
+          periodNav.className = 'period-nav';
+          periodNav.appendChild(prevBtn);
+          periodNav.appendChild(nextBtn);
 
-          // Group By
-          const groupBySelect = document.createElement('select');
-          groupBySelect.id = 'tx-grouping-select';
-          groupBySelect.className = 'input-select';
-          [
-            { value: '', label: 'None' },
-            { value: 'transactionTypeName', label: 'Transaction Type' },
-            { value: 'primaryAccountName', label: 'Primary Account' },
-            { value: 'secondaryAccountName', label: 'Secondary Account' },
-            { value: 'statusName', label: 'Status' }
-          ].forEach(({ value, label }) => {
-            const opt = document.createElement('option');
-            opt.value = value; opt.textContent = label;
-            groupBySelect.appendChild(opt);
-          });
-          // Restore detail-scoped grouping from state
-          const detailGroupBy = String(dropdownState[groupByStateKey] || '');
-          const currentGroupBy = detailGroupBy || state?.getGroupBy?.() || '';
-          groupBySelect.value = currentGroupBy;
-          if (currentGroupBy && !detailGroupBy) {
-            state?.setGroupBy?.(currentGroupBy);
-          }
-          controls.appendChild(makeHeaderFilter('tx-grouping-select', 'Group:', groupBySelect));
-
-          // Icon actions
-          const iconActions = document.createElement('div');
-          iconActions.className = 'header-icon-actions';
-          const addButton = document.createElement('button');
-          addButton.className = 'icon-btn';
-          addButton.title = 'Add Transaction';
-          addButton.textContent = '+';
-          const refreshButton = document.createElement('button');
-          refreshButton.className = 'icon-btn';
-          refreshButton.title = 'Refresh Transactions';
-          refreshButton.textContent = '⟳';
-          iconActions.appendChild(addButton);
-          iconActions.appendChild(refreshButton);
-          controls.appendChild(iconActions);
-
-          // Event listeners
-          periodTypeSelect.addEventListener('change', async () => {
-            state?.setActualPeriodType?.(periodTypeSelect.value);
-            state?.setTransactionsPeriods?.([]);
-            state?.setActualPeriod?.(null);
-            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-          });
           periodSelect.addEventListener('change', () => {
             state?.setActualPeriod?.(periodSelect.value || null);
             loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           });
+
           const periodIds = [null, ...periods.map((p) => p.id || null)];
           const changePeriodBy = (offset) => {
             const currentId = state?.getActualPeriod?.() ?? null;
@@ -1258,12 +1200,77 @@ export async function loadMasterTransactionsGrid({
           };
           prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
           nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
+
+          // Group By
+          const groupBySelect = document.createElement('select');
+          groupBySelect.id = 'tx-grouping-select';
+          groupBySelect.className = 'input-select';
+          [
+            { value: '', label: 'None' },
+            { value: 'transactionTypeName', label: 'Transaction Type' },
+            { value: 'primaryAccountName', label: 'Primary Account' },
+            { value: 'secondaryAccountName', label: 'Secondary Account' },
+            { value: 'statusName', label: 'Status' }
+          ].forEach(({ value, label }) => {
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = label;
+            groupBySelect.appendChild(opt);
+          });
+          const detailGroupBy = String(dropdownState[groupByStateKey] || '');
+          const currentGroupBy = detailGroupBy || state?.getGroupBy?.() || '';
+          groupBySelect.value = currentGroupBy;
+          if (currentGroupBy && !detailGroupBy) {
+            state?.setGroupBy?.(currentGroupBy);
+          }
+
           groupBySelect.addEventListener('change', () => {
             transactionsGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
             const field = groupBySelect.value;
             state?.setGroupBy?.(field || '');
             lastTransactionsDetailTable?.setGroupBy?.(field ? [field] : []);
           });
+
+          // Create filter button and modal
+          const filterButton = document.createElement('button');
+          filterButton.type = 'button';
+          filterButton.className = 'icon-btn';
+          filterButton.title = 'Open filters';
+          filterButton.textContent = '⚙';
+          filterButton.setAttribute('aria-label', 'Filters');
+
+          const addButton = document.createElement('button');
+          addButton.className = 'icon-btn';
+          addButton.title = 'Add Transaction';
+          addButton.textContent = '+';
+
+          const refreshButton = document.createElement('button');
+          refreshButton.className = 'icon-btn';
+          refreshButton.title = 'Refresh Transactions';
+          refreshButton.textContent = '⟳';
+
+          const modalActions = document.createElement('div');
+          modalActions.className = 'modal-filter-actions';
+          modalActions.appendChild(addButton);
+          modalActions.appendChild(refreshButton);
+
+          const filterModal = createFilterModal({
+            id: 'tx-filters-detail-modal',
+            title: 'Filter Transactions',
+            trigger: filterButton,
+            items: [
+              { id: 'account', label: 'Account:', control: accountFilterSelect },
+              { id: 'period-type', label: 'Period Type:', control: periodTypeSelect },
+              { id: 'period', label: 'Period:', control: periodSelect },
+              { id: 'period-nav', label: '', control: periodNav },
+              { id: 'group-by', label: 'Group By:', control: groupBySelect },
+              { id: 'actions', label: 'Actions:', control: modalActions }
+            ]
+          });
+
+          filterButton.style.marginLeft = 'auto';
+          controls.appendChild(filterButton);
+
           addButton.addEventListener('click', async (e) => {
             e.stopPropagation();
             try {
