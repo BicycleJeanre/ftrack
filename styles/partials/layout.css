@@ -663,6 +663,120 @@ body.dashboard-shell {
   min-height: 0;
 }
 
+/* ==== Advanced Goal Solver: 3-Column Layout ==== */
+/* Wide screens: 3 columns (Constraints, Goals, Solution) */
+@media (min-width: 1024px) {
+  .solver-panels {
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .solver-panels .dash-panel {
+    flex: 1;
+    overflow: hidden;
+    border-right: 1px solid var(--border-primary);
+  }
+
+  .solver-panels .dash-panel:last-child {
+    border-right: none;
+  }
+
+  .solver-panels .dash-panel-chevron {
+    display: none;
+  }
+}
+
+/* Narrow screens: Stack vertically with accordion */
+@media (max-width: 1023px) {
+  .solver-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow: visible;
+    width: 100%;
+  }
+
+  .solver-panels .dash-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-primary);
+    min-height: 52px;
+  }
+
+  .solver-panels .dash-panel:last-child {
+    border-bottom: none;
+  }
+
+  .solver-panels .dash-panel-header {
+    cursor: pointer;
+  }
+
+  .solver-panels .dash-panel-chevron {
+    display: inline-flex;
+  }
+
+  .solver-panels .dash-panel.panel-collapsed {
+    min-height: 52px;
+    flex: 0 0 52px;
+  }
+
+  .solver-panels .dash-panel.panel-collapsed .dash-panel-body {
+    display: none;
+  }
+
+  .solver-panels .dash-panel.panel-collapsed .dash-panel-chevron {
+    transform: rotate(-90deg);
+  }
+
+  .solver-panels .dash-panel-body {
+    overflow-y: auto;
+    min-height: 0;
+  }
+}
+
+/* Card Summary/Detail Toggle */
+.grid-summary-card[data-expanded="true"] .grid-summary-card-chevron {
+  transform: rotate(90deg);
+}
+
+/* Ensure form fields don't overflow card containers */
+.grid-summary-card {
+  overflow: hidden;
+}
+
+.grid-summary-card .grid-summary-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.grid-summary-card .grid-summary-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.grid-summary-card .grid-summary-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.grid-summary-card .grid-summary-input,
+.grid-summary-card .grid-summary-label {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
 /* Dashboard rows should treat embedded cards as full-width sections. */
 .dash-row-body > .forecast-card {
   width: 100%;

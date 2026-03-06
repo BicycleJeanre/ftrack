@@ -18,6 +18,7 @@ import { getScenario } from '../../../app/services/data-service.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.js';
+import { createModal } from '../modals/modal-factory.js';
 
 function resolveGoalWorkshopMode(scenario) {
   const persisted = scenario?.planning?.goalWorkshopMode;
@@ -270,9 +271,9 @@ async function loadAdvancedGoalSolverSection({
 
   const planningWindow = getScenarioPlanningWindow(scenario, 'advancedGoalSolver');
 
-  // --- Single consolidated card header (label + planning window dates + refresh) ---
+  // --- Header with settings modal trigger ---
   const solverHeader = document.createElement('div');
-  solverHeader.className = 'dash-panel-header card-header card-header--filters-inline goal-workshop-header';
+  solverHeader.className = 'dash-panel-header card-header goal-workshop-header';
 
   const headerLeft = document.createElement('div');
   headerLeft.className = 'card-header-actions';
@@ -281,73 +282,89 @@ async function loadAdvancedGoalSolverSection({
   headerLabel.textContent = 'Goal Workshop';
   headerLeft.appendChild(headerLabel);
 
-  const headerControls = document.createElement('div');
-  headerControls.className = 'card-header-controls';
-
-  const startFilterItem = document.createElement('div');
-  startFilterItem.className = 'header-filter-item';
-  const startLabel = document.createElement('label');
-  startLabel.textContent = 'Start:';
-  const startInput = document.createElement('input');
-  startInput.type = 'date';
-  startInput.className = 'input-select';
-  startInput.value = planningWindow?.startDate || '';
-  startFilterItem.appendChild(startLabel);
-  startFilterItem.appendChild(startInput);
-
-  const endFilterItem = document.createElement('div');
-  endFilterItem.className = 'header-filter-item';
-  const endLabel = document.createElement('label');
-  endLabel.textContent = 'End:';
-  const endInput = document.createElement('input');
-  endInput.type = 'date';
-  endInput.className = 'input-select';
-  endInput.value = planningWindow?.endDate || '';
-  endFilterItem.appendChild(endLabel);
-  endFilterItem.appendChild(endInput);
-
-  headerControls.appendChild(startFilterItem);
-  headerControls.appendChild(endFilterItem);
-
   const headerIconActions = document.createElement('div');
   headerIconActions.className = 'header-icon-actions';
-  for (const { value, label } of [{ value: 'simple', label: '○ Simple' }, { value: 'advanced', label: '◈ Advanced' }]) {
-    const modeBtn = document.createElement('button');
-    modeBtn.type = 'button';
-    modeBtn.className = `icon-btn${value === 'advanced' ? ' icon-btn--active' : ''}`;
-    modeBtn.title = label;
-    modeBtn.textContent = label;
-    modeBtn.addEventListener('click', async () => {
-      await persistGoalWorkshopMode({ scenarioId: scenario.id, mode: value, scenarioState });
-      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
-    });
-    headerIconActions.appendChild(modeBtn);
-  }
+  const settingsBtn = document.createElement('button');
+  settingsBtn.className = 'icon-btn';
+  settingsBtn.type = 'button';
+  settingsBtn.title = 'Settings';
+  settingsBtn.textContent = '⚙';
+  headerIconActions.appendChild(settingsBtn);
 
   solverHeader.appendChild(headerLeft);
-  solverHeader.appendChild(headerControls);
   solverHeader.appendChild(headerIconActions);
   container.appendChild(solverHeader);
 
   let planWindowTimer = null;
-  const schedulePlanWindowPersist = () => {
-    clearTimeout(planWindowTimer);
-    planWindowTimer = setTimeout(async () => {
-      const next = normalizeDateRange({ startDate: startInput.value, endDate: endInput.value });
-      if (next.startDate && next.endDate) {
-        if (next.startDate !== startInput.value) startInput.value = next.startDate;
-        if (next.endDate !== endInput.value) endInput.value = next.endDate;
-        try {
-          await persistPlanningWindow({ scenarioId: scenario.id, planningKey: 'advancedGoalSolver', nextWindow: next, scenarioState });
-          await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
-        } catch (err) {
-          notifyError('Failed to save planning window: ' + (err?.message || String(err)));
+  const openHeaderModal = () => {
+    const { modal, close } = createModal({ contentClass: 'modal-dialog' });
+    modal.innerHTML = `
+      <div class="modal-header">
+        <h4 class="modal-title">Goal Workshop Settings</h4>
+        <button type="button" class="modal-close" title="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="modal-start-date">Planning Start Date:</label>
+          <input type="date" id="modal-start-date" class="input-select" value="${planningWindow?.startDate || ''}" />
+        </div>
+        <div class="form-group">
+          <label for="modal-end-date">Planning End Date:</label>
+          <input type="date" id="modal-end-date" class="input-select" value="${planningWindow?.endDate || ''}" />
+        </div>
+        <div class="form-group">
+          <label>Mode:</label>
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <button type="button" class="icon-btn mode-btn" data-mode="simple">○ Simple</button>
+            <button type="button" class="icon-btn mode-btn icon-btn--active" data-mode="advanced">◈ Advanced</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn--secondary modal-close-btn">Close</button>
+      </div>
+    `;
+
+    const startDateInput = modal.querySelector('#modal-start-date');
+    const endDateInput = modal.querySelector('#modal-end-date');
+    const closeBtn = modal.querySelector('.modal-close');
+    const closeBtnFooter = modal.querySelector('.modal-close-btn');
+    const modeBtns = modal.querySelectorAll('.mode-btn');
+
+    const schedulePersist = () => {
+      clearTimeout(planWindowTimer);
+      planWindowTimer = setTimeout(async () => {
+        const next = normalizeDateRange({ startDate: startDateInput.value, endDate: endDateInput.value });
+        if (next.startDate && next.endDate) {
+          try {
+            await persistPlanningWindow({ scenarioId: scenario.id, planningKey: 'advancedGoalSolver', nextWindow: next, scenarioState });
+            await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+          } catch (err) {
+            notifyError('Failed to save planning window: ' + (err?.message || String(err)));
+          }
         }
-      }
-    }, 200);
+      }, 200);
+    };
+
+    startDateInput.addEventListener('change', schedulePersist);
+    endDateInput.addEventListener('change', schedulePersist);
+
+    modeBtns.forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const mode = btn.dataset.mode;
+        modeBtns.forEach((b) => b.classList.remove('icon-btn--active'));
+        btn.classList.add('icon-btn--active');
+        await persistGoalWorkshopMode({ scenarioId: scenario.id, mode, scenarioState });
+        close();
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      });
+    });
+
+    closeBtn.addEventListener('click', close);
+    closeBtnFooter.addEventListener('click', close);
   };
-  startInput.addEventListener('change', schedulePlanWindowPersist);
-  endInput.addEventListener('change', schedulePlanWindowPersist);
+
+  settingsBtn.addEventListener('click', openHeaderModal);
 
   const accounts = (scenario.accounts || []).filter((a) => a.name !== 'Select Account');
   if (accounts.length === 0) {
@@ -362,84 +379,86 @@ async function loadAdvancedGoalSolverSection({
   const goals = Array.isArray(settings.goals) ? settings.goals : [];
   const constraints = settings.constraints || {};
 
-  // --- Side-by-side panels for Constraints + Goals ---
+  // --- Three-panel layout for Constraints + Goals + Solution ---
   const solverPanels = document.createElement('div');
   solverPanels.className = 'middle-panels solver-panels';
+  solverPanels.id = 'solver-panels';
 
-  // Constraints panel
-  const constraintsPanel = document.createElement('div');
-  constraintsPanel.className = 'dash-panel forecast-card';
-  const constraintsPanelHeader = document.createElement('div');
-  constraintsPanelHeader.className = 'dash-panel-header card-header';
-  const constraintsPanelLeft = document.createElement('div');
-  constraintsPanelLeft.className = 'card-header-actions';
-  const constraintsPanelLabel = document.createElement('span');
-  constraintsPanelLabel.className = 'dash-panel-label';
-  constraintsPanelLabel.textContent = 'Constraints';
-  constraintsPanelLeft.appendChild(constraintsPanelLabel);
-  const constraintsHeaderActions = document.createElement('div');
-  constraintsHeaderActions.className = 'header-icon-actions';
-  const addConstraintBtn = document.createElement('button');
-  addConstraintBtn.className = 'icon-btn';
-  addConstraintBtn.title = 'Add Constraint (start with Funding Account)';
-  addConstraintBtn.textContent = '+';
-  constraintsHeaderActions.appendChild(addConstraintBtn);
-  constraintsPanelHeader.appendChild(constraintsPanelLeft);
-  constraintsPanelHeader.appendChild(constraintsHeaderActions);
-  const constraintsPanelBody = document.createElement('div');
-  constraintsPanelBody.className = 'dash-panel-body';
-  const constraintsGridEl = document.createElement('div');
-  constraintsGridEl.id = 'adv-constraints-grid';
-  constraintsPanelBody.appendChild(constraintsGridEl);
-  constraintsPanel.appendChild(constraintsPanelHeader);
-  constraintsPanel.appendChild(constraintsPanelBody);
+  // Helper to create panel structure with accordion
+  const createSolverPanel = (panelId, title, addBtnTitle) => {
+    const panel = document.createElement('div');
+    panel.className = 'dash-panel forecast-card';
+    panel.id = panelId;
 
-  // Goals panel
-  const goalsPanel = document.createElement('div');
-  goalsPanel.className = 'dash-panel forecast-card';
-  const goalsPanelHeader = document.createElement('div');
-  goalsPanelHeader.className = 'dash-panel-header card-header';
-  const goalsPanelLeft = document.createElement('div');
-  goalsPanelLeft.className = 'card-header-actions';
-  const goalsPanelLabel = document.createElement('span');
-  goalsPanelLabel.className = 'dash-panel-label';
-  goalsPanelLabel.textContent = 'Goals';
-  goalsPanelLeft.appendChild(goalsPanelLabel);
-  const goalsHeaderActions = document.createElement('div');
-  goalsHeaderActions.className = 'header-icon-actions';
-  const addBtn = document.createElement('button');
-  addBtn.className = 'icon-btn';
-  addBtn.title = 'Add Goal';
-  addBtn.textContent = '+';
-  goalsHeaderActions.appendChild(addBtn);
-  goalsPanelHeader.appendChild(goalsPanelLeft);
-  goalsPanelHeader.appendChild(goalsHeaderActions);
-  const goalsPanelBody = document.createElement('div');
-  goalsPanelBody.className = 'dash-panel-body';
-  const goalsGridEl = document.createElement('div');
-  goalsGridEl.id = 'adv-goals-grid';
-  goalsPanelBody.appendChild(goalsGridEl);
-  goalsPanel.appendChild(goalsPanelHeader);
-  goalsPanel.appendChild(goalsPanelBody);
+    const header = document.createElement('div');
+    header.className = 'dash-panel-header card-header';
 
-  solverPanels.appendChild(constraintsPanel);
-  solverPanels.appendChild(goalsPanel);
+    const headerLeft = document.createElement('div');
+    headerLeft.className = 'card-header-actions';
+
+    const chevron = document.createElement('span');
+    chevron.className = 'dash-panel-chevron';
+    chevron.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    headerLeft.appendChild(chevron);
+
+    const label = document.createElement('span');
+    label.className = 'dash-panel-label';
+    label.textContent = title;
+    headerLeft.appendChild(label);
+
+    const headerActions = document.createElement('div');
+    headerActions.className = 'header-icon-actions';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'icon-btn';
+    addBtn.title = addBtnTitle;
+    addBtn.textContent = '+';
+    addBtn.dataset.panelId = panelId;
+    headerActions.appendChild(addBtn);
+
+    header.appendChild(headerLeft);
+    header.appendChild(headerActions);
+
+    const body = document.createElement('div');
+    body.className = 'dash-panel-body';
+    const grid = document.createElement('div');
+    grid.id = `${panelId}-grid`;
+    body.appendChild(grid);
+
+    panel.appendChild(header);
+    panel.appendChild(body);
+
+    // Wire up accordion toggle
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      const isNarrow = window.matchMedia('(max-width: 1023px)').matches;
+      if (isNarrow) {
+        panel.classList.toggle('panel-collapsed');
+      }
+    });
+
+    return { panel, header, body, grid, addBtn };
+  };
+
+  const constraintsInfo = createSolverPanel('adv-constraints-panel', 'Constraints', 'Add Constraint (start with Funding Account)');
+  const goalsInfo = createSolverPanel('adv-goals-panel', 'Goals', 'Add Goal');
+  const solutionInfo = createSolverPanel('adv-solution-panel', 'Solution', '');
+
+  solverPanels.appendChild(constraintsInfo.panel);
+  solverPanels.appendChild(goalsInfo.panel);
+  solverPanels.appendChild(solutionInfo.panel);
   container.appendChild(solverPanels);
 
-  // --- Solution card ---
-  const solutionCard = document.createElement('div');
-  solutionCard.className = 'forecast-card';
-  solutionCard.style.width = '100%';
-  const solutionHeader = document.createElement('div');
-  solutionHeader.className = 'dash-panel-header card-header';
-  const solutionHeaderLeft = document.createElement('div');
-  solutionHeaderLeft.className = 'card-header-actions';
-  const solutionLabel = document.createElement('span');
-  solutionLabel.className = 'dash-panel-label';
-  solutionLabel.textContent = 'Solution';
-  solutionHeaderLeft.appendChild(solutionLabel);
-  const solutionHeaderActions = document.createElement('div');
-  solutionHeaderActions.className = 'header-icon-actions';
+  // Hide solution add button (it has solve/apply buttons in header instead)
+  solutionInfo.addBtn.style.display = 'none';
+
+  // Reference IDs for later use
+  const constraintsGridEl = constraintsInfo.grid;
+  const goalsGridEl = goalsInfo.grid;
+  const solutionBody = solutionInfo.body;
+
+  // Solution header buttons area
+  const solutionHeaderActions = solutionInfo.header.querySelector('.header-icon-actions');
+  solutionHeaderActions.innerHTML = '';
   const solveBtn = document.createElement('button');
   solveBtn.className = 'icon-btn';
   solveBtn.title = 'Solve — calculate suggested transactions';
@@ -451,11 +470,7 @@ async function loadAdvancedGoalSolverSection({
   applyBtn.disabled = true;
   solutionHeaderActions.appendChild(solveBtn);
   solutionHeaderActions.appendChild(applyBtn);
-  solutionHeader.appendChild(solutionHeaderLeft);
-  solutionHeader.appendChild(solutionHeaderActions);
-  const solutionBody = document.createElement('div');
-  solutionBody.className = 'section-content';
-  solutionBody.style.padding = '12px';
+
   const solutionTotalsEl = document.createElement('div');
   solutionTotalsEl.id = 'adv-goal-solution-totals';
   const solutionEl = document.createElement('div');
@@ -464,9 +479,9 @@ async function loadAdvancedGoalSolverSection({
   solutionEl.textContent = 'Configure goals and click Solve.';
   solutionBody.appendChild(solutionTotalsEl);
   solutionBody.appendChild(solutionEl);
-  solutionCard.appendChild(solutionHeader);
-  solutionCard.appendChild(solutionBody);
-  container.appendChild(solutionCard);
+
+  const addConstraintBtn = constraintsInfo.addBtn;
+  const addBtn = goalsInfo.addBtn;
 
   restoreWindowScroll(scrollSnapshot);
 
@@ -567,15 +582,35 @@ async function loadAdvancedGoalSolverSection({
     }, 250);
   };
 
-  // ---- Constraint card builder ----
+  // ---- Constraint card builder with summary/detail toggle ----
   const buildConstraintCard = (row, idx) => {
     const card = document.createElement('div');
     card.className = 'grid-summary-card';
+    card.dataset.expanded = 'false';
     const rowEl = document.createElement('div');
     rowEl.style.cssText = 'display:flex;align-items:flex-start;gap:8px;width:100%;';
 
+    // Summary view (collapsed state)
+    const summaryEl = document.createElement('div');
+    summaryEl.className = 'grid-summary-card-summary';
+    summaryEl.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;';
+    const summaryText = document.createElement('div');
+    summaryText.className = 'grid-summary-card-summary-text';
+    const typeLabel = constraintTypeOptions.find((o) => o.value === row.type)?.label || row.type;
+    const accountName = row.accountId ? accounts.find((a) => Number(a.id) === row.accountId)?.name || `Account ${row.accountId}` : '—';
+    const amountDisplay = row.amount != null ? formatCurrency(row.amount) : '—';
+    summaryText.textContent = `${typeLabel} • ${accountName} • ${amountDisplay}`;
+    summaryEl.appendChild(summaryText);
+    const chevron = document.createElement('span');
+    chevron.className = 'grid-summary-card-chevron';
+    chevron.textContent = '▶';
+    chevron.style.cssText = 'flex-shrink:0;font-size:10px;transition:transform 200ms;';
+    summaryEl.appendChild(chevron);
+    rowEl.appendChild(summaryEl);
+
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
+    content.style.display = 'none';
     const form = document.createElement('div');
     form.className = 'grid-summary-form';
     form.style.marginTop = '0';
@@ -644,6 +679,7 @@ async function loadAdvancedGoalSolverSection({
 
     const actions = document.createElement('div');
     actions.className = 'grid-summary-actions';
+    actions.style.display = 'none';
     const cDeleteBtn = document.createElement('button');
     cDeleteBtn.className = 'icon-btn'; cDeleteBtn.title = 'Remove'; cDeleteBtn.textContent = '⨉';
     cDeleteBtn.addEventListener('click', async (e) => {
@@ -652,6 +688,16 @@ async function loadAdvancedGoalSolverSection({
       lastSolve = null; applyBtn.disabled = true; await persistNow();
     });
     actions.appendChild(cDeleteBtn);
+
+    // Toggle summary/detail on click
+    summaryEl.addEventListener('click', () => {
+      const isExpanded = card.dataset.expanded === 'true';
+      card.dataset.expanded = isExpanded ? 'false' : 'true';
+      content.style.display = isExpanded ? 'none' : '';
+      actions.style.display = isExpanded ? 'none' : '';
+      chevron.style.transform = isExpanded ? '' : 'rotate(90deg)';
+    });
+
     rowEl.appendChild(content); rowEl.appendChild(actions);
     card.appendChild(rowEl); return card;
   };
@@ -670,15 +716,35 @@ async function loadAdvancedGoalSolverSection({
     constraintsRows.forEach((row, idx) => list.appendChild(buildConstraintCard(row, idx)));
   };
 
-  // ---- Goal card builder ----
+  // ---- Goal card builder with summary/detail toggle ----
   const buildGoalCard = (row, idx) => {
     const card = document.createElement('div');
     card.className = 'grid-summary-card';
+    card.dataset.expanded = 'false';
     const rowEl = document.createElement('div');
     rowEl.style.cssText = 'display:flex;align-items:flex-start;gap:8px;width:100%;';
 
+    // Summary view (collapsed state)
+    const summaryEl = document.createElement('div');
+    summaryEl.className = 'grid-summary-card-summary';
+    summaryEl.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;';
+    const summaryText = document.createElement('div');
+    summaryText.className = 'grid-summary-card-summary-text';
+    const typeLabel = goalTypeOptions.find((o) => o.value === row.type)?.label || row.type;
+    const accountName = row.accountId ? accounts.find((a) => Number(a.id) === row.accountId)?.name || `Account ${row.accountId}` : '—';
+    const targetDisplay = (row.targetAmount != null || row.deltaAmount != null || row.floorAmount != null) ? formatCurrency(row.targetAmount || row.deltaAmount || row.floorAmount) : '—';
+    summaryText.textContent = `P${row.priority} • ${typeLabel} • ${accountName} • ${targetDisplay}`;
+    summaryEl.appendChild(summaryText);
+    const chevron = document.createElement('span');
+    chevron.className = 'grid-summary-card-chevron';
+    chevron.textContent = '▶';
+    chevron.style.cssText = 'flex-shrink:0;font-size:10px;transition:transform 200ms;';
+    summaryEl.appendChild(chevron);
+    rowEl.appendChild(summaryEl);
+
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
+    content.style.display = 'none';
     const form = document.createElement('div');
     form.className = 'grid-summary-form';
     form.style.marginTop = '0';
@@ -784,6 +850,7 @@ async function loadAdvancedGoalSolverSection({
 
     const actions = document.createElement('div');
     actions.className = 'grid-summary-actions';
+    actions.style.display = 'none';
     const gDeleteBtn = document.createElement('button');
     gDeleteBtn.className = 'icon-btn'; gDeleteBtn.title = 'Remove'; gDeleteBtn.textContent = '⨉';
     gDeleteBtn.addEventListener('click', async (e) => {
@@ -792,6 +859,16 @@ async function loadAdvancedGoalSolverSection({
       lastSolve = null; applyBtn.disabled = true; await persistNow();
     });
     actions.appendChild(gDeleteBtn);
+
+    // Toggle summary/detail on click
+    summaryEl.addEventListener('click', () => {
+      const isExpanded = card.dataset.expanded === 'true';
+      card.dataset.expanded = isExpanded ? 'false' : 'true';
+      content.style.display = isExpanded ? 'none' : '';
+      actions.style.display = isExpanded ? 'none' : '';
+      chevron.style.transform = isExpanded ? '' : 'rotate(90deg)';
+    });
+
     rowEl.appendChild(content); rowEl.appendChild(actions);
     card.appendChild(rowEl); return card;
   };
@@ -869,23 +946,70 @@ async function loadAdvancedGoalSolverSection({
       const result = await solveAdvancedGoals({ scenario: latest, settings: latest.advancedGoalSettings });
       lastSolve = result;
 
-      const lines = (result.explanation || []).map((l) => `<div>${escapeHtml(l)}</div>`).join('');
       const txCount = result.suggestedTransactions?.length || 0;
       const feasible = result.isFeasible;
+
+      // Visual indicator: green when feasible, red when not
+      const indicatorColor = feasible ? 'var(--color-success)' : 'var(--color-danger)';
+      const shouldShowFeasibleText = !feasible; // Only show text when NOT feasible
       solutionTotalsEl.innerHTML = `
-        <div class="grid-totals" style="grid-template-columns: repeat(2, 1fr);">
-          <div class="grid-total-item">
-            <div class="label">Transactions</div>
-            <div class="value${txCount > 0 ? ' positive' : ' zero'}">${txCount}</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-secondary);">Suggested Transactions</div>
+            <div style="font-size:18px;font-weight:600;color:var(--text-primary);">${txCount}</div>
           </div>
-          <div class="grid-total-item">
-            <div class="label">Feasible</div>
-            <div class="value${feasible ? ' positive' : ' negative'}">${feasible ? 'Yes' : 'No'}</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:32px;height:32px;border-radius:4px;background:${indicatorColor};"></div>
+            ${shouldShowFeasibleText ? `<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-secondary);">Not feasible</div>` : ''}
           </div>
         </div>
       `;
-      solutionEl.className = 'solver-explanation';
-      solutionEl.innerHTML = (result.explanation || []).map((l) => `<div class="solver-explanation-line">${escapeHtml(l)}</div>`).join('') || '<div class="solver-explanation-line">No explanation available.</div>';
+
+      // Helper to extract period/recurrence display
+      const getPeriodDisplay = (tx) => {
+        if (tx.recurrence?.recurrenceType?.name) {
+          const name = tx.recurrence.recurrenceType.name;
+          // Extract common terms: "Monthly", "Weekly", "Quarterly", "Yearly", etc.
+          if (name.includes('Monthly')) return 'Monthly';
+          if (name.includes('Weekly')) return 'Weekly';
+          if (name.includes('Quarterly')) return 'Quarterly';
+          if (name.includes('Yearly') || name.includes('Annual')) return 'Yearly';
+          if (name.includes('Daily')) return 'Daily';
+          return name.split(' ')[0]; // Fallback: first word
+        }
+        // If no recurrence, show the effective date
+        return tx.effectiveDate || '—';
+      };
+
+      // Simple transaction list
+      const txList = document.createElement('div');
+      txList.className = 'grid-summary-list';
+      if (txCount > 0) {
+        result.suggestedTransactions.forEach((tx) => {
+          const card = document.createElement('div');
+          card.className = 'grid-summary-card';
+          card.style.cssText = 'margin-bottom:8px;padding:8px;';
+          const period = getPeriodDisplay(tx);
+          const desc = (tx.description || 'Generated transaction').substring(0, 40);
+          const amount = formatCurrency(tx.amount);
+          card.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px;">
+              <div><strong>Period:</strong> ${escapeHtml(period)}</div>
+              <div><strong>Desc:</strong> ${escapeHtml(desc)}</div>
+              <div style="text-align:right;"><strong>Amount:</strong> ${escapeHtml(amount)}</div>
+            </div>
+          `;
+          txList.appendChild(card);
+        });
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'scenarios-list-placeholder';
+        empty.textContent = 'No transactions generated.';
+        txList.appendChild(empty);
+      }
+      solutionEl.innerHTML = '';
+      solutionEl.appendChild(txList);
+      solutionEl.className = '';
 
       applyBtn.disabled = !feasible || txCount === 0;
     } catch (err) {
