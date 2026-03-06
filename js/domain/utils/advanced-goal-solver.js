@@ -148,6 +148,39 @@ function buildMonthlyRecurrence({ startDate, endDate }) {
   };
 }
 
+// Calculate one-off adjustment to ensure goal is reached
+function calculateOneOffAdjustment({ requirement, recurringAmount, monthlyCount }) {
+  if (!requirement || !requirement.goal) return 0;
+  
+  const goal = requirement.goal;
+  const startingBalance = requirement.startingBalance || 0;
+  
+  let targetAmount = 0;
+  
+  if (goal.type === 'reach_balance_by_date' && goal.targetAmount != null) {
+    targetAmount = goal.targetAmount;
+  } else if (goal.type === 'increase_by_delta' && goal.deltaAmount != null) {
+    targetAmount = startingBalance + goal.deltaAmount;
+  } else if (goal.type === 'pay_down_by_date') {
+    targetAmount = goal.targetAmount != null ? goal.targetAmount : 0;
+  } else {
+    return 0;
+  }
+
+  // Calculate total from recurring transactions
+  const recurringTotal = recurringAmount * monthlyCount;
+  
+  // Calculate required movement
+  const requiredTravel = goal.type === 'pay_down_by_date' 
+    ? Math.abs(startingBalance - targetAmount)
+    : (targetAmount - startingBalance);
+  
+  // Calculate shortfall
+  const shortfall = Math.max(0, requiredTravel - recurringTotal);
+  
+  return shortfall > 0.01 ? shortfall : 0; // Only if more than 1 cent shortfall
+}
+
 function normalizeGoal(goal) {
   return {
     id: goal?.id || String(Date.now()),
@@ -294,7 +327,8 @@ function buildGoalRequirements({ scenario, goals }) {
       startDate,
       endDate,
       monthsToGoal,
-      requiredMonthly
+      requiredMonthly,
+      startingBalance
     });
   }
 
@@ -359,6 +393,9 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
     const startDate = req.startDate;
     const endDate = req.endDate;
     const recurrence = buildMonthlyRecurrence({ startDate, endDate });
+    
+    // Calculate number of months of recurrence
+    const monthlyCount = calculateMonthsBetweenDates(startDate, endDate);
 
     if (req.goal.type === 'pay_down_by_date') {
       // Model paydown as a transfer from the funding account to the goal account.
@@ -378,6 +415,28 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
         status: { name: 'planned' },
         tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`]
       });
+
+      // Add one-off adjustment if needed for paydown
+      const paydownAdjustment = calculateOneOffAdjustment({ 
+        requirement: req, 
+        recurringAmount: amt, 
+        monthlyCount 
+      });
+      if (paydownAdjustment > 0.01) {
+        suggested.push({
+          id: 0,
+          primaryAccountId: req.goal.accountId,
+          secondaryAccountId: fundingAccountId,
+          transactionTypeId: 1,
+          amount: paydownAdjustment,
+          effectiveDate: endDate,
+          description: `Advanced Goal: Pay down adjustment ${req.account.name}`,
+          recurrence: null,
+          periodicChange: null,
+          status: { name: 'planned' },
+          tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`, 'adjustment']
+        });
+      }
 
       continue;
     }
@@ -399,6 +458,31 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
       status: { name: 'planned' },
       tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`]
     });
+
+    // Add one-off adjustment if needed for reach/increase
+    const reachAdjustment = calculateOneOffAdjustment({ 
+      requirement: req, 
+      recurringAmount: amt, 
+      monthlyCount 
+    });
+    if (reachAdjustment > 0.01) {
+      suggested.push({
+        id: 0,
+        primaryAccountId: req.goal.accountId,
+        secondaryAccountId: fundingAccountId || null,
+        transactionTypeId: 1,
+        amount: reachAdjustment,
+        effectiveDate: endDate,
+        description:
+          req.goal.type === 'increase_by_delta'
+            ? `Advanced Goal: Increase adjustment ${req.account.name}`
+            : `Advanced Goal: Reach adjustment ${req.account.name}`,
+        recurrence: null,
+        periodicChange: null,
+        status: { name: 'planned' },
+        tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`, 'adjustment']
+      });
+    }
   }
 
   return suggested;
