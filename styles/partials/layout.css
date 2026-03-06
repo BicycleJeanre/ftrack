@@ -650,6 +650,17 @@ body.dashboard-shell {
   padding: 4px 0;
 }
 
+.dash-panel-chevron {
+  display: none;
+  color: var(--text-secondary);
+  margin-right: 8px;
+  transition: transform var(--transition-fast);
+}
+
+.dash-panel.panel-collapsed .dash-panel-chevron {
+  transform: rotate(-90deg);
+}
+
 .dash-panel-body {
   flex: 1;
   overflow: auto;
@@ -675,6 +686,23 @@ body.dashboard-shell {
 
   .dash-panel:last-child {
     border-bottom: none;
+  }
+
+  #row-middle:not(.mode-detail) .dash-panel-header.panel-accordion-enabled {
+    cursor: pointer;
+  }
+
+  #row-middle:not(.mode-detail) .dash-panel-chevron {
+    display: inline-flex;
+  }
+
+  #row-middle:not(.mode-detail) .dash-panel.panel-collapsed {
+    min-height: 52px;
+    flex: 0 0 auto;
+  }
+
+  #row-middle:not(.mode-detail) .dash-panel.panel-collapsed .dash-panel-body {
+    display: none;
   }
 }
 
