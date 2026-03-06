@@ -847,6 +847,7 @@ export async function loadMasterTransactionsGrid({
         filterButton.title = 'Open filters';
         filterButton.textContent = '⚙';
         filterButton.setAttribute('aria-label', 'Filters');
+
         const addButton = document.createElement('button');
         addButton.className = 'icon-btn';
         addButton.title = 'Add Transaction';

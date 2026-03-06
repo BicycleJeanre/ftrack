@@ -148,6 +148,40 @@ function buildMonthlyRecurrence({ startDate, endDate }) {
   };
 }
 
+// Calculate one-off adjustment to ensure goal is reached
+function calculateOneOffAdjustment({ requirement, recurringAmount, monthlyCount }) {
+  if (!requirement || !requirement.goal) return 0;
+  
+  const goal = requirement.goal;
+  const startingBalance = requirement.startingBalance || 0;
+  
+  let targetAmount = 0;
+  
+  if (goal.type === 'reach_balance_by_date' && goal.targetAmount != null) {
+    targetAmount = goal.targetAmount;
+  } else if (goal.type === 'increase_by_delta' && goal.deltaAmount != null) {
+    targetAmount = startingBalance + goal.deltaAmount;
+  } else if (goal.type === 'pay_down_by_date') {
+    targetAmount = goal.targetAmount != null ? goal.targetAmount : 0;
+      const result = lp.Solve(model);
+  } else {
+    return 0;
+  }
+
+  // Calculate total from recurring transactions
+  const recurringTotal = recurringAmount * monthlyCount;
+  
+  // Calculate required movement
+  const requiredTravel = goal.type === 'pay_down_by_date' 
+    ? Math.abs(startingBalance - targetAmount)
+    : (targetAmount - startingBalance);
+  
+  // Calculate shortfall
+  const shortfall = Math.max(0, requiredTravel - recurringTotal);
+  
+  return shortfall > 0.01 ? shortfall : 0; // Only if more than 1 cent shortfall
+}
+
 function normalizeGoal(goal) {
   return {
     id: goal?.id || String(Date.now()),
@@ -278,6 +312,31 @@ function buildGoalRequirements({ scenario, goals }) {
       // "Pay down" means move the balance toward the target from whichever side it's on.
       const toMove = Math.max(0, startingBalance < target ? target - startingBalance : startingBalance - target);
       requiredMonthly = toMove / monthsToGoal;
+    } else if (goal.type === 'minimize_payment') {
+      if (goal.targetAmount == null) {
+        issues.push(`Minimize-payment goal missing target amount for account: ${account.name}`);
+        continue;
+      }
+      // Force endDate to scenario end; ignore user input
+      const forcedEndDate = scenarioEnd;
+      const forcedMonthsToGoal = calculateMonthsBetweenDates(startDate, forcedEndDate);
+      if (!forcedMonthsToGoal || forcedMonthsToGoal <= 0) {
+        issues.push(`Goal cannot be solved: scenario must extend past start date for account: ${account.name}`);
+        continue;
+      }
+      requiredMonthly = calculateContributionAmount(startingBalance, goal.targetAmount, forcedMonthsToGoal, annualRate);
+      // Update monthsToGoal and endDate for this requirement
+      const req = {
+        goal,
+        account,
+        startDate,
+        endDate: forcedEndDate,
+        monthsToGoal: forcedMonthsToGoal,
+        requiredMonthly,
+        startingBalance
+      };
+      requirements.push(req);
+      continue;  // Skip the default push below
     } else {
       issues.push(`Unknown goal type: ${goal.type}`);
       continue;
@@ -294,7 +353,8 @@ function buildGoalRequirements({ scenario, goals }) {
       startDate,
       endDate,
       monthsToGoal,
-      requiredMonthly
+      requiredMonthly,
+      startingBalance
     });
   }
 
@@ -343,6 +403,32 @@ function solveWithLp({ lp, requirements, constraints, lockedAccountIds, effectiv
     }
   }
 
+  // Build account-level constraints for movement caps (enforces total per account, not per goal)
+  const accountsByAccountId = {};
+  for (const req of requirements) {
+    const accountId = String(req.goal.accountId);
+    if (!accountsByAccountId[accountId]) {
+      accountsByAccountId[accountId] = [];
+    }
+    accountsByAccountId[accountId].push(req);
+  }
+
+  for (const [accountId, reqs] of Object.entries(accountsByAccountId)) {
+    const perAccountCap = maxMovementByAccountId[accountId];
+    if (perAccountCap == null) continue;
+    
+    // Create account-level constraint
+    const accountCapKey = `acct_cap_${accountId}`;
+    model.constraints[accountCapKey] = { max: Math.max(0, asNumber(perAccountCap, 0)) };
+    
+    // Add variables to this constraint (sum of all goals on this account)
+    for (const req of reqs) {
+      const varName = `g_${String(req.goal.id).replaceAll('-', '_')}`;
+      if (!model.variables[varName]) continue;
+      model.variables[varName][accountCapKey] = 1;
+    }
+  }
+
   const result = lp.Solve(model);
   return { result, variables: Object.keys(model.variables) };
 }
@@ -359,6 +445,9 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
     const startDate = req.startDate;
     const endDate = req.endDate;
     const recurrence = buildMonthlyRecurrence({ startDate, endDate });
+    
+    // Calculate number of months of recurrence
+    const monthlyCount = calculateMonthsBetweenDates(startDate, endDate);
 
     if (req.goal.type === 'pay_down_by_date') {
       // Model paydown as a transfer from the funding account to the goal account.
@@ -378,6 +467,28 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
         status: { name: 'planned' },
         tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`]
       });
+
+      // Add one-off adjustment if needed for paydown
+      const paydownAdjustment = calculateOneOffAdjustment({ 
+        requirement: req, 
+        recurringAmount: amt, 
+        monthlyCount 
+      });
+      if (paydownAdjustment > 0.01) {
+        suggested.push({
+          id: 0,
+          primaryAccountId: req.goal.accountId,
+          secondaryAccountId: fundingAccountId,
+          transactionTypeId: 1,
+          amount: paydownAdjustment,
+          effectiveDate: endDate,
+          description: `Advanced Goal: Pay down adjustment ${req.account.name}`,
+          recurrence: null,
+          periodicChange: null,
+          status: { name: 'planned' },
+          tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`, 'adjustment']
+        });
+      }
 
       continue;
     }
@@ -399,6 +510,31 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
       status: { name: 'planned' },
       tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`]
     });
+
+    // Add one-off adjustment if needed for reach/increase
+    const reachAdjustment = calculateOneOffAdjustment({ 
+      requirement: req, 
+      recurringAmount: amt, 
+      monthlyCount 
+    });
+    if (reachAdjustment > 0.01) {
+      suggested.push({
+        id: 0,
+        primaryAccountId: req.goal.accountId,
+        secondaryAccountId: fundingAccountId || null,
+        transactionTypeId: 1,
+        amount: reachAdjustment,
+        effectiveDate: endDate,
+        description:
+          req.goal.type === 'increase_by_delta'
+            ? `Advanced Goal: Increase adjustment ${req.account.name}`
+            : `Advanced Goal: Reach adjustment ${req.account.name}`,
+        recurrence: null,
+        periodicChange: null,
+        status: { name: 'planned' },
+        tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`, 'adjustment']
+      });
+    }
   }
 
   return suggested;
@@ -438,7 +574,6 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
   const failures = [];
 
   for (const goal of goals) {
-    if (!goal.accountId) continue;
     const account = getAccountById(accounts, goal.accountId);
     const startingBalance = getStartingBalance(account);
     const records = projectionsByAccountId.get(Number(goal.accountId)) || [];
@@ -466,6 +601,7 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
           failures.push({ goalId: goal.id, type: goal.type, shortfall: endBal - target });
         }
       }
+      const result = lp.Solve(model);
     } else if (goal.type === 'increase_by_delta') {
       if (goal.deltaAmount == null) continue;
       const delta = endBal - startBal;
@@ -478,6 +614,11 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
       const minBal = Math.min(startingBalance, ...records.map((r) => asNumber(r.balance, startingBalance)));
       if (minBal + 1e-6 < floor) {
         failures.push({ goalId: goal.id, type: goal.type, shortfall: floor - minBal });
+      }
+    } else if (goal.type === 'minimize_payment') {
+      if (goal.targetAmount == null) continue;
+      if (endBal + 1e-6 < goal.targetAmount) {
+        failures.push({ goalId: goal.id, type: goal.type, shortfall: goal.targetAmount - endBal });
       }
     }
   }
