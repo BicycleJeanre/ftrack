@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mode is persisted per scenario via `scenario.planning.goalWorkshopMode`; auto-detected from existing AGS goals for migrated scenarios.
   - Existing scenario data is fully backward-compatible; no migration script required.
 
+## [0.9.2-beta] - 2026-03-06
+
+### Changed
+
+- Refactored Accounts, Transactions, Budget, and Projections toolbar controls into right-aligned modal workflows.
+- Moved related action buttons into the same modal panel for consistent narrow-screen behavior.
+- Added independent narrow-screen collapse behavior for Accounts and Transactions summary panels.
+
+### Fixed
+
+- Transactions summary period selector now populates period options correctly while preserving period navigation behavior.
+
 ## [0.8.5-beta] - 2026-02-28
 
 ### Added
