@@ -3,6 +3,7 @@
 
 import { createGrid, refreshGridData, createDeleteColumn, createTextColumn, createMoneyColumn, createDateColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
+import { createFilterModal } from '../modals/filter-modal.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
@@ -770,17 +771,6 @@ export async function loadBudgetGrid({
       if (controls) {
         controls.innerHTML = '';
 
-        const makeHeaderFilter = (id, labelText, selectEl) => {
-          const item = document.createElement('div');
-          item.className = 'header-filter-item';
-          const lbl = document.createElement('label');
-          lbl.htmlFor = id;
-          lbl.textContent = labelText;
-          item.appendChild(lbl);
-          item.appendChild(selectEl);
-          return item;
-        };
-
         // Debounce period type changes
         let periodTypeChangeTimeout = null;
 
@@ -803,7 +793,6 @@ export async function loadBudgetGrid({
             await reload();
           }, 50);
         });
-        controls.appendChild(makeHeaderFilter('budget-period-type-select', 'Period Type:', periodTypeSelect));
 
         // Period + ◀ ▶ navigation
         const periodSelect = document.createElement('select');
@@ -843,16 +832,10 @@ export async function loadBudgetGrid({
         nextBtn.textContent = '▶';
         nextBtn.title = 'Next period';
 
-        const periodItem = document.createElement('div');
-        periodItem.className = 'header-filter-item';
-        const periodLabel = document.createElement('label');
-        periodLabel.htmlFor = 'budget-period-select';
-        periodLabel.textContent = 'Period:';
-        periodItem.appendChild(periodLabel);
-        periodItem.appendChild(periodSelect);
-        periodItem.appendChild(prevBtn);
-        periodItem.appendChild(nextBtn);
-        controls.appendChild(periodItem);
+        const periodNav = document.createElement('div');
+        periodNav.className = 'period-nav';
+        periodNav.appendChild(prevBtn);
+        periodNav.appendChild(nextBtn);
 
         // Account filter
         const accountSelect = document.createElement('select');
@@ -871,7 +854,6 @@ export async function loadBudgetGrid({
           accountSelect.value = String(effectiveAccountId);
           if (!curAccountId) state?.setBudgetAccountFilterId?.(effectiveAccountId);
         }
-        controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
 
         // Group By
         const groupBySelect = document.createElement('select');
@@ -890,11 +872,8 @@ export async function loadBudgetGrid({
         const detailGroupBy = String(dropdownState[groupByStateKey] || '');
         const currentGroupBy = detailGroupBy || state?.getGroupBy?.();
         if (currentGroupBy) groupBySelect.value = currentGroupBy;
-        controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
 
-        // Icon actions — generate and add
-        const iconActions = document.createElement('div');
-        iconActions.className = 'header-icon-actions';
+        // Action buttons
         const generateFromProjectionsBtn = document.createElement('button');
         generateFromProjectionsBtn.className = 'icon-btn';
         generateFromProjectionsBtn.title = 'Generate from Expanded Transactions';
@@ -907,10 +886,36 @@ export async function loadBudgetGrid({
         clearBtn.className = 'icon-btn';
         clearBtn.title = 'Clear budget';
         clearBtn.textContent = '⊗';
-        iconActions.appendChild(generateFromProjectionsBtn);
-        iconActions.appendChild(addButton);
-        iconActions.appendChild(clearBtn);
-        controls.appendChild(iconActions);
+        const modalActions = document.createElement('div');
+        modalActions.className = 'modal-filter-actions';
+        modalActions.appendChild(generateFromProjectionsBtn);
+        modalActions.appendChild(addButton);
+        modalActions.appendChild(clearBtn);
+
+        // Modal trigger
+        const filterButton = document.createElement('button');
+        filterButton.type = 'button';
+        filterButton.className = 'icon-btn';
+        filterButton.title = 'Open filters';
+        filterButton.textContent = '⚙';
+        filterButton.setAttribute('aria-label', 'Filters');
+
+        createFilterModal({
+          id: 'budget-filters-detail-modal',
+          title: 'Filter Budget',
+          trigger: filterButton,
+          items: [
+            { id: 'period-type', label: 'Period Type:', control: periodTypeSelect },
+            { id: 'period', label: 'Period:', control: periodSelect },
+            { id: 'period-nav', label: '', control: periodNav },
+            { id: 'account', label: 'Account:', control: accountSelect },
+            { id: 'group-by', label: 'Group By:', control: groupBySelect },
+            { id: 'actions', label: 'Actions:', control: modalActions }
+          ]
+        });
+
+        filterButton.style.marginLeft = 'auto';
+        controls.appendChild(filterButton);
 
         // --- Event handlers ---
         clearBtn.addEventListener('click', async (e) => {
@@ -1303,17 +1308,6 @@ export async function loadBudgetGrid({
     if (controls) {
       controls.innerHTML = '';
 
-      const makeHeaderFilter = (id, labelText, selectEl) => {
-        const item = document.createElement('div');
-        item.className = 'header-filter-item';
-        const lbl = document.createElement('label');
-        lbl.htmlFor = id;
-        lbl.textContent = labelText;
-        item.appendChild(lbl);
-        item.appendChild(selectEl);
-        return item;
-      };
-
       // Debounce period type changes
       let periodTypeChangeTimeout = null;
 
@@ -1323,7 +1317,8 @@ export async function loadBudgetGrid({
       periodTypeSelect.className = 'input-select';
       ['Day', 'Week', 'Month', 'Quarter', 'Year'].forEach((pt) => {
         const opt = document.createElement('option');
-        opt.value = pt; opt.textContent = pt;
+        opt.value = pt;
+        opt.textContent = pt;
         periodTypeSelect.appendChild(opt);
       });
       periodTypeSelect.value = budgetPeriodType;
@@ -1336,14 +1331,12 @@ export async function loadBudgetGrid({
           await reload();
         }, 50);
       });
-      controls.appendChild(makeHeaderFilter('budget-period-type-select', 'Period Type:', periodTypeSelect));
 
       // Period + ◀ ▶ navigation
       const periodSelect = document.createElement('select');
       periodSelect.id = 'budget-period-select';
       periodSelect.className = 'input-select';
       
-      // Helper to rebuild period options - NO "All" option for budget
       const rebuildPeriodOptions = (freshPeriods) => {
         periodSelect.innerHTML = '';
         freshPeriods.forEach((p) => {
@@ -1356,36 +1349,29 @@ export async function loadBudgetGrid({
         if (curPeriod) {
           periodSelect.value = String(curPeriod);
         } else if (freshPeriods.length > 0) {
-          // Default to first period if none selected
           periodSelect.value = String(freshPeriods[0].id);
           state?.setBudgetPeriod?.(freshPeriods[0].id);
         }
       };
       
-      // Initial build - use fresh periods from state
       rebuildPeriodOptions(state?.getBudgetPeriods?.() || []);
 
       const prevBtn = document.createElement('button');
       prevBtn.type = 'button';
       prevBtn.className = 'period-btn';
-      prevBtn.textContent = '\u25c0';
+      prevBtn.textContent = '◀';
       prevBtn.title = 'Previous period';
+
       const nextBtn = document.createElement('button');
       nextBtn.type = 'button';
       nextBtn.className = 'period-btn';
-      nextBtn.textContent = '\u25b6';
+      nextBtn.textContent = '▶';
       nextBtn.title = 'Next period';
 
-      const periodItem = document.createElement('div');
-      periodItem.className = 'header-filter-item';
-      const periodLabel = document.createElement('label');
-      periodLabel.htmlFor = 'budget-period-select';
-      periodLabel.textContent = 'Period:';
-      periodItem.appendChild(periodLabel);
-      periodItem.appendChild(periodSelect);
-      periodItem.appendChild(prevBtn);
-      periodItem.appendChild(nextBtn);
-      controls.appendChild(periodItem);
+      const periodNav = document.createElement('div');
+      periodNav.className = 'period-nav';
+      periodNav.appendChild(prevBtn);
+      periodNav.appendChild(nextBtn);
 
       // Account filter
       const accountSelect = document.createElement('select');
@@ -1399,46 +1385,111 @@ export async function loadBudgetGrid({
       });
       const curAccountId = state?.getBudgetAccountFilterId?.();
       if (curAccountId) accountSelect.value = String(curAccountId);
-      controls.appendChild(makeHeaderFilter('budget-account-select', 'Account:', accountSelect));
 
-        // Group By
-        const groupBySelect = document.createElement('select');
-        groupBySelect.id = 'budget-grouping-select';
-        groupBySelect.className = 'input-select';
-        [
-          { value: '', label: 'None' },
-          { value: 'transactionTypeName', label: 'Type' },
-          { value: 'secondaryAccountName', label: 'Secondary Account' },
-          { value: 'statusName', label: 'Status' }
-        ].forEach(({ value, label }) => {
-          const opt = document.createElement('option');
-          opt.value = value; opt.textContent = label;
-          groupBySelect.appendChild(opt);
-        });
-        const summaryGroupBy = String(dropdownState[groupByStateKey] || '');
-        const currentGroupBy = summaryGroupBy || state?.getGroupBy?.();
-        if (currentGroupBy) groupBySelect.value = currentGroupBy;
-        controls.appendChild(makeHeaderFilter('budget-grouping-select', 'Group:', groupBySelect));
+      // Group By
+      const groupBySelect = document.createElement('select');
+      groupBySelect.id = 'budget-grouping-select';
+      groupBySelect.className = 'input-select';
+      [
+        { value: '', label: 'None' },
+        { value: 'transactionTypeName', label: 'Type' },
+        { value: 'secondaryAccountName', label: 'Secondary Account' },
+        { value: 'statusName', label: 'Status' }
+      ].forEach(({ value, label }) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = label;
+        groupBySelect.appendChild(opt);
+      });
+      const summaryGroupBy = String(dropdownState[groupByStateKey] || '');
+      const currentGroupBy = summaryGroupBy || state?.getGroupBy?.();
+      if (currentGroupBy) groupBySelect.value = currentGroupBy;
 
-        // Icon actions — generate and add
-      const iconActions = document.createElement('div');
-      iconActions.className = 'header-icon-actions';
+      // Create filter button and modal
+      const filterButton = document.createElement('button');
+      filterButton.type = 'button';
+      filterButton.className = 'icon-btn';
+      filterButton.title = 'Open filters';
+      filterButton.textContent = '⚙';
+      filterButton.setAttribute('aria-label', 'Filters');
+
+      // Action buttons in modal
       const generateFromProjectionsBtn = document.createElement('button');
       generateFromProjectionsBtn.className = 'icon-btn';
       generateFromProjectionsBtn.title = 'Generate from Expanded Transactions';
       generateFromProjectionsBtn.textContent = '⊞';
+
       const addButton = document.createElement('button');
       addButton.className = 'icon-btn';
       addButton.title = 'Add Budget Entry';
       addButton.textContent = '+';
+
       const clearBtn = document.createElement('button');
       clearBtn.className = 'icon-btn';
       clearBtn.title = 'Clear budget';
       clearBtn.textContent = '⊗';
-      iconActions.appendChild(generateFromProjectionsBtn);
-      iconActions.appendChild(addButton);
-      iconActions.appendChild(clearBtn);
-      controls.appendChild(iconActions);
+
+      const modalActions = document.createElement('div');
+      modalActions.className = 'modal-filter-actions';
+      modalActions.appendChild(generateFromProjectionsBtn);
+      modalActions.appendChild(addButton);
+      modalActions.appendChild(clearBtn);
+
+      const filterModal = createFilterModal({
+        id: 'budget-filters-summary-modal',
+        title: 'Filter Budget',
+        trigger: filterButton,
+        items: [
+          { id: 'period-type', label: 'Period Type:', control: periodTypeSelect },
+          { id: 'period', label: 'Period:', control: periodSelect },
+          { id: 'period-nav', label: '', control: periodNav },
+          { id: 'account', label: 'Account:', control: accountSelect },
+          { id: 'group-by', label: 'Group By:', control: groupBySelect },
+          { id: 'actions', label: 'Actions:', control: modalActions }
+        ]
+      });
+
+      filterButton.style.marginLeft = 'auto';
+      controls.appendChild(filterButton);
+
+      // Event listeners for period navigation
+      periodSelect.addEventListener('change', () => {
+        state?.setBudgetPeriod?.(periodSelect.value || null);
+        applyBudgetSummaryFilters({ budgets: allBudgets, state, periods: (state?.getBudgetPeriods?.() || []), accounts, gridContainer, reload });
+      });
+
+      const periodIds = [...(state?.getBudgetPeriods?.() || []).map((p) => p.id || null)];
+      const changePeriodBy = (offset) => {
+        if (prevBtn.disabled || nextBtn.disabled) return;
+        prevBtn.disabled = nextBtn.disabled = true;
+        const freshPeriods = state?.getBudgetPeriods?.() || [];
+        const currentId = state?.getBudgetPeriod?.() ?? null;
+        const currentIndex = periodIds.findIndex((id) => id === currentId);
+        const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+        const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
+        const nextId = periodIds[nextIndex] ?? null;
+        periodSelect.value = nextId ? String(nextId) : '';
+        state?.setBudgetPeriod?.(nextId);
+        applyBudgetSummaryFilters({ budgets: allBudgets, state, periods: freshPeriods, accounts, gridContainer, reload });
+        setTimeout(() => {
+          prevBtn.disabled = nextBtn.disabled = false;
+        }, 100);
+      };
+      prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
+      nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
+
+      // Event listener for account filter
+      accountSelect.addEventListener('change', () => {
+        state?.setBudgetAccountFilterId?.(Number(accountSelect.value));
+        applyBudgetSummaryFilters({ budgets: allBudgets, state, periods: (state?.getBudgetPeriods?.() || []), accounts, gridContainer, reload });
+      });
+
+      // Event listener for group by
+      groupBySelect.addEventListener('change', () => {
+        budgetGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
+        state?.setGroupBy?.(groupBySelect.value);
+        applyBudgetSummaryFilters({ budgets: allBudgets, state, periods: (state?.getBudgetPeriods?.() || []), accounts, gridContainer, reload });
+      });
 
       // --- Event handlers ---
       clearBtn.addEventListener('click', async (e) => {
@@ -1531,55 +1582,6 @@ export async function loadBudgetGrid({
             }
           }
         });
-      });
-
-      periodTypeSelect.addEventListener('change', async () => {
-        clearTimeout(periodTypeChangeTimeout);
-        periodTypeChangeTimeout = setTimeout(async () => {
-          state?.setBudgetPeriodType?.(periodTypeSelect.value);
-          state?.setBudgetPeriods?.([]);
-          state?.setBudgetPeriod?.(null);
-          await reload();
-        }, 50);
-      });
-
-      periodSelect.addEventListener('change', () => {
-        state?.setBudgetPeriod?.(periodSelect.value || null);
-        refreshFilters();
-      });
-
-      const changePeriodBy = (offset) => {
-        if (prevBtn.disabled || nextBtn.disabled) return; // Prevent concurrent
-        prevBtn.disabled = nextBtn.disabled = true;
-        
-        // Get fresh periods from state to ensure accuracy
-        const freshPeriods = state?.getBudgetPeriods?.() || [];
-        const periodIds = [null, ...freshPeriods.map((p) => p.id || null)];
-        const currentId = state?.getBudgetPeriod?.() ?? null;
-        const currentIndex = periodIds.findIndex((id) => id === currentId);
-        const safeIndex = currentIndex === -1 ? 0 : currentIndex;
-        const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
-        const nextId = periodIds[nextIndex] ?? null;
-        periodSelect.value = nextId ? String(nextId) : '';
-        state?.setBudgetPeriod?.(nextId);
-        refreshFilters();
-        
-        setTimeout(() => {
-          prevBtn.disabled = nextBtn.disabled = false;
-        }, 100);
-      };
-      prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
-      nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
-
-      accountSelect.addEventListener('change', () => {
-        state?.setBudgetAccountFilterId?.(Number(accountSelect.value));
-        refreshFilters();
-      });
-
-      groupBySelect.addEventListener('change', () => {
-        budgetGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
-        state?.setGroupBy?.(groupBySelect.value);
-        refreshFilters();
       });
     }
   }

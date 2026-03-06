@@ -7,6 +7,7 @@ import { notifyError } from '../../../shared/notifications.js';
 import { GridStateManager } from '../grids/grid-state.js';
 import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 import { openTimeframeModal } from '../modals/timeframe-modal.js';
+import { createFilterModal } from '../modals/filter-modal.js';
 import { formatCurrency, formatMoneyDisplay, numValueClass } from '../../../shared/format-utils.js';
 import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows } from '../../transforms/transaction-row-transformer.js';
@@ -346,7 +347,7 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
   });
 }
 
-async function buildProjectionsHeaderControls({ controls, container, currentScenario, scenarioState, state, reload, logger }) {
+async function buildProjectionsHeaderControls({ controls, container, currentScenario, scenarioState, state, callbacks, reload, logger }) {
   controls.innerHTML = '';
 
   const regenBtn = document.createElement('button');
@@ -476,18 +477,7 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     }
   });
 
-  // --- Compact filter items in header ---
-  const makeHeaderFilter = (id, labelText, selectEl) => {
-    const item = document.createElement('div');
-    item.className = 'header-filter-item';
-    const label = document.createElement('label');
-    label.htmlFor = id;
-    label.textContent = labelText;
-    item.appendChild(label);
-    item.appendChild(selectEl);
-    return item;
-  };
-
+  // Create filter controls
   const viewByType = state?.getProjectionPeriodType?.() || 'Month';
   let projectionPeriods = state?.getProjectionPeriods?.() || [];
   if (!projectionPeriods.length || state?.getProjectionPeriodType?.() !== viewByType) {
@@ -502,7 +492,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
 
   let projectionPeriod = state?.getProjectionPeriod?.();
   const hasValidPeriod = projectionPeriod && projectionPeriods.some((p) => p.id === projectionPeriod);
-  // If a specific period was selected but no longer exists, reset to "All"
   if (projectionPeriod && !hasValidPeriod) {
     projectionPeriod = null;
     state?.setProjectionPeriod?.(null);
@@ -529,7 +518,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     state?.setProjectionAccountFilterId?.(selectedId > 0 ? selectedId : null);
     
     if (lastProjectionsTable) {
-      // Detail view: use Tabulator filter
       const currentGroup = state?.getGroupBy?.() || '';
       if (currentGroup === 'secondaryAccount') {
         await reload();
@@ -538,11 +526,9 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
       }
       callbacks?.updateProjectionTotals?.();
     } else {
-      // Summary view: reload with filtered data
       await reload();
     }
   });
-  controls.appendChild(makeHeaderFilter('projections-account-filter-select', 'Account:', accountSelect));
 
   // Group By filter
   const groupSelect = document.createElement('select');
@@ -565,7 +551,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     const prevField = state?.getGroupBy?.() || '';
     const field = groupSelect.value || '';
     state?.setGroupBy?.(field);
-    // Apply grouping directly to table if available (both detail and summary paths)
     if (lastProjectionsTable) {
       const needsDataReload = prevField === 'secondaryAccount' || field === 'secondaryAccount';
       if (needsDataReload) {
@@ -577,7 +562,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
       await reload();
     }
   });
-  controls.appendChild(makeHeaderFilter('projections-grouping-select', 'Group:', groupSelect));
 
   // View By filter
   const viewSelect = document.createElement('select');
@@ -605,7 +589,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     state?.setProjectionPeriod?.(nextPeriodId);
     await reload();
   });
-  controls.appendChild(makeHeaderFilter('projections-viewby-select', 'Period Type:', viewSelect));
 
   // Period selector + nav
   const periodSelect = document.createElement('select');
@@ -628,11 +611,9 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     state?.setProjectionPeriod?.(selectedPeriodId);
     
     if (lastProjectionsTable) {
-      // Detail view: use Tabulator filter
       applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
       callbacks?.updateProjectionTotals?.();
     } else {
-      // Summary view: reload with filtered data
       await reload();
     }
   });
@@ -643,11 +624,9 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     state?.setProjectionPeriod?.(id || null);
     
     if (lastProjectionsTable) {
-      // Detail view: use Tabulator filter
       applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
       callbacks?.updateProjectionTotals?.();
     } else {
-      // Summary view: reload with filtered data
       await reload();
     }
   };
@@ -670,24 +649,42 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   prevBtn.addEventListener('click', async (e) => { e.preventDefault(); await changePeriodBy(-1); });
   nextBtn.addEventListener('click', async (e) => { e.preventDefault(); await changePeriodBy(1); });
 
-  const periodItem = document.createElement('div');
-  periodItem.className = 'header-filter-item';
-  const periodLabel = document.createElement('label');
-  periodLabel.htmlFor = 'projections-period-select';
-  periodLabel.textContent = 'Period:';
-  periodItem.appendChild(periodLabel);
-  periodItem.appendChild(periodSelect);
-  periodItem.appendChild(prevBtn);
-  periodItem.appendChild(nextBtn);
-  controls.appendChild(periodItem);
+  // Create period nav container
+  const periodNav = document.createElement('div');
+  periodNav.className = 'period-nav';
+  periodNav.appendChild(prevBtn);
+  periodNav.appendChild(nextBtn);
 
-  const iconActions = document.createElement('div');
-  iconActions.className = 'header-icon-actions';
-  iconActions.appendChild(regenBtn);
-  iconActions.appendChild(setPeriodBtn);
-  iconActions.appendChild(generateBtn);
-  iconActions.appendChild(clearBtn);
-  controls.appendChild(iconActions);
+  // Create filter button and modal
+  const filterButton = document.createElement('button');
+  filterButton.type = 'button';
+  filterButton.className = 'icon-btn';
+  filterButton.title = 'Open filters';
+  filterButton.textContent = '⚙';
+  filterButton.setAttribute('aria-label', 'Filters');
+
+  const modalActions = document.createElement('div');
+  modalActions.className = 'modal-filter-actions';
+  modalActions.appendChild(regenBtn);
+  modalActions.appendChild(setPeriodBtn);
+  modalActions.appendChild(generateBtn);
+  modalActions.appendChild(clearBtn);
+
+  const filterModal = createFilterModal({
+    id: 'projections-filter-modal',
+    title: 'Filter Projections',
+    trigger: filterButton,
+    items: [
+      { id: 'account', label: 'Account:', control: accountSelect },
+      { id: 'period-type', label: 'Period Type:', control: viewSelect },
+      { id: 'period', label: 'Period:', control: periodSelect, suffix: periodNav },
+      { id: 'group-by', label: 'Group By:', control: groupSelect },
+      { id: 'actions', label: 'Actions:', control: modalActions }
+    ]
+  });
+
+  filterButton.style.marginLeft = 'auto';
+  controls.appendChild(filterButton);
 }
 
 export async function loadProjectionsGrid({
@@ -727,6 +724,7 @@ export async function loadProjectionsGrid({
         currentScenario,
         scenarioState,
         state,
+        callbacks,
         reload: reloadGrid,
         logger
       });
@@ -888,6 +886,7 @@ export async function loadProjectionsSection({
         currentScenario,
         scenarioState,
         state,
+        callbacks,
         reload: async () => loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger }),
         logger
       });

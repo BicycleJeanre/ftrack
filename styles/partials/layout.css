@@ -1497,6 +1497,138 @@ body.dashboard-shell {
   color: var(--bg-primary) !important;
 }
 
+/* ==================================== Filter Modal ====================================*/
+
+.filter-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  z-index: 1049;
+  cursor: pointer;
+}
+
+.filter-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1050;
+  min-width: 300px;
+  max-width: 420px;
+  padding: 16px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.filter-modal-header {
+  font-weight: 600;
+  font-size: 0.95em;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.filter-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.modal-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.modal-filter-item:last-child {
+  border-bottom: none;
+}
+
+.modal-filter-label {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: block;
+}
+
+.modal-filter-item select,
+.modal-filter-item input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.95em;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.modal-filter-item select:focus,
+.modal-filter-item input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.1);
+}
+
+/* Button groups within modal items (e.g., period navigation) */
+.modal-filter-item .period-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.modal-filter-item .period-btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.9em;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.modal-filter-item .period-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+}
+
+.modal-filter-item .period-btn:active {
+  background: var(--accent-subtle);
+  border-color: var(--accent-primary);
+}
+
+.modal-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-xs);
+}
+
+/* Filter button styling - applies when modal is open */
+button.filter-modal-open {
+  background: var(--accent-subtle) !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
+}
+
+/* Responsive modal sizing */
+@media (max-width: 640px) {
+  .filter-modal {
+    min-width: 280px;
+    max-width: calc(100vw - 16px);
+    max-height: 85vh;
+  }
+}
+
 /* Transaction card header row: secondary account name + type badge */
 .grid-summary-header {
   display: flex;
