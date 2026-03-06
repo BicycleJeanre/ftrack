@@ -168,6 +168,49 @@ function buildDashRow({ id, title, defaultCollapsed = false, showControls = true
   return { row, body };
 }
 
+function wireNarrowPanelAccordion({
+  middleRow,
+  panel,
+  header,
+  headerLeft,
+  stateKey,
+  accordionStates,
+  onAccordionToggle
+}) {
+  const chevron = document.createElement('span');
+  chevron.className = 'dash-panel-chevron';
+  chevron.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  headerLeft.insertBefore(chevron, headerLeft.firstChild || null);
+
+  let isOpen = accordionStates[stateKey] !== false;
+  const media = window.matchMedia('(max-width: 1023px)');
+
+  const isEnabled = () => media.matches && !middleRow.classList.contains('mode-detail');
+
+  const render = () => {
+    header.classList.toggle('panel-accordion-enabled', isEnabled());
+    if (!isEnabled()) {
+      panel.classList.remove('panel-collapsed');
+      return;
+    }
+    panel.classList.toggle('panel-collapsed', !isOpen);
+  };
+
+  header.addEventListener('click', (e) => {
+    if (!isEnabled()) return;
+    if (e.target.closest('.card-header-controls')) return;
+    if (e.target.closest('button,input,select,textarea,a')) return;
+    isOpen = !isOpen;
+    panel.classList.toggle('panel-collapsed', !isOpen);
+    onAccordionToggle?.(stateKey, isOpen);
+  });
+
+  media.addEventListener('change', render);
+  const observer = new MutationObserver(render);
+  observer.observe(middleRow, { attributes: true, attributeFilter: ['class'] });
+  render();
+}
+
 export function buildGridContainer({ accordionStates = {}, onAccordionToggle } = {}) {
   const forecastEl = getEl('panel-forecast');
   forecastEl.innerHTML = '';
@@ -356,6 +399,27 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
 
   panels.appendChild(accountsPanel);
   panels.appendChild(txPanel);
+
+  wireNarrowPanelAccordion({
+    middleRow,
+    panel: accountsPanel,
+    header: accountsHeader,
+    headerLeft: accountsHeaderLeft,
+    stateKey: 'accountsSection',
+    accordionStates,
+    onAccordionToggle
+  });
+
+  wireNarrowPanelAccordion({
+    middleRow,
+    panel: txPanel,
+    header: txHeader,
+    headerLeft: txHeaderLeft,
+    stateKey: 'transactionsSection',
+    accordionStates,
+    onAccordionToggle
+  });
+
   middleBody.appendChild(panels);
   dashLayout.appendChild(middleRow);
 
