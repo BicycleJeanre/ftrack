@@ -4,6 +4,7 @@
 import { parseDateOnly } from '../../../shared/date-utils.js';
 import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
+import { renderTotalsCard } from '../widgets/totals-card.js';
 
 export function getFilteredProjections({
   currentScenario,
@@ -90,18 +91,61 @@ export function updateProjectionTotals(container, projections) {
   const lastDateKey = dateKeys.length ? dateKeys[dateKeys.length - 1] : null;
   const firstBalance = roundMoney(firstDateKey ? (balancesByDate.get(firstDateKey) || 0) : 0);
   const lastBalance = roundMoney(lastDateKey ? (balancesByDate.get(lastDateKey) || 0) : 0);
+  const projectedNetChange = roundMoney(lastBalance - firstBalance);
   const totalIncome = roundMoney(totals.income);
   const totalExpenses = roundMoney(displayExpenses);
   const totalNet = roundMoney(totals.net);
 
-  const toolbarTotals = container.querySelector('.toolbar-totals');
-  if (toolbarTotals) {
-    toolbarTotals.innerHTML = `
-      <span class="toolbar-total-item"><span class="label">Start Bal${firstDateKey ? ` (${firstDateKey})` : ''}:</span> <span class="value ${numValueClass(firstBalance)}">${formatCurrency(firstBalance)}</span></span>
-      <span class="toolbar-total-item"><span class="label">End Bal${lastDateKey ? ` (${lastDateKey})` : ''}:</span> <span class="value ${numValueClass(lastBalance)}">${formatCurrency(lastBalance)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Income:</span> <span class="value positive">${formatCurrency(totalIncome)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Expenses:</span> <span class="value negative">${formatCurrency(totalExpenses)}</span></span>
-      <span class="toolbar-total-item"><span class="label">Net:</span> <span class="value ${numValueClass(totalNet)}">${formatCurrency(totalNet)}</span></span>
-    `;
-  }
+  const items = [
+    {
+      label: `Start Balance${firstDateKey ? ` (${firstDateKey})` : ''}`,
+      valueHtml: formatCurrency(firstBalance),
+      valueClass: numValueClass(firstBalance),
+      calc: 'Sum of balances on the first visible projection date.',
+      uses: 'Baseline for trajectory discussions.',
+      shows: 'Combined starting position for visible accounts.'
+    },
+    {
+      label: `End Balance${lastDateKey ? ` (${lastDateKey})` : ''}`,
+      valueHtml: formatCurrency(lastBalance),
+      valueClass: numValueClass(lastBalance),
+      calc: 'Sum of balances on the last visible projection date.',
+      uses: 'Target/goal comparison at horizon.',
+      shows: 'Combined ending position for visible accounts.'
+    },
+    {
+      label: 'Projected Net Change',
+      valueHtml: formatCurrency(projectedNetChange),
+      valueClass: numValueClass(projectedNetChange),
+      calc: 'End Balance − Start Balance.',
+      uses: 'Highlights direction and magnitude of change.',
+      shows: 'Overall balance movement across the visible horizon.'
+    },
+    {
+      label: 'Income',
+      valueHtml: formatCurrency(totalIncome),
+      valueClass: 'positive',
+      calc: 'Sum of visible projection income amounts.',
+      uses: 'Capacity planning for savings/investments.',
+      shows: 'Total expected inflows for the filtered view.'
+    },
+    {
+      label: 'Expenses',
+      valueHtml: formatCurrency(totalExpenses),
+      valueClass: 'negative',
+      calc: 'Sum of visible projection expense amounts.',
+      uses: 'Pressure-testing budgets and burn rate.',
+      shows: 'Total expected outflows for the filtered view.'
+    },
+    {
+      label: 'Net',
+      valueHtml: formatCurrency(totalNet),
+      valueClass: numValueClass(totalNet),
+      calc: 'Sum of visible net changes (income − expenses per row).',
+      uses: 'Quick surplus/deficit signal.',
+      shows: 'Net cashflow contribution for the filtered view.'
+    }
+  ];
+
+  renderTotalsCard(container, { title: 'PROJECTION TOTALS', items });
 }

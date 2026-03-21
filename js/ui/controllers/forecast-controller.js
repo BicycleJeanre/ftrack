@@ -196,6 +196,34 @@ function restorePageScroll(snapshot) {
   }
 }
 
+function renderSummaryExplainBlock({ calc = '', use = '', shows = '' } = {}) {
+  // Explanations are shown as hover tooltips to reduce visual clutter.
+  // Kept as a helper for compatibility with older call sites.
+  return '';
+}
+
+function renderSummaryMetric({
+  label,
+  valueHtml,
+  valueClass = '',
+  calc = '',
+  use = '',
+  shows = ''
+}) {
+  const cls = valueClass ? ` ${valueClass}` : '';
+  const lines = [];
+  if (calc) lines.push(`Calc: ${calc}`);
+  if (use) lines.push(`Uses: ${use}`);
+  if (shows) lines.push(`Shows: ${shows}`);
+  const tooltip = lines.join('\n');
+  const tooltipAttr = tooltip
+    ? ` data-tooltip="${tooltip.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;').replaceAll('\n', '&#10;')}"`
+    : '';
+  const tooltipCls = tooltip ? ' has-tooltip' : '';
+
+  return `<div class="summary-card-row"><span class="label${tooltipCls}"${tooltipAttr}>${label}</span><span class="value${cls}${tooltipCls}"${tooltipAttr}>${valueHtml}</span></div>`;
+}
+
 function getWorkflowConfig() {
   return getWorkflowById(currentWorkflowId);
 }
@@ -1233,31 +1261,57 @@ async function loadDebtSummaryCards(container, options = {}) {
 
   // Create overall total card (only when multiple accounts exist)
   if (filteredAccounts.length > 1) {
+    const interestDirection = Number(totalInterestEarned || 0) + Number(totalInterestPaid || 0);
     const totalCard = document.createElement('div');
     totalCard.className = 'summary-card overall-total';
-    totalCard.innerHTML = `
-      <div class="summary-card-title">OVERALL TOTAL</div>
-      <div class="summary-card-row">
-        <span class="label">Starting Balance:</span>
-        <span class="value">${formatMoneyDisplay(totalStarting)}</span>
-      </div>
-      <div class="summary-card-row">
-        <span class="label">Projected End:</span>
-        <span class="value">${formatMoneyDisplay(totalProjectedEnd)}</span>
-      </div>
-      <div class="summary-card-row">
-        <span class="label">Interest Earned:</span>
-        <span class="value interest-earned">${formatMoneyDisplay(totalInterestEarned)}</span>
-      </div>
-      <div class="summary-card-row">
-        <span class="label">Interest Paid:</span>
-        <span class="value interest-paid">${formatMoneyDisplay(totalInterestPaid)}</span>
-      </div>
-      <div class="summary-card-row">
-        <span class="label">Accounts:</span>
-        <span class="value">${filteredAccounts.length}</span>
-      </div>
-    `;
+    const rows = [
+      renderSummaryMetric({
+        label: 'Starting Balance:',
+        valueHtml: formatMoneyDisplay(totalStarting),
+        calc: 'Sum of starting balances for the currently selected/filtered accounts.',
+        use: 'Baseline for repayment trajectory.',
+        shows: 'Combined starting debt position.'
+      }),
+      renderSummaryMetric({
+        label: 'Projected End:',
+        valueHtml: formatMoneyDisplay(totalProjectedEnd),
+        calc: 'Sum of each account’s last projected balance (falls back to starting balance if no projections).',
+        use: 'Quick check of where balances land by the forecast end.',
+        shows: 'Combined projected end balance across selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Earned:',
+        valueHtml: formatMoneyDisplay(totalInterestEarned),
+        valueClass: 'interest-earned',
+        calc: 'Sum of positive `interest` values across projections for the selected accounts.',
+        use: 'Spot interest income (e.g., offsetting positions).',
+        shows: 'Total interest earned over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Paid:',
+        valueHtml: formatMoneyDisplay(totalInterestPaid),
+        valueClass: 'interest-paid',
+        calc: 'Sum of negative `interest` values across projections for the selected accounts.',
+        use: 'Understand interest cost of carrying debt.',
+        shows: 'Total interest paid over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Direction:',
+        valueHtml: formatMoneyDisplay(interestDirection),
+        valueClass: interestDirection >= 0 ? 'interest-earned' : 'interest-paid',
+        calc: 'Interest Earned + Interest Paid (net interest).',
+        use: 'Single signal for whether interest is net positive or net negative.',
+        shows: 'Net interest over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Accounts:',
+        valueHtml: String(filteredAccounts.length),
+        calc: 'Count of accounts included after filters are applied.',
+        use: 'Validate scope of this summary.',
+        shows: 'Number of accounts included in totals.'
+      })
+    ];
+    totalCard.innerHTML = `<div class="summary-card-title">OVERALL TOTAL</div>${rows.join('')}`;
     // Place overall total at the top of the summary container so it uses full width
     try {
       if (groupWrapper && groupWrapper.parentNode === container) {
@@ -1365,15 +1419,58 @@ async function loadFundsSummaryCards(container, options = {}) {
 
   const totalsCard = document.createElement('div');
   totalsCard.className = 'summary-card overall-total';
-  totalsCard.innerHTML = `
-    <div class="summary-card-title">FUND TOTALS</div>
-    <div class="summary-card-row"><span class="label">Total shares:</span><span class="value neutral"><input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" value="${Number.isFinite(totalShares) ? totalShares.toFixed(4) : ''}" /></span></div>
-    <div class="summary-card-row"><span class="label">NAV:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
-    <div class="summary-card-row"><span class="label">Share price:</span><span class="value neutral">${sharePrice === null ? 'N/A' : formatMoneyDisplay(sharePrice)}</span></div>
-    <div class="summary-card-row"><span class="label">Contributions:</span><span class="value">${formatMoneyDisplay(investorTotals.contributions)}</span></div>
-    <div class="summary-card-row"><span class="label">Redemptions:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(investorTotals.redemptions || 0))}</span></div>
-    <div class="summary-card-row"><span class="label">Net:</span><span class="value">${formatMoneyDisplay(investorTotals.net)}</span></div>
-  `;
+  {
+    const rows = [
+      renderSummaryMetric({
+        label: 'Total shares:',
+        valueHtml: `<input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" value="${Number.isFinite(totalShares) ? totalShares.toFixed(4) : ''}" />`,
+        valueClass: 'neutral',
+        calc: 'Computed from equity-account share allocations (can be overridden by the value you enter here).',
+        use: 'Used as the denominator for ownership % and for share price.',
+        shows: 'Total outstanding shares for the fund.'
+      }),
+      renderSummaryMetric({
+        label: 'NAV:',
+        valueHtml: formatMoneyDisplay(nav),
+        calc: 'Net Asset Value across included accounts (assets minus liabilities).',
+        use: 'Primary valuation snapshot for the fund.',
+        shows: 'Total fund value at the current projection snapshot.'
+      }),
+      renderSummaryMetric({
+        label: 'Share price:',
+        valueHtml: sharePrice === null ? 'N/A' : formatMoneyDisplay(sharePrice),
+        valueClass: 'neutral',
+        calc: 'NAV ÷ Total shares (if total shares is > 0).',
+        use: 'Convert investor shares into implied value.',
+        shows: 'Value per share for the current snapshot.'
+      }),
+      renderSummaryMetric({
+        label: 'Contributions:',
+        valueHtml: formatMoneyDisplay(investorTotals.contributions),
+        valueClass: 'positive',
+        calc: 'Sum of contribution flows into the fund.',
+        use: 'Track capital added by investors.',
+        shows: 'Total contributed capital over the available history.'
+      }),
+      renderSummaryMetric({
+        label: 'Redemptions:',
+        valueHtml: formatMoneyDisplay(-Math.abs(investorTotals.redemptions || 0)),
+        valueClass: 'negative',
+        calc: 'Sum of redemption flows out of the fund.',
+        use: 'Track withdrawals / capital returned.',
+        shows: 'Total redeemed capital over the available history.'
+      }),
+      renderSummaryMetric({
+        label: 'Net:',
+        valueHtml: formatMoneyDisplay(investorTotals.net),
+        valueClass: Number(investorTotals.net || 0) >= 0 ? 'positive' : 'negative',
+        calc: 'Contributions + Redemptions (net investor flows).',
+        use: 'Quick signal for net inflow vs outflow.',
+        shows: 'Net capital movement from investors.'
+      })
+    ];
+    totalsCard.innerHTML = `<div class="summary-card-title">FUND TOTALS</div>${rows.join('')}`;
+  }
   container.appendChild(totalsCard);
 
   // Attach total shares input handler (moved into totals card)
@@ -1744,19 +1841,82 @@ async function loadGeneralSummaryCards(container, options = {}) {
   }
 
   const { nav, totalAssets, totalLiabilities } = computeNav({ accounts: filteredAccounts, projectionsIndex, asOfDate: null });
+  const interestDirection = Number(totalInterestEarned || 0) + Number(totalInterestPaid || 0);
   const totalCard = document.createElement('div');
   totalCard.className = 'summary-card overall-total';
-  totalCard.innerHTML = `
-    <div class="summary-card-title">OVERALL TOTAL</div>
-    <div class="summary-card-row"><span class="label">Starting Balance:</span><span class="value">${formatMoneyDisplay(totalStarting)}</span></div>
-    <div class="summary-card-row"><span class="label">Projected End:</span><span class="value">${formatMoneyDisplay(totalProjectedEnd)}</span></div>
-    <div class="summary-card-row"><span class="label">Interest Earned:</span><span class="value interest-earned">${formatMoneyDisplay(totalInterestEarned)}</span></div>
-    <div class="summary-card-row"><span class="label">Interest Paid:</span><span class="value interest-paid">${formatMoneyDisplay(totalInterestPaid)}</span></div>
-    <div class="summary-card-row"><span class="label">Net Worth:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
-    <div class="summary-card-row"><span class="label">Total Assets:</span><span class="value positive">${formatMoneyDisplay(totalAssets)}</span></div>
-    <div class="summary-card-row"><span class="label">Total Liabilities:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(totalLiabilities || 0))}</span></div>
-    <div class="summary-card-row"><span class="label">Accounts:</span><span class="value">${filteredAccounts.length}</span></div>
-  `;
+  {
+    const rows = [
+      renderSummaryMetric({
+        label: 'Starting Balance:',
+        valueHtml: formatMoneyDisplay(totalStarting),
+        calc: 'Sum of starting balances for the accounts included by the current filters.',
+        use: 'Baseline for comparing projected outcomes.',
+        shows: 'Combined starting position for the selected scope.'
+      }),
+      renderSummaryMetric({
+        label: 'Projected End:',
+        valueHtml: formatMoneyDisplay(totalProjectedEnd),
+        calc: 'Sum of each account’s last projected balance (falls back to starting balance if no projections).',
+        use: 'End-of-horizon snapshot for the selected scope.',
+        shows: 'Combined projected end balance across selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Earned:',
+        valueHtml: formatMoneyDisplay(totalInterestEarned),
+        valueClass: 'interest-earned',
+        calc: 'Sum of positive `interest` values across projections for the selected accounts.',
+        use: 'Understand interest income contribution.',
+        shows: 'Total interest earned over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Paid:',
+        valueHtml: formatMoneyDisplay(totalInterestPaid),
+        valueClass: 'interest-paid',
+        calc: 'Sum of negative `interest` values across projections for the selected accounts.',
+        use: 'Understand interest cost contribution.',
+        shows: 'Total interest paid over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Direction:',
+        valueHtml: formatMoneyDisplay(interestDirection),
+        valueClass: interestDirection >= 0 ? 'interest-earned' : 'interest-paid',
+        calc: 'Interest Earned + Interest Paid (net interest).',
+        use: 'Single signal for whether interest is net positive or net negative.',
+        shows: 'Net interest over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Net Worth:',
+        valueHtml: formatMoneyDisplay(nav),
+        calc: 'Total Assets − Total Liabilities for the selected scope.',
+        use: 'Quick solvency snapshot.',
+        shows: 'Combined net worth for the selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Total Assets:',
+        valueHtml: formatMoneyDisplay(totalAssets),
+        valueClass: 'positive',
+        calc: 'Sum of balances for asset accounts within the selected scope.',
+        use: 'Understand asset base size.',
+        shows: 'Combined assets for the selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Total Liabilities:',
+        valueHtml: formatMoneyDisplay(-Math.abs(totalLiabilities || 0)),
+        valueClass: 'negative',
+        calc: 'Sum of balances for liability accounts within the selected scope.',
+        use: 'Understand debt load.',
+        shows: 'Combined liabilities for the selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Accounts:',
+        valueHtml: String(filteredAccounts.length),
+        calc: 'Count of accounts included after filters are applied.',
+        use: 'Validate scope of this summary.',
+        shows: 'Number of accounts included in totals.'
+      })
+    ];
+    totalCard.innerHTML = `<div class="summary-card-title">OVERALL TOTAL</div>${rows.join('')}`;
+  }
     // Place overall total at the top of the summary container so it uses full width
     try {
       if (groupWrapper && groupWrapper.parentNode === container) {

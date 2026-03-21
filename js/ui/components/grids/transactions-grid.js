@@ -19,6 +19,7 @@ import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
 import * as DataService from '../../../app/services/data-service.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
+import { renderMoneyTotals } from '../widgets/toolbar-totals.js';
 
 const {
   getScenario,
@@ -244,6 +245,54 @@ function renderTransactionsRowDetails({ row, rowData, reload }) {
   grid.appendChild(tagsField);
 
   detailsEl.appendChild(grid);
+}
+
+function ensureTransactionTotalsContainer(container, gridContainer) {
+  if (!container) return null;
+
+  let totalsContainer = container.querySelector(':scope > .transaction-totals-container#transactionsContent');
+  if (!totalsContainer) {
+    totalsContainer = document.createElement('div');
+    totalsContainer.className = 'transaction-totals-container';
+    totalsContainer.id = 'transactionsContent';
+  }
+
+  if (gridContainer?.parentNode === container) {
+    if (totalsContainer.parentNode !== container || totalsContainer.nextSibling !== gridContainer) {
+      try {
+        container.insertBefore(totalsContainer, gridContainer);
+      } catch (_) {
+        // ignore
+      }
+    }
+  } else if (totalsContainer.parentNode !== container) {
+    container.insertBefore(totalsContainer, container.firstChild);
+  }
+
+  return totalsContainer;
+}
+
+function renderTransactionsSummaryTotals({ totalsContainer, transactions, accounts, filterAccountId }) {
+  if (!totalsContainer) return;
+
+  const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
+  const allPerspectiveRows = (transactions || []).flatMap((tx) => {
+    const normalized = normalizeCanonicalTransaction(tx);
+    return transformTransactionToRows(normalized, visibleAccounts);
+  });
+
+  const displayTransactions = filterAccountId
+    ? allPerspectiveRows.filter((r) => Number(r.perspectiveAccountId) === Number(filterAccountId))
+    : allPerspectiveRows.filter((r) => !String(r.id).endsWith('_flipped'));
+
+  const totals = calculateCategoryTotals(displayTransactions, {
+    amountField: 'plannedAmount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId'
+  });
+
+  renderMoneyTotals(totalsContainer, totals);
 }
 
 function renderTransactionsSummaryList({
@@ -977,6 +1026,7 @@ export async function loadMasterTransactionsGrid({
   }
 
   gridContainer.classList.remove('grid-detail');
+  const totalsContainer = ensureTransactionTotalsContainer(container, gridContainer);
 
   try {
     // In detail mode the table is kept alive and updated in-place via refreshGridData;
@@ -1332,16 +1382,6 @@ export async function loadMasterTransactionsGrid({
         }
       }
 
-      // --- Totals container (stable; selects moved to title bar) ---
-      let totalsContainer = container.querySelector(':scope > .transaction-totals-container#transactionsContent');
-      if (!totalsContainer) {
-        gridContainer.innerHTML = '';
-        totalsContainer = document.createElement('div');
-        totalsContainer.className = 'transaction-totals-container';
-        totalsContainer.id = 'transactionsContent';
-        container.insertBefore(totalsContainer, gridContainer);
-      }
-
       const columns = [
         // Planned/Actual checkbox — very first column
         {
@@ -1529,6 +1569,14 @@ export async function loadMasterTransactionsGrid({
       const summaryFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
       const summaryFilterAccountId = summaryAccountFilterStr ? Number(summaryAccountFilterStr)
         : (summaryFirstAccountId ? Number(summaryFirstAccountId) : null);
+
+      renderTransactionsSummaryTotals({
+        totalsContainer,
+        transactions: allTransactions,
+        accounts: currentScenario.accounts || [],
+        filterAccountId: summaryFilterAccountId
+      });
+
       renderTransactionsSummaryList({
         container: gridContainer,
         transactions: allTransactions,

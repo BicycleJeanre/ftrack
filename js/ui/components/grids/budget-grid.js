@@ -13,6 +13,8 @@ import { GridStateManager } from './grid-state.js';
 import { getScenarioProjectionRows, getScenarioBudgetWindowConfig } from '../../../shared/app-data-utils.js';
 import { openTimeframeModal } from '../modals/timeframe-modal.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
+import { calculateBudgetTotals } from '../../transforms/data-aggregators.js';
+import { renderBudgetTotals } from '../widgets/toolbar-totals.js';
 
 import * as BudgetManager from '../../../app/managers/budget-manager.js';
 import * as ScenarioManager from '../../../app/managers/scenario-manager.js';
@@ -131,28 +133,16 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     return;
   }
 
-  const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
+  const { visibleAccounts, displayBudgets } = getBudgetSummaryDisplayRows({
+    budgets,
+    accounts,
+    filterAccountId
+  });
   const findAccountName = (id) => visibleAccounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
   const findAccountCurrency = (id) => {
     const acct = visibleAccounts.find((a) => Number(a.id) === Number(id));
     return acct?.currency?.code || acct?.currency?.name || 'ZAR';
   };
-
-  // Transform budgets to perspective rows using shared transformer
-  const allPerspectiveRows = budgets.flatMap((b) => {
-    const normalized = normalizeBudgetForTransform(b);
-    return transformTransactionToRows(normalized, visibleAccounts);
-  });
-
-  // Filter to current account perspective or show only primary rows.
-  // Also normalise statusName so group-by works (transformer stores status.name not statusName).
-  const displayBudgets = (filterAccountId
-    ? allPerspectiveRows.filter(r => Number(r.perspectiveAccountId) === Number(filterAccountId))
-    : allPerspectiveRows.filter(r => !String(r.id).endsWith('_flipped'))
-  ).map(r => ({
-    ...r,
-    statusName: (typeof r.status === 'object' ? r.status?.name : r.status) || 'planned'
-  }));
 
   const buildAccountSelect = (selectedId, includeNone = false) => {
     const sel = document.createElement('select');
@@ -694,6 +684,66 @@ function applyBudgetSummaryFilters({ budgets, state, periods, accounts, gridCont
     filterAccountId: accountFilterId,
     groupByField: groupByField
   });
+}
+
+function ensureBudgetTotalsContainer(container, gridContainer) {
+  if (!container) return null;
+
+  let totalsContainer = container.querySelector(':scope > .budget-totals-container#budgetContent');
+  if (!totalsContainer) {
+    totalsContainer = document.createElement('div');
+    totalsContainer.className = 'budget-totals-container';
+    totalsContainer.id = 'budgetContent';
+  }
+
+  if (gridContainer?.parentNode === container) {
+    if (totalsContainer.parentNode !== container || totalsContainer.nextSibling !== gridContainer) {
+      try {
+        container.insertBefore(totalsContainer, gridContainer);
+      } catch (_) {
+        // ignore
+      }
+    }
+  } else if (totalsContainer.parentNode !== container) {
+    container.insertBefore(totalsContainer, container.firstChild);
+  }
+
+  return totalsContainer;
+}
+
+function getBudgetSummaryDisplayRows({ budgets, accounts, filterAccountId }) {
+  const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
+
+  const allPerspectiveRows = (budgets || []).flatMap((b) => {
+    const normalized = normalizeBudgetForTransform(b);
+    return transformTransactionToRows(normalized, visibleAccounts);
+  });
+
+  const displayBudgets = (filterAccountId
+    ? allPerspectiveRows.filter((r) => Number(r.perspectiveAccountId) === Number(filterAccountId))
+    : allPerspectiveRows.filter((r) => !String(r.id).endsWith('_flipped'))
+  ).map((r) => ({
+    ...r,
+    statusName: (typeof r.status === 'object' ? r.status?.name : r.status) || 'planned'
+  }));
+
+  return { visibleAccounts, displayBudgets };
+}
+
+function renderBudgetSummaryTotals({ totalsContainer, budgets, accounts, filterAccountId }) {
+  if (!totalsContainer) return;
+
+  const { displayBudgets } = getBudgetSummaryDisplayRows({ budgets, accounts, filterAccountId });
+
+  const totals = calculateBudgetTotals(displayBudgets, {
+    plannedField: 'plannedAmount',
+    actualField: 'actualAmount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId'
+  });
+
+  renderBudgetTotals(totalsContainer, totals);
 }
 
 export async function loadBudgetGrid({
@@ -1321,6 +1371,7 @@ export async function loadBudgetGrid({
   }
 
   gridContainer.classList.remove('grid-detail');
+  const totalsContainer = ensureBudgetTotalsContainer(container, gridContainer);
 
   const refreshFilters = () => {
     if (!cachedBudgets) return;
@@ -1335,6 +1386,32 @@ export async function loadBudgetGrid({
       gridContainer,
       reload
     });
+
+    try {
+      const budgetPeriod = state?.getBudgetPeriod?.();
+      let periodFilteredBudgets = cachedBudgets;
+      if (budgetPeriod) {
+        const selectedPeriod = (periods || []).find((p) => String(p.id) === String(budgetPeriod));
+        if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
+          const startStr = formatDateOnly(selectedPeriod.startDate);
+          const endStr = formatDateOnly(selectedPeriod.endDate);
+          periodFilteredBudgets = cachedBudgets.filter((b) => {
+            const occStr = b.occurrenceDate;
+            if (!occStr) return false;
+            return occStr >= startStr && occStr <= endStr;
+          });
+        }
+      }
+
+      renderBudgetSummaryTotals({
+        totalsContainer,
+        budgets: periodFilteredBudgets,
+        accounts: currentScenario.accounts || [],
+        filterAccountId: state?.getBudgetAccountFilterId?.()
+      });
+    } catch (_) {
+      // ignore
+    }
   };
 
   let rebuildPeriodOptionsRef = null;
@@ -1680,6 +1757,13 @@ export async function loadBudgetGrid({
       onRefresh: reload,
       filterAccountId: accountFilterId,
       groupByField: state?.getGroupBy?.()
+    });
+
+    renderBudgetSummaryTotals({
+      totalsContainer,
+      budgets,
+      accounts: currentScenario.accounts || [],
+      filterAccountId: accountFilterId
     });
   } catch (err) {
     notifyError(err?.message || 'Failed to reload budget summary.');

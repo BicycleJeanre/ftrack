@@ -687,6 +687,21 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   controls.appendChild(filterButton);
 }
 
+function ensureProjectionsTotalsContainer(container) {
+  if (!container) return null;
+
+  let totalsContainer = container.querySelector(':scope > #projectionsTotals');
+  if (!totalsContainer) {
+    totalsContainer = document.createElement('div');
+    totalsContainer.id = 'projectionsTotals';
+    // Reuse existing totals container spacing/layout rules where possible.
+    totalsContainer.className = 'projections-totals-container budget-totals-container';
+    container.insertBefore(totalsContainer, container.firstChild);
+  }
+
+  return totalsContainer;
+}
+
 export async function loadProjectionsGrid({
   container,
   scenarioState,
@@ -742,8 +757,27 @@ export async function loadProjectionsGrid({
     }
     projectionsGridContainer.classList.add('grid-detail');
 
-    container.innerHTML = '';
-    container.appendChild(projectionsGridContainer);
+    const totalsContainer = ensureProjectionsTotalsContainer(container);
+
+    // Keep totals + grid containers stable to avoid scroll jumps.
+    Array.from(container.children)
+      .filter((child) => child !== totalsContainer && child !== projectionsGridContainer)
+      .forEach((child) => child.remove());
+
+    if (totalsContainer && totalsContainer.parentNode === container) {
+      if (container.firstChild !== totalsContainer) {
+        container.insertBefore(totalsContainer, container.firstChild);
+      }
+    } else if (totalsContainer) {
+      container.insertBefore(totalsContainer, container.firstChild);
+    }
+
+    if (projectionsGridContainer.parentNode !== container) {
+      container.appendChild(projectionsGridContainer);
+    } else {
+      // Ensure grid stays after totals container.
+      container.appendChild(projectionsGridContainer);
+    }
 
     const filteredRows = getScenarioProjectionRows(currentScenario);
 
@@ -811,6 +845,16 @@ export async function loadProjectionsGrid({
       rowFormatter: (row) => renderProjectionsRowDetails({ row, rowData: row.getData() })
     });
 
+    // Keep totals in sync with Tabulator filtering (period/account filters, header filters, etc.).
+    try {
+      lastProjectionsTable.on('dataFiltered', (_filters, rows) => {
+        const data = Array.isArray(rows) ? rows.map((r) => r?.getData?.()).filter(Boolean) : [];
+        callbacks?.updateProjectionTotals?.(totalsContainer, data);
+      });
+    } catch (_) {
+      // ignore
+    }
+
     const toggleRowDetails = (row) => {
       const rowData = row.getData();
       rowData._detailsOpen = !rowData._detailsOpen;
@@ -835,6 +879,12 @@ export async function loadProjectionsGrid({
       }
       try {
         applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
+      } catch (_) {
+        // ignore
+      }
+      try {
+        const active = lastProjectionsTable?.getData?.('active') || [];
+        callbacks?.updateProjectionTotals?.(totalsContainer, active);
       } catch (_) {
         // ignore
       }
@@ -906,6 +956,8 @@ export async function loadProjectionsSection({
   const existingToolbars = container.querySelectorAll(':scope > .grid-toolbar');
   existingToolbars.forEach((el) => el.remove());
 
+  const totalsContainer = ensureProjectionsTotalsContainer(container);
+
   let projectionsGridContainer = container.querySelector('#projectionsGrid');
   if (!projectionsGridContainer) {
     projectionsGridContainer = document.createElement('div');
@@ -915,6 +967,13 @@ export async function loadProjectionsSection({
   }
 
   projectionsGridContainer.classList.remove('grid-detail');
+  if (totalsContainer && projectionsGridContainer && totalsContainer.nextSibling !== projectionsGridContainer) {
+    try {
+      container.insertBefore(totalsContainer, projectionsGridContainer);
+    } catch (_) {
+      // ignore
+    }
+  }
 
   try {
     try {
@@ -970,6 +1029,13 @@ export async function loadProjectionsSection({
       accountMap
     });
 
+    // Update totals before rendering list (keeps totals visible even if list is empty).
+    try {
+      callbacks?.updateProjectionTotals?.(totalsContainer, groupedRows);
+    } catch (_) {
+      // ignore
+    }
+
     const groupByField = state?.getGroupBy?.() || '';
 
     renderProjectionsSummaryList({
@@ -982,4 +1048,3 @@ export async function loadProjectionsSection({
     logger?.error?.('[Forecast] loadProjectionsSection failed', err);
   }
 }
-

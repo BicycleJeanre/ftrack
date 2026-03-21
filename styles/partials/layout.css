@@ -1493,6 +1493,42 @@ body.dashboard-shell {
   width: 100%;
 }
 
+.total-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.has-tooltip {
+  cursor: help;
+}
+
+.total-explain {
+  font-size: 0.78em;
+  color: var(--text-muted);
+  line-height: 1.25;
+  margin-top: -2px;
+}
+
+.total-explain-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.total-explain-row .label {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.total-explain-row .value {
+  font-weight: 400;
+  white-space: normal;
+  color: var(--text-muted);
+}
+
 .budget-totals-rows .summary-card-row {
   flex-wrap: wrap;
   min-width: 0;
