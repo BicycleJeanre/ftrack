@@ -5,6 +5,8 @@ import { parseDateOnly } from '../../../shared/date-utils.js';
 import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
 import { renderTotalsCard } from '../widgets/totals-card.js';
+import { calculateCapitalInterestFlowTotals } from '../../transforms/data-aggregators.js';
+import { getGroupAccountIds } from '../../../domain/utils/account-group-utils.js';
 
 export function getFilteredProjections({
   currentScenario,
@@ -20,9 +22,19 @@ export function getFilteredProjections({
   const accountFilterId = projectionsAccountFilterId ?? transactionFilterAccountId;
 
   if (accountFilterId) {
-    const accountExists = (currentScenario.accounts || []).some((a) => Number(a.id) === Number(accountFilterId));
-    if (accountExists) {
-      filtered = filtered.filter((p) => Number(p.accountId) === Number(accountFilterId));
+    const filterLabel = String(accountFilterId);
+    const groupPrefix = 'group:';
+    if (filterLabel.startsWith(groupPrefix)) {
+      const groupId = Number(filterLabel.slice(groupPrefix.length));
+      const scopedIds = getGroupAccountIds(currentScenario.accountGroups || [], groupId);
+      if (scopedIds.size > 0) {
+        filtered = filtered.filter((p) => scopedIds.has(Number(p.accountId)));
+      }
+    } else {
+      const accountExists = (currentScenario.accounts || []).some((a) => Number(a.id) === Number(accountFilterId));
+      if (accountExists) {
+        filtered = filtered.filter((p) => Number(p.accountId) === Number(accountFilterId));
+      }
     }
   }
 
@@ -63,6 +75,12 @@ export function updateProjectionTotals(container, projections) {
     acc.net += netChange;
     return acc;
   }, { income: 0, expenses: 0, net: 0 });
+  const splitTotals = calculateCapitalInterestFlowTotals(rows, {
+    capitalInField: 'capitalIn',
+    capitalOutField: 'capitalOut',
+    interestInField: 'interestIn',
+    interestOutField: 'interestOut'
+  });
 
   const displayExpenses = -Math.abs(totals.expenses);
 
@@ -95,6 +113,10 @@ export function updateProjectionTotals(container, projections) {
   const totalIncome = roundMoney(totals.income);
   const totalExpenses = roundMoney(displayExpenses);
   const totalNet = roundMoney(totals.net);
+  const capitalIn = roundMoney(splitTotals.capitalIn);
+  const capitalOut = roundMoney(splitTotals.capitalOut);
+  const interestIn = roundMoney(splitTotals.interestIn);
+  const interestOut = roundMoney(splitTotals.interestOut);
 
   const items = [
     {
@@ -136,6 +158,38 @@ export function updateProjectionTotals(container, projections) {
       calc: 'Sum of visible projection expense amounts.',
       uses: 'Pressure-testing budgets and burn rate.',
       shows: 'Total expected outflows for the filtered view.'
+    },
+    {
+      label: 'Capital In',
+      valueHtml: formatCurrency(capitalIn),
+      valueClass: 'positive',
+      calc: 'Sum of visible projection capital inflow buckets.',
+      uses: 'Track base inflow movement independent from interest.',
+      shows: 'Total projected capital inflows for the filtered view.'
+    },
+    {
+      label: 'Interest In',
+      valueHtml: formatCurrency(interestIn),
+      valueClass: 'positive',
+      calc: 'Sum of visible projection interest inflow buckets.',
+      uses: 'Track interest-driven inflows separately.',
+      shows: 'Total projected interest inflows for the filtered view.'
+    },
+    {
+      label: 'Capital Out',
+      valueHtml: formatCurrency(capitalOut),
+      valueClass: 'negative',
+      calc: 'Sum of visible projection capital outflow buckets.',
+      uses: 'Track base outflow movement independent from interest.',
+      shows: 'Total projected capital outflows for the filtered view.'
+    },
+    {
+      label: 'Interest Out',
+      valueHtml: formatCurrency(interestOut),
+      valueClass: 'negative',
+      calc: 'Sum of visible projection interest outflow buckets.',
+      uses: 'Track interest-driven outflows separately.',
+      shows: 'Total projected interest outflows for the filtered view.'
     },
     {
       label: 'Net',

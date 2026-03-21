@@ -224,6 +224,23 @@ function renderSummaryMetric({
   return `<div class="summary-card-row"><span class="label${tooltipCls}"${tooltipAttr}>${label}</span><span class="value${cls}${tooltipCls}"${tooltipAttr}>${valueHtml}</span></div>`;
 }
 
+function getProjectionInterestBuckets(projectionRow) {
+  const legacyInterest = Number(projectionRow?.interest || 0);
+  const earned = Number(
+    projectionRow?.interestIn ??
+    (legacyInterest > 0 ? legacyInterest : 0)
+  );
+  const paidAbs = Number(
+    projectionRow?.interestOut ??
+    (legacyInterest < 0 ? Math.abs(legacyInterest) : 0)
+  );
+
+  return {
+    earned,
+    paidNegative: -Math.abs(paidAbs)
+  };
+}
+
 function getWorkflowConfig() {
   return getWorkflowById(currentWorkflowId);
 }
@@ -1196,12 +1213,9 @@ async function loadDebtSummaryCards(container, options = {}) {
     let interestPaid = 0;
     
     accountProjections.forEach(p => {
-      const interest = Number(p.interest || 0);
-      if (interest >= 0) {
-        interestEarned += interest;
-      } else {
-        interestPaid += interest; // Keep as negative
-      }
+      const buckets = getProjectionInterestBuckets(p);
+      interestEarned += buckets.earned;
+      interestPaid += buckets.paidNegative;
     });
     
     totalInterestEarned += interestEarned;
@@ -1817,9 +1831,9 @@ async function loadGeneralSummaryCards(container, options = {}) {
       let interestEarned = 0;
       let interestPaid = 0;
       for (const p of accountProjections) {
-        const interest = Number(p?.interest || 0);
-        if (interest >= 0) interestEarned += interest;
-        else interestPaid += interest;
+        const buckets = getProjectionInterestBuckets(p);
+        interestEarned += buckets.earned;
+        interestPaid += buckets.paidNegative;
       }
       totalInterestEarned += interestEarned;
       totalInterestPaid += interestPaid;
@@ -2271,15 +2285,30 @@ async function init() {
   });
 
   let refreshInFlight = false;
-  document.addEventListener('forecast:refresh', async () => {
+  document.addEventListener('forecast:refresh', async (event) => {
     if (refreshInFlight) return;
     if (!currentScenario) return;
+    const refreshButton = event?.detail?.button;
     refreshInFlight = true;
+    if (refreshButton) {
+      refreshButton.disabled = true;
+      refreshButton.classList.add('is-loading');
+      refreshButton.setAttribute('aria-busy', 'true');
+    }
     try {
+      const refreshedScenario = await getScenario(currentScenario.id);
+      if (refreshedScenario) {
+        currentScenario = refreshedScenario;
+      }
       await loadScenarioData();
     } catch (err) {
       logger.error('[Forecast] Refresh failed:', err);
     } finally {
+      if (refreshButton?.isConnected) {
+        refreshButton.disabled = false;
+        refreshButton.classList.remove('is-loading');
+        refreshButton.removeAttribute('aria-busy');
+      }
       refreshInFlight = false;
     }
   });

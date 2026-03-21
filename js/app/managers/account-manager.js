@@ -70,7 +70,9 @@ export async function create(scenarioId, accountData) {
             startingBalance: accountData.startingBalance || 0,
             openDate: accountData.openDate || formatDateOnly(new Date()),
             periodicChange: accountData.periodicChange || null,
-            ...accountData
+            ...accountData,
+            interestAccountId: accountData.interestAccountId ?? null,
+            interestPostingDirection: accountData.interestPostingDirection ?? null
         };
 
         // Ensure goal fields persist consistently for new accounts.

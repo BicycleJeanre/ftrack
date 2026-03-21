@@ -270,7 +270,8 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       break;
     }
 
-    case 11: // Custom Dates
+    case 8:  // Custom Dates (schema/lookup canonical id)
+    case 11: // Custom Dates (legacy id kept for backward compatibility)
       if (recurrence.customDates) {
         const customDateStrings = recurrence.customDates.split(',').map(value => value.trim()).filter(Boolean);
         customDateStrings.forEach(dateStr => {

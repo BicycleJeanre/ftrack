@@ -182,6 +182,59 @@ function normalizeBudgetWindowConfig(rawConfig) {
   };
 }
 
+function deriveSplitTransactionSets(transactions = []) {
+  const grouped = new Map();
+  (Array.isArray(transactions) ? transactions : []).forEach((txn) => {
+    const groupId = String(txn?.transactionGroupId || '').trim();
+    if (!groupId) return;
+    if (!grouped.has(groupId)) grouped.set(groupId, []);
+    grouped.get(groupId).push(txn);
+  });
+
+  return Array.from(grouped.entries()).map(([groupId, groupTransactions]) => {
+    const first = groupTransactions[0] || {};
+    const components = groupTransactions
+      .map((txn, index) => {
+        const role = String(txn?.transactionGroupRole || '').trim().toLowerCase() || `adhoc_${index + 1}`;
+        const accountId = Number(txn?.secondaryAccountId || 0) || null;
+        const value = Math.abs(Number(txn?.amount || 0));
+        if (!accountId || value <= 0) return null;
+        const amountMode = role === 'principal' ? 'remainder' : (role === 'interest' ? 'derived' : 'fixed');
+        return {
+          role,
+          accountId,
+          transactionTypeId: Number(txn?.transactionTypeId || 2) === 1 ? 1 : 2,
+          accountGroupId: Number(txn?.transactionGroupAccountGroupId || 0) || null,
+          description: String(txn?.description || '').trim(),
+          recurrence: txn?.recurrence || null,
+          periodicChange: txn?.periodicChange || null,
+          amountMode,
+          value,
+          order: index
+        };
+      })
+      .filter(Boolean);
+
+    const totalAmount = components.reduce((sum, component) => sum + Number(component?.value || 0), 0);
+    const principalComponent = components.find((component) => component.role === 'principal') || null;
+
+    return {
+      id: groupId,
+      description: String(first?.description || '').trim(),
+      payingAccountId: Number(first?.primaryAccountId || 0) || null,
+      effectiveDate: first?.effectiveDate || null,
+      strategy: 'manual',
+      targetAccountId: Number(principalComponent?.accountId || 0) || null,
+      interestSource: 'none',
+      customRate: null,
+      totalAmount,
+      components,
+      recurrence: null,
+      tags: []
+    };
+  });
+}
+
 export function normalizeScenario(rawScenario) {
   const base = rawScenario && typeof rawScenario === 'object' ? rawScenario : {};
 
@@ -193,7 +246,12 @@ export function normalizeScenario(rawScenario) {
     base.description === null || typeof base.description === 'string' ? base.description : String(base.description || '');
 
   const accounts = Array.isArray(base.accounts) ? base.accounts : [];
+  const accountGroups = Array.isArray(base.accountGroups) ? base.accountGroups : [];
   const transactions = Array.isArray(base.transactions) ? base.transactions : [];
+  const splitTransactionSetsRaw = Array.isArray(base.splitTransactionSets) ? base.splitTransactionSets : [];
+  const splitTransactionSets = splitTransactionSetsRaw.length
+    ? splitTransactionSetsRaw
+    : deriveSplitTransactionSets(transactions);
   const budgets = Array.isArray(base.budgets) ? base.budgets : [];
 
   const projectionConfig = normalizeProjectionConfig(base.projection?.config);
@@ -245,6 +303,8 @@ export function normalizeScenario(rawScenario) {
     description,
     lineage,
     accounts,
+    accountGroups,
+    splitTransactionSets,
     transactions,
     budgets,
     budgetWindow,
@@ -290,6 +350,8 @@ export function sanitizeScenarioForWrite(rawScenario) {
     description: scenario.description ?? null,
     ...(scenario.lineage !== undefined ? { lineage: scenario.lineage } : {}),
     accounts: scenario.accounts || [],
+    accountGroups: scenario.accountGroups || [],
+    splitTransactionSets: scenario.splitTransactionSets || [],
     ...(scenario.transactions ? { transactions: scenario.transactions } : {}),
     ...(scenario.budgets ? { budgets: scenario.budgets } : {}),
     ...(scenario.budgetWindow !== undefined ? { budgetWindow: scenario.budgetWindow } : {}),

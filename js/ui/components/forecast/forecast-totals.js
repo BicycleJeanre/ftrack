@@ -1,7 +1,7 @@
 // forecast-totals.js
 // Forecast toolbar totals helpers extracted from forecast.js (no behavior change).
 
-import { calculateCategoryTotals, calculateBudgetTotals } from '../../transforms/data-aggregators.js';
+import { calculateCategoryTotals, calculateBudgetTotals, calculateCapitalInterestTotals } from '../../transforms/data-aggregators.js';
 import { renderMoneyTotals, renderBudgetTotals } from '../widgets/toolbar-totals.js';
 
 export function updateTransactionTotals(table, filteredRows = null) {
@@ -17,9 +17,18 @@ export function updateTransactionTotals(table, filteredRows = null) {
     typeNameField: 'transactionTypeName',
     typeIdField: 'transactionTypeId'
   });
+  const txCapitalInterestTotals = calculateCapitalInterestTotals(visibleData, {
+    amountField: 'amount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId',
+    capitalField: 'capitalAmount',
+    interestField: 'interestAmount',
+    roleField: 'transactionGroupRole'
+  });
 
   const transactionsContainer = document.querySelector('#transactionsContent');
-  renderMoneyTotals(transactionsContainer, txTotals);
+  renderMoneyTotals(transactionsContainer, { ...txTotals, ...txCapitalInterestTotals });
 }
 
 export function updateBudgetTotals(table, filteredRows = null) {
@@ -36,7 +45,16 @@ export function updateBudgetTotals(table, filteredRows = null) {
     typeNameField: 'transactionTypeName',
     typeIdField: 'transactionTypeId'
   });
+  const budgetCapitalInterestTotals = calculateCapitalInterestTotals(visibleData, {
+    amountField: 'plannedAmount',
+    typeField: 'transactionType',
+    typeNameField: 'transactionTypeName',
+    typeIdField: 'transactionTypeId',
+    capitalField: 'capitalAmount',
+    interestField: 'interestAmount',
+    roleField: 'transactionGroupRole'
+  });
 
   const budgetTotalsContainer = document.querySelector('#budgetContent');
-  renderBudgetTotals(budgetTotalsContainer, budgetTotals);
+  renderBudgetTotals(budgetTotalsContainer, { ...budgetTotals, ...budgetCapitalInterestTotals });
 }

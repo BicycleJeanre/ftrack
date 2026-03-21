@@ -11,6 +11,7 @@ import { createFilterModal } from '../modals/filter-modal.js';
 import { formatCurrency, formatMoneyDisplay, numValueClass } from '../../../shared/format-utils.js';
 import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows } from '../../transforms/transaction-row-transformer.js';
+import { getGroupAccountIds } from '../../../domain/utils/account-group-utils.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
 import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
@@ -75,6 +76,10 @@ function renderProjectionsRowDetails({ row, rowData }) {
   addField('Account', rowData?.accountName || rowData?.account);
   addMoneyField('Income', Number(rowData?.income || 0));
   addMoneyField('Expenses', Math.abs(Number(rowData?.expenses || 0)));
+  addMoneyField('Capital In', Number(rowData?.capitalIn || 0));
+  addMoneyField('Capital Out', Math.abs(Number(rowData?.capitalOut || 0)));
+  addMoneyField('Interest In', Number(rowData?.interestIn || 0));
+  addMoneyField('Interest Out', Math.abs(Number(rowData?.interestOut || 0)));
   addMoneyField('Net Change', Number(rowData?.netChange || 0));
 
   detailsEl.appendChild(grid);
@@ -227,6 +232,10 @@ function explodeProjectionRowsBySecondary({ rows, scenario, state, accountMap })
         secondaryAccount: secondaryName,
         income: Number(row?.income || 0) * ratio,
         expenses: Number(row?.expenses || 0) * ratio,
+        capitalIn: Number(row?.capitalIn || 0) * ratio,
+        capitalOut: Number(row?.capitalOut || 0) * ratio,
+        interestIn: Number(row?.interestIn || 0) * ratio,
+        interestOut: Number(row?.interestOut || 0) * ratio,
         netChange: Number(row?.netChange || 0) * ratio,
         balance: entryIndex === 0 ? Number(row?.balance || 0) : 0
       });
@@ -310,16 +319,24 @@ function renderProjectionsSummaryList({ container, projections, accounts = [], g
   });
 }
 
-function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable, state } = {}) {
+function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable, state, scenario } = {}) {
   if (!projectionsTable) return;
 
-  const projectionAccountFilterId = Number(state?.getProjectionAccountFilterId?.() || 0);
+  const rawAccountFilterId = state?.getProjectionAccountFilterId?.() ?? null;
+  const filterAsString = rawAccountFilterId == null ? '' : String(rawAccountFilterId);
+  const isGroupScope = filterAsString.startsWith('group:');
+  const projectionAccountFilterId = isGroupScope ? 0 : Number(rawAccountFilterId || 0);
+  const scopedAccountIds = isGroupScope
+    ? getGroupAccountIds(scenario?.accountGroups || [], Number(filterAsString.split(':')[1] || 0))
+    : null;
+
   const projectionPeriod = state?.getProjectionPeriod?.();
   const projectionPeriods = state?.getProjectionPeriods?.() || [];
   const selectedPeriod = projectionPeriod ? projectionPeriods.find((p) => p.id === projectionPeriod) : null;
 
   const hasPeriodFilter = Boolean(selectedPeriod?.startDate && selectedPeriod?.endDate);
-  if (!projectionAccountFilterId && !hasPeriodFilter) {
+  const hasAccountScope = (scopedAccountIds && scopedAccountIds.size > 0) || Boolean(projectionAccountFilterId);
+  if (!hasAccountScope && !hasPeriodFilter) {
     projectionsTable.setFilter([]);
     return;
   }
@@ -337,7 +354,9 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
   };
 
   projectionsTable.setFilter((row) => {
-    if (projectionAccountFilterId && Number(row?.accountId) !== projectionAccountFilterId) {
+    if (scopedAccountIds && scopedAccountIds.size > 0) {
+      if (!scopedAccountIds.has(Number(row?.accountId))) return false;
+    } else if (projectionAccountFilterId && Number(row?.accountId) !== projectionAccountFilterId) {
       return false;
     }
     if (!hasPeriodFilter) return true;
@@ -511,18 +530,30 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     option.textContent = account.name || 'Unnamed';
     accountSelect.appendChild(option);
   });
-  const activeAccount = Number(state?.getProjectionAccountFilterId?.() || 0);
-  accountSelect.value = activeAccount > 0 ? String(activeAccount) : '0';
+  (currentScenario.accountGroups || []).forEach((group) => {
+    const groupId = Number(group?.id || 0);
+    if (!groupId) return;
+    const option = document.createElement('option');
+    option.value = `group:${groupId}`;
+    option.textContent = `Group: ${group?.name || `#${groupId}`}`;
+    accountSelect.appendChild(option);
+  });
+  const activeAccount = state?.getProjectionAccountFilterId?.();
+  accountSelect.value = activeAccount != null ? String(activeAccount) : '0';
   accountSelect.addEventListener('change', async () => {
-    const selectedId = Number(accountSelect.value) || 0;
-    state?.setProjectionAccountFilterId?.(selectedId > 0 ? selectedId : null);
+    const selectedValue = accountSelect.value || '0';
+    let nextScope = null;
+    if (selectedValue !== '0') {
+      nextScope = selectedValue.startsWith('group:') ? selectedValue : (Number(selectedValue) || null);
+    }
+    state?.setProjectionAccountFilterId?.(nextScope);
     
     if (lastProjectionsTable) {
       const currentGroup = state?.getGroupBy?.() || '';
       if (currentGroup === 'secondaryAccount') {
         await reload();
       } else {
-        applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
+        applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state, scenario: currentScenario });
       }
       callbacks?.updateProjectionTotals?.();
     } else {
@@ -611,7 +642,7 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     state?.setProjectionPeriod?.(selectedPeriodId);
     
     if (lastProjectionsTable) {
-      applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
+      applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state, scenario: currentScenario });
       callbacks?.updateProjectionTotals?.();
     } else {
       await reload();
@@ -624,7 +655,7 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     state?.setProjectionPeriod?.(id || null);
     
     if (lastProjectionsTable) {
-      applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
+      applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state, scenario: currentScenario });
       callbacks?.updateProjectionTotals?.();
     } else {
       await reload();
@@ -797,6 +828,13 @@ export async function loadProjectionsGrid({
       const income = Number(row.income || 0);
       const expenses = Number(row.expenses || 0);
       const netChange = row.netChange != null ? Number(row.netChange) : income - expenses;
+      const interestNet = Number(row.interest || 0);
+      const fallbackInterestIn = interestNet > 0 ? interestNet : 0;
+      const fallbackInterestOut = interestNet < 0 ? Math.abs(interestNet) : 0;
+      const interestIn = Number(row.interestIn ?? fallbackInterestIn);
+      const interestOut = Number(row.interestOut ?? fallbackInterestOut);
+      const capitalIn = Number(row.capitalIn ?? Math.max(0, income - interestIn));
+      const capitalOut = Number(row.capitalOut ?? Math.max(0, expenses - interestOut));
       return {
         ...row,
         id: row.id ?? `${accountId || 'account'}-${row.date || index}`,
@@ -806,7 +844,11 @@ export async function loadProjectionsGrid({
         balance: Number(row.balance || 0),
         income,
         expenses,
-        netChange
+        netChange,
+        capitalIn,
+        capitalOut,
+        interestIn,
+        interestOut
       };
     });
 
@@ -839,6 +881,10 @@ export async function loadProjectionsGrid({
         createMoneyColumn('Balance', 'balance', { topCalc: 'sum' }),
         createMoneyColumn('Income', 'income', { topCalc: 'sum' }),
         createMoneyColumn('Expenses', 'expenses', { topCalc: 'sum' }),
+        createMoneyColumn('Capital In', 'capitalIn', { topCalc: 'sum' }),
+        createMoneyColumn('Capital Out', 'capitalOut', { topCalc: 'sum' }),
+        createMoneyColumn('Interest In', 'interestIn', { topCalc: 'sum' }),
+        createMoneyColumn('Interest Out', 'interestOut', { topCalc: 'sum' }),
         createMoneyColumn('Net Change', 'netChange', { topCalc: 'sum' })
       ],
       initialSort: [{ column: 'date', dir: 'asc' }],
@@ -878,7 +924,7 @@ export async function loadProjectionsGrid({
         // ignore
       }
       try {
-        applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state });
+        applyProjectionsPeriodFilter({ projectionsTable: lastProjectionsTable, state, scenario: currentScenario });
       } catch (_) {
         // ignore
       }
@@ -985,7 +1031,15 @@ export async function loadProjectionsSection({
     let rows = getScenarioProjectionRows(currentScenario);
     const accountFilterId = state?.getProjectionAccountFilterId?.();
     if (accountFilterId) {
-      rows = rows.filter((row) => Number(row.accountId) === Number(accountFilterId));
+      const filterLabel = String(accountFilterId);
+      if (filterLabel.startsWith('group:')) {
+        const scopedIds = getGroupAccountIds(currentScenario?.accountGroups || [], Number(filterLabel.split(':')[1] || 0));
+        if (scopedIds.size > 0) {
+          rows = rows.filter((row) => scopedIds.has(Number(row.accountId)));
+        }
+      } else {
+        rows = rows.filter((row) => Number(row.accountId) === Number(accountFilterId));
+      }
     }
 
     const projectionPeriod = state?.getProjectionPeriod?.();

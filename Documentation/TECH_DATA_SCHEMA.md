@@ -56,6 +56,7 @@ A scenario is a named version of user content (accounts, transactions, and optio
   description: string | null,
   lineage?: ScenarioLineage | null,
   accounts: Account[],
+  accountGroups?: AccountGroup[],
   transactions?: Transaction[],
   budgets?: BudgetOccurrence[],
   budgetWindow?: BudgetBundle | null,        // Budget config (independent of projection)
@@ -74,6 +75,7 @@ A scenario is a named version of user content (accounts, transactions, and optio
 | `description` | string \| null | No | Free-form user notes |
 | `lineage` | ScenarioLineage \| null | No | Tracks duplication source and ancestor IDs |
 | `accounts` | Account[] | Yes | Must have at least 1 account |
+| `accountGroups` | AccountGroup[] | No | Optional non-postable hierarchy for rollups/group filtering |
 | `transactions` | Transaction[] | No | Can be empty |
 | `budgets` | BudgetOccurrence[] | No | Optional; workflow-driven UI may show/hide budget tooling |
 | `budgetWindow` | BudgetBundle | Yes (if using budgets) | Independent budget configuration; required if budgets workflow is active |
@@ -88,6 +90,20 @@ Scenario lineage is a lightweight history for duplication only. No merge semanti
 type ScenarioLineage = {
   duplicatedFromScenarioId: number | null,
   ancestorScenarioIds: number[]             // Ordered oldest → newest
+}
+```
+
+### 2.3.1 AccountGroup
+
+Account groups are non-postable containers used for rollups and filtering.
+
+```typescript
+type AccountGroup = {
+  id: number,
+  name: string,
+  parentGroupId?: number | null,
+  accountIds?: number[],
+  sortOrder?: number
 }
 ```
 
@@ -183,6 +199,8 @@ An account represents a place where money lives or is owed.
   openDate: string,
   periodicChange?: PeriodicChange | null,
   periodicChangeSchedule?: PeriodicChangeScheduleEntry[] | null,
+  interestAccountId?: number | null,
+  interestPostingDirection?: string | null,
   goalAmount?: number | null,
   goalDate?: string | null,
   tags?: string[]                            // User-defined tags for categorization
@@ -201,6 +219,8 @@ An account represents a place where money lives or is owed.
 | `openDate` | string | Yes | Date account opened |
 | `periodicChange` | PeriodicChange \| null | No | Growth/decay applied to account balance (interest, inflation) |
 | `periodicChangeSchedule` | PeriodicChangeScheduleEntry[] \| null | No | Optional date-bounded overrides for `periodicChange` (variable rates) |
+| `interestAccountId` | number \| null | No | Optional target account for derived periodic-change interest postings in projections |
+| `interestPostingDirection` | string \| null | No | Optional posting direction override (`income`/`expense`/`auto`) for derived interest postings |
 | `goalAmount` | number \| null | No | Target balance (for goal-based scenarios) |
 | `goalDate` | string \| null | No | Date when goal should be reached |
 | `tags` | string[] | No | User-defined tags for categorization and filtering |
@@ -266,6 +286,8 @@ A transaction represents movement of money between accounts.
   description: string,
   recurrence: Recurrence,
   periodicChange: PeriodicChange | null,
+  transactionGroupId?: string | number | null,
+  transactionGroupRole?: string | null,
   tags: string[]
 }
 ```
@@ -282,6 +304,8 @@ A transaction represents movement of money between accounts.
 | `description` | string | Yes | Display name (e.g., "Monthly Rent", "Paycheck") |
 | `recurrence` | Recurrence | Yes | When/how often transaction occurs (see section 5.0) |
 | `periodicChange` | PeriodicChange \| null | No | Growth adjustment to transaction amount over time |
+| `transactionGroupId` | string \| number \| null | No | Optional compound/split grouping identifier shared by component transactions |
+| `transactionGroupRole` | string \| null | No | Optional component role (for example `principal`, `interest`, `fee`) |
 | `tags` | string[] | No | User-defined categories |
 
 4.2.1 Note: Transaction Actuals Are Not Stored
@@ -321,6 +345,8 @@ type BudgetOccurrence = {
   recurrenceDescription: string,
   occurrenceDate: string,                 // YYYY-MM-DD
   periodicChange: PeriodicChange | null,
+  transactionGroupId?: string | number | null,
+  transactionGroupRole?: string | null,
   status: {
     name: "planned" | "actual",
     actualAmount: number | null,
@@ -344,6 +370,8 @@ type BudgetOccurrence = {
 | `recurrenceDescription` | string | Yes | Human-readable recurrence pattern (UI convenience) |
 | `occurrenceDate` | string | Yes | Budget occurrence date (YYYY-MM-DD) |
 | `periodicChange` | PeriodicChange \| null | No | Optional escalation data carried from source transaction |
+| `transactionGroupId` | string \| number \| null | No | Optional compound/split grouping identifier inherited from source transaction |
+| `transactionGroupRole` | string \| null | No | Optional component role inherited from source transaction |
 | `status` | Status object | Yes | See 4.5.3 |
 | `tags` | string[] | No | User-defined categories |
 
@@ -563,7 +591,12 @@ type ProjectionPoint = {
   income: number,
   expenses: number,
   netChange: number,
-  periodIndex: number                       // 0-based index within generated periods
+  interest?: number,
+  capitalIn?: number,
+  capitalOut?: number,
+  interestIn?: number,
+  interestOut?: number,
+  period?: number                           // 1-based index within generated periods
 }
 ```
 

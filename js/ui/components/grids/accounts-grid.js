@@ -2,6 +2,7 @@
 // Accounts grid loader extracted from forecast.js (no behavior change).
 
 import * as AccountManager from '../../../app/managers/account-manager.js';
+import * as DataService from '../../../app/services/data-service.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import {
   createGrid,
@@ -13,11 +14,13 @@ import {
   createMoneyColumn,
   createDateColumn
 } from './grid-factory.js';
+import { openAccountGroupModal } from '../modals/account-group-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openPeriodicChangeScheduleModal } from '../modals/periodic-change-schedule-modal.js';
 import { openTagEditorModal } from '../modals/tag-editor-modal.js';
 import { createFilterModal } from '../modals/filter-modal.js';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
+import { buildAccountGroupIndex, resolveDescendantGroupIds } from '../../../domain/utils/account-group-utils.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 import { GridStateManager } from './grid-state.js';
 import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
@@ -59,11 +62,214 @@ function applyAccountsDetailFilters({ activeTypeFilter }) {
   }
 }
 
+function toPositiveId(value) {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function buildAccountGroupLookups(accountGroups = []) {
+  const groups = Array.isArray(accountGroups) ? accountGroups : [];
+  const index = buildAccountGroupIndex(groups);
+  const pathCache = new Map();
+
+  const getPathLabel = (groupId, seen = new Set()) => {
+    const id = toPositiveId(groupId);
+    if (!id) return '';
+    if (pathCache.has(id)) return pathCache.get(id);
+
+    const group = index.get(id);
+    if (!group) return '';
+    if (seen.has(id)) return group.name || `Group ${id}`;
+
+    const nextSeen = new Set(seen);
+    nextSeen.add(id);
+    const parentLabel = toPositiveId(group.parentGroupId)
+      ? getPathLabel(group.parentGroupId, nextSeen)
+      : '';
+    const label = parentLabel ? `${parentLabel} / ${group.name || `Group ${id}`}` : (group.name || `Group ${id}`);
+    pathCache.set(id, label);
+    return label;
+  };
+
+  const getAccountGroupIds = (accountId) => {
+    const targetId = toPositiveId(accountId);
+    if (!targetId) return [];
+    return [...groups]
+      .sort((left, right) => {
+        const leftOrder = Number(left?.sortOrder || 0);
+        const rightOrder = Number(right?.sortOrder || 0);
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return String(getPathLabel(left.id)).localeCompare(String(getPathLabel(right.id)));
+      })
+      .filter((group) => Array.isArray(group.accountIds) && group.accountIds.some((id) => Number(id) === targetId))
+      .map((group) => Number(group.id))
+      .filter(Boolean);
+  };
+
+  const getPrimaryAccountGroupId = (accountId) => getAccountGroupIds(accountId)[0] || null;
+
+  const getAccountGroupLabel = (accountId) => {
+    const primaryId = getPrimaryAccountGroupId(accountId);
+    return primaryId ? (getPathLabel(primaryId) || `Group ${primaryId}`) : 'Unassigned';
+  };
+
+  const getGroupOptions = ({ excludeGroupId = null, includeBlank = true } = {}) => {
+    const blockedIds = excludeGroupId
+      ? new Set([excludeGroupId, ...resolveDescendantGroupIds(groups, excludeGroupId)])
+      : new Set();
+
+    const sorted = [...groups].sort((left, right) => {
+      const leftOrder = Number(left?.sortOrder || 0);
+      const rightOrder = Number(right?.sortOrder || 0);
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      return String(getPathLabel(left.id)).localeCompare(String(getPathLabel(right.id)));
+    });
+
+    const options = [];
+    if (includeBlank) {
+      options.push({ value: '', label: 'Unassigned' });
+    }
+
+    sorted.forEach((group) => {
+      const id = Number(group.id);
+      if (!id || blockedIds.has(id)) return;
+      options.push({ value: String(id), label: getPathLabel(id) || group.name || `Group ${id}` });
+    });
+
+    return options;
+  };
+
+  return {
+    groups,
+    getPathLabel,
+    getAccountGroupIds,
+    getPrimaryAccountGroupId,
+    getAccountGroupLabel,
+    getGroupOptions
+  };
+}
+
+async function launchAccountGroupModal({
+  scenarioState,
+  defaultAccountId = null,
+  startInCreateMode = false,
+  onSaved
+} = {}) {
+  const scenario = scenarioState?.get?.();
+  if (!scenario?.id) {
+    notifyError('Please create a scenario before managing account groups.');
+    return;
+  }
+
+  await openAccountGroupModal({
+    scenarioId: scenario.id,
+    accounts: scenario.accounts || [],
+    defaultAccountId,
+    startInCreateMode,
+    onSaved: async () => {
+      await onSaved?.();
+    }
+  });
+}
+
+function createAccountGroupAssignmentField({
+  account,
+  scenarioState,
+  accountGroupLookup,
+  reloadAccountsGrid,
+  selectedGroupId = null
+}) {
+  const field = document.createElement('div');
+  field.className = 'accounts-detail-field form-field--full';
+
+  const labelEl = document.createElement('label');
+  labelEl.className = 'accounts-detail-label';
+  labelEl.textContent = 'Primary Account Group';
+
+  const controlRow = document.createElement('div');
+  controlRow.className = 'account-group-control-row';
+
+  const selectEl = document.createElement('select');
+  selectEl.className = 'accounts-detail-input account-group-select';
+  accountGroupLookup.getGroupOptions({ includeBlank: true }).forEach((option) => {
+    const opt = document.createElement('option');
+    opt.value = option.value;
+    opt.textContent = option.label;
+    selectEl.appendChild(opt);
+  });
+  selectEl.value = selectedGroupId ? String(selectedGroupId) : '';
+
+  const quickCreateBtn = document.createElement('button');
+  quickCreateBtn.type = 'button';
+  quickCreateBtn.className = 'icon-btn';
+  quickCreateBtn.textContent = '+';
+  quickCreateBtn.title = 'Quick-create group for this account';
+
+  const manageBtn = document.createElement('button');
+  manageBtn.type = 'button';
+  manageBtn.className = 'icon-btn';
+  manageBtn.textContent = 'Groups';
+  manageBtn.title = 'Manage Account Groups';
+
+  const saveMembership = async () => {
+    const scenario = scenarioState?.get?.();
+    if (!scenario?.id) return;
+
+    try {
+      const nextGroupId = toPositiveId(selectEl.value);
+      await DataService.setAccountGroupMemberships(scenario.id, account.id, nextGroupId ? [nextGroupId] : []);
+      await reloadAccountsGrid(document.getElementById('accountsGrid'));
+    } catch (err) {
+      notifyError('Failed to update account group: ' + (err?.message || String(err)));
+    }
+  };
+
+  selectEl.addEventListener('change', saveMembership);
+
+  quickCreateBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await launchAccountGroupModal({
+      scenarioState,
+      defaultAccountId: account.id,
+      startInCreateMode: true,
+      onSaved: async () => {
+        await reloadAccountsGrid(document.getElementById('accountsGrid'));
+      }
+    });
+  });
+
+  manageBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await launchAccountGroupModal({
+      scenarioState,
+      startInCreateMode: false,
+      onSaved: async () => {
+        await reloadAccountsGrid(document.getElementById('accountsGrid'));
+      }
+    });
+  });
+
+  controlRow.appendChild(selectEl);
+  controlRow.appendChild(quickCreateBtn);
+  controlRow.appendChild(manageBtn);
+
+  const hintEl = document.createElement('div');
+  hintEl.className = 'modal-periodic-hint';
+  hintEl.textContent = 'Sets the primary group used in account views. Use Manage Groups for full multi-membership editing.';
+
+  field.appendChild(labelEl);
+  field.appendChild(controlRow);
+  field.appendChild(hintEl);
+
+  return field;
+}
+
 function renderAccountsRowDetails({
   row,
   rowData,
   lookupData,
   workflowConfig,
+  accountGroupLookup,
   scenarioState,
   reloadAccountsGrid,
   logger
@@ -111,6 +317,14 @@ function renderAccountsRowDetails({
     }
   });
   grid.appendChild(createDetailField({ label: 'Description', inputEl: descriptionInput }));
+
+  grid.appendChild(createAccountGroupAssignmentField({
+    account: rowData,
+    scenarioState,
+    accountGroupLookup,
+    reloadAccountsGrid,
+    selectedGroupId: rowData?.primaryAccountGroupId || null
+  }));
 
   if (workflowConfig?.showGeneratePlan) {
     const goalAmountInput = document.createElement('input');
@@ -337,6 +551,7 @@ function renderAccountsSummaryList({
   container,
   accounts,
   groupBy = '',
+  accountGroupLookup,
   lookupData,
   workflowConfig,
   scenarioState,
@@ -358,11 +573,12 @@ function renderAccountsSummaryList({
   }
 
   const shouldGroupByAccountType = groupBy === 'accountType';
-  const summaryAccounts = shouldGroupByAccountType
+  const shouldGroupByAccountGroup = groupBy === 'accountGroupLabel';
+  const summaryAccounts = (shouldGroupByAccountType || shouldGroupByAccountGroup)
     ? [...accounts].sort((left, right) => {
-      const leftType = getAccountTypeName(left);
-      const rightType = getAccountTypeName(right);
-      const typeOrder = leftType.localeCompare(rightType);
+      const leftGroup = shouldGroupByAccountGroup ? (left?.accountGroupLabel || 'Unassigned') : getAccountTypeName(left);
+      const rightGroup = shouldGroupByAccountGroup ? (right?.accountGroupLabel || 'Unassigned') : getAccountTypeName(right);
+      const typeOrder = String(leftGroup).localeCompare(String(rightGroup));
       if (typeOrder !== 0) return typeOrder;
       return String(left?.name || '').localeCompare(String(right?.name || ''));
     })
@@ -370,10 +586,12 @@ function renderAccountsSummaryList({
   let currentGroup = null;
 
   summaryAccounts.forEach((account) => {
-    if (shouldGroupByAccountType) {
-      const accountTypeName = getAccountTypeName(account);
-      if (accountTypeName !== currentGroup) {
-        currentGroup = accountTypeName;
+    if (shouldGroupByAccountType || shouldGroupByAccountGroup) {
+      const accountGroupName = shouldGroupByAccountGroup
+        ? (account?.accountGroupLabel || 'Unassigned')
+        : getAccountTypeName(account);
+      if (accountGroupName !== currentGroup) {
+        currentGroup = accountGroupName;
         const groupHeader = document.createElement('div');
         groupHeader.className = 'accounts-summary-group-header';
         groupHeader.textContent = currentGroup;
@@ -398,6 +616,10 @@ function renderAccountsSummaryList({
     typeEl.className = 'account-card-type';
     typeEl.textContent = account?.type?.name || 'Unspecified';
 
+    const groupEl = document.createElement('span');
+    groupEl.className = 'account-card-group';
+    groupEl.textContent = account?.accountGroupLabel || 'Unassigned';
+
     const balanceEl = document.createElement('span');
     const balanceVal = Number(account?.startingBalance || 0);
     const currency = account?.currency?.code || account?.currency?.name || 'ZAR';
@@ -405,6 +627,7 @@ function renderAccountsSummaryList({
     balanceEl.textContent = formatCurrency(balanceVal, currency);
 
     meta.appendChild(typeEl);
+    meta.appendChild(groupEl);
     meta.appendChild(balanceEl);
 
     content.appendChild(nameEl);
@@ -626,6 +849,13 @@ function renderAccountsSummaryList({
     form.appendChild(createDetailField({ label: 'Type', inputEl: typeSelect }));
     form.appendChild(createDetailField({ label: 'Starting Balance', inputEl: balanceInput }));
     form.appendChild(createDetailField({ label: 'Description', inputEl: descriptionInput }));
+    form.appendChild(createAccountGroupAssignmentField({
+      account,
+      scenarioState,
+      accountGroupLookup,
+      reloadAccountsGrid,
+      selectedGroupId: account?.primaryAccountGroupId || null
+    }));
     if (goalAmountInput) form.appendChild(createDetailField({ label: 'Goal Amount', inputEl: goalAmountInput }));
     if (goalDateInput) form.appendChild(createDetailField({ label: 'Goal Date', inputEl: goalDateInput }));
     form.appendChild(periodicFormField);
@@ -949,6 +1179,12 @@ export function buildAccountsGridColumns({
         }
       }
     },
+    createTextColumn('Account Group', 'accountGroupLabel', {
+      widthGrow: 1,
+      editor: false,
+      headerFilter: 'input',
+      editable: false
+    }),
     {
       title: 'Starting Balance',
       field: 'startingBalance',
@@ -1072,15 +1308,20 @@ export async function loadAccountsGrid({
 
     const accounts = await AccountManager.getAll(currentScenario.id);
     const displayAccounts = accounts.filter((a) => a.name !== 'Select Account');
+    const accountGroupLookup = buildAccountGroupLookups(currentScenario.accountGroups || []);
 
     // Enrich with computed summaries so the card form shows correct initial values.
     await Promise.all(
       displayAccounts.map(async (a) => {
+        const accountGroupIds = accountGroupLookup.getAccountGroupIds(a.id);
         a.periodicChangeSummary = await getPeriodicChangeDescription(a.periodicChange);
         a.periodicChangeScheduleSummary =
           Array.isArray(a.periodicChangeSchedule) && a.periodicChangeSchedule.length
             ? `${a.periodicChangeSchedule.length} scheduled change${a.periodicChangeSchedule.length === 1 ? '' : 's'}`
             : 'None';
+        a.accountGroupIds = accountGroupIds;
+        a.primaryAccountGroupId = accountGroupLookup.getPrimaryAccountGroupId(a.id);
+        a.accountGroupLabel = accountGroupLookup.getAccountGroupLabel(a.id);
       })
     );
 
@@ -1099,7 +1340,8 @@ export async function loadAccountsGrid({
       groupBySelect.className = 'input-select';
       [
         { value: '', label: 'None' },
-        { value: 'accountType', label: 'Account Type' }
+        { value: 'accountType', label: 'Account Type' },
+        { value: 'accountGroupLabel', label: 'Account Group' }
       ].forEach(({ value, label }) => {
         const opt = document.createElement('option');
         opt.value = value;
@@ -1128,6 +1370,11 @@ export async function loadAccountsGrid({
       addButton.title = 'Add Account';
       addButton.textContent = '+';
 
+      const manageGroupsButton = document.createElement('button');
+      manageGroupsButton.className = 'icon-btn';
+      manageGroupsButton.title = 'Manage Account Groups';
+      manageGroupsButton.textContent = 'Groups';
+
       const refreshButton = document.createElement('button');
       refreshButton.className = 'icon-btn';
       refreshButton.title = 'Refresh Accounts';
@@ -1136,6 +1383,7 @@ export async function loadAccountsGrid({
       const modalActions = document.createElement('div');
       modalActions.className = 'modal-filter-actions';
       modalActions.appendChild(addButton);
+      modalActions.appendChild(manageGroupsButton);
       modalActions.appendChild(refreshButton);
 
       const filterButton = document.createElement('button');
@@ -1221,6 +1469,23 @@ export async function loadAccountsGrid({
         });
       });
 
+      manageGroupsButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await launchAccountGroupModal({
+          scenarioState,
+          startInCreateMode: false,
+          onSaved: async () => {
+            await loadAccountsGrid({
+              container,
+              scenarioState,
+              getWorkflowConfig,
+              reloadMasterTransactionsGrid,
+              logger
+            });
+          }
+        });
+      });
+
       refreshButton.addEventListener('click', async (e) => {
         e.stopPropagation();
         const prevText = refreshButton.textContent;
@@ -1265,6 +1530,7 @@ export async function loadAccountsGrid({
         container: gridContainer,
         accounts: filteredAccounts,
         groupBy: activeGroupBy,
+        accountGroupLookup,
         lookupData,
         workflowConfig,
         scenarioState,
@@ -1285,6 +1551,9 @@ export async function loadAccountsGrid({
       displayAccounts.map(async (a) => ({
         ...a,
         accountType: a.type?.name || 'Unknown',
+        accountGroupIds: accountGroupLookup.getAccountGroupIds(a.id),
+        primaryAccountGroupId: accountGroupLookup.getPrimaryAccountGroupId(a.id),
+        accountGroupLabel: accountGroupLookup.getAccountGroupLabel(a.id),
         periodicChangeSummary: await getPeriodicChangeDescription(a.periodicChange),
         periodicChangeScheduleSummary:
           Array.isArray(a.periodicChangeSchedule) && a.periodicChangeSchedule.length
@@ -1333,6 +1602,7 @@ export async function loadAccountsGrid({
             rowData: row.getData(),
             lookupData,
             workflowConfig,
+            accountGroupLookup,
             scenarioState,
             reloadAccountsGrid: (nextContainer) =>
               loadAccountsGrid({

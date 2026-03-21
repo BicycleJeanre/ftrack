@@ -67,6 +67,144 @@ function getScheduledPeriodicChangeForDate({ account, normalizedScheduleEntries,
   return account.periodicChange ?? null;
 }
 
+function toDateKey(date) {
+  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+}
+
+function roundMoney(value) {
+  const rounded = Math.round(Number(value || 0) * 100) / 100;
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
+function resolveOccurrenceSplit(occurrence, absAmount) {
+  const hasCapital = occurrence?.capitalAmount !== undefined && occurrence?.capitalAmount !== null;
+  const hasInterest = occurrence?.interestAmount !== undefined && occurrence?.interestAmount !== null;
+
+  if (hasCapital || hasInterest) {
+    const rawCapital = hasCapital ? Math.abs(Number(occurrence.capitalAmount || 0)) : null;
+    const rawInterest = hasInterest ? Math.abs(Number(occurrence.interestAmount || 0)) : null;
+
+    if (rawCapital === null && rawInterest === null) {
+      return { capital: absAmount, interest: 0 };
+    }
+    if (rawCapital === null) {
+      const interest = Math.min(absAmount, rawInterest);
+      return { capital: absAmount - interest, interest };
+    }
+    if (rawInterest === null) {
+      const capital = Math.min(absAmount, rawCapital);
+      return { capital, interest: absAmount - capital };
+    }
+
+    const total = rawCapital + rawInterest;
+    if (!total || total <= absAmount) {
+      return { capital: rawCapital, interest: rawInterest };
+    }
+
+    const scale = absAmount / total;
+    return {
+      capital: rawCapital * scale,
+      interest: rawInterest * scale
+    };
+  }
+
+  const role = String(occurrence?.transactionGroupRole || '').toLowerCase();
+  if (role === 'interest' || occurrence?.source === 'derivedPeriodicChange') {
+    return { capital: 0, interest: absAmount };
+  }
+
+  return { capital: absAmount, interest: 0 };
+}
+
+function applyOccurrenceToStates({
+  occurrence,
+  accountStateById,
+  periodStatsByAccountId
+}) {
+  if (!occurrence) return;
+
+  const amount = Math.abs(Number(occurrence.amount || 0));
+  if (!amount) return;
+
+  const split = resolveOccurrenceSplit(occurrence, amount);
+  const transactionTypeId = Number(occurrence.transactionTypeId) === 1 ? 1 : 2;
+  const primaryAccountId = Number(occurrence.primaryAccountId || 0);
+  const secondaryAccountId = Number(occurrence.secondaryAccountId || 0);
+
+  const applyToAccount = (accountId, isIn) => {
+    if (!accountId) return;
+
+    const state = accountStateById.get(accountId);
+    const stats = periodStatsByAccountId.get(accountId);
+    if (!state || !stats) return;
+
+    if (isIn) {
+      state.balance += amount;
+      stats.income += amount;
+      stats.capitalIn += split.capital;
+      stats.interestIn += split.interest;
+      return;
+    }
+
+    state.balance -= amount;
+    stats.expenses += amount;
+    stats.capitalOut += split.capital;
+    stats.interestOut += split.interest;
+  };
+
+  // Primary side: Money In => in, Money Out => out.
+  applyToAccount(primaryAccountId, transactionTypeId === 1);
+
+  // Secondary side mirrors direction (Money In => out, Money Out => in).
+  if (secondaryAccountId && secondaryAccountId !== primaryAccountId) {
+    applyToAccount(secondaryAccountId, transactionTypeId === 2);
+  }
+}
+
+function createDerivedPeriodicChangeOccurrence({
+  account,
+  delta,
+  date,
+  accountIdsSet
+}) {
+  const amount = Math.abs(Number(delta || 0));
+  if (!amount) return null;
+
+  const direction = String(account?.interestPostingDirection || '').trim().toLowerCase();
+  let transactionTypeId;
+  if (direction === 'expense' || direction === 'out' || direction === 'outflow' || direction === 'debit') {
+    transactionTypeId = 2;
+  } else if (direction === 'income' || direction === 'in' || direction === 'inflow' || direction === 'credit') {
+    transactionTypeId = 1;
+  } else {
+    transactionTypeId = delta >= 0 ? 1 : 2;
+  }
+
+  const primaryAccountId = Number(account?.id || 0);
+  const candidateSecondaryId = Number(account?.interestAccountId || 0);
+  const secondaryAccountId =
+    candidateSecondaryId &&
+    candidateSecondaryId !== primaryAccountId &&
+    accountIdsSet.has(candidateSecondaryId)
+      ? candidateSecondaryId
+      : null;
+
+  return {
+    date,
+    dateKey: toDateKey(date),
+    primaryAccountId,
+    secondaryAccountId,
+    transactionTypeId,
+    amount,
+    description: 'Derived periodic change posting',
+    source: 'derivedPeriodicChange',
+    sourceTransactionId: null,
+    transactionGroupRole: 'interest',
+    capitalAmount: 0,
+    interestAmount: amount
+  };
+}
+
 /**
  * Generate projections for a scenario
  * @param {number} scenarioId - The scenario ID to generate projections for
@@ -147,7 +285,9 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
         recurrence: budget.recurrence,
         periodicChange: null,
         effectiveDate: budget.date,
-        status: budget.status
+        status: budget.status,
+        transactionGroupId: budget.transactionGroupId ?? null,
+        transactionGroupRole: budget.transactionGroupRole ?? null
       }));
   } else {
     const statusName = (tx) => (typeof tx.status === 'object' ? tx.status.name : tx.status);
@@ -184,17 +324,19 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
       transactionTypeId: txn.transactionTypeId,
       amount: amount,
       description: txn.description || '',
-      sourceTransactionId: txn.id
+      sourceTransactionId: txn.id,
+      source: 'transaction',
+      transactionGroupId: txn.transactionGroupId ?? null,
+      transactionGroupRole: txn.transactionGroupRole ?? null,
+      capitalAmount: txn.capitalAmount ?? null,
+      interestAmount: txn.interestAmount ?? null
     };
   });
 
   transactionOccurrences.sort((a, b) => a.dateKey - b.dateKey);
 
-  const projections = [];
-  
   // Projection period type is an engine-only concept (not tied to UI view period controls).
   const periodTypeId = Number(projectionConfig.periodTypeId) || 3;
-  
   const periodIdToString = {
     1: 'daily',
     2: 'weekly',
@@ -202,55 +344,81 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
     4: 'quarterly',
     5: 'yearly'
   };
-  
   const periodicity = options.periodicity || periodIdToString[periodTypeId] || 'monthly';
   const periods = generatePeriods(startDate, endDate, periodicity);
 
-  accounts.forEach((account) => {
-    let currentBalance = account.startingBalance || 0;
-    const simpleInterestState = {
-      principalBase: account.startingBalance || 0,
-      elapsedYears: 0
-    };
+  const accountIdsSet = new Set(
+    (accounts || []).map((a) => Number(a?.id || 0)).filter(Boolean)
+  );
 
-    const normalizedScheduleEntries = normalizePeriodicChangeScheduleEntries(account.periodicChangeSchedule);
+  const accountStateById = new Map();
+  (accounts || []).forEach((account) => {
+    const accountId = Number(account?.id || 0);
+    if (!accountId) return;
+    accountStateById.set(accountId, {
+      balance: Number(account?.startingBalance || 0),
+      simpleInterestState: {
+        principalBase: Number(account?.startingBalance || 0),
+        elapsedYears: 0
+      },
+      normalizedScheduleEntries: normalizePeriodicChangeScheduleEntries(account?.periodicChangeSchedule)
+    });
+  });
 
-    periods.forEach((period, periodIndex) => {
-      const periodStart = period.start;
-      const periodEnd = period.end;
-      const periodStartKey =
-        periodStart.getFullYear() * 10000 + (periodStart.getMonth() + 1) * 100 + periodStart.getDate();
-      const periodEndKey = periodEnd.getFullYear() * 10000 + (periodEnd.getMonth() + 1) * 100 + periodEnd.getDate();
+  const projections = [];
+  let nextProjectionId = 1;
+  let occurrenceCursor = 0;
 
-      let periodIncome = 0;
-      let periodExpenses = 0;
-      let periodInterest = 0;
+  periods.forEach((period, periodIndex) => {
+    const periodStart = period.start;
+    const periodEnd = period.end;
+    const periodStartKey = toDateKey(periodStart);
+    const periodEndKey = toDateKey(periodEnd);
 
-      transactionOccurrences.forEach((txn) => {
-        if (txn.dateKey >= periodStartKey && txn.dateKey <= periodEndKey) {
-          const absAmount = Math.abs(txn.amount);
-
-          if (txn.primaryAccountId === account.id) {
-            if (txn.transactionTypeId === 1) {
-              currentBalance += absAmount;
-              periodIncome += absAmount;
-            } else {
-              currentBalance -= absAmount;
-              periodExpenses += absAmount;
-            }
-          }
-
-          if (txn.secondaryAccountId === account.id) {
-            if (txn.transactionTypeId === 1) {
-              currentBalance -= absAmount;
-              periodExpenses += absAmount;
-            } else {
-              currentBalance += absAmount;
-              periodIncome += absAmount;
-            }
-          }
-        }
+    const periodStatsByAccountId = new Map();
+    (accounts || []).forEach((account) => {
+      const accountId = Number(account?.id || 0);
+      if (!accountId) return;
+      periodStatsByAccountId.set(accountId, {
+        income: 0,
+        expenses: 0,
+        capitalIn: 0,
+        capitalOut: 0,
+        interestIn: 0,
+        interestOut: 0
       });
+    });
+
+    while (
+      occurrenceCursor < transactionOccurrences.length &&
+      transactionOccurrences[occurrenceCursor].dateKey < periodStartKey
+    ) {
+      occurrenceCursor += 1;
+    }
+
+    let periodOccurrenceIndex = occurrenceCursor;
+    while (
+      periodOccurrenceIndex < transactionOccurrences.length &&
+      transactionOccurrences[periodOccurrenceIndex].dateKey <= periodEndKey
+    ) {
+      applyOccurrenceToStates({
+        occurrence: transactionOccurrences[periodOccurrenceIndex],
+        accountStateById,
+        periodStatsByAccountId
+      });
+      periodOccurrenceIndex += 1;
+    }
+    occurrenceCursor = periodOccurrenceIndex;
+
+    // Convert account periodic change deltas into derived posting occurrences.
+    (accounts || []).forEach((account) => {
+      const accountId = Number(account?.id || 0);
+      if (!accountId) return;
+
+      const accountState = accountStateById.get(accountId);
+      if (!accountState) return;
+
+      const normalizedScheduleEntries = accountState.normalizedScheduleEntries || [];
 
       if (normalizedScheduleEntries.length > 0) {
         const changePoints = [toDateOnly(periodStart)];
@@ -274,7 +442,6 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
         uniquePoints.forEach((segmentStart, idx) => {
           const segmentEnd =
             idx + 1 < uniquePoints.length ? addDays(uniquePoints[idx + 1], -1) : toDateOnly(periodEnd);
-
           if (segmentStart > segmentEnd) return;
 
           const pcForSegment = getScheduledPeriodicChangeForDate({
@@ -288,65 +455,110 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
           if (!expandedPC) return;
 
           const yearsDiff = getInclusiveDayCount(segmentStart, segmentEnd) / DAYS_PER_YEAR;
-          if (yearsDiff === 0) return;
+          if (!yearsDiff) return;
 
-          const beforeBalance = currentBalance;
+          const beforeBalance = Number(accountState.balance || 0);
           const changeModeId = getId(expandedPC.changeMode);
           const changeTypeId = getId(expandedPC.changeType);
 
+          let afterBalance;
           if (changeModeId === 1 && changeTypeId === 1) {
             const rate = (expandedPC.value || 0) / 100;
-            const simpleInterestDelta = simpleInterestState.principalBase * rate * yearsDiff;
-            currentBalance += simpleInterestDelta;
+            const simpleInterestDelta = accountState.simpleInterestState.principalBase * rate * yearsDiff;
+            afterBalance = beforeBalance + simpleInterestDelta;
           } else {
-            currentBalance = calculatePeriodicChange(currentBalance, expandedPC, yearsDiff);
+            afterBalance = calculatePeriodicChange(beforeBalance, expandedPC, yearsDiff);
           }
 
-          const interestDelta = currentBalance - beforeBalance;
-          periodInterest += interestDelta;
-          if (interestDelta >= 0) periodIncome += interestDelta;
-          else periodExpenses += Math.abs(interestDelta);
+          const delta = afterBalance - beforeBalance;
+          if (!delta) return;
+
+          const derivedOccurrence = createDerivedPeriodicChangeOccurrence({
+            account,
+            delta,
+            date: segmentEnd,
+            accountIdsSet
+          });
+
+          applyOccurrenceToStates({
+            occurrence: derivedOccurrence,
+            accountStateById,
+            periodStatsByAccountId
+          });
         });
       } else if (account.periodicChange) {
         const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
-        if (expandedPC) {
-          const yearsDiffPeriod = getInclusiveDayCount(periodStart, periodEnd) / DAYS_PER_YEAR;
-          if (yearsDiffPeriod !== 0) {
-            const beforeBalance = currentBalance;
-            const changeModeId = getId(expandedPC.changeMode);
-            const changeTypeId = getId(expandedPC.changeType);
+        if (!expandedPC) return;
 
-            if (changeModeId === 1 && changeTypeId === 1) {
-              const rate = (expandedPC.value || 0) / 100;
-              const previousInterest = simpleInterestState.principalBase * rate * simpleInterestState.elapsedYears;
-              const nextElapsedYears = simpleInterestState.elapsedYears + yearsDiffPeriod;
-              const nextInterest = simpleInterestState.principalBase * rate * nextElapsedYears;
-              const simpleInterestDelta = nextInterest - previousInterest;
-              currentBalance += simpleInterestDelta;
-              simpleInterestState.elapsedYears = nextElapsedYears;
-            } else {
-              currentBalance = calculatePeriodicChange(currentBalance, expandedPC, yearsDiffPeriod);
-            }
+        const yearsDiffPeriod = getInclusiveDayCount(periodStart, periodEnd) / DAYS_PER_YEAR;
+        if (!yearsDiffPeriod) return;
 
-            const interestDelta = currentBalance - beforeBalance;
-            periodInterest += interestDelta;
-            if (interestDelta >= 0) periodIncome += interestDelta;
-            else periodExpenses += Math.abs(interestDelta);
-          }
+        const beforeBalance = Number(accountState.balance || 0);
+        const changeModeId = getId(expandedPC.changeMode);
+        const changeTypeId = getId(expandedPC.changeType);
+
+        let delta = 0;
+        if (changeModeId === 1 && changeTypeId === 1) {
+          const rate = (expandedPC.value || 0) / 100;
+          const previousInterest = accountState.simpleInterestState.principalBase * rate * accountState.simpleInterestState.elapsedYears;
+          const nextElapsedYears = accountState.simpleInterestState.elapsedYears + yearsDiffPeriod;
+          const nextInterest = accountState.simpleInterestState.principalBase * rate * nextElapsedYears;
+          delta = nextInterest - previousInterest;
+          accountState.simpleInterestState.elapsedYears = nextElapsedYears;
+        } else {
+          const afterBalance = calculatePeriodicChange(beforeBalance, expandedPC, yearsDiffPeriod);
+          delta = afterBalance - beforeBalance;
         }
+
+        if (!delta) return;
+
+        const derivedOccurrence = createDerivedPeriodicChangeOccurrence({
+          account,
+          delta,
+          date: periodEnd,
+          accountIdsSet
+        });
+
+        applyOccurrenceToStates({
+          occurrence: derivedOccurrence,
+          accountStateById,
+          periodStatsByAccountId
+        });
       }
+    });
+
+    (accounts || []).forEach((account) => {
+      const accountId = Number(account?.id || 0);
+      if (!accountId) return;
+
+      const state = accountStateById.get(accountId);
+      const stats = periodStatsByAccountId.get(accountId);
+      if (!state || !stats) return;
+
+      const income = roundMoney(stats.income);
+      const expenses = roundMoney(stats.expenses);
+      const capitalIn = roundMoney(stats.capitalIn);
+      const capitalOut = roundMoney(stats.capitalOut);
+      const interestIn = roundMoney(stats.interestIn);
+      const interestOut = roundMoney(stats.interestOut);
+      const interest = roundMoney(interestIn - interestOut);
+      const netChange = roundMoney(income - expenses);
 
       projections.push({
-        id: projections.length + 1,
+        id: nextProjectionId++,
         scenarioId: scenario.id,
         accountId: account.id,
         account: account.name,
         date: formatDateOnly(periodStart),
-        balance: Math.round(currentBalance * 100) / 100,
-        income: Math.round(periodIncome * 100) / 100,
-        expenses: Math.round(periodExpenses * 100) / 100,
-        netChange: Math.round((periodIncome - periodExpenses) * 100) / 100,
-        interest: Math.round(periodInterest * 100) / 100,
+        balance: roundMoney(state.balance),
+        income,
+        expenses,
+        netChange,
+        interest,
+        capitalIn,
+        capitalOut,
+        interestIn,
+        interestOut,
         period: periodIndex + 1
       });
     });

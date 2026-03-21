@@ -110,6 +110,10 @@
   height: 1em;
 }
 
+.icon-btn.is-loading svg {
+  animation: icon-btn-spin 0.8s linear infinite;
+}
+
 .icon-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
@@ -136,6 +140,16 @@
 
 .icon-btn--danger:hover {
   background: var(--danger-hover);
+}
+
+@keyframes icon-btn-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-delete {
@@ -593,6 +607,219 @@ input[type="checkbox"] {
   max-width: 600px;
 }
 
+.modal-compound-transaction {
+  width: 100%;
+  max-width: 700px;
+}
+
+.modal-compound-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.modal-compound-inline-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.modal-compound-additional-list {
+  display: grid;
+  gap: 8px;
+}
+
+.modal-compound-additional-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns:
+    minmax(110px, 0.8fr)
+    minmax(170px, 1.2fr)
+    minmax(150px, 1fr)
+    minmax(105px, 0.7fr)
+    minmax(90px, 0.65fr)
+    minmax(170px, 1fr)
+    auto
+    auto
+    auto;
+}
+
+.modal-compound-additional-row--header {
+  color: var(--text-secondary);
+  font-size: 0.78em;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.modal-compound-additional-row--header span {
+  white-space: nowrap;
+}
+
+.modal-compound-additional-row .icon-btn {
+  white-space: nowrap;
+}
+
+.modal-compound-additional-row .icon-btn:last-child {
+  justify-self: end;
+}
+
+.modal-compound-advanced {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  padding: 8px 10px;
+}
+
+.modal-compound-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.modal-compound-preview {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.9em;
+  margin-top: 8px;
+  padding: 10px;
+}
+
+.modal-account-groups {
+  width: 100%;
+  max-width: 980px;
+}
+
+.modal-account-groups-hint {
+  color: var(--text-secondary);
+  font-size: 0.92em;
+  margin-bottom: 16px;
+}
+
+.modal-account-groups-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.modal-account-groups-sidebar,
+.modal-account-groups-editor {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.modal-account-groups-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.modal-account-groups-list,
+.modal-account-groups-member-list {
+  display: grid;
+  gap: 8px;
+}
+
+.modal-account-groups-list {
+  max-height: 58vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.modal-account-groups-item {
+  align-items: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.modal-account-groups-item:hover {
+  border-color: var(--border-accent);
+}
+
+.modal-account-groups-item--active {
+  border-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+
+.modal-account-groups-item-title {
+  font-weight: 600;
+}
+
+.modal-account-groups-item-meta {
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.modal-account-groups-members {
+  margin-top: 4px;
+  margin-bottom: 14px;
+}
+
+.modal-account-groups-members-header {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.modal-account-groups-member-list {
+  max-height: 32vh;
+  overflow: auto;
+  padding: 6px 2px 2px;
+}
+
+.modal-account-groups-member {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  padding: 6px 8px;
+}
+
+.modal-account-groups-empty {
+  border: 1px dashed var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  padding: 12px;
+}
+
+.account-group-control-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-group-control-row .account-group-select {
+  flex: 1 1 240px;
+  min-width: 180px;
+}
+
+.account-card-group {
+  align-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-accent);
+  border-radius: 999px;
+  color: var(--text-primary);
+  display: inline-flex;
+  font-size: 0.82em;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
 .modal-shortcuts {
   width: 100%;
   max-width: 700px;
@@ -604,7 +831,9 @@ input[type="checkbox"] {
   .modal-text-input,
   .modal-periodic,
   .modal-recurrence,
-  .modal-shortcuts {
+  .modal-shortcuts,
+  .modal-compound-transaction,
+  .modal-account-groups {
     width: 95vw;
     max-width: 95vw;
   }
@@ -612,13 +841,19 @@ input[type="checkbox"] {
   .modal-shortcuts {
     padding: var(--spacing-md);
   }
+
+  .modal-account-groups-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
   .modal-text-input,
   .modal-periodic,
   .modal-recurrence,
-  .modal-shortcuts {
+  .modal-shortcuts,
+  .modal-compound-transaction,
+  .modal-account-groups {
     width: 100vw;
     max-width: 100vw;
     border-radius: 0;
@@ -627,6 +862,19 @@ input[type="checkbox"] {
   
   .modal-shortcuts {
     padding: var(--spacing-sm);
+  }
+
+  .modal-compound-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-compound-additional-row {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-account-groups-list,
+  .modal-account-groups-member-list {
+    max-height: none;
   }
 }
 

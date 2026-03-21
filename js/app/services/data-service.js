@@ -4,6 +4,7 @@
 
 import { generatePeriods } from '../../domain/calculations/period-utils.js';
 import { formatDateOnly } from '../../shared/date-utils.js';
+import * as ScenarioManager from '../managers/scenario-manager.js';
 import * as AccountManager from '../managers/account-manager.js';
 import * as TransactionManager from '../managers/transaction-manager.js';
 import * as DataStore from './storage-service.js';
@@ -108,6 +109,46 @@ export async function createAccount(scenarioId, accountData) {
 export async function saveAccounts(scenarioId, accounts) {
   // Delegate bulk account save to AccountManager to keep normalization consistent
   await AccountManager.saveAll(scenarioId, accounts);
+}
+
+export async function getAccountGroups(scenarioId) {
+  const scenario = await getScenario(scenarioId);
+  return Array.isArray(scenario?.accountGroups)
+    ? scenario.accountGroups.map((group) => ({
+      ...group,
+      accountIds: Array.isArray(group.accountIds) ? [...group.accountIds] : []
+    }))
+    : [];
+}
+
+export async function saveAccountGroups(scenarioId, accountGroups) {
+  return await ScenarioManager.saveAccountGroups(scenarioId, accountGroups);
+}
+
+export async function createAccountGroup(scenarioId, groupData) {
+  const data = await ScenarioManager.createAccountGroup(scenarioId, groupData);
+  const scenario = data.scenarios.find((s) => s.id === scenarioId);
+  return scenario?.accountGroups?.[scenario.accountGroups.length - 1] || null;
+}
+
+export async function updateAccountGroup(scenarioId, groupId, updates) {
+  const data = await ScenarioManager.updateAccountGroup(scenarioId, groupId, updates);
+  const scenario = data.scenarios.find((s) => s.id === scenarioId);
+  return Array.isArray(scenario?.accountGroups)
+    ? scenario.accountGroups.find((group) => Number(group.id) === Number(groupId)) || null
+    : null;
+}
+
+export async function removeAccountGroup(scenarioId, groupId) {
+  return await ScenarioManager.removeAccountGroup(scenarioId, groupId);
+}
+
+export async function setAccountGroupMemberships(scenarioId, accountId, groupIds = []) {
+  return await ScenarioManager.setAccountGroupMemberships(scenarioId, accountId, groupIds);
+}
+
+export async function assignAccountToGroup(scenarioId, accountId, groupId) {
+  return await ScenarioManager.setAccountGroupMemberships(scenarioId, accountId, groupId ? [groupId] : []);
 }
 
 // ============================================================================

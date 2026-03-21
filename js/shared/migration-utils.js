@@ -68,6 +68,8 @@ function migrateScenario(legacyScenario) {
     description: s.description === null || typeof s.description === 'string' ? s.description : null,
     lineage: s.lineage && typeof s.lineage === 'object' ? s.lineage : null,
     accounts: Array.isArray(s.accounts) ? s.accounts : [],
+    accountGroups: Array.isArray(s.accountGroups) ? s.accountGroups : [],
+    splitTransactionSets: Array.isArray(s.splitTransactionSets) ? s.splitTransactionSets : [],
     transactions: Array.isArray(s.transactions) ? s.transactions : [],
     budgets: Array.isArray(s.budgets) ? s.budgets : [],
     projection: {
