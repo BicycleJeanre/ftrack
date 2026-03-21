@@ -23,6 +23,26 @@ const budgetGridState = new GridStateManager('budget');
 let lastBudgetDetailTable = null;
 let lastBudgetDetailTableReady = false;
 
+function ensureBudgetFilterButton(controls) {
+  if (!controls) return null;
+  let filterButton = controls.querySelector('[data-budget-filter-trigger]');
+  const shouldAppend = !filterButton || !filterButton.isConnected;
+  if (!filterButton) {
+    filterButton = document.createElement('button');
+    filterButton.type = 'button';
+    filterButton.className = 'icon-btn';
+    filterButton.title = 'Open filters';
+    filterButton.textContent = '⚙';
+    filterButton.setAttribute('aria-label', 'Filters');
+    filterButton.setAttribute('data-budget-filter-trigger', 'true');
+  }
+  filterButton.style.marginLeft = 'auto';
+  if (shouldAppend) {
+    controls.appendChild(filterButton);
+  }
+  return filterButton;
+}
+
 /**
  * Normalize a budget entry to transaction-compatible format for perspective transformation
  */
@@ -706,12 +726,15 @@ export async function loadBudgetGrid({
   if (isBudgetDetailMode) {
     // --- Detail mode: full Tabulator grid ---
 
-    // Clear header icon controls (toolbar replaces them in detail mode)
+    // Clear header icon controls (toolbar replaces them in detail mode) and ensure the filter trigger exists immediately.
     const budgetSectionDetail = container.closest('.forecast-card');
     const budgetHeaderDetail = budgetSectionDetail?.querySelector(':scope > .card-header');
     if (budgetHeaderDetail) {
       const controls = budgetHeaderDetail.querySelector('.card-header-controls');
-      if (controls) controls.innerHTML = '';
+      if (controls) {
+        controls.innerHTML = '';
+        ensureBudgetFilterButton(controls);
+      }
     }
 
     container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
@@ -893,12 +916,7 @@ export async function loadBudgetGrid({
         modalActions.appendChild(clearBtn);
 
         // Modal trigger
-        const filterButton = document.createElement('button');
-        filterButton.type = 'button';
-        filterButton.className = 'icon-btn';
-        filterButton.title = 'Open filters';
-        filterButton.textContent = '⚙';
-        filterButton.setAttribute('aria-label', 'Filters');
+        const filterButton = ensureBudgetFilterButton(controls);
 
         createFilterModal({
           id: 'budget-filters-detail-modal',
@@ -913,9 +931,6 @@ export async function loadBudgetGrid({
             { id: 'actions', label: 'Actions:', control: modalActions }
           ]
         });
-
-        filterButton.style.marginLeft = 'auto';
-        controls.appendChild(filterButton);
 
         // --- Event handlers ---
         clearBtn.addEventListener('click', async (e) => {
@@ -1261,14 +1276,28 @@ export async function loadBudgetGrid({
   container.querySelectorAll(':scope > .grid-toolbar').forEach((el) => el.remove());
   container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
-  // Load accounts and periods upfront so the toolbar can be populated
+  const placeholderBudgetSection = container.closest('.forecast-card');
+  const placeholderBudgetHeader = placeholderBudgetSection?.querySelector(':scope > .card-header');
+  if (placeholderBudgetHeader) {
+    const placeholderControls = placeholderBudgetHeader.querySelector('.card-header-controls');
+    if (placeholderControls) {
+      placeholderControls.innerHTML = '';
+      ensureBudgetFilterButton(placeholderControls);
+    }
+  }
+
+  // Load accounts and begin fetching periods/budgets so toolbar can emerge immediately
   const accounts = currentScenario.accounts || [];
   const budgetPeriodType = state?.getBudgetPeriodType?.() || 'Month';
   let periods = state?.getBudgetPeriods?.();
-  if (!periods || periods.length === 0) {
-    periods = await getScenarioPeriods(currentScenario.id, budgetPeriodType, 'budget');
-    state?.setBudgetPeriods?.(periods);
-  }
+  const periodPromise = (!periods || periods.length === 0)
+    ? getScenarioPeriods(currentScenario.id, budgetPeriodType, 'budget').then((freshPeriods) => {
+      state?.setBudgetPeriods?.(freshPeriods);
+      periods = freshPeriods;
+      return freshPeriods;
+    })
+    : Promise.resolve(periods);
+  const budgetsPromise = getBudget(currentScenario.id);
 
   const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
   const firstAccountId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
@@ -1284,6 +1313,15 @@ export async function loadBudgetGrid({
 
   const reload = () => loadBudgetGrid({ container, scenarioState, state, tables, callbacks, logger });
 
+  let gridContainer = container.querySelector(':scope > .grid-container.budget-grid');
+  if (!gridContainer) {
+    gridContainer = document.createElement('div');
+    gridContainer.className = 'grid-container budget-grid';
+    window.add(container, gridContainer);
+  }
+
+  gridContainer.classList.remove('grid-detail');
+
   const refreshFilters = () => {
     if (!cachedBudgets) return;
     const token = state?.getBudgetGridLoadToken?.();
@@ -1298,6 +1336,8 @@ export async function loadBudgetGrid({
       reload
     });
   };
+
+  let rebuildPeriodOptionsRef = null;
 
   // --- Build filter toolbar in header (mirrors detail mode) ---
   const budgetSection = container.closest('.forecast-card');
@@ -1354,6 +1394,7 @@ export async function loadBudgetGrid({
         }
       };
       
+      rebuildPeriodOptionsRef = rebuildPeriodOptions;
       rebuildPeriodOptions(state?.getBudgetPeriods?.() || []);
 
       const prevBtn = document.createElement('button');
@@ -1406,12 +1447,7 @@ export async function loadBudgetGrid({
       if (currentGroupBy) groupBySelect.value = currentGroupBy;
 
       // Create filter button and modal
-      const filterButton = document.createElement('button');
-      filterButton.type = 'button';
-      filterButton.className = 'icon-btn';
-      filterButton.title = 'Open filters';
-      filterButton.textContent = '⚙';
-      filterButton.setAttribute('aria-label', 'Filters');
+      const filterButton = ensureBudgetFilterButton(controls);
 
       // Action buttons in modal
       const generateFromProjectionsBtn = document.createElement('button');
@@ -1435,6 +1471,18 @@ export async function loadBudgetGrid({
       modalActions.appendChild(addButton);
       modalActions.appendChild(clearBtn);
 
+      const runSummaryFilters = (optionalPeriods) => {
+        if (!cachedBudgets) return;
+        applyBudgetSummaryFilters({
+          budgets: cachedBudgets,
+          state,
+          periods: optionalPeriods || (state?.getBudgetPeriods?.() || []),
+          accounts,
+          gridContainer,
+          reload
+        });
+      };
+
       const filterModal = createFilterModal({
         id: 'budget-filters-summary-modal',
         title: 'Filter Budget',
@@ -1449,20 +1497,18 @@ export async function loadBudgetGrid({
         ]
       });
 
-      filterButton.style.marginLeft = 'auto';
-      controls.appendChild(filterButton);
 
       // Event listeners for period navigation
       periodSelect.addEventListener('change', () => {
         state?.setBudgetPeriod?.(periodSelect.value || null);
-        applyBudgetSummaryFilters({ budgets: allBudgets, state, periods: (state?.getBudgetPeriods?.() || []), accounts, gridContainer, reload });
+        runSummaryFilters();
       });
 
-      const periodIds = [...(state?.getBudgetPeriods?.() || []).map((p) => p.id || null)];
       const changePeriodBy = (offset) => {
         if (prevBtn.disabled || nextBtn.disabled) return;
         prevBtn.disabled = nextBtn.disabled = true;
         const freshPeriods = state?.getBudgetPeriods?.() || [];
+        const periodIds = freshPeriods.map((p) => p.id || null);
         const currentId = state?.getBudgetPeriod?.() ?? null;
         const currentIndex = periodIds.findIndex((id) => id === currentId);
         const safeIndex = currentIndex === -1 ? 0 : currentIndex;
@@ -1470,7 +1516,7 @@ export async function loadBudgetGrid({
         const nextId = periodIds[nextIndex] ?? null;
         periodSelect.value = nextId ? String(nextId) : '';
         state?.setBudgetPeriod?.(nextId);
-        applyBudgetSummaryFilters({ budgets: allBudgets, state, periods: freshPeriods, accounts, gridContainer, reload });
+        runSummaryFilters(freshPeriods);
         setTimeout(() => {
           prevBtn.disabled = nextBtn.disabled = false;
         }, 100);
@@ -1481,14 +1527,14 @@ export async function loadBudgetGrid({
       // Event listener for account filter
       accountSelect.addEventListener('change', () => {
         state?.setBudgetAccountFilterId?.(Number(accountSelect.value));
-        applyBudgetSummaryFilters({ budgets: allBudgets, state, periods: (state?.getBudgetPeriods?.() || []), accounts, gridContainer, reload });
+        runSummaryFilters();
       });
 
       // Event listener for group by
       groupBySelect.addEventListener('change', () => {
         budgetGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
         state?.setGroupBy?.(groupBySelect.value);
-        applyBudgetSummaryFilters({ budgets: allBudgets, state, periods: (state?.getBudgetPeriods?.() || []), accounts, gridContainer, reload });
+        runSummaryFilters();
       });
 
       // --- Event handlers ---
@@ -1589,14 +1635,11 @@ export async function loadBudgetGrid({
   // Don't bump token here - only bump after actual data modifications
   // This allows cached budgets to be reused when only periods/filters change
 
-  let gridContainer = container.querySelector(':scope > .grid-container.budget-grid');
-  if (!gridContainer) {
-    gridContainer = document.createElement('div');
-    gridContainer.className = 'grid-container budget-grid';
-    window.add(container, gridContainer);
+  const resolvedPeriods = await periodPromise;
+  if (rebuildPeriodOptionsRef) {
+    rebuildPeriodOptionsRef(resolvedPeriods || []);
   }
-
-  gridContainer.classList.remove('grid-detail');
+  periods = resolvedPeriods || periods;
 
   try {
     try {
@@ -1607,7 +1650,8 @@ export async function loadBudgetGrid({
       // ignore
     }
 
-    cachedBudgets = (await getBudget(currentScenario.id)).map(b => ({ ...b, _scenarioId: currentScenario.id }));
+    const budgetsData = await budgetsPromise;
+    cachedBudgets = budgetsData.map(b => ({ ...b, _scenarioId: currentScenario.id }));
     cachedBudgetLoadToken = state?.getBudgetGridLoadToken?.();
     const budgetPeriod = state?.getBudgetPeriod?.();
     let budgets = cachedBudgets;
