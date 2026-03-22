@@ -5,7 +5,6 @@ import { createGrid, refreshGridData, createTextColumn, createDateColumn, create
 import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
-import { openCompoundTransactionModal } from '../modals/compound-transaction-modal.js';
 import { openTextInputModal } from '../modals/text-input-modal.js';
 import { createFilterModal } from '../modals/filter-modal.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
@@ -44,6 +43,19 @@ let lastTransactionsDetailTableReady = false;
 function toSplitGroupId(value) {
   const id = String(value == null ? '' : value).trim();
   return id || '';
+}
+
+async function findPrincipalTransaction({ scenarioId, transactionGroupId }) {
+  const groupId = toSplitGroupId(transactionGroupId);
+  if (!groupId || !scenarioId) return null;
+  const allTxs = await getTransactions(scenarioId);
+  const sameGroup = allTxs.filter((tx) => toSplitGroupId(tx?.transactionGroupId) === groupId);
+  if (!sameGroup.length) return null;
+  const principal = sameGroup.find((tx) => {
+    const role = String(tx?.transactionGroupRole || '').trim().toLowerCase();
+    return !role || role === 'principal';
+  });
+  return principal || sameGroup[0] || null;
 }
 
 function buildAccountGroupLabelLookup(accountGroups = []) {
@@ -500,79 +512,6 @@ function applyTransactionsDetailFilters({ state, callbacks }) {
   }
   
   callbacks?.updateTransactionTotals?.();
-}
-
-async function launchSplitPaymentModal({
-  scenarioState,
-  scenarioId,
-  accounts,
-  defaultPrimaryAccountId,
-  defaultEffectiveDate,
-  onSaved,
-  editTransactionGroupId = null
-}) {
-  const scenario = scenarioState?.get?.() || (await getScenario(scenarioId));
-  const splitSetDraft = editTransactionGroupId
-    ? buildSplitSetDraft({ scenario, transactionGroupId: editTransactionGroupId })
-    : null;
-
-  openCompoundTransactionModal({
-    accounts,
-    accountGroups: scenario?.accountGroups || [],
-    defaultPrimaryAccountId,
-    defaultEffectiveDate,
-    splitSet: splitSetDraft,
-    onSave: async (payload) => {
-      try {
-        let currentScenario = scenarioState?.get?.() || (await getScenario(scenarioId));
-        let workingPayload = {
-          ...(payload || {}),
-          components: Array.isArray(payload?.components)
-            ? payload.components.map((component) => ({ ...component }))
-            : []
-        };
-
-        if (
-          Object.prototype.hasOwnProperty.call(workingPayload || {}, 'targetPeriodicChange') &&
-          Number(workingPayload?.targetAccountId || 0) > 0
-        ) {
-          const nextAccounts = (currentScenario?.accounts || []).map((account) => (
-            Number(account?.id) === Number(workingPayload.targetAccountId)
-              ? { ...account, periodicChange: workingPayload.targetPeriodicChange || null }
-              : account
-          ));
-          await saveAccounts(scenarioId, nextAccounts);
-          currentScenario = await getScenario(scenarioId);
-        }
-
-        const interestAutoAccount = await ensureInterestAccountForPayload({
-          scenarioId,
-          scenario: currentScenario,
-          payload: workingPayload
-        });
-        workingPayload = interestAutoAccount.payload;
-
-        const nextTxs = buildCompoundTransactions(workingPayload);
-        if (!nextTxs.length) {
-          notifyError('No split components were created. Add component amounts and accounts.');
-          return;
-        }
-
-        const splitSetRecord = buildSplitSetRecord(workingPayload);
-        await TransactionManager.upsertSplitTransactionSet(scenarioId, {
-          splitSet: splitSetRecord,
-          componentTransactions: nextTxs,
-          replaceTransactionGroupId: editTransactionGroupId || workingPayload.transactionGroupId
-        });
-
-        const refreshed = await getScenario(scenarioId);
-        scenarioState?.set?.(refreshed);
-        await onSaved?.();
-      } catch (err) {
-        notifyError('Failed to save split payment set: ' + (err?.message || String(err)));
-      }
-    }
-  });
 }
 
 function renderTransactionsRowDetails({ row, rowData, reload, onEditSplitSet }) {
@@ -1052,6 +991,8 @@ function renderTransactionsSummaryList({
     form.className = 'grid-summary-form';
     form.style.display = 'none';
     let suppressInlineAutoSave = false;
+
+    let splitFormActions = null;
     const suppressAutoSaveOnce = () => {
       suppressInlineAutoSave = true;
       setTimeout(() => {
@@ -1321,6 +1262,34 @@ function renderTransactionsSummaryList({
     splitOptionsField.appendChild(splitOptionsLabel);
     splitOptionsField.appendChild(splitOptionsBody);
 
+    if (inlineSplitEditable) {
+      splitFormActions = document.createElement('div');
+      splitFormActions.className = 'grid-summary-actions split-inline-actions';
+      const saveSplitBtn = document.createElement('button');
+      saveSplitBtn.className = 'icon-btn icon-btn--primary';
+      saveSplitBtn.title = 'Save Split Set';
+      saveSplitBtn.textContent = 'Save';
+      const cancelSplitBtn = document.createElement('button');
+      cancelSplitBtn.className = 'icon-btn';
+      cancelSplitBtn.title = 'Cancel Edit';
+      cancelSplitBtn.textContent = 'Cancel';
+      splitFormActions.appendChild(saveSplitBtn);
+      splitFormActions.appendChild(cancelSplitBtn);
+
+      saveSplitBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await doSave();
+        exitEdit();
+      });
+
+      cancelSplitBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        suppressAutoSaveOnce();
+        exitEdit();
+        await onRefresh?.();
+      });
+    }
+
     let splitTargetPeriodicChangeTouched = false;
     let splitTargetPeriodicChange = null;
 
@@ -1436,6 +1405,9 @@ function renderTransactionsSummaryList({
         suppressAutoSaveOnce();
       });
       updateSplitInlinePreview();
+      if (splitFormActions) {
+        form.appendChild(splitFormActions);
+      }
     }
 
     async function handleDocMouseDown(e) {
@@ -1443,15 +1415,17 @@ function renderTransactionsSummaryList({
       if (document.querySelector('.modal-overlay')) return;
       if (!card.contains(e.target)) {
         document.removeEventListener('mousedown', handleDocMouseDown);
-        exitEdit();
-        await doSave();
+        if (!inlineSplitEditable) {
+          exitEdit();
+          await doSave();
+        }
       }
     }
 
     const enterEdit = () => {
       form.style.display = 'grid';
       content.style.display = 'none';
-      actions.style.display = 'none';
+      actions.style.display = inlineSplitEditable ? 'flex' : 'none';
       document.addEventListener('mousedown', handleDocMouseDown);
     };
 
@@ -1677,7 +1651,9 @@ function renderTransactionsSummaryList({
         if (document.querySelector('.modal-overlay')) return;
         if (form.style.display !== 'grid') return;
         if (!form.contains(document.activeElement)) {
-          await doSave();
+          if (!inlineSplitEditable) {
+            await doSave();
+          }
         }
       }, 0);
     });
@@ -1692,8 +1668,10 @@ function renderTransactionsSummaryList({
         focusable[idx + 1].focus();
       } else {
         document.removeEventListener('mousedown', handleDocMouseDown);
-        exitEdit();
-        doSave();
+        if (!inlineSplitEditable) {
+          exitEdit();
+          doSave();
+        }
       }
     });
 
@@ -1763,22 +1741,27 @@ export async function loadMasterTransactionsGrid({
   if (!currentScenario) return;
 
   const workflowConfig = getWorkflowConfig?.();
-  const transactionsModeKey = workflowConfig?.transactionsMode === 'detail' ? 'detail' : 'summary';
+  const forceSummaryMode = transactionsGridState?.state?.pendingSummarySplitInline
+    && workflowConfig?.transactionsMode === 'detail';
+  const effectiveTransactionsMode = forceSummaryMode
+    ? 'summary'
+    : (workflowConfig?.transactionsMode === 'detail' ? 'detail' : 'summary');
+  const transactionsModeKey = effectiveTransactionsMode === 'detail' ? 'detail' : 'summary';
   const accountFilterStateKey = `accountFilter:${transactionsModeKey}`;
   const groupByStateKey = `groupBy:${transactionsModeKey}`;
   const splitGroupFilterStateKey = `splitGroupFilter:${transactionsModeKey}`;
   const splitRoleFilterStateKey = `splitRoleFilter:${transactionsModeKey}`;
   const splitAccountGroupFilterStateKey = `splitAccountGroupFilter:${transactionsModeKey}`;
-  const groupBySelector = workflowConfig?.transactionsMode === 'detail'
+  const groupBySelector = effectiveTransactionsMode === 'detail'
     ? '#tx-grouping-select'
     : '#tx-grouping-select-summary';
-  const splitGroupSelector = workflowConfig?.transactionsMode === 'detail'
+  const splitGroupSelector = effectiveTransactionsMode === 'detail'
     ? '#tx-split-group-filter'
     : '#tx-split-group-filter-summary';
-  const splitRoleSelector = workflowConfig?.transactionsMode === 'detail'
+  const splitRoleSelector = effectiveTransactionsMode === 'detail'
     ? '#tx-split-role-filter'
     : '#tx-split-role-filter-summary';
-  const splitAccountGroupSelector = workflowConfig?.transactionsMode === 'detail'
+  const splitAccountGroupSelector = effectiveTransactionsMode === 'detail'
     ? '#tx-split-account-group-filter'
     : '#tx-split-account-group-filter-summary';
 
@@ -1809,7 +1792,7 @@ export async function loadMasterTransactionsGrid({
     if (controls) {
       controls.innerHTML = '';
 
-      if (workflowConfig?.transactionsMode === 'detail') {
+      if (effectiveTransactionsMode === 'detail') {
         // Detail-mode controls are built later, after periods are available.
         transactionsHeader.classList.add('card-header--filters-inline');
       } else {
@@ -2251,7 +2234,7 @@ export async function loadMasterTransactionsGrid({
     }
 
     // For summary mode: use summary-scoped account filter; for detail mode: use detail-scoped filter (applied via Tabulator)
-    const summaryAccountFilterStr = workflowConfig?.transactionsMode !== 'detail' ? String(dropdownState[accountFilterStateKey] || '') : '';
+    const summaryAccountFilterStr = effectiveTransactionsMode !== 'detail' ? String(dropdownState[accountFilterStateKey] || '') : '';
     const accountFilterId = summaryAccountFilterStr ? Number(summaryAccountFilterStr) : state?.getTransactionFilterAccountId?.();
     // Don't pre-filter by account - filtering is done during transformation and rendering
     // Account filtering will be applied in detail via applyTransactionsDetailFilters
@@ -2262,7 +2245,7 @@ export async function loadMasterTransactionsGrid({
       _scenarioId: currentScenario.id
     }));
 
-    if (workflowConfig?.transactionsMode === 'detail') {
+    if (effectiveTransactionsMode === 'detail') {
       // --- Detail mode: full Tabulator grid ---
       gridContainer.classList.add('grid-detail');
 
@@ -2357,17 +2340,42 @@ export async function loadMasterTransactionsGrid({
             : (accountIds[0] || null);
           const defaultEffectiveDate = canonicalTx?.effectiveDate || rowData?.effectiveDate
             || (scenarioForEdit?.projection?.config?.startDate || formatDateOnly(new Date()));
-          await launchSplitPaymentModal({
-            scenarioState,
+          let principalTx = await findPrincipalTransaction({
             scenarioId: scenarioForEdit.id,
-            accounts: scenarioForEdit.accounts || [],
-            defaultPrimaryAccountId,
-            defaultEffectiveDate,
-            editTransactionGroupId: transactionGroupId,
-            onSaved: async () => {
-              await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-            }
+            transactionGroupId
           });
+
+          if (!principalTx) {
+            const primaryAccountId = defaultPrimaryAccountId || null;
+            if (!primaryAccountId) {
+              notifyError('Please create at least one account before editing a split payment.');
+              return;
+            }
+            const createdDraft = await createTransaction(scenarioForEdit.id, {
+              primaryAccountId,
+              secondaryAccountId: null,
+              transactionTypeId: 2,
+              amount: 0,
+              effectiveDate: defaultEffectiveDate,
+              description: '',
+              recurrence: null,
+              periodicChange: null,
+              transactionGroupId,
+              transactionGroupRole: 'principal',
+              status: 'planned',
+              tags: []
+            });
+            principalTx = createdDraft || null;
+          }
+
+          if (!principalTx?.id) {
+            notifyError('Failed to open split-set editor.');
+            return;
+          }
+
+          transactionsGridState.state.pendingSummaryEditTransactionId = Number(principalTx.id) || null;
+          transactionsGridState.state.pendingSummarySplitInline = true;
+          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         } catch (err) {
           notifyError('Failed to open split-set editor: ' + (err?.message || String(err)));
         }
@@ -2673,16 +2681,28 @@ export async function loadMasterTransactionsGrid({
                 ? formatDateOnly(selectedPeriod.startDate)
                 : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
 
-              await launchSplitPaymentModal({
-                scenarioState,
-                scenarioId: currentScenario.id,
-                accounts: currentScenario.accounts || [],
-                defaultPrimaryAccountId: defaultAccountId,
-                defaultEffectiveDate,
-                onSaved: async () => {
-                  await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-                }
+              const splitGroupId = createTransactionGroupId();
+              const createdDraft = await createTransaction(currentScenario.id, {
+                primaryAccountId: defaultAccountId,
+                secondaryAccountId: null,
+                transactionTypeId: 2,
+                amount: 0,
+                effectiveDate: defaultEffectiveDate,
+                description: '',
+                recurrence: null,
+                periodicChange: null,
+                transactionGroupId: splitGroupId,
+                transactionGroupRole: 'principal',
+                status: 'planned',
+                tags: []
               });
+
+              transactionsGridState.state.pendingSummaryEditTransactionId = Number(createdDraft?.id || 0) || null;
+              transactionsGridState.state.pendingSummarySplitInline = true;
+
+              const refreshed = await getScenario(currentScenario.id);
+              scenarioState?.set?.(refreshed);
+              await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
             } catch (err) {
               notifyError('Failed to open split payment builder: ' + (err?.message || String(err)));
             }
@@ -2902,6 +2922,12 @@ export async function loadMasterTransactionsGrid({
       tables?.setMasterTransactionsTable?.(txTable);
     } else {
       // --- Summary mode: card list ---
+      if (lastTransactionsDetailTable) {
+        try { lastTransactionsDetailTable.destroy?.(); } catch (_) { /* ignore */ }
+        lastTransactionsDetailTable = null;
+        lastTransactionsDetailTableReady = false;
+      }
+
       // Resolve the summary account filter: stored state, or fall back to first account
       const summaryFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
       const summaryFilterAccountId = summaryAccountFilterStr ? Number(summaryAccountFilterStr)
@@ -2924,24 +2950,50 @@ export async function loadMasterTransactionsGrid({
           : (accountIds[0] || null);
         const defaultEffectiveDate = canonicalTx?.effectiveDate || txRow?.effectiveDate
           || (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
-        await launchSplitPaymentModal({
-          scenarioState,
+        let principalTx = await findPrincipalTransaction({
           scenarioId: currentScenario.id,
-          accounts: currentScenario.accounts || [],
-          defaultPrimaryAccountId,
-          defaultEffectiveDate,
-          editTransactionGroupId: transactionGroupId,
-          onSaved: async () => {
-            await loadMasterTransactionsGrid({
-              container,
-              scenarioState,
-              getWorkflowConfig,
-              state,
-              tables,
-              callbacks,
-              logger
-            });
+          transactionGroupId
+        });
+
+        if (!principalTx) {
+          const primaryAccountId = defaultPrimaryAccountId || null;
+          if (!primaryAccountId) {
+            notifyError('Please create at least one account before editing a split payment.');
+            return;
           }
+          const createdDraft = await createTransaction(currentScenario.id, {
+            primaryAccountId,
+            secondaryAccountId: null,
+            transactionTypeId: 2,
+            amount: 0,
+            effectiveDate: defaultEffectiveDate,
+            description: '',
+            recurrence: null,
+            periodicChange: null,
+            transactionGroupId,
+            transactionGroupRole: 'principal',
+            status: 'planned',
+            tags: []
+          });
+          principalTx = createdDraft || null;
+        }
+
+        if (!principalTx?.id) {
+          notifyError('Failed to open split-set editor.');
+          return;
+        }
+
+        transactionsGridState.state.pendingSummaryEditTransactionId = Number(principalTx.id) || null;
+        transactionsGridState.state.pendingSummarySplitInline = true;
+
+        await loadMasterTransactionsGrid({
+          container,
+          scenarioState,
+          getWorkflowConfig,
+          state,
+          tables,
+          callbacks,
+          logger
         });
       };
 
