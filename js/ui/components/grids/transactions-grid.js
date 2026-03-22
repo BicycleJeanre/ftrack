@@ -970,20 +970,12 @@ function renderTransactionsSummaryList({
     duplicateBtn.title = 'Duplicate Transaction';
     duplicateBtn.textContent = '⧉';
 
-    const editSplitBtn = document.createElement('button');
-    editSplitBtn.className = 'icon-btn';
-    editSplitBtn.title = 'Edit Split Set';
-    editSplitBtn.textContent = '⇄';
-
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'icon-btn';
     deleteBtn.title = 'Delete Transaction';
     deleteBtn.textContent = '⨉';
 
     actions.appendChild(typeSpan);
-    if (tx?.transactionGroupId) {
-      actions.appendChild(editSplitBtn);
-    }
     actions.appendChild(duplicateBtn);
     actions.appendChild(deleteBtn);
 
@@ -1686,17 +1678,6 @@ function renderTransactionsSummaryList({
       allTxs.push(cloned);
       await TransactionManager.saveAll(scenario, allTxs);
       await onRefresh?.();
-    });
-
-    editSplitBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (inlineSplitEditable) {
-        enterEdit();
-        updateSplitInlinePreview();
-        return;
-      }
-      if (!tx?.transactionGroupId || typeof onEditSplitSet !== 'function') return;
-      await onEditSplitSet(tx);
     });
 
     deleteBtn.addEventListener('click', async (e) => {
@@ -2707,6 +2688,7 @@ export async function loadMasterTransactionsGrid({
               notifyError('Failed to open split payment builder: ' + (err?.message || String(err)));
             }
           });
+
           refreshButton.addEventListener('click', async (e) => {
             e.stopPropagation();
             const prevText = refreshButton.textContent;
