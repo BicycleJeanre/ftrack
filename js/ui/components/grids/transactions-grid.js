@@ -936,8 +936,12 @@ function renderTransactionsSummaryList({
     const primaryName = tx.primaryAccountName || findAccountName(tx.primaryAccountId);
 
     // Line 1: secondary account name + amount (amount pushed right)
+    let headerSaving = false;
+
     const rowPrimary = document.createElement('div');
     rowPrimary.className = 'grid-summary-row-primary';
+    const header = document.createElement('div');
+    header.className = 'grid-summary-header';
 
     const title = document.createElement('span');
     title.className = 'grid-summary-title';
@@ -948,13 +952,13 @@ function renderTransactionsSummaryList({
 
     rowPrimary.appendChild(title);
     rowPrimary.appendChild(amountEl);
+    header.appendChild(rowPrimary);
 
     // Line 2: transaction flow
     const flowEl = document.createElement('div');
     flowEl.className = 'grid-summary-flow';
     flowEl.textContent = `${primaryName} \u2192 ${secondaryName}`;
 
-    content.appendChild(rowPrimary);
     content.appendChild(flowEl);
 
     // Type badge for actions rail
@@ -978,13 +982,13 @@ function renderTransactionsSummaryList({
     actions.appendChild(typeSpan);
     actions.appendChild(duplicateBtn);
     actions.appendChild(deleteBtn);
+    header.appendChild(actions);
 
     const form = document.createElement('div');
     form.className = 'grid-summary-form';
     form.style.display = 'none';
     let suppressInlineAutoSave = false;
 
-    let splitFormActions = null;
     const suppressAutoSaveOnce = () => {
       suppressInlineAutoSave = true;
       setTimeout(() => {
@@ -1254,34 +1258,6 @@ function renderTransactionsSummaryList({
     splitOptionsField.appendChild(splitOptionsLabel);
     splitOptionsField.appendChild(splitOptionsBody);
 
-    if (inlineSplitEditable) {
-      splitFormActions = document.createElement('div');
-      splitFormActions.className = 'grid-summary-actions split-inline-actions';
-      const saveSplitBtn = document.createElement('button');
-      saveSplitBtn.className = 'icon-btn icon-btn--primary';
-      saveSplitBtn.title = 'Save Split Set';
-      saveSplitBtn.textContent = 'Save';
-      const cancelSplitBtn = document.createElement('button');
-      cancelSplitBtn.className = 'icon-btn';
-      cancelSplitBtn.title = 'Cancel Edit';
-      cancelSplitBtn.textContent = 'Cancel';
-      splitFormActions.appendChild(saveSplitBtn);
-      splitFormActions.appendChild(cancelSplitBtn);
-
-      saveSplitBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await doSave();
-        exitEdit();
-      });
-
-      cancelSplitBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        suppressAutoSaveOnce();
-        exitEdit();
-        await onRefresh?.();
-      });
-    }
-
     let splitTargetPeriodicChangeTouched = false;
     let splitTargetPeriodicChange = null;
 
@@ -1397,36 +1373,36 @@ function renderTransactionsSummaryList({
         suppressAutoSaveOnce();
       });
       updateSplitInlinePreview();
-      if (splitFormActions) {
-        form.appendChild(splitFormActions);
-      }
-    }
-
-    async function handleDocMouseDown(e) {
-      if (suppressInlineAutoSave) return;
-      if (document.querySelector('.modal-overlay')) return;
-      if (!card.contains(e.target)) {
-        document.removeEventListener('mousedown', handleDocMouseDown);
-        if (!inlineSplitEditable) {
-          exitEdit();
-          await doSave();
-        }
-      }
     }
 
     const enterEdit = () => {
       form.style.display = 'grid';
       content.style.display = 'none';
       actions.style.display = inlineSplitEditable ? 'flex' : 'none';
-      document.addEventListener('mousedown', handleDocMouseDown);
     };
 
     const exitEdit = () => {
-      document.removeEventListener('mousedown', handleDocMouseDown);
       form.style.display = 'none';
       content.style.display = 'block';
       actions.style.display = 'flex';
     };
+
+    header.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (e.target.closest('.icon-btn')) return;
+      if (form.style.display === 'grid') {
+        if (headerSaving) return;
+        headerSaving = true;
+        try {
+          await doSave();
+          exitEdit();
+        } finally {
+          headerSaving = false;
+        }
+      } else {
+        enterEdit();
+      }
+    });
 
     card.addEventListener('click', (e) => {
       if (form.style.display === 'grid') return;
@@ -1637,19 +1613,6 @@ function renderTransactionsSummaryList({
       await onRefresh?.();
     };
 
-    form.addEventListener('focusout', () => {
-      setTimeout(async () => {
-        if (suppressInlineAutoSave) return;
-        if (document.querySelector('.modal-overlay')) return;
-        if (form.style.display !== 'grid') return;
-        if (!form.contains(document.activeElement)) {
-          if (!inlineSplitEditable) {
-            await doSave();
-          }
-        }
-      }, 0);
-    });
-
     form.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       const focusable = Array.from(form.querySelectorAll('input:not([readonly]):not([disabled]), select:not([disabled])'));
@@ -1659,7 +1622,6 @@ function renderTransactionsSummaryList({
       if (idx < focusable.length - 1) {
         focusable[idx + 1].focus();
       } else {
-        document.removeEventListener('mousedown', handleDocMouseDown);
         if (!inlineSplitEditable) {
           exitEdit();
           doSave();
@@ -1691,8 +1653,8 @@ function renderTransactionsSummaryList({
       await onRefresh?.();
     });
 
+    card.appendChild(header);
     card.appendChild(content);
-    card.appendChild(actions);
     card.appendChild(form);
 
     list.appendChild(card);

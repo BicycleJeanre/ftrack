@@ -1712,10 +1712,22 @@ button.filter-modal-open {
 /* Transaction card header row: secondary account name + type badge */
 .grid-summary-header {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 8px;
   width: 100%;
+}
+
+.grid-summary-header .grid-summary-row-primary {
+  flex: 1 1 200px;
+}
+
+.grid-summary-header .grid-summary-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 1 auto;
+  align-items: center;
 }
 
 .grid-summary-type {
