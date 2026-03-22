@@ -935,67 +935,6 @@ function renderTransactionsSummaryList({
     const secondaryName = tx.secondaryAccountName || findAccountName(tx.secondaryAccountId);
     const primaryName = tx.primaryAccountName || findAccountName(tx.primaryAccountId);
 
-    // Line 1: secondary account name + amount (amount pushed right)
-    let headerSaving = false;
-
-    const rowPrimary = document.createElement('div');
-    rowPrimary.className = 'grid-summary-row-primary';
-    const header = document.createElement('div');
-    header.className = 'grid-summary-header';
-
-    const title = document.createElement('span');
-    title.className = 'grid-summary-title';
-    title.textContent = secondaryName;
-
-    const amountEl = document.createElement('span');
-    amountEl.innerHTML = formattedAmt;
-
-    rowPrimary.appendChild(title);
-    rowPrimary.appendChild(amountEl);
-    header.appendChild(rowPrimary);
-
-    // Line 2: transaction flow
-    const flowEl = document.createElement('div');
-    flowEl.className = 'grid-summary-flow';
-    flowEl.textContent = `${primaryName} \u2192 ${secondaryName}`;
-
-    content.appendChild(flowEl);
-
-    // Type badge for actions rail
-    const typeSpan = document.createElement('span');
-    typeSpan.className = `grid-summary-type ${isMoneyOut ? 'money-out' : 'money-in'}`;
-    typeSpan.textContent = typeName;
-
-    const actions = document.createElement('div');
-    actions.className = 'grid-summary-actions';
-
-    const duplicateBtn = document.createElement('button');
-    duplicateBtn.className = 'icon-btn';
-    duplicateBtn.title = 'Duplicate Transaction';
-    duplicateBtn.textContent = '⧉';
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'icon-btn';
-    deleteBtn.title = 'Delete Transaction';
-    deleteBtn.textContent = '⨉';
-
-    actions.appendChild(typeSpan);
-    actions.appendChild(duplicateBtn);
-    actions.appendChild(deleteBtn);
-    header.appendChild(actions);
-
-    const form = document.createElement('div');
-    form.className = 'grid-summary-form';
-    form.style.display = 'none';
-    let suppressInlineAutoSave = false;
-
-    const suppressAutoSaveOnce = () => {
-      suppressInlineAutoSave = true;
-      setTimeout(() => {
-        suppressInlineAutoSave = false;
-      }, 0);
-    };
-
     // -- Basic fields --
     const descInput = document.createElement('input');
     descInput.type = 'text';
@@ -1033,6 +972,89 @@ function renderTransactionsSummaryList({
     statusSelect.className = 'grid-summary-input';
     statusSelect.innerHTML = `<option value="planned">Planned</option><option value="actual">Actual</option>`;
     statusSelect.value = statusName;
+
+    // Line 1: secondary account name + amount (amount pushed right)
+    let headerSaving = false;
+
+    const rowPrimary = document.createElement('div');
+    rowPrimary.className = 'grid-summary-row-primary';
+    const header = document.createElement('div');
+    header.className = 'grid-summary-header';
+
+    const title = document.createElement('span');
+    title.className = 'grid-summary-title';
+    title.textContent = secondaryName;
+
+    const amountEl = document.createElement('span');
+    amountEl.className = 'grid-summary-amount';
+    amountEl.innerHTML = formattedAmt;
+
+    // Inline edit controls (hidden by default)
+    secondaryAccountSelect.classList.remove('grid-summary-input');
+    amountInput.classList.remove('grid-summary-input');
+    typeSelect.classList.remove('grid-summary-input');
+    secondaryAccountSelect.classList.add('grid-summary-inline-input', 'grid-summary-inline-select');
+    amountInput.classList.add('grid-summary-amount', 'grid-summary-inline-input', 'grid-summary-inline-number');
+    secondaryAccountSelect.style.display = 'none';
+    amountInput.style.display = 'none';
+    secondaryAccountSelect.addEventListener('click', (e) => e.stopPropagation());
+    secondaryAccountSelect.addEventListener('mousedown', (e) => e.stopPropagation());
+    amountInput.addEventListener('click', (e) => e.stopPropagation());
+    amountInput.addEventListener('mousedown', (e) => e.stopPropagation());
+
+    rowPrimary.appendChild(title);
+    rowPrimary.appendChild(secondaryAccountSelect);
+    rowPrimary.appendChild(amountEl);
+    rowPrimary.appendChild(amountInput);
+    header.appendChild(rowPrimary);
+
+    // Line 2: transaction flow
+    const flowEl = document.createElement('div');
+    flowEl.className = 'grid-summary-flow';
+    flowEl.textContent = `${primaryName} \u2192 ${secondaryName}`;
+
+    content.appendChild(flowEl);
+
+    // Type badge for actions rail
+    const typeSpan = document.createElement('span');
+    typeSpan.className = `grid-summary-type ${isMoneyOut ? 'money-out' : 'money-in'}`;
+    typeSpan.textContent = typeName;
+
+    typeSelect.classList.add('grid-summary-inline-input', 'grid-summary-inline-select');
+    typeSelect.style.display = 'none';
+    typeSelect.addEventListener('click', (e) => e.stopPropagation());
+    typeSelect.addEventListener('mousedown', (e) => e.stopPropagation());
+
+    const actions = document.createElement('div');
+    actions.className = 'grid-summary-actions';
+
+    const duplicateBtn = document.createElement('button');
+    duplicateBtn.className = 'icon-btn';
+    duplicateBtn.title = 'Duplicate Transaction';
+    duplicateBtn.textContent = '⧉';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'icon-btn';
+    deleteBtn.title = 'Delete Transaction';
+    deleteBtn.textContent = '⨉';
+
+    actions.appendChild(typeSpan);
+    actions.appendChild(typeSelect);
+    actions.appendChild(duplicateBtn);
+    actions.appendChild(deleteBtn);
+    header.appendChild(actions);
+
+    const form = document.createElement('div');
+    form.className = 'grid-summary-form';
+    form.style.display = 'none';
+    let suppressInlineAutoSave = false;
+
+    const suppressAutoSaveOnce = () => {
+      suppressInlineAutoSave = true;
+      setTimeout(() => {
+        suppressInlineAutoSave = false;
+      }, 0);
+    };
 
     // -- Tags --
     const cardTags = [...(tx?.tags || [])];
@@ -1336,9 +1358,6 @@ function renderTransactionsSummaryList({
       form.appendChild(field);
     };
 
-    addField('Type', typeSelect);
-    addField('Secondary Account', secondaryAccountSelect);
-    addField('Amount', amountInput);
     addField('Description', descInput);
     addField('Date', dateInput);
     addField('Status', statusSelect);
@@ -1375,21 +1394,89 @@ function renderTransactionsSummaryList({
       updateSplitInlinePreview();
     }
 
+    const updateHeaderView = () => {
+      const selectedSecondary = secondaryAccountSelect.value
+        ? findAccountName(Number(secondaryAccountSelect.value)) || ''
+        : (tx.secondaryAccountName || '');
+      title.textContent = selectedSecondary || '—';
+      const amt = Math.abs(Number(amountInput.value || 0)) || 0;
+      amountEl.innerHTML = formatMoneyDisplay(amt);
+      const typeVal = Number(typeSelect.value || 2);
+      const isOut = typeVal === 2;
+      typeSpan.textContent = typeVal === 1 ? 'Money In' : 'Money Out';
+      typeSpan.className = `grid-summary-type ${isOut ? 'money-out' : 'money-in'}`;
+      flowEl.textContent = `${primaryName} \u2192 ${selectedSecondary || secondaryName}`;
+    };
+
     const enterEdit = () => {
       form.style.display = 'grid';
       content.style.display = 'none';
-      actions.style.display = inlineSplitEditable ? 'flex' : 'none';
+      actions.style.display = 'flex';
     };
 
     const exitEdit = () => {
       form.style.display = 'none';
       content.style.display = 'block';
       actions.style.display = 'flex';
+      updateHeaderView();
     };
+
+    updateHeaderView();
+
+    const setupInlineEditor = (displayEl, inputEl) => {
+      let originalValue = '';
+      const showEditor = () => {
+        originalValue = inputEl.value;
+        displayEl.style.display = 'none';
+        inputEl.style.display = '';
+        inputEl.focus({ preventScroll: true });
+        if (inputEl.select) inputEl.select();
+      };
+      const cancelEditor = () => {
+        inputEl.value = originalValue;
+        inputEl.style.display = 'none';
+        displayEl.style.display = '';
+      };
+      const commitEditor = async () => {
+        inputEl.style.display = 'none';
+        displayEl.style.display = '';
+        updateHeaderView();
+        await doSave();
+      };
+      displayEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showEditor();
+      });
+      inputEl.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          await commitEditor();
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelEditor();
+        }
+      });
+      inputEl.addEventListener('change', async () => {
+        await commitEditor();
+      });
+      inputEl.addEventListener('blur', async () => {
+        if (document.activeElement === inputEl) return;
+        await commitEditor();
+      });
+    };
+
+    setupInlineEditor(title, secondaryAccountSelect);
+    setupInlineEditor(amountEl, amountInput);
+    setupInlineEditor(typeSpan, typeSelect);
 
     header.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (e.target.closest('.icon-btn')) return;
+      if (title.contains(e.target) || amountEl.contains(e.target) || typeSpan.contains(e.target)
+        || secondaryAccountSelect.contains(e.target) || amountInput.contains(e.target) || typeSelect.contains(e.target)) {
+        return;
+      }
       if (form.style.display === 'grid') {
         if (headerSaving) return;
         headerSaving = true;
@@ -1407,6 +1494,7 @@ function renderTransactionsSummaryList({
     card.addEventListener('click', (e) => {
       if (form.style.display === 'grid') return;
       if (e.target.closest('.icon-btn')) return;
+      if (title.contains(e.target) || amountEl.contains(e.target) || typeSpan.contains(e.target)) return;
       enterEdit();
     });
 

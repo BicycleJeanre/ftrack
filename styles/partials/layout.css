@@ -1730,6 +1730,35 @@ button.filter-modal-open {
   align-items: center;
 }
 
+.grid-summary-inline-input {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+  outline: none;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 200px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.grid-summary-inline-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 12px;
+  max-width: 180px;
+}
+
+.grid-summary-inline-number {
+  text-align: right;
+  width: 110px;
+  max-width: 140px;
+}
+
 .grid-summary-type {
   display: inline-flex;
   align-items: center;
