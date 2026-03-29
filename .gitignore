@@ -33,3 +33,4 @@ app-data.json.backup
 *.json.bak
 project_notes.md
 ftrack-backup*
+cli.py

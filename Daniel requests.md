@@ -1,5 +1,7 @@
-Follow-ups
+Fllow-ups
 
 - Add interest compounding date.
 
-- Snowball effect in goal workshop: allow freed cashflow to cascade into the next goal/debt.
+Snowball effect in goal workshop: allow freed cashflow to cascade into the next goal/debt.
+
+budget refrsh row not working after regenerating.

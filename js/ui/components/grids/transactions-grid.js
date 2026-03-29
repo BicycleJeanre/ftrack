@@ -219,19 +219,60 @@ async function ensureInterestAccountForPayload({ scenarioId, scenario, payload }
     return { payload, createdAccountId: null };
   }
 
+  const currentAccounts = Array.isArray(scenario?.accounts) ? scenario.accounts : [];
+  const targetAccountId = Number(payload?.targetAccountId || 0) || null;
+  const targetAccount = currentAccounts.find((account) => Number(account?.id || 0) === targetAccountId) || null;
+  const targetGroupId = findPrimaryGroupIdForAccount(scenario?.accountGroups || [], targetAccountId);
+
+  const resolveWithAccount = async ({ accountId, accountGroupId = null, persistToTarget = false, createdAccount = null }) => {
+    const nextComponents = payload.components.map((component, index) => {
+      if (index !== interestIndex) return { ...component };
+      return {
+        ...component,
+        accountId,
+        secondaryAccountId: accountId,
+        accountGroupId: Number(component?.accountGroupId || 0) || accountGroupId || null
+      };
+    });
+
+    if (persistToTarget && targetAccountId) {
+      const mergedAccounts = currentAccounts.some((acc) => Number(acc?.id || 0) === Number(createdAccount?.id || accountId))
+        ? currentAccounts
+        : [...currentAccounts, createdAccount].filter(Boolean);
+      const nextAccounts = mergedAccounts.map((account) => (
+        Number(account?.id || 0) === targetAccountId
+          ? { ...account, interestAccountId: accountId }
+          : account
+      ));
+      await saveAccounts(scenarioId, nextAccounts);
+    }
+
+    return {
+      payload: {
+        ...payload,
+        interestAccountId: accountId,
+        components: nextComponents
+      },
+      createdAccountId: createdAccount ? accountId : null
+    };
+  };
+
+  const targetInterestAccountId = Number(targetAccount?.interestAccountId || 0) || null;
   const existingInterestAccountId = Number(
     payload?.interestAccountId ||
     interestComponent?.accountId ||
     interestComponent?.secondaryAccountId ||
+    targetInterestAccountId ||
     0
   ) || null;
   if (existingInterestAccountId) {
-    return { payload, createdAccountId: null };
+    return await resolveWithAccount({
+      accountId: existingInterestAccountId,
+      accountGroupId: Number(interestComponent?.accountGroupId || 0) || targetGroupId || null,
+      persistToTarget: !targetInterestAccountId && Boolean(targetAccount)
+    });
   }
 
-  const currentAccounts = Array.isArray(scenario?.accounts) ? scenario.accounts : [];
-  const targetAccountId = Number(payload?.targetAccountId || 0) || null;
-  const targetAccount = currentAccounts.find((account) => Number(account?.id || 0) === targetAccountId) || null;
   const interestType = inferInterestAccountType(targetAccount);
   const accountName = buildUniqueInterestAccountName({
     targetAccount,
@@ -254,25 +295,16 @@ async function ensureInterestAccountForPayload({ scenarioId, scenario, payload }
     return { payload, createdAccountId: null };
   }
 
-  const targetGroupId = findPrimaryGroupIdForAccount(scenario?.accountGroups || [], targetAccountId);
   if (targetGroupId) {
     await assignAccountToGroup(scenarioId, createdAccountId, targetGroupId);
   }
 
-  const nextPayload = {
-    ...payload,
-    interestAccountId: createdAccountId,
-    components: payload.components.map((component, index) => {
-      if (index !== interestIndex) return { ...component };
-      return {
-        ...component,
-        accountId: createdAccountId,
-        secondaryAccountId: createdAccountId,
-        accountGroupId: Number(component?.accountGroupId || 0) || targetGroupId || null
-      };
-    })
-  };
-  return { payload: nextPayload, createdAccountId };
+  return await resolveWithAccount({
+    accountId: createdAccountId,
+    accountGroupId: targetGroupId || null,
+    persistToTarget: true,
+    createdAccount
+  });
 }
 
 function buildSplitSetDraft({ scenario, transactionGroupId }) {
@@ -832,10 +864,72 @@ function renderTransactionsSummaryList({
     return transformTransactionToRows(normalized, visibleAccounts);
   });
 
+  // Hide split interest rows in unfiltered view so the user sees a single logical split entry,
+  // but keep them when filtering by a specific account (e.g., viewing from the interest account perspective).
+  const perspectiveRows = filterAccountId
+    ? allPerspectiveRows
+    : allPerspectiveRows.filter((row) => {
+        const role = String(row?.transactionGroupRole || '').trim().toLowerCase();
+        return role !== 'interest';
+      });
+
   // Filter to current account perspective or show only primary rows
   let displayTransactions = filterAccountId
     ? allPerspectiveRows.filter(r => Number(r.perspectiveAccountId) === Number(filterAccountId))
-    : allPerspectiveRows.filter(r => !String(r.id).endsWith('_flipped'));
+    : perspectiveRows.filter(r => !String(r.id).endsWith('_flipped'));
+
+  // For split sets, surface combined totals on the principal row and keep interest rows scoped to the interest leg.
+  displayTransactions = displayTransactions.map((tx) => {
+    const groupId = toSplitGroupId(tx?.transactionGroupId);
+    const set = groupId ? splitSetsById.get(groupId) : null;
+    if (!set) return tx;
+
+    const role = String(tx?.transactionGroupRole || '').trim().toLowerCase();
+    const principalComponent = Array.isArray(set?.components)
+      ? set.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'principal')
+      : null;
+    const interestComponent = Array.isArray(set?.components)
+      ? set.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'interest')
+      : null;
+
+    const principalAmount = Math.abs(Number(principalComponent?.value ?? principalComponent?.amount ?? 0)) || 0;
+    const interestAmount = Math.abs(Number(interestComponent?.value ?? interestComponent?.amount ?? 0)) || 0;
+    const totalAmount = Math.abs(Number(set?.totalAmount || 0)) || (principalAmount + interestAmount);
+
+    const next = { ...tx };
+    if (role === 'interest') {
+      const signedInterest = Number(tx?.transactionTypeId) === 1 ? interestAmount : -interestAmount;
+      next.amount = signedInterest;
+      next.plannedAmount = signedInterest;
+      next.interestAmount = interestAmount;
+      next.capitalAmount = 0;
+      return next;
+    }
+
+    if (totalAmount > 0) {
+      const signedTotal = Number(tx?.transactionTypeId) === 1 ? totalAmount : -totalAmount;
+      next.amount = signedTotal;
+      next.plannedAmount = signedTotal;
+    }
+    next.capitalAmount = principalAmount;
+    next.interestAmount = interestAmount;
+    return next;
+  });
+
+  // When viewing from the paying account perspective, hide the interest leg so the split stays a single visible row.
+  if (filterAccountId) {
+    displayTransactions = displayTransactions.filter((tx) => {
+      const groupId = toSplitGroupId(tx?.transactionGroupId);
+      const set = groupId ? splitSetsById.get(groupId) : null;
+      if (!set) return true;
+      const role = String(tx?.transactionGroupRole || '').trim().toLowerCase();
+      const payingId = Number(set?.payingAccountId || 0) || null;
+      if (role === 'interest' && payingId && Number(tx?.perspectiveAccountId) === payingId) {
+        return false;
+      }
+      return true;
+    });
+  }
 
   displayTransactions = applySplitSetFilters(displayTransactions, {
     splitGroupFilter,
@@ -916,6 +1010,9 @@ function renderTransactionsSummaryList({
       sourceCanonicalTx?.secondaryAccountId ||
       tx?.secondaryAccountId ||
       0
+    ) || null;
+    const splitTargetAccount = visibleAccounts.find(
+      (account) => Number(account?.id || 0) === defaultSplitTargetAccountId
     ) || null;
     const splitInterestComponent = Array.isArray(existingSplitSet?.components)
       ? existingSplitSet.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'interest') || null
@@ -1040,6 +1137,17 @@ function renderTransactionsSummaryList({
 
     actions.appendChild(typeSpan);
     actions.appendChild(typeSelect);
+    if (splitGroupId && typeof onEditSplitSet === 'function') {
+      const splitEditBtn = document.createElement('button');
+      splitEditBtn.className = 'icon-btn';
+      splitEditBtn.title = 'Edit split payment set';
+      splitEditBtn.textContent = '⇄';
+      splitEditBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onEditSplitSet(tx);
+      });
+      actions.appendChild(splitEditBtn);
+    }
     actions.appendChild(duplicateBtn);
     actions.appendChild(deleteBtn);
     header.appendChild(actions);
@@ -1207,8 +1315,9 @@ function renderTransactionsSummaryList({
     const splitInterestAccountLabel = document.createElement('span');
     splitInterestAccountLabel.className = 'text-secondary';
     splitInterestAccountLabel.textContent = 'Interest Account';
+    const defaultInterestAccountId = splitInterestComponent?.accountId || splitTargetAccount?.interestAccountId || null;
     const splitInterestAccountSelect = buildAccountSelect(
-      splitInterestComponent?.accountId || null,
+      defaultInterestAccountId,
       true
     );
     const splitInterestNone = splitInterestAccountSelect.querySelector('option[value=""]');
@@ -1661,6 +1770,26 @@ function renderTransactionsSummaryList({
           payload: workingPayload
         });
         workingPayload = ensuredInterest.payload;
+
+        const resolvedInterestComponent = Array.isArray(workingPayload?.components)
+          ? workingPayload.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'interest')
+          : null;
+        const resolvedInterestAmount = Math.abs(Number(
+          resolvedInterestComponent?.amount ??
+          resolvedInterestComponent?.value ??
+          workingPayload?.interestAmount ??
+          0
+        )) || 0;
+        const resolvedInterestAccountId = Number(
+          workingPayload?.interestAccountId ||
+          resolvedInterestComponent?.accountId ||
+          resolvedInterestComponent?.secondaryAccountId ||
+          0
+        ) || null;
+        if (resolvedInterestAmount > 0 && !resolvedInterestAccountId) {
+          notifyError('Select or create an interest account before saving the split payment.');
+          return;
+        }
 
         const componentTransactions = buildCompoundTransactions(workingPayload);
         if (!componentTransactions.length) {
@@ -2293,6 +2422,72 @@ export async function loadMasterTransactionsGrid({
         statusName: r.status?.name || (typeof r.status === 'string' ? r.status : 'planned'),
         transactionGroupAccountGroupLabel: splitAccountGroupLabelLookup.getLabel(r?.transactionGroupAccountGroupId)
       }));
+
+      // In the default (unfiltered) detail view, hide interest-role rows so split sets present as a single logical entry.
+      const activeAccountFilterId = state?.getTransactionsAccountFilterId?.();
+      if (!activeAccountFilterId) {
+        displayRows = displayRows.filter((row) => {
+          const role = String(row?.transactionGroupRole || '').trim().toLowerCase();
+          return role !== 'interest';
+        });
+      }
+
+      // If filtering to the paying account, hide the interest leg to keep the split as a single row.
+      if (activeAccountFilterId) {
+        displayRows = displayRows.filter((row) => {
+          const groupId = toSplitGroupId(row?.transactionGroupId);
+          const set = groupId
+            ? (currentScenario.splitTransactionSets || []).find((s) => toSplitGroupId(s?.id) === groupId)
+            : null;
+          if (!set) return true;
+          const role = String(row?.transactionGroupRole || '').trim().toLowerCase();
+          const payingId = Number(set?.payingAccountId || 0) || null;
+          if (role === 'interest' && payingId && Number(row?.perspectiveAccountId) === payingId) {
+            return false;
+          }
+          return true;
+        });
+      }
+
+      // Enrich principal rows to show total split amount while preserving interest rows for their perspective.
+      displayRows = displayRows.map((row) => {
+        const groupId = toSplitGroupId(row?.transactionGroupId);
+        const set = groupId
+          ? (currentScenario.splitTransactionSets || []).find((s) => toSplitGroupId(s?.id) === groupId)
+          : null;
+        if (!set) return row;
+
+        const role = String(row?.transactionGroupRole || '').trim().toLowerCase();
+        const principalComponent = Array.isArray(set?.components)
+          ? set.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'principal')
+          : null;
+        const interestComponent = Array.isArray(set?.components)
+          ? set.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'interest')
+          : null;
+
+        const principalAmount = Math.abs(Number(principalComponent?.value ?? principalComponent?.amount ?? 0)) || 0;
+        const interestAmount = Math.abs(Number(interestComponent?.value ?? interestComponent?.amount ?? 0)) || 0;
+        const totalAmount = Math.abs(Number(set?.totalAmount || 0)) || (principalAmount + interestAmount);
+
+        const next = { ...row };
+        if (role === 'interest') {
+          const signedInterest = Number(row?.transactionTypeId) === 1 ? interestAmount : -interestAmount;
+          next.amount = signedInterest;
+          next.plannedAmount = signedInterest;
+          next.interestAmount = interestAmount;
+          next.capitalAmount = 0;
+          return next;
+        }
+
+        if (totalAmount > 0) {
+          const signedTotal = Number(row?.transactionTypeId) === 1 ? totalAmount : -totalAmount;
+          next.amount = signedTotal;
+          next.plannedAmount = signedTotal;
+        }
+        next.capitalAmount = principalAmount;
+        next.interestAmount = interestAmount;
+        return next;
+      });
 
       displayRows = applySplitSetFilters(displayRows, {
         splitGroupFilter,
