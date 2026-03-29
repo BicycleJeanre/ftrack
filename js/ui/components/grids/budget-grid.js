@@ -188,6 +188,10 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     }
     // Get original budget ID (handle flipped rows)
     const originalBudgetId = budget._budgetId || budget.id;
+    // Always use canonical (pre-transform) values for the edit form.
+    // Flipped perspective rows have swapped accounts and inverted typeId — using
+    // them directly would corrupt the record on save.
+    const canonicalBudget = budgets.find((b) => Number(b.id) === Number(originalBudgetId)) || budget;
     const card = document.createElement('div');
     card.className = 'grid-summary-card';
 
@@ -301,9 +305,9 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     const typeSelect = document.createElement('select');
     typeSelect.className = 'grid-summary-input';
     typeSelect.innerHTML = `<option value="1">Money In</option><option value="2">Money Out</option>`;
-    typeSelect.value = String(budget?.transactionTypeId || 2);
+    typeSelect.value = String(canonicalBudget?.transactionTypeId || 2);
 
-    const secondaryAccountSelect = buildAccountSelect(budget?.secondaryAccountId, true);
+    const secondaryAccountSelect = buildAccountSelect(canonicalBudget?.secondaryAccountId, true);
 
     const amountInput = document.createElement('input');
     amountInput.type = 'number';
