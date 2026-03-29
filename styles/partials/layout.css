@@ -1335,6 +1335,17 @@ body.dashboard-shell {
   flex-shrink: 0;
 }
 
+/* In projections/budget summary cards: date sits inline, balance anchors right */
+.projections-grid .grid-summary-list .grid-summary-date,
+.budget-grid .grid-summary-list .grid-summary-date {
+  margin-left: 0;
+}
+
+.projections-grid .grid-summary-list .grid-summary-balance,
+.budget-grid .grid-summary-list .grid-summary-balance {
+  margin-left: auto;
+}
+
 .grid-summary-list .grid-summary-income,
 .grid-summary-list .grid-summary-expenses {
   display: inline-flex;

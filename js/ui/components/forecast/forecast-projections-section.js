@@ -310,11 +310,16 @@ function renderProjectionsSummaryList({ container, projections, accounts = [], g
     net.className = `grid-summary-type ${numValueClass(Number(row?.netChange || 0))}`;
     net.textContent = `Net ${formatCurrency(Number(row?.netChange || 0), projCurrency)}`;
 
+    const balance = document.createElement('span');
+    balance.className = `grid-summary-type grid-summary-balance ${numValueClass(Number(row?.balance || 0))}`;
+    balance.textContent = `Bal ${formatCurrency(Number(row?.balance || 0), projCurrency)}`;
+
     card.appendChild(title);
     card.appendChild(income);
     card.appendChild(expenses);
-    card.appendChild(date);
     card.appendChild(net);
+    card.appendChild(date);
+    card.appendChild(balance);
     list.appendChild(card);
   });
 }
