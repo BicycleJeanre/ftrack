@@ -23,8 +23,10 @@ function loadSmokeData(overrides = {}) {
 
 async function seedAppData(page, appData = loadSmokeData()) {
   await page.addInitScript(({ key, data }) => {
-    if (!window.localStorage.getItem(key)) {
+    const seededKey = `${key}:e2e-seeded`;
+    if (!window.sessionStorage.getItem(seededKey) && !window.localStorage.getItem(key)) {
       window.localStorage.setItem(key, JSON.stringify(data));
+      window.sessionStorage.setItem(seededKey, '1');
     }
   }, { key: STORAGE_KEY, data: appData });
 }

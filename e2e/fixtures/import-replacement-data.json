@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 43,
+  "uiState": {
+    "lastWorkflowId": "general",
+    "lastScenarioId": 301,
+    "lastScenarioVersion": 1,
+    "viewPeriodTypeIds": {
+      "transactions": 3,
+      "budgets": 3,
+      "projections": 3
+    },
+    "accordionStates": {
+      "summaryCardsSection": true,
+      "generatePlanSection": true,
+      "row-middle": true,
+      "budgetSection": true,
+      "projectionsSection": true,
+      "accountsSection": true,
+      "transactionsSection": true
+    }
+  },
+  "scenarios": [
+    {
+      "id": 301,
+      "version": 1,
+      "name": "Imported Replacement",
+      "description": "Imported by Playwright.",
+      "lineage": null,
+      "accounts": [
+        {
+          "id": 1,
+          "name": "Imported Checking",
+          "type": { "id": 1, "name": "Asset" },
+          "currency": { "id": 1, "name": "ZAR" },
+          "startingBalance": 987,
+          "openDate": "2026-02-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null,
+          "tags": []
+        }
+      ],
+      "transactions": [],
+      "budgets": [],
+      "projection": {
+        "config": {
+          "startDate": "2026-02-01",
+          "endDate": "2026-02-28",
+          "periodTypeId": 3,
+          "source": "transactions"
+        },
+        "rows": [],
+        "generatedAt": null
+      },
+      "budgetWindow": {
+        "config": {
+          "startDate": "2026-02-01",
+          "endDate": "2026-02-28"
+        }
+      },
+      "planning": {
+        "config": {
+          "startDate": "2026-02-01",
+          "endDate": "2026-02-28"
+        },
+        "goalWorkshopMode": "advanced",
+        "advancedGoalSolver": {
+          "constraints": [],
+          "goals": [],
+          "lastSolution": null
+        }
+      },
+      "accountGroups": [],
+      "splitTransactionSets": []
+    }
+  ]
+}
