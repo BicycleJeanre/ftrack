@@ -4,6 +4,7 @@
 
 import { downloadAppData, uploadAppData } from '../../../app/services/export-service.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
+import { openValidateDataModal } from '../modals/validate-data-modal.js';
 import { getTheme, setTheme } from '../../../config.js';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
@@ -92,6 +93,21 @@ function buildTopbarActions() {
     }
   });
 
+  const validateBtn = document.createElement('button');
+  validateBtn.type = 'button';
+  validateBtn.className = 'icon-btn';
+  validateBtn.id = 'topbar-validate';
+  validateBtn.title = 'Validate data file for errors';
+  validateBtn.textContent = '⊘ Validate';
+  validateBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      await openValidateDataModal();
+    } catch (err) {
+      notifyError('Validation error: ' + err.message);
+    }
+  });
+
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
   clearBtn.className = 'icon-btn icon-btn--danger';
@@ -112,6 +128,7 @@ function buildTopbarActions() {
   actions.appendChild(themeBtn);
   actions.appendChild(exportBtn);
   actions.appendChild(importBtn);
+  actions.appendChild(validateBtn);
   actions.appendChild(clearBtn);
   return actions;
 }

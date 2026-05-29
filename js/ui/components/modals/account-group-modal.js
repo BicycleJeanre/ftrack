@@ -335,8 +335,8 @@ export async function openAccountGroupModal({
         id: (accountGroups.reduce((max, group) => Math.max(max, Number(group.id) || 0), 0) + 1)
       }];
 
-    const duplicateName = nextGroups.find((group) => (
-      Number(group.id) !== Number(selectedGroupId || 0) &&
+    const duplicateName = accountGroups.find((group) => (
+      (!selectedGroupId || Number(group.id) !== Number(selectedGroupId)) &&
       String(group?.name || '').trim().toLowerCase() === draft.name.toLowerCase()
     ));
     if (duplicateName) {

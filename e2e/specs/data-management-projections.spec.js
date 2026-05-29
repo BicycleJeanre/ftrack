@@ -15,6 +15,7 @@ const {
 } = require('../helpers/ui');
 
 const importFixturePath = path.resolve(__dirname, '../fixtures/import-replacement-data.json');
+const invalidImportFixturePath = path.resolve(__dirname, '../fixtures/invalid-import-data.json');
 
 test.describe('data management and projection browser flows', () => {
   test.beforeEach(async ({ page }) => {
@@ -51,6 +52,29 @@ test.describe('data management and projection browser flows', () => {
     const data = await readAppData(page);
     expect(data.scenarios).toHaveLength(1);
     expect(data.scenarios[0].id).toBe(301);
+  });
+
+  test('rejects invalid import JSON without replacing current data', async ({ page }) => {
+    const before = await readAppData(page);
+
+    const chooserPromise = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: /Import/ }).click();
+    const chooser = await chooserPromise;
+    await chooser.setFiles(invalidImportFixturePath);
+
+    await confirmDialog(page);
+    await expect(page.locator('.notify-toast-error')).toContainText('Import failed');
+
+    const after = await readAppData(page);
+    expect(after.scenarios).toHaveLength(before.scenarios.length);
+    expect(after.scenarios[0].name).toBe(before.scenarios[0].name);
+  });
+
+  test('opens the validation modal for the current browser data', async ({ page }) => {
+    await page.locator('#topbar-validate').click();
+    await expect(page.locator('.validate-data-modal')).toBeVisible();
+    await expect(page.locator('.validate-data-modal')).toContainText('Validate Data');
+    await expect(page.locator('.validate-data-modal .vd-summary')).toContainText(/scenario/);
   });
 
   test('clears browser data after confirmation', async ({ page }) => {

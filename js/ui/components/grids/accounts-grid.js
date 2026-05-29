@@ -167,6 +167,8 @@ async function launchAccountGroupModal({
     defaultAccountId,
     startInCreateMode,
     onSaved: async () => {
+      const refreshed = await DataService.getScenario(scenario.id);
+      if (refreshed) scenarioState?.set?.(refreshed);
       await onSaved?.();
     }
   });
@@ -1393,7 +1395,7 @@ export async function loadAccountsGrid({
       filterButton.textContent = '⚙';
       filterButton.setAttribute('aria-label', 'Filters');
 
-      createFilterModal({
+      const accountsFilterModal = createFilterModal({
         id: 'accounts-filters-modal',
         title: 'Filter Accounts',
         trigger: filterButton,
@@ -1471,6 +1473,7 @@ export async function loadAccountsGrid({
 
       manageGroupsButton.addEventListener('click', async (e) => {
         e.stopPropagation();
+        accountsFilterModal.close();
         await launchAccountGroupModal({
           scenarioState,
           startInCreateMode: false,
