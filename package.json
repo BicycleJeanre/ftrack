@@ -16,6 +16,7 @@
     "e2e:functional": "playwright test e2e/specs/functionality.spec.js",
     "e2e:responsive": "playwright test e2e/specs/responsive.spec.js",
     "e2e:workflows": "playwright test e2e/specs/workflows.spec.js e2e/specs/detail-views.spec.js",
+    "unit:test": "node --test tests/unit/*.test.mjs",
     "qc:test:coverage": "node QC/tests/coverage/use-case-coverage.test.js",
     "qc:test": "npm run qc:test:all-workflows",
     "qc:test:budget": "node QC/tests/workflows/budget.test.js",
@@ -27,7 +28,7 @@
     "qc:full": "node QC/generate-qc-report.js",
     "qc:report": "node QC/generate-qc-report.js",
     "qc:report:output": "node QC/generate-qc-report.js --output",
-    "test": "npm run qc:test:all-workflows && npm run e2e"
+    "test": "npm run qc:test:all-workflows && npm run unit:test && npm run e2e"
   },
   "keywords": [
     "finance",

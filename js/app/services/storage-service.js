@@ -118,13 +118,15 @@ export async function update(path, value) {
  */
 export async function transaction(modifyFn) {
     // Ensure transactions happen sequentially to avoid race conditions when generating new IDs
-    transactionQueue = transactionQueue.then(async () => {
+    const operation = transactionQueue.catch(() => undefined).then(async () => {
         const data = await read();
         const modified = await modifyFn(data);
         await write(modified);
         return modified;
     });
-    return transactionQueue;
+
+    transactionQueue = operation.catch(() => undefined);
+    return operation;
 }
 
 /**
@@ -134,4 +136,3 @@ export async function transaction(modifyFn) {
 export async function clear() {
     localStorage.removeItem(STORAGE_KEY);
 }
-
