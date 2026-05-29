@@ -517,7 +517,7 @@ body.dashboard-shell {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 220px;
+  min-height: clamp(150px, 22vh, 220px);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -526,7 +526,7 @@ body.dashboard-shell {
 
 .dash-row.row-middle {
   flex: 2;
-  min-height: 260px;
+  min-height: clamp(190px, 28vh, 260px);
 }
 
 .dash-row.collapsed {
@@ -570,7 +570,7 @@ body.dashboard-shell {
 }
 
 .dash-row-title {
-  font-size: 16px;
+  font-size: clamp(14px, 1.4vw, 16px);
   font-weight: 800;
   color: var(--text-primary);
   white-space: nowrap;
@@ -596,7 +596,7 @@ body.dashboard-shell {
 .dash-row-body {
   flex: 1;
   overflow-y: auto;
-  padding: 14px 16px;
+  padding: var(--spacing-md);
   background: rgba(0, 212, 255, 0.02);
   min-height: 0;
 }
@@ -782,7 +782,7 @@ body.dashboard-shell {
   width: 100%;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 800px) {
   .middle-panels {
     flex-direction: column;
   }
@@ -790,7 +790,7 @@ body.dashboard-shell {
   .dash-panel {
     border-right: none;
     border-bottom: 1px solid var(--border-primary);
-    min-height: 260px;
+    min-height: 220px;
   }
 
   .dash-panel:last-child {
@@ -1054,7 +1054,7 @@ body.dashboard-shell {
 
 .forecast-card {
   margin-bottom: 0;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
   display: flex;
   flex-direction: column;
@@ -1291,12 +1291,9 @@ body.dashboard-shell {
   grid-template-columns: 1fr;
 }
 
-/* Two columns for wider screens (budget & projections only) */
-@media (min-width: 900px) {
-  .budget-grid .grid-summary-list,
-  .projections-grid .grid-summary-list {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.budget-grid .grid-summary-list,
+.projections-grid .grid-summary-list {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
 }
 
 /* Projection summary cards: prefer single-line row, wrap only when squeezed */
@@ -1402,7 +1399,6 @@ body.dashboard-shell {
   box-sizing: border-box;
   min-width: 0;
 }
-}
 
 .summary-card:hover,
 .account-card:hover,
@@ -1499,7 +1495,7 @@ body.dashboard-shell {
 
 .budget-totals-rows {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
   gap: 8px 24px;
   width: 100%;
 }

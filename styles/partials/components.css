@@ -22,7 +22,7 @@
   font-family: inherit;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 640px), (pointer: coarse) {
   .btn {
     min-height: 44px;
     padding: 12px 20px;
@@ -257,7 +257,7 @@ textarea {
   outline: none;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 640px), (pointer: coarse) {
   input[type="text"],
   input[type="number"],
   input[type="date"],

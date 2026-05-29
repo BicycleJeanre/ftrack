@@ -121,6 +121,17 @@ html[data-theme="light"] {
   --shadow-lg: 0 10px 20px rgba(20, 24, 31, 0.18);
 }
 
+@media (max-width: 1180px) and (min-width: 641px) {
+  :root {
+    --spacing-sm: 6px;
+    --spacing-md: 10px;
+    --spacing-lg: 12px;
+    --spacing-xl: 18px;
+    --dashboard-icon-btn-size: 34px;
+    --dashboard-icon-size: 16px;
+  }
+}
+
 /* ==================================== Base Element Styles ====================================*/
 
 html, body {
@@ -135,15 +146,21 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1180px) and (min-width: 641px) {
+  html, body {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 640px) {
   html, body {
     font-size: 13px;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   html, body {
-    font-size: 11px;
+    font-size: 12px;
   }
 }
 

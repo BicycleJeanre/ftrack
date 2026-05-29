@@ -185,7 +185,7 @@ function wireNarrowPanelAccordion({
   headerLeft.insertBefore(chevron, headerLeft.firstChild || null);
 
   let isOpen = accordionStates[stateKey] !== false;
-  const media = window.matchMedia('(max-width: 1023px)');
+  const media = window.matchMedia('(max-width: 800px)');
 
   const isEnabled = () => media.matches && !middleRow.classList.contains('mode-detail');
 
