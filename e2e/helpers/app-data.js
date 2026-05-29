@@ -23,7 +23,9 @@ function loadSmokeData(overrides = {}) {
 
 async function seedAppData(page, appData = loadSmokeData()) {
   await page.addInitScript(({ key, data }) => {
-    window.localStorage.setItem(key, JSON.stringify(data));
+    if (!window.localStorage.getItem(key)) {
+      window.localStorage.setItem(key, JSON.stringify(data));
+    }
   }, { key: STORAGE_KEY, data: appData });
 }
 
@@ -64,6 +66,13 @@ async function waitForCollectionCount(page, collectionName, expected) {
   }).toBe(expected);
 }
 
+async function waitForScenario(page, predicate, message = 'scenario predicate') {
+  await expect.poll(async () => {
+    const scenario = await currentScenario(page);
+    return Boolean(predicate(scenario));
+  }, { message }).toBe(true);
+}
+
 module.exports = {
   STORAGE_KEY,
   loadSmokeData,
@@ -73,5 +82,6 @@ module.exports = {
   gotoFTrack,
   waitForAppReady,
   waitForScenarioCount,
-  waitForCollectionCount
+  waitForCollectionCount,
+  waitForScenario
 };
