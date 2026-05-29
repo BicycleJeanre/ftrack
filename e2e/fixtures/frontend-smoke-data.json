@@ -207,17 +207,37 @@
           ],
           "goals": [
             {
-              "id": "pay-card",
+              "id": "fund-savings",
               "priority": 1,
-              "type": "pay_down_by_date",
-              "accountId": 3,
-              "targetAmount": 0,
+              "type": "reach_balance_by_date",
+              "accountId": 2,
+              "targetAmount": 600,
               "startDate": "2026-01-01",
               "endDate": "2026-12-31"
             }
           ],
           "lastSolution": null
         }
+      },
+      "advancedGoalSettings": {
+        "constraints": {
+          "fundingAccountId": 1,
+          "maxOutflowPerMonth": null,
+          "lockedAccountIds": [],
+          "maxMovementByAccountId": {},
+          "minBalanceFloorsByAccountId": {}
+        },
+        "goals": [
+          {
+            "id": "fund-savings",
+            "priority": 1,
+            "type": "reach_balance_by_date",
+            "accountId": 2,
+            "targetAmount": 600,
+            "startDate": "2026-01-01",
+            "endDate": "2026-12-31"
+          }
+        ]
       },
       "accountGroups": [],
       "splitTransactionSets": []
