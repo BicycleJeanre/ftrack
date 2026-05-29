@@ -2243,7 +2243,17 @@ function renderWorkflowNav(container) {
     btn.textContent = workflow.name || workflow.id;
     btn.addEventListener('click', async () => {
       const nextId = getWorkflowById(workflow.id)?.id || DEFAULT_WORKFLOW_ID;
-      if (nextId === currentWorkflowId) return;
+      const closeMobileSidebar = () => {
+        if (window.matchMedia?.('(max-width: 640px)').matches) {
+          container.closest('.sidebar')?.classList.remove('open');
+          document.querySelector('.sidebar-backdrop')?.classList.add('hidden');
+        }
+      };
+
+      if (nextId === currentWorkflowId) {
+        closeMobileSidebar();
+        return;
+      }
 
       currentWorkflowId = nextId;
       await patchUiState({ lastWorkflowId: nextId });
@@ -2253,6 +2263,8 @@ function renderWorkflowNav(container) {
         await loadScenarioData();
       } catch (err) {
         logger.error('[WorkflowNav] Failed to reload scenario data after workflow switch:', err);
+      } finally {
+        closeMobileSidebar();
       }
     });
 
