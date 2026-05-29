@@ -8,4 +8,6 @@ budget refrsh row not working after regenerat
 
 summary rowwww refresh not working either
 
-fix /add running total on summary workflow
+fix /add running total on summary workfliow
+
+:>

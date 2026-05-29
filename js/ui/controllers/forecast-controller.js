@@ -328,7 +328,11 @@ async function setCurrentScenarioById(scenarioId) {
   projectionsAccountFilterId = null;
   projectionPeriod = null;
   projectionsGroupBy = '';
-  // Note: Period types NOT reset (preserved across scenario changes)
+  // Clear computed period lists so each grid recomputes from the new scenario's date window.
+  // Period TYPES are preserved (user preference), but period arrays must be invalidated.
+  transactionsPeriods = [];
+  budgetPeriods = [];
+  projectionPeriods = [];
 
   await patchUiState({
     lastScenarioId: currentScenario.id,
@@ -2300,6 +2304,11 @@ async function init() {
       if (refreshedScenario) {
         currentScenario = refreshedScenario;
       }
+      // Clear cached period arrays so all grids recompute from the freshly-loaded
+      // scenario's date window (budget window / projection config may have changed).
+      transactionsPeriods = [];
+      budgetPeriods = [];
+      projectionPeriods = [];
       await loadScenarioData();
     } catch (err) {
       logger.error('[Forecast] Refresh failed:', err);
