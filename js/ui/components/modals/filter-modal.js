@@ -92,18 +92,30 @@ export function createFilterModal({
     const triggerRect = trigger.getBoundingClientRect();
     const modal = modalEl;
 
-    // Calculate position: below trigger, aligned to right edge
-    const top = triggerRect.bottom + 8; // 8px gap below button
-    const left = triggerRect.right - modal.offsetWidth;
-
-    // Clamp to viewport boundaries
+    const margin = 8;
     const viewportWidth = window.innerWidth;
-    const maxLeft = Math.max(8, Math.min(left, viewportWidth - modal.offsetWidth - 8));
+    const viewportHeight = window.innerHeight;
+
+    modal.style.maxWidth = `calc(100vw - ${margin * 2}px)`;
+    modal.style.maxHeight = `calc(100vh - ${margin * 2}px)`;
+
+    // Calculate position: prefer below trigger, aligned to right edge.
+    const left = triggerRect.right - modal.offsetWidth;
+    const maxLeft = Math.max(margin, Math.min(left, viewportWidth - modal.offsetWidth - margin));
+
+    let top = triggerRect.bottom + margin;
+    const modalHeight = modal.offsetHeight;
+    const hasRoomAbove = triggerRect.top - modalHeight - margin >= margin;
+    if (top + modalHeight > viewportHeight - margin && hasRoomAbove) {
+      top = triggerRect.top - modalHeight - margin;
+    }
+    top = Math.max(margin, Math.min(top, viewportHeight - Math.min(modalHeight, viewportHeight - margin * 2) - margin));
 
     modal.style.position = 'fixed';
     modal.style.top = `${top}px`;
     modal.style.left = `${maxLeft}px`;
     modal.style.zIndex = '1050';
+    modal.style.maxHeight = `${Math.max(180, viewportHeight - top - margin)}px`;
 
     overlayEl.style.position = 'fixed';
     overlayEl.style.zIndex = '1049';

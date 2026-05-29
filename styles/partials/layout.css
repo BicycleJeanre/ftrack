@@ -943,6 +943,11 @@ body.dashboard-shell {
 }
 
 /* Budget section: accordion body is flex column; totals bar fixed, grid scrolls */
+#budgetSection:not(.mode-detail) {
+  flex: 1.6;
+  min-height: clamp(260px, 36vh, 320px);
+}
+
 #budgetSection:not(.mode-detail) .dash-row-body {
   display: flex;
   flex-direction: column;
@@ -952,9 +957,12 @@ body.dashboard-shell {
 
 /* Make forecast-card fill row body and be flex container */
 #budgetSection:not(.mode-detail) .forecast-card {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 /* Section-content is flex container distributing to totals and grid */
@@ -1001,9 +1009,12 @@ body.dashboard-shell {
 
 /* Make forecast-card fill row body and be flex container */
 #projectionsSection:not(.mode-detail) .forecast-card {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 /* Section-content is flex container distributing to totals and grid */
@@ -1611,6 +1622,7 @@ body.dashboard-shell {
   padding: 16px;
   max-height: 90vh;
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .filter-modal-header {

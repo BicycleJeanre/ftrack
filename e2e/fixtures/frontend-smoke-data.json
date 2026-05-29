@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 43,
+  "uiState": {
+    "lastWorkflowId": "general",
+    "lastScenarioId": 201,
+    "lastScenarioVersion": 1,
+    "viewPeriodTypeIds": {
+      "transactions": 3,
+      "budgets": 3,
+      "projections": 3
+    },
+    "accordionStates": {
+      "summaryCardsSection": true,
+      "generatePlanSection": true,
+      "row-middle": true,
+      "budgetSection": true,
+      "projectionsSection": true,
+      "accountsSection": true,
+      "transactionsSection": true
+    }
+  },
+  "scenarios": [
+    {
+      "id": 201,
+      "version": 1,
+      "name": "E2E Frontend Smoke",
+      "description": "Small deterministic data set for browser workflow tests.",
+      "lineage": null,
+      "accounts": [
+        {
+          "id": 1,
+          "name": "Checking",
+          "type": { "id": 1, "name": "Asset" },
+          "currency": { "id": 1, "name": "ZAR" },
+          "startingBalance": 1200,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null,
+          "tags": ["primary"]
+        },
+        {
+          "id": 2,
+          "name": "Savings Goal",
+          "type": { "id": 1, "name": "Asset" },
+          "currency": { "id": 1, "name": "ZAR" },
+          "startingBalance": 500,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": 2500,
+          "goalDate": "2026-12-31",
+          "tags": ["goal"]
+        },
+        {
+          "id": 3,
+          "name": "Credit Card",
+          "type": { "id": 2, "name": "Liability" },
+          "currency": { "id": 1, "name": "ZAR" },
+          "startingBalance": -700,
+          "openDate": "2026-01-01",
+          "periodicChange": {
+            "type": { "id": 2, "name": "Nominal Annual, Compounded Monthly" },
+            "changeMode": { "id": 1, "name": "Percentage Rate" },
+            "rate": 18,
+            "ratePeriod": { "id": 1, "name": "Annual" }
+          },
+          "goalAmount": 0,
+          "goalDate": "2026-12-31",
+          "tags": ["debt"]
+        },
+        {
+          "id": 4,
+          "name": "Salary Income",
+          "type": { "id": 4, "name": "Income" },
+          "currency": { "id": 1, "name": "ZAR" },
+          "startingBalance": 0,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null,
+          "tags": []
+        },
+        {
+          "id": 5,
+          "name": "Groceries Expense",
+          "type": { "id": 5, "name": "Expense" },
+          "currency": { "id": 1, "name": "ZAR" },
+          "startingBalance": 0,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null,
+          "tags": []
+        },
+        {
+          "id": 6,
+          "name": "Investor Equity",
+          "type": { "id": 3, "name": "Equity" },
+          "currency": { "id": 1, "name": "ZAR" },
+          "startingBalance": 0,
+          "openDate": "2026-01-01",
+          "periodicChange": null,
+          "goalAmount": null,
+          "goalDate": null,
+          "tags": ["investor"]
+        }
+      ],
+      "transactions": [
+        {
+          "id": 1001,
+          "primaryAccountId": 4,
+          "secondaryAccountId": 1,
+          "transactionTypeId": 1,
+          "amount": 3000,
+          "effectiveDate": "2026-01-25",
+          "description": "Monthly salary",
+          "recurrence": {
+            "recurrenceType": 3,
+            "startDate": "2026-01-25",
+            "endDate": null,
+            "interval": 1,
+            "dayOfMonth": 25
+          },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["income"]
+        },
+        {
+          "id": 1002,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 5,
+          "transactionTypeId": 2,
+          "amount": 450,
+          "effectiveDate": "2026-01-10",
+          "description": "Groceries",
+          "recurrence": {
+            "recurrenceType": 3,
+            "startDate": "2026-01-10",
+            "endDate": null,
+            "interval": 1,
+            "dayOfMonth": 10
+          },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["expense"]
+        },
+        {
+          "id": 1003,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 3,
+          "transactionTypeId": 2,
+          "amount": 250,
+          "effectiveDate": "2026-01-15",
+          "description": "Credit card payment",
+          "recurrence": {
+            "recurrenceType": 3,
+            "startDate": "2026-01-15",
+            "endDate": null,
+            "interval": 1,
+            "dayOfMonth": 15
+          },
+          "periodicChange": null,
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
+          "tags": ["debt"]
+        }
+      ],
+      "budgets": [
+        {
+          "id": 2001,
+          "sourceTransactionId": 1002,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 5,
+          "transactionTypeId": 2,
+          "amount": 450,
+          "plannedAmount": 450,
+          "description": "Groceries budget",
+          "occurrenceDate": "2026-01-10",
+          "recurrenceDescription": "Monthly",
+          "status": { "name": "planned", "actualAmount": null, "actualDate": null }
+        }
+      ],
+      "projection": {
+        "config": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "periodTypeId": 3,
+          "source": "transactions"
+        },
+        "rows": [],
+        "generatedAt": null
+      },
+      "budgetWindow": {
+        "config": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-03-31"
+        }
+      },
+      "planning": {
+        "config": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31"
+        },
+        "goalWorkshopMode": "advanced",
+        "advancedGoalSolver": {
+          "constraints": [
+            { "id": "funding", "type": "fundingAccount", "accountId": 1, "amount": null }
+          ],
+          "goals": [
+            {
+              "id": "pay-card",
+              "priority": 1,
+              "type": "pay_down_by_date",
+              "accountId": 3,
+              "targetAmount": 0,
+              "startDate": "2026-01-01",
+              "endDate": "2026-12-31"
+            }
+          ],
+          "lastSolution": null
+        }
+      },
+      "accountGroups": [],
+      "splitTransactionSets": []
+    }
+  ]
+}

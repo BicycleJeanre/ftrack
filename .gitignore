@@ -11,6 +11,8 @@ budget/node_modules/
 # Ignore build output
 /dist/
 /build/
+e2e-report/
+test-results/
 
 # Ignore system files
 Thumbs.db

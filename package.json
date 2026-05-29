@@ -11,6 +11,11 @@
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:functional": "playwright test e2e/specs/functionality.spec.js",
+    "e2e:responsive": "playwright test e2e/specs/responsive.spec.js",
+    "e2e:workflows": "playwright test e2e/specs/workflows.spec.js e2e/specs/detail-views.spec.js",
     "qc:verify": "node QC/verify.js --scenario=General",
     "qc:verify:all": "node QC/verify.js --all",
     "qc:verify:budget": "node QC/verify.js --scenario=Budget",
@@ -95,6 +100,7 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "electron": "^37.2.1",
     "electron-builder": "^26.4.0"
   },

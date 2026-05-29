@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-03-01T07:10:44.014Z",
+  "generatedAt": "2026-05-29T09:07:31.557Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -94,10 +94,45 @@
       "kind": "md"
     },
     {
+      "id": "SCREENPAL_BUDGET_WORKFLOW_TUTORIAL_PLAN",
+      "title": "ScreenPal Budget Workflow Tutorial Plan",
+      "category": "Other",
+      "file": "Documentation/SCREENPAL_BUDGET_WORKFLOW_TUTORIAL_PLAN.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_ACCOUNT_GROUPS_ROLLUPS_CAPITAL_INTEREST",
+      "title": "Account Groups + Compound Transactions + Capital/Interest Ledger (Combined Plan)",
+      "category": "Technical",
+      "file": "Documentation/TECH_ACCOUNT_GROUPS_ROLLUPS_CAPITAL_INTEREST.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_IMPLEMENTATION_PLAN_ACCOUNT_GROUPS_ROLLUPS_CAPITAL_INTEREST",
+      "title": "Account Groups, Rollups, and Capital/Interest Implementation Plan",
+      "category": "Technical",
+      "file": "Documentation/TECH_IMPLEMENTATION_PLAN_ACCOUNT_GROUPS_ROLLUPS_CAPITAL_INTEREST.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_ACCOUNT_GROUPS_AND_ROLLUPS",
+      "title": "Account Groups, Rollups, and Split Transactions (Design)",
+      "category": "Technical",
+      "file": "Documentation/TECH_ACCOUNT_GROUPS_AND_ROLLUPS.md",
+      "kind": "md"
+    },
+    {
       "id": "TECH_DATA_SCHEMA",
       "title": "Data Schema",
       "category": "Technical",
       "file": "Documentation/TECH_DATA_SCHEMA.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_IMPLEMENTATION_PLAN_FEEDBACK_ACCOUNT_GROUPS_SPLIT_WORKFLOW",
+      "title": "Feedback Revision Plan: Account Group UX + Split Workflow v2",
+      "category": "Technical",
+      "file": "Documentation/TECH_IMPLEMENTATION_PLAN_FEEDBACK_ACCOUNT_GROUPS_SPLIT_WORKFLOW.md",
       "kind": "md"
     },
     {
@@ -122,6 +157,13 @@
       "kind": "md"
     },
     {
+      "id": "TECH_IMPLEMENTATION_PLAN_SPLIT_TRANSACTIONS_UI_COMPACT",
+      "title": "Split Transactions: Group Invariants, Interest Reuse, and Compact UI Plan",
+      "category": "Technical",
+      "file": "Documentation/TECH_IMPLEMENTATION_PLAN_SPLIT_TRANSACTIONS_UI_COMPACT.md",
+      "kind": "md"
+    },
+    {
       "id": "TECH_ARCHITECTURE",
       "title": "Technical Architecture",
       "category": "Technical",
@@ -133,6 +175,13 @@
       "title": "Technical Overview & Index",
       "category": "Technical",
       "file": "Documentation/TECH_OVERVIEW.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_IMPLEMENTATION_PLAN_TRANSACTION_ACCOUNT_GUARDRAIL",
+      "title": "Transaction Account Guardrail Implementation Plan",
+      "category": "Technical",
+      "file": "Documentation/TECH_IMPLEMENTATION_PLAN_TRANSACTION_ACCOUNT_GUARDRAIL.md",
       "kind": "md"
     },
     {
