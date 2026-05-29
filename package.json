@@ -13,9 +13,15 @@
     "build:linux": "electron-builder --linux",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
+    "e2e:accessibility": "playwright test e2e/specs/accessibility.spec.js",
+    "e2e:visual": "playwright test e2e/specs/visual-regression.spec.js",
+    "e2e:edit-errors": "playwright test e2e/specs/edit-paths-error-states.spec.js",
+    "e2e:performance": "playwright test e2e/specs/performance-smoke.spec.js",
+    "e2e:cross-browser": "playwright test --config=playwright.cross-browser.config.cjs",
     "e2e:functional": "playwright test e2e/specs/functionality.spec.js",
     "e2e:responsive": "playwright test e2e/specs/responsive.spec.js",
     "e2e:workflows": "playwright test e2e/specs/workflows.spec.js e2e/specs/detail-views.spec.js",
+    "build:smoke": "node scripts/build-smoke.mjs",
     "unit:test": "node --test tests/unit/*.test.mjs",
     "qc:test:coverage": "node QC/tests/coverage/use-case-coverage.test.js",
     "qc:test": "npm run qc:test:all-workflows",
@@ -28,7 +34,7 @@
     "qc:full": "node QC/generate-qc-report.js",
     "qc:report": "node QC/generate-qc-report.js",
     "qc:report:output": "node QC/generate-qc-report.js --output",
-    "test": "npm run qc:test:all-workflows && npm run unit:test && npm run e2e"
+    "test": "npm run build:smoke && npm run qc:test:all-workflows && npm run unit:test && npm run e2e"
   },
   "keywords": [
     "finance",
