@@ -44,8 +44,10 @@ test.describe('deeper edit paths and error states', () => {
     await card.click();
     const form = card.locator('.account-card-form');
     await expect(form).toBeVisible();
-    await form.locator('input[placeholder="Add tag…"]').fill('review');
-    await form.locator('button[title="Add Tag"]').click();
+    const tagInput = form.locator('input[placeholder="Add tag…"]');
+    await tagInput.fill('review');
+    await tagInput.press('Enter');
+    await expect(card.locator('.tag-badge', { hasText: 'review' })).toBeVisible();
     await page.locator('.topbar').click();
 
     await waitForScenario(page, (scenario) => {

@@ -50,7 +50,7 @@ async function waitForAppReady(page) {
 
 async function gotoFTrack(page, appData = loadSmokeData()) {
   await seedAppData(page, appData);
-  await page.goto('/pages/ftrack.html');
+  await page.goto('/pages/ftrack.html', { waitUntil: 'domcontentloaded' });
   await waitForAppReady(page);
 }
 

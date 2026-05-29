@@ -1,5 +1,24 @@
 const { expect } = require('@playwright/test');
 
+const WORKFLOW_IDS_BY_NAME = {
+  Budget: 'budget',
+  General: 'general',
+  Funds: 'funds',
+  'Debt Repayment': 'debt-repayment',
+  'Goal Workshop': 'goal-workshop',
+  'Accounts (Detail)': 'accounts-detail',
+  'Transactions (Detail)': 'transactions-detail',
+  'Budget (Detail)': 'budget-detail',
+  'Projections (Detail)': 'projections-detail'
+};
+
+const WORKFLOW_READY_SELECTORS = {
+  'Accounts (Detail)': '#accountsTable .grid-container.grid-detail.tabulator',
+  'Transactions (Detail)': '#transactionsTable .grid-container.grid-detail.tabulator',
+  'Budget (Detail)': '#budgetTable .grid-container.grid-detail.tabulator',
+  'Projections (Detail)': '#projectionsContent'
+};
+
 async function openSidebar(page) {
   const sidebar = page.locator('.sidebar');
   const isVisible = await sidebar.evaluate((el) => {
@@ -23,6 +42,21 @@ async function selectWorkflow(page, name) {
   await expect(workflow).toHaveCount(1);
   await workflow.click();
   await expect(workflow).toHaveClass(/active/);
+
+  const workflowId = WORKFLOW_IDS_BY_NAME[name];
+  if (workflowId) {
+    await expect.poll(async () => {
+      return page.evaluate(() => {
+        const data = JSON.parse(window.localStorage.getItem('ftrack:app-data') || '{}');
+        return data?.uiState?.lastWorkflowId || null;
+      });
+    }, { message: `${name} workflow persisted` }).toBe(workflowId);
+  }
+
+  const readySelector = WORKFLOW_READY_SELECTORS[name];
+  if (readySelector) {
+    await expect(page.locator(readySelector)).toBeVisible();
+  }
 }
 
 async function openSectionFilters(page, sectionSelector) {
