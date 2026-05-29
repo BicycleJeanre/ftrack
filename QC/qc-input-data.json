@@ -303,7 +303,7 @@
       "id": 102,
       "version": 1,
       "name": "QC General Recurrence Coverage",
-      "description": "Covers UC-B1..UC-B5, recurrence types including daily, month-week and custom dates",
+      "description": "Covers UC-B1..UC-B5, UC-E2, UC-E5, recurrence types including daily, month-week and custom dates",
       "lineage": null,
       "accounts": [
         {
