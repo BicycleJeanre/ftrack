@@ -7,8 +7,11 @@ import { parseDateOnly } from '../../shared/date-utils.js';
 export function getRecurrenceDescription(recurrence) {
   if (!recurrence || !recurrence.recurrenceType) return '';
 
-  const typeId = recurrence.recurrenceType.id;
+  const typeId = typeof recurrence.recurrenceType === 'object'
+    ? recurrence.recurrenceType.id
+    : recurrence.recurrenceType;
   const interval = recurrence.interval && recurrence.interval > 1 ? recurrence.interval : 1;
+  const start = recurrence.startDate ? ` from ${recurrence.startDate}` : '';
   const end = recurrence.endDate ? ` until ${recurrence.endDate}` : '';
 
   const getWeekday = () => {
@@ -39,32 +42,32 @@ export function getRecurrenceDescription(recurrence) {
     case 1: // One Time
       return recurrence.startDate ? `One time on ${recurrence.startDate}` : 'One time';
     case 2: // Daily
-      return interval === 1 ? `Every day${end}` : `Every ${interval} days${end}`;
+      return interval === 1 ? `Every day${start}${end}` : `Every ${interval} days${start}${end}`;
     case 3: { // Weekly
       const dow = getWeekday();
       const dayPart = dow ? ` on ${dow}` : '';
-      return interval === 1 ? `Every week${dayPart}${end}` : `Every ${interval} weeks${dayPart}${end}`;
+      return interval === 1 ? `Every week${dayPart}${start}${end}` : `Every ${interval} weeks${dayPart}${start}${end}`;
     }
     case 4: { // Monthly - Day of Month
       const dom = getDayOfMonth();
       const dayPart = dom ? ` on day ${dom}` : '';
-      return interval === 1 ? `Every month${dayPart}${end}` : `Every ${interval} months${dayPart}${end}`;
+      return interval === 1 ? `Every month${dayPart}${start}${end}` : `Every ${interval} months${dayPart}${start}${end}`;
     }
     case 5: { // Monthly - Week of Month (fallback wording)
       const dow = getWeekday();
       const week = recurrence.weekOfMonth ? `${recurrence.weekOfMonth} week` : 'week';
       const dayPart = dow ? ` on ${dow}` : '';
-      return interval === 1 ? `Every month (${week}${dayPart})${end}` : `Every ${interval} months (${week}${dayPart})${end}`;
+      return interval === 1 ? `Every month (${week}${dayPart})${start}${end}` : `Every ${interval} months (${week}${dayPart})${start}${end}`;
     }
     case 6: { // Quarterly
       const dom = getDayOfMonth();
       const dayPart = dom ? ` on day ${dom}` : '';
-      return interval === 1 ? `Every quarter${dayPart}${end}` : `Every ${interval} quarters${dayPart}${end}`;
+      return interval === 1 ? `Every quarter${dayPart}${start}${end}` : `Every ${interval} quarters${dayPart}${start}${end}`;
     }
     case 7: { // Yearly
       const anchor = formatYearlyAnchor();
       const dayPart = anchor ? ` on ${anchor}` : '';
-      return interval === 1 ? `Every year${dayPart}${end}` : `Every ${interval} years${dayPart}${end}`;
+      return interval === 1 ? `Every year${dayPart}${start}${end}` : `Every ${interval} years${dayPart}${start}${end}`;
     }
     case 11: { // Custom Dates
       const count = recurrence.customDates ? recurrence.customDates.split(',').filter(Boolean).length : 0;

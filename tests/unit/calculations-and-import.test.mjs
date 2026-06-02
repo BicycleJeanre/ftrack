@@ -42,6 +42,7 @@ globalThis.document = {
 globalThis.requestAnimationFrame = (fn) => fn();
 
 const { generateRecurrenceDates } = await import('../../js/domain/calculations/recurrence-calculations.js');
+const { getRecurrenceDescription } = await import('../../js/domain/calculations/recurrence-utils.js');
 const { calculatePeriodicChange } = await import('../../js/domain/calculations/financial-calculations.js');
 const DataStore = await import('../../js/app/services/storage-service.js');
 const DataService = await import('../../js/app/services/data-service.js');
@@ -124,6 +125,27 @@ test('recurrence generator handles month-end, leap-year, and custom dates', () =
       customDates: '2028-01-05, 2028-03-10, 2028-04-01'
     }, windowStart, windowEnd)),
     ['2028-01-05', '2028-03-10']
+  );
+});
+
+test('recurrence summary includes the saved start date for recurring entries', () => {
+  assert.equal(
+    getRecurrenceDescription({
+      recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+      startDate: '2026-06-01',
+      endDate: null,
+      interval: 1,
+      dayOfMonth: 1
+    }),
+    'Every month on day 1 from 2026-06-01'
+  );
+
+  assert.equal(
+    getRecurrenceDescription({
+      recurrenceType: { id: 1, name: 'One Time' },
+      startDate: '2026-06-01'
+    }),
+    'One time on 2026-06-01'
   );
 });
 
