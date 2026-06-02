@@ -73,6 +73,75 @@ function buildProjectionScenario() {
   };
 }
 
+function buildSplitProjectionScenario() {
+  return {
+    id: 2,
+    accounts: [
+      {
+        id: 1,
+        name: 'Operating Account',
+        type: { id: 1, name: 'Asset' },
+        startingBalance: 0
+      },
+      {
+        id: 2,
+        name: 'Loan Account',
+        type: { id: 1, name: 'Asset' },
+        startingBalance: 0
+      },
+      {
+        id: 3,
+        name: 'Insurance Expense',
+        type: { id: 5, name: 'Expense' },
+        startingBalance: 0
+      }
+    ],
+    splitTransactionSets: [
+      {
+        id: 'split-1',
+        payingAccountId: 1,
+        totalAmount: 750,
+        components: [
+          {
+            role: 'principal',
+            accountId: 2,
+            transactionTypeId: 2,
+            value: 500
+          },
+          {
+            role: 'insurance',
+            accountId: 3,
+            transactionTypeId: 2,
+            value: 250
+          }
+        ]
+      }
+    ],
+    transactions: [
+      {
+        id: 201,
+        primaryAccountId: 1,
+        secondaryAccountId: 2,
+        transactionTypeId: 2,
+        amount: 500,
+        effectiveDate: '2026-01-10',
+        transactionGroupId: 'split-1',
+        transactionGroupRole: 'principal',
+        status: { name: 'planned' }
+      }
+    ],
+    budgets: [],
+    projection: {
+      config: {
+        startDate: '2026-01-01',
+        endDate: '2026-01-31',
+        periodTypeId: 3,
+        source: 'transactions'
+      }
+    }
+  };
+}
+
 test('projection rows classify account flows by account-row direction', async () => {
   const rows = await generateProjectionsForScenario(buildProjectionScenario(), {}, lookupData);
   const operatingRow = rows.find((row) => row.accountId === 1);
@@ -96,4 +165,24 @@ test('projection rows classify account flows by account-row direction', async ()
   assert.equal(expenseRow.expenses, 0);
   assert.equal(expenseRow.capitalOut, 0);
   assert.equal(expenseRow.balance, 250);
+});
+
+test('projection rows include split-set components hidden behind the paying account row', async () => {
+  const rows = await generateProjectionsForScenario(buildSplitProjectionScenario(), {}, lookupData);
+  const operatingRow = rows.find((row) => row.accountId === 1);
+  const loanRow = rows.find((row) => row.accountId === 2);
+  const insuranceRow = rows.find((row) => row.accountId === 3);
+
+  assert.equal(operatingRow.expenses, 750);
+  assert.equal(operatingRow.capitalOut, 750);
+  assert.equal(operatingRow.netChange, -750);
+  assert.equal(operatingRow.balance, -750);
+
+  assert.equal(loanRow.income, 500);
+  assert.equal(loanRow.capitalIn, 500);
+  assert.equal(loanRow.balance, 500);
+
+  assert.equal(insuranceRow.income, 250);
+  assert.equal(insuranceRow.capitalIn, 250);
+  assert.equal(insuranceRow.balance, 250);
 });

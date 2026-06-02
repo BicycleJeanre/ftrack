@@ -116,6 +116,89 @@ function resolveOccurrenceSplit(occurrence, absAmount) {
   return { capital: absAmount, interest: 0 };
 }
 
+function toSplitGroupId(value) {
+  return String(value || '').trim();
+}
+
+function statusName(entry) {
+  return typeof entry?.status === 'object' ? entry?.status?.name : entry?.status;
+}
+
+function getComponentAccountId(component) {
+  return Number(component?.secondaryAccountId ?? component?.accountId ?? 0) || null;
+}
+
+function getComponentAmount(component) {
+  return Math.abs(Number(component?.amount ?? component?.value ?? 0)) || 0;
+}
+
+function normalizeSplitProjectionTransactions(transactions = [], splitSets = []) {
+  const plannedTransactions = (Array.isArray(transactions) ? transactions : [])
+    .filter((tx) => statusName(tx) === 'planned');
+
+  const splitSetById = new Map(
+    (Array.isArray(splitSets) ? splitSets : [])
+      .map((set) => [toSplitGroupId(set?.id), set])
+      .filter(([id]) => Boolean(id))
+  );
+
+  if (!splitSetById.size) return plannedTransactions;
+
+  const transactionsByGroupId = new Map();
+  plannedTransactions.forEach((tx) => {
+    const groupId = toSplitGroupId(tx?.transactionGroupId);
+    if (!groupId) return;
+    if (!transactionsByGroupId.has(groupId)) transactionsByGroupId.set(groupId, []);
+    transactionsByGroupId.get(groupId).push(tx);
+  });
+
+  const normalized = plannedTransactions.filter((tx) => {
+    const groupId = toSplitGroupId(tx?.transactionGroupId);
+    return !groupId || !splitSetById.has(groupId);
+  });
+
+  splitSetById.forEach((set, groupId) => {
+    const groupTransactions = transactionsByGroupId.get(groupId) || [];
+    const firstTransaction = groupTransactions[0] || {};
+    const primaryAccountId = Number(set?.payingAccountId || firstTransaction?.primaryAccountId || 0) || null;
+    if (!primaryAccountId) return;
+
+    const components = Array.isArray(set?.components) ? set.components : [];
+    components.forEach((component, index) => {
+      const secondaryAccountId = getComponentAccountId(component);
+      const amount = getComponentAmount(component);
+      if (!secondaryAccountId || amount <= 0) return;
+
+      const role = String(component?.role || `component_${index + 1}`).trim().toLowerCase();
+      const matchedTransaction =
+        groupTransactions.find((tx) => String(tx?.transactionGroupRole || '').trim().toLowerCase() === role) ||
+        null;
+      const sourceTransaction = matchedTransaction || firstTransaction;
+
+      normalized.push({
+        ...sourceTransaction,
+        id: sourceTransaction?.id ?? `${groupId}:${role}:${index}`,
+        primaryAccountId,
+        secondaryAccountId,
+        transactionTypeId: Number(component?.transactionTypeId || sourceTransaction?.transactionTypeId || 2) === 1 ? 1 : 2,
+        amount,
+        description: String(component?.description || sourceTransaction?.description || set?.description || '').trim(),
+        recurrence: component?.recurrence || set?.recurrence || sourceTransaction?.recurrence || null,
+        periodicChange: component?.periodicChange || sourceTransaction?.periodicChange || null,
+        effectiveDate: sourceTransaction?.effectiveDate || set?.effectiveDate || null,
+        status: sourceTransaction?.status || { name: 'planned' },
+        transactionGroupId: groupId,
+        transactionGroupRole: role,
+        transactionGroupAccountGroupId: Number(component?.accountGroupId || sourceTransaction?.transactionGroupAccountGroupId || 0) || null,
+        capitalAmount: component?.capitalAmount ?? matchedTransaction?.capitalAmount ?? null,
+        interestAmount: component?.interestAmount ?? matchedTransaction?.interestAmount ?? null
+      });
+    });
+  });
+
+  return normalized;
+}
+
 function applyOccurrenceToStates({
   occurrence,
   accountStateById,
@@ -290,8 +373,10 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
         transactionGroupRole: budget.transactionGroupRole ?? null
       }));
   } else {
-    const statusName = (tx) => (typeof tx.status === 'object' ? tx.status.name : tx.status);
-    plannedTransactions = (scenario.transactions || []).filter((tx) => statusName(tx) === 'planned');
+    plannedTransactions = normalizeSplitProjectionTransactions(
+      scenario.transactions || [],
+      scenario.splitTransactionSets || []
+    );
   }
 
   const startDate = parseDateOnly(projectionConfig.startDate);
