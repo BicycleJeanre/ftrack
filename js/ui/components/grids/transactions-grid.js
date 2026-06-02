@@ -45,6 +45,23 @@ function toSplitGroupId(value) {
   return id || '';
 }
 
+function toPeriodId(value) {
+  if (value === null || value === undefined || value === '') return null;
+  return String(value);
+}
+
+function findPeriodById(periods = [], periodId = null) {
+  const targetId = toPeriodId(periodId);
+  if (!targetId) return null;
+  return (Array.isArray(periods) ? periods : []).find((period) => toPeriodId(period?.id) === targetId) || null;
+}
+
+function findPeriodIndexById(periods = [], periodId = null) {
+  const targetId = toPeriodId(periodId);
+  if (!targetId) return -1;
+  return (Array.isArray(periods) ? periods : []).findIndex((period) => toPeriodId(period?.id) === targetId);
+}
+
 async function findPrincipalTransaction({ scenarioId, transactionGroupId }) {
   const groupId = toSplitGroupId(transactionGroupId);
   if (!groupId || !scenarioId) return null;
@@ -2024,7 +2041,7 @@ export async function loadMasterTransactionsGrid({
         prevBtnSummary.addEventListener('click', async (e) => {
           e.stopPropagation();
           const allPeriodsSummary = state?.getTransactionsPeriods?.() || [];
-          const currentIdx = allPeriodsSummary.findIndex((p) => p.id === state?.getActualPeriod?.());
+          const currentIdx = findPeriodIndexById(allPeriodsSummary, state?.getActualPeriod?.());
           if (currentIdx > 0) {
             state?.setActualPeriod?.(String(allPeriodsSummary[currentIdx - 1].id));
             await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
@@ -2034,7 +2051,7 @@ export async function loadMasterTransactionsGrid({
         nextBtnSummary.addEventListener('click', async (e) => {
           e.stopPropagation();
           const allPeriodsSummary = state?.getTransactionsPeriods?.() || [];
-          const currentIdx = allPeriodsSummary.findIndex((p) => p.id === state?.getActualPeriod?.());
+          const currentIdx = findPeriodIndexById(allPeriodsSummary, state?.getActualPeriod?.());
           if (currentIdx >= 0 && currentIdx < allPeriodsSummary.length - 1) {
             state?.setActualPeriod?.(String(allPeriodsSummary[currentIdx + 1].id));
             await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
@@ -2190,7 +2207,7 @@ export async function loadMasterTransactionsGrid({
               return;
             }
 
-            const selectedPeriod = actualPeriod ? periods.find((p) => p.id === actualPeriod) : null;
+            const selectedPeriod = findPeriodById(periods, actualPeriod);
             const defaultEffectiveDate = selectedPeriod
               ? formatDateOnly(selectedPeriod.startDate)
               : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
@@ -2240,7 +2257,7 @@ export async function loadMasterTransactionsGrid({
               return;
             }
 
-            const selectedPeriod = actualPeriod ? periods.find((p) => p.id === actualPeriod) : null;
+            const selectedPeriod = findPeriodById(periods, actualPeriod);
             const defaultEffectiveDate = selectedPeriod
               ? formatDateOnly(selectedPeriod.startDate)
               : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
@@ -2374,7 +2391,7 @@ export async function loadMasterTransactionsGrid({
 
     let allTransactions = await getTransactions(currentScenario.id);
     if (actualPeriod) {
-      const selectedPeriod = periods.find((p) => p.id === actualPeriod);
+      const selectedPeriod = findPeriodById(periods, actualPeriod);
       if (selectedPeriod) {
         allTransactions = expandTransactions(
           allTransactions,
@@ -2506,7 +2523,7 @@ export async function loadMasterTransactionsGrid({
           const currentPeriod = state?.getActualPeriod?.();
           const currentPeriods = state?.getTransactionsPeriods?.() || [];
           if (currentPeriod) {
-            const selectedPeriod = currentPeriods.find((p) => p.id === currentPeriod);
+            const selectedPeriod = findPeriodById(currentPeriods, currentPeriod);
             if (selectedPeriod) {
               freshTxs = expandTransactions(freshTxs, parseDateOnly(selectedPeriod.startDate), parseDateOnly(selectedPeriod.endDate), refreshedScenario.accounts);
             }
@@ -2696,7 +2713,7 @@ export async function loadMasterTransactionsGrid({
           const periodIds = [null, ...periods.map((p) => p.id || null)];
           const changePeriodBy = (offset) => {
             const currentId = state?.getActualPeriod?.() ?? null;
-            const currentIndex = periodIds.findIndex((id) => id === currentId);
+            const currentIndex = periodIds.findIndex((id) => toPeriodId(id) === toPeriodId(currentId));
             const safeIndex = currentIndex === -1 ? 0 : currentIndex;
             const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
             const nextId = periodIds[nextIndex] ?? null;
@@ -2855,7 +2872,7 @@ export async function loadMasterTransactionsGrid({
                 notifyError('Please create at least one account before adding a transaction.');
                 return;
               }
-              const selectedPeriod = actualPeriod ? localPeriods.find((p) => p.id === actualPeriod) : null;
+              const selectedPeriod = findPeriodById(localPeriods, actualPeriod);
               const defaultEffectiveDate = selectedPeriod
                 ? formatDateOnly(selectedPeriod.startDate)
                 : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
@@ -2898,7 +2915,7 @@ export async function loadMasterTransactionsGrid({
                 notifyError('Please create at least one account before adding a split payment.');
                 return;
               }
-              const selectedPeriod = actualPeriod ? localPeriods.find((p) => p.id === actualPeriod) : null;
+              const selectedPeriod = findPeriodById(localPeriods, actualPeriod);
               const defaultEffectiveDate = selectedPeriod
                 ? formatDateOnly(selectedPeriod.startDate)
                 : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));

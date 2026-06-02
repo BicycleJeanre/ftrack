@@ -128,6 +128,28 @@ test('recurrence generator handles month-end, leap-year, and custom dates', () =
   );
 });
 
+test('monthly recurrence intervals preserve the start-month anchor when filtering one month', () => {
+  assert.deepEqual(
+    isoDates(generateRecurrenceDates({
+      recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+      startDate: '2026-01-01',
+      interval: 2,
+      dayOfMonth: 1
+    }, parseDateOnly('2026-02-01'), parseDateOnly('2026-02-28'))),
+    []
+  );
+
+  assert.deepEqual(
+    isoDates(generateRecurrenceDates({
+      recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+      startDate: '2026-01-01',
+      interval: 2,
+      dayOfMonth: 1
+    }, parseDateOnly('2026-03-01'), parseDateOnly('2026-03-31'))),
+    ['2026-03-01']
+  );
+});
+
 test('recurrence summary includes the saved start date for recurring entries', () => {
   assert.equal(
     getRecurrenceDescription({
