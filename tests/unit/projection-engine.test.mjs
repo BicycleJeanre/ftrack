@@ -73,16 +73,16 @@ function buildProjectionScenario() {
   };
 }
 
-test('projection rows classify account flows by transaction direction', async () => {
+test('projection rows classify account flows by account-row direction', async () => {
   const rows = await generateProjectionsForScenario(buildProjectionScenario(), {}, lookupData);
   const operatingRow = rows.find((row) => row.accountId === 1);
   const incomeRow = rows.find((row) => row.accountId === 2);
   const expenseRow = rows.find((row) => row.accountId === 3);
 
-  assert.equal(operatingRow.income, 1000);
-  assert.equal(operatingRow.capitalIn, 1000);
-  assert.equal(operatingRow.expenses, 250);
-  assert.equal(operatingRow.capitalOut, 250);
+  assert.equal(operatingRow.income, 0);
+  assert.equal(operatingRow.capitalIn, 0);
+  assert.equal(operatingRow.expenses, 1250);
+  assert.equal(operatingRow.capitalOut, 1250);
   assert.equal(operatingRow.balance, -1250);
 
   assert.equal(incomeRow.income, 1000);
@@ -91,9 +91,9 @@ test('projection rows classify account flows by transaction direction', async ()
   assert.equal(incomeRow.capitalOut, 0);
   assert.equal(incomeRow.balance, 1000);
 
-  assert.equal(expenseRow.income, 0);
-  assert.equal(expenseRow.capitalIn, 0);
-  assert.equal(expenseRow.expenses, 250);
-  assert.equal(expenseRow.capitalOut, 250);
+  assert.equal(expenseRow.income, 250);
+  assert.equal(expenseRow.capitalIn, 250);
+  assert.equal(expenseRow.expenses, 0);
+  assert.equal(expenseRow.capitalOut, 0);
   assert.equal(expenseRow.balance, 250);
 });

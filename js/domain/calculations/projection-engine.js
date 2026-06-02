@@ -131,38 +131,33 @@ function applyOccurrenceToStates({
   const primaryAccountId = Number(occurrence.primaryAccountId || 0);
   const secondaryAccountId = Number(occurrence.secondaryAccountId || 0);
 
-  const applyToAccount = (accountId, balanceIsIn, flowIsIn) => {
+  const applyToAccount = (accountId, isIn) => {
     if (!accountId) return;
 
     const state = accountStateById.get(accountId);
     const stats = periodStatsByAccountId.get(accountId);
     if (!state || !stats) return;
 
-    if (balanceIsIn) {
+    if (isIn) {
       state.balance += amount;
-    } else {
-      state.balance -= amount;
-    }
-
-    if (flowIsIn) {
       stats.income += amount;
       stats.capitalIn += split.capital;
       stats.interestIn += split.interest;
       return;
     }
 
+    state.balance -= amount;
     stats.expenses += amount;
     stats.capitalOut += split.capital;
     stats.interestOut += split.interest;
   };
 
   // Primary side: Money In => in, Money Out => out.
-  applyToAccount(primaryAccountId, transactionTypeId === 1, transactionTypeId === 1);
+  applyToAccount(primaryAccountId, transactionTypeId === 1);
 
-  // Secondary balance mirrors the primary side, but flow buckets use the
-  // transaction direction because projections are generated for all accounts.
+  // Secondary side mirrors direction (Money In => out, Money Out => in).
   if (secondaryAccountId && secondaryAccountId !== primaryAccountId) {
-    applyToAccount(secondaryAccountId, transactionTypeId === 2, transactionTypeId === 1);
+    applyToAccount(secondaryAccountId, transactionTypeId === 2);
   }
 }
 

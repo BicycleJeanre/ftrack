@@ -551,9 +551,9 @@
                 {
                   "accountId": 62,
                   "accountName": "Fund Asset Pool",
-                  "netFromPeriods": -4321.99,
+                  "netFromPeriods": 7678.01,
                   "endMinusStart": 7677.99,
-                  "deltaGap": -11999.98,
+                  "deltaGap": 0.02,
                   "consistentWithin1Cent": false
                 },
                 {
@@ -569,23 +569,23 @@
             {
               "scenarioId": 106,
               "scenarioName": "QC Goal-Based Scenario",
-              "allAccountsConsistent": false,
+              "allAccountsConsistent": true,
               "accountChecks": [
                 {
                   "accountId": 71,
                   "accountName": "Goal Source Checking",
-                  "netFromPeriods": 18000,
+                  "netFromPeriods": -30000,
                   "endMinusStart": -30000,
-                  "deltaGap": 48000,
-                  "consistentWithin1Cent": false
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
                 },
                 {
                   "accountId": 72,
                   "accountName": "Goal Account Car",
-                  "netFromPeriods": -6000,
+                  "netFromPeriods": 6000,
                   "endMinusStart": 6000,
-                  "deltaGap": -12000,
-                  "consistentWithin1Cent": false
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
                 },
                 {
                   "accountId": 73,
@@ -600,15 +600,15 @@
             {
               "scenarioId": 107,
               "scenarioName": "QC Advanced Goal Solver Scenario",
-              "allAccountsConsistent": false,
+              "allAccountsConsistent": true,
               "accountChecks": [
                 {
                   "accountId": 81,
                   "accountName": "AGS Checking",
-                  "netFromPeriods": 18000,
+                  "netFromPeriods": -68400,
                   "endMinusStart": -68400,
-                  "deltaGap": 86400,
-                  "consistentWithin1Cent": false
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
                 },
                 {
                   "accountId": 82,
@@ -621,17 +621,17 @@
                 {
                   "accountId": 83,
                   "accountName": "AGS Expense",
-                  "netFromPeriods": -25200,
+                  "netFromPeriods": 25200,
                   "endMinusStart": 25200,
-                  "deltaGap": -50400,
-                  "consistentWithin1Cent": false
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
                 }
               ]
             },
             {
               "scenarioId": 108,
               "scenarioName": "QC Date Boundary and Isolation",
-              "allAccountsConsistent": false,
+              "allAccountsConsistent": true,
               "accountChecks": [
                 {
                   "accountId": 91,
@@ -644,18 +644,18 @@
                 {
                   "accountId": 92,
                   "accountName": "Boundary Expense",
-                  "netFromPeriods": -210,
+                  "netFromPeriods": 210,
                   "endMinusStart": 210,
-                  "deltaGap": -420,
-                  "consistentWithin1Cent": false
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
                 },
                 {
                   "accountId": 93,
                   "accountName": "Boundary Savings",
-                  "netFromPeriods": -330,
+                  "netFromPeriods": 330,
                   "endMinusStart": 330,
-                  "deltaGap": -660,
-                  "consistentWithin1Cent": false
+                  "deltaGap": 0,
+                  "consistentWithin1Cent": true
                 }
               ]
             }
