@@ -116,10 +116,26 @@ function resolveOccurrenceSplit(occurrence, absAmount) {
   return { capital: absAmount, interest: 0 };
 }
 
+function getAccountTypeName(account) {
+  const type = account?.type || account?.accountType || null;
+  if (type && typeof type === 'object') {
+    return String(type.name || '').trim().toLowerCase();
+  }
+  return String(type || account?.typeName || account?.accountTypeName || '').trim().toLowerCase();
+}
+
+function resolveAccountFlowDirection({ account, isIn }) {
+  const accountTypeName = getAccountTypeName(account);
+  if (accountTypeName === 'income') return 'in';
+  if (accountTypeName === 'expense') return 'out';
+  return isIn ? 'in' : 'out';
+}
+
 function applyOccurrenceToStates({
   occurrence,
   accountStateById,
-  periodStatsByAccountId
+  periodStatsByAccountId,
+  accountById = new Map()
 }) {
   if (!occurrence) return;
 
@@ -140,13 +156,22 @@ function applyOccurrenceToStates({
 
     if (isIn) {
       state.balance += amount;
+    } else {
+      state.balance -= amount;
+    }
+
+    const flowDirection = resolveAccountFlowDirection({
+      account: accountById.get(accountId),
+      isIn
+    });
+
+    if (flowDirection === 'in') {
       stats.income += amount;
       stats.capitalIn += split.capital;
       stats.interestIn += split.interest;
       return;
     }
 
-    state.balance -= amount;
     stats.expenses += amount;
     stats.capitalOut += split.capital;
     stats.interestOut += split.interest;
@@ -350,6 +375,11 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
   const accountIdsSet = new Set(
     (accounts || []).map((a) => Number(a?.id || 0)).filter(Boolean)
   );
+  const accountById = new Map(
+    (accounts || [])
+      .map((account) => [Number(account?.id || 0), account])
+      .filter(([accountId]) => Boolean(accountId))
+  );
 
   const accountStateById = new Map();
   (accounts || []).forEach((account) => {
@@ -404,7 +434,8 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
       applyOccurrenceToStates({
         occurrence: transactionOccurrences[periodOccurrenceIndex],
         accountStateById,
-        periodStatsByAccountId
+        periodStatsByAccountId,
+        accountById
       });
       periodOccurrenceIndex += 1;
     }
@@ -483,7 +514,8 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
           applyOccurrenceToStates({
             occurrence: derivedOccurrence,
             accountStateById,
-            periodStatsByAccountId
+            periodStatsByAccountId,
+            accountById
           });
         });
       } else if (account.periodicChange) {
@@ -522,7 +554,8 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
         applyOccurrenceToStates({
           occurrence: derivedOccurrence,
           accountStateById,
-          periodStatsByAccountId
+          periodStatsByAccountId,
+          accountById
         });
       }
     });
