@@ -116,26 +116,10 @@ function resolveOccurrenceSplit(occurrence, absAmount) {
   return { capital: absAmount, interest: 0 };
 }
 
-function getAccountTypeName(account) {
-  const type = account?.type || account?.accountType || null;
-  if (type && typeof type === 'object') {
-    return String(type.name || '').trim().toLowerCase();
-  }
-  return String(type || account?.typeName || account?.accountTypeName || '').trim().toLowerCase();
-}
-
-function resolveAccountFlowDirection({ account, isIn }) {
-  const accountTypeName = getAccountTypeName(account);
-  if (accountTypeName === 'income') return 'in';
-  if (accountTypeName === 'expense') return 'out';
-  return isIn ? 'in' : 'out';
-}
-
 function applyOccurrenceToStates({
   occurrence,
   accountStateById,
-  periodStatsByAccountId,
-  accountById = new Map()
+  periodStatsByAccountId
 }) {
   if (!occurrence) return;
 
@@ -147,25 +131,20 @@ function applyOccurrenceToStates({
   const primaryAccountId = Number(occurrence.primaryAccountId || 0);
   const secondaryAccountId = Number(occurrence.secondaryAccountId || 0);
 
-  const applyToAccount = (accountId, isIn) => {
+  const applyToAccount = (accountId, balanceIsIn, flowIsIn) => {
     if (!accountId) return;
 
     const state = accountStateById.get(accountId);
     const stats = periodStatsByAccountId.get(accountId);
     if (!state || !stats) return;
 
-    if (isIn) {
+    if (balanceIsIn) {
       state.balance += amount;
     } else {
       state.balance -= amount;
     }
 
-    const flowDirection = resolveAccountFlowDirection({
-      account: accountById.get(accountId),
-      isIn
-    });
-
-    if (flowDirection === 'in') {
+    if (flowIsIn) {
       stats.income += amount;
       stats.capitalIn += split.capital;
       stats.interestIn += split.interest;
@@ -178,11 +157,12 @@ function applyOccurrenceToStates({
   };
 
   // Primary side: Money In => in, Money Out => out.
-  applyToAccount(primaryAccountId, transactionTypeId === 1);
+  applyToAccount(primaryAccountId, transactionTypeId === 1, transactionTypeId === 1);
 
-  // Secondary side mirrors direction (Money In => out, Money Out => in).
+  // Secondary balance mirrors the primary side, but flow buckets use the
+  // transaction direction because projections are generated for all accounts.
   if (secondaryAccountId && secondaryAccountId !== primaryAccountId) {
-    applyToAccount(secondaryAccountId, transactionTypeId === 2);
+    applyToAccount(secondaryAccountId, transactionTypeId === 2, transactionTypeId === 1);
   }
 }
 
@@ -375,12 +355,6 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
   const accountIdsSet = new Set(
     (accounts || []).map((a) => Number(a?.id || 0)).filter(Boolean)
   );
-  const accountById = new Map(
-    (accounts || [])
-      .map((account) => [Number(account?.id || 0), account])
-      .filter(([accountId]) => Boolean(accountId))
-  );
-
   const accountStateById = new Map();
   (accounts || []).forEach((account) => {
     const accountId = Number(account?.id || 0);
@@ -434,8 +408,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
       applyOccurrenceToStates({
         occurrence: transactionOccurrences[periodOccurrenceIndex],
         accountStateById,
-        periodStatsByAccountId,
-        accountById
+        periodStatsByAccountId
       });
       periodOccurrenceIndex += 1;
     }
@@ -514,8 +487,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
           applyOccurrenceToStates({
             occurrence: derivedOccurrence,
             accountStateById,
-            periodStatsByAccountId,
-            accountById
+            periodStatsByAccountId
           });
         });
       } else if (account.periodicChange) {
@@ -554,8 +526,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
         applyOccurrenceToStates({
           occurrence: derivedOccurrence,
           accountStateById,
-          periodStatsByAccountId,
-          accountById
+          periodStatsByAccountId
         });
       }
     });

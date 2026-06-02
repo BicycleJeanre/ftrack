@@ -25,7 +25,7 @@ function buildProjectionScenario() {
       {
         id: 1,
         name: 'Operating Account',
-        type: { id: 1, name: 'Asset' },
+        type: { id: 4, name: 'Income' },
         startingBalance: 0
       },
       {
@@ -73,18 +73,27 @@ function buildProjectionScenario() {
   };
 }
 
-test('projection rows classify income and expense account flows by account type', async () => {
+test('projection rows classify account flows by transaction direction', async () => {
   const rows = await generateProjectionsForScenario(buildProjectionScenario(), {}, lookupData);
+  const operatingRow = rows.find((row) => row.accountId === 1);
   const incomeRow = rows.find((row) => row.accountId === 2);
   const expenseRow = rows.find((row) => row.accountId === 3);
+
+  assert.equal(operatingRow.income, 1000);
+  assert.equal(operatingRow.capitalIn, 1000);
+  assert.equal(operatingRow.expenses, 250);
+  assert.equal(operatingRow.capitalOut, 250);
+  assert.equal(operatingRow.balance, -1250);
 
   assert.equal(incomeRow.income, 1000);
   assert.equal(incomeRow.capitalIn, 1000);
   assert.equal(incomeRow.expenses, 0);
   assert.equal(incomeRow.capitalOut, 0);
+  assert.equal(incomeRow.balance, 1000);
 
   assert.equal(expenseRow.income, 0);
   assert.equal(expenseRow.capitalIn, 0);
   assert.equal(expenseRow.expenses, 250);
   assert.equal(expenseRow.capitalOut, 250);
+  assert.equal(expenseRow.balance, 250);
 });
