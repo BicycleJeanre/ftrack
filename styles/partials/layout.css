@@ -1007,6 +1007,15 @@ body.dashboard-shell {
   overflow: hidden;
 }
 
+:is(#summaryCardsSection, #generatePlanSection, #row-middle, #budgetSection, #projectionsSection).collapsed:not(.mode-detail) {
+  flex: 0 0 48px;
+  min-height: 48px;
+}
+
+:is(#summaryCardsSection, #generatePlanSection, #row-middle, #budgetSection, #projectionsSection).collapsed:not(.mode-detail) > .dash-row-body {
+  display: none;
+}
+
 /* Make forecast-card fill row body and be flex container */
 #projectionsSection:not(.mode-detail) .forecast-card {
   display: flex;

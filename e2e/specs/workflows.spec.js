@@ -19,6 +19,18 @@ test.describe('documented workflow smoke coverage', () => {
     await closeFilterModal(page);
   });
 
+  test('Budget row accordion hides the budget section body', async ({ page }) => {
+    await selectWorkflow(page, 'Budget');
+
+    const budgetSection = page.locator('#budgetSection');
+    const budgetBody = budgetSection.locator(':scope > .dash-row-body');
+    await expect(budgetBody).toBeVisible();
+
+    await budgetSection.locator(':scope > .dash-row-header').click();
+    await expect(budgetSection).toHaveClass(/collapsed/);
+    await expect(budgetBody).toBeHidden();
+  });
+
   test('General exposes summary and projection controls', async ({ page }) => {
     await selectWorkflow(page, 'General');
     await expect(page.locator('#summaryCardsContent')).toContainText('OVERALL TOTAL');
