@@ -1,7 +1,7 @@
 // forecast-transactions-grid.js
 // Master transactions grid loader extracted from forecast.js (no behavior change).
 
-import { createGrid, refreshGridData, createTextColumn, createDateColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
+import { createGrid, refreshGridData, createTextColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
@@ -1044,11 +1044,6 @@ function renderTransactionsSummaryList({
     amountInput.className = 'grid-summary-input';
     amountInput.value = Number(tx?.amount || 0);
 
-    const dateInput = document.createElement('input');
-    dateInput.type = 'date';
-    dateInput.className = 'grid-summary-input';
-    dateInput.value = tx?.effectiveDate || '';
-
     const typeSelect = document.createElement('select');
     typeSelect.className = 'grid-summary-input';
     typeSelect.innerHTML = `<option value="1">Money In</option><option value="2">Money Out</option>`;
@@ -1062,13 +1057,6 @@ function renderTransactionsSummaryList({
       inlineSplitEditable ? defaultSplitTargetAccountId : tx?.secondaryAccountId,
       true
     );
-
-    // -- Status --
-    const statusName = typeof tx?.status === 'object' ? (tx.status?.name || 'planned') : (tx?.status || 'planned');
-    const statusSelect = document.createElement('select');
-    statusSelect.className = 'grid-summary-input';
-    statusSelect.innerHTML = `<option value="planned">Planned</option><option value="actual">Actual</option>`;
-    statusSelect.value = statusName;
 
     // Line 1: secondary account name + amount (amount pushed right)
     let headerSaving = false;
@@ -1468,8 +1456,6 @@ function renderTransactionsSummaryList({
     };
 
     addField('Description', descInput);
-    addField('Date', dateInput);
-    addField('Status', statusSelect);
     form.appendChild(tagsField);
     form.appendChild(recurrenceField);
     form.appendChild(periodicField);
@@ -1634,7 +1620,7 @@ function renderTransactionsSummaryList({
 
         const modeValue = splitModeSelect.value === 'manual' ? 'manual' : 'top_down';
         const splitRecurrence = currentRecurrence || null;
-        const effectiveDateValue = dateInput.value || sourceTx?.effectiveDate || formatDateOnly(new Date());
+        const effectiveDateValue = sourceTx?.effectiveDate || sourceTx?.recurrence?.startDate || formatDateOnly(new Date());
         const scenarioBefore = await getScenario(scenario);
         const targetAccountFromScenario = (scenarioBefore?.accounts || []).find(
           (account) => Number(account?.id || 0) === targetAccountId
@@ -1806,21 +1792,13 @@ function renderTransactionsSummaryList({
         return;
       }
 
-      const prevStatus = allTxs[idx].status;
-      const newStatusName = statusSelect.value;
-      const updatedStatus = typeof prevStatus === 'object'
-        ? { ...prevStatus, name: newStatusName }
-        : { name: newStatusName, actualAmount: null, actualDate: null };
-
       allTxs[idx] = {
         ...allTxs[idx],
         description: descInput.value.trim(),
         amount: Math.abs(Number(amountInput.value || 0)),
-        effectiveDate: dateInput.value || allTxs[idx].effectiveDate,
         transactionTypeId: Number(typeSelect.value || 2),
         primaryAccountId: allTxs[idx].primaryAccountId,
         secondaryAccountId: secondaryAccountSelect.value ? Number(secondaryAccountSelect.value) : null,
-        status: updatedStatus,
         tags: [...cardTags],
         recurrence: currentRecurrence,
         periodicChange: currentPeriodicChange
@@ -2721,7 +2699,6 @@ export async function loadMasterTransactionsGrid({
             { value: 'transactionTypeName', label: 'Transaction Type' },
             { value: 'primaryAccountName', label: 'Primary Account' },
             { value: 'secondaryAccountName', label: 'Secondary Account' },
-            { value: 'statusName', label: 'Status' },
             { value: 'transactionGroupId', label: 'Transaction Group' },
             { value: 'transactionGroupRole', label: 'Group Role' },
             { value: 'transactionGroupAccountGroupLabel', label: 'Split Account Group' }
@@ -2956,22 +2933,6 @@ export async function loadMasterTransactionsGrid({
       }
 
       const columns = [
-        // Planned/Actual checkbox — very first column
-        {
-          title: '',
-          field: '_isActual',
-          width: 60,
-          minWidth: 60,
-          hozAlign: 'center',
-          headerSort: false,
-          headerTooltip: 'Actual (checked) / Planned (unchecked)',
-          formatter: (cell) => {
-            const isActual = cell.getRow().getData().status?.name === 'actual';
-            return `<input type="checkbox" ${isActual ? 'checked' : ''} style="pointer-events:none;cursor:default;">`;
-          },
-          responsive: 0,
-          topCalc: false
-        },
         // Row detail expand toggle
         {
           title: '',
@@ -3042,9 +3003,6 @@ export async function loadMasterTransactionsGrid({
             return `<span class="grid-summary-type ${cls}">${val}</span>`;
           }
         },
-        createTextColumn('Group', 'transactionGroupId', { widthGrow: 1 }),
-        createTextColumn('Role', 'transactionGroupRole', { widthGrow: 1 }),
-        createTextColumn('Split Group', 'transactionGroupAccountGroupLabel', { widthGrow: 1 }),
         createMoneyColumn('Amount', 'amount', { widthGrow: 1 }),
         {
           title: 'Recurrence', field: 'recurrenceSummary', widthGrow: 1, headerSort: true,
@@ -3066,7 +3024,7 @@ export async function loadMasterTransactionsGrid({
             });
           }
         },
-        createDateColumn('Date', 'effectiveDate', { editor: 'input', editable: true }),
+        createTextColumn('Description', 'description', { minWidth: 160, widthGrow: 2 }),
       ];
 
       // Reuse or create the Tabulator instance
