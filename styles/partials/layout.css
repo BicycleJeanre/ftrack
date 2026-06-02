@@ -2262,9 +2262,10 @@ button.filter-modal-open {
 /* ==================================== Budget Summary Card Overrides ====================================*/
 
 .budget-grid .grid-summary-card {
-  padding: 6px 10px;
+  padding: 4px 8px;
   width: 100%;
   min-width: 0;
+  gap: 4px 6px;
 }
 
 .budget-grid .grid-summary-content {
@@ -2283,35 +2284,14 @@ button.filter-modal-open {
   margin-left: auto;
 }
 
-.grid-summary-complete {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  cursor: pointer;
-  accent-color: var(--accent-primary);
-}
-
 .grid-summary-flow {
   font-size: 0.8em;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
   flex: 1;
   min-width: 0;
-}
-
-/* Allow flow text to wrap at narrow widths */
-@media (max-width: 500px) {
-  .grid-summary-flow {
-    white-space: normal;
-    word-break: break-word;
-  }
-}
-
-.budget-grid .grid-summary-actions {
-  align-self: flex-start;
 }
 
 .grid-summary-row-secondary {
@@ -2322,4 +2302,71 @@ button.filter-modal-open {
   gap: 8px;
   width: 100%;
   margin-top: 2px;
+}
+
+.budget-grid .grid-summary-row-primary {
+  gap: 6px;
+}
+
+.budget-grid .grid-summary-title {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.budget-grid .grid-summary-amount {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.budget-grid .grid-summary-complete {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}
+
+.budget-grid .grid-summary-flow {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* Allow flow text to wrap at narrow widths */
+@media (max-width: 500px) {
+  .budget-grid .grid-summary-flow {
+    white-space: normal;
+    word-break: break-word;
+  }
+}
+
+.budget-grid .grid-summary-actions {
+  align-self: flex-start;
+  gap: 4px;
+}
+
+.budget-grid .grid-summary-actions .icon-btn {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 3px;
+  font-size: 13px;
+}
+
+.budget-grid .grid-summary-type {
+  padding: 1px 6px;
+  border-radius: 7px;
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+.budget-grid .grid-summary-row-secondary {
+  gap: 4px 8px;
+  margin-top: 0;
+}
+
+.budget-grid .grid-summary-date {
+  font-size: 11px;
+  line-height: 1.2;
 }
