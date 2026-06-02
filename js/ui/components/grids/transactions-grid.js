@@ -1890,6 +1890,7 @@ export async function loadMasterTransactionsGrid({
   const splitGroupFilterStateKey = `splitGroupFilter:${transactionsModeKey}`;
   const splitRoleFilterStateKey = `splitRoleFilter:${transactionsModeKey}`;
   const splitAccountGroupFilterStateKey = `splitAccountGroupFilter:${transactionsModeKey}`;
+  const periodSelectionStateKey = `periodSelection:${transactionsModeKey}`;
   const groupBySelector = effectiveTransactionsMode === 'detail'
     ? '#tx-grouping-select'
     : '#tx-grouping-select-summary';
@@ -2334,11 +2335,24 @@ export async function loadMasterTransactionsGrid({
     }
 
     const actualPeriodType = state?.getActualPeriodType?.();
-    const actualPeriod = state?.getActualPeriod?.();
+    let actualPeriod = state?.getActualPeriod?.();
     let periods = state?.getTransactionsPeriods?.();
     if (!periods || periods.length === 0) {
       periods = await getScenarioPeriods(currentScenario.id, actualPeriodType);
       state?.setTransactionsPeriods?.(periods);
+    }
+    const periodSelectionScope = `${currentScenario.id}:${actualPeriodType || 'Month'}`;
+    const periodSelectionState = transactionsGridState.state.dropdowns[periodSelectionStateKey] || '';
+    if (
+      effectiveTransactionsMode === 'detail' &&
+      !actualPeriod &&
+      Array.isArray(periods) &&
+      periods.length > 0 &&
+      periodSelectionState !== `${periodSelectionScope}:manual`
+    ) {
+      actualPeriod = String(periods[0].id);
+      state?.setActualPeriod?.(actualPeriod);
+      transactionsGridState.state.dropdowns[periodSelectionStateKey] = `${periodSelectionScope}:auto`;
     }
 
     // Populate period selector in summary header (if it exists)
@@ -2634,6 +2648,7 @@ export async function loadMasterTransactionsGrid({
             state?.setActualPeriodType?.(periodTypeSelect.value);
             state?.setTransactionsPeriods?.([]);
             state?.setActualPeriod?.(null);
+            transactionsGridState.state.dropdowns[periodSelectionStateKey] = null;
             await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           });
 
@@ -2672,6 +2687,8 @@ export async function loadMasterTransactionsGrid({
           periodNav.appendChild(nextBtn);
 
           periodSelect.addEventListener('change', () => {
+            const nextScope = `${currentScenario.id}:${state?.getActualPeriodType?.() || 'Month'}`;
+            transactionsGridState.state.dropdowns[periodSelectionStateKey] = `${nextScope}:manual`;
             state?.setActualPeriod?.(periodSelect.value || null);
             loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           });
@@ -2684,6 +2701,8 @@ export async function loadMasterTransactionsGrid({
             const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
             const nextId = periodIds[nextIndex] ?? null;
             periodSelect.value = nextId ? String(nextId) : '';
+            const nextScope = `${currentScenario.id}:${state?.getActualPeriodType?.() || 'Month'}`;
+            transactionsGridState.state.dropdowns[periodSelectionStateKey] = `${nextScope}:manual`;
             state?.setActualPeriod?.(nextId);
             loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           };

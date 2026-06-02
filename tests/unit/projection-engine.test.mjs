@@ -186,3 +186,49 @@ test('projection rows include split-set components hidden behind the paying acco
   assert.equal(insuranceRow.capitalIn, 250);
   assert.equal(insuranceRow.balance, 250);
 });
+
+test('projection rows exclude recurring templates that start after the projection window', async () => {
+  const scenario = buildProjectionScenario();
+  scenario.transactions.push(
+    {
+      id: 103,
+      primaryAccountId: 1,
+      secondaryAccountId: 3,
+      transactionTypeId: 2,
+      amount: 3600,
+      effectiveDate: '2026-01-01',
+      recurrence: {
+        recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+        startDate: '2029-06-01',
+        endDate: null,
+        interval: 1,
+        dayOfMonth: 1
+      },
+      status: { name: 'planned' }
+    },
+    {
+      id: 104,
+      primaryAccountId: 1,
+      secondaryAccountId: 3,
+      transactionTypeId: 2,
+      amount: 470,
+      effectiveDate: '2026-01-01',
+      recurrence: {
+        recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+        startDate: '2029-06-01',
+        endDate: null,
+        interval: 1,
+        dayOfMonth: 1
+      },
+      status: { name: 'planned' }
+    }
+  );
+
+  const rows = await generateProjectionsForScenario(scenario, {}, lookupData);
+  const operatingRow = rows.find((row) => row.accountId === 1);
+
+  assert.equal(operatingRow.expenses, 1250);
+  assert.equal(operatingRow.capitalOut, 1250);
+  assert.equal(operatingRow.netChange, -1250);
+  assert.equal(operatingRow.balance, -1250);
+});
