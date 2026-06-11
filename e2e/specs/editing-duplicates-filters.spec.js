@@ -68,7 +68,7 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await selectWorkflow(page, 'General');
 
     await openSectionFilters(page, '#accountsSection');
-    await page.locator('.filter-modal select').nth(1).selectOption('Liability');
+    await page.locator('.filter-modal select').first().selectOption('Liability');
     await closeFilterModal(page);
     await expect(page.locator('.account-card', { hasText: 'Credit Card' })).toBeVisible();
     await expect(page.locator('.account-card', { hasText: 'Checking' })).toHaveCount(0);

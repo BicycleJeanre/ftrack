@@ -18,7 +18,13 @@ import {
 } from '../../../domain/calculations/loan-allocation-utils.js';
 import { calculateCapitalInterestTotals } from '../../transforms/data-aggregators.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
-import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
+import { normalizeCanonicalTransaction, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
+import { findPeriodById, findPeriodIndexById, toPeriodId } from '../../../shared/period-window-utils.js';
+import {
+  buildTransactionDisplayRows,
+  collectSplitFilterOptions,
+  toSplitGroupId
+} from '../../queries/financial-entry-display-rows.js';
 import * as TransactionManager from '../../../app/managers/transaction-manager.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
@@ -51,28 +57,6 @@ function createHeaderFilterItem(labelText, control, className = '') {
   }
   item.appendChild(control);
   return item;
-}
-
-function toSplitGroupId(value) {
-  const id = String(value == null ? '' : value).trim();
-  return id || '';
-}
-
-function toPeriodId(value) {
-  if (value === null || value === undefined || value === '') return null;
-  return String(value);
-}
-
-function findPeriodById(periods = [], periodId = null) {
-  const targetId = toPeriodId(periodId);
-  if (!targetId) return null;
-  return (Array.isArray(periods) ? periods : []).find((period) => toPeriodId(period?.id) === targetId) || null;
-}
-
-function findPeriodIndexById(periods = [], periodId = null) {
-  const targetId = toPeriodId(periodId);
-  if (!targetId) return -1;
-  return (Array.isArray(periods) ? periods : []).findIndex((period) => toPeriodId(period?.id) === targetId);
 }
 
 async function findPrincipalTransaction({ scenarioId, transactionGroupId }) {
@@ -501,55 +485,6 @@ function resolveCanonicalTransactionFromRow({ scenario, rowData }) {
   return transactions.find((txn) => Number(txn?.id) === originalId) || null;
 }
 
-function applySplitSetFilters(rows, {
-  splitGroupFilter = '',
-  splitRoleFilter = '',
-  splitAccountGroupFilter = ''
-} = {}) {
-  const groupFilter = toSplitGroupId(splitGroupFilter);
-  const roleFilter = String(splitRoleFilter || '').trim().toLowerCase();
-  const accountGroupFilter = Number(splitAccountGroupFilter || 0) || null;
-  let filtered = Array.isArray(rows) ? rows : [];
-  if (groupFilter) {
-    filtered = filtered.filter((row) => toSplitGroupId(row?.transactionGroupId) === groupFilter);
-  }
-  if (roleFilter) {
-    filtered = filtered.filter((row) => String(row?.transactionGroupRole || '').trim().toLowerCase() === roleFilter);
-  }
-  if (accountGroupFilter) {
-    filtered = filtered.filter((row) => Number(row?.transactionGroupAccountGroupId || 0) === accountGroupFilter);
-  }
-  return filtered;
-}
-
-function collectSplitFilterOptions(transactions = []) {
-  const groupIds = Array.from(
-    new Set(
-      (transactions || [])
-        .map((txn) => toSplitGroupId(txn?.transactionGroupId))
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b));
-
-  const roles = Array.from(
-    new Set(
-      (transactions || [])
-        .map((txn) => String(txn?.transactionGroupRole || '').trim().toLowerCase())
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b));
-
-  const accountGroupIds = Array.from(
-    new Set(
-      (transactions || [])
-        .map((txn) => Number(txn?.transactionGroupAccountGroupId || 0))
-        .filter((id) => id > 0)
-    )
-  ).sort((a, b) => a - b);
-
-  return { groupIds, roles, accountGroupIds };
-}
-
 function applyTransactionsDetailFilters({ state, callbacks }) {
   if (!lastTransactionsDetailTable || !lastTransactionsDetailTableReady) return;
   
@@ -815,31 +750,28 @@ function ensureTransactionTotalsContainer(container, gridContainer) {
 function renderTransactionsSummaryTotals({
   totalsContainer,
   transactions,
+  splitSets = [],
   accounts,
   filterAccountId,
   splitGroupFilter = '',
   splitRoleFilter = '',
-  splitAccountGroupFilter = ''
+  splitAccountGroupFilter = '',
+  splitAccountGroupLabelLookup = null
 }) {
   if (!totalsContainer) return;
 
-  const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
-  const allPerspectiveRows = (transactions || []).flatMap((tx) => {
-    const normalized = normalizeCanonicalTransaction(tx);
-    return transformTransactionToRows(normalized, visibleAccounts);
-  });
-
-  const displayTransactions = filterAccountId
-    ? allPerspectiveRows.filter((r) => Number(r.perspectiveAccountId) === Number(filterAccountId))
-    : allPerspectiveRows.filter((r) => !String(r.id).endsWith('_flipped'));
-
-  const filteredTransactions = applySplitSetFilters(displayTransactions, {
+  const { displayRows } = buildTransactionDisplayRows({
+    transactions,
+    splitSets,
+    accounts,
+    filterAccountId,
     splitGroupFilter,
     splitRoleFilter,
-    splitAccountGroupFilter
+    splitAccountGroupFilter,
+    splitAccountGroupLabelLookup
   });
 
-  const totals = calculateCapitalInterestTotals(filteredTransactions, {
+  const totals = calculateCapitalInterestTotals(displayRows, {
     amountField: 'plannedAmount',
     typeField: 'transactionType',
     typeNameField: 'transactionTypeName',
@@ -880,112 +812,23 @@ function renderTransactionsSummaryList({
     return;
   }
 
-  const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
+  const { visibleAccounts, displayRows } = buildTransactionDisplayRows({
+    transactions,
+    splitSets,
+    accounts,
+    filterAccountId,
+    groupByField,
+    splitGroupFilter,
+    splitRoleFilter,
+    splitAccountGroupFilter,
+    splitAccountGroupLabelLookup
+  });
   const findAccountName = (id) => visibleAccounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
   const splitSetsById = new Map(
     (Array.isArray(splitSets) ? splitSets : [])
       .map((set) => [toSplitGroupId(set?.id), set])
       .filter(([id]) => Boolean(id))
   );
-
-  // Transform transactions to perspective rows using shared transformer
-  const allPerspectiveRows = transactions.flatMap((tx) => {
-    const normalized = normalizeCanonicalTransaction(tx);
-    return transformTransactionToRows(normalized, visibleAccounts);
-  });
-
-  // Hide split interest rows in unfiltered view so the user sees a single logical split entry,
-  // but keep them when filtering by a specific account (e.g., viewing from the interest account perspective).
-  const perspectiveRows = filterAccountId
-    ? allPerspectiveRows
-    : allPerspectiveRows.filter((row) => {
-        const role = String(row?.transactionGroupRole || '').trim().toLowerCase();
-        return role !== 'interest';
-      });
-
-  // Filter to current account perspective or show only primary rows
-  let displayTransactions = filterAccountId
-    ? allPerspectiveRows.filter(r => Number(r.perspectiveAccountId) === Number(filterAccountId))
-    : perspectiveRows.filter(r => !String(r.id).endsWith('_flipped'));
-
-  // For split sets, surface combined totals on the principal row and keep interest rows scoped to the interest leg.
-  displayTransactions = displayTransactions.map((tx) => {
-    const groupId = toSplitGroupId(tx?.transactionGroupId);
-    const set = groupId ? splitSetsById.get(groupId) : null;
-    if (!set) return tx;
-
-    const role = String(tx?.transactionGroupRole || '').trim().toLowerCase();
-    const principalComponent = Array.isArray(set?.components)
-      ? set.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'principal')
-      : null;
-    const interestComponent = Array.isArray(set?.components)
-      ? set.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'interest')
-      : null;
-
-    const principalAmount = Math.abs(Number(principalComponent?.value ?? principalComponent?.amount ?? 0)) || 0;
-    const interestAmount = Math.abs(Number(interestComponent?.value ?? interestComponent?.amount ?? 0)) || 0;
-    const totalAmount = Math.abs(Number(set?.totalAmount || 0)) || (principalAmount + interestAmount);
-
-    const next = { ...tx };
-    if (role === 'interest') {
-      const signedInterest = Number(tx?.transactionTypeId) === 1 ? interestAmount : -interestAmount;
-      next.amount = signedInterest;
-      next.plannedAmount = signedInterest;
-      next.interestAmount = interestAmount;
-      next.capitalAmount = 0;
-      return next;
-    }
-
-    if (totalAmount > 0) {
-      const signedTotal = Number(tx?.transactionTypeId) === 1 ? totalAmount : -totalAmount;
-      next.amount = signedTotal;
-      next.plannedAmount = signedTotal;
-    }
-    next.capitalAmount = principalAmount;
-    next.interestAmount = interestAmount;
-    return next;
-  });
-
-  // When viewing from the paying account perspective, hide the interest leg so the split stays a single visible row.
-  if (filterAccountId) {
-    displayTransactions = displayTransactions.filter((tx) => {
-      const groupId = toSplitGroupId(tx?.transactionGroupId);
-      const set = groupId ? splitSetsById.get(groupId) : null;
-      if (!set) return true;
-      const role = String(tx?.transactionGroupRole || '').trim().toLowerCase();
-      const payingId = Number(set?.payingAccountId || 0) || null;
-      if (role === 'interest' && payingId && Number(tx?.perspectiveAccountId) === payingId) {
-        return false;
-      }
-      return true;
-    });
-  }
-
-  displayTransactions = applySplitSetFilters(displayTransactions, {
-    splitGroupFilter,
-    splitRoleFilter,
-    splitAccountGroupFilter
-  });
-
-  const splitGroupLabelForId = typeof splitAccountGroupLabelLookup?.getLabel === 'function'
-    ? splitAccountGroupLabelLookup.getLabel
-    : (groupId) => {
-      const id = Number(groupId || 0);
-      return id > 0 ? `Group ${id}` : 'Unassigned';
-    };
-  displayTransactions = displayTransactions.map((tx) => ({
-    ...tx,
-    transactionGroupAccountGroupLabel: splitGroupLabelForId(tx?.transactionGroupAccountGroupId)
-  }));
-
-  // Sort by groupByField if specified
-  if (groupByField) {
-    displayTransactions = displayTransactions.sort((a, b) => {
-      const valA = String(a[groupByField] || '');
-      const valB = String(b[groupByField] || '');
-      return valA.localeCompare(valB);
-    });
-  }
 
   const buildAccountSelect = (selectedId, includeNone = false) => {
     const sel = document.createElement('select');
@@ -1008,7 +851,7 @@ function renderTransactionsSummaryList({
 
   // Render grouped cards with headers
   let currentGroupValue = null;
-  displayTransactions.forEach((tx, idx) => {
+  displayRows.forEach((tx, idx) => {
     // Insert group header if grouping is active and group value changed
     if (groupByField) {
       const groupValue = String(tx[groupByField] || '');
@@ -2543,85 +2386,17 @@ export async function loadMasterTransactionsGrid({
       const splitRoleFilter = String(dropdownState[splitRoleFilterStateKey] || '');
       const splitAccountGroupFilter = String(dropdownState[splitAccountGroupFilterStateKey] || '');
 
-      // Keep all perspective rows (primary + flipped) — setFilter handles which to show
-      let displayRows = allTransactions.flatMap((tx) =>
-        transformTransactionToRows(tx, accounts)
-      ).map((r) => ({
-        ...r,
-        statusName: r.status?.name || (typeof r.status === 'string' ? r.status : 'planned'),
-        transactionGroupAccountGroupLabel: splitAccountGroupLabelLookup.getLabel(r?.transactionGroupAccountGroupId)
-      }));
-
-      // In the default (unfiltered) detail view, hide interest-role rows so split sets present as a single logical entry.
       const activeAccountFilterId = state?.getTransactionsAccountFilterId?.();
-      if (!activeAccountFilterId) {
-        displayRows = displayRows.filter((row) => {
-          const role = String(row?.transactionGroupRole || '').trim().toLowerCase();
-          return role !== 'interest';
-        });
-      }
 
-      // If filtering to the paying account, hide the interest leg to keep the split as a single row.
-      if (activeAccountFilterId) {
-        displayRows = displayRows.filter((row) => {
-          const groupId = toSplitGroupId(row?.transactionGroupId);
-          const set = groupId
-            ? (currentScenario.splitTransactionSets || []).find((s) => toSplitGroupId(s?.id) === groupId)
-            : null;
-          if (!set) return true;
-          const role = String(row?.transactionGroupRole || '').trim().toLowerCase();
-          const payingId = Number(set?.payingAccountId || 0) || null;
-          if (role === 'interest' && payingId && Number(row?.perspectiveAccountId) === payingId) {
-            return false;
-          }
-          return true;
-        });
-      }
-
-      // Enrich principal rows to show total split amount while preserving interest rows for their perspective.
-      displayRows = displayRows.map((row) => {
-        const groupId = toSplitGroupId(row?.transactionGroupId);
-        const set = groupId
-          ? (currentScenario.splitTransactionSets || []).find((s) => toSplitGroupId(s?.id) === groupId)
-          : null;
-        if (!set) return row;
-
-        const role = String(row?.transactionGroupRole || '').trim().toLowerCase();
-        const principalComponent = Array.isArray(set?.components)
-          ? set.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'principal')
-          : null;
-        const interestComponent = Array.isArray(set?.components)
-          ? set.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'interest')
-          : null;
-
-        const principalAmount = Math.abs(Number(principalComponent?.value ?? principalComponent?.amount ?? 0)) || 0;
-        const interestAmount = Math.abs(Number(interestComponent?.value ?? interestComponent?.amount ?? 0)) || 0;
-        const totalAmount = Math.abs(Number(set?.totalAmount || 0)) || (principalAmount + interestAmount);
-
-        const next = { ...row };
-        if (role === 'interest') {
-          const signedInterest = Number(row?.transactionTypeId) === 1 ? interestAmount : -interestAmount;
-          next.amount = signedInterest;
-          next.plannedAmount = signedInterest;
-          next.interestAmount = interestAmount;
-          next.capitalAmount = 0;
-          return next;
-        }
-
-        if (totalAmount > 0) {
-          const signedTotal = Number(row?.transactionTypeId) === 1 ? totalAmount : -totalAmount;
-          next.amount = signedTotal;
-          next.plannedAmount = signedTotal;
-        }
-        next.capitalAmount = principalAmount;
-        next.interestAmount = interestAmount;
-        return next;
-      });
-
-      displayRows = applySplitSetFilters(displayRows, {
+      const { displayRows } = buildTransactionDisplayRows({
+        transactions: allTransactions,
+        accounts,
+        splitSets: currentScenario.splitTransactionSets || [],
+        filterAccountId: activeAccountFilterId,
         splitGroupFilter,
         splitRoleFilter,
-        splitAccountGroupFilter
+        splitAccountGroupFilter,
+        splitAccountGroupLabelLookup
       });
 
       // Enrich computed summaries for display columns
@@ -2648,23 +2423,19 @@ export async function loadMasterTransactionsGrid({
               freshTxs = expandTransactions(freshTxs, parseDateOnly(selectedPeriod.startDate), parseDateOnly(selectedPeriod.endDate), refreshedScenario.accounts);
             }
           }
-          const freshAccounts = refreshedScenario.accounts || [];
-          const normalizedTxs = freshTxs.map((tx) => ({ ...normalizeCanonicalTransaction(tx), _scenarioId: refreshedScenario.id }));
-          let freshRows = normalizedTxs
-            .flatMap((tx) => transformTransactionToRows(tx, freshAccounts))
-            .map((r) => ({
-              ...r,
-              statusName: r.status?.name || (typeof r.status === 'string' ? r.status : 'planned'),
-              transactionGroupAccountGroupLabel: splitAccountGroupLabelLookup.getLabel(r?.transactionGroupAccountGroupId)
-            }));
-
           const liveSplitGroupFilter = String(document.querySelector('#tx-split-group-filter')?.value || '');
           const liveSplitRoleFilter = String(document.querySelector('#tx-split-role-filter')?.value || '');
           const liveSplitAccountGroupFilter = String(document.querySelector('#tx-split-account-group-filter')?.value || '');
-          freshRows = applySplitSetFilters(freshRows, {
+
+          const { displayRows: freshRows } = buildTransactionDisplayRows({
+            transactions: freshTxs.map((tx) => ({ ...normalizeCanonicalTransaction(tx), _scenarioId: refreshedScenario.id })),
+            accounts: refreshedScenario.accounts || [],
+            splitSets: refreshedScenario.splitTransactionSets || [],
+            filterAccountId: state?.getTransactionsAccountFilterId?.(),
             splitGroupFilter: liveSplitGroupFilter,
             splitRoleFilter: liveSplitRoleFilter,
-            splitAccountGroupFilter: liveSplitAccountGroupFilter
+            splitAccountGroupFilter: liveSplitAccountGroupFilter,
+            splitAccountGroupLabelLookup: buildAccountGroupLabelLookup(refreshedScenario.accountGroups || [])
           });
           await Promise.all(freshRows.map(async (r) => {
             r.recurrenceSummary = r.recurrence ? (await getRecurrenceDescription(r.recurrence)) || '' : '';
@@ -3341,11 +3112,13 @@ export async function loadMasterTransactionsGrid({
       renderTransactionsSummaryTotals({
         totalsContainer,
         transactions: allTransactions,
+        splitSets: currentScenario.splitTransactionSets || [],
         accounts: currentScenario.accounts || [],
         filterAccountId: summaryFilterAccountId,
         splitGroupFilter: summarySplitGroupFilter,
         splitRoleFilter: summarySplitRoleFilter,
-        splitAccountGroupFilter: summarySplitAccountGroupFilter
+        splitAccountGroupFilter: summarySplitAccountGroupFilter,
+        splitAccountGroupLabelLookup
       });
 
       renderTransactionsSummaryList({

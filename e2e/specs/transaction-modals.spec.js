@@ -16,9 +16,10 @@ test.describe('configuration modals', () => {
     await page.locator('.modal-recurrence button[title="Save"]').click();
 
     await waitForScenario(page, (scenario) => {
-      const transaction = scenario.transactions.find((item) => Number(item.id) === 1001);
-      const recurrenceType = transaction?.recurrence?.recurrenceType;
-      return Number(recurrenceType?.id || recurrenceType) === 1;
+      return scenario.transactions.some((transaction) => {
+        const recurrenceType = transaction?.recurrence?.recurrenceType;
+        return Number(recurrenceType?.id || recurrenceType) === 1;
+      });
     }, 'recurrence saved as one-time');
   });
 

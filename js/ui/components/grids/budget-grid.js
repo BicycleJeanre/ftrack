@@ -8,6 +8,10 @@ import { formatDateOnly } from '../../../shared/date-utils.js';
 import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
+import {
+  buildFinancialEntryDisplayRows,
+  getStatusName
+} from '../../queries/financial-entry-display-rows.js';
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
 import { getScenarioProjectionRows, getScenarioBudgetWindowConfig } from '../../../shared/app-data-utils.js';
@@ -730,22 +734,18 @@ function ensureBudgetTotalsContainer(container, gridContainer) {
 }
 
 function getBudgetSummaryDisplayRows({ budgets, accounts, filterAccountId }) {
-  const visibleAccounts = (accounts || []).filter((a) => a.name !== 'Select Account');
-
-  const allPerspectiveRows = (budgets || []).flatMap((b) => {
-    const normalized = normalizeBudgetForTransform(b);
-    return transformTransactionToRows(normalized, visibleAccounts);
+  const { visibleAccounts, displayRows } = buildFinancialEntryDisplayRows({
+    entries: budgets,
+    accounts,
+    filterAccountId,
+    normalizeEntry: normalizeBudgetForTransform,
+    mapRow: (row) => ({
+      ...row,
+      statusName: getStatusName(row)
+    })
   });
 
-  const displayBudgets = (filterAccountId
-    ? allPerspectiveRows.filter((r) => Number(r.perspectiveAccountId) === Number(filterAccountId))
-    : allPerspectiveRows.filter((r) => !String(r.id).endsWith('_flipped'))
-  ).map((r) => ({
-    ...r,
-    statusName: (typeof r.status === 'object' ? r.status?.name : r.status) || 'planned'
-  }));
-
-  return { visibleAccounts, displayBudgets };
+  return { visibleAccounts, displayBudgets: displayRows };
 }
 
 function renderBudgetSummaryTotals({ totalsContainer, budgets, accounts, filterAccountId }) {
