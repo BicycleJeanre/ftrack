@@ -1454,37 +1454,22 @@ body.dashboard-shell {
 
 .budget-grid .grid-summary-list,
 .projections-grid .grid-summary-list {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   gap: 6px;
   padding: 6px;
 }
 
 @media (min-width: 1181px) {
-  .budget-grid .grid-summary-list {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  }
-
+  .budget-grid .grid-summary-list,
   .projections-grid .grid-summary-list {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   }
 }
 
-/* Projection summary cards: prefer single-line row, wrap only when squeezed */
-.projections-grid .grid-summary-card,
-.budget-grid .grid-summary-card {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-xs) var(--spacing-sm);
-  max-width: none;
-}
-
+/* Budget and projection cards share the same compact card face sizing. */
 .budget-grid .grid-summary-title,
 .projections-grid .grid-summary-title {
   flex-shrink: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   min-width: 0;
 }
 
@@ -2448,14 +2433,6 @@ button.filter-modal-open {
   gap: 5px 8px;
 }
 
-.budget-grid .grid-summary-content {
-  min-width: 0;
-}
-
-.budget-grid .grid-summary-form {
-  grid-column: 1 / -1;
-}
-
 .grid-summary-row-primary {
   display: flex;
   align-items: center;
@@ -2470,9 +2447,10 @@ button.filter-modal-open {
 .grid-summary-flow {
   font-size: 0.8em;
   color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
   flex: 1;
   min-width: 0;
 }
@@ -2487,11 +2465,22 @@ button.filter-modal-open {
   margin-top: 2px;
 }
 
-.budget-grid .grid-summary-row-primary {
+.budget-grid .grid-summary-content,
+.projections-grid .grid-summary-content {
+  min-width: 0;
+}
+
+.budget-grid .grid-summary-form {
+  grid-column: 1 / -1;
+}
+
+.budget-grid .grid-summary-row-primary,
+.projections-grid .grid-summary-row-primary {
   gap: 6px;
 }
 
-.budget-grid .grid-summary-title {
+.budget-grid .grid-summary-title,
+.projections-grid .grid-summary-title {
   font-size: 12px;
   line-height: 1.2;
   flex: 1 1 10rem;
@@ -2503,7 +2492,8 @@ button.filter-modal-open {
   overflow-wrap: anywhere;
 }
 
-.budget-grid .grid-summary-amount {
+.budget-grid .grid-summary-amount,
+.projections-grid .grid-summary-amount {
   font-size: 12px;
   line-height: 1.15;
   display: flex !important;
@@ -2516,7 +2506,8 @@ button.filter-modal-open {
   white-space: normal;
 }
 
-.budget-grid .grid-summary-amount span {
+.budget-grid .grid-summary-amount span,
+.projections-grid .grid-summary-amount span {
   white-space: nowrap;
 }
 
@@ -2531,14 +2522,6 @@ button.filter-modal-open {
 .budget-grid .grid-summary-flow {
   font-size: 11px;
   line-height: 1.2;
-}
-
-/* Allow flow text to wrap at narrow widths */
-@media (max-width: 500px) {
-  .budget-grid .grid-summary-flow {
-    white-space: normal;
-    word-break: break-word;
-  }
 }
 
 .budget-grid .grid-summary-actions {
@@ -2576,12 +2559,43 @@ button.filter-modal-open {
   content: "Out";
 }
 
-.budget-grid .grid-summary-row-secondary {
+.budget-grid .grid-summary-row-secondary,
+.projections-grid .grid-summary-row-secondary {
   gap: 4px 8px;
   margin-top: 0;
 }
 
-.budget-grid .grid-summary-date {
+.budget-grid .grid-summary-date,
+.projections-grid .grid-summary-date {
   font-size: 11px;
   line-height: 1.2;
+}
+
+.projections-grid .grid-summary-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  padding: 7px 9px;
+  width: 100%;
+  min-width: 0;
+  gap: 5px;
+}
+
+.projections-grid .grid-summary-row-secondary {
+  justify-content: flex-start;
+}
+
+.projections-grid .grid-summary-income,
+.projections-grid .grid-summary-expenses,
+.projections-grid .grid-summary-type {
+  padding: 1px 6px;
+  border-radius: 7px;
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.projections-grid .grid-summary-date {
+  margin-left: auto;
 }
