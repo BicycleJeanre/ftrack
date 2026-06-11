@@ -45,6 +45,19 @@ function ensureBudgetFilterButton(controls) {
   return filterButton;
 }
 
+function createHeaderFilterItem(labelText, control, className = '') {
+  const item = document.createElement('div');
+  item.className = `header-filter-item${className ? ` ${className}` : ''}`;
+  if (labelText) {
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    if (control?.id) label.htmlFor = control.id;
+    item.appendChild(label);
+  }
+  item.appendChild(control);
+  return item;
+}
+
 /**
  * Normalize a budget entry to transaction-compatible format for perspective transformation
  */
@@ -235,6 +248,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     secondaryNameEl.textContent = secondaryName;
 
     const amountEl = document.createElement('span');
+    amountEl.className = 'grid-summary-amount';
     if (useActualDisplay) {
       const actualAmountEl = document.createElement('span');
       actualAmountEl.innerHTML = formattedDisplayAmount;
@@ -1356,9 +1370,8 @@ export async function loadBudgetGrid({
   const isValidAccountId = (id) => accounts.some((a) => Number(a.id) === Number(id));
   const firstAccountId = accounts?.[0]?.id != null ? Number(accounts[0].id) : null;
   const selIdNum = state?.getBudgetAccountFilterId?.() != null ? Number(state.getBudgetAccountFilterId()) : null;
-  const effectiveTransactionFilterAccountId = isValidAccountId(selIdNum) ? selIdNum : firstAccountId;
-  if (!isValidAccountId(selIdNum) && effectiveTransactionFilterAccountId != null) {
-    state?.setBudgetAccountFilterId?.(effectiveTransactionFilterAccountId);
+  if (selIdNum != null && !isValidAccountId(selIdNum)) {
+    state?.setBudgetAccountFilterId?.(null);
   }
 
   // Cache budget data to avoid refetching on filter changes
@@ -1432,45 +1445,64 @@ export async function loadBudgetGrid({
       // Debounce period type changes
       let periodTypeChangeTimeout = null;
 
+      const createSelect = (id) => {
+        const select = document.createElement('select');
+        select.id = id;
+        select.className = 'input-select';
+        return select;
+      };
+
+      const syncControls = (controlsToSync, value) => {
+        controlsToSync.forEach((control) => {
+          if (control && control.value !== String(value ?? '')) {
+            control.value = String(value ?? '');
+          }
+        });
+      };
+
       // View By (period type)
-      const periodTypeSelect = document.createElement('select');
-      periodTypeSelect.id = 'budget-period-type-select';
-      periodTypeSelect.className = 'input-select';
-      ['Day', 'Week', 'Month', 'Quarter', 'Year'].forEach((pt) => {
-        const opt = document.createElement('option');
-        opt.value = pt;
-        opt.textContent = pt;
-        periodTypeSelect.appendChild(opt);
-      });
-      periodTypeSelect.value = budgetPeriodType;
-      periodTypeSelect.addEventListener('change', async () => {
-        clearTimeout(periodTypeChangeTimeout);
-        periodTypeChangeTimeout = setTimeout(async () => {
-          state?.setBudgetPeriodType?.(periodTypeSelect.value);
-          state?.setBudgetPeriods?.([]);
-          state?.setBudgetPeriod?.(null);
-          await reload();
-        }, 50);
+      const periodTypeSelect = createSelect('budget-period-type-select');
+      const modalPeriodTypeSelect = createSelect('budget-modal-period-type-select');
+      [periodTypeSelect, modalPeriodTypeSelect].forEach((select) => {
+        ['Day', 'Week', 'Month', 'Quarter', 'Year'].forEach((pt) => {
+          const opt = document.createElement('option');
+          opt.value = pt;
+          opt.textContent = pt;
+          select.appendChild(opt);
+        });
+        select.value = budgetPeriodType;
+        select.addEventListener('change', async () => {
+          const nextValue = select.value;
+          syncControls([periodTypeSelect, modalPeriodTypeSelect], nextValue);
+          clearTimeout(periodTypeChangeTimeout);
+          periodTypeChangeTimeout = setTimeout(async () => {
+            state?.setBudgetPeriodType?.(nextValue);
+            state?.setBudgetPeriods?.([]);
+            state?.setBudgetPeriod?.(null);
+            await reload();
+          }, 50);
+        });
       });
 
-      // Period + ◀ ▶ navigation
-      const periodSelect = document.createElement('select');
-      periodSelect.id = 'budget-period-select';
-      periodSelect.className = 'input-select';
+      // Period + previous/next navigation
+      const periodSelect = createSelect('budget-period-select');
+      const modalPeriodSelect = createSelect('budget-modal-period-select');
       
       const rebuildPeriodOptions = (freshPeriods) => {
-        periodSelect.innerHTML = '';
-        freshPeriods.forEach((p) => {
-          const opt = document.createElement('option');
-          opt.value = String(p.id);
-          opt.textContent = p.label || String(p.id);
-          periodSelect.appendChild(opt);
+        [periodSelect, modalPeriodSelect].forEach((select) => {
+          select.innerHTML = '';
+          freshPeriods.forEach((p) => {
+            const opt = document.createElement('option');
+            opt.value = String(p.id);
+            opt.textContent = p.label || String(p.id);
+            select.appendChild(opt);
+          });
         });
         const curPeriod = state?.getBudgetPeriod?.();
         if (curPeriod) {
-          periodSelect.value = String(curPeriod);
+          syncControls([periodSelect, modalPeriodSelect], curPeriod);
         } else if (freshPeriods.length > 0) {
-          periodSelect.value = String(freshPeriods[0].id);
+          syncControls([periodSelect, modalPeriodSelect], freshPeriods[0].id);
           state?.setBudgetPeriod?.(freshPeriods[0].id);
         }
       };
@@ -1481,13 +1513,13 @@ export async function loadBudgetGrid({
       const prevBtn = document.createElement('button');
       prevBtn.type = 'button';
       prevBtn.className = 'period-btn';
-      prevBtn.textContent = '◀';
+      prevBtn.textContent = '<';
       prevBtn.title = 'Previous period';
 
       const nextBtn = document.createElement('button');
       nextBtn.type = 'button';
       nextBtn.className = 'period-btn';
-      nextBtn.textContent = '▶';
+      nextBtn.textContent = '>';
       nextBtn.title = 'Next period';
 
       const periodNav = document.createElement('div');
@@ -1495,42 +1527,80 @@ export async function loadBudgetGrid({
       periodNav.appendChild(prevBtn);
       periodNav.appendChild(nextBtn);
 
+      const modalPrevBtn = document.createElement('button');
+      modalPrevBtn.type = 'button';
+      modalPrevBtn.className = 'period-btn';
+      modalPrevBtn.textContent = '<';
+      modalPrevBtn.title = 'Previous period';
+
+      const modalNextBtn = document.createElement('button');
+      modalNextBtn.type = 'button';
+      modalNextBtn.className = 'period-btn';
+      modalNextBtn.textContent = '>';
+      modalNextBtn.title = 'Next period';
+
+      const modalPeriodNav = document.createElement('div');
+      modalPeriodNav.className = 'period-nav';
+      modalPeriodNav.appendChild(modalPrevBtn);
+      modalPeriodNav.appendChild(modalNextBtn);
+
       // Account filter
-      const accountSelect = document.createElement('select');
-      accountSelect.id = 'budget-account-select';
-      accountSelect.className = 'input-select';
-      accounts.forEach((a) => {
-        const opt = document.createElement('option');
-        opt.value = String(a.id);
-        opt.textContent = a.name || String(a.id);
-        accountSelect.appendChild(opt);
+      const accountSelect = createSelect('budget-account-select');
+      const modalAccountSelect = createSelect('budget-modal-account-select');
+      [accountSelect, modalAccountSelect].forEach((select) => {
+        const allOpt = document.createElement('option');
+        allOpt.value = '';
+        allOpt.textContent = 'All Accounts';
+        select.appendChild(allOpt);
+        accounts.forEach((a) => {
+          const opt = document.createElement('option');
+          opt.value = String(a.id);
+          opt.textContent = a.name || String(a.id);
+          select.appendChild(opt);
+        });
       });
       const curAccountId = state?.getBudgetAccountFilterId?.();
-      if (curAccountId) accountSelect.value = String(curAccountId);
+      syncControls([accountSelect, modalAccountSelect], curAccountId || '');
 
       // Group By
-      const groupBySelect = document.createElement('select');
-      groupBySelect.id = 'budget-grouping-select';
-      groupBySelect.className = 'input-select';
-      [
-        { value: '', label: 'None' },
-        { value: 'transactionTypeName', label: 'Type' },
-        { value: 'secondaryAccountName', label: 'Secondary Account' },
-        { value: 'statusName', label: 'Status' }
-      ].forEach(({ value, label }) => {
-        const opt = document.createElement('option');
-        opt.value = value;
-        opt.textContent = label;
-        groupBySelect.appendChild(opt);
+      const groupBySelect = createSelect('budget-grouping-select');
+      const modalGroupBySelect = createSelect('budget-modal-grouping-select');
+      [groupBySelect, modalGroupBySelect].forEach((select) => {
+        [
+          { value: '', label: 'None' },
+          { value: 'transactionTypeName', label: 'Type' },
+          { value: 'secondaryAccountName', label: 'Secondary Account' },
+          { value: 'statusName', label: 'Status' }
+        ].forEach(({ value, label }) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          select.appendChild(opt);
+        });
       });
       const summaryGroupBy = String(dropdownState[groupByStateKey] || '');
       const currentGroupBy = summaryGroupBy || state?.getGroupBy?.();
-      if (currentGroupBy) groupBySelect.value = currentGroupBy;
+      syncControls([groupBySelect, modalGroupBySelect], currentGroupBy || '');
 
       // Create filter button and modal
       const filterButton = ensureBudgetFilterButton(controls);
 
-      // Action buttons in modal
+      const inlineFilters = document.createElement('div');
+      inlineFilters.className = 'budget-inline-filters';
+      inlineFilters.appendChild(createHeaderFilterItem('View', periodTypeSelect, 'budget-filter-period-type'));
+      inlineFilters.appendChild(createHeaderFilterItem('Period', periodSelect, 'budget-filter-period'));
+      inlineFilters.appendChild(createHeaderFilterItem('', periodNav, 'budget-filter-period-nav'));
+      inlineFilters.appendChild(createHeaderFilterItem('Account', accountSelect, 'budget-filter-account'));
+      inlineFilters.appendChild(createHeaderFilterItem('Group', groupBySelect, 'budget-filter-group'));
+      controls.insertBefore(inlineFilters, filterButton);
+
+      // Action buttons
+      const inlineAddButton = document.createElement('button');
+      inlineAddButton.className = 'icon-btn budget-inline-action';
+      inlineAddButton.title = 'Add Budget Entry';
+      inlineAddButton.textContent = '+';
+      controls.insertBefore(inlineAddButton, filterButton);
+
       const generateFromProjectionsBtn = document.createElement('button');
       generateFromProjectionsBtn.className = 'icon-btn';
       generateFromProjectionsBtn.title = 'Generate from Expanded Transactions';
@@ -1569,25 +1639,28 @@ export async function loadBudgetGrid({
         title: 'Filter Budget',
         trigger: filterButton,
         items: [
-          { id: 'period-type', label: 'Period Type:', control: periodTypeSelect },
-          { id: 'period', label: 'Period:', control: periodSelect },
-          { id: 'period-nav', label: '', control: periodNav },
-          { id: 'account', label: 'Account:', control: accountSelect },
-          { id: 'group-by', label: 'Group By:', control: groupBySelect },
+          { id: 'period-type', label: 'Period Type:', control: modalPeriodTypeSelect },
+          { id: 'period', label: 'Period:', control: modalPeriodSelect },
+          { id: 'period-nav', label: '', control: modalPeriodNav },
+          { id: 'account', label: 'Account:', control: modalAccountSelect },
+          { id: 'group-by', label: 'Group By:', control: modalGroupBySelect },
           { id: 'actions', label: 'Actions:', control: modalActions }
         ]
       });
 
 
       // Event listeners for period navigation
-      periodSelect.addEventListener('change', () => {
-        state?.setBudgetPeriod?.(periodSelect.value || null);
-        runSummaryFilters();
+      [periodSelect, modalPeriodSelect].forEach((select) => {
+        select.addEventListener('change', () => {
+          syncControls([periodSelect, modalPeriodSelect], select.value);
+          state?.setBudgetPeriod?.(select.value || null);
+          runSummaryFilters();
+        });
       });
 
       const changePeriodBy = (offset) => {
-        if (prevBtn.disabled || nextBtn.disabled) return;
-        prevBtn.disabled = nextBtn.disabled = true;
+        if (prevBtn.disabled || nextBtn.disabled || modalPrevBtn.disabled || modalNextBtn.disabled) return;
+        prevBtn.disabled = nextBtn.disabled = modalPrevBtn.disabled = modalNextBtn.disabled = true;
         const freshPeriods = state?.getBudgetPeriods?.() || [];
         const periodIds = freshPeriods.map((p) => p.id || null);
         const currentId = state?.getBudgetPeriod?.() ?? null;
@@ -1595,27 +1668,35 @@ export async function loadBudgetGrid({
         const safeIndex = currentIndex === -1 ? 0 : currentIndex;
         const nextIndex = Math.min(Math.max(safeIndex + offset, 0), periodIds.length - 1);
         const nextId = periodIds[nextIndex] ?? null;
-        periodSelect.value = nextId ? String(nextId) : '';
+        syncControls([periodSelect, modalPeriodSelect], nextId || '');
         state?.setBudgetPeriod?.(nextId);
         runSummaryFilters(freshPeriods);
         setTimeout(() => {
-          prevBtn.disabled = nextBtn.disabled = false;
+          prevBtn.disabled = nextBtn.disabled = modalPrevBtn.disabled = modalNextBtn.disabled = false;
         }, 100);
       };
       prevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
       nextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
+      modalPrevBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(-1); });
+      modalNextBtn.addEventListener('click', (e) => { e.preventDefault(); changePeriodBy(1); });
 
       // Event listener for account filter
-      accountSelect.addEventListener('change', () => {
-        state?.setBudgetAccountFilterId?.(Number(accountSelect.value));
-        runSummaryFilters();
+      [accountSelect, modalAccountSelect].forEach((select) => {
+        select.addEventListener('change', () => {
+          syncControls([accountSelect, modalAccountSelect], select.value);
+          state?.setBudgetAccountFilterId?.(select.value ? Number(select.value) : null);
+          runSummaryFilters();
+        });
       });
 
       // Event listener for group by
-      groupBySelect.addEventListener('change', () => {
-        budgetGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
-        state?.setGroupBy?.(groupBySelect.value);
-        runSummaryFilters();
+      [groupBySelect, modalGroupBySelect].forEach((select) => {
+        select.addEventListener('change', () => {
+          syncControls([groupBySelect, modalGroupBySelect], select.value);
+          budgetGridState.state.dropdowns[groupByStateKey] = select.value;
+          state?.setGroupBy?.(select.value);
+          runSummaryFilters();
+        });
       });
 
       // --- Event handlers ---
@@ -1673,7 +1754,7 @@ export async function loadBudgetGrid({
         });
       });
 
-      addButton.addEventListener('click', (e) => {
+      const handleAddBudgetEntry = (e) => {
         e.stopPropagation();
         currentScenario = scenarioState?.get?.();
         requireBudgetWindow({
@@ -1709,7 +1790,9 @@ export async function loadBudgetGrid({
             }
           }
         });
-      });
+      };
+      inlineAddButton.addEventListener('click', handleAddBudgetEntry);
+      addButton.addEventListener('click', handleAddBudgetEntry);
     }
   }
 

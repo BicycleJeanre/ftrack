@@ -20,6 +20,19 @@ import { generateProjections, clearProjections } from '../../../domain/calculati
 const projectionsGridState = new GridStateManager('projections');
 let lastProjectionsTable = null;
 
+function createHeaderFilterItem(labelText, control, className = '') {
+  const item = document.createElement('div');
+  item.className = `header-filter-item${className ? ` ${className}` : ''}`;
+  if (labelText) {
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    if (control?.id) label.htmlFor = control.id;
+    item.appendChild(label);
+  }
+  item.appendChild(control);
+  return item;
+}
+
 function renderProjectionsRowDetails({ row, rowData }) {
   const rowEl = row.getElement();
   if (!rowEl) return;
@@ -699,6 +712,62 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   filterButton.textContent = '⚙';
   filterButton.setAttribute('aria-label', 'Filters');
 
+  const inlineAccountSelect = accountSelect.cloneNode(true);
+  inlineAccountSelect.id = 'projections-account-filter-select-inline';
+  inlineAccountSelect.value = accountSelect.value;
+
+  const inlineViewSelect = viewSelect.cloneNode(true);
+  inlineViewSelect.id = 'projections-viewby-select-inline';
+  inlineViewSelect.value = viewSelect.value;
+
+  const inlinePeriodSelect = periodSelect.cloneNode(true);
+  inlinePeriodSelect.id = 'projections-period-select-inline';
+  inlinePeriodSelect.value = periodSelect.value;
+
+  const inlinePrevBtn = document.createElement('button');
+  inlinePrevBtn.type = 'button';
+  inlinePrevBtn.className = 'period-btn';
+  inlinePrevBtn.textContent = '<';
+  inlinePrevBtn.title = 'Previous period';
+
+  const inlineNextBtn = document.createElement('button');
+  inlineNextBtn.type = 'button';
+  inlineNextBtn.className = 'period-btn';
+  inlineNextBtn.textContent = '>';
+  inlineNextBtn.title = 'Next period';
+
+  const inlinePeriodNav = document.createElement('div');
+  inlinePeriodNav.className = 'period-nav';
+  inlinePeriodNav.appendChild(inlinePrevBtn);
+  inlinePeriodNav.appendChild(inlineNextBtn);
+
+  const inlineGroupSelect = groupSelect.cloneNode(true);
+  inlineGroupSelect.id = 'projections-grouping-select-inline';
+  inlineGroupSelect.value = groupSelect.value;
+
+  const inlineFilters = document.createElement('div');
+  inlineFilters.className = 'card-inline-filters projections-inline-filters';
+  inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccountSelect, 'filter-account'));
+  inlineFilters.appendChild(createHeaderFilterItem('View', inlineViewSelect, 'filter-period-type'));
+  inlineFilters.appendChild(createHeaderFilterItem('Period', inlinePeriodSelect, 'filter-period'));
+  inlineFilters.appendChild(createHeaderFilterItem('', inlinePeriodNav, 'filter-period-nav'));
+  inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroupSelect, 'filter-group'));
+
+  const inlineRegenBtn = document.createElement('button');
+  inlineRegenBtn.className = 'icon-btn card-inline-action';
+  inlineRegenBtn.title = 'Regenerate projections';
+  inlineRegenBtn.textContent = '↺';
+
+  const inlineSetPeriodBtn = document.createElement('button');
+  inlineSetPeriodBtn.className = 'icon-btn card-inline-action';
+  inlineSetPeriodBtn.title = 'Set projection period';
+  inlineSetPeriodBtn.textContent = '⊞';
+
+  const inlineGenerateBtn = document.createElement('button');
+  inlineGenerateBtn.className = 'icon-btn card-inline-action';
+  inlineGenerateBtn.title = 'Generate projections';
+  inlineGenerateBtn.textContent = '⊕';
+
   const modalActions = document.createElement('div');
   modalActions.className = 'modal-filter-actions';
   modalActions.appendChild(regenBtn);
@@ -720,7 +789,42 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   });
 
   filterButton.style.marginLeft = 'auto';
+  controls.appendChild(inlineFilters);
+  controls.appendChild(inlineRegenBtn);
+  controls.appendChild(inlineSetPeriodBtn);
+  controls.appendChild(inlineGenerateBtn);
   controls.appendChild(filterButton);
+
+  accountSelect.addEventListener('change', () => { inlineAccountSelect.value = accountSelect.value; });
+  groupSelect.addEventListener('change', () => { inlineGroupSelect.value = groupSelect.value; });
+  periodSelect.addEventListener('change', () => { inlinePeriodSelect.value = periodSelect.value; });
+
+  inlineAccountSelect.addEventListener('change', async () => {
+    accountSelect.value = inlineAccountSelect.value;
+    accountSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  inlineViewSelect.addEventListener('change', async () => {
+    viewSelect.value = inlineViewSelect.value;
+    viewSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  inlinePeriodSelect.addEventListener('change', async () => {
+    periodSelect.value = inlinePeriodSelect.value;
+    await setPeriodSelection(inlinePeriodSelect.value || null);
+  });
+
+  inlinePrevBtn.addEventListener('click', async (e) => { e.preventDefault(); await changePeriodBy(-1); });
+  inlineNextBtn.addEventListener('click', async (e) => { e.preventDefault(); await changePeriodBy(1); });
+
+  inlineGroupSelect.addEventListener('change', async () => {
+    groupSelect.value = inlineGroupSelect.value;
+    groupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  inlineRegenBtn.addEventListener('click', (e) => { e.stopPropagation(); regenBtn.click(); });
+  inlineSetPeriodBtn.addEventListener('click', (e) => { e.stopPropagation(); setPeriodBtn.click(); });
+  inlineGenerateBtn.addEventListener('click', (e) => { e.stopPropagation(); generateBtn.click(); });
 }
 
 function ensureProjectionsTotalsContainer(container) {

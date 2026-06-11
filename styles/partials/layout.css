@@ -402,6 +402,25 @@ body.dashboard-shell {
   flex-shrink: 0;
 }
 
+@media (min-width: 1181px) {
+  body.dashboard-shell {
+    font-size: 14px;
+  }
+
+  body.dashboard-shell {
+    --dashboard-icon-btn-size: 32px;
+    --dashboard-icon-size: 15px;
+    --spacing-sm: 6px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 24px;
+  }
+
+  .topbar {
+    padding: 8px 14px;
+  }
+}
+
 .page-title {
   font-size: clamp(13px, 1.2vw, 17px);
   font-weight: 600;
@@ -553,6 +572,13 @@ body.dashboard-shell {
   user-select: none;
 }
 
+@media (min-width: 1181px) {
+  .dash-row-header {
+    height: 40px;
+    padding: 0 12px;
+  }
+}
+
 .dash-row-header:hover {
   background: var(--bg-hover);
 }
@@ -635,6 +661,13 @@ body.dashboard-shell {
   align-items: center;
   padding: 0 12px;
   flex-shrink: 0;
+}
+
+@media (min-width: 1181px) {
+  .dash-panel-header {
+    height: 40px;
+    padding: 0 10px;
+  }
 }
 
 .dash-panel-label {
@@ -815,6 +848,51 @@ body.dashboard-shell {
   }
 }
 
+@media (max-width: 1000px), (max-height: 760px) {
+  .content-area {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .dash-layout {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .dash-row:not(.mode-detail) {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .dash-row:not(.mode-detail) .dash-row-body,
+  #summaryCardsSection .dash-row-body,
+  #row-middle:not(.mode-detail) .dash-row-body,
+  #budgetSection:not(.mode-detail) .dash-row-body,
+  #projectionsSection:not(.mode-detail) .dash-row-body {
+    overflow: visible;
+  }
+
+  #summaryCardsContent,
+  #row-middle:not(.mode-detail) .middle-panels,
+  #row-middle:not(.mode-detail) .dash-panel,
+  #row-middle:not(.mode-detail) .dash-panel-body,
+  #budgetSection:not(.mode-detail) .forecast-card,
+  #budgetSection:not(.mode-detail) .section-content,
+  #budgetSection:not(.mode-detail) #budgetTable,
+  #budgetSection:not(.mode-detail) .grid-container,
+  #projectionsSection:not(.mode-detail) .forecast-card,
+  #projectionsSection:not(.mode-detail) .section-content,
+  #projectionsSection:not(.mode-detail) #projectionsContent,
+  #projectionsSection:not(.mode-detail) .grid-container {
+    flex: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
 /* ==================================== Main Content ====================================*/
 
 /* Grid Containers - Container handles scrolling, Tabulator grows to content */
@@ -944,8 +1022,15 @@ body.dashboard-shell {
 
 /* Budget section: accordion body is flex column; totals bar fixed, grid scrolls */
 #budgetSection:not(.mode-detail) {
-  flex: 1.6;
-  min-height: clamp(260px, 36vh, 320px);
+  flex: 1.9;
+  min-height: clamp(240px, 34vh, 420px);
+}
+
+@media (min-width: 1181px) and (min-height: 800px) {
+  #budgetSection:not(.mode-detail) {
+    flex: 3.4;
+    min-height: clamp(460px, 55vh, 640px);
+  }
 }
 
 #budgetSection:not(.mode-detail) .dash-row-body {
@@ -1162,6 +1247,62 @@ body.dashboard-shell {
   font-size: 0.8em;
 }
 
+.card-inline-filters,
+.budget-inline-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.card-inline-filters .header-filter-item,
+.budget-inline-filters .header-filter-item {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.card-inline-filters .input-select,
+.budget-inline-filters .input-select {
+  max-width: 150px;
+}
+
+.card-inline-filters .filter-period .input-select,
+.budget-inline-filters .budget-filter-period .input-select {
+  max-width: 130px;
+}
+
+.card-inline-filters .filter-account .input-select,
+.budget-inline-filters .budget-filter-account .input-select {
+  max-width: 170px;
+}
+
+.card-inline-filters .filter-group .input-select,
+.budget-inline-filters .budget-filter-group .input-select {
+  max-width: 145px;
+}
+
+.card-inline-filters .period-btn,
+.budget-inline-filters .period-btn {
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.card-inline-action,
+.budget-inline-action {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1000px) {
+  .card-inline-filters,
+  .card-inline-action,
+  .budget-inline-filters,
+  .budget-inline-action {
+    display: none;
+  }
+}
+
 .goal-workshop-header .icon-btn {
   font-size: 0.85em;
   min-width: unset;
@@ -1313,7 +1454,19 @@ body.dashboard-shell {
 
 .budget-grid .grid-summary-list,
 .projections-grid .grid-summary-list {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 6px;
+  padding: 6px;
+}
+
+@media (min-width: 1181px) {
+  .budget-grid .grid-summary-list {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  }
+
+  .projections-grid .grid-summary-list {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  }
 }
 
 /* Projection summary cards: prefer single-line row, wrap only when squeezed */
@@ -1510,20 +1663,20 @@ body.dashboard-shell {
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .budget-totals-rows {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
-  gap: 8px 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 6px 16px;
   width: 100%;
 }
 
 .total-metric {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -1532,7 +1685,7 @@ body.dashboard-shell {
 }
 
 .total-explain {
-  font-size: 0.78em;
+  font-size: 0.76em;
   color: var(--text-muted);
   line-height: 1.25;
   margin-top: -2px;
@@ -1559,12 +1712,36 @@ body.dashboard-shell {
 .budget-totals-rows .summary-card-row {
   flex-wrap: wrap;
   min-width: 0;
+  gap: 6px;
 }
 
 .budget-totals-rows .summary-card-row .value {
   white-space: normal;
   word-break: break-word;
   text-align: right;
+}
+
+.budget-totals-container .summary-card.overall-total,
+.transaction-totals-container .summary-card.overall-total {
+  padding: 6px 10px;
+  gap: 6px;
+}
+
+.budget-totals-container .summary-card-title,
+.transaction-totals-container .summary-card-title {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.budget-totals-container .summary-card-row .label,
+.transaction-totals-container .summary-card-row .label {
+  font-size: 11px;
+}
+
+.budget-totals-container .summary-card-row .value,
+.transaction-totals-container .summary-card-row .value {
+  font-size: 12px;
+  line-height: 1.2;
 }
 
 @media (max-width: 700px) {
@@ -2262,15 +2439,21 @@ button.filter-modal-open {
 /* ==================================== Budget Summary Card Overrides ====================================*/
 
 .budget-grid .grid-summary-card {
-  padding: 4px 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  padding: 7px 9px;
   width: 100%;
   min-width: 0;
-  gap: 4px 6px;
+  gap: 5px 8px;
 }
 
 .budget-grid .grid-summary-content {
-  flex: 1;
   min-width: 0;
+}
+
+.budget-grid .grid-summary-form {
+  grid-column: 1 / -1;
 }
 
 .grid-summary-row-primary {
@@ -2309,13 +2492,32 @@ button.filter-modal-open {
 }
 
 .budget-grid .grid-summary-title {
-  font-size: 13px;
-  line-height: 1.15;
+  font-size: 12px;
+  line-height: 1.2;
+  flex: 1 1 10rem;
+  min-width: 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .budget-grid .grid-summary-amount {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.15;
+  display: flex !important;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 1px 4px !important;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.budget-grid .grid-summary-amount span {
+  white-space: nowrap;
 }
 
 .budget-grid .grid-summary-complete {
@@ -2340,25 +2542,38 @@ button.filter-modal-open {
 }
 
 .budget-grid .grid-summary-actions {
-  align-self: flex-start;
-  gap: 4px;
+  align-self: start;
+  justify-self: end;
+  gap: 3px;
 }
 
 .budget-grid .grid-summary-actions .icon-btn {
-  min-width: 28px;
-  min-height: 28px;
+  min-width: 23px;
+  min-height: 23px;
   padding: 3px;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .budget-grid .grid-summary-type {
   padding: 1px 6px;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: 0;
   line-height: 1.3;
   font-weight: 600;
   letter-spacing: 0;
   color: var(--text-muted);
+}
+
+.budget-grid .grid-summary-type::before {
+  font-size: 10px;
+}
+
+.budget-grid .grid-summary-type.money-in::before {
+  content: "In";
+}
+
+.budget-grid .grid-summary-type.money-out::before {
+  content: "Out";
 }
 
 .budget-grid .grid-summary-row-secondary {

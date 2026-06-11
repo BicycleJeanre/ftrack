@@ -40,6 +40,19 @@ const transactionsGridState = new GridStateManager('transactions');
 let lastTransactionsDetailTable = null;
 let lastTransactionsDetailTableReady = false;
 
+function createHeaderFilterItem(labelText, control, className = '') {
+  const item = document.createElement('div');
+  item.className = `header-filter-item${className ? ` ${className}` : ''}`;
+  if (labelText) {
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    if (control?.id) label.htmlFor = control.id;
+    item.appendChild(label);
+  }
+  item.appendChild(control);
+  return item;
+}
+
 function toSplitGroupId(value) {
   const id = String(value == null ? '' : value).trim();
   return id || '';
@@ -2143,6 +2156,39 @@ export async function loadMasterTransactionsGrid({
         filterButton.textContent = '⚙';
         filterButton.setAttribute('aria-label', 'Filters');
 
+        const inlineAccountFilterSelect = accountFilterSelect.cloneNode(true);
+        inlineAccountFilterSelect.id = 'tx-account-filter-select-inline';
+        inlineAccountFilterSelect.value = accountFilterSelect.value;
+
+        const inlinePeriodTypeSelect = periodTypeSelect.cloneNode(true);
+        inlinePeriodTypeSelect.id = 'tx-period-type-select-summary-inline';
+        inlinePeriodTypeSelect.value = periodTypeSelect.value;
+
+        const inlinePeriodSelectSummary = periodSelectSummary.cloneNode(true);
+        inlinePeriodSelectSummary.id = 'tx-period-select-summary-inline';
+        inlinePeriodSelectSummary.value = periodSelectSummary.value;
+
+        const inlinePrevBtnSummary = document.createElement('button');
+        inlinePrevBtnSummary.type = 'button';
+        inlinePrevBtnSummary.className = 'period-btn';
+        inlinePrevBtnSummary.textContent = '<';
+        inlinePrevBtnSummary.title = 'Previous period';
+
+        const inlineNextBtnSummary = document.createElement('button');
+        inlineNextBtnSummary.type = 'button';
+        inlineNextBtnSummary.className = 'period-btn';
+        inlineNextBtnSummary.textContent = '>';
+        inlineNextBtnSummary.title = 'Next period';
+
+        const inlinePeriodNavSummary = document.createElement('div');
+        inlinePeriodNavSummary.className = 'period-nav';
+        inlinePeriodNavSummary.appendChild(inlinePrevBtnSummary);
+        inlinePeriodNavSummary.appendChild(inlineNextBtnSummary);
+
+        const inlineGroupBySelectSummary = groupBySelectSummary.cloneNode(true);
+        inlineGroupBySelectSummary.id = 'tx-grouping-select-summary-inline';
+        inlineGroupBySelectSummary.value = groupBySelectSummary.value;
+
         const addButton = document.createElement('button');
         addButton.className = 'icon-btn';
         addButton.title = 'Add Transaction';
@@ -2164,6 +2210,24 @@ export async function loadMasterTransactionsGrid({
         modalActions.appendChild(splitButton);
         modalActions.appendChild(refreshButton);
 
+        const inlineFilters = document.createElement('div');
+        inlineFilters.className = 'card-inline-filters transactions-inline-filters';
+        inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccountFilterSelect, 'filter-account'));
+        inlineFilters.appendChild(createHeaderFilterItem('View', inlinePeriodTypeSelect, 'filter-period-type'));
+        inlineFilters.appendChild(createHeaderFilterItem('Period', inlinePeriodSelectSummary, 'filter-period'));
+        inlineFilters.appendChild(createHeaderFilterItem('', inlinePeriodNavSummary, 'filter-period-nav'));
+        inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroupBySelectSummary, 'filter-group'));
+
+        const inlineAddButton = document.createElement('button');
+        inlineAddButton.className = 'icon-btn card-inline-action';
+        inlineAddButton.title = 'Add Transaction';
+        inlineAddButton.textContent = '+';
+
+        const inlineSplitButton = document.createElement('button');
+        inlineSplitButton.className = 'icon-btn card-inline-action';
+        inlineSplitButton.title = 'Create Split Payment Set';
+        inlineSplitButton.textContent = '⇄';
+
         const filterModal = createFilterModal({
           id: 'tx-filters-summary-modal',
           title: 'Filter Transactions',
@@ -2182,9 +2246,59 @@ export async function loadMasterTransactionsGrid({
         });
 
         filterButton.style.marginLeft = 'auto';
+        controls.appendChild(inlineFilters);
+        controls.appendChild(inlineAddButton);
+        controls.appendChild(inlineSplitButton);
         controls.appendChild(filterButton);
 
-        addButton.addEventListener('click', async (e) => {
+        inlineAccountFilterSelect.addEventListener('change', (e) => {
+          transactionsGridState.state.dropdowns[accountFilterStateKey] = e.target.value;
+          loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+
+        inlinePeriodTypeSelect.addEventListener('change', async () => {
+          state?.setActualPeriodType?.(inlinePeriodTypeSelect.value);
+          state?.setTransactionsPeriods?.([]);
+          state?.setActualPeriod?.(null);
+          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+
+        inlinePeriodSelectSummary.addEventListener('change', async () => {
+          const nextPeriodId = inlinePeriodSelectSummary.value ? String(inlinePeriodSelectSummary.value) : null;
+          state?.setActualPeriod?.(nextPeriodId);
+          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+
+        inlinePrevBtnSummary.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const allPeriodsSummary = state?.getTransactionsPeriods?.() || [];
+          const currentIdx = findPeriodIndexById(allPeriodsSummary, state?.getActualPeriod?.());
+          if (currentIdx > 0) {
+            state?.setActualPeriod?.(String(allPeriodsSummary[currentIdx - 1].id));
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          }
+        });
+
+        inlineNextBtnSummary.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const allPeriodsSummary = state?.getTransactionsPeriods?.() || [];
+          const currentIdx = findPeriodIndexById(allPeriodsSummary, state?.getActualPeriod?.());
+          if (currentIdx >= 0 && currentIdx < allPeriodsSummary.length - 1) {
+            state?.setActualPeriod?.(String(allPeriodsSummary[currentIdx + 1].id));
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          } else if (currentIdx === -1 && allPeriodsSummary.length > 0) {
+            state?.setActualPeriod?.(String(allPeriodsSummary[0].id));
+            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+          }
+        });
+
+        inlineGroupBySelectSummary.addEventListener('change', () => {
+          transactionsGridState.state.dropdowns[groupByStateKey] = inlineGroupBySelectSummary.value;
+          state?.setGroupBy?.(inlineGroupBySelectSummary.value);
+          loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
+        });
+
+        const handleAddTransaction = async (e) => {
           e.stopPropagation();
           try {
             currentScenario = scenarioState?.get?.();
@@ -2234,9 +2348,11 @@ export async function loadMasterTransactionsGrid({
           } catch (err) {
             notifyError('Failed to create transaction. Please try again.');
           }
-        });
+        };
+        inlineAddButton.addEventListener('click', handleAddTransaction);
+        addButton.addEventListener('click', handleAddTransaction);
 
-        splitButton.addEventListener('click', async (e) => {
+        const handleCreateSplitTransaction = async (e) => {
           e.stopPropagation();
           try {
             currentScenario = scenarioState?.get?.();
@@ -2287,7 +2403,9 @@ export async function loadMasterTransactionsGrid({
           } catch (err) {
             notifyError('Failed to create split transaction draft: ' + (err?.message || String(err)));
           }
-        });
+        };
+        inlineSplitButton.addEventListener('click', handleCreateSplitTransaction);
+        splitButton.addEventListener('click', handleCreateSplitTransaction);
 
         refreshButton.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -2375,18 +2493,20 @@ export async function loadMasterTransactionsGrid({
     // Populate period selector in summary header (if it exists)
     if (workflowConfig?.transactionsMode !== 'detail') {
       const periodSelectSummary = transactionsHeader?.querySelector('#tx-period-select-summary');
-      if (periodSelectSummary && periodSelectSummary.children.length === 1) { // Only if "All" option exists
+      const inlinePeriodSelectSummary = transactionsHeader?.querySelector('#tx-period-select-summary-inline');
+      [periodSelectSummary, inlinePeriodSelectSummary].forEach((select) => {
+        if (!select || select.children.length !== 1) return;
         // Add period options
         periods.forEach((p) => {
           const opt = document.createElement('option');
           opt.value = String(p.id);
           opt.textContent = p.label || String(p.id);
-          periodSelectSummary.appendChild(opt);
+          select.appendChild(opt);
         });
         // Restore period selection from state
         const curPeriodSummary = state?.getActualPeriod?.();
-        if (curPeriodSummary) periodSelectSummary.value = String(curPeriodSummary);
-      }
+        if (curPeriodSummary) select.value = String(curPeriodSummary);
+      });
     }
 
     let allTransactions = await getTransactions(currentScenario.id);

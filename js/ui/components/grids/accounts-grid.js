@@ -28,6 +28,19 @@ import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
 const accountsGridState = new GridStateManager('accounts');
 let lastAccountsTable = null;
 
+function createHeaderFilterItem(labelText, control, className = '') {
+  const item = document.createElement('div');
+  item.className = `header-filter-item${className ? ` ${className}` : ''}`;
+  if (labelText) {
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    if (control?.id) label.htmlFor = control.id;
+    item.appendChild(label);
+  }
+  item.appendChild(control);
+  return item;
+}
+
 function sanitizeAccountPayload(account) {
   if (!account || typeof account !== 'object') return account;
   const { _detailsOpen, ...payload } = account;
@@ -1337,35 +1350,52 @@ export async function loadAccountsGrid({
       controls.innerHTML = '';
       accountsHeader.classList.add('card-header--filters-inline');
 
-      const groupBySelect = document.createElement('select');
-      groupBySelect.id = 'account-grouping-select';
-      groupBySelect.className = 'input-select';
-      [
+      const createSelect = (id) => {
+        const select = document.createElement('select');
+        select.id = id;
+        select.className = 'input-select';
+        return select;
+      };
+      const syncControls = (controlsToSync, value) => {
+        controlsToSync.forEach((control) => {
+          if (control && control.value !== String(value ?? '')) {
+            control.value = String(value ?? '');
+          }
+        });
+      };
+
+      const groupBySelect = createSelect('account-grouping-select');
+      const modalGroupBySelect = createSelect('account-modal-grouping-select');
+      const groupByOptions = [
         { value: '', label: 'None' },
         { value: 'accountType', label: 'Account Type' },
         { value: 'accountGroupLabel', label: 'Account Group' }
-      ].forEach(({ value, label }) => {
-        const opt = document.createElement('option');
-        opt.value = value;
-        opt.textContent = label;
-        groupBySelect.appendChild(opt);
+      ];
+      [groupBySelect, modalGroupBySelect].forEach((select) => {
+        groupByOptions.forEach(({ value, label }) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          select.appendChild(opt);
+        });
       });
-      groupBySelect.value = activeGroupBy;
+      syncControls([groupBySelect, modalGroupBySelect], activeGroupBy);
 
-      const typeFilterSelect = document.createElement('select');
-      typeFilterSelect.id = 'account-type-filter-select';
-      typeFilterSelect.className = 'input-select';
-      const allTypeOption = document.createElement('option');
-      allTypeOption.value = '';
-      allTypeOption.textContent = 'All';
-      typeFilterSelect.appendChild(allTypeOption);
-      (lookupData?.accountTypes || []).forEach((accountType) => {
-        const option = document.createElement('option');
-        option.value = accountType.name;
-        option.textContent = accountType.name;
-        typeFilterSelect.appendChild(option);
+      const typeFilterSelect = createSelect('account-type-filter-select');
+      const modalTypeFilterSelect = createSelect('account-modal-type-filter-select');
+      [typeFilterSelect, modalTypeFilterSelect].forEach((select) => {
+        const allTypeOption = document.createElement('option');
+        allTypeOption.value = '';
+        allTypeOption.textContent = 'All Types';
+        select.appendChild(allTypeOption);
+        (lookupData?.accountTypes || []).forEach((accountType) => {
+          const option = document.createElement('option');
+          option.value = accountType.name;
+          option.textContent = accountType.name;
+          select.appendChild(option);
+        });
       });
-      typeFilterSelect.value = activeTypeFilter;
+      syncControls([typeFilterSelect, modalTypeFilterSelect], activeTypeFilter);
 
       const addButton = document.createElement('button');
       addButton.className = 'icon-btn';
@@ -1395,13 +1425,32 @@ export async function loadAccountsGrid({
       filterButton.textContent = '⚙';
       filterButton.setAttribute('aria-label', 'Filters');
 
+      const inlineFilters = document.createElement('div');
+      inlineFilters.className = 'card-inline-filters accounts-inline-filters';
+      inlineFilters.appendChild(createHeaderFilterItem('Type', typeFilterSelect, 'filter-type'));
+      inlineFilters.appendChild(createHeaderFilterItem('Group', groupBySelect, 'filter-group'));
+
+      const inlineAddButton = document.createElement('button');
+      inlineAddButton.className = 'icon-btn card-inline-action';
+      inlineAddButton.title = 'Add Account';
+      inlineAddButton.textContent = '+';
+
+      const inlineManageGroupsButton = document.createElement('button');
+      inlineManageGroupsButton.className = 'icon-btn card-inline-action';
+      inlineManageGroupsButton.title = 'Manage Account Groups';
+      inlineManageGroupsButton.textContent = 'Groups';
+
+      controls.appendChild(inlineFilters);
+      controls.appendChild(inlineAddButton);
+      controls.appendChild(inlineManageGroupsButton);
+
       const accountsFilterModal = createFilterModal({
         id: 'accounts-filters-modal',
         title: 'Filter Accounts',
         trigger: filterButton,
         items: [
-          { id: 'group-by', label: 'Group By:', control: groupBySelect },
-          { id: 'type', label: 'Type:', control: typeFilterSelect },
+          { id: 'type', label: 'Type:', control: modalTypeFilterSelect },
+          { id: 'group-by', label: 'Group By:', control: modalGroupBySelect },
           { id: 'actions', label: 'Actions:', control: modalActions }
         ]
       });
@@ -1409,40 +1458,46 @@ export async function loadAccountsGrid({
       filterButton.style.marginLeft = 'auto';
       controls.appendChild(filterButton);
 
-      groupBySelect.addEventListener('change', async () => {
-        accountsGridState.state.dropdowns[groupByStateKey] = groupBySelect.value;
-        if (workflowConfig?.accountsMode === 'detail') {
-          const field = groupBySelect.value;
-          lastAccountsTable?.setGroupBy?.(field ? [field] : []);
-          return;
-        }
+      [groupBySelect, modalGroupBySelect].forEach((select) => {
+        select.addEventListener('change', async () => {
+          syncControls([groupBySelect, modalGroupBySelect], select.value);
+          accountsGridState.state.dropdowns[groupByStateKey] = select.value;
+          if (workflowConfig?.accountsMode === 'detail') {
+            const field = select.value;
+            lastAccountsTable?.setGroupBy?.(field ? [field] : []);
+            return;
+          }
 
-        await loadAccountsGrid({
-          container,
-          scenarioState,
-          getWorkflowConfig,
-          reloadMasterTransactionsGrid,
-          logger
+          await loadAccountsGrid({
+            container,
+            scenarioState,
+            getWorkflowConfig,
+            reloadMasterTransactionsGrid,
+            logger
+          });
         });
       });
 
-      typeFilterSelect.addEventListener('change', async () => {
-        accountsGridState.state.dropdowns[typeFilterStateKey] = typeFilterSelect.value;
-        if (workflowConfig?.accountsMode === 'detail') {
-          applyAccountsDetailFilters({ activeTypeFilter: typeFilterSelect.value });
-          return;
-        }
+      [typeFilterSelect, modalTypeFilterSelect].forEach((select) => {
+        select.addEventListener('change', async () => {
+          syncControls([typeFilterSelect, modalTypeFilterSelect], select.value);
+          accountsGridState.state.dropdowns[typeFilterStateKey] = select.value;
+          if (workflowConfig?.accountsMode === 'detail') {
+            applyAccountsDetailFilters({ activeTypeFilter: select.value });
+            return;
+          }
 
-        await loadAccountsGrid({
-          container,
-          scenarioState,
-          getWorkflowConfig,
-          reloadMasterTransactionsGrid,
-          logger
+          await loadAccountsGrid({
+            container,
+            scenarioState,
+            getWorkflowConfig,
+            reloadMasterTransactionsGrid,
+            logger
+          });
         });
       });
 
-      addButton.addEventListener('click', async (e) => {
+      const handleAddAccount = async (e) => {
         e.stopPropagation();
         const scenario = scenarioState?.get?.();
 
@@ -1469,9 +1524,11 @@ export async function loadAccountsGrid({
           reloadMasterTransactionsGrid,
           logger
         });
-      });
+      };
+      inlineAddButton.addEventListener('click', handleAddAccount);
+      addButton.addEventListener('click', handleAddAccount);
 
-      manageGroupsButton.addEventListener('click', async (e) => {
+      const handleManageGroups = async (e) => {
         e.stopPropagation();
         accountsFilterModal.close();
         await launchAccountGroupModal({
@@ -1487,7 +1544,9 @@ export async function loadAccountsGrid({
             });
           }
         });
-      });
+      };
+      inlineManageGroupsButton.addEventListener('click', handleManageGroups);
+      manageGroupsButton.addEventListener('click', handleManageGroups);
 
       refreshButton.addEventListener('click', async (e) => {
         e.stopPropagation();
