@@ -10,17 +10,17 @@
 
 2.1.1 Model one or more debts as liability accounts.
 
-2.1.2 Add planned payments as transactions.
+2.1.2 Add recurring payment rules and one-time payment occurrences.
 
 2.1.3 Apply interest as an account periodic change, including variable rates.
 
 2.1.4 See payoff dates and interest paid in the summary cards.
 
-2.2 Do not use Debt Repayment when you need.
+2.2 Debt Repayment includes the same Plan & Actuals tracking used by every main
+workflow. Use Goal Workshop instead when you need multi-goal planning with
+constraints.
 
-2.2.1 Budget vs actual tracking.
-
-2.2.2 Multi-goal planning with constraints. Use Goal Workshop in Advanced
+2.2.1 Use Goal Workshop in Advanced
 mode for that.
 
 ## 3.0 Create A Debt Repayment Scenario
@@ -61,15 +61,20 @@ mode for that.
 
 4.4.2 Avoid overlapping ranges.
 
-## 5.0 Add Payment Transactions
+## 5.0 Add Payment Rules
 
-5.1 In Transactions, add planned payments that reduce the liability balance.
+5.1 Open **Plan & Actuals → Recurring** and add planned payments that reduce
+the liability balance.
 
-5.2 Use recurring transactions for monthly minimum payments.
+5.2 Use recurring rules for monthly minimum payments.
 
-5.3 Add extra payments as separate transactions so you can turn them on or off.
+5.3 Add extra payments as separate rules or one-time Period items so you can
+adjust them independently.
 
 5.4 Use realistic start dates so the projection timeline matches expected payments.
+
+5.5 Switch to **Period** to adjust a specific payment, add an unplanned cost,
+record an actual, or compare baseline, current plan, actual, and variance.
 
 ## 6.0 Refresh Projections
 

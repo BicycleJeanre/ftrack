@@ -2,13 +2,22 @@
 
 ## 1.0 Purpose
 
-1.1 The Budget workflow now uses one transaction-based plan. Recurring and one-time transaction rules define the plan, dated occurrences capture period adjustments and actuals, and projections resolve both automatically.
+1.1 Every main workflow uses one transaction-based plan. Recurring and one-time
+transaction rules define the plan, dated occurrences capture period
+adjustments and actuals, and projections resolve both automatically.
 
 1.2 You no longer generate or clear a separate Budget dataset.
 
 ## 2.0 Open the Workflow
 
-2.1 Go to Forecast and select **Budget**.
+2.1 Go to Forecast and select the workflow that matches the task:
+
+- **Budget** opens Plan & Actuals in Period for immediate tracking.
+- **General**, **Funds**, **Debt Repayment**, and **Goal Workshop** open Plan &
+  Actuals in Recurring for immediate rule entry.
+
+The initial view is only a default. Period and Recurring remain available in
+every main workflow.
 
 2.2 Create or select a scenario and add the accounts used by its money movements.
 
@@ -91,7 +100,16 @@ it will not cross protected future history.
 
 6.3 Account filters show the selected account's perspective. Group By can organize items by status, movement, or repeat pattern.
 
-6.4 **Plan & Actuals (Detail)** provides the same unified workflow in an expanded layout.
+6.4 Use a detail shortcut when a table is more useful than summary cards:
+
+- **Plan Rules (Detail)** opens the unified component in Recurring and renders
+  a full rule-segment table with safe scoped actions.
+- **Plan & Actuals (Detail)** opens it in Period and renders a full
+  resolved-occurrence table with dates, statuses, movements, descriptions,
+  comparison amounts, forecast contribution, variances, and actions.
+
+Both detail shortcuts keep the Period/Recurring switch. Changing the view
+changes the table rather than rendering the summary card layout again.
 
 ## 7.0 Troubleshooting
 

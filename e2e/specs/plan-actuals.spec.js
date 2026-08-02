@@ -282,6 +282,35 @@ test.describe('unified Plan & Actuals workflow', () => {
     }
   });
 
+  test('renders Period money movement from the selected account perspective', async ({ page }) => {
+    const accountFilter = page.locator('#budgetSection #plan-account-inline');
+    await accountFilter.selectOption('5');
+    await expect(accountFilter).toHaveValue('5');
+
+    const groceriesCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await expect(groceriesCard).toBeVisible();
+    await expect(groceriesCard.locator('.plan-actuals-movement'))
+      .toHaveText(/Money In: Checking.*→.*Groceries Expense/);
+
+    await selectWorkflow(page, 'Plan & Actuals (Detail)');
+    const detailAccountFilter = page.locator('#budgetSection #plan-account-inline');
+    await detailAccountFilter.selectOption('5');
+    await expect(detailAccountFilter).toHaveValue('5');
+
+    const groceriesDetailRow = page.locator(
+      '#budgetTable .plan-actuals-detail-grid .tabulator-row',
+      { hasText: 'Groceries budget' }
+    );
+    await expect(groceriesDetailRow).toBeVisible();
+    await expect(
+      groceriesDetailRow.locator(
+        '.tabulator-cell[tabulator-field="movement"] .plan-actuals-detail-movement'
+      )
+    ).toContainText(/Money In: Checking.*→.*Groceries Expense/);
+  });
+
   test('adds both a planned item and a manual actual', async ({ page }) => {
     const before = (await currentScenario(page)).transactionOccurrences.length;
 
@@ -539,6 +568,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       hasText: 'Monthly salary'
     });
     await expect(salaryRule).toHaveAttribute('data-source-transaction-id', '1001');
+    await expect(salaryRule.locator('.grid-summary-type')).toHaveText('Money Out');
     await expect(salaryRule.locator('.recurring-rule-movement'))
       .toHaveText(/Salary Income.*→.*Checking/);
 
@@ -572,6 +602,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     salaryRule = page.locator('#budgetTable .recurring-rule-card', {
       hasText: 'Monthly salary canonical edit'
     });
+    await expect(salaryRule.locator('.grid-summary-type')).toHaveText('Money Out');
     await expect(salaryRule.locator('.recurring-rule-movement'))
       .toHaveText(/Salary Income.*→.*Savings Goal/);
   });
@@ -589,6 +620,10 @@ test.describe('unified Plan & Actuals workflow', () => {
 
     const generatedAt = (await currentScenario(page)).projection.generatedAt;
     await page.evaluate(() => {
+      const nativeSetTimeout = window.setTimeout.bind(window);
+      window.setTimeout = (callback, delay, ...args) => (
+        nativeSetTimeout(callback, delay === 500 ? 1500 : delay, ...args)
+      );
       window.__e2eProjectionFreshness = [];
       const capture = () => {
         document.querySelectorAll('.projection-freshness').forEach((element) => {
@@ -607,6 +642,18 @@ test.describe('unified Plan & Actuals workflow', () => {
     await page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Credit card payment'
     }).locator('button[title="Duplicate item"]').click();
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Credit card payment'
+    })).toHaveCount(2);
+
+    const groceriesCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries'
+    }).first();
+    await groceriesCard.locator('button[title="Edit item"]').click();
+    const groceriesForm = groceriesCard.locator('form');
+    await expect(groceriesForm).toBeVisible();
+    await editorField(groceriesForm, 'Description').locator('input')
+      .fill('Unsaved editor survives projection completion');
 
     await expect.poll(() => page.evaluate(() => (
       window.__e2eProjectionFreshness.some((value) => value.includes('Stale'))
@@ -618,6 +665,45 @@ test.describe('unified Plan & Actuals workflow', () => {
       scenario.projection.generatedAt !== generatedAt
     ), 'automatic projection refresh completed');
     await expect(page.locator('#projectionsSection .projection-freshness')).toHaveText('Current');
+    await expect(groceriesForm).toBeVisible();
+    await expect(editorField(groceriesForm, 'Description').locator('input'))
+      .toHaveValue('Unsaved editor survives projection completion');
+  });
+
+  test('Set projection period refreshes Plan and Projection period bounds together', async ({ page }) => {
+    await page.locator(
+      '#projectionsSection button.card-inline-action[title="Set projection period"]'
+    ).click();
+    await page.locator('#timeframe-start-date').fill('2026-03-01');
+    await page.locator('#timeframe-end-date').fill('2026-04-30');
+    await page.locator('#timeframe-period-type').selectOption('3');
+    await page.locator('#timeframe-confirm-btn').click();
+
+    await waitForScenario(page, (scenario) => (
+      scenario.projection?.config?.startDate === '2026-03-01' &&
+      scenario.projection?.config?.endDate === '2026-04-30' &&
+      (scenario.projection?.rows || []).length > 0 &&
+      (scenario.projection?.rows || []).every(
+        (row) => row.date >= '2026-03-01' && row.date <= '2026-04-30'
+      )
+    ), 'projection window and rows moved to March-April');
+
+    await expect(page.locator('#plan-period-inline option')).toHaveText([
+      'March 2026',
+      'April 2026'
+    ]);
+    await expect(page.locator('#projections-period-select-inline option')).toHaveText([
+      'All',
+      'March 2026',
+      'April 2026'
+    ]);
+    await expect(page.locator('#projectionsSection .grid-summary-date')).not.toHaveCount(0);
+    const renderedDates = await page.locator(
+      '#projectionsSection .grid-summary-date'
+    ).allTextContents();
+    expect(renderedDates.every(
+      (date) => date >= '2026-03-01' && date <= '2026-04-30'
+    )).toBe(true);
   });
 });
 
@@ -819,15 +905,36 @@ test.describe('recurring split rule editing', () => {
     await expect(page.locator(
       '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
     )).toHaveCount(1);
-    await expect(page.locator(
+    const interestRoleCard = page.locator(
       '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
-    )).toHaveAttribute('data-split-role', 'principal');
+    );
+    await expect(interestRoleCard).toHaveAttribute('data-split-role', 'interest');
+    await expect(interestRoleCard.locator('.grid-summary-type')).toHaveText('Money Out');
+    await expect(interestRoleCard.locator('.recurring-rule-movement'))
+      .toHaveText(/Checking.*→.*Loan Interest Expense/);
+    await expect(interestRoleCard.locator('.grid-summary-amount')).toContainText('150');
+    const interestOutMetric = page.locator(
+      '#budgetTable #transactionsContent .total-metric',
+      { has: page.locator('.label', { hasText: /^Interest Out$/ }) }
+    );
+    await expect(interestOutMetric.locator('.value')).toContainText('150');
     await page.locator('.filter-modal #tx-split-role-filter-summary').selectOption('');
     await closeFilterModal(page);
     await page.locator('#budgetSection #tx-account-filter-select-inline').selectOption('7');
-    await expect(page.locator(
+    const interestAccountCard = page.locator(
       '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
-    )).toHaveCount(1);
+    );
+    await expect(interestAccountCard).toHaveCount(1);
+    await expect(interestAccountCard).toHaveAttribute('data-split-role', 'interest');
+    await expect(interestAccountCard.locator('.grid-summary-type')).toHaveText('Money In');
+    await expect(interestAccountCard.locator('.recurring-rule-movement'))
+      .toHaveText(/Checking.*→.*Loan Interest Expense/);
+    await expect(interestAccountCard.locator('.grid-summary-amount')).toContainText('150');
+    const interestInMetric = page.locator(
+      '#budgetTable #transactionsContent .total-metric',
+      { has: page.locator('.label', { hasText: /^Interest In$/ }) }
+    );
+    await expect(interestInMetric.locator('.value')).toContainText('150');
     await page.locator('#budgetSection #tx-account-filter-select-inline').selectOption('');
 
     await principalCard.locator('.recurring-rule-description').click();

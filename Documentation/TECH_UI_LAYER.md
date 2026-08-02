@@ -27,7 +27,8 @@ const grid = GridFactory.createGrid('#elementId', options);
 ```
 
 ### 2.2 Main View Controller (`js/ui/controllers/forecast-controller.js`)
-This is the heart of the "Forecast" page. It orchestrates the interaction between five main sections.
+This is the heart of the Forecast page. It orchestrates workflow routing,
+selection, and refresh behavior across the visible sections.
 
 #### A. Scenario Grid
 - **Type**: Single Select.
@@ -37,37 +38,41 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
 #### B. Account Grid
 - **Type**: Single Select.
 - **Behavior**: Filters the view to a specific account.
-- **Selection Event**: Triggers reload of Transaction, Budget, and Projection grids filtered by `accountId`.
+- **Selection Event**: Triggers reload of the unified Plan & Actuals surface
+  and Projections filtered by `accountId`.
 
-#### C. Transaction Grid
-- **Type**: Multi-row, Editable.
-- **Behavior**: Displays transactions matching the Active Scenario AND Active Account.
-- **Features**:
-  - Cell Editing: Calls `TransactionManager.saveAll()` via application layer.
-  - Rule editing: one-time/recurring plan fields, recurrence, tags, periodic
-    changes, and split metadata. Actual state lives on occurrences.
-  - Recurrence configuration via modal.
-  - New Transaction Defaults: Uses the active account filter as the primary account (fallback: first account) and sets `effectiveDate` to the selected period start or scenario start date.
-
-#### D. Plan & Actuals
-- **Type**: Unified responsive card surface with Period and Recurring modes.
+#### C. Plan & Actuals
+- **Type**: The authoritative financial-activity component in every main
+  workflow, with Period and Recurring modes and summary/detail presentations.
 - **Period mode**:
   - Calls `resolveScenarioOccurrences()` for the selected period; it does not materialize generated rows.
   - Shows baseline, current plan, actual, variance, status, direction-aware movement, repeat information, and description for each occurrence.
   - Routes writes through `OccurrenceManager`: occurrence-only edits, this-and-future splits, entire-series changes, actuals, skips, restores, reschedules, manual occurrences, recurring promotion, and baseline freeze.
   - Uses `calculateResolvedOccurrenceTotals()` for comparison totals.
 - **Recurring mode**:
-  - Reuses the editable transaction summary UI with a rules-only workflow configuration.
+  - Uses the recurring-rule renderer in `transactions-grid.js` inside Plan &
+    Actuals; there is no separate user-facing Transactions card.
   - Shows all planned rule segments by default, without period/status expansion.
   - Displays recurrence, periodic adjustment, active dates, next occurrence, tags, and split metadata.
   - Requires **This and future** or **Entire series** scope. Non-split changes use the scoped occurrence commands; split changes use `OccurrenceManager.updateSplitSeries()` so every role is revised atomically from the same boundary.
   - Supports whole-rule and whole-split-set duplication.
   - Uses `OccurrenceManager.endSeries()` instead of destructive rule deletion. The command ends every affected rule and split component before the next unresolved occurrence, preserves prior actual/skipped/frozen evidence, and refuses to cross protected future history.
   - New recurring-rule and recurring split-set creation use the transaction application service; a split set and all component rules persist atomically.
-- **Workflow routing**: Budget and Plan & Actuals (Detail) show this card and hide the separate Transactions card.
+- **Summary presentation**: Uses compact cards. Budget defaults to Period;
+  General, Funds, Debt Repayment, and Goal Workshop default to Recurring.
+- **Detail presentation**:
+  - **Plan Rules (Detail)** defaults to a Tabulator of recurring rule
+    segments with safe scoped editing and expandable rule metadata.
+  - **Plan & Actuals (Detail)** defaults to a Tabulator of resolved Period
+    occurrences with Date, Status, Money Movement, Description, Repeat,
+    Baseline, Current Plan, Actual, forecast/variance values, and Actions.
+  - Switching the detail component between Period and Recurring switches
+    between these two genuine table presentations.
+- **Workflow routing**: `workflow-registry.js` supplies the component surface,
+  presentation, and default view through each workflow's `activity` contract.
 - **State**: The period type persists in `uiState.viewPeriodTypeIds.planActuals`.
 
-#### E. Projection Grid
+#### D. Projection Grid
 - **Type**: Read-only display.
 - **Behavior**: Shows calculated financial projections by period.
 - **Features**:
@@ -77,7 +82,7 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
     uses the canonical resolved occurrence plan.
   - **Toolbar**: Account filter, period view controls, and inline totals (Income, Expenses, Net).
 
-#### F. Summary Cards
+#### E. Summary Cards
 - **Type**: Read-only summary cards.
 - **Behavior**: A scenario-gated summary section shown near the top of the Forecast view.
 
@@ -108,7 +113,7 @@ Funds scenario summary cards.
 - **Scope Selector**: All, Asset, Liability, Equity, Income, Expense.
 - **Equity Detail**: Investor breakdown with shares, ownership percent, and implied value.
 
-#### G. Generate Plan
+#### F. Generate Plan
 
 - **Type**: Scenario-gated configuration section.
 - **Behavior**: Renders a Goal-Based planner for account goals, or an Advanced Goal Solver planner for multi-goal planning with constraints.
@@ -124,11 +129,28 @@ Scenarios and Accounts enforce single selection behavior.
 ### 3.2 Dynamic Re-rendering
 1. User selects a Scenario.
 2. `forecast-controller.js` captures `rowSelectionChanged`.
-3. All visible surfaces (Accounts, Plan & Actuals, Projections, or the workflow-specific grids) reload with scenario data.
+3. All visible surfaces (Accounts, Plan & Actuals, Projections, summaries, or
+   Generate Plan) reload with scenario data.
 4. User selects an Account.
 5. The active surface applies its account-perspective filter without changing canonical movement direction.
 
-### 3.3 Budget Workflow
+### 3.3 Unified Plan & Actuals Routing
+
+Every main workflow uses the same financial-activity component:
+
+| Workflow | Presentation | Default view |
+|---|---|---|
+| Budget | Summary | Period |
+| General | Summary | Recurring |
+| Funds | Summary | Recurring |
+| Debt Repayment | Summary | Recurring |
+| Goal Workshop | Summary | Recurring |
+| Plan Rules (Detail) | Detail | Recurring |
+| Plan & Actuals (Detail) | Detail | Period |
+
+The default does not remove the other subview. Both Period and Recurring
+remain available from the unified component.
+
 1. **Define Rules**: Recurring mode edits canonical transaction rules and rule segments.
 2. **Resolve a Period**: Period mode queries the live occurrence timeline for the selected range.
 3. **Adjust or Realize**: The user applies occurrence-only changes, future/series changes, actuals, skips, restores, duplicates, or manual additions.
@@ -160,12 +182,14 @@ Canonical occurrence fields are:
 
 `forecast:planChanged` carries the current scenario ID. The controller maintains one debounce timer per scenario, ignores changes for inactive scenarios, reloads the latest scenario before generation, and reloads Plan & Actuals and Projections after completion. Projection generation has one canonical resolved-occurrence source; the controller does not pass a selectable `source`.
 
-### 2.3 Home Page Hero (`index.html`)
+## 4.0 Home Page
+
+### 4.1 Home Page Hero (`index.html`)
 The home hero uses a layered background to keep the CTA readable while adding visual depth.
 - **Background Asset**: `assets/home-hero-bg.svg`
 - **Styling**: `styles/app.css` applies a gradient overlay plus SVG background on `.home-hero`.
 
-### 2.4 Home Page Background (`index.html`)
+### 4.2 Home Page Background (`index.html`)
 The full home page uses a separate SVG background for the overall layout.
 - **Background Asset**: `assets/home-page-bg.svg`
 - **Styling**: `styles/app.css` applies a gradient overlay plus SVG background on `.home-page`.

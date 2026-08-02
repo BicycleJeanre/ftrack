@@ -255,8 +255,10 @@ async function loadAdvancedGoalSolverSection({
   workflowId,
   loadMasterTransactionsGrid,
   loadProjectionsSection,
+  isRenderCurrent = () => true,
   logger
 }) {
+  if (!isRenderCurrent()) return;
   const scenario = scenarioState?.get?.();
   if (!scenario) {
     container.innerHTML = '';
@@ -339,7 +341,7 @@ async function loadAdvancedGoalSolverSection({
         if (next.startDate && next.endDate) {
           try {
             await persistPlanningWindow({ scenarioId: scenario.id, planningKey: 'advancedGoalSolver', nextWindow: next, scenarioState });
-            await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+            await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
           } catch (err) {
             notifyError('Failed to save planning window: ' + (err?.message || String(err)));
           }
@@ -357,7 +359,7 @@ async function loadAdvancedGoalSolverSection({
         btn.classList.add('icon-btn--active');
         await persistGoalWorkshopMode({ scenarioId: scenario.id, mode, scenarioState });
         close();
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
       });
     });
 
@@ -462,11 +464,11 @@ async function loadAdvancedGoalSolverSection({
   solutionHeaderActions.innerHTML = '';
   const solveBtn = document.createElement('button');
   solveBtn.className = 'icon-btn';
-  solveBtn.title = 'Solve — calculate suggested transactions';
+  solveBtn.title = 'Solve — calculate suggested plan rules';
   solveBtn.textContent = '▶';
   const applyBtn = document.createElement('button');
   applyBtn.className = 'icon-btn';
-  applyBtn.title = 'Apply — write transactions into this scenario';
+  applyBtn.title = 'Apply — add plan rules to this scenario';
   applyBtn.textContent = '✓';
   applyBtn.disabled = true;
   solutionHeaderActions.appendChild(solveBtn);
@@ -961,7 +963,7 @@ async function loadAdvancedGoalSolverSection({
       solutionTotalsEl.innerHTML = `
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
-            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-secondary);">Suggested Transactions</div>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-secondary);">Suggested Plan Rules</div>
             <div style="font-size:18px;font-weight:600;color:var(--text-primary);">${txCount}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
@@ -996,7 +998,7 @@ async function loadAdvancedGoalSolverSection({
           card.className = 'grid-summary-card';
           card.style.cssText = 'margin-bottom:8px;padding:8px;';
           const period = getPeriodDisplay(tx);
-          const desc = (tx.description || 'Generated transaction').substring(0, 40);
+          const desc = (tx.description || 'Generated plan rule').substring(0, 40);
           const amount = formatCurrency(tx.amount);
           card.innerHTML = `
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px;">
@@ -1010,7 +1012,7 @@ async function loadAdvancedGoalSolverSection({
       } else {
         const empty = document.createElement('div');
         empty.className = 'scenarios-list-placeholder';
-        empty.textContent = 'No transactions generated.';
+        empty.textContent = 'No plan rules generated.';
         txList.appendChild(empty);
       }
       solutionEl.innerHTML = '';
@@ -1040,6 +1042,7 @@ async function loadAdvancedGoalSolverSection({
 
     try {
       const refreshedScenario = await getScenario(scenario.id);
+      if (!isRenderCurrent()) return;
       const existing = refreshedScenario?.transactions || [];
 
       const filtered = existing.filter((tx) => !(tx.tags && tx.tags.includes('adv-goal-generated')));
@@ -1048,6 +1051,7 @@ async function loadAdvancedGoalSolverSection({
       await TransactionManager.saveAll(refreshedScenario.id, nextTxs);
 
       const refreshed = await getScenario(refreshedScenario.id);
+      if (!isRenderCurrent()) return;
       scenarioState?.set?.(refreshed);
 
       await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
@@ -1069,8 +1073,10 @@ export async function loadGeneratePlanSection({
   workflowId = null,
   loadMasterTransactionsGrid,
   loadProjectionsSection,
+  isRenderCurrent = () => true,
   logger
 }) {
+  if (!isRenderCurrent()) return;
   const currentScenario = scenarioState?.get?.();
   if (!currentScenario) {
     container.innerHTML = '';
@@ -1088,6 +1094,7 @@ export async function loadGeneratePlanSection({
       workflowId,
       loadMasterTransactionsGrid,
       loadProjectionsSection,
+      isRenderCurrent,
       logger
     });
   }
@@ -1110,7 +1117,7 @@ export async function loadGeneratePlanSection({
             nextWindow,
             scenarioState
           });
-          await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+          await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
         } catch (err) {
           notifyError('Failed to save planning window: ' + (err?.message || String(err)));
         }
@@ -1118,7 +1125,7 @@ export async function loadGeneratePlanSection({
       mode: 'simple',
       onModeChange: async (newMode) => {
         await persistGoalWorkshopMode({ scenarioId: currentScenario.id, mode: newMode, scenarioState });
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
       }
     });
     const msg = document.createElement('div');
@@ -1143,7 +1150,7 @@ export async function loadGeneratePlanSection({
           nextWindow,
           scenarioState
         });
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
       } catch (err) {
         notifyError('Failed to save planning window: ' + (err?.message || String(err)));
       }
@@ -1151,7 +1158,7 @@ export async function loadGeneratePlanSection({
     mode: 'simple',
     onModeChange: async (newMode) => {
       await persistGoalWorkshopMode({ scenarioId: currentScenario.id, mode: newMode, scenarioState });
-      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, logger });
+      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
     }
   });
 
@@ -1160,7 +1167,7 @@ export async function loadGeneratePlanSection({
   introDiv.className = 'text-muted';
   introDiv.style.marginBottom = '10px';
   introDiv.innerHTML = `
-    Use this section to estimate a contribution plan for an account goal and then generate planned transactions.
+    Use this section to estimate a contribution plan for an account goal and then create recurring plan rules.
     <br />
     <strong>Prerequisite:</strong> set <strong>Goal Amount</strong> and <strong>Goal Date</strong> on an account in the Accounts grid.
     <br />
@@ -1188,7 +1195,7 @@ export async function loadGeneratePlanSection({
       <option value="">-- Choose an account --</option>
       ${selectableAccounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('')}
     </select>
-    <div class="text-muted" style="margin-top:4px;">Source account used when generating the planned contribution transactions.</div>
+    <div class="text-muted" style="margin-top:4px;">Source account used for the planned contributions.</div>
   `;
   window.add(formContainer, incomeRowDiv);
 
@@ -1215,7 +1222,7 @@ export async function loadGeneratePlanSection({
       <option value="4">Quarterly</option>
       <option value="5">Yearly</option>
     </select>
-    <div class="text-muted" style="margin-top:4px;">Controls how often the planned contribution transaction will occur.</div>
+    <div class="text-muted" style="margin-top:4px;">Controls how often the planned contribution repeats.</div>
   `;
   window.add(formContainer, frequencyDiv);
 
@@ -1515,6 +1522,7 @@ export async function loadGeneratePlanSection({
 
       // Reload everything
       const refreshed = await getScenario(scenario.id);
+      if (!isRenderCurrent()) return;
       scenarioState?.set?.(refreshed);
 
       await loadMasterTransactionsGrid(document.getElementById('transactionsTable'));
@@ -1523,7 +1531,7 @@ export async function loadGeneratePlanSection({
       // Format currency for alert message (plain text, no HTML)
       const formattedAmount = formatCurrency(Math.abs(scheduledContribution));
 
-      notifySuccess(`Goal plan generated! ${getFrequencyName(frequency).toLowerCase()} transaction of ${formattedAmount} created.`);
+      notifySuccess(`Goal plan generated! ${getFrequencyName(frequency).toLowerCase()} plan rule of ${formattedAmount} created.`);
 
       // Reset form
       accountSelect.value = '';

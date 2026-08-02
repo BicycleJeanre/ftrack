@@ -48,7 +48,8 @@ The application includes comprehensive user-facing documentation accessible from
 **Documentation Sections**:
 1. **Getting Started** → Setup first budget and scenarios
 2. **Accounts** → Account types, balances, and management
-3. **Transactions** → Rules, period occurrences, baselines, and actuals
+3. **Plan & Actuals** → Recurring rules, dated occurrences, baselines, actuals,
+   and variance
 4. **Projections** → Resolved-plan forecasts and freshness
 5. **Recurrence** → Setting up repeating transactions
 6. **Periodic Changes** → Automatic adjustments (raises, inflation)

@@ -29,9 +29,9 @@ Examples include:
 - an annual insurance payment; or
 - a one-time purchase on a known date.
 
-Create and maintain rules in **Plan & Actuals → Recurring** when using the
-Budget workflow. Other workflows expose the same rule data in the
-**Transactions** card.
+Create and maintain rules in **Plan & Actuals → Recurring** in any primary
+workflow. Budget opens on Period by default; General, Funds, Debt Repayment,
+and Goal Workshop open on Recurring by default.
 
 A rule may include:
 

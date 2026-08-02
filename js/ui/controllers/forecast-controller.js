@@ -12,13 +12,18 @@ import { openPeriodicChangeModal } from '../components/modals/periodic-change-mo
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
-import keyboardShortcuts from '../../shared/keyboard-shortcuts.js';
+import '../../shared/keyboard-shortcuts.js';
 import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
 import { initTooltips } from '../../shared/tooltips.js';
 import { getScenarioProjectionRows, mapPeriodTypeNameToId } from '../../shared/app-data-utils.js';
-import { DEFAULT_WORKFLOW_ID, WORKFLOWS, getWorkflowById } from '../../shared/workflow-registry.js';
+import {
+  DEFAULT_WORKFLOW_ID,
+  WORKFLOWS,
+  getWorkflowActivity,
+  getWorkflowById
+} from '../../shared/workflow-registry.js';
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
@@ -37,8 +42,14 @@ import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
   loadAccountsGrid as loadAccountsGridCore
 } from '../components/grids/accounts-grid.js';
-import { loadMasterTransactionsGrid as loadMasterTransactionsGridCore } from '../components/grids/transactions-grid.js';
-import { loadPlanActualsGrid as loadPlanActualsGridCore } from '../components/grids/plan-actuals-grid.js';
+import {
+  loadMasterTransactionsGrid as loadMasterTransactionsGridCore,
+  teardownRecurringRulesDetailGrid
+} from '../components/grids/transactions-grid.js';
+import {
+  loadPlanActualsGrid as loadPlanActualsGridCore,
+  teardownPlanActualsGrid as teardownPlanActualsGridCore
+} from '../components/grids/plan-actuals-grid.js';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js';
@@ -95,7 +106,20 @@ let budgetGroupBy = ''; // '' = None, 'transactionTypeName', 'statusName', 'seco
 // Projections context - additional filter state
 let projectionsGroupBy = ''; // '' = None, 'accountType', 'secondaryAccountName'
 
-let budgetGridLoadToken = 0; // Prevent stale budget renders
+let planningRefreshGeneration = 0;
+let pendingPlanningRefresh = null;
+let activePlanningRefresh = null;
+let planningRefreshDrainPromise = null;
+const planningNavigationGenerations = {
+  scenario: 0,
+  workflow: 0,
+  refresh: 0,
+  projection: 0
+};
+let planningNavigationTail = Promise.resolve();
+let planningNavigationPendingCount = 0;
+let resolvePlanningNavigationIdle = null;
+let planningNavigationIdlePromise = Promise.resolve();
 let scenariosTable = null; // Store scenarios table instance to preserve selection/scroll
 let masterTransactionsTable = null; // Store transactions table instance for filtering
 let masterBudgetTable = null; // Store budget table instance for filtering
@@ -243,6 +267,32 @@ function getWorkflowConfig() {
   return getWorkflowById(currentWorkflowId);
 }
 
+function getActivityConfig(workflowConfig = getWorkflowConfig()) {
+  return getWorkflowActivity(workflowConfig);
+}
+
+function setCurrentScenarioIfActive(nextScenario) {
+  const activeScenarioId = Number(currentScenario?.id || 0);
+  const nextScenarioId = Number(nextScenario?.id || 0);
+  if (
+    !activeScenarioId ||
+    !nextScenarioId ||
+    nextScenarioId !== activeScenarioId
+  ) {
+    logger.warn(
+      '[Forecast] Ignored a stale component scenario update.',
+      { activeScenarioId, nextScenarioId }
+    );
+    return false;
+  }
+  currentScenario = nextScenario;
+  return true;
+}
+
+function workflowShowsPlanActuals(workflowConfig = getWorkflowConfig()) {
+  return getActivityConfig(workflowConfig)?.surface === 'planActuals';
+}
+
 function isDebtWorkflow(workflowConfig) {
   return workflowConfig?.summaryMode === 'debt';
 }
@@ -267,7 +317,8 @@ async function patchUiState(nextPartial) {
 async function loadUiState() {
   uiState = await UiStateManager.get();
 
-  currentWorkflowId = DEFAULT_WORKFLOW_ID;
+  currentWorkflowId = getWorkflowById(uiState?.lastWorkflowId || DEFAULT_WORKFLOW_ID)?.id ||
+    DEFAULT_WORKFLOW_ID;
 
   const view = uiState?.viewPeriodTypeIds || {};
   actualPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.transactions) || 3] || 'Month';
@@ -304,41 +355,85 @@ function updateProjectionTotals(container, projections = null) {
 async function setCurrentScenarioById(scenarioId) {
   const idNum = scenarioId != null ? Number(scenarioId) : null;
   if (!Number.isFinite(idNum)) return;
-  if (currentScenario && Number(currentScenario.id) === idNum) return;
+  return runPlanningNavigation(async (isCurrentNavigation) => {
+    const next = await getScenario(idNum);
+    if (!next || !isCurrentNavigation()) return;
 
-  const next = await getScenario(idNum);
-  if (!next) return;
+    currentScenario = next;
+    // Reset all filter state across contexts
+    // Transactions context
+    transactionsAccountFilterId = null;
+    transactionsStatusFilter = '';
+    actualPeriod = null;
+    transactionsGroupBy = '';
+    transactionsAllPeriodsExpanded = false;
+    // Budget context
+    budgetAccountFilterId = null;
+    budgetStatusFilter = '';
+    budgetPeriod = null;
+    budgetGroupBy = '';
+    // Projections context
+    projectionsAccountFilterId = null;
+    projectionPeriod = null;
+    projectionsGroupBy = '';
+    // Clear computed period lists so each grid recomputes from the new scenario's date window.
+    // Period TYPES are preserved (user preference), but period arrays must be invalidated.
+    transactionsPeriods = [];
+    budgetPeriods = [];
+    projectionPeriods = [];
 
-  currentScenario = next;
-  // Reset all filter state across contexts
-  // Transactions context
+    await patchUiState({
+      lastScenarioId: currentScenario.id,
+      lastScenarioVersion: currentScenario.version
+    });
+    if (!isCurrentNavigation()) return;
+
+    await loadScenarioData();
+    if (isCurrentNavigation()) {
+      requestStaleProjectionRefresh(currentScenario);
+    }
+  }, {
+    lane: 'scenario',
+    reason: `scenario ${idNum}`
+  });
+}
+
+function resetScenarioScopedCaches() {
   transactionsAccountFilterId = null;
   transactionsStatusFilter = '';
   actualPeriod = null;
   transactionsGroupBy = '';
   transactionsAllPeriodsExpanded = false;
-  // Budget context
   budgetAccountFilterId = null;
   budgetStatusFilter = '';
   budgetPeriod = null;
   budgetGroupBy = '';
-  // Projections context
   projectionsAccountFilterId = null;
   projectionPeriod = null;
   projectionsGroupBy = '';
-  // Clear computed period lists so each grid recomputes from the new scenario's date window.
-  // Period TYPES are preserved (user preference), but period arrays must be invalidated.
   transactionsPeriods = [];
   budgetPeriods = [];
   projectionPeriods = [];
+  summaryCardsAccountTypeFilter = 'All';
+  generalSummaryScope = 'All';
+  generalSummaryAccountId = 0;
+  fundSummaryScope = 'All';
+}
 
-  await patchUiState({
-    lastScenarioId: currentScenario.id,
-    lastScenarioVersion: currentScenario.version
+async function clearCurrentScenario() {
+  return runPlanningNavigation(async (isCurrentNavigation) => {
+    currentScenario = null;
+    resetScenarioScopedCaches();
+    await patchUiState({
+      lastScenarioId: null,
+      lastScenarioVersion: null
+    });
+    if (!isCurrentNavigation()) return;
+    await loadScenarioData();
+  }, {
+    lane: 'scenario',
+    reason: 'no scenarios available'
   });
-
-  await loadScenarioData();
-  requestStaleProjectionRefresh(currentScenario);
 }
 
 function requestStaleProjectionRefresh(scenario) {
@@ -691,6 +786,7 @@ async function buildScenarioGrid(container) {
       placeholder.className = 'scenarios-list-placeholder';
       placeholder.textContent = 'No scenarios yet. Click + Add New to create your first scenario.';
       listContainer.appendChild(placeholder);
+      await clearCurrentScenario();
     } else {
       scenarios.forEach((scenario) => {
         const item = document.createElement('div');
@@ -892,17 +988,17 @@ async function buildScenarioGrid(container) {
  * Load the Generate Plan section for Goal Workshop scenarios
  */
 async function loadGeneratePlanSection(container) {
+  const isRenderCurrent = capturePlanningRenderAuthority();
   return loadGeneratePlanSectionCore({
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     workflowId: getWorkflowConfig()?.id,
-    loadMasterTransactionsGrid,
+    loadMasterTransactionsGrid: reloadActiveFinancialActivity,
     loadProjectionsSection,
+    isRenderCurrent,
     logger
   });
 }
@@ -916,12 +1012,10 @@ function buildAccountsGridColumns(lookupData, workflowConfig = null) {
     workflowConfig,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     reloadAccountsGrid: loadAccountsGrid,
-    reloadMasterTransactionsGrid: loadMasterTransactionsGrid,
+    reloadMasterTransactionsGrid: reloadActiveFinancialActivity,
     logger
   });
 }
@@ -932,25 +1026,25 @@ async function loadAccountsGrid(container) {
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     getWorkflowConfig,
-    reloadMasterTransactionsGrid: loadMasterTransactionsGrid,
+    reloadMasterTransactionsGrid: reloadActiveFinancialActivity,
     logger
   });
 }
 
 // Load master transactions grid (unified planned and actual)
-async function loadMasterTransactionsGrid(container, { rulesOnly = false } = {}) {
+async function loadMasterTransactionsGrid(
+  container,
+  { rulesOnly = false, presentation = null } = {}
+) {
+  const isRenderCurrent = capturePlanningRenderAuthority();
   return loadMasterTransactionsGridCore({
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     getWorkflowConfig: () => {
       const workflow = getWorkflowConfig();
@@ -959,7 +1053,9 @@ async function loadMasterTransactionsGrid(container, { rulesOnly = false } = {})
             ...workflow,
             showPlannedTransactions: true,
             showActualTransactions: false,
-            transactionsMode: 'summary',
+            transactionsMode: presentation?.mode === 'detail'
+              ? 'rules-detail'
+              : 'summary',
             rulesOnly: true
           }
         : workflow;
@@ -1011,23 +1107,259 @@ async function loadMasterTransactionsGrid(container, { rulesOnly = false } = {})
     callbacks: {
       updateTransactionTotals,
       updateBudgetTotals,
-      loadProjectionsSection,
-      refreshSummaryCards,
+      loadProjectionsSection: (...args) => (
+        isRenderCurrent() ? loadProjectionsSection(...args) : Promise.resolve()
+      ),
+      refreshSummaryCards: (...args) => (
+        isRenderCurrent() ? refreshSummaryCards(...args) : Promise.resolve()
+      ),
+      isRenderCurrent,
       getEl
     },
     logger
   });
 }
 
+async function renderActiveFinancialActivity() {
+  const activity = getActivityConfig();
+  if (activity?.surface === 'planActuals') {
+    const container = getEl('budgetTable');
+    if (container) return loadBudgetGrid(container);
+    return;
+  }
+  if (activity?.surface === 'transactions') {
+    const container = getEl('transactionsTable');
+    if (container) return loadMasterTransactionsGrid(container);
+  }
+}
+
+function isPlanningRefreshCurrent(request) {
+  return (
+    request?.generation === planningRefreshGeneration &&
+    Number(currentScenario?.id || 0) === Number(request?.scenarioId || 0)
+  );
+}
+
+async function applyPlanningRefresh(request) {
+  const refreshed = await getScenario(request.scenarioId);
+  if (!refreshed || !isPlanningRefreshCurrent(request)) return;
+
+  currentScenario = refreshed;
+
+  if (request.refreshActivity) {
+    await renderActiveFinancialActivity();
+    if (!isPlanningRefreshCurrent(request)) return;
+  }
+
+  if (request.includeGeneratePlan && getWorkflowConfig()?.showGeneratePlan) {
+    const generatePlanContainer = getEl('generatePlanContent');
+    if (generatePlanContainer) {
+      await loadGeneratePlanSection(generatePlanContainer);
+      if (!isPlanningRefreshCurrent(request)) return;
+    }
+  }
+
+  if (request.includeProjections && getWorkflowConfig()?.showProjections) {
+    const projectionsContainer = getEl('projectionsContent');
+    if (projectionsContainer) {
+      await loadProjectionsSection(projectionsContainer);
+      if (!isPlanningRefreshCurrent(request)) return;
+    }
+  }
+
+  if (request.includeSummary) {
+    await refreshSummaryCards();
+  }
+}
+
+async function drainPlanningRefreshes() {
+  // Manager events are dispatched before their caller resumes. Waiting one
+  // turn lets the caller finish setting editor state and coalesces any legacy
+  // callback/event pair into one authoritative refresh.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  while (pendingPlanningRefresh) {
+    const request = pendingPlanningRefresh;
+    pendingPlanningRefresh = null;
+    activePlanningRefresh = request;
+    try {
+      await applyPlanningRefresh(request);
+    } catch (error) {
+      logger.error(
+        `[PlanningRefresh] Failed to refresh after ${request.reason || 'a planning change'}:`,
+        error
+      );
+    } finally {
+      if (activePlanningRefresh === request) {
+        activePlanningRefresh = null;
+      }
+    }
+  }
+}
+
+function ensurePlanningRefreshDrain() {
+  // A refresh requested from inside (or while waiting behind) navigation must
+  // stay pending until every queued navigation has finished. Starting its
+  // drain here would deadlock with runPlanningNavigation's pre-action refresh
+  // barrier, which intentionally waits for drains that predate navigation.
+  if (planningNavigationPendingCount > 0) {
+    return planningNavigationIdlePromise.then(() => ensurePlanningRefreshDrain());
+  }
+
+  if (!planningRefreshDrainPromise) {
+    planningRefreshDrainPromise = drainPlanningRefreshes().finally(() => {
+      planningRefreshDrainPromise = null;
+      if (pendingPlanningRefresh) {
+        return ensurePlanningRefreshDrain();
+      }
+      return undefined;
+    });
+  }
+  return planningRefreshDrainPromise;
+}
+
+function requestPlanningRefresh({
+  scenarioId = currentScenario?.id,
+  refreshActivity = true,
+  includeGeneratePlan = false,
+  includeProjections = false,
+  includeSummary = false,
+  reason = ''
+} = {}) {
+  const normalizedScenarioId = Number(scenarioId || 0);
+  if (!normalizedScenarioId) return Promise.resolve();
+
+  const generation = ++planningRefreshGeneration;
+  const carry = (
+    Number(pendingPlanningRefresh?.scenarioId || 0) === normalizedScenarioId
+      ? pendingPlanningRefresh
+      : (
+          Number(activePlanningRefresh?.scenarioId || 0) === normalizedScenarioId
+            ? activePlanningRefresh
+            : null
+        )
+  );
+  pendingPlanningRefresh = {
+    generation,
+    scenarioId: normalizedScenarioId,
+    refreshActivity: Boolean(refreshActivity || carry?.refreshActivity),
+    includeGeneratePlan: Boolean(includeGeneratePlan || carry?.includeGeneratePlan),
+    includeProjections: Boolean(includeProjections || carry?.includeProjections),
+    includeSummary: Boolean(includeSummary || carry?.includeSummary),
+    reason: reason || carry?.reason || 'a planning change'
+  };
+
+  return ensurePlanningRefreshDrain();
+}
+
+function invalidatePlanningRefreshesForNavigation() {
+  planningRefreshGeneration += 1;
+  pendingPlanningRefresh = null;
+}
+
+async function awaitPlanningRefreshNavigationBarrier() {
+  invalidatePlanningRefreshesForNavigation();
+
+  while (planningRefreshDrainPromise) {
+    const inFlightDrain = planningRefreshDrainPromise;
+    try {
+      await inFlightDrain;
+    } catch (error) {
+      logger.error('[PlanningRefresh] Navigation barrier drain failed:', error);
+    }
+    // A request may have arrived while the previous render was unwinding.
+    // Invalidate it before checking whether another drain must be awaited.
+    invalidatePlanningRefreshesForNavigation();
+  }
+}
+
+function runPlanningNavigation(
+  action,
+  {
+    lane,
+    reason = 'planning navigation'
+  } = {}
+) {
+  if (!Object.prototype.hasOwnProperty.call(planningNavigationGenerations, lane)) {
+    throw new Error(`Unknown planning navigation lane: ${lane}`);
+  }
+  const navigationGeneration = ++planningNavigationGenerations[lane];
+  planningNavigationPendingCount += 1;
+  if (planningNavigationPendingCount === 1) {
+    planningNavigationIdlePromise = new Promise((resolve) => {
+      resolvePlanningNavigationIdle = resolve;
+    });
+  }
+
+  // Invalidate synchronously so an already-running refresh cannot remain
+  // authoritative while this navigation waits its turn.
+  invalidatePlanningRefreshesForNavigation();
+
+  const operation = planningNavigationTail.then(async () => {
+    await awaitPlanningRefreshNavigationBarrier();
+    if (navigationGeneration !== planningNavigationGenerations[lane]) return false;
+
+    const isCurrentNavigation = () => (
+      navigationGeneration === planningNavigationGenerations[lane]
+    );
+    await action(isCurrentNavigation);
+    return isCurrentNavigation();
+  });
+
+  const trackedOperation = operation.finally(() => {
+    planningNavigationPendingCount = Math.max(0, planningNavigationPendingCount - 1);
+    if (planningNavigationPendingCount === 0) {
+      const resolveIdle = resolvePlanningNavigationIdle;
+      resolvePlanningNavigationIdle = null;
+      resolveIdle?.();
+    }
+  });
+
+  // Keep later navigations serial even when the caller handles an error.
+  planningNavigationTail = trackedOperation.catch((error) => {
+    logger.error(`[PlanningNavigation] Failed during ${reason}:`, error);
+  });
+  return trackedOperation;
+}
+
+function capturePlanningRenderAuthority() {
+  const scenarioId = Number(currentScenario?.id || 0);
+  const workflowId = getWorkflowConfig()?.id || null;
+  const scenarioGeneration = planningNavigationGenerations.scenario;
+  const workflowGeneration = planningNavigationGenerations.workflow;
+
+  return () => (
+    Number(currentScenario?.id || 0) === scenarioId &&
+    (getWorkflowConfig()?.id || null) === workflowId &&
+    planningNavigationGenerations.scenario === scenarioGeneration &&
+    planningNavigationGenerations.workflow === workflowGeneration
+  );
+}
+
+async function reloadActiveFinancialActivity() {
+  return requestPlanningRefresh({
+    scenarioId: currentScenario?.id,
+    refreshActivity: true,
+    reason: 'an activity callback'
+  });
+}
+
 // Load budget grid
 async function loadBudgetGrid(container) {
+  const isRenderCurrent = capturePlanningRenderAuthority();
+  const workflow = getWorkflowConfig();
+  const activity = getActivityConfig(workflow) || {};
+  const presentation = {
+    mode: activity.presentation || (workflow?.budgetMode === 'detail' ? 'detail' : 'summary'),
+    contextKey: workflow?.id || 'plan-actuals',
+    defaultView: activity.defaultView || 'period'
+  };
+
   return loadPlanActualsGridCore({
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     state: {
       getBudgetAccountFilterId: () => budgetAccountFilterId,
@@ -1058,10 +1390,18 @@ async function loadBudgetGrid(container) {
         budgetGroupBy = nextField;
       }
     },
+    presentation,
     callbacks: {
-      loadRecurringView: (recurringContainer) => (
-        loadMasterTransactionsGrid(recurringContainer, { rulesOnly: true })
-      )
+      teardownRecurringView: teardownRecurringRulesDetailGrid,
+      loadRecurringView: (recurringContainer, recurringPresentation = presentation) => (
+        isRenderCurrent()
+          ? loadMasterTransactionsGrid(recurringContainer, {
+              rulesOnly: true,
+              presentation: recurringPresentation
+            })
+          : Promise.resolve()
+      ),
+      isRenderCurrent
     },
     logger
   });
@@ -1085,6 +1425,11 @@ async function loadDebtSummaryCards(container, options = {}) {
   }
 
   const scrollSnapshot = getPageScrollSnapshot();
+
+  // The overall card lives alongside (rather than inside) the grouped cards.
+  // Remove the previous render before handling filters or appending the next
+  // one so repeated refreshes and filter changes remain idempotent.
+  container.querySelectorAll(':scope > .overall-total').forEach((el) => el.remove());
 
   // Render account-type selector in filter modal
   let filterSelect = container.querySelector('#summary-cards-type-filter');
@@ -2048,24 +2393,18 @@ async function refreshSummaryCards() {
     return;
   }
 
-  // Minimal plan requirement: General + Funds summaries refresh after edits.
-  if (!isGeneralWorkflow(workflowConfig) && !isFundsWorkflow(workflowConfig)) {
-    return;
-  }
-
   const useSimple = isGeneralWorkflow(workflowConfig);
   await loadSummaryCards(getEl('summaryCardsContent'), { simple: useSimple });
 }
 
 // Load projections section (buttons and grid)
 async function loadProjectionsSection(container) {
+  const isRenderCurrent = capturePlanningRenderAuthority();
   return loadProjectionsSectionCore({
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     getWorkflowConfig,
     state: {
@@ -2102,16 +2441,117 @@ async function loadProjectionsSection(container) {
       getMasterBudgetTable: () => masterBudgetTable
     },
     callbacks: {
-      loadBudgetGrid,
-      loadSummaryCards,
+      loadBudgetGrid: (...args) => (
+        isRenderCurrent() ? loadBudgetGrid(...args) : Promise.resolve()
+      ),
+      loadSummaryCards: (...args) => (
+        isRenderCurrent() ? loadSummaryCards(...args) : Promise.resolve()
+      ),
       updateTransactionTotals,
       updateBudgetTotals,
       updateProjectionTotals,
+      runProjectionNavigation: (
+        action,
+        {
+          reason = 'projection action',
+          periodWindowChanged = false
+        } = {}
+      ) => (
+        runPlanningNavigation(async (isCurrentNavigation) => {
+          const completed = await action(isCurrentNavigation);
+          if (!completed || !isCurrentNavigation()) return;
+
+          const workflowConfig = getWorkflowConfig();
+          if (periodWindowChanged) {
+            projectionPeriods = [];
+            projectionPeriod = null;
+            budgetPeriods = [];
+            budgetPeriod = null;
+
+            if (workflowShowsPlanActuals(workflowConfig)) {
+              const budgetContainer = getEl('budgetTable');
+              if (budgetContainer) {
+                await loadBudgetGrid(budgetContainer);
+                if (!isCurrentNavigation()) return;
+              }
+            }
+
+            if (workflowConfig?.showProjections) {
+              const projectionsContainer = getEl('projectionsContent');
+              if (projectionsContainer) {
+                await loadProjectionsSection(projectionsContainer);
+                if (!isCurrentNavigation()) return;
+              }
+            }
+          }
+
+          if (workflowConfig?.showSummaryCards) {
+            await refreshSummaryCards();
+          }
+        }, {
+          lane: 'projection',
+          reason
+        })
+      ),
       getFilteredProjections,
+      isRenderCurrent,
       getEl
     },
     logger
   });
+}
+
+function renderNoScenarioPlaceholder(container) {
+  if (!container) return;
+  const placeholder = document.createElement('div');
+  placeholder.className = 'empty-message';
+  placeholder.dataset.emptyReason = 'no-scenario';
+  placeholder.textContent = 'No scenario selected. Create a scenario to begin.';
+  container.replaceChildren(placeholder);
+}
+
+function clearScenarioDataSurfaces(containers) {
+  teardownPlanActualsGridCore({
+    container: containers.budgetTable,
+    teardownRecurringView: teardownRecurringRulesDetailGrid
+  });
+
+  for (const table of [
+    masterTransactionsTable,
+    masterBudgetTable,
+    fundSummaryTable,
+    generalSummaryTable
+  ]) {
+    try {
+      table?.destroy?.();
+    } catch (_) {
+      // A detached table must not prevent the remaining surfaces from clearing.
+    }
+  }
+  masterTransactionsTable = null;
+  masterBudgetTable = null;
+  fundSummaryTable = null;
+  generalSummaryTable = null;
+
+  [
+    'accountsSection',
+    'transactionsSection',
+    'budgetSection',
+    'projectionsSection'
+  ].forEach((sectionId) => {
+    const controls = getEl(sectionId)?.querySelector('.card-header-controls');
+    controls?.replaceChildren();
+  });
+  document.querySelectorAll('.filter-modal-overlay').forEach((overlay) => overlay.remove());
+
+  [
+    containers.accountsTable,
+    containers.transactionsTable,
+    containers.budgetTable,
+    containers.projectionsContent,
+    containers.summaryCardsContent,
+    getEl('generatePlanContent')
+  ].forEach(renderNoScenarioPlaceholder);
 }
 
 // Load all data for current scenario
@@ -2140,11 +2580,10 @@ async function loadScenarioData() {
 
   const showAccounts = workflowConfig ? !!workflowConfig.showAccounts : true;
   const showGeneratePlan = workflowConfig ? !!workflowConfig.showGeneratePlan : false;
-  const showTransactions = workflowConfig
-    ? !!(workflowConfig.showPlannedTransactions || workflowConfig.showActualTransactions)
-    : true;
+  const activity = getActivityConfig(workflowConfig);
+  const showTransactions = activity?.surface === 'transactions';
   const showProjections = workflowConfig ? !!workflowConfig.showProjections : true;
-  const showBudget = workflowConfig ? workflowConfig.showBudget !== false : true;
+  const showBudget = activity?.surface === 'planActuals';
   const showSummaryCards = workflowConfig ? !!workflowConfig.showSummaryCards : false;
   
   if (showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
@@ -2158,8 +2597,8 @@ async function loadScenarioData() {
   const middleTitle = rowMiddle?.querySelector(':scope > .dash-row-header .dash-row-title');
   if (middleTitle) {
     middleTitle.textContent = showAccounts && showTransactions
-      ? 'Accounts & Transactions'
-      : (showAccounts ? 'Accounts' : 'Transactions');
+      ? 'Accounts & Planning'
+      : (showAccounts ? 'Accounts' : 'Planning');
   }
 
   // For detail workflows: hide the outer accordion wrapper and expand the
@@ -2181,7 +2620,7 @@ async function loadScenarioData() {
   }
 
   if (budgetSection) {
-    if (workflowConfig?.budgetMode === 'detail') {
+    if (showBudget && activity?.presentation === 'detail') {
       budgetSection.classList.add('mode-detail');
     } else {
       budgetSection.classList.remove('mode-detail');
@@ -2194,6 +2633,11 @@ async function loadScenarioData() {
     } else {
       projectionsSection.classList.remove('mode-detail');
     }
+  }
+
+  if (!currentScenario) {
+    clearScenarioDataSurfaces(containers);
+    return;
   }
 
   // Clear any stale placeholders without destroying stable grid containers.
@@ -2224,7 +2668,10 @@ async function loadScenarioData() {
   if (showBudget) {
     await loadBudgetGrid(containers.budgetTable);
   } else {
-    containers.budgetTable.innerHTML = '';
+    teardownPlanActualsGridCore({
+      container: containers.budgetTable,
+      teardownRecurringView: teardownRecurringRulesDetailGrid
+    });
   }
 
   if (showProjections) {
@@ -2265,17 +2712,18 @@ function renderWorkflowNav(container) {
         }
       };
 
-      if (nextId === currentWorkflowId) {
-        closeMobileSidebar();
-        return;
-      }
-
-      currentWorkflowId = nextId;
-      await patchUiState({ lastWorkflowId: nextId });
-      renderWorkflowNav(container);
-
       try {
-        await loadScenarioData();
+        await runPlanningNavigation(async (isCurrentNavigation) => {
+          currentWorkflowId = nextId;
+          await patchUiState({ lastWorkflowId: nextId });
+          if (!isCurrentNavigation()) return;
+
+          renderWorkflowNav(container);
+          await loadScenarioData();
+        }, {
+          lane: 'workflow',
+          reason: `workflow ${nextId}`
+        });
       } catch (err) {
         logger.error('[WorkflowNav] Failed to reload scenario data after workflow switch:', err);
       } finally {
@@ -2304,13 +2752,16 @@ async function init() {
     }
   });
   renderWorkflowNav(containers.workflowNav);
-  initializeKeyboardShortcuts();
-  document.addEventListener('forecast:accountsUpdated', async () => {
-    try {
-      await refreshSummaryCards();
-    } catch (e) {
-      // keep existing behavior: ignore
-    }
+  document.addEventListener('forecast:accountsUpdated', () => {
+    const workflowConfig = getWorkflowConfig();
+    void requestPlanningRefresh({
+      scenarioId: currentScenario?.id,
+      refreshActivity: true,
+      includeGeneratePlan: Boolean(workflowConfig?.showGeneratePlan),
+      includeProjections: Boolean(workflowConfig?.showProjections),
+      includeSummary: Boolean(workflowConfig?.showSummaryCards),
+      reason: 'an account change'
+    });
   });
 
   let refreshInFlight = false;
@@ -2325,16 +2776,24 @@ async function init() {
       refreshButton.setAttribute('aria-busy', 'true');
     }
     try {
-      const refreshedScenario = await getScenario(currentScenario.id);
-      if (refreshedScenario) {
+      await runPlanningNavigation(async (isCurrentNavigation) => {
+        const scenarioId = Number(currentScenario?.id || 0);
+        if (!scenarioId || !isCurrentNavigation()) return;
+
+        const refreshedScenario = await getScenario(scenarioId);
+        if (!refreshedScenario || !isCurrentNavigation()) return;
+
         currentScenario = refreshedScenario;
-      }
-      // Clear cached period arrays so all grids recompute from the freshly-loaded
-      // scenario's date window (budget window / projection config may have changed).
-      transactionsPeriods = [];
-      budgetPeriods = [];
-      projectionPeriods = [];
-      await loadScenarioData();
+        // Clear cached period arrays so all grids recompute from the freshly-loaded
+        // scenario's date window (budget window / projection config may have changed).
+        transactionsPeriods = [];
+        budgetPeriods = [];
+        projectionPeriods = [];
+        await loadScenarioData();
+      }, {
+        lane: 'refresh',
+        reason: 'manual refresh'
+      });
     } catch (err) {
       logger.error('[Forecast] Refresh failed:', err);
     } finally {
@@ -2348,7 +2807,6 @@ async function init() {
   });
 
   const projectionRefreshTimers = new Map();
-  let planChangedReloadToken = 0;
   document.addEventListener('forecast:planChanged', (event) => {
     const scenarioId = Number(event?.detail?.scenarioId || currentScenario?.id || 0);
     if (!scenarioId || Number(currentScenario?.id || 0) !== scenarioId) return;
@@ -2357,27 +2815,15 @@ async function init() {
       document.documentElement.dataset.projectionRefreshingScenarioId = String(scenarioId);
     }
 
-    const reloadToken = ++planChangedReloadToken;
-    void (async () => {
-      try {
-        const refreshed = await getScenario(scenarioId);
-        if (!refreshed || reloadToken !== planChangedReloadToken) return;
-        if (Number(currentScenario?.id || 0) !== scenarioId) return;
-        currentScenario = refreshed;
-
-        const workflowConfig = getWorkflowConfig();
-        if (workflowConfig?.showPlanActuals) {
-          const planContainer = getEl('budgetTable');
-          if (planContainer) await loadBudgetGrid(planContainer);
-        }
-        if (workflowConfig?.showProjections) {
-          const projectionsContainer = getEl('projectionsContent');
-          if (projectionsContainer) await loadProjectionsSection(projectionsContainer);
-        }
-      } catch (err) {
-        logger.error('[PlanActuals] Failed to refresh after a plan change:', err);
-      }
-    })();
+    const workflowConfig = getWorkflowConfig();
+    void requestPlanningRefresh({
+      scenarioId,
+      refreshActivity: workflowShowsPlanActuals(workflowConfig),
+      includeGeneratePlan: Boolean(workflowConfig?.showGeneratePlan),
+      includeProjections: Boolean(workflowConfig?.showProjections),
+      includeSummary: Boolean(workflowConfig?.showSummaryCards),
+      reason: event?.detail?.reason || 'a plan change'
+    });
 
     const existingTimer = projectionRefreshTimers.get(scenarioId);
     if (existingTimer) clearTimeout(existingTimer);
@@ -2398,26 +2844,14 @@ async function init() {
           openCommitmentStartDate: config.openCommitmentStartDate ?? null
         });
 
-        const refreshed = await getScenario(scenarioId);
-        if (!refreshed || Number(currentScenario?.id || 0) !== scenarioId) return;
-        currentScenario = refreshed;
-        if (
-          document.documentElement.dataset.projectionRefreshingScenarioId ===
-          String(scenarioId)
-        ) {
-          delete document.documentElement.dataset.projectionRefreshingScenarioId;
-        }
-
         const workflowConfig = getWorkflowConfig();
-        if (workflowConfig?.showPlanActuals) {
-          const planContainer = getEl('budgetTable');
-          if (planContainer) await loadBudgetGrid(planContainer);
-        }
-        if (workflowConfig?.showProjections) {
-          const projectionsContainer = getEl('projectionsContent');
-          if (projectionsContainer) await loadProjectionsSection(projectionsContainer);
-        }
-        await refreshSummaryCards();
+        await requestPlanningRefresh({
+          scenarioId,
+          refreshActivity: false,
+          includeProjections: Boolean(workflowConfig?.showProjections),
+          includeSummary: Boolean(workflowConfig?.showSummaryCards),
+          reason: 'automatic projection generation'
+        });
       } catch (err) {
         logger.error('[Projections] Automatic refresh failed:', err);
       } finally {
@@ -2436,23 +2870,6 @@ async function init() {
   // loadScenarioData is called from buildScenarioGrid when the initial scenario is set.
   
 }
-
-/**
- * Initialize keyboard shortcut event listeners
- */
-function initializeKeyboardShortcuts() {
-  // Listen for shortcut events
-  document.addEventListener('shortcut:generateProjections', async () => {
-    if (currentScenario) {
-      const projectionsContainer = document.getElementById('projectionsContent');
-      if (projectionsContainer) {
-        await loadProjectionsSection(projectionsContainer);
-      }
-    }
-  });
-
-}
-
 
 init().catch(err => {
   console.error('forecast-controller: init failed', err);

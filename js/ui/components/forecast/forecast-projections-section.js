@@ -386,7 +386,75 @@ function applyProjectionsPeriodFilter({ projectionsTable = lastProjectionsTable,
   });
 }
 
-async function buildProjectionsHeaderControls({ controls, container, currentScenario, scenarioState, state, callbacks, reload, logger }) {
+async function runProjectionHeaderAction({
+  scenarioState,
+  getWorkflowConfig,
+  callbacks,
+  reload,
+  reason,
+  periodWindowChanged = false,
+  operation
+}) {
+  // Capture the click-time context before this action enters the controller's
+  // serialized navigation queue. A scenario/workflow click that happens while
+  // the action is waiting must make this request stale, rather than redirecting
+  // the projection operation at whatever context is current when it executes.
+  const requestedScenario = scenarioState?.get?.();
+  const requestedScenarioId = Number(requestedScenario?.id || 0);
+  const requestedWorkflowId = getWorkflowConfig?.()?.id || null;
+
+  const action = async (isCurrentNavigation = () => true) => {
+    const isStillCurrent = () => (
+      isCurrentNavigation() &&
+      Number(scenarioState?.get?.()?.id || 0) === requestedScenarioId &&
+      (!requestedWorkflowId || getWorkflowConfig?.()?.id === requestedWorkflowId)
+    );
+    if (!requestedScenarioId || !isStillCurrent()) return false;
+
+    await operation({
+      scenario: requestedScenario,
+      scenarioId: requestedScenarioId
+    });
+    if (!isStillCurrent()) return false;
+
+    const refreshed = await getScenario(requestedScenarioId);
+    if (!refreshed || !isStillCurrent()) return false;
+
+    scenarioState?.set?.(refreshed);
+    // The controller owns the wider Plan & Actuals + Projections refresh when
+    // the projection window changed. Standalone consumers still receive the
+    // component-local reload fallback.
+    if (
+      !periodWindowChanged ||
+      typeof callbacks?.runProjectionNavigation !== 'function'
+    ) {
+      await reload();
+    }
+    return isStillCurrent();
+  };
+
+  if (typeof callbacks?.runProjectionNavigation === 'function') {
+    return callbacks.runProjectionNavigation(action, {
+      reason,
+      periodWindowChanged
+    });
+  }
+  return action();
+}
+
+async function buildProjectionsHeaderControls({
+  controls,
+  container,
+  currentScenario,
+  scenarioState,
+  getWorkflowConfig,
+  state,
+  callbacks,
+  reload,
+  logger
+}) {
+  const isRenderCurrent = () => callbacks?.isRenderCurrent?.() !== false;
+  if (!isRenderCurrent()) return;
   controls.innerHTML = '';
 
   const regenBtn = document.createElement('button');
@@ -399,17 +467,21 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     try {
       regenBtn.textContent = '…';
       regenBtn.disabled = true;
-      const scenario = scenarioState?.get?.();
-      if (!scenario?.id) return;
-      const projConfig = scenario?.projection?.config || {};
-      await generateProjections(scenario.id, {
-        startDate: projConfig.startDate,
-        endDate: projConfig.endDate,
-        periodTypeId: projConfig.periodTypeId
+      await runProjectionHeaderAction({
+        scenarioState,
+        getWorkflowConfig,
+        callbacks,
+        reload,
+        reason: 'manual projection refresh',
+        operation: ({ scenario, scenarioId }) => {
+          const projConfig = scenario?.projection?.config || {};
+          return generateProjections(scenarioId, {
+            startDate: projConfig.startDate,
+            endDate: projConfig.endDate,
+            periodTypeId: projConfig.periodTypeId
+          });
+        }
       });
-      const refreshed = await getScenario(scenario.id);
-      scenarioState?.set?.(refreshed);
-      await reload();
     } catch (err) {
       notifyError('Failed to regenerate projections: ' + (err?.message || String(err)));
     } finally {
@@ -437,16 +509,19 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
       onConfirm: async ({ startDate, endDate, periodTypeId }) => {
         try {
           setPeriodBtn.disabled = true;
-          const current = scenarioState?.get?.();
-          if (!current?.id) return;
-          await generateProjections(current.id, {
-            startDate,
-            endDate,
-            periodTypeId
+          await runProjectionHeaderAction({
+            scenarioState,
+            getWorkflowConfig,
+            callbacks,
+            reload,
+            reason: 'set projection period',
+            periodWindowChanged: true,
+            operation: ({ scenarioId }) => generateProjections(scenarioId, {
+              startDate,
+              endDate,
+              periodTypeId
+            })
           });
-          const refreshed = await getScenario(current.id);
-          scenarioState?.set?.(refreshed);
-          await reload();
         } catch (err) {
           notifyError('Failed to set projection period: ' + (err?.message || String(err)));
         } finally {
@@ -468,6 +543,7 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
     }
     state?.setProjectionPeriods?.(projectionPeriods);
   }
+  if (!isRenderCurrent()) return;
 
   let projectionPeriod = state?.getProjectionPeriod?.();
   const hasValidPeriod = projectionPeriod && projectionPeriods.some((p) => p.id === projectionPeriod);
@@ -803,6 +879,8 @@ export async function loadProjectionsGrid({
   callbacks,
   logger
 }) {
+  const isRenderCurrent = () => callbacks?.isRenderCurrent?.() !== false;
+  if (!isRenderCurrent()) return;
   let currentScenario = scenarioState?.get?.();
   if (!currentScenario) return;
 
@@ -830,6 +908,7 @@ export async function loadProjectionsGrid({
         container,
         currentScenario,
         scenarioState,
+        getWorkflowConfig,
         state,
         callbacks,
         reload: reloadGrid,
@@ -837,6 +916,7 @@ export async function loadProjectionsGrid({
       });
     }
   }
+  if (!isRenderCurrent()) return;
 
   try {
     let projectionsGridContainer = container.querySelector('#projectionsGrid');
@@ -925,8 +1005,9 @@ export async function loadProjectionsGrid({
     } catch (_) {
       // ignore
     }
+    if (!isRenderCurrent()) return;
 
-    lastProjectionsTable = await createGrid(projectionsGridContainer, {
+    const nextProjectionsTable = await createGrid(projectionsGridContainer, {
       data: tableData,
       columns: [
         createDateColumn('Date', 'date', { width: 120 }),
@@ -951,6 +1032,15 @@ export async function loadProjectionsGrid({
       initialSort: [{ column: 'date', dir: 'asc' }],
       rowFormatter: (row) => renderProjectionsRowDetails({ row, rowData: row.getData() })
     });
+    if (!isRenderCurrent()) {
+      try {
+        nextProjectionsTable?.destroy?.();
+      } catch (_) {
+        // Ignore cleanup failures for a render superseded during grid creation.
+      }
+      return;
+    }
+    lastProjectionsTable = nextProjectionsTable;
 
     // Keep totals in sync with Tabulator filtering (period/account filters, header filters, etc.).
     try {
@@ -1021,6 +1111,8 @@ export async function loadProjectionsSection({
   callbacks,
   logger
 }) {
+  const isRenderCurrent = () => callbacks?.isRenderCurrent?.() !== false;
+  if (!isRenderCurrent()) return;
   const workflowConfig = getWorkflowConfig?.();
   if (workflowConfig?.id === 'projections-detail') {
     return loadProjectionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
@@ -1042,6 +1134,7 @@ export async function loadProjectionsSection({
         container,
         currentScenario,
         scenarioState,
+        getWorkflowConfig,
         state,
         callbacks,
         reload: async () => loadProjectionsSection({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger }),
@@ -1049,6 +1142,7 @@ export async function loadProjectionsSection({
       });
     }
   }
+  if (!isRenderCurrent()) return;
 
   try {
     projectionsGridState.capture(lastProjectionsTable, {
@@ -1083,6 +1177,7 @@ export async function loadProjectionsSection({
   }
 
   try {
+    if (!isRenderCurrent()) return;
     try {
       lastProjectionsTable = null;
     } catch (_) {
@@ -1143,6 +1238,7 @@ export async function loadProjectionsSection({
       state,
       accountMap
     });
+    if (!isRenderCurrent()) return;
 
     // Update totals before rendering list (keeps totals visible even if list is empty).
     try {

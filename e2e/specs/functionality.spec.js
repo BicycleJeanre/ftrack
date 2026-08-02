@@ -31,20 +31,18 @@ test.describe('frontend add and remove functionality', () => {
     await waitForCollectionCount(page, 'accounts', before);
   });
 
-  test('adds and removes a planned transaction from the Transactions section', async ({ page }) => {
+  test('adds a recurring plan rule from the unified Plan & Actuals section', async ({ page }) => {
     await selectWorkflow(page, 'General');
     const before = (await currentScenario(page)).transactions.length;
 
-    await openSectionFilters(page, '#transactionsSection');
-    await page.locator('.filter-modal button[title="Add Transaction"]').click();
+    await expect(page.getByRole('tab', { name: 'Recurring' }))
+      .toHaveAttribute('aria-selected', 'true');
+    await openSectionFilters(page, '#budgetSection');
+    await page.locator('.filter-modal button[title="Add recurring rule"]').click();
     await waitForCollectionCount(page, 'transactions', before + 1);
     await closeFilterModal(page);
 
-    const deleteButtons = page.locator('#transactionsTable button[title="Delete Transaction"]');
-    await expect(deleteButtons).toHaveCount(before + 1);
-    await deleteButtons.last().click();
-    await confirmDialog(page);
-    await waitForCollectionCount(page, 'transactions', before);
+    await expect(page.locator('#budgetTable .recurring-rule-card')).toHaveCount(before + 1);
   });
 
   test('adds a planned item from the unified Plan & Actuals workflow', async ({ page }) => {

@@ -12,7 +12,9 @@
 
 ## 1.2 What Are Periodic Changes
 
-Periodic changes apply adjustments to transaction amounts at regular intervals. Instead of manually changing amounts, you define a change rule that automatically applies each period.
+Periodic changes adjust recurring Plan Rule amounts at regular intervals.
+Instead of manually changing each future occurrence, define one adjustment on
+the rule.
 
 ## 1.3 Types Of Changes
 
@@ -51,12 +53,12 @@ Apply exponential growth like investment returns or savings account interest. Ex
 
 - Useful for investment and savings projections.
 - Accounts for interest on interest effects.
-- Best used with accounts rather than individual transactions.
+- Best used with accounts rather than individual Plan Rules.
 
 ## 1.4 Setting Up A Periodic Change
 
-1. Create a transaction with recurrence.
-2. Open the recurrence details.
+1. Open **Plan & Actuals → Recurring** and create or edit a Plan Rule.
+2. Open the rule's recurrence details.
 3. Add a periodic change rule.
 4. Select the change type, flat, percentage, compound.
 5. Enter the amount or percentage.
@@ -68,18 +70,18 @@ Apply exponential growth like investment returns or savings account interest. Ex
 
 ### 1.5.1 Salary With Annual Raises
 
-- **Transaction**: Weekly paycheck 1,000 dollars
+- **Plan Rule**: Weekly paycheck 1,000 dollars
 - **Recurrence**: Every Friday
 - **Periodic Change**: 3 percent increase annually
 
 ### 1.5.2 Inflation Adjusted Expenses
 
-- **Transaction**: Monthly groceries 400 dollars
+- **Plan Rule**: Monthly groceries 400 dollars
 - **Recurrence**: 1st of each month
 - **Periodic Change**: 2.5 percent increase annually
 
 ### 1.5.3 Investment Growth
 
-- **Transaction**: Monthly investment contribution 500 dollars
+- **Plan Rule**: Monthly investment contribution 500 dollars
 - **Recurrence**: 15th of each month
 - **Periodic Change**: 7 percent compound growth annually

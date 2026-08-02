@@ -1,5 +1,12 @@
 # Workflow Refactor Implementation Plan
 
+> **Historical implementation plan — superseded.** This schemaVersion 43 plan
+> records the workflow refactor that preceded the schemaVersion 44 unified
+> Plan & Actuals implementation. It is not the current implementation
+> contract. See `TECH_ARCHITECTURE.md`, `TECH_UI_LAYER.md`, and
+> `drafts-jay/unified-budget-transactions-workflow-plan.md` for the active
+> model and validation record.
+
 ## 1.0 Purpose
 1.0.1 Provide a phased, minimal-change plan to implement workflow-based scenarios.
 1.0.2 Align application storage with schemaVersion 43 in Data Schema.

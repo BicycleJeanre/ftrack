@@ -82,19 +82,24 @@ At the end of the period:
 
 ## 1.5 Choosing Another Workflow
 
-- **General**: accounts, transaction rules, projections, and summary totals.
-- **Funds**: pooled-fund and ownership analysis.
-- **Debt Repayment**: payoff timelines, interest, and variable-rate schedules.
-- **Goal Workshop**: Simple and Advanced Generate Plan modes in one workflow.
+- **General**: accounts, Plan & Actuals, projections, and summary totals.
+- **Funds**: pooled-fund and ownership analysis plus Plan & Actuals.
+- **Debt Repayment**: payoff timelines, interest, variable-rate schedules, and
+  Plan & Actuals.
+- **Goal Workshop**: Simple and Advanced Generate Plan modes plus Plan &
+  Actuals.
 
-Choose Budget whenever you need period baselines, actuals, skips, and variance
-tracking.
+Every primary workflow supports period baselines, actuals, skips, and variance
+tracking through the same Plan & Actuals card. Budget simply opens on Period;
+the other primary workflows open on Recurring.
 
 ## 1.6 Troubleshooting
 
 ### 1.6.1 Plan & Actuals Is Not Visible
 
-Select **Budget** in the Forecast left navigation.
+Select any primary workflow: **Budget**, **General**, **Funds**, **Debt
+Repayment**, or **Goal Workshop**. Detail shortcuts intentionally isolate one
+surface.
 
 ### 1.6.2 Generate Plan Is Not Visible
 

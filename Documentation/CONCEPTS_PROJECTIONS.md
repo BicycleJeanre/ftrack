@@ -32,7 +32,7 @@ store or display a transactions-versus-budget source choice.
    for an immediate calculation.
 4. Review the projected balances for each account over the projection window.
 5. Identify any accounts that go negative or reach critical levels.
-6. Adjust transactions or income as needed to improve the forecast.
+6. Adjust Plan Rules or dated occurrences as needed to improve the forecast.
 
 ## 1.3 Interpreting The Projection Grid
 

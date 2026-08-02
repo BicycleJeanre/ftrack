@@ -601,9 +601,29 @@ One row per active rule or rule segment:
 
 ### 10.3 Other Workflows
 
-General, Funds, Debt Repayment, and Goal Workshop can continue to show a Transactions-oriented configuration of the same component.
+Every main workflow routes financial activity through the same **Plan &
+Actuals** component:
 
-The long-term goal is one implementation with workflow-specific defaults, not separate transaction and budget grid implementations.
+| Workflow | Presentation | Default view | Other available view |
+|---|---|---|---|
+| Budget | Summary cards | Period | Recurring |
+| General | Summary cards | Recurring | Period |
+| Funds | Summary cards | Recurring | Period |
+| Debt Repayment | Summary cards | Recurring | Period |
+| Goal Workshop | Summary cards | Recurring | Period |
+
+The detail shortcuts use the same component rather than separate editors:
+
+- **Plan Rules (Detail)** is the renamed Transactions detail shortcut. It
+  opens the detail presentation in Recurring and uses the history-safe scoped
+  rule and split commands.
+- **Plan & Actuals (Detail)** opens the detail presentation in Period. Period
+  is a resolved-occurrence Tabulator and Recurring is a recurring-rules
+  Tabulator.
+
+Summary versus detail is only a presentation choice. Period always resolves
+rules plus stored occurrence state, and Recurring always edits the canonical
+rule segments through the same safe command boundaries.
 
 ## 11. Projection Rules
 
@@ -1012,6 +1032,10 @@ The redesign is successful when:
 10. There is no transaction-versus-budget projection source choice.
 11. Existing schemaVersion 43 data migrates without losing budget edits or actuals.
 12. All account-perspective, recurrence, periodic-change, split, funds, debt, goal, and import/export tests remain valid.
+13. Every main workflow exposes the unified Plan & Actuals component; only its
+    default view and surrounding workflow cards differ.
+14. Plan & Actuals Detail renders a real resolved-occurrence table, while Plan
+    Rules Detail renders the same safe recurring-rule editor as Recurring.
 
 ## 17. Approved Decisions
 
@@ -1025,12 +1049,18 @@ The redesign is successful when:
 8. Recurring edits always require an explicit scope.
 9. Baselines freeze automatically on first actual, with an explicit manual freeze option.
 10. Implementation proceeds resolver-first and migration-last.
+11. General, Funds, Debt Repayment, and Goal Workshop default to Recurring but
+    retain Period in the same Plan & Actuals component.
+12. Transactions Detail is renamed **Plan Rules (Detail)** and no longer
+    provides an independent raw-transaction editing path.
 
 ## 18. Resolved Product Decisions
 
 | Decision | Approved behavior |
 |---|---|
-| Unified card name | **Plan & Actuals** inside the Budget workflow |
+| Unified card name | **Plan & Actuals** in every main workflow |
+| Main workflow defaults | Budget opens Period; General, Funds, Debt Repayment, and Goal Workshop open Recurring |
+| Detail routing | **Plan Rules (Detail)** opens recurring rules; **Plan & Actuals (Detail)** opens resolved Period occurrences; both use genuine tables in the unified component |
 | Baseline freezing | Automatically on the first actual, with a manual **Freeze baseline** action |
 | Overdue planned items | Remain flagged open commitments and are included in forecasts at the as-of date |
 | Projection refresh | Debounced automatic refresh with a visible stale state and a manual refresh control |
@@ -1067,13 +1097,13 @@ The proposal was checked against the following implementation and documentation 
 | `js/app/managers/transaction-manager.js` | Transaction rules retain recurrence, split, periodic-change, and series metadata while occurrence status is managed separately. |
 | `js/domain/calculations/transaction-expander.js` | One expander already supports recurring planned, one-time planned, and actual records. |
 | Historical deleted `js/app/managers/budget-manager.js` | The old Budget “creation from projections” expanded transactions over a budget window and copied them into `budgets`; Phase 7 removed it. |
-| `js/ui/components/grids/transactions-grid.js` | Transactions own recurrence, periodic change, tags, split editing, and recurring-rule persistence. |
+| `js/ui/components/grids/transactions-grid.js` | Internal Recurring renderers own recurrence, periodic change, tags, split editing, and safe recurring-rule persistence inside the unified component. |
 | Historical deleted `js/ui/components/grids/budget-grid.js` | The old Budget grid owned occurrence edits plus separate generation/window actions; Phase 3 replaced it with `plan-actuals-grid.js`. |
 | `js/domain/calculations/projection-engine.js` | Projection generation now consumes the canonical resolved occurrence timeline only. |
 | `js/ui/components/forecast/forecast-projections-section.js` | Projection display uses the persisted resolved-plan projection bundle and visible freshness state. |
 | `js/ui/queries/financial-entry-display-rows.js` | Shared transaction-like perspective-row selection is already available for reuse. |
 | `js/ui/transforms/data-aggregators.js` | Unified totals compare frozen baseline movement, current plan, actuals, open commitments, forecast, variances, and unplanned actuals. |
-| `js/shared/workflow-registry.js` | The Budget workflow exposes one Plan & Actuals card; the former separate Transactions and Budget cards are no longer registered. |
+| `js/shared/workflow-registry.js` | Every main workflow exposes one Plan & Actuals activity surface with a workflow-specific default view and presentation. The former standalone Transactions route is retained only as the renamed Plan Rules detail shortcut. |
 | `js/shared/app-data-utils.js` and `migration-utils.js` | Runtime normalization and migration enforce schemaVersion 44, materialize historical snapshots, and preserve ambiguous legacy rows in a migration report. |
 | `js/app/services/validation-service.js` | Validation enforces rule/occurrence separation, stable keys, actual and baseline snapshot provenance, freshness metadata, and removal of legacy fields. |
 | Unit, QC, and Playwright suites | Current coverage protects the resolved timeline, occurrence/series/split commands, migration recovery, projections, workflows, imports, responsiveness, and persisted-stale recovery. |
@@ -1099,6 +1129,13 @@ The proposal was checked against the following implementation and documentation 
 
 - Replaced the generated Budget snapshot with a live **Plan & Actuals** Period view over resolved occurrences.
 - Merged the separate Budget-workflow Transactions and Budget cards into one card with **Period** and **Recurring** modes.
+- Routed General, Funds, Debt Repayment, and Goal Workshop through the same
+  Plan & Actuals component. Those workflows open Recurring by default and keep
+  Period available; Budget opens Period by default.
+- Renamed Transactions Detail to **Plan Rules (Detail)** and routed it through
+  the unified component's safe Recurring detail table.
+- Added a genuine resolved-occurrence Tabulator to **Plan & Actuals (Detail)**
+  and a genuine recurring-rules Tabulator to its Recurring view.
 - Added quick planned and actual entry, skip/restore, duplication, rescheduling, baseline freeze, actualization, and promotion of learned costs into future recurring rules.
 - Added explicit **This occurrence**, **This and future**, and **Entire series** behavior. Recurring split-set edits use one atomic scoped command across all components.
 - Added normal and split recurring creation, editable receiving/paying accounts, whole-rule and whole-split duplication, abandoned-draft cleanup, and history-safe **End recurring series** behavior.
@@ -1106,6 +1143,14 @@ The proposal was checked against the following implementation and documentation 
 - Added immutable actual metadata snapshots and separate frozen-baseline movement snapshots so later rule edits cannot rewrite history or reverse baseline direction/account allocation.
 - Added history-aware deletion guards: rules or accounts cannot be removed when actual, skipped, or frozen-baseline history depends on them; safe unfrozen overrides cascade cleanly.
 - Added automatic debounced projection refresh, truthful Pending/Stale/Refreshing/Current state, persisted-stale restart recovery, and an atomic stale-revision save guard.
+- Unified post-edit refreshes across Plan & Actuals, projections, Goal Workshop,
+  and General/Funds/Debt summary cards. The refresh authority coalesces
+  overlapping manager events and waits at scenario/workflow navigation
+  boundaries so stale renders cannot overwrite the selected workflow.
+- Made Debt summary refreshes idempotent so filters and repeated plan changes
+  retain exactly one overall-total card.
+- Reconciled the remaining active Recurring controls and validation messages
+  to Plan Rule, Movement, and Recurring Split terminology.
 - Migrated persistence to schemaVersion 44 with `transactionOccurrences` and `baselinePeriods`; removed `budgets`, `budgetWindow`, and `projection.config.source`.
 - Added deterministic migration recovery reporting for invalid, orphaned, duplicate, and conflicting actual rows, including differing legacy actual/source IDs and split-role identity.
 - Removed the obsolete Budget manager, duplicate Budget grid, and temporary Budget data-service aliases.
@@ -1126,4 +1171,45 @@ Use the **Budget** workflow and its **Plan & Actuals** card for manual acceptanc
 9. Freeze a period, then change a future rule’s amount, accounts, and direction. Confirm Baseline stays original while Current Plan changes.
 10. Confirm the totals show Baseline Net, Current Plan Net, Actual Net, Open Commitments, Forecast Net, both variances, and Unplanned Actuals.
 11. Confirm projections briefly show Stale/Refreshing after a plan change and return to Current automatically.
-12. Export and re-import the data, then confirm actuals, baselines, recurring scopes, and projection freshness remain intact.
+12. Switch through General, Funds, Debt Repayment, and Goal Workshop. Confirm
+    each uses the same Plan & Actuals component, opens Recurring, and can switch
+    to Period without losing occurrence state.
+13. Open **Plan Rules (Detail)** and confirm its recurring-rules table uses
+    scoped, history-safe rule and split actions.
+14. Open **Plan & Actuals (Detail)** and confirm Period is a
+    resolved-occurrence table and Recurring is the same safe rules table.
+15. Export and re-import the data, then confirm actuals, baselines, recurring scopes, and projection freshness remain intact.
+
+## 23. Final Verification
+
+Final verification completed on 2026-08-02:
+
+- documentation manifest regenerated for all 40 documents;
+- JavaScript syntax checks and `git diff --check` passed;
+- build smoke passed;
+- 106 unit tests passed;
+- all Budget, General, Funds, Debt Repayment, Goal Workshop, Advanced Goal
+  Solver, and use-case coverage QC suites passed; and
+- all 83 Chromium end-to-end tests passed with one worker.
+
+The final browser suite includes explicit regressions for:
+
+- one unified Plan & Actuals surface in every main workflow;
+- Period and Recurring defaults and switching;
+- true Tabulator detail tables for Plan Rules and Plan & Actuals;
+- cross-workflow visibility of a manual actual;
+- direction-aware Money In and Money Out labels plus descriptions;
+- Goal Workshop refresh after rule and account changes;
+- General, Funds, and Debt summary refresh without projection dates;
+- singular Debt overall totals after repeated refreshes; and
+- refresh/navigation serialization in both directions under an in-flight
+  render;
+- stale component-render rejection across scenario and workflow changes;
+- projection refresh and Set Period serialization, cache invalidation, and
+  cross-surface summary/period propagation;
+- preservation of an open detail editor during same-context automatic
+  projection refresh, plus editor teardown when scenario or period context
+  changes;
+- a clean application-wide empty state after deleting the final scenario; and
+- the supported keyboard shortcut contract, including the physical
+  Shift+/ question-mark key.

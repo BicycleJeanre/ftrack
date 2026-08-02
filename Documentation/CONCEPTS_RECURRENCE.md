@@ -4,7 +4,7 @@
 
 ## 1.1 Recurrence Patterns
 
-- **One-time**: Transactions that happen only once.
+- **One-time**: Plan items that happen only once.
 - **Weekly**: Specify days of the week such as every Monday and Friday.
 - **Monthly**: Specific day of month such as 15th or nth weekday such as first Tuesday.
 - **Quarterly**: Same patterns as monthly, applied every 3 months.
@@ -12,15 +12,16 @@
 
 ## 1.2 Setting Up Recurrence
 
-Recurrence allows you to define repeating transactions once and have them automatically apply across your projection period.
+Recurrence allows you to define a repeating plan rule once and have its dated
+occurrences apply automatically across your projection period.
 
-## 1.3 One Time Transactions
+## 1.3 One-Time Plan Items
 
-Select None for recurrence. The transaction will occur only on the date you specify.
+Select None for recurrence. The plan item occurs only on the date you specify.
 
 ## 1.4 Weekly Recurrence
 
-Choose the days of the week the transaction occurs.
+Choose the days of the week the plan rule occurs.
 
 - Paycheck: Every Friday
 - Gym visits: Monday, Wednesday, Friday
@@ -35,7 +36,7 @@ You have two options for monthly recurrence.
 
 ## 1.6 Quarterly Recurrence
 
-Same options as monthly, but transactions repeat every 3 months.
+Same options as monthly, but plan rules repeat every 3 months.
 
 - Quarterly tax payments
 - Annual insurance payments, every 3 months

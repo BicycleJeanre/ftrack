@@ -6,7 +6,8 @@
 satisfy one or more account goals by specific dates, while respecting optional
 constraints.
 
-1.2 It uses the scenario’s current accounts, starting balances, and projection engine to validate that the suggested transactions actually achieve the goals.
+1.2 It uses the scenario’s current accounts, starting balances, and projection
+engine to validate that the suggested Plan Rules actually achieve the goals.
 
 ## 2.0 Definitions
 
@@ -70,7 +71,8 @@ constraints.
 
 2.3.4.1 **Account**: the account being capped.
 
-2.3.4.2 **Amount**: a per-month movement cap for that account, applied to solver-generated transactions.
+2.3.4.2 **Amount**: a per-month movement cap for that account, applied to
+solver-generated Plan Rules.
 
 2.3.5 **Constraint Type: Min balance floor** (`minBalanceFloor`)
 
@@ -83,7 +85,8 @@ constraints.
 2.4.1 **Solve**: calculates suggested monthly transaction rules and validates
 them using projections.
 
-2.4.2 **Apply**: writes the suggested transactions into the scenario and removes any prior solver-generated transactions.
+2.4.2 **Apply**: writes the suggested Plan Rules into the scenario and removes
+any prior solver-generated rules.
 
 ## 3.0 Use Cases
 
@@ -160,7 +163,8 @@ create the transaction rules.
 
 4.2 Amount fields are type-specific. If a row is Funding account or Locked account, Amount is intentionally unused.
 
-4.3 The solver validates by running projections with suggested transactions included.
+4.3 The solver validates by running projections with the suggested Plan Rules
+included.
 
 ## 5.0 Related Documents
 

@@ -987,7 +987,7 @@ body.dashboard-shell {
   padding: 14px 16px;
 }
 
-/* Middle row (Accounts/Transactions): side-by-side panels, each scrolls independently */
+/* Middle row (Accounts/Planning): side-by-side panels, each scrolls independently */
 #row-middle:not(.mode-detail) .dash-row-body {
   display: flex;
   flex-direction: row;
@@ -1020,7 +1020,7 @@ body.dashboard-shell {
   width: 100%;
 }
 
-/* Budget section: accordion body is flex column; totals bar fixed, grid scrolls */
+/* Plan & Actuals section: accordion body is flex column; totals bar fixed, grid scrolls */
 #budgetSection:not(.mode-detail) {
   flex: 1.9;
   min-height: clamp(240px, 34vh, 420px);
@@ -2661,6 +2661,71 @@ button.filter-modal-open {
   background: rgba(255, 187, 51, 0.08);
   color: var(--warning);
   font-size: 0.78em;
+}
+
+.plan-actuals-detail-editor-host:empty {
+  display: none;
+}
+
+.plan-actuals-detail-editor-host {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.plan-actuals-detail-grid.grid-detail {
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+}
+
+.plan-actuals-detail-grid .tabulator-cell {
+  align-content: center;
+}
+
+.plan-actuals-detail-movement {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.plan-actuals-detail-baseline-movement {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.plan-actuals-detail-money {
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.plan-actuals-detail-money.positive {
+  color: var(--color-positive);
+}
+
+.plan-actuals-detail-money.negative {
+  color: var(--color-negative);
+}
+
+.plan-actuals-detail-money.zero,
+.plan-actuals-detail-empty {
+  color: var(--text-muted);
+}
+
+.plan-actuals-actions.plan-actuals-detail-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+#budgetSection.mode-detail .section-content {
+  overflow: auto;
 }
 
 .plan-actuals-grid .plan-actuals-list {

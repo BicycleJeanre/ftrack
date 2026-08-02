@@ -23,8 +23,9 @@ graph TB
     subgraph "Presentation"
         Layout["Forecast layout"]
         Controller["Forecast controller"]
-        RuleGrid["Transactions / Recurring grid"]
-        OccurrenceGrid["Plan & Actuals grid"]
+        PlanActuals["Unified Plan & Actuals component"]
+        RuleRenderer["Recurring rules renderer"]
+        OccurrenceRenderer["Resolved occurrence renderer"]
         ProjectionSection["Projections section"]
     end
 
@@ -51,11 +52,12 @@ graph TB
     end
 
     Layout --> Controller
-    Controller --> RuleGrid
-    Controller --> OccurrenceGrid
+    Controller --> PlanActuals
+    PlanActuals --> RuleRenderer
+    PlanActuals --> OccurrenceRenderer
     Controller --> ProjectionSection
-    RuleGrid --> RuleManager
-    OccurrenceGrid --> OccurrenceManager
+    RuleRenderer --> RuleManager
+    OccurrenceRenderer --> OccurrenceManager
     ProjectionSection --> ProjectionEngine
     RuleManager --> Freshness
     OccurrenceManager --> Freshness
@@ -87,10 +89,12 @@ Key modules:
   card loading, refresh events, and automatic projection regeneration.
 - `js/ui/components/forecast/forecast-layout.js` constructs the responsive
   Forecast shell and cards.
-- `js/ui/components/grids/transactions-grid.js` renders transaction rules. In
-  Budget it is reused for Plan & Actuals Recurring mode.
-- `js/ui/components/grids/plan-actuals-grid.js` renders resolved Period
-  occurrences, totals, baseline controls, actuals, skips, and edit scopes.
+- `js/ui/components/grids/plan-actuals-grid.js` owns the unified activity
+  surface, switches Period/Recurring modes, and renders both summary cards and
+  the resolved-occurrence detail table.
+- `js/ui/components/grids/transactions-grid.js` is the internal Recurring
+  renderer for that surface. It renders compact rule summaries or the Plan
+  Rules detail table; it is not a separate user-facing workflow card.
 - `js/ui/components/forecast/forecast-projections-section.js` renders
   projection filters, freshness state, and the immediate refresh action.
 - `js/ui/components/grids/accounts-grid.js` renders account editing and
@@ -199,7 +203,9 @@ Important modules:
   materialization, and ID allocation.
 - `migration-utils.js`: browser-safe legacy-to-schema44 migration and recovery
   reports.
-- `workflow-registry.js`: code-defined workflow/card visibility.
+- `workflow-registry.js`: code-defined workflow/card visibility and the
+  authoritative financial-activity contract (`surface`, `presentation`, and
+  `defaultView`).
 - `date-utils.js`: date-only parsing and formatting.
 - `period-window-utils.js`: period selection helpers.
 - `format-utils.js`: display formatting.
@@ -430,9 +436,11 @@ Relevant suites include:
 
 **Location**: `e2e/specs/`
 
-`plan-actuals.spec.js` covers the unified Budget workflow, while the broader
-suite verifies workflows, edit paths, import/export, detail views,
-functionality, performance, documentation, and visual regressions.
+`plan-actuals.spec.js` covers the unified planning workflow. The broader suite
+verifies that every main workflow routes through Plan & Actuals, detail
+shortcuts render genuine Period/Recurring tables, and edit paths,
+import/export, functionality, performance, documentation, and visual
+regressions remain correct.
 
 ### 8.3 Verification Commands
 

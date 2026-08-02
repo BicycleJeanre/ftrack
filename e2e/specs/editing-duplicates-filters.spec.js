@@ -40,7 +40,7 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await expect(page.locator('.account-card', { hasText: 'Operating Account' })).toContainText('R 2 345,67');
   });
 
-  test('duplicates a scenario, account, transaction, and plan item', async ({ page }) => {
+  test('duplicates a scenario, account, recurring rule, and plan item', async ({ page }) => {
     await openSidebar(page);
     const scenarioCount = (await readAppData(page)).scenarios.length;
     await page.locator('.scenario-list-item', { hasText: 'E2E Frontend Smoke' }).locator('button[title="Duplicate Scenario"]').click();
@@ -55,7 +55,7 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await page.locator('.account-card', { hasText: 'Checking' }).locator('button[title="Duplicate Account"]').click();
     await waitForCollectionCount(page, 'accounts', accountCount + 1);
 
-    await page.locator('#transactionsTable button[title="Duplicate Transaction"]').first().click();
+    await page.locator('#budgetTable button[title="Duplicate recurring rule"]').first().click();
     await waitForCollectionCount(page, 'transactions', transactionCount + 1);
 
     await selectWorkflow(page, 'Budget');
@@ -64,7 +64,7 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await waitForCollectionCount(page, 'transactionOccurrences', occurrenceCount + 1);
   });
 
-  test('applies account and transaction filters from filter popovers', async ({ page }) => {
+  test('applies account and recurring-plan filters from filter popovers', async ({ page }) => {
     await selectWorkflow(page, 'General');
 
     await openSectionFilters(page, '#accountsSection');
@@ -73,10 +73,10 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await expect(page.locator('.account-card', { hasText: 'Credit Card' })).toBeVisible();
     await expect(page.locator('.account-card', { hasText: 'Checking' })).toHaveCount(0);
 
-    await openSectionFilters(page, '#transactionsSection');
+    await openSectionFilters(page, '#budgetSection');
     await page.locator('.filter-modal select').first().selectOption({ label: 'Salary Income' });
     await closeFilterModal(page);
-    await expect(page.locator('#transactionsTable button[title="Delete Transaction"]')).toHaveCount(1);
-    await expect(page.locator('#transactionsTable')).toContainText('Salary Income');
+    await expect(page.locator('#budgetTable .recurring-rule-card')).toHaveCount(1);
+    await expect(page.locator('#budgetTable')).toContainText('Salary Income');
   });
 });

@@ -13,12 +13,85 @@ import { calculateResolvedOccurrenceTotals } from '../../transforms/data-aggrega
 import { renderTotalsCard } from '../widgets/totals-card.js';
 import { createFilterModal } from '../modals/filter-modal.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
+import { createGrid, refreshGridData } from './grid-factory.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { getScenarioPeriods } from '../../../app/services/data-service.js';
 import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js';
 
-const viewByScenarioId = new Map();
+const viewByContextScenario = new Map();
 let pendingEditor = null;
+let lastPlanActualsDetailTable = null;
+let lastPlanActualsDetailTableReady = false;
+let planActualsDetailRuntime = null;
+let planActualsDetailLifecycle = 0;
+let planActualsDetailContextKey = null;
+
+function normalizePresentation({
+  presentation,
+  presentationMode,
+  mode
+} = {}) {
+  const config = presentation && typeof presentation === 'object'
+    ? presentation
+    : {};
+  const stringPresentation = typeof presentation === 'string' ? presentation : null;
+  const resolvedMode = String(
+    config.mode ||
+    config.presentationMode ||
+    stringPresentation ||
+    presentationMode ||
+    mode ||
+    'summary'
+  ).trim().toLowerCase() === 'detail'
+    ? 'detail'
+    : 'summary';
+  const contextKey = String(
+    config.contextKey ||
+    config.workflowId ||
+    config.key ||
+    'plan-actuals'
+  ).trim() || 'plan-actuals';
+  const defaultView = String(config.defaultView || 'period').trim().toLowerCase() === 'recurring'
+    ? 'recurring'
+    : 'period';
+
+  return {
+    ...config,
+    mode: resolvedMode,
+    contextKey,
+    defaultView
+  };
+}
+
+export function teardownPlanActualsDetailGrid() {
+  planActualsDetailLifecycle += 1;
+  const table = lastPlanActualsDetailTable;
+  lastPlanActualsDetailTable = null;
+  lastPlanActualsDetailTableReady = false;
+  planActualsDetailRuntime = null;
+  planActualsDetailContextKey = null;
+  try {
+    table?.destroy?.();
+  } catch (_) {
+    // Ignore cleanup failures while switching presentation or subview.
+  }
+}
+
+export function teardownPlanActualsGrid({
+  container = null,
+  teardownRecurringView = null
+} = {}) {
+  pendingEditor = null;
+  teardownPlanActualsDetailGrid();
+  try {
+    teardownRecurringView?.();
+  } catch (_) {
+    // Keep the parent activity teardown deterministic if a child cleanup fails.
+  }
+  if (container) {
+    container.innerHTML = '';
+  }
+}
 
 function hasValue(value) {
   return value !== null && value !== undefined && value !== '';
@@ -68,9 +141,15 @@ function normalizeOccurrenceForPerspective(occurrence) {
 }
 
 function buildDisplayRows({ occurrences, accounts, accountFilterId }) {
-  const allRows = (Array.isArray(occurrences) ? occurrences : []).flatMap((occurrence) => (
-    transformTransactionToRows(normalizeOccurrenceForPerspective(occurrence), accounts)
-      .map((row) => ({
+  return (Array.isArray(occurrences) ? occurrences : []).flatMap((occurrence) => {
+    const comparisonOccurrence = buildComparisonOccurrences(
+      [occurrence],
+      accountFilterId
+    )[0];
+    const transformedRows = transformTransactionToRows(
+      normalizeOccurrenceForPerspective(occurrence),
+      accounts
+    ).map((row) => ({
         ...row,
         occurrenceKey: occurrence.occurrenceKey,
         status: occurrence.status,
@@ -87,14 +166,37 @@ function buildDisplayRows({ occurrences, accounts, accountFilterId }) {
         recurrenceDescription: occurrence.recurrenceDescription,
         isOverdue: occurrence.isOverdue,
         isUnplannedActual: occurrence.isUnplannedActual,
-        _canonicalOccurrence: occurrence
-      }))
-  ));
+        _canonicalOccurrence: occurrence,
+        _comparisonOccurrence: comparisonOccurrence
+      }));
 
-  if (accountFilterId) {
-    return allRows.filter((row) => Number(row.perspectiveAccountId) === Number(accountFilterId));
-  }
-  return allRows.filter((row) => !String(row.id || '').endsWith('_flipped'));
+    if (!accountFilterId) {
+      return transformedRows.filter((row) => !String(row.id || '').endsWith('_flipped'));
+    }
+
+    const currentPerspectiveRow = transformedRows.find(
+      (row) => Number(row.perspectiveAccountId) === Number(accountFilterId)
+    );
+    if (currentPerspectiveRow) return [currentPerspectiveRow];
+
+    const baselineIncludesAccount =
+      Number(occurrence?.baselinePrimaryAccountId ?? occurrence?.primaryAccountId) ===
+        Number(accountFilterId) ||
+      Number(occurrence?.baselineSecondaryAccountId ?? occurrence?.secondaryAccountId) ===
+        Number(accountFilterId);
+    if (!baselineIncludesAccount || !transformedRows.length) return [];
+
+    // Keep rows that belonged to the selected account in the frozen baseline
+    // even if the current plan moved them to a different account. The
+    // comparison occurrence zeroes the current contribution for that account,
+    // so visible rows and totals remain consistent.
+    return [{
+      ...transformedRows[0],
+      id: `${occurrence.occurrenceKey}:baseline-perspective:${accountFilterId}`,
+      perspectiveAccountId: Number(accountFilterId),
+      _baselineOnlyPerspective: true
+    }];
+  });
 }
 
 function perspectiveType(typeId, primaryAccountId, secondaryAccountId, accountFilterId) {
@@ -162,7 +264,7 @@ function createSelect(id, options, value = '') {
   return select;
 }
 
-function ensureModeToggle({ container, scenarioId, view, onChange }) {
+function ensureModeToggle({ container, viewKey, view, onChange }) {
   const card = container.closest('.forecast-card');
   const header = card?.querySelector(':scope > .card-header');
   const headerLeft = header?.querySelector('.card-header-actions');
@@ -194,7 +296,7 @@ function ensureModeToggle({ container, scenarioId, view, onChange }) {
       event.preventDefault();
       event.stopPropagation();
       if (view === mode.id) return;
-      viewByScenarioId.set(Number(scenarioId), mode.id);
+      viewByContextScenario.set(viewKey, mode.id);
       await onChange(mode.id);
     });
     switcher.appendChild(button);
@@ -271,17 +373,84 @@ function accountName(accounts, id) {
   return (accounts || []).find((account) => Number(account.id) === Number(id))?.name || 'Unassigned';
 }
 
-function movementText(row, accounts) {
-  const occurrence = row?._canonicalOccurrence || row;
-  const primaryName = accountName(accounts, occurrence?.primaryAccountId);
-  const secondaryName = occurrence?.secondaryAccountId
-    ? accountName(accounts, occurrence.secondaryAccountId)
+function movementTypeLabel(typeId) {
+  if (Number(typeId) === 1) return 'Money In';
+  if (Number(typeId) === 2) return 'Money Out';
+  return 'Outside selected account';
+}
+
+function movementTextFromDimensions({
+  transactionTypeId,
+  primaryAccountId,
+  secondaryAccountId
+}, accounts) {
+  const primaryName = accountName(accounts, primaryAccountId);
+  const secondaryName = secondaryAccountId
+    ? accountName(accounts, secondaryAccountId)
     : 'External';
-  // Always derive direction from the canonical occurrence. Perspective rows
-  // can swap both accounts and type when an account filter is active.
-  return Number(occurrence?.transactionTypeId) === 1
+  return Number(transactionTypeId) === 1
     ? `${secondaryName} → ${primaryName}`
     : `${primaryName} → ${secondaryName}`;
+}
+
+function orientMovementDimensions({
+  transactionTypeId,
+  primaryAccountId,
+  secondaryAccountId,
+  perspectiveAccountId
+}) {
+  const perspectiveIsPrimary =
+    perspectiveAccountId &&
+    Number(primaryAccountId) === Number(perspectiveAccountId);
+  const perspectiveIsSecondary =
+    perspectiveAccountId &&
+    !perspectiveIsPrimary &&
+    Number(secondaryAccountId) === Number(perspectiveAccountId);
+
+  return {
+    transactionTypeId,
+    primaryAccountId: perspectiveIsSecondary
+      ? secondaryAccountId
+      : primaryAccountId,
+    secondaryAccountId: perspectiveIsSecondary
+      ? primaryAccountId
+      : secondaryAccountId
+  };
+}
+
+function currentMovementDimensions(row) {
+  const occurrence = row?._canonicalOccurrence || row;
+  const comparisonOccurrence = row?._comparisonOccurrence || occurrence;
+  return orientMovementDimensions({
+    transactionTypeId:
+      comparisonOccurrence?.transactionTypeId ??
+      occurrence?.transactionTypeId,
+    primaryAccountId: occurrence?.primaryAccountId,
+    secondaryAccountId: occurrence?.secondaryAccountId,
+    perspectiveAccountId: row?.perspectiveAccountId
+  });
+}
+
+function baselineMovementDimensions(row) {
+  const occurrence = row?._canonicalOccurrence || row;
+  const comparisonOccurrence = row?._comparisonOccurrence || occurrence;
+  return orientMovementDimensions({
+    transactionTypeId:
+      comparisonOccurrence?.baselineTransactionTypeId ??
+      occurrence?.baselineTransactionTypeId ??
+      occurrence?.transactionTypeId,
+    primaryAccountId:
+      occurrence?.baselinePrimaryAccountId ?? occurrence?.primaryAccountId,
+    secondaryAccountId:
+      occurrence?.baselineSecondaryAccountId ?? occurrence?.secondaryAccountId,
+    perspectiveAccountId: row?.perspectiveAccountId
+  });
+}
+
+function movementDimensions(row) {
+  return row?._baselineOnlyPerspective
+    ? baselineMovementDimensions(row)
+    : currentMovementDimensions(row);
 }
 
 function periodPayload(state) {
@@ -656,6 +825,90 @@ function actionButton({ title, text, onClick, className = '' }) {
   return button;
 }
 
+function buildOccurrenceActions({
+  occurrence,
+  scenarioId,
+  state,
+  onEdit,
+  className = ''
+}) {
+  const actions = document.createElement('div');
+  actions.className =
+    `grid-summary-actions plan-actuals-actions${className ? ` ${className}` : ''}`;
+
+  if (occurrence.status !== 'actual' && occurrence.status !== 'skipped') {
+    actions.appendChild(actionButton({
+      title: 'Mark actual',
+      text: '✓',
+      onClick: (button) => runAction(button, () => OccurrenceManager.markActual(
+        scenarioId,
+        occurrence.occurrenceKey,
+        {
+          actualAmount: occurrence.plannedAmount,
+          actualDate: occurrence.effectiveDate || occurrence.scheduledDate,
+          period: baselinePeriodForDate(state, occurrence.scheduledDate)
+        }
+      ))
+    }));
+  }
+  if (occurrence.status !== 'skipped' && occurrence.status !== 'actual') {
+    actions.appendChild(actionButton({
+      title: 'Skip occurrence',
+      text: '⊘',
+      onClick: (button) => runAction(button, () => (
+        OccurrenceManager.markSkipped(scenarioId, occurrence.occurrenceKey)
+      ))
+    }));
+  }
+  actions.appendChild(actionButton({
+    title: 'Edit item',
+    text: '✎',
+    onClick: () => onEdit(occurrence)
+  }));
+  actions.appendChild(actionButton({
+    title: 'Duplicate item',
+    text: '⧉',
+    onClick: (button) => runAction(button, async () => {
+      await OccurrenceManager.createManualOccurrence(scenarioId, {
+        scheduledDate: occurrence.effectiveDate || occurrence.scheduledDate,
+        plannedAmount: occurrence.status === 'actual'
+          ? occurrence.actualAmount
+          : occurrence.plannedAmount,
+        primaryAccountId: occurrence.primaryAccountId,
+        secondaryAccountId: occurrence.secondaryAccountId,
+        transactionTypeId: occurrence.transactionTypeId,
+        description: occurrence.description || '',
+        tags: occurrence.tags || [],
+        status: 'planned'
+      });
+      notifySuccess('Item duplicated as a one-time plan.');
+    })
+  }));
+  if (!occurrence.sourceTransactionId && occurrence.status !== 'skipped') {
+    actions.appendChild(actionButton({
+      title: 'Repeat going forward',
+      text: '↻',
+      onClick: () => {
+        openRecurrenceModal(occurrence.recurrence || null, async (recurrence) => {
+          if (!recurrence) return;
+          try {
+            await OccurrenceManager.promoteOccurrenceToRecurring(
+              scenarioId,
+              occurrence.occurrenceKey,
+              { recurrence }
+            );
+            notifySuccess('Recurring rule created from this item.');
+          } catch (error) {
+            notifyError(error?.message || String(error));
+          }
+        });
+      }
+    }));
+  }
+
+  return actions;
+}
+
 function renderOccurrenceCards({
   container,
   rows,
@@ -681,8 +934,7 @@ function renderOccurrenceCards({
   const groupValue = (row) => {
     if (groupBy === 'status') return statusName(row);
     if (groupBy === 'movement') {
-      const occurrence = row?._canonicalOccurrence || row;
-      return Number(occurrence.transactionTypeId) === 1 ? 'Money In' : 'Money Out';
+      return movementTypeLabel(movementDimensions(row).transactionTypeId);
     }
     if (groupBy === 'repeat') return recurrenceLabel(row);
     return '';
@@ -730,8 +982,10 @@ function renderOccurrenceCards({
 
     const movement = document.createElement('div');
     movement.className = 'grid-summary-flow plan-actuals-movement';
-    const type = Number(occurrence.transactionTypeId) === 1 ? 'Money In' : 'Money Out';
-    movement.textContent = `${type}: ${movementText(row, accounts)}`;
+    const displayMovement = movementDimensions(row);
+    const type = movementTypeLabel(displayMovement.transactionTypeId);
+    movement.textContent =
+      `${type}: ${movementTextFromDimensions(displayMovement, accounts)}`;
 
     const description = document.createElement('div');
     description.className = 'grid-summary-description plan-actuals-description';
@@ -739,9 +993,12 @@ function renderOccurrenceCards({
 
     const comparison = document.createElement('div');
     comparison.className = 'plan-actuals-comparison';
-    const baseline = Math.abs(Number(occurrence.baselineAmount || 0));
-    const planned = Math.abs(Number(occurrence.plannedAmount || 0));
-    const actual = hasValue(occurrence.actualAmount) ? Math.abs(Number(occurrence.actualAmount)) : null;
+    const perspectiveOccurrence = row._comparisonOccurrence || occurrence;
+    const baseline = Math.abs(Number(perspectiveOccurrence.baselineAmount || 0));
+    const planned = Math.abs(Number(perspectiveOccurrence.plannedAmount || 0));
+    const actual = occurrence.status === 'actual' && hasValue(perspectiveOccurrence.actualAmount)
+      ? Math.abs(Number(perspectiveOccurrence.actualAmount))
+      : null;
     const variance = (actual ?? planned) - baseline;
     [
       ['Baseline', baseline],
@@ -767,77 +1024,12 @@ function renderOccurrenceCards({
     content.appendChild(description);
     content.appendChild(comparison);
 
-    const actions = document.createElement('div');
-    actions.className = 'grid-summary-actions plan-actuals-actions';
-    if (occurrence.status !== 'actual' && occurrence.status !== 'skipped') {
-      actions.appendChild(actionButton({
-        title: 'Mark actual',
-        text: '✓',
-        onClick: (button) => runAction(button, () => OccurrenceManager.markActual(
-          scenarioId,
-          occurrence.occurrenceKey,
-          {
-            actualAmount: occurrence.plannedAmount,
-            actualDate: occurrence.effectiveDate || occurrence.scheduledDate,
-            period: baselinePeriodForDate(state, occurrence.scheduledDate)
-          }
-        ))
-      }));
-    }
-    if (occurrence.status !== 'skipped' && occurrence.status !== 'actual') {
-      actions.appendChild(actionButton({
-        title: 'Skip occurrence',
-        text: '⊘',
-        onClick: (button) => runAction(button, () => (
-          OccurrenceManager.markSkipped(scenarioId, occurrence.occurrenceKey)
-        ))
-      }));
-    }
-    actions.appendChild(actionButton({
-      title: 'Edit item',
-      text: '✎',
-      onClick: () => onEdit(occurrence)
-    }));
-    actions.appendChild(actionButton({
-      title: 'Duplicate item',
-      text: '⧉',
-      onClick: (button) => runAction(button, async () => {
-        await OccurrenceManager.createManualOccurrence(scenarioId, {
-          scheduledDate: occurrence.effectiveDate || occurrence.scheduledDate,
-          plannedAmount: occurrence.status === 'actual'
-            ? occurrence.actualAmount
-            : occurrence.plannedAmount,
-          primaryAccountId: occurrence.primaryAccountId,
-          secondaryAccountId: occurrence.secondaryAccountId,
-          transactionTypeId: occurrence.transactionTypeId,
-          description: occurrence.description || '',
-          tags: occurrence.tags || [],
-          status: 'planned'
-        });
-        notifySuccess('Item duplicated as a one-time plan.');
-      })
-    }));
-    if (!occurrence.sourceTransactionId && occurrence.status !== 'skipped') {
-      actions.appendChild(actionButton({
-        title: 'Repeat going forward',
-        text: '↻',
-        onClick: () => {
-          openRecurrenceModal(occurrence.recurrence || null, async (recurrence) => {
-            if (!recurrence) return;
-            try {
-              await OccurrenceManager.promoteOccurrenceToRecurring(
-                scenarioId,
-                occurrence.occurrenceKey,
-                { recurrence }
-              );
-              notifySuccess('Recurring rule created from this item.');
-            } catch (error) {
-              notifyError(error?.message || String(error));
-            }
-          });
-        }
-      }));
-    }
+    const actions = buildOccurrenceActions({
+      occurrence,
+      scenarioId,
+      state,
+      onEdit
+    });
 
     card.appendChild(content);
     card.appendChild(actions);
@@ -845,13 +1037,447 @@ function renderOccurrenceCards({
   });
 }
 
+function signedAmount(amount, typeId) {
+  const value = Math.abs(Number(amount || 0));
+  if (Number(typeId) === 1) return value;
+  if (Number(typeId) === 2) return -value;
+  return 0;
+}
+
+function buildPlanActualsDetailRows(rows, accounts) {
+  return (Array.isArray(rows) ? rows : []).map((row) => {
+    const occurrence = row?._canonicalOccurrence || row;
+    const comparison = row?._comparisonOccurrence || occurrence;
+    const currentTypeId = Number(comparison?.transactionTypeId);
+    const baselineTypeId = Number(comparison?.baselineTransactionTypeId);
+    const canonicalStatus = String(occurrence?.status || 'planned').trim().toLowerCase();
+    const baseline = signedAmount(comparison?.baselineAmount, baselineTypeId);
+    const currentPlan = canonicalStatus === 'skipped'
+      ? 0
+      : signedAmount(comparison?.plannedAmount, currentTypeId);
+    const actual = canonicalStatus === 'actual' && hasValue(comparison?.actualAmount)
+      ? signedAmount(comparison.actualAmount, currentTypeId)
+      : null;
+    const forecast = canonicalStatus === 'actual'
+      ? (actual ?? 0)
+      : (
+        canonicalStatus === 'planned' && comparison?.isIncludedInForecast !== false
+          ? signedAmount(comparison?.plannedAmount, currentTypeId)
+          : 0
+      );
+
+    const currentMovement = movementTextFromDimensions(
+      currentMovementDimensions(row),
+      accounts
+    );
+    const baselineMovement = movementTextFromDimensions(
+      baselineMovementDimensions(row),
+      accounts
+    );
+    const currentMovementLabel =
+      `${movementTypeLabel(currentTypeId)}: ${currentMovement}`;
+    const baselineMovementLabel =
+      `${movementTypeLabel(baselineTypeId)}: ${baselineMovement}`;
+    const showBaselineMovement =
+      Math.abs(Number(comparison?.baselineAmount || 0)) > 0 &&
+      baselineMovementLabel !== currentMovementLabel;
+
+    return {
+      ...row,
+      id: row.id || occurrence.occurrenceKey,
+      occurrenceKey: occurrence.occurrenceKey,
+      date: occurrence.effectiveDate || occurrence.scheduledDate || '',
+      statusLabel: statusName(occurrence).replaceAll('-', ' '),
+      statusGroup: statusName(occurrence),
+      movement: currentMovementLabel,
+      baselineMovement: showBaselineMovement ? baselineMovementLabel : '',
+      movementGroup:
+        movementTypeLabel(currentTypeId || baselineTypeId),
+      description: occurrence.description || '',
+      repeat: recurrenceLabel(occurrence),
+      repeatGroup: recurrenceLabel(occurrence),
+      baseline,
+      currentPlan,
+      actual,
+      forecast,
+      varianceVsBaseline: forecast - baseline,
+      varianceVsCurrent: forecast - currentPlan,
+      _canonicalOccurrence: occurrence,
+      _comparisonOccurrence: comparison
+    };
+  });
+}
+
+function detailMoneyFormatter(cell) {
+  const value = cell.getValue();
+  const span = document.createElement('span');
+  if (!hasValue(value)) {
+    span.className = 'plan-actuals-detail-empty';
+    span.textContent = '—';
+    return span;
+  }
+  const numeric = Number(value || 0);
+  span.className = `plan-actuals-detail-money ${numValueClass(numeric)}`;
+  span.textContent = formatCurrency(numeric);
+  return span;
+}
+
+function detailStatusFormatter(cell) {
+  const value = String(cell.getValue() || 'planned').trim().toLowerCase();
+  const span = document.createElement('span');
+  span.className = `plan-actuals-status status-${value.replaceAll(' ', '-')}`;
+  span.textContent = value;
+  return span;
+}
+
+function detailMovementFormatter(cell) {
+  const data = cell.getRow().getData();
+  const wrapper = document.createElement('div');
+  wrapper.className = 'plan-actuals-detail-movement';
+  const current = document.createElement('div');
+  current.textContent = data.movement || '—';
+  wrapper.appendChild(current);
+  if (data.baselineMovement) {
+    const baseline = document.createElement('div');
+    baseline.className = 'plan-actuals-detail-baseline-movement';
+    baseline.textContent = `Baseline: ${data.baselineMovement}`;
+    wrapper.appendChild(baseline);
+  }
+  return wrapper;
+}
+
+function createPlanActualsDetailColumns() {
+  const textColumn = (title, field, options = {}) => ({
+    title,
+    field,
+    headerSort: true,
+    headerFilter: 'input',
+    formatter: 'plaintext',
+    ...options
+  });
+  const moneyColumn = (title, field, options = {}) => ({
+    title,
+    field,
+    headerSort: true,
+    hozAlign: 'right',
+    headerHozAlign: 'right',
+    formatter: detailMoneyFormatter,
+    ...options
+  });
+
+  return [
+    textColumn('Date', 'date', { width: 112, minWidth: 105 }),
+    {
+      title: 'Status',
+      field: 'statusLabel',
+      width: 112,
+      minWidth: 104,
+      headerSort: true,
+      headerFilter: 'input',
+      formatter: detailStatusFormatter
+    },
+    {
+      title: 'Money Movement',
+      field: 'movement',
+      width: 255,
+      minWidth: 220,
+      headerSort: true,
+      headerFilter: 'input',
+      formatter: detailMovementFormatter
+    },
+    textColumn('Description', 'description', {
+      width: 210,
+      minWidth: 170
+    }),
+    textColumn('Repeat', 'repeat', {
+      width: 160,
+      minWidth: 135
+    }),
+    moneyColumn('Baseline', 'baseline', {
+      width: 132,
+      minWidth: 120
+    }),
+    moneyColumn('Current Plan', 'currentPlan', {
+      width: 140,
+      minWidth: 125
+    }),
+    moneyColumn('Actual', 'actual', {
+      width: 132,
+      minWidth: 120
+    }),
+    moneyColumn('Forecast Contribution', 'forecast', {
+      width: 170,
+      minWidth: 150,
+      headerTooltip: 'Actual amount when completed; otherwise the unresolved plan included in projections.'
+    }),
+    moneyColumn('Variance vs Baseline', 'varianceVsBaseline', {
+      width: 165,
+      minWidth: 145,
+      headerTooltip: 'Forecast contribution minus the frozen baseline.'
+    }),
+    moneyColumn('Variance vs Current', 'varianceVsCurrent', {
+      width: 160,
+      minWidth: 140,
+      headerTooltip: 'Forecast contribution minus the current plan.'
+    }),
+    {
+      title: 'Actions',
+      field: '_actions',
+      width: 178,
+      minWidth: 150,
+      headerSort: false,
+      formatter: (cell) => {
+        const occurrence = cell.getRow().getData()?._canonicalOccurrence;
+        const runtime = planActualsDetailRuntime;
+        if (!occurrence || !runtime) return '';
+        return buildOccurrenceActions({
+          occurrence,
+          scenarioId: runtime.scenarioId,
+          state: runtime.state,
+          onEdit: runtime.onEdit,
+          className: 'plan-actuals-detail-actions'
+        });
+      }
+    }
+  ];
+}
+
+function detailComparisonOccurrencesFromRows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => row?.getData?.() || row)
+    .map((row) => row?._comparisonOccurrence)
+    .filter(Boolean);
+}
+
+function applyPlanActualsDetailGrouping(table, groupBy) {
+  if (!table) return;
+  const field = {
+    status: 'statusGroup',
+    movement: 'movementGroup',
+    repeat: 'repeatGroup'
+  }[groupBy] || '';
+  table.setGroupBy?.(field ? [field] : []);
+}
+
+function openPlanActualsDetailEditor({
+  editorHost,
+  scenarioId,
+  occurrence = null,
+  accounts,
+  state,
+  isNew = false
+}) {
+  if (!editorHost) return;
+  editorHost.innerHTML = '';
+  const editorWrap = document.createElement('div');
+  editorWrap.className = isNew
+    ? 'plan-actuals-new-item'
+    : 'plan-actuals-editor-wrap';
+  const closeEditor = () => {
+    editorHost.innerHTML = '';
+  };
+  editorWrap.appendChild(buildOccurrenceEditor({
+    scenarioId,
+    occurrence,
+    accounts,
+    state,
+    onCancel: () => {
+      pendingEditor = null;
+      closeEditor();
+    },
+    onSaved: () => {
+      pendingEditor = null;
+      closeEditor();
+    }
+  }));
+  editorHost.appendChild(editorWrap);
+  editorHost.scrollIntoView?.({ block: 'nearest' });
+}
+
+async function renderOccurrenceDetailTable({
+  container,
+  rows,
+  totalsOccurrences,
+  diagnostics,
+  scenario,
+  state,
+  isRenderCurrent
+}) {
+  if (!isRenderCurrent()) return;
+  let grid = container.querySelector(':scope > .plan-actuals-detail-grid');
+  if (!grid) {
+    teardownPlanActualsDetailGrid();
+    container.innerHTML = '';
+  }
+
+  let totals = container.querySelector(':scope > .plan-actuals-totals');
+  if (!totals) {
+    totals = document.createElement('div');
+    totals.className = 'budget-totals-container plan-actuals-totals';
+    totals.id = 'budgetContent';
+  }
+
+  let diagnosticsElement = container.querySelector(':scope > .plan-actuals-diagnostics');
+  if (diagnostics?.length) {
+    if (!diagnosticsElement) {
+      diagnosticsElement = document.createElement('div');
+      diagnosticsElement.className = 'plan-actuals-diagnostics';
+    }
+    diagnosticsElement.textContent =
+      `${diagnostics.length} planning item${diagnostics.length === 1 ? '' : 's'} need review.`;
+    diagnosticsElement.title =
+      diagnostics.map((item) => item.message || item.code).join('\n');
+  } else {
+    diagnosticsElement?.remove();
+    diagnosticsElement = null;
+  }
+
+  let editorHost = container.querySelector(':scope > .plan-actuals-detail-editor-host');
+  if (!editorHost) {
+    editorHost = document.createElement('div');
+    editorHost.className = 'plan-actuals-detail-editor-host';
+  }
+  const { startDate: detailStartDate, endDate: detailEndDate } =
+    selectedPeriodRange(state);
+  const nextDetailContextKey = JSON.stringify({
+    scenarioId: Number(scenario.id),
+    periodType: state?.getBudgetPeriodType?.() || '',
+    periodId: state?.getBudgetPeriod?.() || '',
+    startDate: detailStartDate || '',
+    endDate: detailEndDate || '',
+    accountId: Number(state?.getBudgetAccountFilterId?.() || 0),
+    groupBy: state?.getGroupBy?.() || ''
+  });
+  const detailContextChanged =
+    planActualsDetailContextKey !== null &&
+    planActualsDetailContextKey !== nextDetailContextKey;
+  planActualsDetailContextKey = nextDetailContextKey;
+  if (detailContextChanged) {
+    pendingEditor = null;
+    // Editors close over the scenario, period, and filter context in which
+    // they were opened. Drop them before reusing the table for another view.
+    editorHost.innerHTML = '';
+  }
+
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.className =
+      'grid-container budget-grid plan-actuals-grid plan-actuals-detail-grid grid-detail';
+  }
+
+  container.appendChild(totals);
+  if (diagnosticsElement) container.appendChild(diagnosticsElement);
+  container.appendChild(editorHost);
+  container.appendChild(grid);
+
+  const detailRows = buildPlanActualsDetailRows(rows, scenario.accounts || []);
+  const openEditor = (occurrence) => openPlanActualsDetailEditor({
+    editorHost,
+    scenarioId: scenario.id,
+    occurrence,
+    accounts: scenario.accounts || [],
+    state
+  });
+  planActualsDetailRuntime = {
+    scenarioId: scenario.id,
+    state,
+    totals,
+    onEdit: openEditor
+  };
+
+  renderComparisonTotals(totals, totalsOccurrences);
+
+  const shouldRebuild =
+    !lastPlanActualsDetailTable ||
+    lastPlanActualsDetailTable.element !== grid;
+  if (shouldRebuild) {
+    teardownPlanActualsDetailGrid();
+    planActualsDetailContextKey = nextDetailContextKey;
+    const lifecycle = planActualsDetailLifecycle;
+    planActualsDetailRuntime = {
+      scenarioId: scenario.id,
+      state,
+      totals,
+      onEdit: openEditor
+    };
+    const detailTable = await createGrid(grid, {
+      data: detailRows,
+      columns: createPlanActualsDetailColumns(),
+      layout: 'fitDataStretch',
+      responsiveLayout: false,
+      rowHeight: 52,
+      placeholder: 'No planned or actual items in this period.',
+      initialSort: [{ column: 'date', dir: 'asc' }]
+    });
+
+    if (
+      !isRenderCurrent() ||
+      lifecycle !== planActualsDetailLifecycle ||
+      !grid.isConnected
+    ) {
+      try {
+        detailTable?.destroy?.();
+      } catch (_) {
+        // Ignore cleanup failures for a render superseded while the grid loaded.
+      }
+      return;
+    }
+
+    lastPlanActualsDetailTable = detailTable;
+    detailTable.on('dataFiltered', (_filters, activeRows) => {
+      if (lastPlanActualsDetailTable !== detailTable) return;
+      const runtime = planActualsDetailRuntime;
+      if (!runtime?.totals) return;
+      renderComparisonTotals(
+        runtime.totals,
+        detailComparisonOccurrencesFromRows(activeRows)
+      );
+    });
+    detailTable.on('tableBuilt', () => {
+      if (lastPlanActualsDetailTable !== detailTable) return;
+      lastPlanActualsDetailTableReady = true;
+      applyPlanActualsDetailGrouping(
+        detailTable,
+        planActualsDetailRuntime?.state?.getGroupBy?.() || ''
+      );
+    });
+  } else {
+    await refreshGridData(lastPlanActualsDetailTable, detailRows);
+    if (!isRenderCurrent()) return;
+  }
+
+  if (lastPlanActualsDetailTableReady) {
+    applyPlanActualsDetailGrouping(
+      lastPlanActualsDetailTable,
+      state?.getGroupBy?.() || ''
+    );
+  }
+
+  if (
+    pendingEditor?.scenarioId === Number(scenario.id) &&
+    pendingEditor.occurrence === null &&
+    !editorHost.querySelector(':scope > .plan-actuals-new-item')
+  ) {
+    openPlanActualsDetailEditor({
+      editorHost,
+      scenarioId: scenario.id,
+      accounts: scenario.accounts || [],
+      state,
+      isNew: true
+    });
+  }
+}
+
 async function renderPeriodView({
   container,
   scenarioState,
   state,
   logger,
-  reload
+  reload,
+  isRenderCurrent,
+  presentationMode = 'summary'
 }) {
+  if (!isRenderCurrent()) return;
   const scenario = scenarioState?.get?.();
   if (!scenario) return;
 
@@ -859,8 +1485,10 @@ async function renderPeriodView({
   let periods = state?.getBudgetPeriods?.() || [];
   if (!periods.length) {
     periods = await loadPlanPeriods(scenario, periodType);
+    if (!isRenderCurrent()) return;
     state?.setBudgetPeriods?.(periods);
   }
+  if (!isRenderCurrent()) return;
 
   let selectedId = state?.getBudgetPeriod?.();
   if (!findPeriodById(periods, selectedId) && periods.length) {
@@ -1070,6 +1698,31 @@ async function renderPeriodView({
     controls.appendChild(filterButton);
   }
 
+  const accountFilterId = state?.getBudgetAccountFilterId?.();
+  const rows = buildDisplayRows({
+    occurrences: resolved.occurrences,
+    accounts: scenario.accounts || [],
+    accountFilterId
+  });
+  const totalsOccurrences = buildComparisonOccurrences(
+    resolved.occurrences,
+    accountFilterId
+  );
+
+  if (presentationMode === 'detail') {
+    await renderOccurrenceDetailTable({
+      container,
+      rows,
+      totalsOccurrences,
+      diagnostics: resolved.diagnostics || [],
+      scenario,
+      state,
+      isRenderCurrent
+    });
+    return;
+  }
+
+  teardownPlanActualsDetailGrid();
   container.innerHTML = '';
   const totals = document.createElement('div');
   totals.className = 'budget-totals-container plan-actuals-totals';
@@ -1088,16 +1741,6 @@ async function renderPeriodView({
   grid.className = 'grid-container budget-grid plan-actuals-grid';
   container.appendChild(grid);
 
-  const accountFilterId = state?.getBudgetAccountFilterId?.();
-  const rows = buildDisplayRows({
-    occurrences: resolved.occurrences,
-    accounts: scenario.accounts || [],
-    accountFilterId
-  });
-  const totalsOccurrences = buildComparisonOccurrences(
-    resolved.occurrences,
-    accountFilterId
-  );
   renderComparisonTotals(totals, totalsOccurrences);
 
   renderOccurrenceCards({
@@ -1150,48 +1793,82 @@ export async function loadPlanActualsGrid({
   scenarioState,
   state,
   callbacks,
-  logger
+  logger,
+  presentation = null,
+  presentationMode = null,
+  mode = null
 }) {
+  const isRenderCurrent = () => callbacks?.isRenderCurrent?.() !== false;
+  if (!isRenderCurrent()) return;
   const scenario = scenarioState?.get?.();
-  if (!scenario || !container) return;
+  if (!container) return;
+  if (!scenario) {
+    teardownPlanActualsGrid({
+      container,
+      teardownRecurringView: callbacks?.teardownRecurringView
+    });
+    return;
+  }
 
+  const resolvedPresentation = normalizePresentation({
+    presentation,
+    presentationMode,
+    mode
+  });
   const scenarioId = Number(scenario.id);
-  const view = viewByScenarioId.get(scenarioId) || 'period';
+  const viewKey = `${resolvedPresentation.contextKey}:${scenarioId}`;
+  const view =
+    viewByContextScenario.get(viewKey) ||
+    resolvedPresentation.defaultView;
   const reload = async () => loadPlanActualsGrid({
     container,
     scenarioState,
     state,
     callbacks,
-    logger
+    logger,
+    presentation: resolvedPresentation
   });
 
   ensureModeToggle({
     container,
-    scenarioId,
+    viewKey,
     view,
     onChange: async () => {
-      pendingEditor = null;
-      container.innerHTML = '';
+      teardownPlanActualsGrid({
+        container,
+        teardownRecurringView: callbacks?.teardownRecurringView
+      });
       await reload();
     }
   });
 
   if (view === 'recurring') {
-    pendingEditor = null;
-    container.innerHTML = '';
-    await callbacks?.loadRecurringView?.(container);
+    if (!isRenderCurrent()) return;
+    teardownPlanActualsGrid({
+      container,
+      teardownRecurringView: callbacks?.teardownRecurringView
+    });
+    await callbacks?.loadRecurringView?.(container, {
+      ...resolvedPresentation,
+      presentationMode: resolvedPresentation.mode
+    });
     return;
   }
 
   try {
+    if (!isRenderCurrent()) return;
+    callbacks?.teardownRecurringView?.();
     await renderPeriodView({
       container,
       scenarioState,
       state,
       logger,
-      reload
+      reload,
+      isRenderCurrent,
+      presentationMode: resolvedPresentation.mode
     });
   } catch (error) {
+    if (!isRenderCurrent()) return;
     logger?.error?.('[PlanActuals] Failed to render period view', error);
     notifyError(`Failed to load Plan & Actuals: ${error?.message || String(error)}`);
   }

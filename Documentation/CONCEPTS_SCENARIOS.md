@@ -51,13 +51,13 @@ Edit them in the scenario list at the top of Forecast.
 
 ### 4.2 Plan & Actuals Period
 
-The Budget workflow's Plan & Actuals card has its own View and Period controls.
-They determine which resolved occurrences are shown for review and tracking.
-They do not change the projection engine configuration.
+Every primary workflow uses the same Plan & Actuals card. Its View and Period
+controls determine which resolved occurrences are shown for review and
+tracking. They do not change the projection engine configuration.
 
 ### 4.3 Display View By
 
-Transactions and Projections can group or filter displayed data by a chosen
+Plan & Actuals and Projections can group or filter displayed data by a chosen
 period. Display grouping does not alter rule schedules or projection-engine
 Period Type.
 
@@ -80,30 +80,31 @@ Includes: Accounts, Plan & Actuals, and Projections.
 
 ### 5.2 General
 
-Use for flexible rule editing and summary totals without period baseline and
-actual tracking.
+Use for flexible rule editing, period tracking, summary totals, and
+projections. Plan & Actuals opens on Recurring by default; Period remains
+available for baseline and actual tracking.
 
-Includes: Summary, Accounts, Transactions, and Projections.
+Includes: Summary, Accounts, Plan & Actuals, and Projections.
 
 ### 5.3 Funds
 
 Use for a pooled fund with NAV, shares, and ownership.
 
-Includes: Funds Summary, Accounts, and Transactions.
+Includes: Funds Summary, Accounts, and Plan & Actuals.
 
 ### 5.4 Debt Repayment
 
 Use for payoff strategies, interest, payoff dates, and variable-rate
 schedules.
 
-Includes: Debt Summary, Accounts, Transactions, and Projections.
+Includes: Debt Summary, Accounts, Plan & Actuals, and Projections.
 
 ### 5.5 Goal Workshop
 
 Use Simple mode for account-based goals and one generated contribution rule.
 Use Advanced mode for multiple goals and constraints.
 
-Includes: Accounts, Generate Plan, Transactions, and Projections.
+Includes: Accounts, Generate Plan, Plan & Actuals, and Projections.
 
 ## 6.0 Recommended Pattern
 

@@ -40,8 +40,9 @@
 
 ## 5.0 Model Contributions And Withdrawals
 
-5.1 Use one-time or recurring transaction rules to model contributions and
-withdrawals.
+5.1 Open **Plan & Actuals → Recurring** to maintain contribution and withdrawal
+rules. Use **Period** for one-time items, period adjustments, actuals, and
+variance review.
 
 5.2 Use separate accounts to represent different investors when applicable.
 
@@ -64,6 +65,6 @@ downstream balances reflect the changed rules.
 
 7.1 If shares look unexpected.
 
-7.1.1 Confirm transactions are categorized correctly.
+7.1.1 Confirm Plan Rules and dated occurrences use the intended accounts.
 
 7.1.2 Confirm investor contribution accounts are modeled consistently.

@@ -1,5 +1,12 @@
 # Workflow-Based Scenarios Refactor
 
+> **Historical proposal — superseded.** This document records the earlier
+> workflow refactor that preceded schemaVersion 44. Its separate Transactions,
+> Budget, projection-source, and per-card period concepts are not the current
+> application contract. See `TECH_ARCHITECTURE.md`, `TECH_UI_LAYER.md`, and
+> `drafts-jay/unified-budget-transactions-workflow-plan.md` for the implemented
+> unified Plan & Actuals model.
+
 ## 1.0 Goal
 
 1.0.1 Reduce a Scenario to a simple named version of user data.

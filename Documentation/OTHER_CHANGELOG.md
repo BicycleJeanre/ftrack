@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Completed the schemaVersion 44 unified **Plan & Actuals** workflow.
+  - Budget is now a live Period view over resolved plan occurrences rather
+    than a separately generated dataset.
+  - Recurring Plan Rules and dated planned/actual occurrences share one
+    component in Budget, General, Funds, Debt Repayment, and Goal Workshop.
+  - Projections always consume actuals plus the latest remaining resolved plan;
+    the transaction-versus-budget source choice and Budget generation step are
+    removed.
+  - Plan Rules (Detail) and Plan & Actuals (Detail) now render genuine,
+    lifecycle-managed tables rather than reusing summary cards.
+  - Baseline, current plan, actual, forecast contribution, and variance remain
+    directly comparable, including unplanned actuals and history-safe series
+    changes.
+  - Cross-workflow refreshes are coalesced and serialized with scenario and
+    workflow navigation.
 - Introduced the schemaVersion 43 resolved-plan compatibility layer for the unified Budget, Transactions, Actuals, and Projections workflow.
   - Projections now combine actuals, latest planned occurrences, manual occurrences, recurring rules, and skips through one canonical occurrence resolver.
   - The legacy projection source setting remains readable but no longer changes calculation results.

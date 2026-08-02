@@ -96,7 +96,7 @@ test.describe('deeper edit paths and error states', () => {
     }, 'account tag removed');
   });
 
-  test('shows an error when adding a transaction with no accounts', async ({ page }) => {
+  test('shows an error when adding a recurring plan rule with no accounts', async ({ page }) => {
     const emptyAccountsData = loadSmokeData();
     emptyAccountsData.scenarios[0].accounts = [];
     emptyAccountsData.scenarios[0].transactions = [];
@@ -104,9 +104,48 @@ test.describe('deeper edit paths and error states', () => {
 
     await gotoFTrack(page, emptyAccountsData);
     await selectWorkflow(page, 'General');
-    await openSectionFilters(page, '#transactionsSection');
-    await page.locator('.filter-modal button[title="Add Transaction"]').click();
-    await expect(page.locator('.notify-toast-error')).toContainText('Please create at least one account');
+    await openSectionFilters(page, '#budgetSection');
+    await page.locator('.filter-modal button[title="Add recurring rule"]').click();
+    await expect(page.locator('.notify-toast-error')).toContainText(
+      'Please create at least one account before adding a recurring plan rule.'
+    );
+  });
+
+  test('keeps the recurring safe editor open when Save or Enter cannot commit', async ({ page }) => {
+    const endedRuleData = loadSmokeData();
+    const salaryRule = endedRuleData.scenarios[0].transactions.find(
+      (transaction) => Number(transaction.id) === 1001
+    );
+    salaryRule.recurrence.endDate = '2026-01-25';
+    salaryRule.activeTo = '2026-01-25';
+
+    await gotoFTrack(page, endedRuleData);
+    await selectWorkflow(page, 'Plan Rules (Detail)');
+    const salaryRow = page.locator(
+      '#budgetTable .recurring-rules-detail-grid .tabulator-row',
+      { hasText: 'Monthly salary' }
+    );
+    await salaryRow.locator('button[title="Edit recurring rule safely"]').click();
+    const card = salaryRow.locator('.recurring-rule-card');
+    await card.click();
+    const form = card.locator('.grid-summary-form');
+    await expect(form).toBeVisible();
+
+    await form.locator('button[title="Save recurring rule"]').click();
+    await expect(page.locator('.notify-toast-error').last()).toContainText(
+      'no unresolved future occurrence'
+    );
+    await expect(form).toBeVisible();
+
+    await page.locator('.notify-toast-error').last().click();
+    await form.locator('.tag-input-row').evaluate((element) => element.remove());
+    const description = form.locator('.grid-summary-field', { hasText: 'Description' })
+      .locator('input');
+    await description.press('Enter');
+    await expect(page.locator('.notify-toast-error').last()).toContainText(
+      'no unresolved future occurrence'
+    );
+    await expect(form).toBeVisible();
   });
 
   test('validation modal reports intentionally invalid stored data', async ({ page }) => {

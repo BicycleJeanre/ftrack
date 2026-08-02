@@ -15,15 +15,10 @@
     "copyCell": "Ctrl+C"
   },
   "Application": {
-    "addRow": "Ctrl+N",
-    "deleteRow": "Delete",
-    "save": "Ctrl+S",
-    "generateProjections": "Ctrl+G",
     "focusScenarios": "Ctrl+1",
     "focusAccounts": "Ctrl+2",
-    "focusPlannedTransactions": "Ctrl+3",
-    "focusActualTransactions": "Ctrl+4",
-    "focusProjections": "Ctrl+5",
+    "focusPlanActuals": "Ctrl+3",
+    "focusProjections": "Ctrl+4",
     "showShortcuts": "?"
   }
 }

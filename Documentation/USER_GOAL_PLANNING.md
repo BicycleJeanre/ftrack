@@ -2,7 +2,7 @@
 
 ## 1.0 Purpose
 
-1.1 Explain how to set account goals and use Generate Plan in Simple mode to create planned contribution transactions.
+1.1 Explain how to set account goals and use Generate Plan in Simple mode to create recurring contribution plan rules.
 
 ## 2.0 Goal Workshop Modes
 
@@ -10,13 +10,13 @@
 
 2.1.1 Uses account fields Goal Amount and Goal Date.
 
-2.1.2 Generates a single recurring planned transaction per goal account.
+2.1.2 Generates a single recurring plan rule per goal account.
 
 2.2 Advanced.
 
 2.2.1 Uses scenario settings to define multiple goals and constraints.
 
-2.2.2 Can generate and apply a set of transaction rules across accounts.
+2.2.2 Can generate and apply a set of plan rules across accounts.
 
 2.3 If you are paying off a debt by a date, use Goal Workshop in Advanced mode with Pay down to target.
 
@@ -44,7 +44,7 @@
 
 4.2.1 Goal Account. This is the account you are trying to reach a target balance on.
 
-4.2.2 Income Account. This is the source account used when generating the planned contribution transaction.
+4.2.2 Income Account. This is the source account used for the planned contribution.
 
 4.3 Choose Solve For.
 
@@ -60,9 +60,9 @@
 
 4.5 Click Generate Plan.
 
-4.5.1 FTrack creates or replaces a recurring planned transaction tagged as goal-generated for that goal account.
+4.5.1 FTrack creates or replaces a recurring plan rule tagged as goal-generated for that goal account.
 
-4.5.2 The transaction runs from the planning window start through the goal date.
+4.5.2 The rule runs from the planning window start through the goal date.
 
 ## 5.0 How Interest Is Used In Calculations
 
@@ -74,7 +74,8 @@
 
 ## 6.0 Verify The Plan
 
-6.1 Go to Transactions to review the generated planned transaction.
+6.1 Open **Plan & Actuals → Recurring** to review the generated plan rule, or
+switch to Period to inspect its dated occurrences.
 
 6.2 Allow projections to refresh, then confirm the goal account reaches the
 target by the goal date.

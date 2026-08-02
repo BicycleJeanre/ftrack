@@ -1,6 +1,6 @@
 # FTrack Usage Guide
 
-**Version**: 3.0
+**Version**: 3.1
 
 **Last Updated**: August 2, 2026
 
@@ -14,7 +14,7 @@ FTrack is a scenario-based financial planning application. It helps you define
 what normally happens, adjust individual periods as life changes, record what
 actually happened, and see the effect on future account balances.
 
-The Budget workflow uses one continuous process:
+Every main workflow uses one continuous planning process:
 
 ```text
 Transaction rules
@@ -110,8 +110,10 @@ A rule includes:
 Examples include a paycheck every second Friday, rent on the first day of the
 month, weekly groceries, or an annual insurance bill.
 
-In the Budget workflow, manage rules in **Plan & Actuals → Recurring**. Other
-workflows expose the same rules in the **Transactions** card.
+Manage rules in **Plan & Actuals → Recurring** in every main workflow. Budget
+opens Plan & Actuals in Period by default for tracking; General, Funds, Debt
+Repayment, and Goal Workshop open it in Recurring by default for rule entry.
+Both views remain available from the same card.
 
 ### 2.4 Period Occurrences
 
@@ -175,14 +177,28 @@ lineage back to the source.
 Workflows are Forecast UI presets. Selecting one changes the visible cards; it
 does not change or tag the selected scenario.
 
-- **Budget**: Accounts, Plan & Actuals, and Projections.
-- **General**: summary totals, Accounts, Transactions, and Projections.
-- **Funds**: pooled-fund summary, Accounts, and Transactions.
-- **Debt Repayment**: debt summary, Accounts, Transactions, and Projections.
-- **Goal Workshop**: Accounts, Generate Plan, Transactions, and Projections.
-  Its Generate Plan card includes Simple and Advanced modes.
+| Workflow | Main cards | Plan & Actuals default |
+|---|---|---|
+| **Budget** | Accounts, Plan & Actuals, Projections | Period |
+| **General** | Summary totals, Accounts, Plan & Actuals, Projections | Recurring |
+| **Funds** | Pooled-fund summary, Accounts, Plan & Actuals | Recurring |
+| **Debt Repayment** | Debt summary, Accounts, Plan & Actuals, Projections | Recurring |
+| **Goal Workshop** | Accounts, Generate Plan, Plan & Actuals, Projections | Recurring |
 
-Choose Budget for baseline, actual, skip, and variance tracking.
+Goal Workshop's Generate Plan card includes Simple and Advanced modes.
+
+Every main workflow can switch between Recurring rule entry and Period
+baseline, actual, skip, and variance tracking. The default only sets the view
+shown when the workflow opens.
+
+Detail shortcuts use the same component:
+
+- **Plan Rules (Detail)** opens a full recurring-rules table.
+- **Plan & Actuals (Detail)** opens a full resolved-occurrence Period table.
+
+You can switch between Period and Recurring in either detail layout. Detail
+layouts are tables with expanded columns and row actions, not enlarged copies
+of the summary cards.
 
 ### 2.9 Three Different Time Controls
 
@@ -484,18 +500,22 @@ source scenario remains untouched.
 
 ### 7.1 General
 
-Use General for lightweight rule editing, summary metrics, and projections
-without period baseline/actual tracking.
+Use General for summary metrics, rule editing, and projections. Plan &
+Actuals opens in Recurring, and you can switch to Period for baseline, actual,
+skip, and variance tracking.
 
 ### 7.2 Funds
 
 Use Funds to model a pooled set of accounts with NAV, shares, and ownership
-metrics.
+metrics. Plan & Actuals opens in Recurring; switch to Period when you need to
+track dated results or exceptions.
 
 ### 7.3 Debt Repayment
 
 Use Debt Repayment to model liability balances, recurring and extra payments,
-interest, variable-rate schedules, and payoff dates.
+interest, variable-rate schedules, and payoff dates. Recurring is the default
+Plan & Actuals view, and Period provides the same actual and variance workflow
+used elsewhere.
 
 ### 7.4 Goal Workshop
 
@@ -505,7 +525,8 @@ caps.
 
 Generate Plan has its own planning window. Extend the scenario projection
 window to the same goal horizon when you want projections to validate the
-applied result.
+applied result. Applied rules appear in Plan & Actuals → Recurring; switch to
+Period to review and track their dated occurrences.
 
 ---
 

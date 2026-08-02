@@ -1,6 +1,6 @@
 # FTrack User Features
 
-**Version**: 3.0
+**Version**: 3.1
 
 **Last Updated**: August 2, 2026
 
@@ -29,8 +29,9 @@ Quarter, or Year.
 - Debt Repayment
 - Goal Workshop
 
-1.6 Open detail layouts for Accounts, Transactions, Plan & Actuals, and
-Projections.
+1.6 Open detail layouts for Accounts, Plan Rules, Plan & Actuals, and
+Projections. Plan Rules and Plan & Actuals use the same unified component with
+different default views.
 
 1.7 Use Goal Workshop Simple or Advanced mode from one Generate Plan card.
 
@@ -73,10 +74,11 @@ tags, and effective date.
 3.5 Create and view grouped transaction components such as principal,
 interest, and fees.
 
-3.6 In Budget, manage rules in **Plan & Actuals → Recurring**.
+3.6 Manage rules in **Plan & Actuals → Recurring** in every main workflow.
 
-3.7 In General, Funds, Debt Repayment, and Goal Workshop, manage the same
-rules in **Transactions**.
+3.7 Budget opens Plan & Actuals in Period by default. General, Funds, Debt
+Repayment, and Goal Workshop open it in Recurring by default; the other view
+remains available.
 
 3.8 Edit a recurring rule with an explicit scope:
 
@@ -96,7 +98,8 @@ deleting prior actual, skipped, or frozen history.
 
 ## 4.0 Plan & Actuals
 
-4.1 Use one unified card in the Budget workflow.
+4.1 Use one unified Plan & Actuals card in Budget, General, Funds, Debt
+Repayment, and Goal Workshop.
 
 4.2 Switch between:
 
@@ -164,6 +167,16 @@ other rule metadata stable when later rule edits occur.
 - Actual versus baseline
 - Actual versus current plan
 - Unplanned actuals
+
+4.21 Use **Plan Rules (Detail)** for a genuine recurring rule-segment table
+with expanded metadata and safe scoped row actions.
+
+4.22 Use **Plan & Actuals (Detail)** for a genuine resolved-occurrence table
+with dates, statuses, movement and description columns, repeat information,
+Baseline, Current Plan, Actual, forecast contribution, variances, and actions.
+
+4.23 Switch Period/Recurring inside either detail layout to use the
+corresponding table without returning to summary cards.
 
 ## 5.0 Projections
 

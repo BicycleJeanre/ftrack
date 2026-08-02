@@ -7,15 +7,15 @@ const WORKFLOW_IDS_BY_NAME = {
   'Debt Repayment': 'debt-repayment',
   'Goal Workshop': 'goal-workshop',
   'Accounts (Detail)': 'accounts-detail',
-  'Transactions (Detail)': 'transactions-detail',
+  'Plan Rules (Detail)': 'transactions-detail',
   'Plan & Actuals (Detail)': 'budget-detail',
   'Projections (Detail)': 'projections-detail'
 };
 
 const WORKFLOW_READY_SELECTORS = {
   'Accounts (Detail)': '#accountsTable .grid-container.grid-detail.tabulator',
-  'Transactions (Detail)': '#transactionsTable .grid-container.grid-detail.tabulator',
-  'Plan & Actuals (Detail)': '#budgetTable .plan-actuals-grid',
+  'Plan Rules (Detail)': '#budgetTable .recurring-rules-detail-grid.grid-detail.tabulator',
+  'Plan & Actuals (Detail)': '#budgetTable .plan-actuals-detail-grid.grid-detail.tabulator',
   'Projections (Detail)': '#projectionsContent'
 };
 

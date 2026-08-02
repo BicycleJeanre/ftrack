@@ -359,7 +359,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
 
   const { row: middleRow, body: middleBody } = buildDashRow({
     id: 'row-middle',
-    title: 'Accounts & Transactions',
+    title: 'Accounts & Planning',
     defaultCollapsed: accordionStates['row-middle'] !== true,
     onToggle: (isOpen) => onAccordionToggle?.('row-middle', isOpen)
   });
@@ -396,13 +396,14 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
   const txPanel = document.createElement('div');
   txPanel.className = 'dash-panel forecast-card';
   txPanel.id = 'transactionsSection';
+  txPanel.classList.add('hidden');
   const txHeader = document.createElement('div');
   txHeader.className = 'dash-panel-header card-header';
   const txHeaderLeft = document.createElement('div');
   txHeaderLeft.className = 'card-header-actions';
   const txLabel = document.createElement('div');
   txLabel.className = 'dash-panel-label';
-  txLabel.textContent = 'Transactions';
+  txLabel.textContent = 'Plan Rules';
   txHeaderLeft.appendChild(txLabel);
   const txControls = document.createElement('div');
   txControls.className = 'card-header-controls';

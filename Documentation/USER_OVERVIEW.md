@@ -64,7 +64,8 @@ period adjustments, actuals, and variance.
 
 3.1 If you want to reach a savings target.
 
-3.1.1 Use Simple mode when one account goal is enough and you want one generated contribution transaction.
+3.1.1 Use Simple mode when one account goal is enough and you want one
+generated contribution Plan Rule.
 
 3.1.2 Use Advanced mode when you need constraints such as max outflow per month, locked accounts, or floors.
 
