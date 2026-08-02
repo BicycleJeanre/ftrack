@@ -1,10 +1,11 @@
-# Draft: Unified Budget, Transactions, Actuals, And Projections Workflow
+# Unified Budget, Transactions, Actuals, And Projections Workflow
 
-Status: Provisional  
-Owner: Jay  
-Date: 2026-08-02  
-Branch: `dev`  
-Purpose: Workflow and implementation planning only. Existing source-of-truth documentation remains unchanged until this proposal is approved.
+Status: Approved for implementation
+Owner: Jay
+Date: 2026-08-02
+Approved: 2026-08-02
+Branch: `dev`
+Purpose: Approved workflow and phased implementation plan. Official user and technical documentation will be reconciled as each behavior is implemented and validated.
 
 ## 1. Recommendation
 
@@ -396,6 +397,22 @@ Recommended baseline behavior:
 6. An unplanned occurrence has baseline zero.
 
 This preserves comparison without requiring the user to generate and manage a second budget dataset.
+
+### 7.6 Approved Occurrence States
+
+| State | Meaning | Projection treatment | Baseline treatment |
+|---|---|---|---|
+| Planned | Expected and unresolved | Use current planned amount and effective planned date | Derived plan until frozen |
+| Actual | Realized occurrence | Use actual amount and actual date | Preserve the frozen baseline |
+| Skipped | Explicitly cancelled occurrence | Exclude | Preserve baseline for variance history |
+| Overdue | Planned date is before the as-of date and remains unresolved | Include as an open commitment at the as-of date and flag it for resolution | Preserve baseline/current plan |
+| Unbudgeted Actual | Manual actual with no matching plan | Use actual amount and date | Baseline is zero |
+| Overridden | Generated occurrence with an occurrence-level plan change | Use the current overridden amount/date | Preserve the original frozen baseline |
+
+Money movement is canonical and direction-aware:
+
+- Money In moves from the secondary/source account to the primary/receiving account.
+- Money Out moves from the primary/paying account to the secondary/destination account.
 
 ## 8. Canonical Occurrence Resolver
 
@@ -994,7 +1011,7 @@ The redesign is successful when:
 11. Existing schemaVersion 43 data migrates without losing budget edits or actuals.
 12. All account-perspective, recurrence, periodic-change, split, funds, debt, goal, and import/export tests remain valid.
 
-## 17. Decisions Recommended For Approval
+## 17. Approved Decisions
 
 1. Budget becomes a view, not a stored duplicate dataset.
 2. The Budget workflow uses one Plan & Actuals card with Period and Recurring views.
@@ -1007,14 +1024,16 @@ The redesign is successful when:
 9. Baselines freeze automatically on first actual, with an explicit manual freeze option.
 10. Implementation proceeds resolver-first and migration-last.
 
-## 18. Open Product Questions
+## 18. Resolved Product Decisions
 
-1. Should the unified card be named **Plan & Actuals**, **Budget**, or **Cash Flow**?
-2. Should baseline freezing happen automatically on the first day of a period, on the first actual, or only by user action?
-3. Should an overdue planned item remain in the forecast automatically, or require resolution before projection refresh?
-4. Should projection recalculation be fully automatic or debounced with a visible stale state and manual confirmation?
-5. For “Entire series,” should unresolved past occurrences change, or only the current and future periods?
-6. Should “Repeat going forward” default to the next calendar period or the next recurrence date?
+| Decision | Approved behavior |
+|---|---|
+| Unified card name | **Plan & Actuals** inside the Budget workflow |
+| Baseline freezing | Automatically on the first actual, with a manual **Freeze baseline** action |
+| Overdue planned items | Remain flagged open commitments and are included in forecasts at the as-of date |
+| Projection refresh | Debounced automatic refresh with a visible stale state and a manual refresh control |
+| Entire series edits | Affect the current and future unresolved occurrences only; never rewrite actuals or past periods |
+| Repeat going forward | Starts on the next recurrence date |
 
 ## 19. Recommended First Implementation Slice
 
