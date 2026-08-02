@@ -40,11 +40,13 @@
 
 ## 5.0 Model Contributions And Withdrawals
 
-5.1 Use planned transactions to model contributions and withdrawals.
+5.1 Use one-time or recurring transaction rules to model contributions and
+withdrawals.
 
 5.2 Use separate accounts to represent different investors when applicable.
 
-5.3 Generate projections to see how NAV and ownership change.
+5.3 When using a projection-enabled view, allow projections to refresh so
+downstream balances reflect the changed rules.
 
 ## 6.0 Read The Funds Summary
 

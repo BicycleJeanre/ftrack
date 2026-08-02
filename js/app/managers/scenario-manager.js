@@ -97,7 +97,8 @@ export async function create(scenarioData) {
             lineage: null,
             accounts: [],
             transactions: [],
-            budgets: [],
+            transactionOccurrences: [],
+            baselinePeriods: [],
             projection: null,
             planning: null,
             ...scenarioData

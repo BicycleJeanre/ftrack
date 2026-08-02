@@ -20,7 +20,8 @@
 
 2.2.1 Budget vs actual tracking.
 
-2.2.2 Multi-goal planning with constraints. Use Advanced Goal Solver for that.
+2.2.2 Multi-goal planning with constraints. Use Goal Workshop in Advanced
+mode for that.
 
 ## 3.0 Create A Debt Repayment Scenario
 
@@ -70,9 +71,10 @@
 
 5.4 Use realistic start dates so the projection timeline matches expected payments.
 
-## 6.0 Generate Projections
+## 6.0 Refresh Projections
 
-6.1 Click Generate Projections.
+6.1 Allow automatic refresh to complete after plan changes, or use
+**Refresh projections now** for an immediate calculation.
 
 6.2 Review.
 

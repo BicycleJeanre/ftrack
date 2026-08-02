@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-02T10:03:59.610Z",
+  "generatedAt": "2026-08-02T12:42:10.809Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -60,7 +60,7 @@
     },
     {
       "id": "CONCEPTS_TRANSACTIONS",
-      "title": "Transactions Guide",
+      "title": "Transaction Rules and Occurrences",
       "category": "Concepts",
       "file": "Documentation/CONCEPTS_TRANSACTIONS.md",
       "kind": "md"
@@ -95,7 +95,7 @@
     },
     {
       "id": "SCREENPAL_BUDGET_WORKFLOW_TUTORIAL_PLAN",
-      "title": "ScreenPal Budget Workflow Tutorial Plan",
+      "title": "ScreenPal Plan & Actuals Workflow Tutorial Plan",
       "category": "Other",
       "file": "Documentation/SCREENPAL_BUDGET_WORKFLOW_TUTORIAL_PLAN.md",
       "kind": "md"
@@ -143,17 +143,17 @@
       "kind": "md"
     },
     {
+      "id": "TECH_REFACTOR_AUDIT",
+      "title": "Historical Refactor Audit Report",
+      "category": "Technical",
+      "file": "Documentation/TECH_REFACTOR_AUDIT.md",
+      "kind": "md"
+    },
+    {
       "id": "TECH_QC_METHOD",
       "title": "QC Method Summary",
       "category": "Technical",
       "file": "Documentation/TECH_QC_METHOD.md",
-      "kind": "md"
-    },
-    {
-      "id": "TECH_REFACTOR_AUDIT",
-      "title": "Refactor Audit Report",
-      "category": "Technical",
-      "file": "Documentation/TECH_REFACTOR_AUDIT.md",
       "kind": "md"
     },
     {
@@ -210,13 +210,6 @@
       "title": "Workflow-Based Scenarios Refactor",
       "category": "Technical",
       "file": "Documentation/TECH_REFACTOR_WORKFLOWS.md",
-      "kind": "md"
-    },
-    {
-      "id": "USER_BUDGET_WORKFLOW",
-      "title": "Budget Workflow",
-      "category": "User",
-      "file": "Documentation/USER_BUDGET_WORKFLOW.md",
       "kind": "md"
     },
     {
@@ -280,6 +273,13 @@
       "title": "Overview",
       "category": "User",
       "file": "Documentation/USER_OVERVIEW.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_BUDGET_WORKFLOW",
+      "title": "Plan & Actuals Workflow",
+      "category": "User",
+      "file": "Documentation/USER_BUDGET_WORKFLOW.md",
       "kind": "md"
     }
   ]

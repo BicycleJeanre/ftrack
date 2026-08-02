@@ -1,6 +1,6 @@
 // resolve-scenario-occurrences.js
-// Canonical compatibility query for schemaVersion 43 planning rules and stored
-// budget occurrences. This module is pure: it never mutates scenario data.
+// Canonical query for schemaVersion 44 planning rules and stored transaction
+// occurrences. This module is pure: it never mutates scenario data.
 
 import { calculatePeriodicChange } from '../calculations/calculation-engine.js';
 import { expandPeriodicChangeForCalculation } from '../calculations/periodic-change-utils.js';
@@ -80,9 +80,9 @@ export function createLinkedOccurrenceKey(sourceTransactionId, scheduledDate, ro
   return `tx:${sourceId}|date:${scheduledDate}|role:${normalizeRole(role) || 'none'}`;
 }
 
-function manualOccurrenceKey(budget, index) {
-  const id = budget?.id;
-  return `budget:${id !== null && id !== undefined && id !== '' ? id : `index-${index}`}`;
+function manualOccurrenceKey(occurrence, index) {
+  const id = occurrence?.id;
+  return `occurrence:${id !== null && id !== undefined && id !== '' ? id : `index-${index}`}`;
 }
 
 function calendarDayDifference(start, end) {
@@ -101,6 +101,15 @@ function getComponentAccountId(component) {
 
 function getComponentAmount(component) {
   return absoluteAmount(component?.amount ?? component?.value ?? 0);
+}
+
+function isDateInFrozenBaselinePeriod(scenario, dateKey) {
+  if (!dateKey) return false;
+  return (scenario?.baselinePeriods || []).some((period) => {
+    const startDate = normalizeDate(period?.startDate);
+    const endDate = normalizeDate(period?.endDate);
+    return Boolean(startDate && endDate && dateKey >= startDate && dateKey <= endDate);
+  });
 }
 
 /**
@@ -222,13 +231,14 @@ function buildGeneratedOccurrences({ scenario, startDate, endDate, lookupData })
     const role = normalizeRole(transaction?.transactionGroupRole);
     const occurrenceKey = createLinkedOccurrenceKey(transaction?.id, scheduledDate, role);
     const generatedAmount = calculateGeneratedAmount(transaction, occurrenceDate, start, lookupData);
+    const introducedAfterBaseline = isDateInFrozenBaselinePeriod(scenario, scheduledDate);
 
     return [{
       id: occurrenceKey,
       occurrenceKey,
       sourceTransactionId: transaction?.id ?? null,
-      sourceBudgetId: null,
-      sourceBudgetIds: [],
+      sourceOccurrenceId: null,
+      sourceOccurrenceIds: [],
       origin: 'generated',
       hasStoredOverride: false,
       primaryAccountId: transaction?.primaryAccountId ?? null,
@@ -249,8 +259,13 @@ function buildGeneratedOccurrences({ scenario, startDate, endDate, lookupData })
       actualDate: null,
       effectiveDate: scheduledDate,
       generatedAmount,
-      baselineAmount: generatedAmount,
-      baselineState: 'derived',
+      baselineAmount: introducedAfterBaseline ? 0 : generatedAmount,
+      baselinePrimaryAccountId: transaction?.primaryAccountId ?? null,
+      baselineSecondaryAccountId: transaction?.secondaryAccountId ?? null,
+      baselineTransactionTypeId:
+        Number(transaction?.transactionTypeId) === 1 ? 1 : 2,
+      baselineSnapshotVersion: introducedAfterBaseline ? 1 : null,
+      baselineState: introducedAfterBaseline ? 'frozen-new' : 'derived',
       plannedAmount: generatedAmount,
       actualAmount: null,
       status: 'planned'
@@ -258,36 +273,36 @@ function buildGeneratedOccurrences({ scenario, startDate, endDate, lookupData })
   });
 }
 
-function isCanonicalBudgetCandidate(budget) {
+function isCanonicalOccurrenceCandidate(storedOccurrence) {
   return Boolean(
-    budget &&
+    storedOccurrence &&
     (
-      hasOwn(budget, 'occurrenceDate') ||
-      hasOwn(budget, 'scheduledDate') ||
-      hasOwn(budget, 'plannedDate') ||
-      hasOwn(budget, 'actualDate') ||
-      hasOwn(budget, 'sourceTransactionId') ||
-      hasOwn(budget, 'primaryAccountId') ||
-      hasOwn(budget, 'transactionTypeId') ||
-      hasOwn(budget, 'status')
+      hasOwn(storedOccurrence, 'occurrenceDate') ||
+      hasOwn(storedOccurrence, 'scheduledDate') ||
+      hasOwn(storedOccurrence, 'plannedDate') ||
+      hasOwn(storedOccurrence, 'actualDate') ||
+      hasOwn(storedOccurrence, 'sourceTransactionId') ||
+      hasOwn(storedOccurrence, 'primaryAccountId') ||
+      hasOwn(storedOccurrence, 'transactionTypeId') ||
+      hasOwn(storedOccurrence, 'status')
     )
   );
 }
 
-function getBudgetActualDate(budget) {
+function getOccurrenceActualDate(storedOccurrence) {
   const value =
-    (typeof budget?.status === 'object' ? budget.status?.actualDate : null) ??
-    budget?.actualDate ??
+    (typeof storedOccurrence?.status === 'object' ? storedOccurrence.status?.actualDate : null) ??
+    storedOccurrence?.actualDate ??
     null;
   return normalizeDate(value);
 }
 
-function getBudgetActualAmount(budget, fallback) {
+function getOccurrenceActualAmount(storedOccurrence, fallback) {
   const value =
-    (typeof budget?.status === 'object' && hasOwn(budget.status, 'actualAmount')
-      ? budget.status.actualAmount
+    (typeof storedOccurrence?.status === 'object' && hasOwn(storedOccurrence.status, 'actualAmount')
+      ? storedOccurrence.status.actualAmount
       : undefined) ??
-    (hasOwn(budget, 'actualAmount') ? budget.actualAmount : undefined);
+    (hasOwn(storedOccurrence, 'actualAmount') ? storedOccurrence.actualAmount : undefined);
   return value === null || value === undefined ? fallback : absoluteAmount(value);
 }
 
@@ -339,30 +354,33 @@ function finalizeOccurrence(occurrence, { asOfDate, accounts }) {
   return next;
 }
 
-function buildBudgetOccurrence({
-  budget,
+function buildStoredOccurrence({
+  storedOccurrence,
   base,
   occurrenceKey,
-  sourceBudgetIds,
+  sourceOccurrenceIds,
   asOfDate,
   accounts
 }) {
-  const status = statusName(budget);
+  const status = statusName(storedOccurrence);
+  const usesActualSnapshot =
+    status === 'actual' &&
+    Number(storedOccurrence?.actualSnapshotVersion) === 1;
   const inheritsGeneratedPlan =
     Boolean(base) &&
     status === 'planned' &&
-    budget?.isOverride === false;
+    storedOccurrence?.isOverride === false;
   const scheduledDate =
-    (inheritsGeneratedPlan ? base?.scheduledDate : normalizeDate(budget?.scheduledDate)) ||
+    (inheritsGeneratedPlan ? base?.scheduledDate : normalizeDate(storedOccurrence?.scheduledDate)) ||
     base?.scheduledDate ||
-    normalizeDate(budget?.occurrenceDate) ||
+    normalizeDate(storedOccurrence?.occurrenceDate) ||
     null;
-  const legacyOccurrenceDate = normalizeDate(budget?.occurrenceDate);
+  const legacyOccurrenceDate = normalizeDate(storedOccurrence?.occurrenceDate);
   const plannedDate =
     inheritsGeneratedPlan
       ? null
       : (
-        normalizeDate(budget?.plannedDate) ||
+        normalizeDate(storedOccurrence?.plannedDate) ||
         (
           base?.scheduledDate &&
           legacyOccurrenceDate &&
@@ -373,59 +391,71 @@ function buildBudgetOccurrence({
       );
 
   const hasExplicitPlannedAmount =
-    hasOwn(budget, 'plannedAmount') &&
-    budget.plannedAmount !== null &&
-    budget.plannedAmount !== undefined &&
-    budget.plannedAmount !== '';
+    hasOwn(storedOccurrence, 'plannedAmount') &&
+    storedOccurrence.plannedAmount !== null &&
+    storedOccurrence.plannedAmount !== undefined &&
+    storedOccurrence.plannedAmount !== '';
   const plannedAmount = inheritsGeneratedPlan
     ? absoluteAmount(base?.plannedAmount)
     : (
       hasExplicitPlannedAmount
-        ? absoluteAmount(budget.plannedAmount)
-        : (hasOwn(budget, 'amount') ? absoluteAmount(budget.amount) : absoluteAmount(base?.plannedAmount))
+        ? absoluteAmount(storedOccurrence.plannedAmount)
+        : (hasOwn(storedOccurrence, 'amount') ? absoluteAmount(storedOccurrence.amount) : absoluteAmount(base?.plannedAmount))
     );
   const actualDate = status === 'actual'
-    ? (getBudgetActualDate(budget) || plannedDate || scheduledDate)
+    ? (getOccurrenceActualDate(storedOccurrence) || plannedDate || scheduledDate)
     : null;
   const actualAmount = status === 'actual'
-    ? getBudgetActualAmount(budget, plannedAmount)
+    ? getOccurrenceActualAmount(storedOccurrence, plannedAmount)
     : null;
 
   const hasExplicitBaseline =
-    hasOwn(budget, 'baselineAmount') &&
-    budget.baselineAmount !== null &&
-    budget.baselineAmount !== undefined &&
-    budget.baselineAmount !== '';
+    hasOwn(storedOccurrence, 'baselineAmount') &&
+    storedOccurrence.baselineAmount !== null &&
+    storedOccurrence.baselineAmount !== undefined &&
+    storedOccurrence.baselineAmount !== '';
   const baselineAmount = hasExplicitBaseline
-    ? absoluteAmount(budget.baselineAmount)
+    ? absoluteAmount(storedOccurrence.baselineAmount)
     : (
       inheritsGeneratedPlan
         ? absoluteAmount(base?.baselineAmount)
-        : (hasOwn(budget, 'amount') ? absoluteAmount(budget.amount) : absoluteAmount(base?.baselineAmount))
+        : (
+          hasOwn(storedOccurrence, 'amount')
+            ? absoluteAmount(storedOccurrence.amount)
+            : (base ? absoluteAmount(base?.baselineAmount) : plannedAmount)
+        )
     );
 
-  const sourceTransactionId = budget?.sourceTransactionId ?? base?.sourceTransactionId ?? null;
-  const primaryAccountId = inheritsGeneratedPlan
+  const sourceTransactionId = storedOccurrence?.sourceTransactionId ?? base?.sourceTransactionId ?? null;
+  const primaryAccountId = usesActualSnapshot
+    ? (storedOccurrence?.primaryAccountId ?? null)
+    : inheritsGeneratedPlan
     ? (base?.primaryAccountId ?? null)
-    : (budget?.primaryAccountId ?? base?.primaryAccountId ?? null);
-  const secondaryAccountId = inheritsGeneratedPlan
+    : (storedOccurrence?.primaryAccountId ?? base?.primaryAccountId ?? null);
+  const secondaryAccountId = usesActualSnapshot
+    ? (storedOccurrence?.secondaryAccountId ?? null)
+    : inheritsGeneratedPlan
     ? (base?.secondaryAccountId ?? null)
-    : (budget?.secondaryAccountId ?? base?.secondaryAccountId ?? null);
+    : (storedOccurrence?.secondaryAccountId ?? base?.secondaryAccountId ?? null);
   const rawTransactionTypeId = Number(
-    inheritsGeneratedPlan
+    usesActualSnapshot
+      ? storedOccurrence?.transactionTypeId
+      : inheritsGeneratedPlan
       ? base?.transactionTypeId
-      : (budget?.transactionTypeId ?? base?.transactionTypeId)
+      : (storedOccurrence?.transactionTypeId ?? base?.transactionTypeId)
   );
   const transactionTypeId =
     rawTransactionTypeId === 1 || rawTransactionTypeId === 2
       ? rawTransactionTypeId
       : null;
   const groupRole = normalizeRole(
-    inheritsGeneratedPlan
+    usesActualSnapshot
+      ? storedOccurrence?.transactionGroupRole
+      : inheritsGeneratedPlan
       ? base?.transactionGroupRole
-      : (budget?.transactionGroupRole ?? base?.transactionGroupRole)
+      : (storedOccurrence?.transactionGroupRole ?? base?.transactionGroupRole)
   );
-  const origin = budget?.origin || (base ? base.origin : 'manual');
+  const origin = storedOccurrence?.origin || (base ? base.origin : 'manual');
   const explicitManualActual =
     status === 'actual' &&
     sourceTransactionId === null &&
@@ -439,82 +469,121 @@ function buildBudgetOccurrence({
     id: occurrenceKey,
     occurrenceKey,
     sourceTransactionId,
-    sourceBudgetId: budget?.id ?? null,
-    sourceBudgetIds,
+    sourceOccurrenceId: storedOccurrence?.id ?? null,
+    sourceOccurrenceIds,
     origin,
+    actualSnapshotVersion:
+      Number(storedOccurrence?.actualSnapshotVersion) === 1 ? 1 : null,
     hasStoredOverride: true,
     hasPlanOverride: !inheritsGeneratedPlan,
     primaryAccountId,
     secondaryAccountId,
     transactionTypeId,
-    transactionGroupId: inheritsGeneratedPlan
+    transactionGroupId: usesActualSnapshot
+      ? (storedOccurrence?.transactionGroupId ?? null)
+      : inheritsGeneratedPlan
       ? (base?.transactionGroupId ?? null)
-      : (budget?.transactionGroupId ?? base?.transactionGroupId ?? null),
+      : (storedOccurrence?.transactionGroupId ?? base?.transactionGroupId ?? null),
     transactionGroupRole: groupRole || null,
     transactionGroupAccountGroupId:
-      inheritsGeneratedPlan
+      usesActualSnapshot
+        ? (storedOccurrence?.transactionGroupAccountGroupId ?? null)
+        : inheritsGeneratedPlan
         ? (base?.transactionGroupAccountGroupId ?? null)
-        : (budget?.transactionGroupAccountGroupId ?? base?.transactionGroupAccountGroupId ?? null),
-    capitalAmount: inheritsGeneratedPlan
+        : (storedOccurrence?.transactionGroupAccountGroupId ?? base?.transactionGroupAccountGroupId ?? null),
+    capitalAmount: usesActualSnapshot
+      ? (storedOccurrence?.capitalAmount ?? null)
+      : inheritsGeneratedPlan
       ? (base?.capitalAmount ?? null)
-      : (budget?.capitalAmount ?? base?.capitalAmount ?? null),
-    interestAmount: inheritsGeneratedPlan
+      : (storedOccurrence?.capitalAmount ?? base?.capitalAmount ?? null),
+    interestAmount: usesActualSnapshot
+      ? (storedOccurrence?.interestAmount ?? null)
+      : inheritsGeneratedPlan
       ? (base?.interestAmount ?? null)
-      : (budget?.interestAmount ?? base?.interestAmount ?? null),
-    description: inheritsGeneratedPlan
+      : (storedOccurrence?.interestAmount ?? base?.interestAmount ?? null),
+    description: usesActualSnapshot
+      ? String(storedOccurrence?.description ?? '')
+      : inheritsGeneratedPlan
       ? (base?.description || '')
-      : (hasOwn(budget, 'description') ? String(budget.description || '') : (base?.description || '')),
-    tags: inheritsGeneratedPlan
+      : (
+        storedOccurrence?.description !== null &&
+        storedOccurrence?.description !== undefined
+          ? String(storedOccurrence.description)
+          : (base?.description || '')
+      ),
+    tags: usesActualSnapshot
+      ? (Array.isArray(storedOccurrence?.tags) ? [...storedOccurrence.tags] : [])
+      : inheritsGeneratedPlan
       ? (Array.isArray(base?.tags) ? [...base.tags] : [])
       : (
-        hasOwn(budget, 'tags') && Array.isArray(budget.tags)
-          ? [...budget.tags]
+        hasOwn(storedOccurrence, 'tags') && Array.isArray(storedOccurrence.tags)
+          ? [...storedOccurrence.tags]
           : (Array.isArray(base?.tags) ? [...base.tags] : [])
       ),
     recurrence: clonePlain(
-      inheritsGeneratedPlan
+      usesActualSnapshot
+        ? (storedOccurrence?.recurrence ?? null)
+        : inheritsGeneratedPlan
         ? (base?.recurrence ?? null)
-        : (budget?.recurrence ?? base?.recurrence ?? null)
+        : (storedOccurrence?.recurrence ?? base?.recurrence ?? null)
     ),
     recurrenceDescription:
-      inheritsGeneratedPlan
+      usesActualSnapshot
+        ? (storedOccurrence?.recurrenceDescription ?? '')
+        : inheritsGeneratedPlan
         ? (base?.recurrenceDescription ?? '')
-        : (budget?.recurrenceDescription ?? base?.recurrenceDescription ?? ''),
+        : (storedOccurrence?.recurrenceDescription ?? base?.recurrenceDescription ?? ''),
     periodicChange: clonePlain(
-      inheritsGeneratedPlan
+      usesActualSnapshot
+        ? (storedOccurrence?.periodicChange ?? null)
+        : inheritsGeneratedPlan
         ? (base?.periodicChange ?? null)
-        : (budget?.periodicChange ?? base?.periodicChange ?? null)
+        : (storedOccurrence?.periodicChange ?? base?.periodicChange ?? null)
     ),
     scheduledDate,
     plannedDate,
     actualDate,
     generatedAmount: base?.generatedAmount ?? null,
     baselineAmount,
+    baselinePrimaryAccountId:
+      Number(storedOccurrence?.baselineSnapshotVersion) === 1
+        ? (storedOccurrence?.baselinePrimaryAccountId ?? null)
+        : (base?.baselinePrimaryAccountId ?? primaryAccountId),
+    baselineSecondaryAccountId:
+      Number(storedOccurrence?.baselineSnapshotVersion) === 1
+        ? (storedOccurrence?.baselineSecondaryAccountId ?? null)
+        : (base?.baselineSecondaryAccountId ?? secondaryAccountId),
+    baselineTransactionTypeId:
+      Number(storedOccurrence?.baselineSnapshotVersion) === 1
+        ? (storedOccurrence?.baselineTransactionTypeId ?? null)
+        : (base?.baselineTransactionTypeId ?? transactionTypeId),
+    baselineSnapshotVersion:
+      Number(storedOccurrence?.baselineSnapshotVersion) === 1 ? 1 : null,
     baselineState: hasExplicitBaseline
       ? 'stored'
       : (base ? 'legacy-assumed' : 'legacy-assumed'),
     plannedAmount,
     actualAmount,
     status,
-    isUnbudgetedActual: explicitManualActual
+    isUnplannedActual: explicitManualActual
   }, { asOfDate, accounts });
 }
 
 function overlayPriority(item) {
-  const status = statusName(item?.budget);
+  const status = statusName(item?.storedOccurrence);
   if (status === 'actual') return 3;
   if (status === 'skipped') return 2;
   return 1;
 }
 
-function budgetSortValue(item) {
-  const id = Number(item?.budget?.id);
+function occurrenceSortValue(item) {
+  const id = Number(item?.storedOccurrence?.id);
   return Number.isFinite(id) ? id : item.index;
 }
 
-function selectBudgetOverlay(group, occurrenceKey, diagnostics) {
-  const sourceBudgetIds = group
-    .map((item) => item?.budget?.id)
+function selectOccurrenceOverlay(group, occurrenceKey, diagnostics) {
+  const sourceOccurrenceIds = group
+    .map((item) => item?.storedOccurrence?.id)
     .filter((id) => id !== null && id !== undefined)
     .sort((a, b) => {
       const aNumber = Number(a);
@@ -527,17 +596,17 @@ function selectBudgetOverlay(group, occurrenceKey, diagnostics) {
     diagnostics.push({
       code: 'duplicate-occurrence-overrides',
       occurrenceKey,
-      sourceBudgetIds,
+      sourceOccurrenceIds,
       message: `Duplicate occurrence overrides found for ${occurrenceKey}; deterministic precedence was applied.`
     });
   }
 
-  const actualCount = group.filter((item) => statusName(item?.budget) === 'actual').length;
+  const actualCount = group.filter((item) => statusName(item?.storedOccurrence) === 'actual').length;
   if (actualCount > 1) {
     diagnostics.push({
       code: 'conflicting-actuals',
       occurrenceKey,
-      sourceBudgetIds,
+      sourceOccurrenceIds,
       message: `Conflicting actual occurrence records found for ${occurrenceKey}; the highest actual ID was selected.`
     });
   }
@@ -545,12 +614,12 @@ function selectBudgetOverlay(group, occurrenceKey, diagnostics) {
   const selected = [...group].sort((a, b) => {
     const priorityDifference = overlayPriority(b) - overlayPriority(a);
     if (priorityDifference) return priorityDifference;
-    const idDifference = budgetSortValue(b) - budgetSortValue(a);
+    const idDifference = occurrenceSortValue(b) - occurrenceSortValue(a);
     if (idDifference) return idDifference;
     return b.index - a.index;
   })[0];
 
-  return { selected, sourceBudgetIds };
+  return { selected, sourceOccurrenceIds };
 }
 
 function buildBaseFromSourceTransaction(sourceTransaction, scheduledDate, occurrenceKey) {
@@ -561,8 +630,8 @@ function buildBaseFromSourceTransaction(sourceTransaction, scheduledDate, occurr
     id: occurrenceKey,
     occurrenceKey,
     sourceTransactionId: sourceTransaction?.id ?? null,
-    sourceBudgetId: null,
-    sourceBudgetIds: [],
+    sourceOccurrenceId: null,
+    sourceOccurrenceIds: [],
     origin: 'generated',
     hasStoredOverride: false,
     primaryAccountId: sourceTransaction?.primaryAccountId ?? null,
@@ -583,6 +652,11 @@ function buildBaseFromSourceTransaction(sourceTransaction, scheduledDate, occurr
     actualDate: null,
     generatedAmount,
     baselineAmount: generatedAmount,
+    baselinePrimaryAccountId: sourceTransaction?.primaryAccountId ?? null,
+    baselineSecondaryAccountId: sourceTransaction?.secondaryAccountId ?? null,
+    baselineTransactionTypeId:
+      Number(sourceTransaction?.transactionTypeId) === 1 ? 1 : 2,
+    baselineSnapshotVersion: null,
     baselineState: 'derived',
     plannedAmount: generatedAmount,
     actualAmount: null,
@@ -603,15 +677,15 @@ function buildLegacyActualOccurrence(transaction, { asOfDate, accounts }) {
   if (!actualDate || !scheduledDate) return null;
 
   const plannedAmount = absoluteAmount(transaction?.amount);
-  const actualAmount = getBudgetActualAmount(transaction, plannedAmount);
+  const actualAmount = getOccurrenceActualAmount(transaction, plannedAmount);
   const occurrenceKey = `actual-tx:${transaction?.id}`;
 
   return finalizeOccurrence({
     id: occurrenceKey,
     occurrenceKey,
     sourceTransactionId: transaction?.id ?? null,
-    sourceBudgetId: null,
-    sourceBudgetIds: [],
+    sourceOccurrenceId: null,
+    sourceOccurrenceIds: [],
     origin: 'legacy-actual-transaction',
     hasStoredOverride: false,
     primaryAccountId: transaction?.primaryAccountId ?? null,
@@ -632,16 +706,57 @@ function buildLegacyActualOccurrence(transaction, { asOfDate, accounts }) {
     actualDate,
     generatedAmount: plannedAmount,
     baselineAmount: plannedAmount,
+    baselinePrimaryAccountId: transaction?.primaryAccountId ?? null,
+    baselineSecondaryAccountId: transaction?.secondaryAccountId ?? null,
+    baselineTransactionTypeId:
+      Number(transaction?.transactionTypeId) === 1 ? 1 : 2,
+    baselineSnapshotVersion: null,
     baselineState: 'derived',
     plannedAmount,
     actualAmount,
     status: 'actual',
-    isUnbudgetedActual: false
+    isUnplannedActual: false
   }, { asOfDate, accounts });
 }
 
+function getSeriesRootId(sourceTransactionsById, sourceTransactionId) {
+  const sourceId = normalizeSourceId(sourceTransactionId);
+  if (!sourceId) return null;
+  const source = sourceTransactionsById.get(sourceId);
+  return normalizeSourceId(source?.seriesRootId ?? source?.id ?? sourceId);
+}
+
+function lineageOccurrenceKey(occurrence, sourceTransactionsById) {
+  const seriesRootId = getSeriesRootId(
+    sourceTransactionsById,
+    occurrence?.sourceTransactionId
+  );
+  if (!seriesRootId || !occurrence?.scheduledDate) return null;
+  return [
+    seriesRootId,
+    occurrence.scheduledDate,
+    normalizeRole(occurrence?.transactionGroupRole) || 'none'
+  ].join('|');
+}
+
+function suppressPlansReplacedByLineageActuals(occurrences, sourceTransactionsById) {
+  const actualLineageKeys = new Set(
+    occurrences
+      .filter((occurrence) => occurrence?.status === 'actual')
+      .map((occurrence) => lineageOccurrenceKey(occurrence, sourceTransactionsById))
+      .filter(Boolean)
+  );
+  if (!actualLineageKeys.size) return occurrences;
+
+  return occurrences.filter((occurrence) => {
+    if (occurrence?.status !== 'planned') return true;
+    const lineageKey = lineageOccurrenceKey(occurrence, sourceTransactionsById);
+    return !lineageKey || !actualLineageKeys.has(lineageKey);
+  });
+}
+
 /**
- * Resolve schemaVersion 43 rule definitions and stored Budget rows into one
+ * Resolve schemaVersion 44 rule definitions and stored occurrence rows into one
  * canonical occurrence timeline.
  */
 export function resolveScenarioOccurrences({
@@ -689,25 +804,25 @@ export function resolveScenarioOccurrences({
       .map((transaction) => [normalizeSourceId(transaction?.id), transaction])
       .filter(([id]) => Boolean(id))
   );
-  const budgetGroups = new Map();
+  const occurrenceGroups = new Map();
   const invalidProjectionKeys = new Set();
 
-  (scenario?.budgets || []).forEach((budget, index) => {
-    if (!isCanonicalBudgetCandidate(budget)) {
+  (scenario?.transactionOccurrences || []).forEach((storedOccurrence, index) => {
+    if (!isCanonicalOccurrenceCandidate(storedOccurrence)) {
       diagnostics.push({
-        code: 'unsupported-legacy-budget-shape',
-        sourceBudgetId: budget?.id ?? null,
-        message: 'Unsupported legacy budget shape was ignored because it is not a dated occurrence.'
+        code: 'unsupported-legacy-occurrence-shape',
+        sourceOccurrenceId: storedOccurrence?.id ?? null,
+        message: 'Unsupported legacy occurrence shape was ignored because it is not a dated occurrence.'
       });
       return;
     }
 
     const explicitDateFields = [
-      ['scheduledDate', budget?.scheduledDate],
-      ['occurrenceDate', budget?.occurrenceDate],
-      ['plannedDate', budget?.plannedDate],
-      ['actualDate', budget?.actualDate],
-      ['status.actualDate', typeof budget?.status === 'object' ? budget.status?.actualDate : null]
+      ['scheduledDate', storedOccurrence?.scheduledDate],
+      ['occurrenceDate', storedOccurrence?.occurrenceDate],
+      ['plannedDate', storedOccurrence?.plannedDate],
+      ['actualDate', storedOccurrence?.actualDate],
+      ['status.actualDate', typeof storedOccurrence?.status === 'object' ? storedOccurrence.status?.actualDate : null]
     ];
     const invalidDateField = explicitDateFields.find(([, value]) => (
       value !== null &&
@@ -717,15 +832,15 @@ export function resolveScenarioOccurrences({
     ));
     if (invalidDateField) {
       diagnostics.push({
-        code: 'invalid-budget-date',
-        sourceBudgetId: budget?.id ?? null,
+        code: 'invalid-occurrence-date',
+        sourceOccurrenceId: storedOccurrence?.id ?? null,
         field: invalidDateField[0],
-        message: `Budget occurrence has an invalid ${invalidDateField[0]}: ${String(invalidDateField[1])}.`
+        message: `Transaction occurrence has an invalid ${invalidDateField[0]}: ${String(invalidDateField[1])}.`
       });
       return;
     }
 
-    const sourceId = normalizeSourceId(budget?.sourceTransactionId);
+    const sourceId = normalizeSourceId(storedOccurrence?.sourceTransactionId);
     const linkedSourceTransaction = sourceId ? sourceTransactionsById.get(sourceId) : null;
     const linkedLegacyActualDate =
       statusName(linkedSourceTransaction) === 'actual'
@@ -741,20 +856,20 @@ export function resolveScenarioOccurrences({
       normalizeDate(linkedSourceTransaction?.effectiveDate) ||
       normalizeDate(linkedSourceTransaction?.recurrence?.startDate) ||
       linkedLegacyActualDate;
-    const budgetComparisonScheduledDate =
-      normalizeDate(budget?.scheduledDate) ||
-      normalizeDate(budget?.occurrenceDate) ||
-      normalizeDate(budget?.plannedDate);
+    const occurrenceComparisonScheduledDate =
+      normalizeDate(storedOccurrence?.scheduledDate) ||
+      normalizeDate(storedOccurrence?.occurrenceDate) ||
+      normalizeDate(storedOccurrence?.plannedDate);
     const linkedRoleMatches =
       normalizeRole(linkedSourceTransaction?.transactionGroupRole) ===
-      normalizeRole(budget?.transactionGroupRole);
+      normalizeRole(storedOccurrence?.transactionGroupRole);
     const preservesLinkedActualComparison =
       Boolean(
         linkedLegacyActualDate &&
         linkedLegacyActualDate >= normalizedStartDate &&
         linkedLegacyActualDate <= normalizedEndDate &&
         linkedRoleMatches &&
-        budgetComparisonScheduledDate === linkedLegacyActualScheduledDate
+        occurrenceComparisonScheduledDate === linkedLegacyActualScheduledDate
       );
     const explicitDates = explicitDateFields
       .map(([, value]) => normalizeDate(value))
@@ -771,13 +886,13 @@ export function resolveScenarioOccurrences({
     }
 
     const explicitAmountFields = [
-      ['amount', budget?.amount],
-      ['plannedAmount', budget?.plannedAmount],
-      ['baselineAmount', budget?.baselineAmount],
-      ['actualAmount', budget?.actualAmount],
-      ['status.actualAmount', typeof budget?.status === 'object' ? budget.status?.actualAmount : null],
-      ['capitalAmount', budget?.capitalAmount],
-      ['interestAmount', budget?.interestAmount]
+      ['amount', storedOccurrence?.amount],
+      ['plannedAmount', storedOccurrence?.plannedAmount],
+      ['baselineAmount', storedOccurrence?.baselineAmount],
+      ['actualAmount', storedOccurrence?.actualAmount],
+      ['status.actualAmount', typeof storedOccurrence?.status === 'object' ? storedOccurrence.status?.actualAmount : null],
+      ['capitalAmount', storedOccurrence?.capitalAmount],
+      ['interestAmount', storedOccurrence?.interestAmount]
     ];
     const invalidAmountField = explicitAmountFields.find(([, value]) => (
       value !== null &&
@@ -787,38 +902,38 @@ export function resolveScenarioOccurrences({
     ));
     if (invalidAmountField) {
       diagnostics.push({
-        code: 'invalid-budget-amount',
-        sourceBudgetId: budget?.id ?? null,
+        code: 'invalid-occurrence-amount',
+        sourceOccurrenceId: storedOccurrence?.id ?? null,
         field: invalidAmountField[0],
-        message: `Budget occurrence has an invalid ${invalidAmountField[0]} amount.`
+        message: `Transaction occurrence has an invalid ${invalidAmountField[0]} amount.`
       });
       return;
     }
 
     const rawScheduledDate =
-      budget?.scheduledDate ??
-      budget?.occurrenceDate ??
-      budget?.plannedDate ??
-      (typeof budget?.status === 'object' ? budget.status?.actualDate : null) ??
-      budget?.actualDate ??
+      storedOccurrence?.scheduledDate ??
+      storedOccurrence?.occurrenceDate ??
+      storedOccurrence?.plannedDate ??
+      (typeof storedOccurrence?.status === 'object' ? storedOccurrence.status?.actualDate : null) ??
+      storedOccurrence?.actualDate ??
       null;
     const scheduledDate = normalizeDate(rawScheduledDate);
     if (!scheduledDate) {
       diagnostics.push({
-        code: 'invalid-budget-date',
-        sourceBudgetId: budget?.id ?? null,
-        message: `Budget occurrence has an invalid date: ${String(rawScheduledDate || 'missing')}.`
+        code: 'invalid-occurrence-date',
+        sourceOccurrenceId: storedOccurrence?.id ?? null,
+        message: `Transaction occurrence has an invalid date: ${String(rawScheduledDate || 'missing')}.`
       });
       return;
     }
 
     let occurrenceKey = null;
     if (sourceId) {
-      const storedKey = String(budget?.occurrenceKey || '').trim();
+      const storedKey = String(storedOccurrence?.occurrenceKey || '').trim();
       if (storedKey) {
         occurrenceKey = storedKey;
       } else {
-        let role = normalizeRole(budget?.transactionGroupRole);
+        let role = normalizeRole(storedOccurrence?.transactionGroupRole);
         if (!role) {
           const sourceDateMatches = generatedBySourceDate.get(`${sourceId}|${scheduledDate}`) || [];
           if (sourceDateMatches.length === 1) {
@@ -834,7 +949,7 @@ export function resolveScenarioOccurrences({
             normalizeRole(occurrence?.transactionGroupRole) === role
           ));
           if (
-            !budget?.scheduledDate &&
+            !storedOccurrence?.scheduledDate &&
             sourceRoleMatches.length === 1 &&
             isOneTimeRecurrence(sourceRoleMatches[0]?.recurrence)
           ) {
@@ -844,7 +959,7 @@ export function resolveScenarioOccurrences({
             diagnostics.push({
               code: 'ambiguous-linked-occurrence',
               occurrenceKey,
-              sourceBudgetId: budget?.id ?? null,
+              sourceOccurrenceId: storedOccurrence?.id ?? null,
               message:
                 'Linked occurrence could not be matched safely after its legacy date changed; ' +
                 'the stored row was preserved for repair but excluded from projection.'
@@ -853,54 +968,54 @@ export function resolveScenarioOccurrences({
         }
       }
     }
-    if (!occurrenceKey) occurrenceKey = manualOccurrenceKey(budget, index);
+    if (!occurrenceKey) occurrenceKey = manualOccurrenceKey(storedOccurrence, index);
 
     const isUntouchedGeneratedSnapshot =
       sourceId &&
-      budget?.isOverride === false &&
-      statusName(budget) === 'planned' &&
+      storedOccurrence?.isOverride === false &&
+      statusName(storedOccurrence) === 'planned' &&
       (
-        !hasOwn(budget, 'baselineAmount') ||
-        budget.baselineAmount === null ||
-        budget.baselineAmount === undefined ||
-        budget.baselineAmount === ''
+        !hasOwn(storedOccurrence, 'baselineAmount') ||
+        storedOccurrence.baselineAmount === null ||
+        storedOccurrence.baselineAmount === undefined ||
+        storedOccurrence.baselineAmount === ''
       );
     if (isUntouchedGeneratedSnapshot && !generatedByKey.has(occurrenceKey)) {
       return;
     }
 
-    if (!budgetGroups.has(occurrenceKey)) budgetGroups.set(occurrenceKey, []);
-    budgetGroups.get(occurrenceKey).push({ budget, index, scheduledDate });
+    if (!occurrenceGroups.has(occurrenceKey)) occurrenceGroups.set(occurrenceKey, []);
+    occurrenceGroups.get(occurrenceKey).push({ storedOccurrence, index, scheduledDate });
   });
 
   const occurrences = [];
 
   generated.forEach((base) => {
-    const group = budgetGroups.get(base.occurrenceKey);
+    const group = occurrenceGroups.get(base.occurrenceKey);
     if (!group?.length) {
       occurrences.push(finalizeOccurrence(base, { asOfDate: normalizedAsOfDate, accounts }));
       return;
     }
 
-    const { selected, sourceBudgetIds } = selectBudgetOverlay(
+    const { selected, sourceOccurrenceIds } = selectOccurrenceOverlay(
       group,
       base.occurrenceKey,
       diagnostics
     );
-    occurrences.push(buildBudgetOccurrence({
-      budget: selected.budget,
+    occurrences.push(buildStoredOccurrence({
+      storedOccurrence: selected.storedOccurrence,
       base,
       occurrenceKey: base.occurrenceKey,
-      sourceBudgetIds,
+      sourceOccurrenceIds,
       asOfDate: normalizedAsOfDate,
       accounts
     }));
-    budgetGroups.delete(base.occurrenceKey);
+    occurrenceGroups.delete(base.occurrenceKey);
   });
 
-  budgetGroups.forEach((group, occurrenceKey) => {
-    const { selected, sourceBudgetIds } = selectBudgetOverlay(group, occurrenceKey, diagnostics);
-    const sourceId = normalizeSourceId(selected?.budget?.sourceTransactionId);
+  occurrenceGroups.forEach((group, occurrenceKey) => {
+    const { selected, sourceOccurrenceIds } = selectOccurrenceOverlay(group, occurrenceKey, diagnostics);
+    const sourceId = normalizeSourceId(selected?.storedOccurrence?.sourceTransactionId);
     const sourceTransaction = sourceId ? sourceTransactionsById.get(sourceId) : null;
     const base = buildBaseFromSourceTransaction(
       sourceTransaction,
@@ -912,16 +1027,16 @@ export function resolveScenarioOccurrences({
       diagnostics.push({
         code: 'orphan-source-transaction',
         occurrenceKey,
-        sourceBudgetId: selected?.budget?.id ?? null,
+        sourceOccurrenceId: selected?.storedOccurrence?.id ?? null,
         message: `Occurrence references missing source transaction ${sourceId}.`
       });
     }
 
-    let occurrence = buildBudgetOccurrence({
-      budget: selected.budget,
+    let occurrence = buildStoredOccurrence({
+      storedOccurrence: selected.storedOccurrence,
       base,
       occurrenceKey,
-      sourceBudgetIds,
+      sourceOccurrenceIds,
       asOfDate: normalizedAsOfDate,
       accounts
     });
@@ -970,7 +1085,7 @@ export function resolveScenarioOccurrences({
         actualDate: legacyActual.actualDate,
         actualAmount: legacyActual.actualAmount,
         status: 'actual',
-        isUnbudgetedActual: false
+        isUnplannedActual: false
       }, { asOfDate: normalizedAsOfDate, accounts });
       if (invalidProjectionKeys.has(matchingOccurrence.occurrenceKey)) {
         realizedOccurrence = {
@@ -982,7 +1097,11 @@ export function resolveScenarioOccurrences({
       occurrences[matchingIndex] = realizedOccurrence;
     });
 
-  const inWindow = occurrences
+  const lineageResolvedOccurrences = suppressPlansReplacedByLineageActuals(
+    occurrences,
+    sourceTransactionsById
+  );
+  const inWindow = lineageResolvedOccurrences
     .filter((occurrence) => {
       const relevantDates = [
         occurrence?.scheduledDate,

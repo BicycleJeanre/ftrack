@@ -7,7 +7,6 @@ import { createGrid, refreshGridData, formatMoneyDisplay, formatNumberDisplay } 
 import * as ScenarioManager from '../../app/managers/scenario-manager.js';
 import * as AccountManager from '../../app/managers/account-manager.js';
 import * as TransactionManager from '../../app/managers/transaction-manager.js';
-import * as BudgetManager from '../../app/managers/budget-manager.js';
 import { openRecurrenceModal } from '../components/modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../components/modals/periodic-change-modal.js';
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
@@ -39,7 +38,7 @@ import {
   loadAccountsGrid as loadAccountsGridCore
 } from '../components/grids/accounts-grid.js';
 import { loadMasterTransactionsGrid as loadMasterTransactionsGridCore } from '../components/grids/transactions-grid.js';
-import { loadBudgetGrid as loadBudgetGridCore } from '../components/grids/budget-grid.js';
+import { loadPlanActualsGrid as loadPlanActualsGridCore } from '../components/grids/plan-actuals-grid.js';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js';
@@ -64,10 +63,9 @@ import {
   getTransactions,
   createTransaction,
   createAccount,
-  getScenarioPeriods,
-  getBudget
+  getScenarioPeriods
 } from '../../app/services/data-service.js';
-import { generateProjections, clearProjections } from '../../domain/calculations/projection-engine.js';
+import { generateProjections } from '../../domain/calculations/projection-engine.js';
 
 let currentScenario = null;
 let uiState = null;
@@ -273,7 +271,7 @@ async function loadUiState() {
 
   const view = uiState?.viewPeriodTypeIds || {};
   actualPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.transactions) || 3] || 'Month';
-  budgetPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.budgets) || 3] || 'Month';
+  budgetPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.planActuals) || 3] || 'Month';
   projectionPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.projections) || 3] || 'Month';
 }
 
@@ -340,6 +338,20 @@ async function setCurrentScenarioById(scenarioId) {
   });
 
   await loadScenarioData();
+  requestStaleProjectionRefresh(currentScenario);
+}
+
+function requestStaleProjectionRefresh(scenario) {
+  const config = scenario?.projection?.config || {};
+  const isStale = scenario?.projection?.stale === true ||
+    Boolean(scenario?.projection?.staleAt);
+  if (!isStale || !config.startDate || !config.endDate) return;
+  document.dispatchEvent(new CustomEvent('forecast:planChanged', {
+    detail: {
+      scenarioId: Number(scenario.id),
+      reason: 'Persisted stale projection'
+    }
+  }));
 }
 
 async function buildScenarioGrid(container) {
@@ -931,7 +943,7 @@ async function loadAccountsGrid(container) {
 }
 
 // Load master transactions grid (unified planned and actual)
-async function loadMasterTransactionsGrid(container) {
+async function loadMasterTransactionsGrid(container, { rulesOnly = false } = {}) {
   return loadMasterTransactionsGridCore({
     container,
     scenarioState: {
@@ -940,15 +952,26 @@ async function loadMasterTransactionsGrid(container) {
         currentScenario = nextScenario;
       }
     },
-    getWorkflowConfig,
+    getWorkflowConfig: () => {
+      const workflow = getWorkflowConfig();
+      return rulesOnly
+        ? {
+            ...workflow,
+            showPlannedTransactions: true,
+            showActualTransactions: false,
+            transactionsMode: 'summary',
+            rulesOnly: true
+          }
+        : workflow;
+    },
     state: {
       getTransactionsAccountFilterId: () => transactionsAccountFilterId,
       setTransactionsAccountFilterId: (nextId) => {
         transactionsAccountFilterId = nextId;
       },
-      getActualPeriod: () => actualPeriod,
+      getActualPeriod: () => rulesOnly ? null : actualPeriod,
       setActualPeriod: (nextPeriod) => {
-        actualPeriod = nextPeriod;
+        if (!rulesOnly) actualPeriod = nextPeriod;
       },
       getActualPeriodType: () => actualPeriodType,
       setActualPeriodType: (nextType) => {
@@ -998,7 +1021,7 @@ async function loadMasterTransactionsGrid(container) {
 
 // Load budget grid
 async function loadBudgetGrid(container) {
-  return loadBudgetGridCore({
+  return loadPlanActualsGridCore({
     container,
     scenarioState: {
       get: () => currentScenario,
@@ -1019,41 +1042,26 @@ async function loadBudgetGrid(container) {
       setBudgetPeriodType: (nextType) => {
         budgetPeriodType = nextType;
         const nextId = mapPeriodTypeNameToId(nextType) || 3;
-        patchUiState({
-          viewPeriodTypeIds: {
-            ...(uiState?.viewPeriodTypeIds || {}),
-            budgets: nextId
-          }
-        });
-      },
+          patchUiState({
+            viewPeriodTypeIds: {
+              ...(uiState?.viewPeriodTypeIds || {}),
+              planActuals: nextId
+            }
+          });
+        },
       getBudgetPeriods: () => budgetPeriods,
       setBudgetPeriods: (nextPeriods) => {
         budgetPeriods = nextPeriods;
       },
-      getStatusFilter: () => budgetStatusFilter,
-      setStatusFilter: (nextStatus) => {
-        budgetStatusFilter = nextStatus;
-      },
       getGroupBy: () => budgetGroupBy,
       setGroupBy: (nextField) => {
         budgetGroupBy = nextField;
-      },
-      bumpBudgetGridLoadToken: () => ++budgetGridLoadToken,
-      getBudgetGridLoadToken: () => budgetGridLoadToken,
-      getBudgetMode: () => getWorkflowConfig()?.budgetMode
-    },
-    tables: {
-      getMasterBudgetTable: () => masterBudgetTable,
-      setMasterBudgetTable: (nextTable) => {
-        masterBudgetTable = nextTable;
-      },
-      getMasterTransactionsTable: () => masterTransactionsTable
+      }
     },
     callbacks: {
-      updateBudgetTotals,
-      updateTransactionTotals,
-      loadProjectionsSection,
-      getEl
+      loadRecurringView: (recurringContainer) => (
+        loadMasterTransactionsGrid(recurringContainer, { rulesOnly: true })
+      )
     },
     logger
   });
@@ -2146,9 +2154,16 @@ async function loadScenarioData() {
   if (showBudget) budgetSection.classList.remove('hidden'); else budgetSection.classList.add('hidden');
   if (showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
 
+  const rowMiddle = getEl('row-middle');
+  const middleTitle = rowMiddle?.querySelector(':scope > .dash-row-header .dash-row-title');
+  if (middleTitle) {
+    middleTitle.textContent = showAccounts && showTransactions
+      ? 'Accounts & Transactions'
+      : (showAccounts ? 'Accounts' : 'Transactions');
+  }
+
   // For detail workflows: hide the outer accordion wrapper and expand the
   // body so the Tabulator grid fills all available space.
-  const rowMiddle = getEl('row-middle');
   if (rowMiddle) {
     const isMiddleDetail = workflowConfig?.accountsMode === 'detail' || workflowConfig?.transactionsMode === 'detail';
     if (isMiddleDetail) {
@@ -2289,8 +2304,6 @@ async function init() {
     }
   });
   renderWorkflowNav(containers.workflowNav);
-  await buildScenarioGrid(containers.scenarioSelector);
-  // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
   initializeKeyboardShortcuts();
   document.addEventListener('forecast:accountsUpdated', async () => {
     try {
@@ -2333,6 +2346,94 @@ async function init() {
       refreshInFlight = false;
     }
   });
+
+  const projectionRefreshTimers = new Map();
+  let planChangedReloadToken = 0;
+  document.addEventListener('forecast:planChanged', (event) => {
+    const scenarioId = Number(event?.detail?.scenarioId || currentScenario?.id || 0);
+    if (!scenarioId || Number(currentScenario?.id || 0) !== scenarioId) return;
+    const currentConfig = currentScenario?.projection?.config || {};
+    if (currentConfig.startDate && currentConfig.endDate) {
+      document.documentElement.dataset.projectionRefreshingScenarioId = String(scenarioId);
+    }
+
+    const reloadToken = ++planChangedReloadToken;
+    void (async () => {
+      try {
+        const refreshed = await getScenario(scenarioId);
+        if (!refreshed || reloadToken !== planChangedReloadToken) return;
+        if (Number(currentScenario?.id || 0) !== scenarioId) return;
+        currentScenario = refreshed;
+
+        const workflowConfig = getWorkflowConfig();
+        if (workflowConfig?.showPlanActuals) {
+          const planContainer = getEl('budgetTable');
+          if (planContainer) await loadBudgetGrid(planContainer);
+        }
+        if (workflowConfig?.showProjections) {
+          const projectionsContainer = getEl('projectionsContent');
+          if (projectionsContainer) await loadProjectionsSection(projectionsContainer);
+        }
+      } catch (err) {
+        logger.error('[PlanActuals] Failed to refresh after a plan change:', err);
+      }
+    })();
+
+    const existingTimer = projectionRefreshTimers.get(scenarioId);
+    if (existingTimer) clearTimeout(existingTimer);
+    const timer = setTimeout(async () => {
+      projectionRefreshTimers.delete(scenarioId);
+      if (Number(currentScenario?.id || 0) !== scenarioId) return;
+
+      try {
+        const latest = await getScenario(scenarioId);
+        const config = latest?.projection?.config || {};
+        if (!config.startDate || !config.endDate) return;
+
+        await generateProjections(scenarioId, {
+          startDate: config.startDate,
+          endDate: config.endDate,
+          periodTypeId: config.periodTypeId,
+          asOfDate: config.asOfDate ?? null,
+          openCommitmentStartDate: config.openCommitmentStartDate ?? null
+        });
+
+        const refreshed = await getScenario(scenarioId);
+        if (!refreshed || Number(currentScenario?.id || 0) !== scenarioId) return;
+        currentScenario = refreshed;
+        if (
+          document.documentElement.dataset.projectionRefreshingScenarioId ===
+          String(scenarioId)
+        ) {
+          delete document.documentElement.dataset.projectionRefreshingScenarioId;
+        }
+
+        const workflowConfig = getWorkflowConfig();
+        if (workflowConfig?.showPlanActuals) {
+          const planContainer = getEl('budgetTable');
+          if (planContainer) await loadBudgetGrid(planContainer);
+        }
+        if (workflowConfig?.showProjections) {
+          const projectionsContainer = getEl('projectionsContent');
+          if (projectionsContainer) await loadProjectionsSection(projectionsContainer);
+        }
+        await refreshSummaryCards();
+      } catch (err) {
+        logger.error('[Projections] Automatic refresh failed:', err);
+      } finally {
+        if (
+          document.documentElement.dataset.projectionRefreshingScenarioId ===
+          String(scenarioId)
+        ) {
+          delete document.documentElement.dataset.projectionRefreshingScenarioId;
+        }
+      }
+    }, 500);
+    projectionRefreshTimers.set(scenarioId, timer);
+  });
+
+  await buildScenarioGrid(containers.scenarioSelector);
+  // loadScenarioData is called from buildScenarioGrid when the initial scenario is set.
   
 }
 

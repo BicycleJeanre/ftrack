@@ -14,7 +14,7 @@ const {
   confirmDialog
 } = require('../helpers/ui');
 
-test.describe('scenario, budget, and account group functional flows', () => {
+test.describe('scenario, plan and actuals, and account group functional flows', () => {
   test.beforeEach(async ({ page }) => {
     await gotoFTrack(page);
   });
@@ -53,18 +53,21 @@ test.describe('scenario, budget, and account group functional flows', () => {
     await expect(page.locator('.scenario-list-item', { hasText: 'E2E Scenario Edited' })).toHaveCount(0);
   });
 
-  test('marks a budget entry actual and preserves default actual amount and date', async ({ page }) => {
+  test('marks a planned occurrence actual and preserves its planned amount and date', async ({ page }) => {
     await selectWorkflow(page, 'Budget');
-    const firstBudget = (await currentScenario(page)).budgets[0];
+    const card = page.locator('#budgetSection .plan-actuals-item', { hasText: 'Groceries budget' });
+    const occurrenceKey = await card.getAttribute('data-occurrence-key');
 
-    await page.locator('#budgetSection .grid-summary-complete').first().click();
+    await card.locator('button[title="Mark actual"]').click();
 
     await waitForScenario(page, (scenario) => {
-      const budget = scenario.budgets.find((item) => Number(item.id) === Number(firstBudget.id));
-      return budget?.status?.name === 'actual' &&
-        Number(budget?.status?.actualAmount) === Math.abs(Number(firstBudget.amount)) &&
-        budget?.status?.actualDate === firstBudget.occurrenceDate;
-    }, 'budget actual status persisted');
+      const occurrence = scenario.transactionOccurrences.find(
+        (item) => item.occurrenceKey === occurrenceKey
+      );
+      return occurrence?.status === 'actual' &&
+        Number(occurrence?.actualAmount) === 450 &&
+        occurrence?.actualDate === '2026-01-10';
+    }, 'actual occurrence persisted');
   });
 
   test('creates an account group and assigns an account through the account group modal', async ({ page }) => {

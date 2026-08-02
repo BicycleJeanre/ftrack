@@ -2,7 +2,9 @@
 
 ## 1.0 Purpose
 
-1.1 The Goal Workshop Advanced mode helps you generate planned transactions that satisfy one or more account goals by specific dates, while respecting optional constraints.
+1.1 The Goal Workshop Advanced mode helps you generate transaction rules that
+satisfy one or more account goals by specific dates, while respecting optional
+constraints.
 
 1.2 It uses the scenario’s current accounts, starting balances, and projection engine to validate that the suggested transactions actually achieve the goals.
 
@@ -78,7 +80,8 @@
 
 ### 2.4 Actions
 
-2.4.1 **Solve**: calculates suggested monthly planned transactions and validates them using projections.
+2.4.1 **Solve**: calculates suggested monthly transaction rules and validates
+them using projections.
 
 2.4.2 **Apply**: writes the suggested transactions into the scenario and removes any prior solver-generated transactions.
 
@@ -104,7 +107,8 @@
 
 3.1.4.3 Set Target Amount to 0.
 
-3.1.5 Click Solve, review the suggested monthly payment, then click Apply to generate planned transactions.
+3.1.5 Click Solve, review the suggested monthly payment, then click Apply to
+create the transaction rules.
 
 ### 3.2 Pay down a credit card to a remaining balance
 

@@ -61,13 +61,12 @@ function buildProjectionScenario() {
         status: { name: 'planned' }
       }
     ],
-    budgets: [],
+    transactionOccurrences: [],
     projection: {
       config: {
         startDate: '2026-01-01',
         endDate: '2026-01-31',
-        periodTypeId: 3,
-        source: 'transactions'
+        periodTypeId: 3
       }
     }
   };
@@ -130,13 +129,12 @@ function buildSplitProjectionScenario() {
         status: { name: 'planned' }
       }
     ],
-    budgets: [],
+    transactionOccurrences: [],
     projection: {
       config: {
         startDate: '2026-01-01',
         endDate: '2026-01-31',
-        periodTypeId: 3,
-        source: 'transactions'
+        periodTypeId: 3
       }
     }
   };
@@ -145,7 +143,7 @@ function buildSplitProjectionScenario() {
 function buildResolvedPlanScenario({
   transactionAmount = 100,
   transactionDate = '2026-01-05',
-  budgets = []
+  transactionOccurrences = []
 } = {}) {
   return {
     id: 3,
@@ -175,19 +173,18 @@ function buildResolvedPlanScenario({
         status: { name: 'planned', actualAmount: null, actualDate: null }
       }
     ],
-    budgets,
+    transactionOccurrences,
     projection: {
       config: {
         startDate: '2026-01-01',
         endDate: '2026-01-10',
-        periodTypeId: 1,
-        source: 'transactions'
+        periodTypeId: 1
       }
     }
   };
 }
 
-function buildBudgetOccurrence({
+function buildStoredOccurrence({
   id = 401,
   sourceTransactionId = 301,
   amount = 100,
@@ -303,31 +300,21 @@ test('projection rows exclude recurring templates that start after the projectio
   assert.equal(operatingRow.balance, -1250);
 });
 
-test('transaction and budget projection source options resolve to the same current plan', async () => {
+test('projections always resolve the latest rule and occurrence plan', async () => {
   const scenario = buildResolvedPlanScenario({
-    budgets: [buildBudgetOccurrence({ amount: 125 })]
+    transactionOccurrences: [buildStoredOccurrence({ amount: 125 })]
   });
 
-  const transactionSourceRows = await generateProjectionsForScenario(
-    scenario,
-    { source: 'transactions' },
-    lookupData
-  );
-  const budgetSourceRows = await generateProjectionsForScenario(
-    scenario,
-    { source: 'budget' },
-    lookupData
-  );
+  const rows = await generateProjectionsForScenario(scenario, {}, lookupData);
 
-  assert.deepEqual(budgetSourceRows, transactionSourceRows);
-  assert.equal(projectionRow(transactionSourceRows, 1, '2026-01-05').expenses, 125);
-  assert.equal(projectionRow(transactionSourceRows, 1, '2026-01-10').balance, 875);
+  assert.equal(projectionRow(rows, 1, '2026-01-05').expenses, 125);
+  assert.equal(projectionRow(rows, 1, '2026-01-10').balance, 875);
 });
 
 test('matched actual replaces its planned occurrence and uses actual date and amount', async () => {
   const scenario = buildResolvedPlanScenario({
-    budgets: [
-      buildBudgetOccurrence({
+    transactionOccurrences: [
+      buildStoredOccurrence({
         status: {
           name: 'actual',
           actualAmount: 120,
@@ -349,8 +336,8 @@ test('matched actual replaces its planned occurrence and uses actual date and am
 
 test('an explicit zero actual amount suppresses the matching planned movement', async () => {
   const scenario = buildResolvedPlanScenario({
-    budgets: [
-      buildBudgetOccurrence({
+    transactionOccurrences: [
+      buildStoredOccurrence({
         status: {
           name: 'actual',
           actualAmount: 0,
@@ -370,8 +357,8 @@ test('an explicit zero actual amount suppresses the matching planned movement', 
 test('manual unplanned actual is included on its actual date', async () => {
   const scenario = buildResolvedPlanScenario({
     transactionAmount: 0,
-    budgets: [
-      buildBudgetOccurrence({
+    transactionOccurrences: [
+      buildStoredOccurrence({
         sourceTransactionId: null,
         amount: 40,
         occurrenceDate: '2026-01-07',
@@ -397,8 +384,8 @@ test('manual unplanned actual is included on its actual date', async () => {
 test('skipped occurrence is excluded from projections', async () => {
   const scenario = buildResolvedPlanScenario({
     transactionAmount: 75,
-    budgets: [
-      buildBudgetOccurrence({
+    transactionOccurrences: [
+      buildStoredOccurrence({
         amount: 75,
         status: {
           name: 'skipped',
@@ -419,8 +406,8 @@ test('skipped occurrence is excluded from projections', async () => {
 test('edited occurrence amounts keep capital and interest buckets reconciled', async () => {
   const scenario = buildResolvedPlanScenario({
     transactionAmount: 900,
-    budgets: [{
-      ...buildBudgetOccurrence({ amount: 1000 }),
+    transactionOccurrences: [{
+      ...buildStoredOccurrence({ amount: 1000 }),
       plannedAmount: 1000,
       capitalAmount: 800,
       interestAmount: 100,

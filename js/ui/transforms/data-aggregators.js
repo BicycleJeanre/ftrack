@@ -299,34 +299,48 @@ export function calculateResolvedOccurrenceTotals(occurrences = []) {
 
     (Array.isArray(occurrences) ? occurrences : []).forEach((occurrence) => {
         const typeId = Number(occurrence?.transactionTypeId);
-        if (typeId !== MONEY_IN_ID && typeId !== MONEY_OUT_ID) return;
-
+        const hasCurrentDirection = typeId === MONEY_IN_ID || typeId === MONEY_OUT_ID;
+        const baselineTypeId = Number(
+            occurrence?.baselineTransactionTypeId ?? occurrence?.transactionTypeId
+        );
+        const hasBaselineDirection =
+            baselineTypeId === MONEY_IN_ID || baselineTypeId === MONEY_OUT_ID;
         const direction = typeId === MONEY_IN_ID ? 1 : -1;
+        const baselineDirection = baselineTypeId === MONEY_IN_ID ? 1 : -1;
         const baselineAmount = Math.abs(Number(occurrence?.baselineAmount || 0));
         const plannedAmount = Math.abs(Number(occurrence?.plannedAmount || 0));
         const actualAmount = Math.abs(Number(occurrence?.actualAmount || 0));
         const status = String(occurrence?.status || 'planned').trim().toLowerCase();
 
-        if (typeId === MONEY_IN_ID) {
+        if (hasBaselineDirection && baselineTypeId === MONEY_IN_ID) {
             totals.baselineIncome += baselineAmount;
+        } else if (hasBaselineDirection) {
+            totals.baselineExpenses += baselineAmount;
+        }
+        if (hasCurrentDirection && typeId === MONEY_IN_ID) {
             if (status !== 'skipped') totals.currentPlannedIncome += plannedAmount;
             if (status === 'actual') totals.actualIncome += actualAmount;
-        } else {
-            totals.baselineExpenses += baselineAmount;
+        } else if (hasCurrentDirection) {
             if (status !== 'skipped') totals.currentPlannedExpenses += plannedAmount;
             if (status === 'actual') totals.actualExpenses += actualAmount;
         }
 
-        totals.baselineNet += direction * baselineAmount;
-        if (status !== 'skipped') {
+        if (hasBaselineDirection) {
+            totals.baselineNet += baselineDirection * baselineAmount;
+        }
+        if (hasCurrentDirection && status !== 'skipped') {
             totals.currentPlannedNet += direction * plannedAmount;
         }
-        if (status === 'actual') {
+        if (hasCurrentDirection && status === 'actual') {
             totals.actualNet += direction * actualAmount;
             if (occurrence?.isUnbudgetedActual || baselineAmount === 0) {
                 totals.unbudgetedActuals += direction * actualAmount;
             }
-        } else if (status === 'planned' && occurrence?.isIncludedInForecast !== false) {
+        } else if (
+            hasCurrentDirection &&
+            status === 'planned' &&
+            occurrence?.isIncludedInForecast !== false
+        ) {
             totals.remainingCommitments += direction * plannedAmount;
         }
     });

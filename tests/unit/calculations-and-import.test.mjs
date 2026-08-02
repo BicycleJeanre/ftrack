@@ -56,7 +56,7 @@ function isoDates(dates) {
 
 function baseAppData(name = 'Seed') {
   return {
-    schemaVersion: 43,
+    schemaVersion: 44,
     uiState: {
       lastWorkflowId: 'general',
       lastScenarioId: 1,
@@ -75,16 +75,19 @@ function baseAppData(name = 'Seed') {
         accountGroups: [],
         splitTransactionSets: [],
         transactions: [],
-        budgets: [],
+        transactionOccurrences: [],
+        baselinePeriods: [],
         projection: {
           config: {
             startDate: '2026-01-01',
             endDate: '2026-12-31',
-            periodTypeId: 3,
-            source: 'transactions'
+            periodTypeId: 3
           },
           rows: [],
-          generatedAt: null
+          generatedAt: null,
+          stale: false,
+          staleAt: null,
+          staleReason: null
         },
         planning: null
       }
@@ -291,11 +294,11 @@ test('legacy migration applies projection date-policy normalization before persi
 test('import rejects malformed and structurally invalid app data', async () => {
   await assert.rejects(() => DataService.importAppData('not json', false), /not valid JSON|Unexpected token/);
   await assert.rejects(
-    () => DataService.importAppData(JSON.stringify({ schemaVersion: 43, uiState: {} }), false),
+    () => DataService.importAppData(JSON.stringify({ schemaVersion: 44, uiState: {} }), false),
     /missing scenarios array/
   );
   await assert.rejects(
-    () => DataService.importAppData(JSON.stringify({ schemaVersion: 43, scenarios: [] }), false),
+    () => DataService.importAppData(JSON.stringify({ schemaVersion: 44, scenarios: [] }), false),
     /missing uiState object/
   );
 });

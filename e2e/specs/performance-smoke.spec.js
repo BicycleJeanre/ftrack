@@ -8,7 +8,8 @@ function buildLargeScenarioData() {
 
   scenario.accounts = [];
   scenario.transactions = [];
-  scenario.budgets = [];
+  scenario.transactionOccurrences = [];
+  scenario.baselinePeriods = [];
 
   for (let index = 1; index <= 40; index += 1) {
     scenario.accounts.push({
@@ -40,32 +41,47 @@ function buildLargeScenarioData() {
       effectiveDate: `2026-${month}-${day}`,
       description: `Load transaction ${index}`,
       recurrence: {
-        recurrenceType: 3,
+        recurrenceType: 4,
         startDate: `2026-${month}-${day}`,
         endDate: null,
         interval: 1,
         dayOfMonth: Number(day)
       },
       periodicChange: null,
-      status: { name: 'planned', actualAmount: null, actualDate: null },
       tags: [`load-${index % 10}`]
     });
   }
 
   for (let index = 1; index <= 180; index += 1) {
     const sourceTransaction = scenario.transactions[index % scenario.transactions.length];
-    scenario.budgets.push({
+    scenario.transactionOccurrences.push({
       id: 8000 + index,
       sourceTransactionId: sourceTransaction.id,
+      occurrenceKey: `tx:${sourceTransaction.id}|date:${sourceTransaction.effectiveDate}|role:none`,
+      scheduledDate: sourceTransaction.effectiveDate,
+      plannedDate: null,
+      actualDate: null,
+      baselineAmount: null,
+      plannedAmount: null,
+      actualAmount: null,
+      status: 'planned',
+      origin: 'generated',
+      isOverride: true,
       primaryAccountId: sourceTransaction.primaryAccountId,
       secondaryAccountId: sourceTransaction.secondaryAccountId,
       transactionTypeId: sourceTransaction.transactionTypeId,
-      amount: sourceTransaction.amount,
-      plannedAmount: sourceTransaction.amount,
-      description: `Load budget ${index}`,
-      occurrenceDate: sourceTransaction.effectiveDate,
+      description: `Load plan item ${index}`,
+      tags: [],
+      transactionGroupId: null,
+      transactionGroupRole: null,
+      transactionGroupAccountGroupId: null,
+      capitalAmount: null,
+      interestAmount: null,
+      recurrence: null,
       recurrenceDescription: 'Monthly',
-      status: { name: 'planned', actualAmount: null, actualDate: null }
+      periodicChange: null,
+      createdAt: null,
+      updatedAt: null
     });
   }
 
@@ -87,7 +103,7 @@ test.describe('frontend performance smoke', () => {
 
     const budgetStartedAt = Date.now();
     await selectWorkflow(page, 'Budget');
-    expect((await currentScenario(page)).budgets).toHaveLength(180);
+    expect((await currentScenario(page)).transactionOccurrences).toHaveLength(180);
     await expect(page.locator('#budgetSection .grid-summary-card').first()).toBeVisible();
     expect(Date.now() - budgetStartedAt).toBeLessThan(8_000);
     await expectNoHorizontalOverflow(page);

@@ -2,415 +2,445 @@
 
 ## 1.0 Architectural Pattern
 
-FTrack follows a **Clean Layered Architecture** that separates concerns between presentation, application logic, domain calculations, and infrastructure. This architecture ensures maintainability, testability, and clear separation of responsibilities.
+FTrack is a browser application organized into presentation, application,
+domain, and infrastructure/shared layers. The central planning contract is:
 
-### 1.1 Architecture Diagram
+```text
+Transaction rules + stored occurrence state
+                  ↓
+      resolveScenarioOccurrences()
+                  ↓
+ Plan & Actuals views and projection engine
+```
+
+SchemaVersion 44 has one rule/occurrence plan and one resolved projection
+source.
+
+### 1.1 Layer Diagram
 
 ```mermaid
 graph TB
-    subgraph "Presentation Layer"
-        Pages[HTML Pages]
-        Controllers[UI Controllers]
-        Components[UI Components]
-        Transforms[Data Transforms]
+    subgraph "Presentation"
+        Layout["Forecast layout"]
+        Controller["Forecast controller"]
+        RuleGrid["Transactions / Recurring grid"]
+        OccurrenceGrid["Plan & Actuals grid"]
+        ProjectionSection["Projections section"]
     end
-    
-    subgraph "Application Layer"
-        Managers[Domain Managers]
-        Services[Application Services]
+
+    subgraph "Application"
+        RuleManager["Transaction manager"]
+        OccurrenceManager["Occurrence manager"]
+        AccountManager["Account manager"]
+        Freshness["Projection freshness"]
+        DataService["Data service"]
     end
-    
-    subgraph "Domain Layer"
-        CalcEngine[Calculation Engine]
-        Models[Domain Models]
-        Validators[Business Rules]
+
+    subgraph "Domain"
+        Resolver["Resolved-occurrence query"]
+        ProjectionEngine["Projection engine"]
+        Recurrence["Recurrence and transaction expansion"]
+        Financial["Financial calculations"]
     end
-    
-    subgraph "Infrastructure Layer"
-        Storage[Storage Service]
-        Config[Configuration]
-        Utils[Shared Utilities]
+
+    subgraph "Shared / Infrastructure"
+        Storage["Storage service"]
+        Migration["Shared migration utilities"]
+        Schema["App-data normalization"]
+        Registry["Workflow registry"]
     end
-    
-    Pages --> Controllers
-    Controllers --> Components
-    Controllers --> Managers
-    Components --> Transforms
-    Managers --> Services
-    Managers --> CalcEngine
-    Services --> CalcEngine
-    CalcEngine --> Models
-    Managers --> Storage
-    Services --> Storage
-    Storage --> Config
-    Controllers --> Utils
-    Components --> Utils
+
+    Layout --> Controller
+    Controller --> RuleGrid
+    Controller --> OccurrenceGrid
+    Controller --> ProjectionSection
+    RuleGrid --> RuleManager
+    OccurrenceGrid --> OccurrenceManager
+    ProjectionSection --> ProjectionEngine
+    RuleManager --> Freshness
+    OccurrenceManager --> Freshness
+    RuleManager --> Storage
+    OccurrenceManager --> Storage
+    OccurrenceManager --> Resolver
+    ProjectionEngine --> Resolver
+    Resolver --> Recurrence
+    ProjectionEngine --> Financial
+    ProjectionEngine --> DataService
+    DataService --> Storage
+    Storage --> Schema
+    Storage --> Migration
+    Controller --> Registry
 ```
 
 ## 2.0 Layer Definitions
 
 ### 2.1 Presentation Layer
 
-The presentation layer handles all user interactions and visual rendering.
-
 **Location**: `js/ui/`, `pages/`
 
-**Responsibilities**:
-- DOM manipulation and rendering
-- User input handling
-- Grid visualization (Tabulator)
-- Modal dialogs
-- Navigation and routing
+The presentation layer renders the app and translates user intent into
+application commands.
 
-**Components**:
+Key modules:
 
-#### 2.1.1 UI Controllers
-- **Location**: `js/ui/controllers/`
-- **Purpose**: Coordinate user actions with application layer
-- **Key Files**:
-  - `forecast-controller.js` - Main forecast page orchestration
-  - `navbar-controller.js` - Navigation and global actions
-  - `doc-panel-controller.js` - Documentation panel management
+- `js/ui/controllers/forecast-controller.js` coordinates workflow visibility,
+  card loading, refresh events, and automatic projection regeneration.
+- `js/ui/components/forecast/forecast-layout.js` constructs the responsive
+  Forecast shell and cards.
+- `js/ui/components/grids/transactions-grid.js` renders transaction rules. In
+  Budget it is reused for Plan & Actuals Recurring mode.
+- `js/ui/components/grids/plan-actuals-grid.js` renders resolved Period
+  occurrences, totals, baseline controls, actuals, skips, and edit scopes.
+- `js/ui/components/forecast/forecast-projections-section.js` renders
+  projection filters, freshness state, and the immediate refresh action.
+- `js/ui/components/grids/accounts-grid.js` renders account editing and
+  account-group interactions.
 
-#### 2.1.2 UI Components
-- **Location**: `js/ui/components/`
-- **Purpose**: Reusable visual components
-- **Structure**:
-  - `grids/` - Grid components (accounts, transactions, budget, projections)
-  - `modals/` - Modal dialogs (periodic change, recurrence, text input)
-  - `widgets/` - Small reusable widgets (toolbar totals, summary cards)
-
-#### 2.1.3 Data Transforms
-- **Location**: `js/ui/transforms/`
-- **Purpose**: Transform domain data for UI display
-- **Key Files**:
-  - `transaction-row-transformer.js` - Transform transactions for grid display
-  - `data-aggregators.js` - Calculate totals and aggregates for UI
+Presentation code may format and aggregate display data. Persistent business
+mutations belong in managers, and financial/occurrence resolution belongs in
+domain modules.
 
 ### 2.2 Application Layer
 
-The application layer contains business logic and coordinates between UI and domain.
-
 **Location**: `js/app/`
 
-**Responsibilities**:
-- Business process orchestration
-- Data validation
-- Service coordination
-- State management
+The application layer owns atomic commands, validation coordination,
+persistence transactions, and cross-cutting state changes.
 
-**Components**:
+#### 2.2.1 Managers
 
-#### 2.2.1 Domain Managers
-- **Location**: `js/app/managers/`
-- **Purpose**: Manage domain entities and business rules
-- **Key Files**:
-  - `scenario-manager.js` - Scenario lifecycle and state
-  - `account-manager.js` - Account operations and filtering
-  - `transaction-manager.js` - Transaction CRUD and validation
-  - `budget-manager.js` - Budget management
+- `scenario-manager.js`: scenario lifecycle, duplication, version, and lineage.
+- `account-manager.js`: account and account-group commands.
+- `transaction-manager.js`: rule CRUD and creation/upsert of split transaction
+  sets.
+- `occurrence-manager.js`: occurrence-only edits, recurring-series revisions,
+  atomic scoped split-series revisions, manual occurrences, actuals, skips,
+  baseline freeze, duplication, and promotion to recurring.
+- `projection-freshness.js`: marks a projection stale inside a plan mutation
+  and dispatches the post-persistence `forecast:planChanged` event.
+- `ui-state-manager.js`: selected workflow, active scenario, per-card period
+  views, and filter state.
 
-#### 2.2.2 Application Services
-- **Location**: `js/app/services/`
-- **Purpose**: Infrastructure and cross-cutting concerns
-- **Key Files**:
-  - `storage-service.js` - Data persistence (localStorage)
-  - `export-service.js` - Data import/export
-  - `lookup-service.js` - Lookup data management
-  - `migration-service.js` - Deprecated (runtime does not migrate; kept for reference)
+#### 2.2.2 Services
 
-**Schema migration (QC-only)**:
-- `QC/migrate-app-data-to-schema43.js` - Standalone legacy → schemaVersion 43 converter
+- `data-service.js`: scenario-oriented read/write operations and projection
+  bundle persistence.
+- `storage-service.js`: normalized localStorage reads, atomic transactions, and
+  backups.
+- `export-service.js`: whole-app export/import.
+- `validation-service.js`: app-data validation.
+- `lookup-service.js`: lookup-data access.
+
+Runtime migration is not a separate application service. Startup, import, and
+QC use the shared migration module:
+
+- `js/shared/migration-utils.js`
+- `QC/migrate-app-data-to-schema44.js` (standalone wrapper)
 
 ### 2.3 Domain Layer
 
-The domain layer contains pure business logic and calculations.
-
 **Location**: `js/domain/`
 
-**Responsibilities**:
-- Financial calculations
-- Business rules
-- Domain models
-- Pure functions (no side effects)
+The domain layer contains reusable financial calculations and the canonical
+resolved-plan query.
 
-**Components**:
+#### 2.3.1 Occurrence Resolution
 
-#### 2.3.1 Calculation Engine
-- **Location**: `js/domain/calculations/`
-- **Purpose**: All mathematical and financial calculations
-- **Architecture**: Facade pattern with specialized modules
-- **Key Files**:
-  - `calculation-engine.js` - Unified API facade
-  - `financial-calculations.js` - Financial math (FV, PV, compound interest, periodic changes)
-  - `recurrence-calculations.js` - Date generation and recurrence patterns
-  - `goal-calculations.js` - Goal-based scenario calculations
-  - `transaction-expander.js` - Transaction expansion logic
+`js/domain/queries/resolve-scenario-occurrences.js` is the single query used to
+combine:
 
-**Calculation Engine API**:
-```javascript
-import * as Calc from './domain/calculations/calculation-engine.js';
+- one-time and recurring transaction rules;
+- rule revision boundaries;
+- occurrence-only plan overrides;
+- manual planned and actual items;
+- actual replacements;
+- skipped items;
+- frozen baseline values and movement perspective; and
+- split/group metadata.
 
-// Financial calculations
-Calc.calculateFutureValue(rate, nper, pmt, pv);
-Calc.calculatePresentValue(rate, nper, pmt, fv);
-Calc.calculateCompoundInterest(principal, rate, periods, frequency);
-Calc.calculatePeriodicChange(value, periodicChange, periods);
+The resolver is pure: it does not mutate or persist scenario data. It returns
+resolved occurrences plus diagnostics. Plan & Actuals and projections must not
+reimplement this merge independently.
 
-// Recurrence calculations
-Calc.generateRecurrenceDates(recurrence, start, end);
-Calc.getNthWeekdayOfMonth(date, weekday, n);
+Stable linked keys use the source rule, immutable scheduled date, and split
+role. A rescheduled actual therefore still replaces its matching plan.
 
-// Goal calculations
-Calc.calculateContributionAmount(pv, fv, months, rate);
-Calc.calculateMonthsToGoal(pv, fv, contribution, rate);
+#### 2.3.2 Projection Engine
 
-// Transaction expansion
-Calc.expandTransactions(transactions, startDate, endDate, accounts);
-```
+`js/domain/calculations/projection-engine.js`:
 
-#### 2.3.2 Domain Models
-- **Location**: `js/domain/models/`
-- **Purpose**: Define domain entity structures (optional, for type safety)
-- **Files**: `scenario.js`, `account.js`, `transaction.js`
+1. reads the selected scenario and projection config;
+2. calls `resolveScenarioOccurrences()`;
+3. applies resolved movements and account periodic changes;
+4. produces per-account projection rows;
+5. persists the completed projection bundle; and
+6. clears stale provenance only after successful generation.
 
-#### 2.3.3 Business Rules
-- **Location**: `js/domain/validators/`
-- **Purpose**: Domain validation and business constraints
-- **Files**: `data-validators.js`
+Stored stale rows are not treated as current results.
 
-### 2.4 Infrastructure Layer
+#### 2.3.3 Supporting Calculations
 
-The infrastructure layer provides technical capabilities.
+- `calculation-engine.js`: financial/recurrence facade.
+- `financial-calculations.js`: future/present value and periodic math.
+- `recurrence-calculations.js`: recurrence date generation.
+- `transaction-expander.js`: expands rule schedules.
+- `period-utils.js`: display/calculation period boundaries.
+- `periodic-change-utils.js`: normalizes periodic-change application.
+- `goal-calculations.js`: Goal Workshop calculations.
+- `loan-allocation-utils.js`: loan split/allocation support.
+
+### 2.4 Shared and Infrastructure Layer
 
 **Location**: `js/shared/`, `js/config.js`
 
-**Responsibilities**:
-- Utility functions
-- Configuration management
-- Logging and monitoring
-- Cross-cutting concerns
+Important modules:
 
-**Components**:
-- `date-utils.js` - Date parsing and formatting
-- `format-utils.js` - Currency and number formatting
+- `app-data-utils.js`: schemaVersion 44 defaults, normalization, snapshot
+  materialization, and ID allocation.
+- `migration-utils.js`: browser-safe legacy-to-schema44 migration and recovery
+  reports.
+- `workflow-registry.js`: code-defined workflow/card visibility.
+- `date-utils.js`: date-only parsing and formatting.
+- `period-window-utils.js`: period selection helpers.
+- `format-utils.js`: display formatting.
+- `logger.js`: logging.
+- `notifications.js`: user notifications.
 
-### 2.4.1 Date Handling Convention
+## 3.0 Core Data Model
 
-All dates in this application are **date-only strings** (`YYYY-MM-DD`). There are no timestamps, no timezones, and no UTC conversions anywhere in the codebase.
+A scenario owns:
 
-- Always use `parseDateOnly(str)` to convert a date string to a `Date` object.
-- Always use `formatDateOnly(date)` to convert back to a string.
-- Never use `new Date(str)` on a date string — this parses as UTC midnight and causes day-shift bugs in non-UTC timezones.
-- Never use `.toISOString()`, `.toUTCString()`, or any UTC/timezone-aware method.
-- `logger.js` - Logging infrastructure
-- `notifications.js` - User notifications
-- `keyboard-shortcuts.js` - Keyboard handling
-- `config.js` - Application configuration
-
-## 3.0 Key Design Patterns
-
-### 3.1 Facade Pattern (Calculation Engine)
-
-The Calculation Engine uses a facade pattern to provide a unified API:
-
-```javascript
-// Instead of multiple imports:
-import { calculatePeriodicChange } from './financial-calculations.js';
-import { generateRecurrenceDates } from './recurrence-calculations.js';
-import { expandTransactions } from './transaction-expander.js';
-
-// Single import:
-import * as Calc from './domain/calculations/calculation-engine.js';
+```text
+accounts[]
+transactions[]                 transaction rules / rule segments
+transactionOccurrences[]       durable dated exceptions and history
+baselinePeriods[]              frozen period markers
+projection                     config, rows, and freshness provenance
+planning                       Goal Workshop configuration
 ```
 
-### 3.2 Service Pattern (Application Services)
+The legacy `budgets[]`, `budgetWindow`, transaction-status actuals, and
+`projection.config.source` are not valid schemaVersion 44 state.
 
-Services encapsulate infrastructure concerns:
+### 3.1 Rules and Rule Segments
 
-```javascript
-// Storage Service
-StorageService.read()           // Read app data
-StorageService.write(data)      // Write app data
-StorageService.backup()         // Create backup
-StorageService.getStorageUsage() // Check quota
-```
+`transactions[]` holds one-time or recurring plan rules. Future-scoped changes
+create linked segments using:
 
-### 3.3 Manager Pattern (Business Logic)
+- `seriesRootId`;
+- `supersedesTransactionId`;
+- `activeFrom` / `activeTo`; and
+- `promotedFromOccurrenceKey` where applicable.
 
-Managers orchestrate business operations:
+Past actual, skipped, or baseline history protects the source rule from
+destructive removal.
 
-```javascript
-// Managers coordinate between layers
-ScenarioManager.createScenario(data)     // Validates → Stores → Returns
-AccountManager.getFilteredAccounts()     // Retrieves → Filters → Returns
-TransactionManager.saveTransaction(tx)   // Validates → Calculates → Stores
-```
+### 3.2 Stored Occurrences
 
-## 4.0 Data Flow
+`transactionOccurrences[]` stores only dated state that must survive
+re-resolution:
 
-### 4.1 User Action Flow
+- occurrence-only plan/date changes;
+- actual amount/date and metadata snapshots;
+- skips;
+- manual planned/actual items;
+- baseline amount and movement snapshots; and
+- explicit override intent.
+
+Untouched generated future occurrences need not be persisted.
+
+### 3.3 Baseline and Actual Snapshots
+
+Freezing a period stores `baselineAmount` plus baseline primary account,
+secondary account, transaction type, and snapshot version on each applicable
+occurrence.
+
+Marking an actual stores actual amount/date and a full metadata snapshot on
+the occurrence, including accounts, type, description, tags, grouping, split,
+recurrence, and periodic-change fields. `actualSnapshotVersion` marks the
+metadata as authoritative so later rule edits cannot rewrite history.
+
+## 4.0 Command and Refresh Flows
+
+### 4.1 Rule or Occurrence Mutation
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Controller
+    participant UI
     participant Manager
-    participant CalcEngine
     participant Storage
-    
-    User->>Controller: Click "Generate Projections"
-    Controller->>Manager: generateProjections(scenarioId)
-    Manager->>Storage: getScenario(scenarioId)
-    Storage-->>Manager: scenario data
-    Manager->>CalcEngine: expandTransactions(...)
-    CalcEngine-->>Manager: transactions
-    Manager->>CalcEngine: calculatePeriodicChange(...)
-    CalcEngine-->>Manager: projected values
-    Manager->>Storage: saveProjections(projections)
-    Manager-->>Controller: projections
-    Controller->>User: Update grid display
+    participant Freshness
+    participant Controller
+    participant Resolver
+    participant Projection
+
+    User->>UI: Save rule, scope, occurrence, actual, or skip
+    UI->>Manager: Atomic command
+    Manager->>Storage: Begin scenario transaction
+    Manager->>Manager: Validate and apply mutation
+    Manager->>Freshness: Mark projection stale
+    Freshness-->>Storage: Stale provenance saved with mutation
+    Storage-->>Manager: Commit
+    Manager->>Controller: forecast:planChanged
+    Controller->>Resolver: Reload Plan & Actuals
+    Resolver-->>Controller: Resolved occurrences + diagnostics
+    Controller->>Projection: Debounced automatic refresh
+    Projection->>Resolver: Resolve projection window
+    Resolver-->>Projection: Canonical occurrence timeline
+    Projection->>Storage: Save rows and clear stale state
+    Projection-->>Controller: Render Current
 ```
 
-### 4.2 Calculation Flow
+The UI event is dispatched only after persistence succeeds. A failed command
+does not emit a misleading refresh.
 
-All calculations flow through the Calculation Engine:
+### 4.2 Baseline Freeze
 
-```
-UI Component → Manager → Calculation Engine → Pure Functions → Result → Manager → UI
-```
+`OccurrenceManager.freezePeriodBaseline()`:
 
-No business logic or calculations exist outside the domain layer.
+1. normalizes the selected period;
+2. resolves every occurrence in that period;
+3. rejects unresolved diagnostics that would make the freeze ambiguous;
+4. stores baseline amounts and movement snapshots;
+5. records the period in `baselinePeriods`;
+6. marks projections stale; and
+7. commits all changes atomically.
+
+`markActual()` invokes the same freeze operation first when the occurrence's
+period is not already frozen.
+
+### 4.3 Projection Freshness
+
+Any rule, occurrence, account, or projection-policy mutation records:
+
+- `stale = true`;
+- `staleAt`; and
+- `staleReason`.
+
+A successful projection refresh replaces rows, sets `generatedAt`, and clears
+the stale fields. Migration clears legacy projection rows and marks the bundle
+stale because their source provenance cannot be guaranteed.
 
 ## 5.0 Directory Structure
 
-```
+```text
 js/
-├── config.js                          # Application configuration
-├── main.js                            # Application bootstrap
-│
-├── app/                               # Application Layer
-│   ├── managers/                      # Domain managers
-│   │   ├── scenario-manager.js
+├── app/
+│   ├── managers/
 │   │   ├── account-manager.js
+│   │   ├── occurrence-manager.js
+│   │   ├── projection-freshness.js
+│   │   ├── scenario-manager.js
 │   │   ├── transaction-manager.js
-│   │   └── budget-manager.js
-│   │
-│   └── services/                      # Application services
-│       ├── storage-service.js
+│   │   └── ui-state-manager.js
+│   └── services/
+│       ├── data-service.js
 │       ├── export-service.js
 │       ├── lookup-service.js
-│       └── migration-service.js       # Deprecated (runtime does not migrate)
-│
-├── domain/                            # Domain Layer
-│   ├── calculations/                  # Calculation engine
-│   │   ├── calculation-engine.js      # Facade
+│       ├── storage-service.js
+│       └── validation-service.js
+├── domain/
+│   ├── calculations/
+│   │   ├── calculation-engine.js
 │   │   ├── financial-calculations.js
-│   │   ├── recurrence-calculations.js
 │   │   ├── goal-calculations.js
+│   │   ├── loan-allocation-utils.js
+│   │   ├── period-utils.js
+│   │   ├── periodic-change-utils.js
+│   │   ├── projection-engine.js
+│   │   ├── recurrence-calculations.js
+│   │   ├── recurrence-utils.js
 │   │   └── transaction-expander.js
-│   │
-│   ├── models/                        # Domain models (optional)
-│   │   ├── scenario.js
-│   │   ├── account.js
-│   │   └── transaction.js
-│   │
-│   └── validators/                    # Business rules
-│       └── data-validators.js
-│
-├── ui/                                # Presentation Layer
-│   ├── controllers/                   # UI controllers
-│   │   ├── forecast-controller.js
-│   │   ├── navbar-controller.js
-│   │   └── doc-panel-controller.js
-│   │
-│   ├── components/                    # UI components
-│   │   ├── grids/
-│   │   │   ├── grid-factory.js
-│   │   │   ├── grid-state.js
-│   │   │   ├── accounts-grid.js
-│   │   │   ├── transactions-grid.js
-│   │   │   ├── budget-grid.js
-│   │   │   └── projections-grid.js
-│   │   │
-│   │   ├── modals/
-│   │   │   ├── modal-factory.js
-│   │   │   ├── periodic-change-modal.js
-│   │   │   ├── recurrence-modal.js
-│   │   │   └── text-input-modal.js
-│   │   │
-│   │   └── widgets/
-│   │       ├── toolbar-totals.js
-│   │       └── summary-cards.js
-│   │
-│   └── transforms/                    # Data transforms
-│       ├── transaction-row-transformer.js
-│       └── data-aggregators.js
-│
-└── shared/                            # Infrastructure Layer
-    ├── date-utils.js
-    ├── format-utils.js
-    ├── logger.js
-    ├── notifications.js
-    └── keyboard-shortcuts.js
+│   ├── queries/
+│   │   └── resolve-scenario-occurrences.js
+│   └── utils/
+│       ├── account-group-utils.js
+│       ├── advanced-goal-solver.js
+│       └── fund-utils.js
+├── shared/
+│   ├── app-data-utils.js
+│   ├── date-utils.js
+│   ├── migration-utils.js
+│   ├── period-window-utils.js
+│   └── workflow-registry.js
+└── ui/
+    ├── components/
+    │   ├── forecast/
+    │   │   ├── forecast-generate-plan.js
+    │   │   ├── forecast-layout.js
+    │   │   └── forecast-projections-section.js
+    │   ├── grids/
+    │   │   ├── accounts-grid.js
+    │   │   ├── grid-factory.js
+    │   │   ├── plan-actuals-grid.js
+    │   │   └── transactions-grid.js
+    │   └── modals/
+    ├── controllers/
+    │   ├── doc-panel-controller.js
+    │   └── forecast-controller.js
+    └── transforms/
 ```
 
-## 6.0 Technology Stack
+## 6.0 Date Handling
 
-### 6.1 Runtime
-- **Platform**: Web browser (Chrome, Firefox, Safari, Edge)
-- **JavaScript**: ES6 modules (native browser support)
-- **Storage**: localStorage API
+Domain dates are date-only strings in `YYYY-MM-DD` form.
 
-### 6.2 Dependencies
-- **Tabulator Tables** (6.3+) - Grid visualization
-- **javascript-lp-solver** (0.4+) - Linear programming for goal solver
+- Use `parseDateOnly()` and `formatDateOnly()`.
+- Do not parse date-only values with `new Date("YYYY-MM-DD")`; that introduces
+  UTC day shifts.
+- Do not serialize domain dates with `toISOString()`.
+- ISO timestamps are used only for metadata such as `createdAt`, `updatedAt`,
+  `frozenAt`, `generatedAt`, and stale/migration audit times.
 
-### 6.3 No External Libraries For
-- Financial calculations (pure JavaScript math)
-- Date manipulation (native Date API)
-- Storage (localStorage API)
-- State management (simple in-memory objects)
+## 7.0 Dependency Direction and Design Rules
 
-## 7.0 Design Principles
+Preferred dependency flow:
 
-### 7.1 Separation of Concerns
-- UI code never contains business logic
-- Calculations are pure functions
-- Storage is abstracted behind services
-
-### 7.2 Single Responsibility
-- Each module has one clear purpose
-- Calculation engine is only place for math
-- Storage service is only place for persistence
-
-### 7.3 Dependency Direction
+```text
+Presentation → Application → Domain / Infrastructure
 ```
-UI → Application → Domain → Infrastructure
-```
-Dependencies always point inward. Domain layer has no knowledge of UI.
 
-### 7.4 Pure Functions
-All calculations in the domain layer are pure functions:
-- No side effects
-- Same input always produces same output
-- No external state dependencies
-- Easily testable
+Rules:
+
+1. UI components call application commands for persistent mutations.
+2. Managers group related data changes in one storage transaction.
+3. The occurrence resolver remains pure and canonical.
+4. Projections consume resolved occurrences rather than raw rules or a
+   separate budget source.
+5. Stale provenance is written atomically with the plan change.
+6. Actual and baseline snapshots protect historical meaning.
+7. Schema migration behavior is shared by startup, import, and QC.
 
 ## 8.0 Testing Strategy
 
-### 8.1 Unit Tests
-- **Target**: Domain layer (calculations)
-- **Tool**: Node.js test runner
-- **Location**: `QC/tests/`
-- **Coverage**: All calculation functions
+### 8.1 Unit and Integration Tests
 
-### 8.2 Integration Tests
-- **Target**: Data flow through layers
-- **Location**: `QC/tests/projection-engine.test.js`
-- **Validates**: End-to-end calculation accuracy
+**Location**: `tests/unit/`
 
-### 8.3 QC Verification
-- **Tool**: `npm run qc:full`
-- **Purpose**: Validate all scenarios and calculations
-- **Report**: `QC/reports/qc-report-YYYY-MM-DD.md`
+Relevant suites include:
+
+- `occurrence-manager.test.mjs`
+- `resolve-scenario-occurrences.test.mjs`
+- `projection-engine.test.mjs`
+- `schema44-migration.test.mjs`
+- `manager-data-integrity.test.mjs`
+
+### 8.2 Browser Acceptance Tests
+
+**Location**: `e2e/specs/`
+
+`plan-actuals.spec.js` covers the unified Budget workflow, while the broader
+suite verifies workflows, edit paths, import/export, detail views,
+functionality, performance, documentation, and visual regressions.
+
+### 8.3 Verification Commands
+
+```bash
+npm test
+npm run docs:manifest
+npx playwright test --project=chromium
+```
+
+Use the narrower relevant suite during iteration and the full configured test
+matrix before release.

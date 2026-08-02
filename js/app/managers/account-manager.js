@@ -4,6 +4,44 @@
 import * as DataStore from '../services/storage-service.js';
 import { formatDateOnly } from '../../shared/date-utils.js';
 import { allocateNextId } from '../../shared/app-data-utils.js';
+import {
+    dispatchPlanChanged,
+    markProjectionStale
+} from './projection-freshness.js';
+
+function occurrenceStatus(occurrence = {}) {
+    return String(occurrence?.status || 'planned').trim().toLowerCase();
+}
+
+function isHistoricalOccurrence(occurrence = {}) {
+    const status = occurrenceStatus(occurrence);
+    return (
+        status === 'actual' ||
+        status === 'skipped' ||
+        (occurrence?.baselineAmount !== null &&
+            occurrence?.baselineAmount !== undefined)
+    );
+}
+
+function recordReferencesAccount(record, accountId) {
+    return (
+        Number(record?.primaryAccountId) === accountId ||
+        Number(record?.secondaryAccountId) === accountId ||
+        Number(record?.baselinePrimaryAccountId) === accountId ||
+        Number(record?.baselineSecondaryAccountId) === accountId
+    );
+}
+
+function splitSetReferencesAccount(splitSet, accountId) {
+    return (
+        Number(splitSet?.payingAccountId) === accountId ||
+        Number(splitSet?.targetAccountId) === accountId ||
+        (splitSet?.components || []).some(
+            (component) =>
+                Number(component?.accountId ?? component?.secondaryAccountId) === accountId
+        )
+    );
+}
 
 /**
  * Get all accounts for a scenario
@@ -23,24 +61,44 @@ export async function getAll(scenarioId) {
  * @returns {Promise<void>}
  */
 export async function saveAll(scenarioId, accounts) {
-    return await DataStore.transaction(async (data) => {
+    const result = await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
         
         if (scenarioIndex === -1) {
             throw new Error(`Scenario ${scenarioId} not found`);
         }
+        const scenario = data.scenarios[scenarioIndex];
+        const nextExistingIds = new Set(
+            (accounts || [])
+                .map((account) => Number(account?.id))
+                .filter(Boolean)
+        );
+        const removedIds = (scenario.accounts || [])
+            .map((account) => Number(account?.id))
+            .filter((id) => id && !nextExistingIds.has(id));
+        if (removedIds.length) {
+            const error = new Error(
+                `Accounts ${removedIds.join(', ')} cannot be removed through a bulk save. ` +
+                'Remove each account explicitly so planning and history references can be checked.'
+            );
+            error.code = 'account-removal-requires-command';
+            throw error;
+        }
         
         let nextId = allocateNextId(accounts);
         
-        data.scenarios[scenarioIndex].accounts = accounts.map(account => {
+        scenario.accounts = accounts.map(account => {
             if (!account.id || account.id === 0) {
                 return { ...account, id: nextId++ };
             }
             return account;
         });
+        markProjectionStale(scenario, 'Accounts changed');
         
         return data;
     });
+    dispatchPlanChanged(scenarioId);
+    return result;
 }
 
 /**
@@ -50,7 +108,7 @@ export async function saveAll(scenarioId, accounts) {
  * @returns {Promise<Object>} - The created account
  */
 export async function create(scenarioId, accountData) {
-    return await DataStore.transaction(async (data) => {
+    const result = await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
         
         if (scenarioIndex === -1) {
@@ -85,9 +143,12 @@ export async function create(scenarioId, accountData) {
         }
         
         scenario.accounts.push(newAccount);
+        markProjectionStale(scenario, 'Account created');
         
         return data;
     });
+    dispatchPlanChanged(scenarioId);
+    return result;
 }
 
 /**
@@ -98,7 +159,7 @@ export async function create(scenarioId, accountData) {
  * @returns {Promise<void>}
  */
 export async function update(scenarioId, accountId, updates) {
-    return await DataStore.transaction(async (data) => {
+    const result = await DataStore.transaction(async (data) => {
         const scenario = data.scenarios.find(s => s.id === scenarioId);
         
         if (!scenario) {
@@ -127,9 +188,12 @@ export async function update(scenarioId, accountId, updates) {
             ...scenario.accounts[accountIndex],
             ...updates
         };
+        markProjectionStale(scenario, 'Account changed');
         
         return data;
     });
+    dispatchPlanChanged(scenarioId);
+    return result;
 }
 
 /**
@@ -139,24 +203,86 @@ export async function update(scenarioId, accountId, updates) {
  * @returns {Promise<void>}
  */
 export async function remove(scenarioId, accountId) {
-    return await DataStore.transaction(async (data) => {
+    const result = await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
         if (scenarioIndex === -1) throw new Error(`Scenario ${scenarioId} not found`);
 
         const scenario = data.scenarios[scenarioIndex];
         const accountIdNum = Number(accountId);
-
-        // Cascade delete: Remove all transactions that reference this account (primary or secondary)
-        if (scenario.transactions) {
-            scenario.transactions = scenario.transactions.filter(tx => {
-                const hasPrimary = tx.primaryAccountId && Number(tx.primaryAccountId) === accountIdNum;
-                const hasSecondary = tx.secondaryAccountId && Number(tx.secondaryAccountId) === accountIdNum;
-                return !hasPrimary && !hasSecondary;
-            });
+        if (!(scenario.accounts || []).some((account) => Number(account?.id) === accountIdNum)) {
+            throw new Error(`Account ${accountId} not found`);
         }
 
-        // Delete the account
-        scenario.accounts = (scenario.accounts || []).filter(a => a.id !== accountIdNum);
+        const splitGroupIds = new Set(
+            (scenario.splitTransactionSets || [])
+                .filter((splitSet) => splitSetReferencesAccount(splitSet, accountIdNum))
+                .map((splitSet) => String(splitSet?.id || '').trim())
+                .filter(Boolean)
+        );
+        const removedTransactionIds = new Set(
+            (scenario.transactions || [])
+                .filter(
+                    (transaction) =>
+                        recordReferencesAccount(transaction, accountIdNum) ||
+                        splitGroupIds.has(String(transaction?.transactionGroupId || '').trim())
+                )
+                .map((transaction) => Number(transaction?.id))
+                .filter(Boolean)
+        );
+        const protectedOccurrences = (scenario.transactionOccurrences || []).filter(
+            (occurrence) =>
+                isHistoricalOccurrence(occurrence) &&
+                (
+                    recordReferencesAccount(occurrence, accountIdNum) ||
+                    removedTransactionIds.has(Number(occurrence?.sourceTransactionId)) ||
+                    splitGroupIds.has(String(occurrence?.transactionGroupId || '').trim())
+                )
+        );
+        if (protectedOccurrences.length) {
+            const error = new Error(
+                `Account ${accountIdNum} cannot be removed because recorded actual, ` +
+                'skipped, or frozen baseline history depends on it.'
+            );
+            error.code = 'account-history-protected';
+            error.details = {
+                accountId: accountIdNum,
+                occurrenceKeys: protectedOccurrences.map(
+                    (occurrence) => occurrence.occurrenceKey
+                )
+            };
+            throw error;
+        }
+
+        scenario.transactions = (scenario.transactions || []).filter(
+            (transaction) => !removedTransactionIds.has(Number(transaction?.id))
+        );
+        scenario.transactionOccurrences = (scenario.transactionOccurrences || []).filter(
+            (occurrence) =>
+                !recordReferencesAccount(occurrence, accountIdNum) &&
+                !removedTransactionIds.has(Number(occurrence?.sourceTransactionId)) &&
+                !splitGroupIds.has(String(occurrence?.transactionGroupId || '').trim())
+        );
+        scenario.splitTransactionSets = (scenario.splitTransactionSets || []).filter(
+            (splitSet) => !splitGroupIds.has(String(splitSet?.id || '').trim())
+        );
+        scenario.accountGroups = (scenario.accountGroups || []).map((group) => ({
+            ...group,
+            accountIds: (group?.accountIds || []).filter(
+                (memberId) => Number(memberId) !== accountIdNum
+            )
+        }));
+        scenario.accounts = (scenario.accounts || []).map((account) => (
+            Number(account?.interestAccountId) === accountIdNum
+                ? { ...account, interestAccountId: null }
+                : account
+        ));
+
+        scenario.accounts = scenario.accounts.filter(
+            (account) => Number(account?.id) !== accountIdNum
+        );
+        markProjectionStale(scenario, 'Account removed');
         return data;
     });
+    dispatchPlanChanged(scenarioId);
+    return result;
 }

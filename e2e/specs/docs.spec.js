@@ -31,8 +31,8 @@ test.describe('documentation frontend', () => {
     await page.goto('/pages/documentation.html#repo-docs/USER_BUDGET_WORKFLOW');
     await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.locator('#repo-docs-nav')).toContainText('Budget Workflow');
-    await expect(page.locator('#repo-doc-title')).toContainText('Budget Workflow');
-    await expect(page.locator('#repo-doc-content')).toContainText('Generate Budget From Planned Transactions');
+    await expect(page.locator('#repo-docs-nav')).toContainText('Plan & Actuals Workflow');
+    await expect(page.locator('#repo-doc-title')).toContainText('Plan & Actuals Workflow');
+    await expect(page.locator('#repo-doc-content')).toContainText('one transaction-based plan');
   });
 });

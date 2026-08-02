@@ -25,7 +25,7 @@ function makeScenario(overrides = {}) {
       makeAccount(4, 'Income', 4)
     ],
     transactions: [],
-    budgets: [],
+    transactionOccurrences: [],
     splitTransactionSets: [],
     ...overrides
   };
@@ -54,7 +54,7 @@ function makePlannedRule(overrides = {}) {
   };
 }
 
-function makeBudget(overrides = {}) {
+function makeStoredOccurrence(overrides = {}) {
   return {
     id: 100,
     sourceTransactionId: 10,
@@ -133,11 +133,31 @@ test('recurrence expansion uses anchor-stable dates and occurrence keys across o
   );
 });
 
-test('a linked planned budget overlays one generated occurrence without duplicating it', () => {
+test('schemaVersion 44 rules without legacy status expand as planned occurrences', () => {
+  const transaction = makePlannedRule({
+    id: 12,
+    effectiveDate: '2026-01-15',
+    recurrence: null
+  });
+  delete transaction.status;
+  const scenario = makeScenario({ transactions: [transaction] });
+
+  const { occurrences } = resolveScenarioOccurrences({
+    scenario,
+    startDate: '2026-01-01',
+    endDate: '2026-01-31'
+  });
+
+  assert.equal(occurrences.length, 1);
+  assert.equal(occurrences[0].sourceTransactionId, 12);
+  assert.equal(occurrences[0].status, 'planned');
+});
+
+test('a linked planned occurrence overlays one generated occurrence without duplicating it', () => {
   const scenario = makeScenario({
     transactions: [makePlannedRule()],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         amount: 125,
         description: 'Adjusted monthly expense',
         tags: ['adjusted']
@@ -150,7 +170,7 @@ test('a linked planned budget overlays one generated occurrence without duplicat
   assert.equal(occurrences.length, 1);
   assert.equal(occurrences[0].occurrenceKey, 'tx:10|date:2026-01-15|role:none');
   assert.equal(occurrences[0].sourceTransactionId, 10);
-  assert.equal(occurrences[0].sourceBudgetId, 100);
+  assert.equal(occurrences[0].sourceOccurrenceId, 100);
   assert.equal(occurrences[0].hasStoredOverride, true);
   assert.equal(occurrences[0].generatedAmount, 100);
   assert.equal(occurrences[0].plannedAmount, 125);
@@ -167,8 +187,8 @@ test('an untouched generated snapshot inherits later rule changes', () => {
         description: 'Updated source rule'
       })
     ],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         amount: 100,
         plannedAmount: 100,
         description: 'Old generated snapshot',
@@ -181,7 +201,7 @@ test('an untouched generated snapshot inherits later rule changes', () => {
   const { occurrences } = resolve(scenario);
 
   assert.equal(occurrences.length, 1);
-  assert.equal(occurrences[0].sourceBudgetId, 100);
+  assert.equal(occurrences[0].sourceOccurrenceId, 100);
   assert.equal(occurrences[0].hasPlanOverride, false);
   assert.equal(occurrences[0].plannedAmount, 140);
   assert.equal(occurrences[0].description, 'Updated source rule');
@@ -201,8 +221,8 @@ test('an untouched generated snapshot does not survive a rule schedule change as
         }
       })
     ],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         amount: 100,
         plannedAmount: 100,
         occurrenceDate: '2026-01-15',
@@ -226,8 +246,8 @@ test('an untouched generated snapshot does not survive a rule schedule change as
 test('an actual replaces its matching plan and preserves an explicit zero amount and actual date', () => {
   const scenario = makeScenario({
     transactions: [makePlannedRule()],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         status: {
           name: 'actual',
           actualAmount: 0,
@@ -252,7 +272,7 @@ test('an actual replaces its matching plan and preserves an explicit zero amount
   assert.equal(actual.isIncludedInForecast, true);
 });
 
-test('a legacy actual transaction replaces its linked planned budget without double counting', () => {
+test('a legacy actual transaction replaces its linked planned occurrence without double counting', () => {
   const scenario = makeScenario({
     transactions: [
       makePlannedRule({
@@ -263,8 +283,8 @@ test('a legacy actual transaction replaces its linked planned budget without dou
         }
       })
     ],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         amount: 100,
         plannedAmount: 100,
         scheduledDate: '2026-01-15'
@@ -276,7 +296,7 @@ test('a legacy actual transaction replaces its linked planned budget without dou
 
   assert.equal(occurrences.length, 1);
   assert.equal(occurrences[0].occurrenceKey, 'tx:10|date:2026-01-15|role:none');
-  assert.equal(occurrences[0].sourceBudgetId, 100);
+  assert.equal(occurrences[0].sourceOccurrenceId, 100);
   assert.equal(occurrences[0].status, 'actual');
   assert.equal(occurrences[0].plannedAmount, 100);
   assert.equal(occurrences[0].actualAmount, 120);
@@ -296,8 +316,8 @@ test('a cross-period legacy actual retains its linked stored plan and baseline',
         }
       })
     ],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         amount: 100,
         plannedAmount: 100,
         baselineAmount: 100,
@@ -315,7 +335,7 @@ test('a cross-period legacy actual retains its linked stored plan and baseline',
 
   assert.equal(occurrences.length, 1);
   assert.equal(occurrences[0].occurrenceKey, 'tx:10|date:2026-01-15|role:none');
-  assert.equal(occurrences[0].sourceBudgetId, 100);
+  assert.equal(occurrences[0].sourceOccurrenceId, 100);
   assert.equal(occurrences[0].status, 'actual');
   assert.equal(occurrences[0].baselineAmount, 100);
   assert.equal(occurrences[0].plannedAmount, 100);
@@ -335,8 +355,8 @@ test('a mismatched legacy plan date cannot be rebound to a cross-period one-time
         }
       })
     ],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         amount: 100,
         plannedAmount: 100,
         baselineAmount: 100,
@@ -358,10 +378,10 @@ test('a mismatched legacy plan date cannot be rebound to a cross-period one-time
   assert.equal(occurrences[0].actualAmount, 120);
 });
 
-test('an explicit source-less manual actual retains a zero baseline and is marked unbudgeted', () => {
+test('an explicit source-less manual actual retains a zero baseline and is marked unplanned', () => {
   const scenario = makeScenario({
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         id: 200,
         sourceTransactionId: null,
         amount: 55,
@@ -383,22 +403,56 @@ test('an explicit source-less manual actual retains a zero baseline and is marke
 
   assert.equal(occurrences.length, 1);
   const [actual] = occurrences;
-  assert.equal(actual.occurrenceKey, 'budget:200');
+  assert.equal(actual.occurrenceKey, 'occurrence:200');
   assert.equal(actual.sourceTransactionId, null);
-  assert.equal(actual.sourceBudgetId, 200);
+  assert.equal(actual.sourceOccurrenceId, 200);
   assert.equal(actual.origin, 'manual');
   assert.equal(actual.status, 'actual');
   assert.equal(actual.baselineAmount, 0);
   assert.equal(actual.plannedAmount, 0);
   assert.equal(actual.actualAmount, 55);
-  assert.equal(actual.isUnbudgetedActual, true);
+  assert.equal(actual.isUnplannedActual, true);
+});
+
+test('an unfrozen manual plan derives its baseline from its current planned amount', () => {
+  const scenario = makeScenario({
+    transactions: [],
+    transactionOccurrences: [{
+      id: 201,
+      sourceTransactionId: null,
+      occurrenceKey: 'occurrence:201',
+      scheduledDate: '2026-01-12',
+      plannedDate: null,
+      actualDate: null,
+      baselineAmount: null,
+      plannedAmount: 85,
+      actualAmount: null,
+      status: 'planned',
+      origin: 'manual',
+      primaryAccountId: 1,
+      secondaryAccountId: 2,
+      transactionTypeId: 2,
+      description: 'Unexpected fee',
+      tags: []
+    }]
+  });
+
+  const { occurrences } = resolveScenarioOccurrences({
+    scenario,
+    startDate: '2026-01-01',
+    endDate: '2026-01-31'
+  });
+
+  assert.equal(occurrences.length, 1);
+  assert.equal(occurrences[0].baselineAmount, 85);
+  assert.equal(occurrences[0].plannedAmount, 85);
 });
 
 test('skipped occurrences remain visible but are excluded from forecast input', () => {
   const scenario = makeScenario({
     transactions: [makePlannedRule()],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         status: {
           name: 'skipped',
           actualAmount: null,
@@ -461,8 +515,8 @@ test('an explicit commitment history boundary carries an older open item into th
 test('a realized occurrence remains available for its scheduled-period comparison after its actual date moves', () => {
   const scenario = makeScenario({
     transactions: [makePlannedRule()],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         scheduledDate: '2026-01-15',
         occurrenceKey: 'tx:10|date:2026-01-15|role:none',
         status: {
@@ -487,20 +541,20 @@ test('a realized occurrence remains available for its scheduled-period compariso
   assert.equal(occurrences[0].status, 'actual');
 });
 
-test('duplicate planned overrides select the highest budget id and emit a diagnostic', () => {
+test('duplicate planned overrides select the highest occurrence id and emit a diagnostic', () => {
   const scenario = makeScenario({
     transactions: [makePlannedRule()],
-    budgets: [
-      makeBudget({ id: 90, amount: 120 }),
-      makeBudget({ id: 100, amount: 130 })
+    transactionOccurrences: [
+      makeStoredOccurrence({ id: 90, amount: 120 }),
+      makeStoredOccurrence({ id: 100, amount: 130 })
     ]
   });
 
   const { occurrences, diagnostics } = resolve(scenario);
 
   assert.equal(occurrences.length, 1);
-  assert.equal(occurrences[0].sourceBudgetId, 100);
-  assert.deepEqual(occurrences[0].sourceBudgetIds, [90, 100]);
+  assert.equal(occurrences[0].sourceOccurrenceId, 100);
+  assert.deepEqual(occurrences[0].sourceOccurrenceIds, [90, 100]);
   assert.equal(occurrences[0].plannedAmount, 130);
   assert.ok(
     diagnostics.some((diagnostic) => diagnosticText(diagnostic).includes('duplicate')),
@@ -511,14 +565,14 @@ test('duplicate planned overrides select the highest budget id and emit a diagno
 test('a future legacy recurring row cannot hijack the sole generated occurrence in a narrower window', () => {
   const scenario = makeScenario({
     transactions: [makePlannedRule()],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         id: 100,
         amount: 125,
         plannedAmount: 125,
         occurrenceDate: '2026-01-15'
       }),
-      makeBudget({
+      makeStoredOccurrence({
         id: 200,
         amount: 999,
         plannedAmount: 999,
@@ -531,7 +585,7 @@ test('a future legacy recurring row cannot hijack the sole generated occurrence 
 
   assert.equal(occurrences.length, 1);
   assert.equal(occurrences[0].scheduledDate, '2026-01-15');
-  assert.equal(occurrences[0].sourceBudgetId, 100);
+  assert.equal(occurrences[0].sourceOccurrenceId, 100);
   assert.equal(occurrences[0].plannedAmount, 125);
   assert.deepEqual(diagnostics, []);
 });
@@ -539,14 +593,14 @@ test('a future legacy recurring row cannot hijack the sole generated occurrence 
 test('actual overrides beat higher-id planned duplicates and conflicting actuals resolve by highest actual id', () => {
   const scenario = makeScenario({
     transactions: [makePlannedRule()],
-    budgets: [
-      makeBudget({ id: 100, amount: 150 }),
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({ id: 100, amount: 150 }),
+      makeStoredOccurrence({
         id: 89,
         amount: 115,
         status: { name: 'actual', actualAmount: 117, actualDate: '2026-01-16' }
       }),
-      makeBudget({
+      makeStoredOccurrence({
         id: 91,
         amount: 125,
         status: { name: 'actual', actualAmount: 131, actualDate: '2026-01-17' }
@@ -558,8 +612,8 @@ test('actual overrides beat higher-id planned duplicates and conflicting actuals
 
   assert.equal(occurrences.length, 1);
   assert.equal(occurrences[0].status, 'actual');
-  assert.equal(occurrences[0].sourceBudgetId, 91);
-  assert.deepEqual(occurrences[0].sourceBudgetIds, [89, 91, 100]);
+  assert.equal(occurrences[0].sourceOccurrenceId, 91);
+  assert.deepEqual(occurrences[0].sourceOccurrenceIds, [89, 91, 100]);
   assert.equal(occurrences[0].plannedAmount, 125);
   assert.equal(occurrences[0].actualAmount, 131);
   assert.equal(occurrences[0].actualDate, '2026-01-17');
@@ -636,10 +690,10 @@ test('split-set components produce distinct role-qualified occurrences', () => {
   assert.equal(interest.plannedAmount, 200);
 });
 
-test('an invalid legacy budget date is not silently shifted into the requested window', () => {
+test('an invalid legacy occurrence date is not silently shifted into the requested window', () => {
   const scenario = makeScenario({
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         id: 300,
         sourceTransactionId: null,
         occurrenceDate: '2026-02-31'
@@ -665,8 +719,8 @@ test('an invalid legacy budget date is not silently shifted into the requested w
 
 test('invalid explicit amounts are diagnosed and excluded', () => {
   const scenario = makeScenario({
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         id: 301,
         sourceTransactionId: null,
         plannedAmount: 'not-a-number'
@@ -678,7 +732,7 @@ test('invalid explicit amounts are diagnosed and excluded', () => {
 
   assert.deepEqual(occurrences, []);
   assert.ok(
-    diagnostics.some((diagnostic) => diagnostic.code === 'invalid-budget-amount'),
+    diagnostics.some((diagnostic) => diagnostic.code === 'invalid-occurrence-amount'),
     'expected an invalid-amount diagnostic'
   );
 });
@@ -705,8 +759,8 @@ test('resolution is deterministic, sorted, and does not mutate scenario data', (
         description: 'Earlier item'
       })
     ],
-    budgets: [
-      makeBudget({
+    transactionOccurrences: [
+      makeStoredOccurrence({
         id: 201,
         sourceTransactionId: null,
         occurrenceDate: '2026-01-15',

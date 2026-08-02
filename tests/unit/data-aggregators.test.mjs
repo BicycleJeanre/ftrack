@@ -106,3 +106,21 @@ test('resolved occurrence totals compare baseline, current plan, actuals, commit
     unbudgetedActuals: -75
   });
 });
+
+test('resolved occurrence totals keep frozen baseline direction separate from the current plan', () => {
+  const totals = calculateResolvedOccurrenceTotals([{
+    transactionTypeId: 1,
+    baselineTransactionTypeId: 2,
+    baselineAmount: 100,
+    plannedAmount: 140,
+    actualAmount: null,
+    status: 'planned',
+    isIncludedInForecast: true
+  }]);
+
+  assert.equal(totals.baselineIncome, 0);
+  assert.equal(totals.baselineExpenses, 100);
+  assert.equal(totals.baselineNet, -100);
+  assert.equal(totals.currentPlannedIncome, 140);
+  assert.equal(totals.currentPlannedNet, 140);
+});

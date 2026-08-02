@@ -31,6 +31,8 @@ import { GridStateManager } from './grid-state.js';
 import * as DataService from '../../../app/services/data-service.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { renderMoneyTotals } from '../widgets/toolbar-totals.js';
+import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
+import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js';
 
 const {
   getScenario,
@@ -208,6 +210,82 @@ function deriveAccrualDaysForSplit({ periodicChange, recurrence }) {
   const periodicDays = deriveAccrualDaysFromPeriodicChange(periodicChange);
   const baseDays = periodicDays || RECURRENCE_DAYS[recurrenceTypeId] || RATE_PERIOD_DAYS[2];
   return Math.max(1, Number(baseDays || 0) * recurrenceInterval);
+}
+
+function getNextRuleOccurrenceDate({ rule, scenario }) {
+  const today = formatDateOnly(new Date());
+  const projectionStart = scenario?.projection?.config?.startDate || today;
+  const searchStart = projectionStart > today ? projectionStart : today;
+  const activeEnd = rule?.activeTo || rule?.recurrence?.endDate || null;
+  if (activeEnd && activeEnd < searchStart) return null;
+
+  const fallbackEnd = parseDateOnly(searchStart);
+  fallbackEnd.setFullYear(fallbackEnd.getFullYear() + 20);
+  const searchEnd = activeEnd || formatDateOnly(fallbackEnd);
+  const expanded = expandTransactions(
+    [{
+      ...rule,
+      recurrence: rule?.recurrence ? { ...rule.recurrence } : null
+    }],
+    parseDateOnly(searchStart),
+    parseDateOnly(searchEnd),
+    scenario?.accounts || []
+  );
+  const first = expanded[0];
+  const firstDate = first?._occurrenceDate || first?.effectiveDate || null;
+  return firstDate ? formatDateOnly(firstDate) : null;
+}
+
+function isRecurringTransactionRule(rule) {
+  const rawType = rule?.recurrence?.recurrenceType ?? rule?.recurrence?.recurrenceTypeId;
+  const typeId = Number(typeof rawType === 'object' ? rawType?.id : rawType);
+  return Number.isFinite(typeId) && typeId !== 1;
+}
+
+function getNextUnresolvedRuleOccurrence({ rule, scenario }) {
+  const today = formatDateOnly(new Date());
+  const projectionStart = scenario?.projection?.config?.startDate || today;
+  const searchStart = projectionStart > today ? projectionStart : today;
+  const rootId = Number(rule?.seriesRootId || rule?.id);
+  const lineage = (scenario?.transactions || [])
+    .filter((candidate) => Number(candidate?.seriesRootId || candidate?.id) === rootId);
+  if (!lineage.length) lineage.push(rule);
+
+  const fallbackEnd = parseDateOnly(searchStart);
+  fallbackEnd.setFullYear(fallbackEnd.getFullYear() + 20);
+  const openEnded = lineage.some((candidate) => !(
+    candidate?.activeTo || candidate?.recurrence?.endDate
+  ));
+  const lineageEnd = lineage.reduce((latest, candidate) => {
+    const candidateEnd = candidate?.activeTo || candidate?.recurrence?.endDate || null;
+    return candidateEnd && (!latest || candidateEnd > latest) ? candidateEnd : latest;
+  }, null);
+  const searchEnd = openEnded ? formatDateOnly(fallbackEnd) : lineageEnd;
+  if (!searchEnd || searchEnd < searchStart) return null;
+
+  const { occurrences } = resolveScenarioOccurrences({
+    scenario,
+    startDate: searchStart,
+    endDate: searchEnd
+  });
+
+  // Future-scoped edits can split one logical series into multiple rule
+  // segments. Search the whole lineage so an actual/skipped first occurrence
+  // does not make the rule appear to have no editable future occurrence.
+  const lineageIds = new Set(
+    lineage.map((candidate) => Number(candidate?.id))
+  );
+  lineageIds.add(Number(rule?.id));
+  const targetRole = String(rule?.transactionGroupRole || '').trim().toLowerCase();
+
+  return occurrences.find((occurrence) => (
+    lineageIds.has(Number(occurrence?.sourceTransactionId)) &&
+    occurrence?.status === 'planned' &&
+    (
+      !targetRole ||
+      String(occurrence?.transactionGroupRole || '').trim().toLowerCase() === targetRole
+    )
+  )) || null;
 }
 
 async function ensureInterestAccountForPayload({ scenarioId, scenario, payload }) {
@@ -786,6 +864,7 @@ function renderTransactionsSummaryTotals({
 
 function renderTransactionsSummaryList({
   container,
+  scenario = null,
   transactions,
   splitSets = [],
   accounts,
@@ -796,6 +875,7 @@ function renderTransactionsSummaryList({
   splitRoleFilter = '',
   splitAccountGroupFilter = '',
   splitAccountGroupLabelLookup = null,
+  rulesOnly = false,
   onEditSplitSet = null
 }) {
   container.innerHTML = '';
@@ -807,28 +887,122 @@ function renderTransactionsSummaryList({
   if (!transactions || transactions.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'scenarios-list-placeholder';
-    empty.textContent = 'No transactions yet. Switch to Detail to add a transaction.';
+    empty.textContent = rulesOnly
+      ? 'No recurring rules yet. Use + to add a monthly rule, then edit its scope and pattern.'
+      : 'No transactions yet. Switch to Detail to add a transaction.';
     list.appendChild(empty);
     return;
   }
 
-  const { visibleAccounts, displayRows } = buildTransactionDisplayRows({
-    transactions,
-    splitSets,
-    accounts,
-    filterAccountId,
-    groupByField,
-    splitGroupFilter,
-    splitRoleFilter,
-    splitAccountGroupFilter,
-    splitAccountGroupLabelLookup
-  });
-  const findAccountName = (id) => visibleAccounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
   const splitSetsById = new Map(
     (Array.isArray(splitSets) ? splitSets : [])
       .map((set) => [toSplitGroupId(set?.id), set])
       .filter(([id]) => Boolean(id))
   );
+  const canonicalTransactionsById = new Map(
+    (Array.isArray(transactions) ? transactions : [])
+      .map((transaction) => [Number(transaction?.id), transaction])
+      .filter(([id]) => Number.isFinite(id))
+  );
+  const { visibleAccounts, displayRows: perspectiveRows } = buildTransactionDisplayRows({
+    transactions,
+    splitSets,
+    accounts,
+    // In Recurring mode the account selector is a visibility filter only.
+    // Rendering a secondary-account perspective row would swap the fields that
+    // are later submitted to the scoped recurring-rule commands.
+    filterAccountId: rulesOnly ? null : filterAccountId,
+    groupByField,
+    splitGroupFilter,
+    splitRoleFilter: rulesOnly ? null : splitRoleFilter,
+    splitAccountGroupFilter: rulesOnly ? null : splitAccountGroupFilter,
+    splitAccountGroupLabelLookup
+  });
+  const recurringAccountId = rulesOnly && filterAccountId
+    ? Number(filterAccountId)
+    : null;
+  const accountFilteredRows = recurringAccountId
+    ? perspectiveRows.filter((row) => {
+        const source = canonicalTransactionsById.get(Number(row?.originalTransactionId || row?.id)) || row;
+        if (
+          Number(source?.primaryAccountId) === recurringAccountId ||
+          Number(source?.secondaryAccountId) === recurringAccountId
+        ) {
+          return true;
+        }
+        const set = splitSetsById.get(toSplitGroupId(source?.transactionGroupId));
+        return Boolean(
+          set && (
+            Number(set?.payingAccountId) === recurringAccountId ||
+            Number(set?.targetAccountId) === recurringAccountId ||
+            (set?.components || []).some((component) => (
+              Number(component?.accountId || component?.secondaryAccountId) === recurringAccountId
+            ))
+          )
+        );
+      })
+    : perspectiveRows;
+  const setFilteredRows = rulesOnly
+    ? accountFilteredRows.filter((row) => {
+        const source = canonicalTransactionsById.get(
+          Number(row?.originalTransactionId || row?.id)
+        ) || row;
+        const set = splitSetsById.get(toSplitGroupId(source?.transactionGroupId));
+        if (splitRoleFilter) {
+          if (!set || !(set.components || []).some(
+            (component) => (
+              String(component?.role || '').trim().toLowerCase() ===
+              String(splitRoleFilter).trim().toLowerCase()
+            )
+          )) {
+            return false;
+          }
+        }
+        if (splitAccountGroupFilter) {
+          if (!set || !(set.components || []).some(
+            (component) => (
+              Number(component?.accountGroupId || 0) ===
+              Number(splitAccountGroupFilter)
+            )
+          )) {
+            return false;
+          }
+        }
+        return true;
+      })
+    : accountFilteredRows;
+  const displayRows = rulesOnly
+    ? (() => {
+        const principalSourceIdByGroup = new Map();
+        canonicalTransactionsById.forEach((source) => {
+          const groupId = toSplitGroupId(source?.transactionGroupId);
+          if (!groupId) return;
+          const role = String(source?.transactionGroupRole || '').trim().toLowerCase();
+          if ((!role || role === 'principal') && !principalSourceIdByGroup.has(groupId)) {
+            principalSourceIdByGroup.set(groupId, Number(source?.id));
+          }
+        });
+        const renderedGroups = new Set();
+        return setFilteredRows.filter((row) => {
+          const source = canonicalTransactionsById.get(
+            Number(row?.originalTransactionId || row?.id)
+          ) || row;
+          const groupId = toSplitGroupId(source?.transactionGroupId);
+          if (!groupId) return true;
+          const principalSourceId = principalSourceIdByGroup.get(groupId);
+          if (
+            principalSourceId &&
+            Number(source?.id) !== Number(principalSourceId)
+          ) {
+            return false;
+          }
+          if (renderedGroups.has(groupId)) return false;
+          renderedGroups.add(groupId);
+          return true;
+        });
+      })()
+    : setFilteredRows;
+  const findAccountName = (id) => visibleAccounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
 
   const buildAccountSelect = (selectedId, includeNone = false) => {
     const sel = document.createElement('select');
@@ -870,13 +1044,13 @@ function renderTransactionsSummaryList({
     const splitGroupId = toSplitGroupId(tx?.transactionGroupId);
     const splitRole = String(tx?.transactionGroupRole || '').trim().toLowerCase();
     const existingSplitSet = splitGroupId ? (splitSetsById.get(splitGroupId) || null) : null;
-    const sourceCanonicalTx = transactions.find(
-      (candidate) => Number(candidate?.id || 0) === Number(originalTransactionId)
-    ) || null;
-    const displayTypeId = Number(tx?.transactionTypeId || 2) === 1 ? 1 : 2;
+    const sourceCanonicalTx = canonicalTransactionsById.get(Number(originalTransactionId)) || null;
+    const editableTx = rulesOnly && sourceCanonicalTx ? sourceCanonicalTx : tx;
+    const displayTypeId = Number(editableTx?.transactionTypeId || 2) === 1 ? 1 : 2;
     const splitPrincipalComponent = Array.isArray(existingSplitSet?.components)
       ? existingSplitSet.components.find((component) => String(component?.role || '').trim().toLowerCase() === 'principal') || null
       : null;
+    const hasExistingSplitSeries = Boolean(existingSplitSet && splitPrincipalComponent);
     const defaultSplitTargetAccountId = Number(
       existingSplitSet?.targetAccountId ||
       splitPrincipalComponent?.accountId ||
@@ -892,30 +1066,46 @@ function renderTransactionsSummaryList({
       : null;
     const inlineSplitEditable = Boolean(splitGroupId) && (!splitRole || splitRole === 'principal');
     const card = document.createElement('div');
-    card.className = 'grid-summary-card';
+    card.className = `grid-summary-card${rulesOnly ? ' recurring-rule-card' : ''}`;
+    card.dataset.sourceTransactionId = String(originalTransactionId);
+    if (splitGroupId) card.dataset.splitGroupId = splitGroupId;
+    if (splitRole) card.dataset.splitRole = splitRole;
 
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
 
     // Use perspective-transformed values with signed amounts
-    const typeName = tx.transactionTypeName || (Number(tx.transactionTypeId) === 1 ? 'Money In' : 'Money Out');
-    const isMoneyOut = Number(tx.transactionTypeId) === 2;
-    const signedAmount = Number(tx.plannedAmount || tx.amount || 0);
+    const typeName = rulesOnly
+      ? (displayTypeId === 1 ? 'Money In' : 'Money Out')
+      : (tx.transactionTypeName || (Number(tx.transactionTypeId) === 1 ? 'Money In' : 'Money Out'));
+    const isMoneyOut = displayTypeId === 2;
+    const splitTotalAmount = Number(existingSplitSet?.totalAmount);
+    const signedAmount = inlineSplitEditable && Number.isFinite(splitTotalAmount)
+      ? splitTotalAmount
+      : Number(tx.plannedAmount || tx.amount || 0);
     const formattedAmt = formatMoneyDisplay(signedAmount);
-    const secondaryName = tx.secondaryAccountName || findAccountName(tx.secondaryAccountId);
-    const primaryName = tx.primaryAccountName || findAccountName(tx.primaryAccountId);
+    const secondaryName = rulesOnly
+      ? (editableTx?.secondaryAccountId ? findAccountName(editableTx.secondaryAccountId) : 'External')
+      : (tx.secondaryAccountName || findAccountName(tx.secondaryAccountId));
+    const primaryName = rulesOnly
+      ? findAccountName(editableTx?.primaryAccountId)
+      : (tx.primaryAccountName || findAccountName(tx.primaryAccountId));
 
     // -- Basic fields --
     const descInput = document.createElement('input');
     descInput.type = 'text';
     descInput.className = 'grid-summary-input';
-    descInput.value = tx?.description || '';
+    descInput.value = editableTx?.description || '';
 
     const amountInput = document.createElement('input');
     amountInput.type = 'number';
     amountInput.step = '0.01';
     amountInput.className = 'grid-summary-input';
-    amountInput.value = Number(tx?.amount || 0);
+    amountInput.value = Math.abs(Number(
+      inlineSplitEditable && Number.isFinite(splitTotalAmount)
+        ? splitTotalAmount
+        : (editableTx?.amount || 0)
+    ));
 
     const typeSelect = document.createElement('select');
     typeSelect.className = 'grid-summary-input';
@@ -926,8 +1116,12 @@ function renderTransactionsSummaryList({
     }
 
     // -- Account selects --
+    const primaryAccountSelect = buildAccountSelect(
+      editableTx?.primaryAccountId,
+      false
+    );
     const secondaryAccountSelect = buildAccountSelect(
-      inlineSplitEditable ? defaultSplitTargetAccountId : tx?.secondaryAccountId,
+      inlineSplitEditable ? defaultSplitTargetAccountId : editableTx?.secondaryAccountId,
       true
     );
 
@@ -968,10 +1162,81 @@ function renderTransactionsSummaryList({
 
     // Line 2: transaction flow
     const flowEl = document.createElement('div');
-    flowEl.className = 'grid-summary-flow';
-    flowEl.textContent = `${primaryName} \u2192 ${secondaryName}`;
+    flowEl.className = `grid-summary-flow${rulesOnly ? ' recurring-rule-movement' : ''}`;
+    const secondaryFlowName = editableTx?.secondaryAccountId ? secondaryName : 'External';
+    flowEl.textContent = displayTypeId === 1
+      ? `${secondaryFlowName} \u2192 ${primaryName}`
+      : `${primaryName} \u2192 ${secondaryFlowName}`;
 
     content.appendChild(flowEl);
+    if (rulesOnly) {
+      const description = document.createElement('div');
+      description.className = 'grid-summary-description recurring-rule-description';
+      description.textContent = editableTx?.description || 'Untitled rule';
+      content.appendChild(description);
+
+      const metadata = document.createElement('div');
+      metadata.className = 'recurring-rule-metadata';
+      const recurrenceMeta = document.createElement('span');
+      try {
+        recurrenceMeta.textContent =
+          `Repeat: ${getRecurrenceDescription(editableTx?.recurrence || null) || 'One time'}`;
+      } catch (_) {
+        recurrenceMeta.textContent = 'Repeat: One time';
+      }
+      const periodicMeta = document.createElement('span');
+      periodicMeta.textContent = 'Adjustment: loading…';
+      void (async () => {
+        try {
+          const label = await getPeriodicChangeDescription(editableTx?.periodicChange || null);
+          periodicMeta.textContent = `Adjustment: ${label || 'None'}`;
+        } catch (_) {
+          periodicMeta.textContent = 'Adjustment: None';
+        }
+      })();
+      const tagsMeta = document.createElement('span');
+      tagsMeta.textContent = `Tags: ${
+        Array.isArray(editableTx?.tags) && editableTx.tags.length ? editableTx.tags.join(', ') : 'None'
+      }`;
+      const activeStart =
+        sourceCanonicalTx?.activeFrom ||
+        sourceCanonicalTx?.recurrence?.startDate ||
+        sourceCanonicalTx?.effectiveDate ||
+        'Not set';
+      const activeEnd =
+        sourceCanonicalTx?.activeTo ||
+        sourceCanonicalTx?.recurrence?.endDate ||
+        'Ongoing';
+      const activeMeta = document.createElement('span');
+      activeMeta.textContent = `Active: ${activeStart} → ${activeEnd}`;
+      const nextMeta = document.createElement('span');
+      const nextDate = getNextRuleOccurrenceDate({
+        rule: sourceCanonicalTx || tx,
+        scenario: scenario || { accounts: visibleAccounts }
+      });
+      nextMeta.textContent = nextDate ? `Next: ${nextDate}` : 'Next: Ended';
+      metadata.appendChild(recurrenceMeta);
+      metadata.appendChild(periodicMeta);
+      metadata.appendChild(activeMeta);
+      metadata.appendChild(nextMeta);
+      metadata.appendChild(tagsMeta);
+      if (splitGroupId) {
+        const splitMeta = document.createElement('span');
+        const componentCount = Array.isArray(existingSplitSet?.components)
+          ? existingSplitSet.components.length
+          : 0;
+        splitMeta.textContent = `Split: ${componentCount || 'linked'} component${
+          componentCount === 1 ? '' : 's'
+        }`;
+        metadata.appendChild(splitMeta);
+        const splitGuidance = document.createElement('span');
+        splitGuidance.className = 'recurring-rule-guidance';
+        splitGuidance.textContent =
+          'Edit the shared split allocation and apply it to this-and-future or the entire current series.';
+        metadata.appendChild(splitGuidance);
+      }
+      content.appendChild(metadata);
+    }
 
     // Type badge for actions rail
     const typeSpan = document.createElement('span');
@@ -988,17 +1253,25 @@ function renderTransactionsSummaryList({
 
     const duplicateBtn = document.createElement('button');
     duplicateBtn.className = 'icon-btn';
-    duplicateBtn.title = 'Duplicate Transaction';
+    duplicateBtn.title = rulesOnly
+      ? (splitGroupId ? 'Duplicate recurring split rule' : 'Duplicate recurring rule')
+      : 'Duplicate Transaction';
     duplicateBtn.textContent = '⧉';
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'icon-btn';
-    deleteBtn.title = 'Delete Transaction';
+    deleteBtn.title = rulesOnly
+      ? (
+          splitGroupId && !hasExistingSplitSeries
+            ? 'Discard recurring split draft'
+            : 'End recurring series'
+        )
+      : 'Delete Transaction';
     deleteBtn.textContent = '⨉';
 
     actions.appendChild(typeSpan);
     actions.appendChild(typeSelect);
-    if (splitGroupId && typeof onEditSplitSet === 'function') {
+    if (!rulesOnly && splitGroupId && typeof onEditSplitSet === 'function') {
       const splitEditBtn = document.createElement('button');
       splitEditBtn.className = 'icon-btn';
       splitEditBtn.title = 'Edit split payment set';
@@ -1026,7 +1299,7 @@ function renderTransactionsSummaryList({
     };
 
     // -- Tags --
-    const cardTags = [...(tx?.tags || [])];
+    const cardTags = [...(editableTx?.tags || [])];
     const tagsChipsEl = document.createElement('div');
     tagsChipsEl.className = 'tag-chips';
     const renderCardTags = () => {
@@ -1084,7 +1357,7 @@ function renderTransactionsSummaryList({
     tagsField.appendChild(tagInputRow);
 
     // -- Recurrence (modal) --
-    let currentRecurrence = tx?.recurrence ?? null;
+    let currentRecurrence = editableTx?.recurrence ?? null;
     const recurrenceValue = document.createElement('div');
     recurrenceValue.className = 'accounts-detail-value accounts-detail-value--clickable';
     recurrenceValue.title = 'Click to edit recurrence';
@@ -1096,6 +1369,10 @@ function renderTransactionsSummaryList({
       e.stopPropagation();
       suppressAutoSaveOnce();
       openRecurrenceModal(currentRecurrence, async (newRec) => {
+        if (rulesOnly && !isRecurringTransactionRule({ recurrence: newRec })) {
+          notifyError('Recurring rules must keep a recurring pattern.');
+          return;
+        }
         currentRecurrence = newRec;
         await updateRecurrenceLabel(newRec);
         updateSplitInlinePreview();
@@ -1114,7 +1391,7 @@ function renderTransactionsSummaryList({
     recurrenceField.appendChild(recurrenceValue);
 
     // -- Periodic Change (modal) --
-    let currentPeriodicChange = tx?.periodicChange ?? null;
+    let currentPeriodicChange = editableTx?.periodicChange ?? null;
     const periodicValue = document.createElement('div');
     periodicValue.className = 'accounts-detail-value accounts-detail-value--clickable';
     periodicValue.title = 'Click to edit periodic change';
@@ -1216,7 +1493,12 @@ function renderTransactionsSummaryList({
     splitPrincipalAmountInput.min = '0';
     splitPrincipalAmountInput.className = 'grid-summary-input grid-summary-input--readonly';
     splitPrincipalAmountInput.readOnly = true;
-    splitPrincipalAmountInput.value = Number(tx?.capitalAmount || 0).toFixed(2);
+    splitPrincipalAmountInput.value = Number(
+      splitPrincipalComponent?.value ??
+      splitPrincipalComponent?.amount ??
+      tx?.capitalAmount ??
+      0
+    ).toFixed(2);
     splitPrincipalAmountWrap.appendChild(splitPrincipalAmountLabel);
     splitPrincipalAmountWrap.appendChild(splitPrincipalAmountInput);
 
@@ -1252,6 +1534,13 @@ function renderTransactionsSummaryList({
 
     let splitTargetPeriodicChangeTouched = false;
     let splitTargetPeriodicChange = null;
+    const preservedSplitAdditionalTotal = Array.isArray(existingSplitSet?.components)
+      ? existingSplitSet.components.reduce((sum, component) => {
+          const role = String(component?.role || '').trim().toLowerCase();
+          if (role === 'principal' || role === 'interest') return sum;
+          return sum + (Math.abs(Number(component?.value ?? component?.amount ?? 0)) || 0);
+        }, 0)
+      : 0;
 
     const getSelectedSecondaryAccount = () => {
       const selectedId = Number(secondaryAccountSelect.value || 0) || null;
@@ -1279,6 +1568,7 @@ function renderTransactionsSummaryList({
       const recurrence = getSplitRecurrence();
       const accrualDays = getAccrualDays();
       const mode = splitModeSelect.value === 'manual' ? 'manual' : 'top_down';
+      const allocatableAmount = Math.max(0, totalAmount - preservedSplitAdditionalTotal);
       let interestAmount = Math.abs(Number(splitInterestAmountInput.value || 0)) || 0;
 
       if (mode === 'top_down') {
@@ -1290,13 +1580,13 @@ function renderTransactionsSummaryList({
           days: accrualDays,
           interestSource: 'account_rate'
         });
-        interestAmount = Math.min(totalAmount, Math.abs(Number(estimatedInterest || 0)));
+        interestAmount = Math.min(allocatableAmount, Math.abs(Number(estimatedInterest || 0)));
         splitInterestAmountInput.value = interestAmount.toFixed(2);
       } else {
-        interestAmount = Math.min(totalAmount, interestAmount);
+        interestAmount = Math.min(allocatableAmount, interestAmount);
       }
 
-      const principalAmount = Math.max(0, totalAmount - interestAmount);
+      const principalAmount = Math.max(0, allocatableAmount - interestAmount);
       splitPrincipalAmountInput.value = principalAmount.toFixed(2);
 
       if (!targetAccount) {
@@ -1312,9 +1602,12 @@ function renderTransactionsSummaryList({
       splitPeriodicSummary.textContent = hasPeriodic
         ? `Derived accrual: ${Number(accrualDays).toFixed(2)} day(s) per cycle.`
         : 'No periodic change set on secondary account.';
+      const additionalSuffix = preservedSplitAdditionalTotal > 0
+        ? ` + preserved components ${preservedSplitAdditionalTotal.toFixed(2)}`
+        : '';
       splitHint.textContent = mode === 'manual'
-        ? `Manual allocation: principal ${principalAmount.toFixed(2)} + interest ${interestAmount.toFixed(2)} = amount ${totalAmount.toFixed(2)}.`
-        : `Top-down allocation: amount ${totalAmount.toFixed(2)} with interest estimated from secondary-account periodic change.`;
+        ? `Manual allocation: principal ${principalAmount.toFixed(2)} + interest ${interestAmount.toFixed(2)}${additionalSuffix} = amount ${totalAmount.toFixed(2)}.`
+        : `Top-down allocation: amount ${totalAmount.toFixed(2)} with interest estimated from secondary-account periodic change${additionalSuffix}.`;
     };
 
     const addField = (label, inputEl) => {
@@ -1326,8 +1619,31 @@ function renderTransactionsSummaryList({
       field.appendChild(labelEl);
       field.appendChild(inputEl);
       form.appendChild(field);
+      return { field, labelEl };
     };
 
+    const ruleScopeSelect = document.createElement('select');
+    ruleScopeSelect.className = 'grid-summary-input';
+    ruleScopeSelect.innerHTML = `
+      <option value="future">This and future</option>
+      <option value="series">Entire series</option>
+    `;
+    let primaryAccountField = null;
+    let secondaryAccountField = null;
+    if (rulesOnly) {
+      primaryAccountSelect.className = 'grid-summary-input';
+      secondaryAccountSelect.className = 'grid-summary-input';
+      secondaryAccountSelect.style.display = '';
+      amountInput.className = 'grid-summary-input';
+      amountInput.style.display = '';
+      typeSelect.className = 'grid-summary-input';
+      typeSelect.style.display = '';
+      primaryAccountField = addField('Paying account', primaryAccountSelect);
+      secondaryAccountField = addField('Destination account', secondaryAccountSelect);
+      addField('Amount', amountInput);
+      addField('Movement', typeSelect);
+      addField('Apply change to', ruleScopeSelect);
+    }
     addField('Description', descInput);
     form.appendChild(tagsField);
     form.appendChild(recurrenceField);
@@ -1363,6 +1679,9 @@ function renderTransactionsSummaryList({
     }
 
     const updateHeaderView = () => {
+      const selectedPrimary = primaryAccountSelect.value
+        ? findAccountName(Number(primaryAccountSelect.value)) || ''
+        : primaryName;
       const selectedSecondary = secondaryAccountSelect.value
         ? findAccountName(Number(secondaryAccountSelect.value)) || ''
         : (tx.secondaryAccountName || '');
@@ -1371,12 +1690,72 @@ function renderTransactionsSummaryList({
       amountEl.innerHTML = formatMoneyDisplay(amt);
       const typeVal = Number(typeSelect.value || 2);
       const isOut = typeVal === 2;
+      const selectedSecondaryFlowName = secondaryAccountSelect.value
+        ? (selectedSecondary || secondaryName)
+        : 'External';
       typeSpan.textContent = typeVal === 1 ? 'Money In' : 'Money Out';
       typeSpan.className = `grid-summary-type ${isOut ? 'money-out' : 'money-in'}`;
-      flowEl.textContent = `${primaryName} \u2192 ${selectedSecondary || secondaryName}`;
+      flowEl.textContent = typeVal === 1
+        ? `${selectedSecondaryFlowName} \u2192 ${selectedPrimary}`
+        : `${selectedPrimary} \u2192 ${selectedSecondaryFlowName}`;
+      if (primaryAccountField?.labelEl) {
+        primaryAccountField.labelEl.textContent =
+          typeVal === 1 ? 'Receiving account' : 'Paying account';
+      }
+      if (secondaryAccountField?.labelEl) {
+        secondaryAccountField.labelEl.textContent =
+          typeVal === 1 ? 'Source account' : 'Destination account';
+      }
     };
 
+    const syncCounterpartyAccountOptions = (changedField = null) => {
+      const primaryId = Number(primaryAccountSelect.value || 0) || null;
+      const secondaryId = Number(secondaryAccountSelect.value || 0) || null;
+      if (primaryId && secondaryId && primaryId === secondaryId) {
+        if (changedField === 'secondary') {
+          const fallbackPrimary = Array.from(primaryAccountSelect.options).find(
+            (option) => Number(option.value || 0) && Number(option.value) !== secondaryId
+          );
+          primaryAccountSelect.value = fallbackPrimary?.value || '';
+        } else {
+          secondaryAccountSelect.value = '';
+        }
+      }
+      const nextPrimaryId = Number(primaryAccountSelect.value || 0) || null;
+      const nextSecondaryId = Number(secondaryAccountSelect.value || 0) || null;
+      Array.from(primaryAccountSelect.options).forEach((option) => {
+        option.disabled = Boolean(
+          Number(option.value || 0) &&
+          nextSecondaryId &&
+          Number(option.value) === nextSecondaryId
+        );
+      });
+      Array.from(secondaryAccountSelect.options).forEach((option) => {
+        option.disabled = Boolean(
+          Number(option.value || 0) &&
+          nextPrimaryId &&
+          Number(option.value) === nextPrimaryId
+        );
+      });
+    };
+    primaryAccountSelect.addEventListener('change', () => {
+      syncCounterpartyAccountOptions('primary');
+      updateHeaderView();
+      updateSplitInlinePreview();
+    });
+    secondaryAccountSelect.addEventListener('change', () => {
+      syncCounterpartyAccountOptions('secondary');
+      updateHeaderView();
+      updateSplitInlinePreview();
+    });
+    typeSelect.addEventListener('change', updateHeaderView);
+    syncCounterpartyAccountOptions();
+
     const enterEdit = () => {
+      if (rulesOnly && splitGroupId && !inlineSplitEditable) {
+        notifyError('This split set has no editable principal rule.');
+        return;
+      }
       form.style.display = 'grid';
       content.style.display = 'none';
       actions.style.display = 'flex';
@@ -1434,9 +1813,11 @@ function renderTransactionsSummaryList({
       });
     };
 
-    setupInlineEditor(title, secondaryAccountSelect);
-    setupInlineEditor(amountEl, amountInput);
-    setupInlineEditor(typeSpan, typeSelect);
+    if (!rulesOnly) {
+      setupInlineEditor(title, secondaryAccountSelect);
+      setupInlineEditor(amountEl, amountInput);
+      setupInlineEditor(typeSpan, typeSelect);
+    }
 
     header.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -1473,6 +1854,312 @@ function renderTransactionsSummaryList({
       const idx = allTxs.findIndex((t) => Number(t.id) === Number(originalTransactionId));
       if (idx === -1) return;
 
+      if (rulesOnly) {
+        if (splitGroupId) {
+          if (!inlineSplitEditable) {
+            notifyError('This split set has no editable principal rule.');
+            return;
+          }
+          const latestScenario = await getScenario(scenario);
+          const sourceRule = (latestScenario?.transactions || []).find(
+            (rule) => Number(rule?.id) === Number(originalTransactionId)
+          );
+          const nextOccurrence = sourceRule
+            ? getNextUnresolvedRuleOccurrence({ rule: sourceRule, scenario: latestScenario })
+            : null;
+          if (hasExistingSplitSeries && !nextOccurrence) {
+            notifyError('This split rule has no unresolved future occurrence to use as a safe edit boundary.');
+            return;
+          }
+
+          const primaryAccountId = Number(primaryAccountSelect.value || 0) || null;
+          const targetAccountId = secondaryAccountSelect.value
+            ? Number(secondaryAccountSelect.value)
+            : null;
+          const totalAmount = Math.abs(Number(amountInput.value || 0)) || 0;
+          if (!primaryAccountId) {
+            notifyError('Primary account is required for split transactions.');
+            return;
+          }
+          if (!targetAccountId) {
+            notifyError('Select a secondary account for the split transaction.');
+            return;
+          }
+          if (totalAmount <= 0) {
+            notifyError('Amount must be greater than zero.');
+            return;
+          }
+          if (
+            preservedSplitAdditionalTotal > 0 &&
+            totalAmount <= preservedSplitAdditionalTotal
+          ) {
+            notifyError(
+              `Amount must be greater than the preserved component total of ${preservedSplitAdditionalTotal.toFixed(2)}.`
+            );
+            return;
+          }
+
+          const modeValue = splitModeSelect.value === 'manual' ? 'manual' : 'top_down';
+          const splitRecurrence = currentRecurrence || sourceRule?.recurrence || null;
+          const targetAccount = (latestScenario?.accounts || []).find(
+            (account) => Number(account?.id || 0) === targetAccountId
+          ) || null;
+
+          if (splitTargetPeriodicChangeTouched) {
+            const nextAccounts = (latestScenario?.accounts || []).map((account) => (
+              Number(account?.id || 0) === targetAccountId
+                ? { ...account, periodicChange: splitTargetPeriodicChange || null }
+                : account
+            ));
+            await saveAccounts(scenario, nextAccounts);
+          }
+
+          const effectiveTargetPeriodic = splitTargetPeriodicChangeTouched
+            ? splitTargetPeriodicChange
+            : (targetAccount?.periodicChange || null);
+          const accrualDays = deriveAccrualDaysForSplit({
+            periodicChange: effectiveTargetPeriodic,
+            recurrence: splitRecurrence
+          });
+          const allocatableAmount = Math.max(
+            0,
+            totalAmount - preservedSplitAdditionalTotal
+          );
+          let interestAmount = Math.abs(Number(splitInterestAmountInput.value || 0)) || 0;
+          if (modeValue === 'top_down') {
+            const estimatedInterest = estimateInterestFromAccountRate({
+              account: { ...(targetAccount || {}), periodicChange: effectiveTargetPeriodic },
+              days: accrualDays,
+              interestSource: 'account_rate'
+            });
+            interestAmount = Math.min(
+              allocatableAmount,
+              Math.abs(Number(estimatedInterest || 0))
+            );
+            splitInterestAmountInput.value = interestAmount.toFixed(2);
+          } else {
+            interestAmount = Math.min(allocatableAmount, interestAmount);
+          }
+          const principalAmount = Math.max(0, allocatableAmount - interestAmount);
+          splitPrincipalAmountInput.value = principalAmount.toFixed(2);
+
+          const selectedTypeId = Number(typeSelect.value || displayTypeId || 2) === 1 ? 1 : 2;
+          const selectedInterestAccountId = splitInterestAccountSelect.value
+            ? Number(splitInterestAccountSelect.value)
+            : null;
+          let workingPayload = {
+            targetAccountId,
+            interestAccountId: selectedInterestAccountId,
+            effectiveDate:
+              nextOccurrence?.scheduledDate ||
+              sourceRule?.effectiveDate ||
+              splitRecurrence?.startDate ||
+              formatDateOnly(new Date()),
+            description: descInput.value.trim(),
+            interestAmount,
+            components: [
+              {
+                role: 'principal',
+                accountId: targetAccountId,
+                secondaryAccountId: targetAccountId,
+                amount: principalAmount
+              },
+              {
+                role: 'interest',
+                accountId: selectedInterestAccountId,
+                secondaryAccountId: selectedInterestAccountId,
+                amount: interestAmount
+              }
+            ]
+          };
+          const scenarioAfterRate = await getScenario(scenario);
+          const ensuredInterest = await ensureInterestAccountForPayload({
+            scenarioId: scenario,
+            scenario: scenarioAfterRate,
+            payload: workingPayload
+          });
+          workingPayload = ensuredInterest.payload;
+          const resolvedInterestComponent = workingPayload.components.find(
+            (component) => String(component?.role || '').trim().toLowerCase() === 'interest'
+          ) || null;
+          const resolvedInterestAccountId = Number(
+            workingPayload?.interestAccountId ||
+            resolvedInterestComponent?.accountId ||
+            resolvedInterestComponent?.secondaryAccountId ||
+            0
+          ) || null;
+          if (interestAmount > 0 && !resolvedInterestAccountId) {
+            notifyError('Select or create an interest account before saving the split payment.');
+            return;
+          }
+
+          if (!hasExistingSplitSeries) {
+            if (!isRecurringTransactionRule({ recurrence: splitRecurrence })) {
+              notifyError('Recurring split rules must keep a recurring pattern.');
+              return;
+            }
+            const scenarioForCreate = await getScenario(scenario);
+            const targetGroupId = findPrimaryGroupIdForAccount(
+              scenarioForCreate?.accountGroups || [],
+              targetAccountId
+            );
+            const interestGroupId = findPrimaryGroupIdForAccount(
+              scenarioForCreate?.accountGroups || [],
+              resolvedInterestAccountId
+            );
+            const groupId = splitGroupId || createTransactionGroupId();
+            const createPayload = {
+              mode: modeValue,
+              strategy: modeValue,
+              transactionGroupId: groupId,
+              id: groupId,
+              primaryAccountId,
+              payingAccountId: primaryAccountId,
+              targetAccountId,
+              effectiveDate:
+                sourceRule?.effectiveDate ||
+                splitRecurrence?.startDate ||
+                nextOccurrence?.scheduledDate ||
+                formatDateOnly(new Date()),
+              description: descInput.value.trim(),
+              totalAmount,
+              principalAmount,
+              interestAmount,
+              feeAmount: 0,
+              principalAccountId: targetAccountId,
+              interestAccountId: resolvedInterestAccountId,
+              feeAccountId: null,
+              interestSource: modeValue === 'manual' ? 'manual' : 'account_rate',
+              customRate: null,
+              days: Math.max(1, Number(accrualDays || 0)),
+              recurrence: splitRecurrence,
+              tags: [...cardTags],
+              components: [
+                {
+                  role: 'principal',
+                  accountId: targetAccountId,
+                  secondaryAccountId: targetAccountId,
+                  transactionTypeId: selectedTypeId,
+                  amount: principalAmount,
+                  value: principalAmount,
+                  description: descInput.value.trim(),
+                  amountMode: modeValue === 'manual' ? 'fixed' : 'remainder',
+                  accountGroupId: targetGroupId || null,
+                  recurrence: splitRecurrence,
+                  periodicChange: currentPeriodicChange,
+                  order: 0
+                },
+                {
+                  role: 'interest',
+                  accountId: resolvedInterestAccountId,
+                  secondaryAccountId: resolvedInterestAccountId,
+                  transactionTypeId: selectedTypeId,
+                  amount: interestAmount,
+                  value: interestAmount,
+                  description: 'Interest',
+                  amountMode: modeValue === 'manual' ? 'fixed' : 'derived',
+                  accountGroupId: interestGroupId || null,
+                  recurrence: splitRecurrence,
+                  periodicChange: null,
+                  order: 1
+                }
+              ]
+            };
+            const componentTransactions = buildCompoundTransactions(createPayload);
+            if (!componentTransactions.length) {
+              notifyError('Split transaction requires a valid principal component.');
+              return;
+            }
+            await TransactionManager.upsertSplitTransactionSet(scenario, {
+              splitSet: buildSplitSetRecord(createPayload),
+              componentTransactions,
+              replaceTransactionGroupId: groupId
+            });
+            await onRefresh?.();
+            return;
+          }
+
+          await OccurrenceManager.updateSplitSeries(
+            scenario,
+            nextOccurrence.occurrenceKey,
+            {
+              scope: ruleScopeSelect.value === 'series' ? 'series' : 'future',
+              setUpdates: {
+                description: descInput.value.trim(),
+                strategy: modeValue,
+                payingAccountId: primaryAccountId,
+                targetAccountId,
+                totalAmount,
+                recurrence: splitRecurrence,
+                tags: [...cardTags],
+                interestSource: modeValue === 'manual' ? 'manual' : 'account_rate',
+                customRate: existingSplitSet?.customRate ?? null
+              },
+              componentUpdates: [
+                {
+                  role: 'principal',
+                  amount: principalAmount,
+                  secondaryAccountId: targetAccountId,
+                  transactionTypeId: selectedTypeId,
+                  description: descInput.value.trim(),
+                  periodicChange: currentPeriodicChange,
+                  recurrence: splitRecurrence
+                },
+                {
+                  role: 'interest',
+                  amount: interestAmount,
+                  secondaryAccountId: resolvedInterestAccountId,
+                  transactionTypeId: selectedTypeId,
+                  description: String(splitInterestComponent?.description || 'Interest').trim(),
+                  periodicChange: splitInterestComponent?.periodicChange || null,
+                  recurrence: splitRecurrence
+                }
+              ]
+            }
+          );
+          await onRefresh?.();
+          return;
+        }
+        const latestScenario = await getScenario(scenario);
+        const sourceRule = (latestScenario?.transactions || []).find(
+          (rule) => Number(rule?.id) === Number(originalTransactionId)
+        );
+        const nextOccurrence = sourceRule
+          ? getNextUnresolvedRuleOccurrence({ rule: sourceRule, scenario: latestScenario })
+          : null;
+        if (!nextOccurrence) {
+          notifyError('This rule has no unresolved future occurrence to use as a safe edit boundary.');
+          return;
+        }
+        const ruleChanges = {
+          amount: Math.abs(Number(amountInput.value || 0)),
+          primaryAccountId: Number(primaryAccountSelect.value || 0) || null,
+          secondaryAccountId: secondaryAccountSelect.value
+            ? Number(secondaryAccountSelect.value)
+            : null,
+          transactionTypeId: Number(typeSelect.value || 2),
+          description: descInput.value.trim(),
+          tags: [...cardTags],
+          recurrence: currentRecurrence,
+          periodicChange: currentPeriodicChange
+        };
+        if (ruleScopeSelect.value === 'series') {
+          await OccurrenceManager.updateEntireSeries(
+            scenario,
+            nextOccurrence.occurrenceKey,
+            ruleChanges
+          );
+        } else {
+          await OccurrenceManager.updateThisAndFuture(
+            scenario,
+            nextOccurrence.occurrenceKey,
+            ruleChanges
+          );
+        }
+        await onRefresh?.();
+        return;
+      }
+
       if (inlineSplitEditable) {
         const sourceTx = allTxs[idx];
         const primaryAccountId = Number(sourceTx?.primaryAccountId || 0) || null;
@@ -1488,6 +2175,15 @@ function renderTransactionsSummaryList({
         }
         if (totalAmount <= 0) {
           notifyError('Amount must be greater than zero.');
+          return;
+        }
+        if (
+          preservedSplitAdditionalTotal > 0 &&
+          totalAmount <= preservedSplitAdditionalTotal
+        ) {
+          notifyError(
+            `Amount must be greater than the preserved component total of ${preservedSplitAdditionalTotal.toFixed(2)}.`
+          );
           return;
         }
 
@@ -1516,6 +2212,10 @@ function renderTransactionsSummaryList({
           recurrence: splitRecurrence
         });
 
+        const allocatableAmount = Math.max(
+          0,
+          totalAmount - preservedSplitAdditionalTotal
+        );
         let interestAmount = Math.abs(Number(splitInterestAmountInput.value || 0)) || 0;
         if (modeValue === 'top_down') {
           const estimatedInterest = estimateInterestFromAccountRate({
@@ -1523,12 +2223,12 @@ function renderTransactionsSummaryList({
             days: accrualDays,
             interestSource: 'account_rate'
           });
-          interestAmount = Math.min(totalAmount, Math.abs(Number(estimatedInterest || 0)));
+          interestAmount = Math.min(allocatableAmount, Math.abs(Number(estimatedInterest || 0)));
           splitInterestAmountInput.value = interestAmount.toFixed(2);
         } else {
-          interestAmount = Math.min(totalAmount, interestAmount);
+          interestAmount = Math.min(allocatableAmount, interestAmount);
         }
-        const principalAmount = Math.max(0, totalAmount - interestAmount);
+        const principalAmount = Math.max(0, allocatableAmount - interestAmount);
         splitPrincipalAmountInput.value = principalAmount.toFixed(2);
 
         const groupId = splitGroupId || createTransactionGroupId();
@@ -1701,6 +2401,88 @@ function renderTransactionsSummaryList({
       e.stopPropagation();
       const scenario = tx?._scenarioId;
       if (!scenario) return;
+      if (rulesOnly) {
+        const latestScenario = await getScenario(scenario);
+        const source = (latestScenario?.transactions || []).find(
+          (transaction) => Number(transaction?.id) === Number(originalTransactionId)
+        );
+        if (!source) return;
+        const copyDescription = `${String(
+          existingSplitSet?.description || source?.description || 'Recurring rule'
+        ).trim()} copy`;
+        if (splitGroupId && hasExistingSplitSeries) {
+          const sourceSet = (latestScenario?.splitTransactionSets || []).find(
+            (set) => toSplitGroupId(set?.id) === splitGroupId
+          );
+          const sourceRules = (latestScenario?.transactions || []).filter(
+            (transaction) => toSplitGroupId(transaction?.transactionGroupId) === splitGroupId
+          );
+          if (!sourceSet || !sourceRules.length) {
+            notifyError('The recurring split set could not be duplicated.');
+            return;
+          }
+          const copyGroupId = createTransactionGroupId();
+          const splitSetCopy = {
+            ...sourceSet,
+            id: copyGroupId,
+            description: copyDescription,
+            recurrence: sourceSet?.recurrence
+              ? { ...sourceSet.recurrence }
+              : null,
+            components: (sourceSet.components || []).map((component) => ({
+              ...component,
+              description:
+                String(component?.role || '').trim().toLowerCase() === 'principal'
+                  ? copyDescription
+                  : component?.description,
+              recurrence: component?.recurrence
+                ? { ...component.recurrence }
+                : null
+            })),
+            seriesRootId: null,
+            supersedesTransactionGroupId: null,
+            createdAt: null,
+            updatedAt: null
+          };
+          const componentTransactions = sourceRules.map((rule) => ({
+            ...rule,
+            id: 0,
+            description:
+              String(rule?.transactionGroupRole || '').trim().toLowerCase() === 'principal'
+                ? copyDescription
+                : rule?.description,
+            recurrence: rule?.recurrence ? { ...rule.recurrence } : null,
+            transactionGroupId: copyGroupId,
+            seriesRootId: null,
+            supersedesTransactionId: null,
+            promotedFromOccurrenceKey: null,
+            createdAt: null,
+            updatedAt: null
+          }));
+          await TransactionManager.upsertSplitTransactionSet(scenario, {
+            splitSet: splitSetCopy,
+            componentTransactions,
+            replaceTransactionGroupId: copyGroupId
+          });
+        } else {
+          await createTransaction(scenario, {
+            ...source,
+            id: 0,
+            description: copyDescription,
+            recurrence: source?.recurrence ? { ...source.recurrence } : null,
+            transactionGroupId: null,
+            transactionGroupRole: null,
+            transactionGroupAccountGroupId: null,
+            seriesRootId: null,
+            supersedesTransactionId: null,
+            promotedFromOccurrenceKey: null,
+            createdAt: null,
+            updatedAt: null
+          });
+        }
+        await onRefresh?.();
+        return;
+      }
       const allTxs = await getTransactions(scenario);
       const source = allTxs.find((t) => Number(t.id) === Number(originalTransactionId));
       if (!source) return;
@@ -1714,6 +2496,43 @@ function renderTransactionsSummaryList({
       e.stopPropagation();
       const scenario = tx?._scenarioId;
       if (!scenario) return;
+      if (rulesOnly) {
+        const discardDraft = Boolean(splitGroupId && !hasExistingSplitSeries);
+        if (!await confirmDialog(
+          discardDraft
+            ? 'Discard this unsaved recurring split draft?'
+            : 'End this recurring series before its next planned occurrence? Past actuals, skipped items, and frozen baselines will be preserved.'
+        )) return;
+        try {
+          if (discardDraft) {
+            await TransactionManager.upsertSplitTransactionSet(scenario, {
+              replaceTransactionGroupId: splitGroupId,
+              removeOnly: true
+            });
+            await onRefresh?.();
+            return;
+          }
+          const latestScenario = await getScenario(scenario);
+          const source = (latestScenario?.transactions || []).find(
+            (rule) => Number(rule?.id) === Number(originalTransactionId)
+          );
+          const nextOccurrence = source
+            ? getNextUnresolvedRuleOccurrence({ rule: source, scenario: latestScenario })
+            : null;
+          if (!nextOccurrence) {
+            notifyError('This rule has no unresolved future occurrence at which to end the series.');
+            return;
+          }
+          await OccurrenceManager.endSeries(
+            scenario,
+            nextOccurrence.occurrenceKey
+          );
+          await onRefresh?.();
+        } catch (error) {
+          notifyError(error?.message || 'The recurring series could not be ended.');
+        }
+        return;
+      }
       if (!await confirmDialog('Delete this transaction?')) return;
       const allTxs = await getTransactions(scenario);
       const filtered = allTxs.filter((t) => Number(t.id) !== Number(originalTransactionId));
@@ -1752,12 +2571,15 @@ export async function loadMasterTransactionsGrid({
   if (!currentScenario) return;
 
   const workflowConfig = getWorkflowConfig?.();
+  const rulesOnly = workflowConfig?.rulesOnly === true;
   const forceSummaryMode = transactionsGridState?.state?.pendingSummarySplitInline
     && workflowConfig?.transactionsMode === 'detail';
   const effectiveTransactionsMode = forceSummaryMode
     ? 'summary'
     : (workflowConfig?.transactionsMode === 'detail' ? 'detail' : 'summary');
-  const transactionsModeKey = effectiveTransactionsMode === 'detail' ? 'detail' : 'summary';
+  const transactionsModeKey = rulesOnly
+    ? 'rules'
+    : (effectiveTransactionsMode === 'detail' ? 'detail' : 'summary');
   const accountFilterStateKey = `accountFilter:${transactionsModeKey}`;
   const groupByStateKey = `groupBy:${transactionsModeKey}`;
   const splitGroupFilterStateKey = `splitGroupFilter:${transactionsModeKey}`;
@@ -1815,6 +2637,12 @@ export async function loadMasterTransactionsGrid({
         const accountFilterSelect = document.createElement('select');
         accountFilterSelect.id = 'tx-account-filter-select';
         accountFilterSelect.className = 'input-select';
+        if (rulesOnly) {
+          const allAccounts = document.createElement('option');
+          allAccounts.value = '';
+          allAccounts.textContent = 'All Accounts';
+          accountFilterSelect.appendChild(allAccounts);
+        }
         (currentScenario.accounts || [])
           .filter((a) => a.name !== 'Select Account')
           .forEach((account) => {
@@ -1825,7 +2653,9 @@ export async function loadMasterTransactionsGrid({
           });
         const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
         const storedSummaryAccount = dropdownState[accountFilterStateKey];
-        const defaultSummaryAccount = storedSummaryAccount || (firstAccountId ? String(firstAccountId) : '');
+        const defaultSummaryAccount = rulesOnly
+          ? (storedSummaryAccount || '')
+          : (storedSummaryAccount || (firstAccountId ? String(firstAccountId) : ''));
         if (defaultSummaryAccount) {
           accountFilterSelect.value = defaultSummaryAccount;
           transactionsGridState.state.dropdowns[accountFilterStateKey] = defaultSummaryAccount;
@@ -2034,12 +2864,14 @@ export async function loadMasterTransactionsGrid({
 
         const addButton = document.createElement('button');
         addButton.className = 'icon-btn';
-        addButton.title = 'Add Transaction';
+        addButton.title = rulesOnly ? 'Add recurring rule' : 'Add Transaction';
         addButton.textContent = '+';
 
         const splitButton = document.createElement('button');
         splitButton.className = 'icon-btn';
-        splitButton.title = 'Create Split Payment Set';
+        splitButton.title = rulesOnly
+          ? 'Create recurring split rule'
+          : 'Create Split Payment Set';
         splitButton.textContent = '⇄';
 
         const refreshButton = document.createElement('button');
@@ -2056,19 +2888,23 @@ export async function loadMasterTransactionsGrid({
         const inlineFilters = document.createElement('div');
         inlineFilters.className = 'card-inline-filters transactions-inline-filters';
         inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccountFilterSelect, 'filter-account'));
-        inlineFilters.appendChild(createHeaderFilterItem('View', inlinePeriodTypeSelect, 'filter-period-type'));
-        inlineFilters.appendChild(createHeaderFilterItem('Period', inlinePeriodSelectSummary, 'filter-period'));
-        inlineFilters.appendChild(createHeaderFilterItem('', inlinePeriodNavSummary, 'filter-period-nav'));
+        if (!rulesOnly) {
+          inlineFilters.appendChild(createHeaderFilterItem('View', inlinePeriodTypeSelect, 'filter-period-type'));
+          inlineFilters.appendChild(createHeaderFilterItem('Period', inlinePeriodSelectSummary, 'filter-period'));
+          inlineFilters.appendChild(createHeaderFilterItem('', inlinePeriodNavSummary, 'filter-period-nav'));
+        }
         inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroupBySelectSummary, 'filter-group'));
 
         const inlineAddButton = document.createElement('button');
         inlineAddButton.className = 'icon-btn card-inline-action';
-        inlineAddButton.title = 'Add Transaction';
+        inlineAddButton.title = rulesOnly ? 'Add recurring rule' : 'Add Transaction';
         inlineAddButton.textContent = '+';
 
         const inlineSplitButton = document.createElement('button');
         inlineSplitButton.className = 'icon-btn card-inline-action';
-        inlineSplitButton.title = 'Create Split Payment Set';
+        inlineSplitButton.title = rulesOnly
+          ? 'Create recurring split rule'
+          : 'Create Split Payment Set';
         inlineSplitButton.textContent = '⇄';
 
         const filterModal = createFilterModal({
@@ -2077,9 +2913,11 @@ export async function loadMasterTransactionsGrid({
           trigger: filterButton,
           items: [
             { id: 'account', label: 'Account:', control: accountFilterSelect },
-            { id: 'period-type', label: 'Period Type:', control: periodTypeSelect },
-            { id: 'period', label: 'Period:', control: periodSelectSummary },
-            { id: 'period-nav', label: '', control: periodNavSummary },
+            ...(!rulesOnly ? [
+              { id: 'period-type', label: 'Period Type:', control: periodTypeSelect },
+              { id: 'period', label: 'Period:', control: periodSelectSummary },
+              { id: 'period-nav', label: '', control: periodNavSummary }
+            ] : []),
             { id: 'group-by', label: 'Group By:', control: groupBySelectSummary },
             { id: 'split-group', label: 'Split Set:', control: splitGroupSelectSummary },
             { id: 'split-role', label: 'Role:', control: splitRoleSelectSummary },
@@ -2168,6 +3006,7 @@ export async function loadMasterTransactionsGrid({
             const defaultEffectiveDate = selectedPeriod
               ? formatDateOnly(selectedPeriod.startDate)
               : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+            const defaultDayOfMonth = parseDateOnly(defaultEffectiveDate)?.getDate() || 1;
 
             await createTransaction(currentScenario.id, {
               primaryAccountId: defaultAccountId,
@@ -2176,7 +3015,15 @@ export async function loadMasterTransactionsGrid({
               amount: 0,
               effectiveDate: defaultEffectiveDate,
               description: '',
-              recurrence: null,
+              recurrence: rulesOnly
+                ? {
+                    recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+                    startDate: defaultEffectiveDate,
+                    endDate: null,
+                    interval: 1,
+                    dayOfMonth: defaultDayOfMonth
+                  }
+                : null,
               periodicChange: null,
               transactionGroupId: null,
               transactionGroupRole: null,
@@ -2220,6 +3067,7 @@ export async function loadMasterTransactionsGrid({
             const defaultEffectiveDate = selectedPeriod
               ? formatDateOnly(selectedPeriod.startDate)
               : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+            const defaultDayOfMonth = parseDateOnly(defaultEffectiveDate)?.getDate() || 1;
 
             const splitGroupId = createTransactionGroupId();
             const createdDraft = await createTransaction(currentScenario.id, {
@@ -2229,7 +3077,15 @@ export async function loadMasterTransactionsGrid({
               amount: 0,
               effectiveDate: defaultEffectiveDate,
               description: '',
-              recurrence: null,
+              recurrence: rulesOnly
+                ? {
+                    recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+                    startDate: defaultEffectiveDate,
+                    endDate: null,
+                    interval: 1,
+                    dayOfMonth: defaultDayOfMonth
+                  }
+                : null,
               periodicChange: null,
               transactionGroupId: splitGroupId,
               transactionGroupRole: 'principal',
@@ -2315,10 +3171,11 @@ export async function loadMasterTransactionsGrid({
     const actualPeriodType = state?.getActualPeriodType?.();
     let actualPeriod = state?.getActualPeriod?.();
     let periods = state?.getTransactionsPeriods?.();
-    if (!periods || periods.length === 0) {
+    if (!rulesOnly && (!periods || periods.length === 0)) {
       periods = await getScenarioPeriods(currentScenario.id, actualPeriodType);
       state?.setTransactionsPeriods?.(periods);
     }
+    if (!Array.isArray(periods)) periods = [];
     const periodSelectionScope = `${currentScenario.id}:${actualPeriodType || 'Month'}`;
     const periodSelectionState = transactionsGridState.state.dropdowns[periodSelectionStateKey] || '';
     if (
@@ -2353,6 +3210,15 @@ export async function loadMasterTransactionsGrid({
     }
 
     let allTransactions = await getTransactions(currentScenario.id);
+    if (rulesOnly) {
+      allTransactions = allTransactions.filter((transaction) => {
+        const status = typeof transaction?.status === 'object'
+          ? transaction.status?.name
+          : transaction?.status;
+        return String(status || 'planned').trim().toLowerCase() === 'planned' &&
+          isRecurringTransactionRule(transaction);
+      });
+    }
     if (actualPeriod) {
       const selectedPeriod = findPeriodById(periods, actualPeriod);
       if (selectedPeriod) {
@@ -3042,8 +3908,9 @@ export async function loadMasterTransactionsGrid({
 
       // Resolve the summary account filter: stored state, or fall back to first account
       const summaryFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
-      const summaryFilterAccountId = summaryAccountFilterStr ? Number(summaryAccountFilterStr)
-        : (summaryFirstAccountId ? Number(summaryFirstAccountId) : null);
+      const summaryFilterAccountId = summaryAccountFilterStr
+        ? Number(summaryAccountFilterStr)
+        : (rulesOnly ? null : (summaryFirstAccountId ? Number(summaryFirstAccountId) : null));
       const summarySplitGroupFilter = String(dropdownState[splitGroupFilterStateKey] || '');
       const summarySplitRoleFilter = String(dropdownState[splitRoleFilterStateKey] || '');
       const summarySplitAccountGroupFilter = String(dropdownState[splitAccountGroupFilterStateKey] || '');
@@ -3123,6 +3990,7 @@ export async function loadMasterTransactionsGrid({
 
       renderTransactionsSummaryList({
         container: gridContainer,
+        scenario: currentScenario,
         transactions: allTransactions,
         splitSets: currentScenario.splitTransactionSets || [],
         accounts: currentScenario.accounts || [],
@@ -3132,6 +4000,7 @@ export async function loadMasterTransactionsGrid({
         splitRoleFilter: summarySplitRoleFilter,
         splitAccountGroupFilter: summarySplitAccountGroupFilter,
         splitAccountGroupLabelLookup,
+        rulesOnly,
         onEditSplitSet: openSummarySplitSetEditor,
         onRefresh: async () => {
           await loadMasterTransactionsGrid({

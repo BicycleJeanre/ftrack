@@ -58,9 +58,15 @@
 
 6.1.1 Confirm the file is valid JSON.
 
-6.1.2 Confirm it was exported from this version of FTrack (schemaVersion 43).
+6.1.2 Current exports use schemaVersion 44.
 
-6.1.3 If you have an older export, migrate it using the standalone migration tool (`QC/migrate-app-data-to-schema43.js`) before importing.
+6.1.3 Older exports are migrated automatically. Review the saved migration
+report if the import identifies invalid, orphaned, duplicate, or ambiguous
+records.
+
+6.1.4 For an offline conversion, run
+`QC/migrate-app-data-to-schema44.js`. Use `--report` to write the migration
+report as a separate JSON file.
 
 6.2 You hit storage limits.
 

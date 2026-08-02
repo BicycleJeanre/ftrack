@@ -61,7 +61,8 @@ Apply exponential growth like investment returns or savings account interest. Ex
 4. Select the change type, flat, percentage, compound.
 5. Enter the amount or percentage.
 6. Specify when changes apply such as annually or every quarter.
-7. Save and generate projections.
+7. Save and wait for projections to refresh, or use
+   **Refresh projections now**.
 
 ## 1.5 Real World Examples
 

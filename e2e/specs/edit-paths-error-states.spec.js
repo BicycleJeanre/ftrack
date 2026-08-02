@@ -17,53 +17,54 @@ const {
 const malformedImportFixturePath = path.resolve(__dirname, '../fixtures/malformed-import-data.json');
 
 test.describe('deeper edit paths and error states', () => {
-  test('shows budget descriptions and direction-aware money movement', async ({ page }) => {
-    const budgetDisplayData = loadSmokeData();
-    budgetDisplayData.scenarios[0].budgets.push({
-      id: 2002,
-      sourceTransactionId: null,
-      primaryAccountId: 1,
-      secondaryAccountId: 4,
-      transactionTypeId: 1,
-      amount: 3000,
-      plannedAmount: 3000,
-      description: 'Salary budget',
-      occurrenceDate: '2026-01-25',
-      recurrenceDescription: 'Monthly',
-      status: { name: 'planned', actualAmount: null, actualDate: null }
-    });
-
-    await gotoFTrack(page, budgetDisplayData);
+  test('shows plan descriptions and direction-aware money movement', async ({ page }) => {
+    await gotoFTrack(page);
     await selectWorkflow(page, 'Budget');
 
     const moneyOutCard = page.locator('#budgetSection .grid-summary-card', { hasText: 'Groceries budget' });
     await expect(moneyOutCard.locator('.grid-summary-description')).toHaveText('Groceries budget');
-    await expect(moneyOutCard.locator('.grid-summary-flow')).toContainText('Checking');
-    await expect(moneyOutCard.locator('.grid-summary-flow')).toContainText('Groceries Expense');
-    await expect(moneyOutCard.locator('.grid-summary-flow')).toHaveText(/Checking.*→.*Groceries Expense/);
+    await expect(moneyOutCard.locator('.grid-summary-flow'))
+      .toHaveText(/Money Out: Checking.*→.*Groceries Expense/);
+    expect(await moneyOutCard.evaluate((card) => {
+      const movement = card.querySelector('.plan-actuals-movement');
+      const description = card.querySelector('.plan-actuals-description');
+      return Boolean(
+        movement &&
+        description &&
+        (movement.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING)
+      );
+    })).toBe(true);
 
-    const moneyInCard = page.locator('#budgetSection .grid-summary-card', { hasText: 'Salary budget' });
-    await expect(moneyInCard.locator('.grid-summary-description')).toHaveText('Salary budget');
-    await expect(moneyInCard.locator('.grid-summary-flow')).toHaveText(/Salary Income.*→.*Checking/);
+    const moneyInCard = page.locator('#budgetSection .grid-summary-card', { hasText: 'Monthly salary' });
+    await expect(moneyInCard.locator('.grid-summary-description')).toHaveText('Monthly salary');
+    await expect(moneyInCard.locator('.grid-summary-flow'))
+      .toHaveText(/Money In: Salary Income.*→.*Checking/);
   });
 
-  test('edits a budget summary card amount and description', async ({ page }) => {
+  test('edits a plan occurrence amount and description', async ({ page }) => {
     await gotoFTrack(page);
     await selectWorkflow(page, 'Budget');
-    const firstBudget = (await currentScenario(page)).budgets[0];
 
-    const card = page.locator('#budgetSection .grid-summary-card').first();
-    await card.click();
+    const card = page.locator('#budgetSection .grid-summary-card', { hasText: 'Groceries budget' });
+    const occurrenceKey = await card.getAttribute('data-occurrence-key');
+    await card.locator('button[title="Edit item"]').click();
     const form = card.locator('.grid-summary-form');
     await expect(form).toBeVisible();
-    await form.locator('input[type="number"]').first().fill('321.45');
-    await form.locator('input[type="text"]').first().fill('Edited budget item');
-    await page.locator('.topbar').click();
+    await form.locator('.grid-summary-field', { hasText: 'Current plan' })
+      .locator('input')
+      .fill('321.45');
+    await form.locator('.grid-summary-field', { hasText: 'Description' })
+      .locator('input')
+      .fill('Edited plan item');
+    await form.getByRole('button', { name: 'Save' }).click();
 
     await waitForScenario(page, (scenario) => {
-      const budget = scenario.budgets.find((item) => Number(item.id) === Number(firstBudget.id));
-      return budget?.description === 'Edited budget item' && Number(budget?.amount) === 321.45;
-    }, 'budget summary edit persisted');
+      const occurrence = scenario.transactionOccurrences.find(
+        (item) => item.occurrenceKey === occurrenceKey
+      );
+      return occurrence?.description === 'Edited plan item' &&
+        Number(occurrence?.plannedAmount) === 321.45;
+    }, 'plan occurrence edit persisted');
   });
 
   test('adds and removes an account tag from the account edit form', async ({ page }) => {
@@ -99,7 +100,7 @@ test.describe('deeper edit paths and error states', () => {
     const emptyAccountsData = loadSmokeData();
     emptyAccountsData.scenarios[0].accounts = [];
     emptyAccountsData.scenarios[0].transactions = [];
-    emptyAccountsData.scenarios[0].budgets = [];
+    emptyAccountsData.scenarios[0].transactionOccurrences = [];
 
     await gotoFTrack(page, emptyAccountsData);
     await selectWorkflow(page, 'General');

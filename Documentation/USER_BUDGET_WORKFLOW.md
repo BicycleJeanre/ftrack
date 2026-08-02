@@ -1,111 +1,104 @@
-# Budget Workflow
+# Plan & Actuals Workflow
 
 ## 1.0 Purpose
 
-1.1 Explain the current compatibility workflow for planning spending, tracking actuals, and recalculating projections from one resolved plan.
+1.1 The Budget workflow now uses one transaction-based plan. Recurring and one-time transaction rules define the plan, dated occurrences capture period adjustments and actuals, and projections resolve both automatically.
 
-1.2 The approved **Plan & Actuals** live period view is being implemented in phases. Until that UI phase is complete, Transactions and Budget remain separate cards.
+1.2 You no longer generate or clear a separate Budget dataset.
 
-## 2.0 When To Use Budget
+## 2.0 Open the Workflow
 
-2.1 Use Budget when you want.
+2.1 Go to Forecast and select **Budget**.
 
-2.1.1 An editable budget grid to plan and track spending.
+2.2 Create or select a scenario and add the accounts used by its money movements.
 
-2.1.2 To record actual transactions and compare plan vs actual.
+2.3 Use the **Plan & Actuals** card to switch between:
 
-2.1.3 Plan vs actual comparisons and variance analysis.
+- **Period**: the live occurrence plan and actuals for a selected period.
+- **Recurring**: the reusable transaction rules that produce future occurrences.
 
-2.2 If you do not need budgets and actuals, consider the General workflow.
+## 3.0 Build and Adjust the Plan
 
-## 3.0 Use the Budget Workflow
+3.1 In **Recurring**, create or edit repeating income, bills, transfers, tags, recurrence, periodic adjustments, and split components. Every recurring edit requires **This and future** or **Entire series** scope.
 
-3.1 Go to Forecast.
+3.1.1 Split rules use the shared split editor. Scoped changes keep the
+component set, grouping metadata, recurrence, and linked account-group/rate
+details together as a new future segment or an entire-series revision.
 
-3.2 Select the Budget workflow in the left nav.
+3.1.2 Use **Duplicate recurring rule** to copy a normal rule or its entire
+split set. Use **End recurring series** to stop it before the next unresolved
+occurrence. Ending a series keeps prior actuals, skips, and frozen baselines;
+it will not cross protected future history.
 
-3.3 Create a scenario.
+3.2 In **Period**, click **Add item** to enter a one-time planned or actual movement.
 
-3.4 Set Period Type to Month in most cases.
+3.3 Each Period item shows:
 
-3.5 Set Start and End dates for the projection window.
+- Status, effective date, and repeat information.
+- A direction-aware money movement. Money In flows from the secondary/source
+  account into the primary/receiving account; Money Out flows from the
+  primary/source account to the secondary/receiving account.
+- The description on its own line below the movement.
+- Baseline, Current plan, Actual, and Variance.
 
-## 4.0 Build Your Plan
+3.4 Use **Edit item** and choose the intended scope:
 
-4.1 Add accounts.
+- **This occurrence only** changes only the selected period item.
+- **This and future** starts a new rule segment at the selected occurrence.
+- **Entire series** changes the current and future segments in the series.
 
-4.2 Add planned transactions (both recurring and non-recurring).
+3.5 Changing Repeat on a linked rule automatically selects **This and future**, because recurrence cannot be changed for only one occurrence.
 
-4.2.1 Income transactions.
+3.6 Use **Duplicate item** to create a new one-time planned copy.
 
-4.2.2 Recurring bills and expenses.
+3.7 Use **Repeat going forward** on a manual item to turn future repetitions into a recurring rule while preserving the original occurrence.
 
-4.2.3 Non-recurring one-time transactions.
+## 4.0 Track Actuals
 
-4.3 Generate projections to see expected balances and cash flow.
+4.1 Click **Mark actual** for a planned item, or edit it and choose Actual to enter a different amount or date.
 
-## 5.0 Generate Budget From Planned Transactions
+4.2 The first actual in a period freezes that period's baseline automatically. You can also click **Freeze baseline** before actuals are entered.
 
-5.1 Add planned transactions to your scenario.
+4.3 Click **Skip occurrence** when a planned event will not happen. Edit a skipped item and choose **Restore to planned** if it becomes active again.
 
-5.1.1 Transactions may be recurring or one-time; one-time entries need an effective date inside the Budget window.
+4.4 Add a manual Actual when an unexpected cost or income was not in the plan. Its baseline and current plan are zero, so it appears as an unplanned actual.
 
-5.2 In the Budget card, click the `⊞` action with the tooltip **Generate from Expanded Transactions**.
+4.5 Period totals compare:
 
-5.2.1 The action expands recurring rules and includes dated one-time rules as Budget occurrences.
+- Baseline net.
+- Current plan net.
+- Actual net.
+- Open commitments.
+- Forecast net.
+- Actual versus baseline and current plan.
+- Unplanned actuals.
 
-5.2.2 Budget uses its own independent window dates, separate from projections.
+## 5.0 Projections
 
-5.3 Review the Budget grid.
+5.1 Projections always build from the same resolved occurrence timeline used by Plan & Actuals.
 
-5.3.1 Each expanded budget occurrence can be edited individually.
+5.2 A plan or actual change refreshes Plan & Actuals immediately, marks projections stale, and automatically regenerates projections after a short debounce.
 
-5.3.2 Planned amounts can be changed for specific occurrences.
+5.3 The Projections header shows **Current**, **Stale · refreshing**, or **Pending**.
 
-5.3.3 Actual amounts can be recorded as the period progresses.
+5.4 A matching actual replaces its planned occurrence. Skipped items are excluded. Overdue open commitments can be carried forward according to the projection configuration.
 
-## 6.0 Track Actual Transactions
+## 6.0 Period Controls
 
-6.1 Use the Budget grid to record what actually happened.
+6.1 Use View to switch between Day, Week, Month, Quarter, and Year.
 
-6.2 Mark budget occurrences as "actual" and enter the actual amount and date.
+6.2 Use Period and the previous/next controls to move through the scenario window.
 
-6.3 Compare planned vs actual to identify variances and refine future budgets.
+6.3 Account filters show the selected account's perspective. Group By can organize items by status, movement, or repeat pattern.
 
-## 7.0 Recalculate Projections From The Resolved Plan
+6.4 **Plan & Actuals (Detail)** provides the same unified workflow in an expanded layout.
 
-7.1 After editing the Budget grid or recording actuals, click **Generate Projections** or **Regenerate projections**.
+## 7.0 Troubleshooting
 
-7.2 Projections automatically resolve transaction rules together with Budget occurrence edits, actuals, skips, and manual entries.
+7.1 If Period is empty, confirm that rules or manual items overlap the selected period and that the scenario has accounts.
 
-7.3 There is no longer a calculation choice between Transactions and Budget. The old source value remains stored only for compatibility and does not change results.
+7.2 If Recurring is empty, add a transaction rule with the plus action. Recurring shows all active rule segments by default.
 
-7.4 A matching actual replaces its planned occurrence and uses the actual amount and actual date.
+7.3 If an item reports that it needs review, inspect the resolver diagnostic tooltip and repair duplicate, invalid-date, or missing-account data.
 
-## 8.0 Key Differences: Budget Window vs Projection Window
-
-8.1 Budget window: Independent date range used for expanding recurrence-based transactions into budget occurrences.
-
-8.2 Projection window: Independent date range used for generating cash flow projections and account balances.
-
-8.3 These windows remain separate during the compatibility phase. The approved live period view will remove the Budget-generation window in a later schema/UI phase.
-
-8.4 Budget window is required; projections are optional.
-
-## 9.0 Troubleshooting
-
-9.1 If budgets do not appear.
-
-9.1.1 Confirm the selected workflow is Budget.
-
-9.1.2 Add planned recurring or one-time transactions to the scenario.
-
-9.1.3 Configure a budget window (set start and end dates for budget regeneration).
-
-9.1.4 Click the `⊞` **Generate from Expanded Transactions** action to expand transactions into budget occurrences.
-
-9.2 **Generate from Expanded Transactions** shows an error.
-
-9.2.1 Ensure you have added planned transactions whose dates overlap the Budget window.
-
-9.2.2 Budget window must be configured with both start and end dates.
+7.4 If projections show Stale, wait for automatic refresh or use **Refresh projections now**.

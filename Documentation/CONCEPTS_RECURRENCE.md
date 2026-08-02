@@ -53,7 +53,7 @@ Specify the month and day.
 
 - Use recurrence for all repeating payments to reduce data entry.
 - Be specific about days and dates for accuracy.
-- Review recurrence patterns before generating projections.
+- Review recurrence patterns before projections refresh.
 - Use periodic changes to handle salary increases or expense adjustments.
 
 ## 1.9 Recurrence Plus Periodic Changes

@@ -14,7 +14,7 @@ import { normalizeCanonicalTransaction, transformTransactionToRows } from '../..
 import { getGroupAccountIds } from '../../../domain/utils/account-group-utils.js';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
-import { generateProjections, clearProjections } from '../../../domain/calculations/projection-engine.js';
+import { generateProjections } from '../../../domain/calculations/projection-engine.js';
 
 
 const projectionsGridState = new GridStateManager('projections');
@@ -256,7 +256,7 @@ function renderProjectionsSummaryList({ container, projections, accounts = [], g
   if (!projections || projections.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'scenarios-list-placeholder';
-    empty.textContent = 'No projections available. Generate projections to see results.';
+    empty.textContent = 'No projections available yet. Refresh projections to calculate this plan.';
     list.appendChild(empty);
     return;
   }
@@ -391,7 +391,7 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
 
   const regenBtn = document.createElement('button');
   regenBtn.className = 'icon-btn';
-  regenBtn.title = 'Regenerate projections';
+  regenBtn.title = 'Refresh projections now';
   regenBtn.textContent = '↺';
   regenBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -403,7 +403,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
       if (!scenario?.id) return;
       const projConfig = scenario?.projection?.config || {};
       await generateProjections(scenario.id, {
-        source: projConfig.source || 'transactions',
         startDate: projConfig.startDate,
         endDate: projConfig.endDate,
         periodTypeId: projConfig.periodTypeId
@@ -441,7 +440,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
           const current = scenarioState?.get?.();
           if (!current?.id) return;
           await generateProjections(current.id, {
-            source: current?.projection?.config?.source || 'transactions',
             startDate,
             endDate,
             periodTypeId
@@ -456,64 +454,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
         }
       }
     });
-  });
-
-  const generateBtn = document.createElement('button');
-  generateBtn.className = 'icon-btn';
-  generateBtn.title = 'Generate projections';
-  generateBtn.textContent = '⊕';
-  generateBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const prevText = generateBtn.textContent;
-    try {
-      generateBtn.textContent = '…';
-      generateBtn.disabled = true;
-      const scenario = scenarioState?.get?.();
-      if (!scenario?.id) return;
-      const projConfig = scenario?.projection?.config || {};
-      await generateProjections(scenario.id, {
-        source: projConfig.source || 'transactions',
-        startDate: projConfig.startDate,
-        endDate: projConfig.endDate,
-        periodTypeId: projConfig.periodTypeId
-      });
-      const refreshed = await getScenario(scenario.id);
-      scenarioState?.set?.(refreshed);
-      await reload();
-    } catch (err) {
-      notifyError('Failed to generate projections: ' + (err?.message || String(err)));
-    } finally {
-      if (generateBtn.isConnected) {
-        generateBtn.textContent = prevText;
-        generateBtn.disabled = false;
-      }
-    }
-  });
-
-  const clearBtn = document.createElement('button');
-  clearBtn.className = 'icon-btn';
-  clearBtn.title = 'Clear projections';
-  clearBtn.textContent = '⊗';
-  clearBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const prevText = clearBtn.textContent;
-    try {
-      clearBtn.textContent = '…';
-      clearBtn.disabled = true;
-      const scenario = scenarioState?.get?.();
-      if (!scenario?.id) return;
-      await clearProjections(scenario.id);
-      const refreshed = await getScenario(scenario.id);
-      scenarioState?.set?.(refreshed);
-      await reload();
-    } catch (err) {
-      notifyError('Failed to clear projections: ' + (err?.message || String(err)));
-    } finally {
-      if (clearBtn.isConnected) {
-        clearBtn.textContent = prevText;
-        clearBtn.disabled = false;
-      }
-    }
   });
 
   // Create filter controls
@@ -757,7 +697,7 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
 
   const inlineRegenBtn = document.createElement('button');
   inlineRegenBtn.className = 'icon-btn card-inline-action';
-  inlineRegenBtn.title = 'Regenerate projections';
+  inlineRegenBtn.title = 'Refresh projections now';
   inlineRegenBtn.textContent = '↺';
 
   const inlineSetPeriodBtn = document.createElement('button');
@@ -765,17 +705,28 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   inlineSetPeriodBtn.title = 'Set projection period';
   inlineSetPeriodBtn.textContent = '⊞';
 
-  const inlineGenerateBtn = document.createElement('button');
-  inlineGenerateBtn.className = 'icon-btn card-inline-action';
-  inlineGenerateBtn.title = 'Generate projections';
-  inlineGenerateBtn.textContent = '⊕';
+  const freshness = document.createElement('span');
+  const isStale = currentScenario?.projection?.stale === true ||
+    Boolean(currentScenario?.projection?.staleAt);
+  const isCurrent = Boolean(currentScenario?.projection?.generatedAt) && !isStale;
+  const isRefreshing =
+    document.documentElement.dataset.projectionRefreshingScenarioId ===
+    String(currentScenario?.id ?? '');
+  freshness.className =
+    `projection-freshness projection-freshness--${isStale ? 'stale' : (isCurrent ? 'current' : 'pending')}`;
+  freshness.classList.toggle('is-refreshing', isRefreshing);
+  freshness.textContent = isStale
+    ? (isRefreshing ? 'Stale · refreshing' : 'Stale')
+    : (isCurrent ? 'Current' : (isRefreshing ? 'Pending · refreshing' : 'Pending'));
+  freshness.title = isStale
+    ? (currentScenario?.projection?.staleReason || 'The plan changed after this projection was generated.')
+    : (isCurrent ? `Generated ${currentScenario.projection.generatedAt}` : 'Projection has not been generated yet.');
+  freshness.setAttribute('role', 'status');
 
   const modalActions = document.createElement('div');
   modalActions.className = 'modal-filter-actions';
   modalActions.appendChild(regenBtn);
   modalActions.appendChild(setPeriodBtn);
-  modalActions.appendChild(generateBtn);
-  modalActions.appendChild(clearBtn);
 
   const filterModal = createFilterModal({
     id: 'projections-filter-modal',
@@ -791,10 +742,10 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
   });
 
   filterButton.style.marginLeft = 'auto';
+  controls.appendChild(freshness);
   controls.appendChild(inlineFilters);
   controls.appendChild(inlineRegenBtn);
   controls.appendChild(inlineSetPeriodBtn);
-  controls.appendChild(inlineGenerateBtn);
   controls.appendChild(filterButton);
 
   accountSelect.addEventListener('change', () => { inlineAccountSelect.value = accountSelect.value; });
@@ -826,7 +777,6 @@ async function buildProjectionsHeaderControls({ controls, container, currentScen
 
   inlineRegenBtn.addEventListener('click', (e) => { e.stopPropagation(); regenBtn.click(); });
   inlineSetPeriodBtn.addEventListener('click', (e) => { e.stopPropagation(); setPeriodBtn.click(); });
-  inlineGenerateBtn.addEventListener('click', (e) => { e.stopPropagation(); generateBtn.click(); });
 }
 
 function ensureProjectionsTotalsContainer(container) {

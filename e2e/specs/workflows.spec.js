@@ -7,28 +7,37 @@ test.describe('documented workflow smoke coverage', () => {
     await gotoFTrack(page);
   });
 
-  test('Budget exposes budget and projection controls', async ({ page }) => {
+  test('Budget exposes unified Plan & Actuals and projection controls', async ({ page }) => {
     await selectWorkflow(page, 'Budget');
+    await expect(page.locator('#budgetSection')).toBeVisible();
+    await expect(page.locator('#transactionsSection')).toBeHidden();
+    await expect(page.locator('#budgetSection .forecast-card')).toHaveCount(1);
+    await expect(page.getByRole('tab', { name: 'Period' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: 'Recurring' })).toBeVisible();
+
     await openSectionFilters(page, '#budgetSection');
-    await expect(page.locator('.filter-modal')).toContainText('Filter Budget');
-    await expect(page.locator('.filter-modal button[title="Add Budget Entry"]')).toBeVisible();
+    await expect(page.locator('.filter-modal')).toContainText('Filter Plan & Actuals');
+    await expect(page.locator('.filter-modal button[title="Add item"]')).toBeVisible();
     await closeFilterModal(page);
 
     await openSectionFilters(page, '#projectionsSection');
     await expect(page.locator('.filter-modal')).toContainText('Filter Projections');
+    await expect(page.locator('.filter-modal button[title="Refresh projections now"]')).toBeVisible();
+    await expect(page.locator('.filter-modal button[title="Generate projections"]')).toHaveCount(0);
+    await expect(page.locator('.filter-modal button[title="Clear projections"]')).toHaveCount(0);
     await closeFilterModal(page);
   });
 
   test('Budget row accordion hides the budget section body', async ({ page }) => {
     await selectWorkflow(page, 'Budget');
 
-    const budgetSection = page.locator('#budgetSection');
-    const budgetBody = budgetSection.locator(':scope > .dash-row-body');
-    await expect(budgetBody).toBeVisible();
+    const planSection = page.locator('#budgetSection');
+    const planBody = planSection.locator(':scope > .dash-row-body');
+    await expect(planBody).toBeVisible();
 
-    await budgetSection.locator(':scope > .dash-row-header').click();
-    await expect(budgetSection).toHaveClass(/collapsed/);
-    await expect(budgetBody).toBeHidden();
+    await planSection.locator(':scope > .dash-row-header').click();
+    await expect(planSection).toHaveClass(/collapsed/);
+    await expect(planBody).toBeHidden();
   });
 
   test('General exposes summary and projection controls', async ({ page }) => {

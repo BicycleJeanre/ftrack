@@ -17,11 +17,13 @@ test.describe('app shell and workflow navigation', () => {
     await expect(page.locator('#workflowNav')).toContainText('Debt Repayment');
     await expect(page.locator('#workflowNav')).toContainText('Goal Workshop');
     await expect(page.locator('#workflowNav')).toContainText('Transactions (Detail)');
+    await expect(page.locator('#workflowNav')).toContainText('Plan & Actuals (Detail)');
   });
 
   test('switches workflow cards according to the frontend registry', async ({ page }) => {
     await selectWorkflow(page, 'Budget');
     await expect(page.locator('#budgetSection')).toBeVisible();
+    await expect(page.locator('#transactionsSection')).toBeHidden();
     await expect(page.locator('#summaryCardsSection')).toBeHidden();
 
     await selectWorkflow(page, 'General');

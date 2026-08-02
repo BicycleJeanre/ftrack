@@ -5,9 +5,9 @@
  */
 
 import * as DataStore from './storage-service.js';
+import { CURRENT_SCHEMA_VERSION } from '../../shared/app-data-utils.js';
 
 // Valid enum IDs from assets/lookup-data.json
-const VALID_SCENARIO_TYPES     = [1, 2, 3, 4, 5, 6];
 const VALID_ACCOUNT_TYPES      = [1, 2, 3, 4, 5];
 const VALID_CURRENCIES         = [1, 2, 3, 4];
 const VALID_PROJECTION_PERIODS = [1, 2, 3, 4, 5];
@@ -18,6 +18,8 @@ const VALID_CHANGE_MODES       = [1, 2];
 const VALID_CHANGE_TYPES       = [1, 2, 3, 4, 5, 6, 7, 8];
 const VALID_PERIODS            = [1, 2, 3, 4, 5];
 const VALID_RATE_PERIODS       = [1, 2, 3, 4, 5];
+const VALID_OCCURRENCE_STATUSES = ['planned', 'actual', 'skipped'];
+const VALID_OCCURRENCE_ORIGINS = ['generated', 'manual', 'migrated'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -64,8 +66,8 @@ function validatePeriodicChange(pc, basePath) {
 
     if (typeof pc.value !== 'number') {
         issues.push(issue(`${basePath}.value`, `Required number field missing or non-numeric`));
-    } else if (pc.value <= 0) {
-        issues.push(issue(`${basePath}.value`, `Must be positive, got ${pc.value}`));
+    } else if (pc.value === 0) {
+        issues.push(issue(`${basePath}.value`, `Must be non-zero`));
     }
 
     const modeId = extractId(pc.changeMode);
@@ -280,11 +282,17 @@ function validateTransaction(tx, index, scenario) {
         issues.push(issue(`${label}.primaryAccountId`, `Account ID ${tx.primaryAccountId} not found in this scenario's accounts`));
     }
 
-    if (tx.secondaryAccountId === null || tx.secondaryAccountId === undefined) {
-        issues.push(issue(`${label}.secondaryAccountId`, `Missing secondaryAccountId`));
-    } else if (typeof tx.secondaryAccountId !== 'number') {
+    if (
+        tx.secondaryAccountId !== null &&
+        tx.secondaryAccountId !== undefined &&
+        typeof tx.secondaryAccountId !== 'number'
+    ) {
         issues.push(issue(`${label}.secondaryAccountId`, `Must be a number, got ${typeof tx.secondaryAccountId}`));
-    } else if (!accountIds.includes(tx.secondaryAccountId)) {
+    } else if (
+        tx.secondaryAccountId !== null &&
+        tx.secondaryAccountId !== undefined &&
+        !accountIds.includes(tx.secondaryAccountId)
+    ) {
         issues.push(issue(`${label}.secondaryAccountId`, `Account ID ${tx.secondaryAccountId} not found in this scenario's accounts`));
     }
 
@@ -303,41 +311,295 @@ function validateTransaction(tx, index, scenario) {
         issues.push(issue(`${label}.description`, `Missing or empty description`));
     }
 
-    // Recurrence
-    issues.push(...validateRecurrence(tx.recurrence, `${label}.recurrence`));
-
-    // Cross-check transaction start date against scenario window
-    if (
-        tx.recurrence &&
-        isValidDate(tx.recurrence.startDate) &&
-        isValidDate(scenario.startDate) &&
-        isValidDate(scenario.endDate)
-    ) {
-        const txStart   = new Date(tx.recurrence.startDate);
-        const scenStart = new Date(scenario.startDate);
-        const scenEnd   = new Date(scenario.endDate);
-        if (txStart < scenStart || txStart > scenEnd) {
-            issues.push(issue(
-                `${label}.recurrence.startDate`,
-                `Date ${tx.recurrence.startDate} is outside scenario range [${scenario.startDate} → ${scenario.endDate}]`
-            ));
-        }
+    if (tx.recurrence !== null && tx.recurrence !== undefined) {
+        issues.push(...validateRecurrence(tx.recurrence, `${label}.recurrence`));
+    } else if (!isValidDate(tx.effectiveDate)) {
+        issues.push(issue(
+            `${label}.effectiveDate`,
+            `A rule without recurrence must have a valid effectiveDate`
+        ));
     }
 
     if (tx.periodicChange !== null && tx.periodicChange !== undefined) {
         issues.push(...validatePeriodicChange(tx.periodicChange, `${label}.periodicChange`));
     }
 
-    if (!tx.status || typeof tx.status !== 'object') {
-        issues.push(issue(`${label}.status`, `Missing required status object`));
-    } else if (!['planned', 'actual'].includes(tx.status.name)) {
-        issues.push(issue(`${label}.status.name`, `Must be "planned" or "actual", got "${tx.status.name}"`));
+    if (Object.prototype.hasOwnProperty.call(tx, 'status')) {
+        issues.push(issue(`${label}.status`, `Legacy status is not allowed on schemaVersion 44 rules`));
+    }
+    if (
+        tx.activeFrom !== null &&
+        tx.activeFrom !== undefined &&
+        !isValidDate(tx.activeFrom)
+    ) {
+        issues.push(issue(`${label}.activeFrom`, `Invalid date "${tx.activeFrom}"`));
+    }
+    if (
+        tx.activeTo !== null &&
+        tx.activeTo !== undefined &&
+        !isValidDate(tx.activeTo)
+    ) {
+        issues.push(issue(`${label}.activeTo`, `Invalid date "${tx.activeTo}"`));
+    }
+    if (
+        isValidDate(tx.activeFrom) &&
+        isValidDate(tx.activeTo) &&
+        new Date(tx.activeFrom) > new Date(tx.activeTo)
+    ) {
+        issues.push(issue(`${label}.activeFrom/activeTo`, `activeFrom must be on or before activeTo`));
     }
 
     if (tx.tags !== undefined && !Array.isArray(tx.tags)) {
         issues.push(issue(`${label}.tags`, `Must be an array`));
     }
 
+    return issues;
+}
+
+function validateOccurrence(occurrence, index, scenario) {
+    const issues = [];
+    const label = `transactionOccurrence[${index}] (id=${occurrence?.id})`;
+    const accountIds = new Set((scenario.accounts || []).map((account) => Number(account?.id)));
+    const transactionIds = new Set((scenario.transactions || []).map((transaction) => Number(transaction?.id)));
+
+    if (!Number.isInteger(Number(occurrence?.id)) || Number(occurrence.id) <= 0) {
+        issues.push(issue(`${label}.id`, `Must be a positive integer`));
+    }
+    if (typeof occurrence?.occurrenceKey !== 'string' || !occurrence.occurrenceKey.trim()) {
+        issues.push(issue(`${label}.occurrenceKey`, `Missing stable occurrence key`));
+    }
+    if (!isValidDate(occurrence?.scheduledDate)) {
+        issues.push(issue(`${label}.scheduledDate`, `Missing or invalid YYYY-MM-DD date`));
+    }
+    for (const field of ['plannedDate', 'actualDate']) {
+        const value = occurrence?.[field];
+        if (value !== null && value !== undefined && !isValidDate(value)) {
+            issues.push(issue(`${label}.${field}`, `Invalid date "${value}"`));
+        }
+    }
+
+    if (!VALID_OCCURRENCE_STATUSES.includes(occurrence?.status)) {
+        issues.push(issue(
+            `${label}.status`,
+            `Must be ${VALID_OCCURRENCE_STATUSES.join(', ')}, got "${occurrence?.status}"`
+        ));
+    }
+    if (!VALID_OCCURRENCE_ORIGINS.includes(occurrence?.origin)) {
+        issues.push(issue(
+            `${label}.origin`,
+            `Must be ${VALID_OCCURRENCE_ORIGINS.join(', ')}, got "${occurrence?.origin}"`
+        ));
+    }
+
+    const sourceId = occurrence?.sourceTransactionId;
+    if (sourceId !== null && sourceId !== undefined) {
+        if (!transactionIds.has(Number(sourceId))) {
+            issues.push(issue(
+                `${label}.sourceTransactionId`,
+                `Transaction rule ID ${sourceId} was not found`
+            ));
+        }
+        const role = String(occurrence?.transactionGroupRole || '').trim().toLowerCase() || 'none';
+        const expectedKey = `tx:${Number(sourceId)}|date:${occurrence?.scheduledDate}|role:${role}`;
+        if (occurrence?.occurrenceKey !== expectedKey) {
+            issues.push(issue(
+                `${label}.occurrenceKey`,
+                `Linked occurrence key must be "${expectedKey}"`
+            ));
+        }
+    } else if (!/^occurrence:\d+$/.test(String(occurrence?.occurrenceKey || ''))) {
+        issues.push(issue(
+            `${label}.occurrenceKey`,
+            `Manual occurrence keys must use occurrence:<id>`
+        ));
+    }
+
+    for (const field of ['baselineAmount', 'plannedAmount', 'actualAmount', 'capitalAmount', 'interestAmount']) {
+        const value = occurrence?.[field];
+        if (value !== null && value !== undefined && (!Number.isFinite(Number(value)) || Number(value) < 0)) {
+            issues.push(issue(`${label}.${field}`, `Must be a non-negative number or null`));
+        }
+    }
+    for (const field of ['primaryAccountId', 'secondaryAccountId']) {
+        const value = occurrence?.[field];
+        if (value !== null && value !== undefined && !accountIds.has(Number(value))) {
+            issues.push(issue(`${label}.${field}`, `Account ID ${value} was not found`));
+        }
+    }
+    for (const field of ['baselinePrimaryAccountId', 'baselineSecondaryAccountId']) {
+        const value = occurrence?.[field];
+        if (value !== null && value !== undefined && !accountIds.has(Number(value))) {
+            issues.push(issue(`${label}.${field}`, `Account ID ${value} was not found`));
+        }
+    }
+    if (
+        occurrence?.transactionTypeId !== null &&
+        occurrence?.transactionTypeId !== undefined &&
+        !VALID_TRANSACTION_TYPES.includes(Number(occurrence.transactionTypeId))
+    ) {
+        issues.push(issue(`${label}.transactionTypeId`, `Must be 1, 2, or null`));
+    }
+    if (
+        occurrence?.isOverride !== null &&
+        occurrence?.isOverride !== undefined &&
+        typeof occurrence.isOverride !== 'boolean'
+    ) {
+        issues.push(issue(`${label}.isOverride`, `Must be boolean or null`));
+    }
+    for (const field of ['actualSnapshotVersion', 'baselineSnapshotVersion']) {
+        const value = occurrence?.[field];
+        if (value !== null && value !== undefined && Number(value) !== 1) {
+            issues.push(issue(`${label}.${field}`, `Must be 1 or null`));
+        }
+    }
+    if (
+        occurrence?.baselineTransactionTypeId !== null &&
+        occurrence?.baselineTransactionTypeId !== undefined &&
+        !VALID_TRANSACTION_TYPES.includes(Number(occurrence.baselineTransactionTypeId))
+    ) {
+        issues.push(issue(`${label}.baselineTransactionTypeId`, `Must be 1, 2, or null`));
+    }
+    if (occurrence?.baselineAmount !== null && occurrence?.baselineAmount !== undefined) {
+        if (Number(occurrence?.baselineSnapshotVersion) !== 1) {
+            issues.push(issue(
+                `${label}.baselineSnapshotVersion`,
+                `Stored baselines require snapshot version 1`
+            ));
+        }
+        if (!accountIds.has(Number(occurrence?.baselinePrimaryAccountId))) {
+            issues.push(issue(
+                `${label}.baselinePrimaryAccountId`,
+                `Stored baselines require a valid primary account`
+            ));
+        }
+        if (!VALID_TRANSACTION_TYPES.includes(Number(occurrence?.baselineTransactionTypeId))) {
+            issues.push(issue(
+                `${label}.baselineTransactionTypeId`,
+                `Stored baselines require direction 1 or 2`
+            ));
+        }
+    }
+
+    if (occurrence?.status === 'actual') {
+        if (Number(occurrence?.actualSnapshotVersion) !== 1) {
+            issues.push(issue(
+                `${label}.actualSnapshotVersion`,
+                `Actual occurrences require snapshot version 1`
+            ));
+        }
+        if (!accountIds.has(Number(occurrence?.primaryAccountId))) {
+            issues.push(issue(`${label}.primaryAccountId`, `Actual occurrences require a valid primary account`));
+        }
+        if (!VALID_TRANSACTION_TYPES.includes(Number(occurrence?.transactionTypeId))) {
+            issues.push(issue(`${label}.transactionTypeId`, `Actual occurrences require direction 1 or 2`));
+        }
+        if (!isValidDate(occurrence.actualDate)) {
+            issues.push(issue(`${label}.actualDate`, `Actual occurrences require actualDate`));
+        }
+        if (!Number.isFinite(Number(occurrence.actualAmount)) || Number(occurrence.actualAmount) < 0) {
+            issues.push(issue(`${label}.actualAmount`, `Actual occurrences require actualAmount`));
+        }
+    } else if (occurrence?.actualAmount !== null || occurrence?.actualDate !== null) {
+        issues.push(issue(
+            `${label}.actualAmount/actualDate`,
+            `Only actual occurrences may contain actual values`
+        ));
+    }
+
+    if (sourceId == null) {
+        if (!accountIds.has(Number(occurrence?.primaryAccountId))) {
+            issues.push(issue(`${label}.primaryAccountId`, `Manual occurrences require a valid primary account`));
+        }
+        if (!VALID_TRANSACTION_TYPES.includes(Number(occurrence?.transactionTypeId))) {
+            issues.push(issue(`${label}.transactionTypeId`, `Manual occurrences require direction 1 or 2`));
+        }
+        const currentAmount =
+            occurrence?.status === 'actual' ? occurrence?.actualAmount : occurrence?.plannedAmount;
+        if (!Number.isFinite(Number(currentAmount)) || Number(currentAmount) < 0) {
+            issues.push(issue(`${label}.plannedAmount`, `Manual occurrences require an amount`));
+        }
+    }
+
+    return issues;
+}
+
+function validateBaselinePeriod(period, index) {
+    const issues = [];
+    const label = `baselinePeriod[${index}]`;
+    if (!VALID_PROJECTION_PERIODS.includes(Number(period?.periodTypeId))) {
+        issues.push(issue(`${label}.periodTypeId`, `Must be 1–5`));
+    }
+    if (!isValidDate(period?.startDate)) {
+        issues.push(issue(`${label}.startDate`, `Missing or invalid date`));
+    }
+    if (!isValidDate(period?.endDate)) {
+        issues.push(issue(`${label}.endDate`, `Missing or invalid date`));
+    }
+    if (
+        isValidDate(period?.startDate) &&
+        isValidDate(period?.endDate) &&
+        new Date(period.startDate) > new Date(period.endDate)
+    ) {
+        issues.push(issue(`${label}.startDate/endDate`, `startDate must be on or before endDate`));
+    }
+    if (
+        typeof period?.frozenAt !== 'string' ||
+        !period.frozenAt ||
+        Number.isNaN(Date.parse(period.frozenAt))
+    ) {
+        issues.push(issue(`${label}.frozenAt`, `Must be an ISO datetime string`));
+    }
+    return issues;
+}
+
+function validateProjection(projection) {
+    const issues = [];
+    if (!projection || typeof projection !== 'object') {
+        issues.push(issue('projection', `Missing projection bundle`));
+        return issues;
+    }
+    const config = projection.config;
+    if (!config || typeof config !== 'object') {
+        issues.push(issue('projection.config', `Missing projection config`));
+        return issues;
+    }
+    if (!isValidDate(config.startDate) || !isValidDate(config.endDate)) {
+        issues.push(issue('projection.config', `startDate and endDate must be valid dates`));
+    } else if (new Date(config.startDate) > new Date(config.endDate)) {
+        issues.push(issue('projection.config', `startDate must be on or before endDate`));
+    }
+    if (!VALID_PROJECTION_PERIODS.includes(Number(config.periodTypeId))) {
+        issues.push(issue('projection.config.periodTypeId', `Must be 1–5`));
+    }
+    if (Object.prototype.hasOwnProperty.call(config, 'source')) {
+        issues.push(issue('projection.config.source', `Legacy projection source is not allowed`));
+    }
+    if (
+        config.openCommitmentStartDate &&
+        (
+            !isValidDate(config.openCommitmentStartDate) ||
+            config.openCommitmentStartDate > config.startDate
+        )
+    ) {
+        issues.push(issue(
+            'projection.config.openCommitmentStartDate',
+            `Must be a valid date on or before projection start`
+        ));
+    }
+    if (!Array.isArray(projection.rows)) {
+        issues.push(issue('projection.rows', `Must be an array`));
+    }
+    if (typeof projection.stale !== 'boolean') {
+        issues.push(issue('projection.stale', `Must be boolean`));
+    }
+    if (projection.stale) {
+        if (typeof projection.staleAt !== 'string' || Number.isNaN(Date.parse(projection.staleAt))) {
+            issues.push(issue('projection.staleAt', `Stale projections require an ISO datetime`));
+        }
+        if (typeof projection.staleReason !== 'string' || !projection.staleReason.trim()) {
+            issues.push(issue('projection.staleReason', `Stale projections require a reason`));
+        }
+    }
     return issues;
 }
 
@@ -355,31 +617,19 @@ function validateScenario(scenario) {
         issues.push(issue('name', `Missing or empty name`));
     }
 
-    const typeId = extractId(scenario.type);
-    if (!VALID_SCENARIO_TYPES.includes(typeId)) {
-        issues.push(issue('type', `Must be 1–6, got ${JSON.stringify(scenario.type)}`));
+    if (!Number.isInteger(Number(scenario.version)) || Number(scenario.version) < 1) {
+        issues.push(issue('version', `Must be a positive integer`));
     }
-
-    if (!isValidDate(scenario.startDate)) {
-        issues.push(issue('startDate', `Invalid date: "${scenario.startDate}"`));
+    if (Object.prototype.hasOwnProperty.call(scenario, 'budgets')) {
+        issues.push(issue('budgets', `Legacy budgets are not allowed in schemaVersion 44`));
     }
-    if (!isValidDate(scenario.endDate)) {
-        issues.push(issue('endDate', `Invalid date: "${scenario.endDate}"`));
-    }
-    if (isValidDate(scenario.startDate) && isValidDate(scenario.endDate)) {
-        if (new Date(scenario.startDate) > new Date(scenario.endDate)) {
-            issues.push(issue('startDate/endDate', `startDate (${scenario.startDate}) is after endDate (${scenario.endDate})`));
-        }
-    }
-
-    const ppId = extractId(scenario.projectionPeriod);
-    if (!VALID_PROJECTION_PERIODS.includes(ppId)) {
-        issues.push(issue('projectionPeriod', `Must be 1–5, got ${JSON.stringify(scenario.projectionPeriod)}`));
+    if (Object.prototype.hasOwnProperty.call(scenario, 'budgetWindow')) {
+        issues.push(issue('budgetWindow', `Legacy budgetWindow is not allowed in schemaVersion 44`));
     }
 
     // Accounts
-    if (!Array.isArray(scenario.accounts) || scenario.accounts.length === 0) {
-        issues.push(issue('accounts', `Must have at least one account`));
+    if (!Array.isArray(scenario.accounts)) {
+        issues.push(issue('accounts', `Must be an array`));
     } else {
         const ids = scenario.accounts.map(a => a.id);
         const dupIds = ids.filter((id, i) => ids.indexOf(id) !== i);
@@ -407,6 +657,50 @@ function validateScenario(scenario) {
         }
     }
 
+    if (!Array.isArray(scenario.transactionOccurrences)) {
+        issues.push(issue('transactionOccurrences', `Must be an array`));
+    } else {
+        const ids = scenario.transactionOccurrences.map((occurrence) => occurrence?.id);
+        const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+        if (duplicateIds.length) {
+            issues.push(issue(
+                'transactionOccurrences',
+                `Duplicate occurrence IDs: ${[...new Set(duplicateIds)].join(', ')}`
+            ));
+        }
+        const keys = scenario.transactionOccurrences.map((occurrence) => occurrence?.occurrenceKey);
+        const duplicateKeys = keys.filter((key, index) => keys.indexOf(key) !== index);
+        if (duplicateKeys.length) {
+            issues.push(issue(
+                'transactionOccurrences',
+                `Duplicate occurrence keys: ${[...new Set(duplicateKeys)].join(', ')}`
+            ));
+        }
+        scenario.transactionOccurrences.forEach((occurrence, index) => {
+            issues.push(...validateOccurrence(occurrence, index, scenario));
+        });
+    }
+
+    if (!Array.isArray(scenario.baselinePeriods)) {
+        issues.push(issue('baselinePeriods', `Must be an array`));
+    } else {
+        const keys = scenario.baselinePeriods.map(
+            (period) => `${period?.periodTypeId}|${period?.startDate}|${period?.endDate}`
+        );
+        const duplicateKeys = keys.filter((key, index) => keys.indexOf(key) !== index);
+        if (duplicateKeys.length) {
+            issues.push(issue(
+                'baselinePeriods',
+                `Duplicate frozen period keys: ${[...new Set(duplicateKeys)].join(', ')}`
+            ));
+        }
+        scenario.baselinePeriods.forEach((period, index) => {
+            issues.push(...validateBaselinePeriod(period, index));
+        });
+    }
+
+    issues.push(...validateProjection(scenario.projection));
+
     return issues;
 }
 
@@ -420,12 +714,46 @@ function validateScenario(scenario) {
  * @returns {Promise<{isValid: boolean, totalIssues: number, scenarioCount: number, scenarios: Array}>}
  *   Each entry in `scenarios` has { id, name, issues: [{path, message}] }
  */
-export async function validateAllData() {
-    const data = await DataStore.read();
+export function validateAppData(data) {
     const scenarios = Array.isArray(data?.scenarios) ? data.scenarios : [];
+    const rootIssues = [];
+    if (data?.schemaVersion !== CURRENT_SCHEMA_VERSION) {
+        rootIssues.push(issue(
+            'schemaVersion',
+            `Expected ${CURRENT_SCHEMA_VERSION}, got ${String(data?.schemaVersion ?? 'missing')}`
+        ));
+    }
+    if (!Array.isArray(data?.scenarios)) {
+        rootIssues.push(issue('scenarios', `Must be an array`));
+    }
+    if (!data?.uiState || typeof data.uiState !== 'object') {
+        rootIssues.push(issue('uiState', `Must be an object`));
+    }
+    if (data?.migrationReport !== undefined && data.migrationReport !== null) {
+        const report = data.migrationReport;
+        if (!report || typeof report !== 'object') {
+            rootIssues.push(issue('migrationReport', `Must be an object or null`));
+        } else {
+            if (Number(report.toSchemaVersion) !== CURRENT_SCHEMA_VERSION) {
+                rootIssues.push(issue(
+                    'migrationReport.toSchemaVersion',
+                    `Expected ${CURRENT_SCHEMA_VERSION}`
+                ));
+            }
+            if (typeof report.migratedAt !== 'string' || Number.isNaN(Date.parse(report.migratedAt))) {
+                rootIssues.push(issue('migrationReport.migratedAt', `Must be an ISO datetime`));
+            }
+            if (!report.summary || typeof report.summary !== 'object') {
+                rootIssues.push(issue('migrationReport.summary', `Must be an object`));
+            }
+            if (!Array.isArray(report.scenarios)) {
+                rootIssues.push(issue('migrationReport.scenarios', `Must be an array`));
+            }
+        }
+    }
 
     const results = [];
-    let totalIssues = 0;
+    let totalIssues = rootIssues.length;
 
     for (const scenario of scenarios) {
         const scenarioIssues = validateScenario(scenario);
@@ -441,6 +769,11 @@ export async function validateAllData() {
         isValid:       totalIssues === 0,
         totalIssues,
         scenarioCount: scenarios.length,
+        rootIssues,
         scenarios:     results
     };
+}
+
+export async function validateAllData() {
+    return validateAppData(await DataStore.read());
 }

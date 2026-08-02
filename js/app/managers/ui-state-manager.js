@@ -1,5 +1,5 @@
 // ui-state-manager.js
-// Minimal manager for reading/writing persisted UiState (schemaVersion 43).
+// Minimal manager for reading/writing persisted UiState (current schema).
 
 import * as DataStore from '../services/storage-service.js';
 import { createDefaultUiState, normalizeUiState } from '../../shared/app-data-utils.js';
@@ -36,4 +36,3 @@ export async function patch(partial = {}) {
 
   return normalizeUiState(updated?.uiState);
 }
-

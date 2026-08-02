@@ -22,9 +22,10 @@ test.describe('detail workflow reachability', () => {
     await expect(page.locator('.filter-modal')).toContainText('Filter Transactions');
     await closeFilterModal(page);
 
-    await selectWorkflow(page, 'Budget (Detail)');
+    await selectWorkflow(page, 'Plan & Actuals (Detail)');
     await expect(page.locator('#budgetSection')).toBeVisible();
     await expect(page.locator('#transactionsSection')).toBeHidden();
+    await expect(page.locator('#budgetTable .plan-actuals-grid')).toBeVisible();
 
     await selectWorkflow(page, 'Projections (Detail)');
     await expect(page.locator('#projectionsSection')).toBeVisible();

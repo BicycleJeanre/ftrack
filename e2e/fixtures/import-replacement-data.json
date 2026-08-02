@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 43,
+  "schemaVersion": 44,
   "uiState": {
     "lastWorkflowId": "general",
     "lastScenarioId": 301,
     "lastScenarioVersion": 1,
     "viewPeriodTypeIds": {
       "transactions": 3,
-      "budgets": 3,
+      "planActuals": 3,
       "projections": 3
     },
     "accordionStates": {
@@ -41,22 +41,19 @@
         }
       ],
       "transactions": [],
-      "budgets": [],
+      "transactionOccurrences": [],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-02-01",
           "endDate": "2026-02-28",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
-      },
-      "budgetWindow": {
-        "config": {
-          "startDate": "2026-02-01",
-          "endDate": "2026-02-28"
-        }
+        "generatedAt": null,
+        "stale": false,
+        "staleAt": null,
+        "staleReason": null
       },
       "planning": {
         "config": {

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 43,
+  "schemaVersion": 44,
   "scenarios": [
     {
       "id": 101,
@@ -86,9 +86,13 @@
           "goalDate": null
         }
       ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
       "transactions": [
         {
           "id": 1001,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 3,
           "secondaryAccountId": 1,
           "transactionTypeId": 1,
@@ -110,19 +114,26 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-A1",
             "UC-S1",
             "income"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 1002,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 1,
           "secondaryAccountId": 4,
           "transactionTypeId": 2,
@@ -144,19 +155,26 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-A2",
             "UC-S2",
             "expense"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 1003,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 1,
           "secondaryAccountId": 5,
           "transactionTypeId": 2,
@@ -178,19 +196,26 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-A3",
             "UC-S2",
             "expense"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 1004,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 1,
           "secondaryAccountId": 6,
           "transactionTypeId": 2,
@@ -212,19 +237,26 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-A4",
             "UC-S2",
             "expense"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 1005,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 1,
           "secondaryAccountId": 2,
           "transactionTypeId": 2,
@@ -246,93 +278,131 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-A5",
             "UC-S6",
             "transfer"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgets": [
+      "transactionOccurrences": [
         {
           "id": 1011,
           "sourceTransactionId": 1002,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 4,
-          "transactionTypeId": 2,
-          "amount": 800,
-          "plannedAmount": 800,
-          "baselineAmount": null,
-          "description": "UC-A2 Monthly rent",
-          "recurrenceDescription": "Monthly",
-          "occurrenceDate": "2026-01-01",
           "occurrenceKey": "tx:1002|date:2026-01-01|role:none",
           "scheduledDate": "2026-01-01",
           "plannedDate": null,
-          "origin": "generated",
+          "actualDate": null,
+          "baselineAmount": null,
+          "plannedAmount": null,
+          "actualAmount": null,
+          "status": "planned",
+          "origin": "migrated",
           "isOverride": false,
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "primaryAccountId": 1,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2,
+          "description": "UC-A2 Monthly rent",
           "tags": [
             "UC-A2",
             "UC-S2",
             "expense"
-          ]
+          ],
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
+          "recurrence": {
+            "recurrenceType": 4,
+            "startDate": "2026-01-01",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 1,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
+          },
+          "recurrenceDescription": "Monthly",
+          "periodicChange": null,
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 1012,
           "sourceTransactionId": 1003,
-          "primaryAccountId": 1,
-          "secondaryAccountId": 5,
-          "transactionTypeId": 2,
-          "amount": 200,
-          "plannedAmount": 200,
-          "baselineAmount": null,
-          "description": "UC-A3 Monthly groceries",
-          "recurrenceDescription": "Monthly",
-          "occurrenceDate": "2026-01-05",
           "occurrenceKey": "tx:1003|date:2026-01-05|role:none",
           "scheduledDate": "2026-01-05",
           "plannedDate": null,
-          "origin": "generated",
+          "actualDate": null,
+          "baselineAmount": null,
+          "plannedAmount": null,
+          "actualAmount": null,
+          "status": "planned",
+          "origin": "migrated",
           "isOverride": false,
-          "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "primaryAccountId": 1,
+          "secondaryAccountId": 5,
+          "transactionTypeId": 2,
+          "description": "UC-A3 Monthly groceries",
           "tags": [
             "UC-A3",
             "UC-S2",
             "expense"
-          ]
+          ],
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
+          "recurrence": {
+            "recurrenceType": 4,
+            "startDate": "2026-01-05",
+            "endDate": null,
+            "interval": 1,
+            "dayOfWeek": null,
+            "dayOfMonth": 5,
+            "weekOfMonth": null,
+            "dayOfWeekInMonth": null,
+            "dayOfQuarter": null,
+            "month": null,
+            "dayOfYear": null,
+            "customDates": null,
+            "id": null
+          },
+          "recurrenceDescription": "Monthly",
+          "periodicChange": null,
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgetWindow": {
-        "config": {
-          "startDate": "2026-01-01",
-          "endDate": "2026-12-31"
-        }
-      },
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-01-01",
           "endDate": "2026-12-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
+        "generatedAt": null,
+        "stale": true,
+        "staleAt": "2026-08-02T10:58:04.237Z",
+        "staleReason": "schema-migration"
       },
       "planning": {
         "generatePlan": {
@@ -386,9 +456,13 @@
           "goalDate": null
         }
       ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
       "transactions": [
         {
           "id": 2001,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 21,
           "secondaryAccountId": 23,
           "transactionTypeId": 2,
@@ -410,18 +484,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-B1",
             "recurrence-weekly"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 2002,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 21,
           "secondaryAccountId": 23,
           "transactionTypeId": 2,
@@ -443,18 +524,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-B2",
             "recurrence-month-day"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 2003,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 21,
           "secondaryAccountId": 23,
           "transactionTypeId": 2,
@@ -476,17 +564,24 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "recurrence-month-week"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 2004,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 21,
           "secondaryAccountId": 23,
           "transactionTypeId": 2,
@@ -508,18 +603,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-B3",
             "recurrence-quarterly"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 2005,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 21,
           "secondaryAccountId": 23,
           "transactionTypeId": 2,
@@ -541,18 +643,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-B4",
             "recurrence-yearly"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 2006,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 21,
           "secondaryAccountId": 23,
           "transactionTypeId": 2,
@@ -574,18 +683,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-B5",
             "recurrence-onetime"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 2007,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 21,
           "secondaryAccountId": 23,
           "transactionTypeId": 2,
@@ -607,17 +723,24 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "recurrence-daily"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 2008,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 22,
           "secondaryAccountId": 21,
           "transactionTypeId": 1,
@@ -639,27 +762,35 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "recurrence-custom",
             "UC-S1"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgets": [],
+      "transactionOccurrences": [],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-01-01",
           "endDate": "2026-12-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
+        "generatedAt": null,
+        "stale": true,
+        "staleAt": "2026-08-02T10:58:04.237Z",
+        "staleReason": "schema-migration"
       },
       "planning": {
         "generatePlan": {
@@ -887,9 +1018,13 @@
           "goalDate": null
         }
       ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
       "transactions": [
         {
           "id": 3001,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 33,
           "secondaryAccountId": 31,
           "transactionTypeId": 1,
@@ -916,18 +1051,25 @@
             "changeType": 1,
             "ratePeriod": 1
           },
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-C1",
             "UC-S1"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 3002,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 31,
           "secondaryAccountId": 34,
           "transactionTypeId": 2,
@@ -954,18 +1096,25 @@
             "changeType": 1,
             "ratePeriod": 1
           },
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-C2",
             "UC-S2"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 3003,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 33,
           "secondaryAccountId": 32,
           "transactionTypeId": 1,
@@ -992,18 +1141,25 @@
             "changeType": 1,
             "period": 5
           },
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-C3",
             "UC-S1"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 3004,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 31,
           "secondaryAccountId": 34,
           "transactionTypeId": 2,
@@ -1030,27 +1186,35 @@
             "changeType": 1,
             "period": 5
           },
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-C4",
             "UC-S2"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgets": [],
+      "transactionOccurrences": [],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-01-01",
           "endDate": "2028-12-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
+        "generatedAt": null,
+        "stale": true,
+        "staleAt": "2026-08-02T10:58:04.237Z",
+        "staleReason": "schema-migration"
       },
       "planning": {
         "generatePlan": {
@@ -1108,9 +1272,13 @@
           "goalDate": null
         }
       ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
       "transactions": [
         {
           "id": 4001,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 51,
           "secondaryAccountId": 52,
           "transactionTypeId": 2,
@@ -1132,19 +1300,26 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-D2",
             "UC-D4",
             "UC-S7"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 4002,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 51,
           "secondaryAccountId": 52,
           "transactionTypeId": 2,
@@ -1166,28 +1341,36 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-D3",
             "UC-D4",
             "UC-S7"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgets": [],
+      "transactionOccurrences": [],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-01-01",
           "endDate": "2027-12-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
+        "generatedAt": null,
+        "stale": true,
+        "staleAt": "2026-08-02T10:58:04.237Z",
+        "staleReason": "schema-migration"
       },
       "planning": {
         "generatePlan": {
@@ -1245,9 +1428,13 @@
           "goalDate": null
         }
       ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
       "transactions": [
         {
           "id": 5001,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 61,
           "secondaryAccountId": 62,
           "transactionTypeId": 2,
@@ -1269,27 +1456,35 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-E3",
             "UC-S8"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgets": [],
+      "transactionOccurrences": [],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-01-01",
           "endDate": "2026-12-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
+        "generatedAt": null,
+        "stale": true,
+        "staleAt": "2026-08-02T10:58:04.237Z",
+        "staleReason": "schema-migration"
       },
       "planning": {
         "generatePlan": {
@@ -1343,9 +1538,13 @@
           "goalDate": null
         }
       ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
       "transactions": [
         {
           "id": 6001,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 73,
           "secondaryAccountId": 71,
           "transactionTypeId": 1,
@@ -1367,17 +1566,24 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "goal-income"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 6002,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 71,
           "secondaryAccountId": 72,
           "transactionTypeId": 2,
@@ -1399,26 +1605,34 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "goal-contribution"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgets": [],
+      "transactionOccurrences": [],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-01-01",
           "endDate": "2027-12-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
+        "generatedAt": null,
+        "stale": true,
+        "staleAt": "2026-08-02T10:58:04.237Z",
+        "staleReason": "schema-migration"
       },
       "planning": {
         "generatePlan": {
@@ -1472,9 +1686,13 @@
           "goalDate": null
         }
       ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
       "transactions": [
         {
           "id": 7001,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 82,
           "secondaryAccountId": 81,
           "transactionTypeId": 1,
@@ -1496,18 +1714,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-E4",
             "UC-S9"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 7002,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 81,
           "secondaryAccountId": 83,
           "transactionTypeId": 2,
@@ -1529,27 +1754,35 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-E4",
             "UC-S9"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgets": [],
+      "transactionOccurrences": [],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-01-01",
           "endDate": "2028-12-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
+        "generatedAt": null,
+        "stale": true,
+        "staleAt": "2026-08-02T10:58:04.237Z",
+        "staleReason": "schema-migration"
       },
       "planning": {
         "generatePlan": {
@@ -1603,9 +1836,13 @@
           "goalDate": null
         }
       ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
       "transactions": [
         {
           "id": 8001,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 91,
           "secondaryAccountId": 92,
           "transactionTypeId": 2,
@@ -1627,18 +1864,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-F1",
             "UC-S10"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 8002,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 91,
           "secondaryAccountId": 92,
           "transactionTypeId": 2,
@@ -1660,18 +1904,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-F2",
             "UC-S10"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 8003,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 91,
           "secondaryAccountId": 92,
           "transactionTypeId": 2,
@@ -1693,18 +1944,25 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-F3",
             "UC-S10"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         },
         {
           "id": 8004,
+          "seriesRootId": null,
+          "supersedesTransactionId": null,
           "primaryAccountId": 91,
           "secondaryAccountId": 93,
           "transactionTypeId": 2,
@@ -1726,27 +1984,35 @@
             "id": null
           },
           "periodicChange": null,
-          "status": {
-            "name": "planned",
-            "actualAmount": null,
-            "actualDate": null
-          },
+          "effectiveDate": null,
+          "activeFrom": null,
+          "activeTo": null,
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
           "tags": [
             "UC-F4",
             "isolation-check"
-          ]
+          ],
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
-      "budgets": [],
+      "transactionOccurrences": [],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2027-12-01",
           "endDate": "2028-03-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
+        "generatedAt": null,
+        "stale": true,
+        "staleAt": "2026-08-02T10:58:04.237Z",
+        "staleReason": "schema-migration"
       },
       "planning": {
         "generatePlan": {
@@ -1762,12 +2028,126 @@
   ],
   "uiState": {
     "lastWorkflowId": "general",
-    "lastScenarioId": null,
-    "lastScenarioVersion": null,
+    "lastScenarioId": 0,
+    "lastScenarioVersion": 0,
     "viewPeriodTypeIds": {
       "transactions": 3,
-      "budgets": 3,
+      "planActuals": 3,
       "projections": 3
-    }
+    },
+    "accordionStates": {}
+  },
+  "migrationReport": {
+    "fromSchemaVersion": 43,
+    "toSchemaVersion": 44,
+    "migratedAt": "2026-08-02T10:58:04.237Z",
+    "summary": {
+      "scenarioCount": 8,
+      "rulesRetained": 28,
+      "legacyBudgetRows": 2,
+      "occurrencesCreated": 2,
+      "actualTransactionsConverted": 0,
+      "projectionRowsCleared": 0,
+      "warningCount": 0,
+      "recoveryRecordCount": 0
+    },
+    "scenarios": [
+      {
+        "scenarioId": 101,
+        "scenarioIndex": 0,
+        "summary": {
+          "rulesRetained": 5,
+          "legacyBudgetRows": 2,
+          "occurrencesCreated": 2,
+          "actualTransactionsConverted": 0,
+          "projectionRowsCleared": 0
+        },
+        "issues": []
+      },
+      {
+        "scenarioId": 102,
+        "scenarioIndex": 1,
+        "summary": {
+          "rulesRetained": 8,
+          "legacyBudgetRows": 0,
+          "occurrencesCreated": 0,
+          "actualTransactionsConverted": 0,
+          "projectionRowsCleared": 0
+        },
+        "issues": []
+      },
+      {
+        "scenarioId": 103,
+        "scenarioIndex": 2,
+        "summary": {
+          "rulesRetained": 4,
+          "legacyBudgetRows": 0,
+          "occurrencesCreated": 0,
+          "actualTransactionsConverted": 0,
+          "projectionRowsCleared": 0
+        },
+        "issues": []
+      },
+      {
+        "scenarioId": 104,
+        "scenarioIndex": 3,
+        "summary": {
+          "rulesRetained": 2,
+          "legacyBudgetRows": 0,
+          "occurrencesCreated": 0,
+          "actualTransactionsConverted": 0,
+          "projectionRowsCleared": 0
+        },
+        "issues": []
+      },
+      {
+        "scenarioId": 105,
+        "scenarioIndex": 4,
+        "summary": {
+          "rulesRetained": 1,
+          "legacyBudgetRows": 0,
+          "occurrencesCreated": 0,
+          "actualTransactionsConverted": 0,
+          "projectionRowsCleared": 0
+        },
+        "issues": []
+      },
+      {
+        "scenarioId": 106,
+        "scenarioIndex": 5,
+        "summary": {
+          "rulesRetained": 2,
+          "legacyBudgetRows": 0,
+          "occurrencesCreated": 0,
+          "actualTransactionsConverted": 0,
+          "projectionRowsCleared": 0
+        },
+        "issues": []
+      },
+      {
+        "scenarioId": 107,
+        "scenarioIndex": 6,
+        "summary": {
+          "rulesRetained": 2,
+          "legacyBudgetRows": 0,
+          "occurrencesCreated": 0,
+          "actualTransactionsConverted": 0,
+          "projectionRowsCleared": 0
+        },
+        "issues": []
+      },
+      {
+        "scenarioId": 108,
+        "scenarioIndex": 7,
+        "summary": {
+          "rulesRetained": 4,
+          "legacyBudgetRows": 0,
+          "occurrencesCreated": 0,
+          "actualTransactionsConverted": 0,
+          "projectionRowsCleared": 0
+        },
+        "issues": []
+      }
+    ]
   }
 }

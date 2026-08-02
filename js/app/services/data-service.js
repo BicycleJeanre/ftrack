@@ -12,12 +12,14 @@ import { notifyError } from '../../shared/notifications.js';
 import {
   DEFAULT_PERIOD_TYPE_ID,
   CURRENT_SCHEMA_VERSION,
-  assertSchemaVersion43,
+  assertCurrentSchemaVersion,
+  sanitizeAppDataForWrite,
   sanitizeScenarioForWrite,
   allocateNextId,
   normalizeUiState
 } from '../../shared/app-data-utils.js';
 import { migrateAppData } from '../../shared/migration-utils.js';
+import { validateAppData } from './validation-service.js';
 
 // ============================================================================
 // DATA FILE OPERATIONS
@@ -30,7 +32,7 @@ import { migrateAppData } from '../../shared/migration-utils.js';
 async function readAppData() {
   try {
     const data = await DataStore.read();
-    assertSchemaVersion43(data);
+    assertCurrentSchemaVersion(data);
     return data;
   } catch (err) {
     if (err && err.name === 'SchemaVersionError') {
@@ -209,49 +211,62 @@ export async function createTransaction(scenarioId, transactionData) {
  * @returns {Promise<void>}
  */
 export async function saveProjectionBundle(scenarioId, bundle) {
-  const appData = await readAppData();
-  const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
+  let saved = false;
+  await DataStore.transaction(async (appData) => {
+    const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
 
-  if (scenarioIndex === -1) {
-    throw new Error(`Scenario ${scenarioId} not found`);
-  }
+    if (scenarioIndex === -1) {
+      throw new Error(`Scenario ${scenarioId} not found`);
+    }
 
-  const scenario = appData.scenarios[scenarioIndex];
-  const existingConfig = scenario?.projection?.config || null;
-  const today = formatDateOnly(new Date());
+    const scenario = appData.scenarios[scenarioIndex];
+    const hasExpectedStaleAt = Object.prototype.hasOwnProperty.call(
+      bundle || {},
+      'expectedStaleAt'
+    );
+    const currentStaleAt = scenario?.projection?.staleAt ?? null;
+    if (hasExpectedStaleAt && currentStaleAt !== (bundle?.expectedStaleAt ?? null)) {
+      return appData;
+    }
 
-  const nextProjection = {
-    config: bundle?.config || existingConfig || {
-      startDate: today,
-      endDate: today,
-      periodTypeId: DEFAULT_PERIOD_TYPE_ID,
-      source: 'transactions'
-    },
-    rows: Array.isArray(bundle?.rows) ? bundle.rows : [],
-    generatedAt:
-      bundle && Object.prototype.hasOwnProperty.call(bundle, 'generatedAt')
-        ? (bundle.generatedAt === undefined ? new Date().toISOString() : bundle.generatedAt)
-        : new Date().toISOString()
-  };
+    const existingConfig = scenario?.projection?.config || null;
+    const today = formatDateOnly(new Date());
+    const nextProjection = {
+      config: bundle?.config || existingConfig || {
+        startDate: today,
+        endDate: today,
+        periodTypeId: DEFAULT_PERIOD_TYPE_ID
+      },
+      rows: Array.isArray(bundle?.rows) ? bundle.rows : [],
+      generatedAt:
+        bundle && Object.prototype.hasOwnProperty.call(bundle, 'generatedAt')
+          ? (bundle.generatedAt === undefined ? new Date().toISOString() : bundle.generatedAt)
+          : new Date().toISOString(),
+      stale: bundle?.stale === true,
+      staleAt: bundle?.stale === true ? (bundle?.staleAt ?? new Date().toISOString()) : null,
+      staleReason: bundle?.stale === true ? (bundle?.staleReason ?? 'plan-changed') : null
+    };
 
-  appData.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
-    ...scenario,
-    id: scenarioId,
-    projection: nextProjection
+    appData.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
+      ...scenario,
+      id: scenarioId,
+      projection: nextProjection
+    });
+    saved = true;
+    return appData;
   });
-
-  await writeAppData(appData);
+  return saved;
 }
 
 
 
 /**
- * Save budget for a scenario (replaces all existing budget occurrences)
+ * Save canonical transaction occurrences for a scenario.
  * @param {number} scenarioId - The scenario ID
- * @param {Array} budgets - Array of budget occurrence records
+ * @param {Array} occurrences - Array of occurrence records
  * @returns {Promise<void>}
  */
-export async function saveBudget(scenarioId, budgets) {
+export async function saveTransactionOccurrences(scenarioId, occurrences) {
   const appData = await readAppData();
   const scenarioIndex = appData.scenarios.findIndex(s => s.id === scenarioId);
   
@@ -259,18 +274,19 @@ export async function saveBudget(scenarioId, budgets) {
     throw new Error(`Scenario ${scenarioId} not found`);
   }
   
-  appData.scenarios[scenarioIndex].budgets = budgets;
+  appData.scenarios[scenarioIndex].transactionOccurrences =
+    Array.isArray(occurrences) ? occurrences : [];
   await writeAppData(appData);
 }
 
 /**
- * Get budget for a scenario
+ * Get canonical transaction occurrences for a scenario.
  * @param {number} scenarioId - The scenario ID
- * @returns {Promise<Array>} - Array of budget occurrences
+ * @returns {Promise<Array>}
  */
-export async function getBudget(scenarioId) {
+export async function getTransactionOccurrences(scenarioId) {
   const scenario = await getScenario(scenarioId);
-  return scenario?.budgets || [];
+  return scenario?.transactionOccurrences || [];
 }
 
 // ============================================================================
@@ -297,12 +313,7 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null, wi
 
   // Select window config based on windowType
   let windowConfig;
-  if (windowType === 'budget') {
-    windowConfig = scenario?.budgetWindow?.config;
-    if (!windowConfig) {
-      throw new Error(`Scenario ${scenarioId} is missing budget window configuration`);
-    }
-  } else if (windowType === 'planning') {
+  if (windowType === 'planning') {
     // Future support for planning windows
     windowConfig = scenario?.planning?.generatePlan;
     if (!windowConfig) {
@@ -327,8 +338,7 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null, wi
 
   let periodType = customPeriodType;
   if (!periodType) {
-    // For budget window, default to Month if no periodTypeId is stored in budget config
-    // For projection/planning, use the config's periodTypeId
+    // Use the selected projection/planning period type.
     const periodTypeIdRaw = windowConfig.periodTypeId ?? 3;
     const periodTypeId = typeof periodTypeIdRaw === 'number'
       ? periodTypeIdRaw
@@ -362,6 +372,7 @@ export async function exportAppData() {
 export async function importAppData(jsonString, merge = false) {
   try {
     let importedData = JSON.parse(jsonString);
+    let wasMigrated = false;
     
     // Validate basic structure
     if (!importedData.scenarios || !Array.isArray(importedData.scenarios)) {
@@ -370,10 +381,42 @@ export async function importAppData(jsonString, merge = false) {
 
     if (importedData.schemaVersion !== CURRENT_SCHEMA_VERSION) {
       importedData = migrateAppData(importedData);
+      wasMigrated = true;
     }
-    assertSchemaVersion43(importedData);
+    assertCurrentSchemaVersion(importedData);
     if (!importedData.uiState || typeof importedData.uiState !== 'object') {
       throw new Error('Invalid app data format: missing uiState object');
+    }
+    const legacyFields = importedData.scenarios.flatMap((scenario, index) => {
+      const paths = [];
+      if (Object.prototype.hasOwnProperty.call(scenario || {}, 'budgets')) {
+        paths.push(`scenarios[${index}].budgets`);
+      }
+      if (Object.prototype.hasOwnProperty.call(scenario || {}, 'budgetWindow')) {
+        paths.push(`scenarios[${index}].budgetWindow`);
+      }
+      if (Object.prototype.hasOwnProperty.call(scenario?.projection?.config || {}, 'source')) {
+        paths.push(`scenarios[${index}].projection.config.source`);
+      }
+      return paths;
+    });
+    if (legacyFields.length) {
+      throw new Error(
+        `Invalid schemaVersion ${CURRENT_SCHEMA_VERSION} data: legacy field ${legacyFields[0]}`
+      );
+    }
+    importedData = sanitizeAppDataForWrite(importedData);
+    const validation = validateAppData(importedData);
+    if (!validation.isValid) {
+      const firstRootIssue = validation.rootIssues?.[0];
+      const firstScenarioIssue = validation.scenarios
+        ?.flatMap((scenario) => scenario.issues || [])
+        ?.[0];
+      const firstIssue = firstRootIssue || firstScenarioIssue;
+      throw new Error(
+        `Invalid schemaVersion ${CURRENT_SCHEMA_VERSION} data` +
+        (firstIssue ? ` at ${firstIssue.path}: ${firstIssue.message}` : '')
+      );
     }
     
     
@@ -387,6 +430,9 @@ export async function importAppData(jsonString, merge = false) {
       });
       
       currentData.scenarios.push(...importedData.scenarios);
+      if (importedData.migrationReport) {
+        currentData.migrationReport = importedData.migrationReport;
+      }
       
       // Merge uiState: preserve current selections but allow imported workflow if valid
       if (importedData.uiState && typeof importedData.uiState === 'object') {
@@ -408,6 +454,10 @@ export async function importAppData(jsonString, merge = false) {
       // Replace mode: overwrite all data
       await writeAppData(importedData);
     }
+    return {
+      migrated: wasMigrated,
+      migrationReport: importedData.migrationReport || null
+    };
   } catch (err) {
     throw new Error(`Import failed: ${err.message}`);
   }

@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 43,
+  "schemaVersion": 44,
   "uiState": {
     "lastWorkflowId": "general",
     "lastScenarioId": 201,
     "lastScenarioVersion": 1,
     "viewPeriodTypeIds": {
       "transactions": 3,
-      "budgets": 3,
+      "planActuals": 3,
       "projections": 3
     },
     "accordionStates": {
@@ -59,10 +59,9 @@
           "startingBalance": -700,
           "openDate": "2026-01-01",
           "periodicChange": {
-            "type": { "id": 2, "name": "Nominal Annual, Compounded Monthly" },
-            "changeMode": { "id": 1, "name": "Percentage Rate" },
-            "rate": 18,
-            "ratePeriod": { "id": 1, "name": "Annual" }
+            "value": 18,
+            "changeMode": 1,
+            "changeType": 2
           },
           "goalAmount": 0,
           "goalDate": "2026-12-31",
@@ -108,21 +107,20 @@
       "transactions": [
         {
           "id": 1001,
-          "primaryAccountId": 4,
-          "secondaryAccountId": 1,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 4,
           "transactionTypeId": 1,
           "amount": 3000,
           "effectiveDate": "2026-01-25",
           "description": "Monthly salary",
           "recurrence": {
-            "recurrenceType": 3,
+            "recurrenceType": 4,
             "startDate": "2026-01-25",
             "endDate": null,
             "interval": 1,
             "dayOfMonth": 25
           },
           "periodicChange": null,
-          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
           "tags": ["income"]
         },
         {
@@ -134,14 +132,13 @@
           "effectiveDate": "2026-01-10",
           "description": "Groceries",
           "recurrence": {
-            "recurrenceType": 3,
+            "recurrenceType": 4,
             "startDate": "2026-01-10",
             "endDate": null,
             "interval": 1,
             "dayOfMonth": 10
           },
           "periodicChange": null,
-          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
           "tags": ["expense"]
         },
         {
@@ -153,47 +150,59 @@
           "effectiveDate": "2026-01-15",
           "description": "Credit card payment",
           "recurrence": {
-            "recurrenceType": 3,
+            "recurrenceType": 4,
             "startDate": "2026-01-15",
             "endDate": null,
             "interval": 1,
             "dayOfMonth": 15
           },
           "periodicChange": null,
-          "status": { "name": "planned", "actualAmount": null, "actualDate": null },
           "tags": ["debt"]
         }
       ],
-      "budgets": [
+      "transactionOccurrences": [
         {
           "id": 2001,
           "sourceTransactionId": 1002,
+          "occurrenceKey": "tx:1002|date:2026-01-10|role:none",
+          "scheduledDate": "2026-01-10",
+          "plannedDate": null,
+          "actualDate": null,
+          "baselineAmount": null,
+          "plannedAmount": null,
+          "actualAmount": null,
+          "status": "planned",
+          "origin": "generated",
+          "isOverride": true,
           "primaryAccountId": 1,
           "secondaryAccountId": 5,
           "transactionTypeId": 2,
-          "amount": 450,
-          "plannedAmount": 450,
           "description": "Groceries budget",
-          "occurrenceDate": "2026-01-10",
-          "recurrenceDescription": "Monthly",
-          "status": { "name": "planned", "actualAmount": null, "actualDate": null }
+          "tags": ["expense"],
+          "transactionGroupId": null,
+          "transactionGroupRole": null,
+          "transactionGroupAccountGroupId": null,
+          "capitalAmount": null,
+          "interestAmount": null,
+          "recurrence": null,
+          "recurrenceDescription": null,
+          "periodicChange": null,
+          "createdAt": null,
+          "updatedAt": null
         }
       ],
+      "baselinePeriods": [],
       "projection": {
         "config": {
           "startDate": "2026-01-01",
           "endDate": "2026-12-31",
-          "periodTypeId": 3,
-          "source": "transactions"
+          "periodTypeId": 3
         },
         "rows": [],
-        "generatedAt": null
-      },
-      "budgetWindow": {
-        "config": {
-          "startDate": "2026-01-01",
-          "endDate": "2026-03-31"
-        }
+        "generatedAt": null,
+        "stale": false,
+        "staleAt": null,
+        "staleReason": null
       },
       "planning": {
         "config": {

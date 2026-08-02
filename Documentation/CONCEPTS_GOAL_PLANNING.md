@@ -40,11 +40,11 @@
 
 3.1 Goal fields do not change projections by themselves.
 
-3.2 Goals influence projections only when you create planned transactions.
+3.2 Goals influence projections only when they produce transaction rules.
 
-3.2.1 Simple mode generates a suggested recurring transaction for you to create.
+3.2.1 Simple mode generates a suggested recurring rule for you to create.
 
-3.2.2 Advanced mode can generate and apply the transactions automatically.
+3.2.2 Advanced mode can generate and apply the rules automatically.
 
 ## 4.0 Common Pitfalls
 

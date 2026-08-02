@@ -40,7 +40,7 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await expect(page.locator('.account-card', { hasText: 'Operating Account' })).toContainText('R 2 345,67');
   });
 
-  test('duplicates a scenario, account, transaction, and budget entry', async ({ page }) => {
+  test('duplicates a scenario, account, transaction, and plan item', async ({ page }) => {
     await openSidebar(page);
     const scenarioCount = (await readAppData(page)).scenarios.length;
     await page.locator('.scenario-list-item', { hasText: 'E2E Frontend Smoke' }).locator('button[title="Duplicate Scenario"]').click();
@@ -59,9 +59,9 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await waitForCollectionCount(page, 'transactions', transactionCount + 1);
 
     await selectWorkflow(page, 'Budget');
-    const budgetCount = (await currentScenario(page)).budgets.length;
-    await page.locator('#budgetTable button[title="Duplicate Budget Entry"]').first().click();
-    await waitForCollectionCount(page, 'budgets', budgetCount + 1);
+    const occurrenceCount = (await currentScenario(page)).transactionOccurrences.length;
+    await page.locator('#budgetTable button[title="Duplicate item"]').first().click();
+    await waitForCollectionCount(page, 'transactionOccurrences', occurrenceCount + 1);
   });
 
   test('applies account and transaction filters from filter popovers', async ({ page }) => {

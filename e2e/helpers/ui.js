@@ -8,14 +8,14 @@ const WORKFLOW_IDS_BY_NAME = {
   'Goal Workshop': 'goal-workshop',
   'Accounts (Detail)': 'accounts-detail',
   'Transactions (Detail)': 'transactions-detail',
-  'Budget (Detail)': 'budget-detail',
+  'Plan & Actuals (Detail)': 'budget-detail',
   'Projections (Detail)': 'projections-detail'
 };
 
 const WORKFLOW_READY_SELECTORS = {
   'Accounts (Detail)': '#accountsTable .grid-container.grid-detail.tabulator',
   'Transactions (Detail)': '#transactionsTable .grid-container.grid-detail.tabulator',
-  'Budget (Detail)': '#budgetTable .grid-container.grid-detail.tabulator',
+  'Plan & Actuals (Detail)': '#budgetTable .plan-actuals-grid',
   'Projections (Detail)': '#projectionsContent'
 };
 

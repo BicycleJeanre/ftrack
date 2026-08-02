@@ -19,14 +19,14 @@ export const WORKFLOWS = [
     visibleCards: [
       'scenarioPicker',
       'accounts',
-      'transactions',
-      'budget',
+      'planActuals',
       'projections'
     ],
     showAccounts: true,
-    showPlannedTransactions: true,
-    showActualTransactions: true,
+    showPlannedTransactions: false,
+    showActualTransactions: false,
     showBudget: true,
+    showPlanActuals: true,
     showProjections: true,
     showGeneratePlan: false,
     showSummaryCards: false,
@@ -144,12 +144,13 @@ export const WORKFLOWS = [
   },
   {
     id: 'budget-detail',
-    name: 'Budget (Detail)',
-    visibleCards: ['scenarioPicker', 'budget'],
+    name: 'Plan & Actuals (Detail)',
+    visibleCards: ['scenarioPicker', 'planActuals'],
     showAccounts: false,
     showPlannedTransactions: false,
     showActualTransactions: false,
     showBudget: true,
+    showPlanActuals: true,
     showProjections: false,
     showGeneratePlan: false,
     showSummaryCards: false,
@@ -185,4 +186,3 @@ export function getWorkflowIdFromLegacyScenarioTypeId(value) {
   if (!Number.isFinite(idNum)) return null;
   return LEGACY_SCENARIO_TYPE_ID_TO_WORKFLOW_ID[idNum] || null;
 }
-

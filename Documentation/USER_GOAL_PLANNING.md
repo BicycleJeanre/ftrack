@@ -16,7 +16,7 @@
 
 2.2.1 Uses scenario settings to define multiple goals and constraints.
 
-2.2.2 Can generate and apply a set of planned transactions across accounts.
+2.2.2 Can generate and apply a set of transaction rules across accounts.
 
 2.3 If you are paying off a debt by a date, use Goal Workshop in Advanced mode with Pay down to target.
 
@@ -76,7 +76,8 @@
 
 6.1 Go to Transactions to review the generated planned transaction.
 
-6.2 Generate projections and confirm the goal account reaches the target by the goal date.
+6.2 Allow projections to refresh, then confirm the goal account reaches the
+target by the goal date.
 
 ## 7.0 Troubleshooting
 

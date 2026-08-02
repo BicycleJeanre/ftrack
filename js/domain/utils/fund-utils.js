@@ -79,7 +79,9 @@ function buildResolvedFlowOccurrences({
     transactions: Array.isArray(scenario?.transactions)
       ? scenario.transactions
       : transactions,
-    budgets: Array.isArray(scenario?.budgets) ? scenario.budgets : []
+    transactionOccurrences: Array.isArray(scenario?.transactionOccurrences)
+      ? scenario.transactionOccurrences
+      : []
   };
 
   const { occurrences } = resolveScenarioOccurrences({

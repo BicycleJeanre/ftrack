@@ -3,9 +3,64 @@
 
 import * as DataStore from '../services/storage-service.js';
 import { allocateNextId } from '../../shared/app-data-utils.js';
+import {
+    dispatchPlanChanged,
+    markProjectionStale
+} from './projection-freshness.js';
 
 const VALID_SPLIT_STRATEGIES = new Set(['auto_rate', 'top_down', 'manual']);
 const VALID_INTEREST_SOURCES = new Set(['account_rate', 'custom_rate', 'manual', 'none']);
+
+function occurrenceStatus(occurrence = {}) {
+    return String(occurrence?.status || 'planned').trim().toLowerCase();
+}
+
+function isHistoricalOccurrence(occurrence = {}) {
+    return (
+        occurrenceStatus(occurrence) === 'actual' ||
+        occurrenceStatus(occurrence) === 'skipped' ||
+        occurrence?.baselineAmount !== null &&
+        occurrence?.baselineAmount !== undefined
+    );
+}
+
+function reconcileRemovedRuleOccurrences(scenario, nextTransactions) {
+    const nextIds = new Set(
+        (Array.isArray(nextTransactions) ? nextTransactions : [])
+            .map((transaction) => Number(transaction?.id))
+            .filter(Boolean)
+    );
+    const removedIds = new Set(
+        (Array.isArray(scenario?.transactions) ? scenario.transactions : [])
+            .map((transaction) => Number(transaction?.id))
+            .filter((id) => id && !nextIds.has(id))
+    );
+    if (!removedIds.size) return;
+
+    const linkedOccurrences = (scenario?.transactionOccurrences || []).filter(
+        (occurrence) => removedIds.has(Number(occurrence?.sourceTransactionId))
+    );
+    const protectedOccurrences = linkedOccurrences.filter(isHistoricalOccurrence);
+    if (protectedOccurrences.length) {
+        const sourceIds = [...new Set(
+            protectedOccurrences.map((occurrence) => Number(occurrence.sourceTransactionId))
+        )].sort((left, right) => left - right);
+        const error = new Error(
+            `Cannot remove transaction rule${sourceIds.length === 1 ? '' : 's'} ` +
+            `${sourceIds.join(', ')} because recorded actual, skipped, or frozen baseline history depends on it.`
+        );
+        error.code = 'rule-history-protected';
+        error.details = {
+            sourceTransactionIds: sourceIds,
+            occurrenceKeys: protectedOccurrences.map((occurrence) => occurrence.occurrenceKey)
+        };
+        throw error;
+    }
+
+    scenario.transactionOccurrences = (scenario?.transactionOccurrences || []).filter(
+        (occurrence) => !removedIds.has(Number(occurrence?.sourceTransactionId))
+    );
+}
 
 function normalizeStatus(txn = {}) {
     let status;
@@ -18,8 +73,8 @@ function normalizeStatus(txn = {}) {
     } else {
         status = {
             name: txn.status === 'actual' ? 'actual' : 'planned',
-            actualAmount: txn.actualAmount || null,
-            actualDate: txn.actualDate || null
+            actualAmount: txn.actualAmount ?? null,
+            actualDate: txn.actualDate ?? null
         };
     }
 
@@ -55,7 +110,16 @@ function normalizeCanonicalTransactionRecord(txn = {}, id) {
         recurrence: txn.recurrence || null,
         periodicChange: txn.periodicChange || null,
         status,
-        tags: txn.tags || []
+        tags: txn.tags || [],
+        seriesRootId: txn.seriesRootId ?? null,
+        supersedesTransactionId: txn.supersedesTransactionId ?? null,
+        activeFrom: txn.activeFrom ?? txn.recurrence?.startDate ?? txn.effectiveDate ?? null,
+        activeTo: txn.activeTo ?? txn.recurrence?.endDate ?? null,
+        ...(txn.promotedFromOccurrenceKey
+            ? { promotedFromOccurrenceKey: String(txn.promotedFromOccurrenceKey) }
+            : {}),
+        ...(txn.createdAt ? { createdAt: txn.createdAt } : {}),
+        ...(txn.updatedAt ? { updatedAt: txn.updatedAt } : {})
     };
 }
 
@@ -122,7 +186,13 @@ function normalizeSplitTransactionSet(rawSet) {
         totalAmount: toPositiveNumber(rawSet.totalAmount) || 0,
         components,
         recurrence: rawSet.recurrence || null,
-        tags: Array.isArray(rawSet.tags) ? rawSet.tags : []
+        tags: Array.isArray(rawSet.tags) ? rawSet.tags : [],
+        seriesRootId: rawSet.seriesRootId ?? null,
+        supersedesTransactionGroupId: rawSet.supersedesTransactionGroupId ?? null,
+        activeFrom: rawSet.activeFrom ?? rawSet.recurrence?.startDate ?? rawSet.effectiveDate ?? null,
+        activeTo: rawSet.activeTo ?? rawSet.recurrence?.endDate ?? null,
+        ...(rawSet.createdAt ? { createdAt: rawSet.createdAt } : {}),
+        ...(rawSet.updatedAt ? { updatedAt: rawSet.updatedAt } : {})
     };
 }
 
@@ -133,7 +203,7 @@ function normalizeSplitTransactionSet(rawSet) {
  * @returns {Promise<void>}
  */
 export async function saveAll(scenarioId, transactions) {
-    return await DataStore.transaction(async (data) => {
+    const result = await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
 
         if (scenarioIndex === -1) {
@@ -142,13 +212,22 @@ export async function saveAll(scenarioId, transactions) {
 
         let nextId = allocateNextId(transactions);
 
-        data.scenarios[scenarioIndex].transactions = transactions.map((txn) => {
+        const scenario = data.scenarios[scenarioIndex];
+        const nextTransactions = transactions.map((txn) => {
             const id = (!txn.id || txn.id === 0) ? nextId++ : txn.id;
             return normalizeCanonicalTransactionRecord(txn, id);
         });
+        reconcileRemovedRuleOccurrences(scenario, nextTransactions);
+        scenario.transactions = nextTransactions;
+        markProjectionStale(
+            scenario,
+            'Transaction rules changed'
+        );
 
         return data;
     });
+    dispatchPlanChanged(scenarioId);
+    return result;
 }
 
 /**
@@ -158,7 +237,7 @@ export async function saveAll(scenarioId, transactions) {
  * @returns {Promise<Object>} - Full app-data after creation (extract last transaction from scenario)
  */
 export async function create(scenarioId, txnData) {
-    return await DataStore.transaction(async (data) => {
+    const result = await DataStore.transaction(async (data) => {
         const scenario = data.scenarios.find(s => s.id === scenarioId);
         if (!scenario) throw new Error(`Scenario ${scenarioId} not found`);
         if (!scenario.transactions) scenario.transactions = [];
@@ -166,8 +245,11 @@ export async function create(scenarioId, txnData) {
         const newTxn = normalizeCanonicalTransactionRecord(txnData, allocateNextId(scenario.transactions));
 
         scenario.transactions.push(newTxn);
+        markProjectionStale(scenario, 'Transaction rule created');
         return data;
     });
+    dispatchPlanChanged(scenarioId);
+    return result;
 }
 
 /**
@@ -184,7 +266,7 @@ export async function upsertSplitTransactionSet(
     scenarioId,
     { splitSet = null, componentTransactions = [], replaceTransactionGroupId = null, removeOnly = false } = {}
 ) {
-    return await DataStore.transaction(async (data) => {
+    const result = await DataStore.transaction(async (data) => {
         const scenario = data.scenarios.find((s) => s.id === scenarioId);
         if (!scenario) {
             throw new Error(`Scenario ${scenarioId} not found`);
@@ -211,6 +293,7 @@ export async function upsertSplitTransactionSet(
             nextTransactions = [...nextTransactions, ...normalizedComponents];
         }
 
+        reconcileRemovedRuleOccurrences(scenario, nextTransactions);
         scenario.transactions = nextTransactions;
 
         const existingSets = Array.isArray(scenario.splitTransactionSets) ? scenario.splitTransactionSets : [];
@@ -222,7 +305,13 @@ export async function upsertSplitTransactionSet(
             nextSets.push(normalizedSet);
         }
         scenario.splitTransactionSets = nextSets;
+        markProjectionStale(
+            scenario,
+            removeOnly ? 'Split transaction rule removed' : 'Split transaction rules changed'
+        );
 
         return data;
     });
+    dispatchPlanChanged(scenarioId);
+    return result;
 }

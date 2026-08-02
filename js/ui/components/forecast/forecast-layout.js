@@ -444,7 +444,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
 
   const { row: budgetSection, body: budgetBody } = buildDashRow({
     id: 'budgetSection',
-    title: 'Budget',
+    title: 'Plan & Actuals',
     defaultCollapsed: accordionStates['budgetSection'] !== true,
     onToggle: (isOpen) => onAccordionToggle?.('budgetSection', isOpen)
   });
@@ -456,7 +456,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
   budgetHeaderLeft.className = 'card-header-actions';
   const budgetLabel = document.createElement('div');
   budgetLabel.className = 'dash-panel-label';
-  budgetLabel.textContent = 'Budget';
+  budgetLabel.textContent = 'Plan & Actuals';
   budgetHeaderLeft.appendChild(budgetLabel);
   const budgetControls = document.createElement('div');
   budgetControls.className = 'card-header-controls';

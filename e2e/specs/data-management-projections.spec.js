@@ -33,7 +33,7 @@ test.describe('data management and projection browser flows', () => {
     for await (const chunk of stream) chunks.push(chunk);
     const exported = JSON.parse(Buffer.concat(chunks).toString('utf8'));
 
-    expect(exported.schemaVersion).toBe(43);
+    expect(exported.schemaVersion).toBe(44);
     expect(exported.scenarios[0].name).toBe('E2E Frontend Smoke');
   });
 
@@ -86,19 +86,16 @@ test.describe('data management and projection browser flows', () => {
     }).toBeNull();
   });
 
-  test('generates and clears projections from the Projections filter actions', async ({ page }) => {
+  test('refreshes projections from the Projections filter actions', async ({ page }) => {
     await selectWorkflow(page, 'General');
     expect((await currentScenario(page)).projection?.rows || []).toHaveLength(0);
 
     await openSectionFilters(page, '#projectionsSection');
-    await page.locator('.filter-modal button[title="Generate projections"]').click();
+    await page.locator('.filter-modal button[title="Refresh projections now"]').click();
     await waitForScenario(page, (scenario) => (scenario.projection?.rows || []).length > 0, 'projection rows generated');
     await closeFilterModal(page);
 
     await expect(page.locator('#projectionsContent')).not.toContainText('No projections available');
-
-    await openSectionFilters(page, '#projectionsSection');
-    await page.locator('.filter-modal button[title="Clear projections"]').click();
-    await waitForScenario(page, (scenario) => (scenario.projection?.rows || []).length === 0, 'projection rows cleared');
+    await expect(page.locator('#projectionsSection .projection-freshness')).toHaveText('Current');
   });
 });

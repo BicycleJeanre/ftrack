@@ -5,7 +5,7 @@
  */
 
 import {
-    assertSchemaVersion43,
+    assertCurrentSchemaVersion,
     createDefaultAppData,
     sanitizeAppDataForWrite
 } from '../../shared/app-data-utils.js';
@@ -30,7 +30,7 @@ export async function read() {
         }
 
         parsed = JSON.parse(dataString);
-        assertSchemaVersion43(parsed);
+        assertCurrentSchemaVersion(parsed);
         return sanitizeAppDataForWrite(parsed);
     } catch (err) {
         if (err && err.name === 'SchemaVersionError' && parsed) {
@@ -54,7 +54,7 @@ export async function read() {
  */
 export async function write(data) {
     try {
-        assertSchemaVersion43(data);
+        assertCurrentSchemaVersion(data);
         const sanitized = sanitizeAppDataForWrite(data);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
     } catch (err) {

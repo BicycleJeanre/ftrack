@@ -41,7 +41,8 @@ Workflows are Forecast UI presets (left navigation). They control which cards ar
 
 2.1 Budget.
 
-2.1.1 Use when you want plan vs actual tracking, budgets, and variance.
+2.1.1 Use when you want one unified Plan & Actuals workflow with baselines,
+period adjustments, actuals, and variance.
 
 2.2 General.
 

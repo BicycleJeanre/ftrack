@@ -23,12 +23,12 @@ const accounts = [
   }
 ];
 
-function makeScenario({ transactions = [], budgets = [] } = {}) {
+function makeScenario({ transactions = [], transactionOccurrences = [] } = {}) {
   return {
     id: 1,
     accounts,
     transactions,
-    budgets,
+    transactionOccurrences,
     splitTransactionSets: [],
     projection: {
       config: {
@@ -76,7 +76,7 @@ function makeLinkedBudget(overrides = {}) {
 test('a matched actual replaces the planned investor flow instead of being added to it', () => {
   const scenario = makeScenario({
     transactions: [makeContributionRule()],
-    budgets: [
+    transactionOccurrences: [
       makeLinkedBudget({
         status: {
           name: 'actual',
@@ -102,7 +102,7 @@ test('a matched actual replaces the planned investor flow instead of being added
 test('a skipped investor flow is excluded from fund totals', () => {
   const scenario = makeScenario({
     transactions: [makeContributionRule()],
-    budgets: [
+    transactionOccurrences: [
       makeLinkedBudget({
         status: {
           name: 'skipped',
@@ -125,7 +125,7 @@ test('a skipped investor flow is excluded from fund totals', () => {
 
 test('source-less manual actual Equity-to-Asset flows are included as contributions and redemptions', () => {
   const scenario = makeScenario({
-    budgets: [
+    transactionOccurrences: [
       {
         id: 201,
         sourceTransactionId: null,

@@ -47,19 +47,33 @@ test.describe('frontend add and remove functionality', () => {
     await waitForCollectionCount(page, 'transactions', before);
   });
 
-  test('adds and removes a budget entry from the Budget workflow', async ({ page }) => {
+  test('adds a planned item from the unified Plan & Actuals workflow', async ({ page }) => {
     await selectWorkflow(page, 'Budget');
-    const before = (await currentScenario(page)).budgets.length;
+    const before = (await currentScenario(page)).transactionOccurrences.length;
 
     await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal button[title="Add Budget Entry"]').click();
-    await waitForCollectionCount(page, 'budgets', before + 1);
+    await page.locator('.filter-modal button[title="Add item"]').click();
     await closeFilterModal(page);
 
-    const deleteButtons = page.locator('#budgetTable button[title="Delete Budget Entry"]');
-    await expect(deleteButtons).toHaveCount(before + 1);
-    await deleteButtons.last().click();
-    await confirmDialog(page);
-    await waitForCollectionCount(page, 'budgets', before);
+    const form = page.locator('#budgetSection .plan-actuals-new-item form');
+    await expect(form).toBeVisible();
+    await form.locator('.grid-summary-field', { hasText: 'Secondary account' })
+      .locator('select')
+      .selectOption('5');
+    await form.locator('.grid-summary-field', { hasText: 'Date' })
+      .locator('input')
+      .fill('2026-01-20');
+    await form.locator('.grid-summary-field', { hasText: 'Current plan' })
+      .locator('input')
+      .fill('87.65');
+    await form.locator('.grid-summary-field', { hasText: 'Description' })
+      .locator('input')
+      .fill('Unexpected school supplies');
+    await form.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForCollectionCount(page, 'transactionOccurrences', before + 1);
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Unexpected school supplies'
+    })).toBeVisible();
   });
 });

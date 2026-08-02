@@ -1,11 +1,12 @@
 # Unified Budget, Transactions, Actuals, And Projections Workflow
 
-Status: Approved for implementation
+Status: Implemented on `dev`
 Owner: Jay
 Date: 2026-08-02
 Approved: 2026-08-02
 Branch: `dev`
-Purpose: Approved workflow and phased implementation plan. Official user and technical documentation will be reconciled as each behavior is implemented and validated.
+Implemented: 2026-08-02
+Purpose: Approved workflow, implementation record, acceptance contract, and testing handoff for the unified Plan & Actuals workflow.
 
 ## 1. Recommendation
 
@@ -714,7 +715,7 @@ Likely files:
 - projection unit tests
 - QC workflow extraction and expected outputs
 
-### Phase 3: Convert Budget Into A Live Period View
+### Phase 3: Convert Budget Into A Live Period View — Implemented 2026-08-02
 
 Change the Budget grid so it:
 
@@ -741,7 +742,7 @@ Likely files:
 - toolbar totals
 - budget browser tests
 
-### Phase 4: Merge The User-Facing Cards
+### Phase 4: Merge The User-Facing Cards — Implemented 2026-08-02
 
 Create one component with:
 
@@ -770,13 +771,14 @@ Likely files:
 - `js/ui/controllers/forecast-controller.js`
 - styles and responsive tests
 
-### Phase 5: Add Series Scope Commands
+### Phase 5: Add Series Scope Commands — Implemented 2026-08-02
 
 Implement application commands rather than embedding persistence logic in the grid:
 
 - `updateOccurrenceOnly`
 - `updateThisAndFuture`
 - `updateEntireSeries`
+- `updateSplitSeries`
 - `markActual`
 - `markSkipped`
 - `rescheduleOccurrence`
@@ -791,7 +793,7 @@ Likely files:
 - recurrence helpers
 - command-level unit tests
 
-### Phase 6: Migrate To The Clean Schema
+### Phase 6: Migrate To The Clean Schema — Implemented 2026-08-02
 
 Introduce the next schema version.
 
@@ -826,7 +828,7 @@ Likely files:
 - import/export tests and fixtures
 - schema documentation
 
-### Phase 7: Remove Compatibility Code And Update Documentation
+### Phase 7: Remove Compatibility Code And Update Documentation — Implemented 2026-08-02
 
 Remove:
 
@@ -1035,11 +1037,12 @@ The redesign is successful when:
 | Entire series edits | Affect the current and future unresolved occurrences only; never rewrite actuals or past periods |
 | Repeat going forward | Starts on the next recurrence date |
 
-## 19. Recommended First Implementation Slice
+## 19. Implemented First Slice
 
-The safest first slice is not the UI merge.
+Implementation began with the resolver rather than the UI merge.
 
-Implement and test `resolveScenarioOccurrences()` against the existing schema:
+The first slice implemented and tested `resolveScenarioOccurrences()` against
+the existing schema:
 
 - transactions remain rules;
 - budgets temporarily act as occurrence overrides;
@@ -1047,7 +1050,8 @@ Implement and test `resolveScenarioOccurrences()` against the existing schema:
 - manual budget rows are included;
 - projections consume the resolved output.
 
-This immediately establishes correct projection semantics and gives the later unified UI one reliable domain contract.
+That established correct projection semantics and gave the later unified UI
+one reliable domain contract.
 
 ## 20. Audit Evidence
 
@@ -1059,21 +1063,21 @@ The proposal was checked against the following implementation and documentation 
 | Historical `Documentation/BUDGET_REQUIREMENTS.md` | The separate editable Budget snapshot was intentional, including occurrence overrides and persistent actuals. |
 | Historical `TRANSACTION_FLOW_REFACTOR.md` | Canonical unsigned transactions and account-perspective row flipping were deliberate design decisions that must be preserved. |
 | Historical January 2026 combined-grid commit | FTrack previously unified planned and actual transaction storage and had a dedicated actual-details modal. |
-| `Documentation/TECH_DATA_SCHEMA.md` | Current official schema separates `transactions`, `budgets`, `budgetWindow`, and projection source. |
-| `js/app/managers/transaction-manager.js` | Transactions still normalize planned/actual status, amount, and actual date despite the current UI hiding that workflow. |
+| Historical pre-implementation `Documentation/TECH_DATA_SCHEMA.md` | The prior official schema separated `transactions`, `budgets`, `budgetWindow`, and projection source. The current document now defines schemaVersion 44. |
+| `js/app/managers/transaction-manager.js` | Transaction rules retain recurrence, split, periodic-change, and series metadata while occurrence status is managed separately. |
 | `js/domain/calculations/transaction-expander.js` | One expander already supports recurring planned, one-time planned, and actual records. |
-| `js/app/managers/budget-manager.js` | Budget “creation from projections” actually expands transactions over the budget window and copies them into `budgets`. |
+| Historical deleted `js/app/managers/budget-manager.js` | The old Budget “creation from projections” expanded transactions over a budget window and copied them into `budgets`; Phase 7 removed it. |
 | `js/ui/components/grids/transactions-grid.js` | Transactions own recurrence, periodic change, tags, split editing, and recurring-rule persistence. |
-| `js/ui/components/grids/budget-grid.js` | Budget owns occurrence edits, actual status, actual amount/date, manual period entries, and separate generation/window actions. |
-| `js/domain/calculations/projection-engine.js` | Projection generation branches between transaction and budget sources; the budget mapping filters actuals and uses a field name inconsistent with stored `occurrenceDate`. |
-| `js/ui/components/forecast/forecast-projections-section.js` | Projection display reconstructs source occurrences separately from the engine and repeats the same source-selection assumptions. |
+| Historical deleted `js/ui/components/grids/budget-grid.js` | The old Budget grid owned occurrence edits plus separate generation/window actions; Phase 3 replaced it with `plan-actuals-grid.js`. |
+| `js/domain/calculations/projection-engine.js` | Projection generation now consumes the canonical resolved occurrence timeline only. |
+| `js/ui/components/forecast/forecast-projections-section.js` | Projection display uses the persisted resolved-plan projection bundle and visible freshness state. |
 | `js/ui/queries/financial-entry-display-rows.js` | Shared transaction-like perspective-row selection is already available for reuse. |
-| `js/ui/transforms/data-aggregators.js` | Budget and transaction totals are separate and a unified baseline/current/actual comparison model is still missing. |
-| `js/shared/workflow-registry.js` | Budget workflow visibly exposes both Transactions and Budget, while other workflows expose only Transactions. |
-| `js/shared/app-data-utils.js` and `migration-utils.js` | Runtime normalization and migration preserve the duplicated arrays, independent budget window, and projection source choice. |
-| `js/app/services/validation-service.js` | Validation still requires transaction status while also containing older scenario-field assumptions, so schema cleanup must include validator reconciliation. |
-| Unit, QC, and Playwright suites | Existing coverage protects recurrence, perspective rows, manager normalization, budget actuals, projections, workflows, imports, and responsive behavior, but does not cover one resolved rule/occurrence timeline. |
-| Current user and technical guides | Several documents still describe removed or contradictory “Actual Transactions,” “Save as Budget,” and “Project from Budget” flows. |
+| `js/ui/transforms/data-aggregators.js` | Unified totals compare frozen baseline movement, current plan, actuals, open commitments, forecast, variances, and unplanned actuals. |
+| `js/shared/workflow-registry.js` | The Budget workflow exposes one Plan & Actuals card; the former separate Transactions and Budget cards are no longer registered. |
+| `js/shared/app-data-utils.js` and `migration-utils.js` | Runtime normalization and migration enforce schemaVersion 44, materialize historical snapshots, and preserve ambiguous legacy rows in a migration report. |
+| `js/app/services/validation-service.js` | Validation enforces rule/occurrence separation, stable keys, actual and baseline snapshot provenance, freshness metadata, and removal of legacy fields. |
+| Unit, QC, and Playwright suites | Current coverage protects the resolved timeline, occurrence/series/split commands, migration recovery, projections, workflows, imports, responsiveness, and persisted-stale recovery. |
+| Current user and technical guides | Current guides describe the unified Plan & Actuals workflow; old generation/source-choice wording is retained only in clearly historical documents. |
 
 ## 21. Implementation Progress
 
@@ -1091,11 +1095,35 @@ The proposal was checked against the following implementation and documentation 
 - Made QC use the same resolved occurrence input, surface resolver diagnostics, and run the Advanced Goal Solver projection workflow.
 - Added unit, QC, build, and browser regression coverage for the compatibility slice.
 
-### 21.2 Deliberately Deferred To The Next Phases
+### 21.2 Completed In Phases 3–7 On 2026-08-02
 
-- The Budget screen is still the compatibility grid and still exposes generation/window actions. Phase 3 will convert it to a live resolved period view.
-- The Budget workflow still has separate Transactions and Budget cards. Phase 4 will replace them with the approved **Plan & Actuals** card.
-- Period-wide automatic baseline freeze and the manual **Freeze baseline** action require the Phase 5 command layer. The compatibility manager currently freezes the occurrence being actualized, not every occurrence in the reporting period.
-- “This occurrence,” “This and future,” “Entire series,” and “Repeat going forward” commands remain Phase 5 work.
-- Debounced automatic projection refresh, visible stale state, and reliable secondary-account projection grouping remain part of the UI phases. Stored projection totals and live grouping must not be presented as synchronized until that provenance work is complete.
-- SchemaVersion 43 remains in place. The `budgets`, `budgetWindow`, and legacy projection `source` fields stay readable until the tested Phase 6 migration.
+- Replaced the generated Budget snapshot with a live **Plan & Actuals** Period view over resolved occurrences.
+- Merged the separate Budget-workflow Transactions and Budget cards into one card with **Period** and **Recurring** modes.
+- Added quick planned and actual entry, skip/restore, duplication, rescheduling, baseline freeze, actualization, and promotion of learned costs into future recurring rules.
+- Added explicit **This occurrence**, **This and future**, and **Entire series** behavior. Recurring split-set edits use one atomic scoped command across all components.
+- Added normal and split recurring creation, editable receiving/paying accounts, whole-rule and whole-split duplication, abandoned-draft cleanup, and history-safe **End recurring series** behavior.
+- End Series bounds every rule and split component before the next unresolved occurrence, removes later unresolved segments, preserves prior history, and visibly refuses to cross protected future actual/skipped/frozen evidence.
+- Added immutable actual metadata snapshots and separate frozen-baseline movement snapshots so later rule edits cannot rewrite history or reverse baseline direction/account allocation.
+- Added history-aware deletion guards: rules or accounts cannot be removed when actual, skipped, or frozen-baseline history depends on them; safe unfrozen overrides cascade cleanly.
+- Added automatic debounced projection refresh, truthful Pending/Stale/Refreshing/Current state, persisted-stale restart recovery, and an atomic stale-revision save guard.
+- Migrated persistence to schemaVersion 44 with `transactionOccurrences` and `baselinePeriods`; removed `budgets`, `budgetWindow`, and `projection.config.source`.
+- Added deterministic migration recovery reporting for invalid, orphaned, duplicate, and conflicting actual rows, including differing legacy actual/source IDs and split-role identity.
+- Removed the obsolete Budget manager, duplicate Budget grid, and temporary Budget data-service aliases.
+- Reconciled current user/technical documentation and regenerated the documentation manifest.
+
+## 22. Test Handoff
+
+Use the **Budget** workflow and its **Plan & Actuals** card for manual acceptance:
+
+1. In **Recurring**, create or edit a Money In and Money Out rule and confirm the movement reads source → destination.
+2. Change the receiving/paying account and confirm the opposite account is excluded from the counterparty selector.
+3. Edit a normal recurring rule with both **This and future** and **Entire series** scopes.
+4. Create a recurring split payment, then change principal and interest with both scopes.
+5. Duplicate a normal rule and a whole split set. End one series and confirm its prior actual/baseline history and independent copy remain.
+6. Start creating a split rule, then use **Discard recurring split draft** and confirm no grouped rule remains.
+7. In **Period**, add a planned extra cost, mark it actual, skip and restore another item, and duplicate an item.
+8. Add an unexpected actual and use its repeat control to create a future recurring rule.
+9. Freeze a period, then change a future rule’s amount, accounts, and direction. Confirm Baseline stays original while Current Plan changes.
+10. Confirm the totals show Baseline Net, Current Plan Net, Actual Net, Open Commitments, Forecast Net, both variances, and Unplanned Actuals.
+11. Confirm projections briefly show Stale/Refreshing after a plan change and return to Current automatically.
+12. Export and re-import the data, then confirm actuals, baselines, recurring scopes, and projection freshness remain intact.

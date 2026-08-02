@@ -1,5 +1,5 @@
 // projection-engine.js
-// Generates financial projections for a scenario based on accounts and planned transactions
+// Generates financial projections from accounts and the resolved Plan & Actuals timeline.
 // Uses scenario-scoped data and calculation utilities
 
 import { generateRecurrenceDates, calculatePeriodicChange } from './calculation-engine.js';
@@ -220,7 +220,6 @@ function createDerivedPeriodicChangeOccurrence({
  * Generate projections for a scenario
  * @param {number} scenarioId - The scenario ID to generate projections for
  * @param {Object} options - Generation options
- * @param {string} options.source - Retained for schemaVersion 43 compatibility; calculation always uses the resolved plan
  * @param {string} options.asOfDate - Optional YYYY-MM-DD date for overdue open commitments
  * @param {string} options.openCommitmentStartDate - Optional explicit history boundary for overdue commitments
  * @param {string} options.periodicity - 'daily', 'weekly', 'monthly' (default), 'quarterly', 'yearly'
@@ -236,11 +235,19 @@ export async function generateProjections(scenarioId, options = {}) {
   const projectionConfig = getProjectionConfig({ scenario, options });
   const projections = await generateProjectionsForScenario(scenario, options, lookupData);
 
-  await saveProjectionBundle(scenarioId, {
+  const saved = await saveProjectionBundle(scenarioId, {
     config: projectionConfig,
     rows: projections,
-    generatedAt: new Date().toISOString()
+    generatedAt: new Date().toISOString(),
+    expectedStaleAt: scenario?.projection?.staleAt ?? null
   });
+  if (!saved) {
+    const error = new Error(
+      'Projection inputs changed during refresh. The newer plan will be recalculated next.'
+    );
+    error.code = 'projection-inputs-changed';
+    throw error;
+  }
 
   return projections;
 }
@@ -266,7 +273,6 @@ function getProjectionConfig({ scenario, options = {} }) {
   const endDate = options.endDate || config.endDate || null;
   const periodTypeIdRaw = options.periodTypeId ?? config.periodTypeId ?? 3;
   const periodTypeId = coercePeriodTypeId(periodTypeIdRaw) || 3;
-  const source = options.source || config.source || 'transactions';
   const asOfDate = options.asOfDate ?? config.asOfDate ?? null;
   const openCommitmentStartDate =
     options.openCommitmentStartDate ?? config.openCommitmentStartDate ?? null;
@@ -275,7 +281,6 @@ function getProjectionConfig({ scenario, options = {} }) {
     startDate,
     endDate,
     periodTypeId,
-    source: source === 'budget' ? 'budget' : 'transactions',
     ...(asOfDate ? { asOfDate } : {}),
     ...(openCommitmentStartDate ? { openCommitmentStartDate } : {})
   };
@@ -314,7 +319,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
         amount: occurrence.forecastAmount,
         description: occurrence.description || '',
         sourceTransactionId: occurrence.sourceTransactionId,
-        sourceBudgetId: occurrence.sourceBudgetId,
+        sourceOccurrenceId: occurrence.sourceOccurrenceId ?? null,
         occurrenceKey: occurrence.occurrenceKey,
         source: 'resolved-plan',
         transactionGroupId: occurrence.transactionGroupId ?? null,
@@ -699,13 +704,4 @@ function generatePeriods(start, end, periodicity) {
   }
 
   return periods;
-}
-
-/**
- * Clear projections for a scenario
- * @param {number} scenarioId - The scenario ID
- * @returns {Promise<void>}
- */
-export async function clearProjections(scenarioId) {
-  await saveProjectionBundle(scenarioId, { rows: [], generatedAt: null });
 }

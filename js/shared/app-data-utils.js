@@ -1,11 +1,13 @@
 // app-data-utils.js
-// Shared helpers for persisting schemaVersion 43 app data.
+// Shared helpers for persisting schemaVersion 44 app data.
 
 import { DEFAULT_WORKFLOW_ID, getWorkflowById } from './workflow-registry.js';
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
 
-export const CURRENT_SCHEMA_VERSION = 43;
+export const CURRENT_SCHEMA_VERSION = 44;
 export const DEFAULT_PERIOD_TYPE_ID = 3; // Month
+const VALID_OCCURRENCE_STATUSES = new Set(['planned', 'actual', 'skipped']);
+const VALID_OCCURRENCE_ORIGINS = new Set(['generated', 'manual', 'migrated']);
 
 export class SchemaVersionError extends Error {
   constructor({ expected, actual, message } = {}) {
@@ -18,7 +20,7 @@ export class SchemaVersionError extends Error {
   }
 }
 
-export function assertSchemaVersion43(rawAppData) {
+export function assertCurrentSchemaVersion(rawAppData) {
   const actual = rawAppData && typeof rawAppData === 'object' ? rawAppData.schemaVersion : null;
   if (actual !== CURRENT_SCHEMA_VERSION) {
     throw new SchemaVersionError({
@@ -26,8 +28,7 @@ export function assertSchemaVersion43(rawAppData) {
       actual,
       message:
         `Unsupported schemaVersion ${actual == null ? 'missing' : actual}. ` +
-        `This build requires schemaVersion ${CURRENT_SCHEMA_VERSION}. ` +
-        'Run the standalone migration tool (QC-only) to convert legacy data to schemaVersion 43.'
+        `This build requires schemaVersion ${CURRENT_SCHEMA_VERSION}.`
     });
   }
 }
@@ -104,7 +105,7 @@ export function createDefaultUiState(overrides = {}) {
     lastScenarioVersion: null,
     viewPeriodTypeIds: {
       transactions: DEFAULT_PERIOD_TYPE_ID,
-      budgets: DEFAULT_PERIOD_TYPE_ID,
+      planActuals: DEFAULT_PERIOD_TYPE_ID,
       projections: DEFAULT_PERIOD_TYPE_ID,
       ...(overrides.viewPeriodTypeIds || {})
     },
@@ -136,7 +137,10 @@ export function normalizeUiState(raw) {
     lastScenarioVersion: base.lastScenarioVersion == null ? null : Number(base.lastScenarioVersion),
     viewPeriodTypeIds: {
       transactions: cleanPeriod(view.transactions) ?? DEFAULT_PERIOD_TYPE_ID,
-      budgets: cleanPeriod(view.budgets) ?? DEFAULT_PERIOD_TYPE_ID,
+      planActuals:
+        cleanPeriod(view.planActuals) ??
+        cleanPeriod(view.budgets) ??
+        DEFAULT_PERIOD_TYPE_ID,
       projections: cleanPeriod(view.projections) ?? DEFAULT_PERIOD_TYPE_ID
     },
     accordionStates
@@ -178,7 +182,6 @@ export function normalizeProjectionConfig(rawConfig) {
       : (typeof periodTypeIdRaw === 'object' ? Number(periodTypeIdRaw?.id) : mapPeriodTypeNameToId(periodTypeIdRaw)) ||
         DEFAULT_PERIOD_TYPE_ID;
 
-  const source = base.source === 'budget' ? 'budget' : 'transactions';
   let startDate = normalizeDateOnlyString(base.startDate) || defaults.startDate;
   let endDate = normalizeDateOnlyString(base.endDate) || defaults.endDate;
 
@@ -194,7 +197,6 @@ export function normalizeProjectionConfig(rawConfig) {
     startDate,
     endDate,
     periodTypeId: Number.isFinite(Number(periodTypeId)) ? Number(periodTypeId) : DEFAULT_PERIOD_TYPE_ID,
-    source,
     ...(asOfDate ? { asOfDate } : {}),
     ...(openCommitmentStartDate && openCommitmentStartDate <= startDate
       ? { openCommitmentStartDate }
@@ -202,12 +204,193 @@ export function normalizeProjectionConfig(rawConfig) {
   };
 }
 
-function normalizeBudgetWindowConfig(rawConfig) {
-  const base = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+function optionalId(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function optionalAmount(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.abs(number) : null;
+}
+
+function optionalText(value) {
+  if (value === null || value === undefined) return null;
+  return String(value);
+}
+
+export function normalizeTransactionRule(rawTransaction) {
+  const transaction = rawTransaction && typeof rawTransaction === 'object' ? rawTransaction : {};
+  const transactionTypeId = Number(transaction.transactionTypeId) === 1 ? 1 : 2;
 
   return {
-    startDate: typeof base.startDate === 'string' && base.startDate ? base.startDate : null,
-    endDate: typeof base.endDate === 'string' && base.endDate ? base.endDate : null
+    id: Number(transaction.id) || 0,
+    seriesRootId: optionalId(transaction.seriesRootId),
+    supersedesTransactionId: optionalId(transaction.supersedesTransactionId),
+    promotedFromOccurrenceKey: optionalText(transaction.promotedFromOccurrenceKey),
+    primaryAccountId: optionalId(transaction.primaryAccountId),
+    secondaryAccountId: optionalId(transaction.secondaryAccountId),
+    transactionTypeId,
+    amount: Math.abs(Number(transaction.amount) || 0),
+    description: String(transaction.description || ''),
+    recurrence: transaction.recurrence && typeof transaction.recurrence === 'object'
+      ? transaction.recurrence
+      : null,
+    periodicChange: transaction.periodicChange && typeof transaction.periodicChange === 'object'
+      ? transaction.periodicChange
+      : null,
+    effectiveDate: normalizeDateOnlyString(transaction.effectiveDate),
+    activeFrom: normalizeDateOnlyString(transaction.activeFrom),
+    activeTo: normalizeDateOnlyString(transaction.activeTo),
+    transactionGroupId: transaction.transactionGroupId ?? null,
+    transactionGroupRole: optionalText(transaction.transactionGroupRole),
+    transactionGroupAccountGroupId: optionalId(transaction.transactionGroupAccountGroupId),
+    capitalAmount: optionalAmount(transaction.capitalAmount),
+    interestAmount: optionalAmount(transaction.interestAmount),
+    tags: Array.isArray(transaction.tags) ? [...transaction.tags] : [],
+    createdAt: optionalText(transaction.createdAt),
+    updatedAt: optionalText(transaction.updatedAt)
+  };
+}
+
+export function normalizeTransactionOccurrence(rawOccurrence) {
+  const occurrence = rawOccurrence && typeof rawOccurrence === 'object' ? rawOccurrence : {};
+  const rawStatus = String(occurrence.status || '').trim().toLowerCase();
+  const rawOrigin = String(occurrence.origin || '').trim().toLowerCase();
+
+  return {
+    id: Number(occurrence.id) || 0,
+    sourceTransactionId: optionalId(occurrence.sourceTransactionId),
+    occurrenceKey: String(occurrence.occurrenceKey || '').trim(),
+    scheduledDate: normalizeDateOnlyString(occurrence.scheduledDate),
+    plannedDate: normalizeDateOnlyString(occurrence.plannedDate),
+    actualDate: normalizeDateOnlyString(occurrence.actualDate),
+    baselineAmount: optionalAmount(occurrence.baselineAmount),
+    baselinePrimaryAccountId: optionalId(occurrence.baselinePrimaryAccountId),
+    baselineSecondaryAccountId: optionalId(occurrence.baselineSecondaryAccountId),
+    baselineTransactionTypeId:
+      Number(occurrence.baselineTransactionTypeId) === 1
+        ? 1
+        : (Number(occurrence.baselineTransactionTypeId) === 2 ? 2 : null),
+    baselineSnapshotVersion:
+      Number(occurrence.baselineSnapshotVersion) === 1 ? 1 : null,
+    plannedAmount: optionalAmount(occurrence.plannedAmount),
+    actualAmount: optionalAmount(occurrence.actualAmount),
+    status: VALID_OCCURRENCE_STATUSES.has(rawStatus) ? rawStatus : 'planned',
+    origin: VALID_OCCURRENCE_ORIGINS.has(rawOrigin) ? rawOrigin : 'manual',
+    actualSnapshotVersion:
+      Number(occurrence.actualSnapshotVersion) === 1 ? 1 : null,
+    isOverride:
+      typeof occurrence.isOverride === 'boolean'
+        ? occurrence.isOverride
+        : null,
+    primaryAccountId: optionalId(occurrence.primaryAccountId),
+    secondaryAccountId: optionalId(occurrence.secondaryAccountId),
+    transactionTypeId:
+      Number(occurrence.transactionTypeId) === 1
+        ? 1
+        : (Number(occurrence.transactionTypeId) === 2 ? 2 : null),
+    description: optionalText(occurrence.description),
+    tags: Array.isArray(occurrence.tags) ? [...occurrence.tags] : null,
+    transactionGroupId: occurrence.transactionGroupId ?? null,
+    transactionGroupRole: optionalText(occurrence.transactionGroupRole),
+    transactionGroupAccountGroupId: optionalId(occurrence.transactionGroupAccountGroupId),
+    capitalAmount: optionalAmount(occurrence.capitalAmount),
+    interestAmount: optionalAmount(occurrence.interestAmount),
+    recurrence:
+      occurrence.recurrence && typeof occurrence.recurrence === 'object'
+        ? occurrence.recurrence
+        : null,
+    recurrenceDescription: optionalText(occurrence.recurrenceDescription),
+    periodicChange:
+      occurrence.periodicChange && typeof occurrence.periodicChange === 'object'
+        ? occurrence.periodicChange
+        : null,
+    createdAt: optionalText(occurrence.createdAt),
+    updatedAt: optionalText(occurrence.updatedAt)
+  };
+}
+
+function materializeOccurrenceSnapshots(occurrence, transactions) {
+  const source = occurrence?.sourceTransactionId == null
+    ? null
+    : transactions.find(
+      (transaction) =>
+        Number(transaction?.id) === Number(occurrence.sourceTransactionId)
+    ) || null;
+  let next = { ...occurrence };
+
+  if (next.status === 'actual' && next.actualSnapshotVersion !== 1) {
+    const fallback = (field, emptyValue = null) => (
+      next[field] !== null && next[field] !== undefined
+        ? next[field]
+        : (source?.[field] !== null && source?.[field] !== undefined
+          ? source[field]
+          : emptyValue)
+    );
+    next = {
+      ...next,
+      primaryAccountId: fallback('primaryAccountId'),
+      secondaryAccountId: fallback('secondaryAccountId'),
+      transactionTypeId: fallback('transactionTypeId'),
+      description: fallback('description', ''),
+      tags: Array.isArray(next.tags)
+        ? [...next.tags]
+        : (Array.isArray(source?.tags) ? [...source.tags] : []),
+      transactionGroupId: fallback('transactionGroupId'),
+      transactionGroupRole: fallback('transactionGroupRole'),
+      transactionGroupAccountGroupId: fallback('transactionGroupAccountGroupId'),
+      capitalAmount: fallback('capitalAmount'),
+      interestAmount: fallback('interestAmount'),
+      recurrence:
+        next.recurrence !== null && next.recurrence !== undefined
+          ? next.recurrence
+          : (source?.recurrence ?? null),
+      recurrenceDescription: fallback('recurrenceDescription', ''),
+      periodicChange:
+        next.periodicChange !== null && next.periodicChange !== undefined
+          ? next.periodicChange
+          : (source?.periodicChange ?? null),
+      actualSnapshotVersion: 1
+    };
+  }
+
+  if (
+    next.baselineAmount !== null &&
+    next.baselineAmount !== undefined &&
+    next.baselineSnapshotVersion !== 1
+  ) {
+    next = {
+      ...next,
+      baselinePrimaryAccountId:
+        next.baselinePrimaryAccountId ?? next.primaryAccountId ?? source?.primaryAccountId ?? null,
+      baselineSecondaryAccountId:
+        next.baselineSecondaryAccountId ?? next.secondaryAccountId ?? source?.secondaryAccountId ?? null,
+      baselineTransactionTypeId:
+        next.baselineTransactionTypeId ?? next.transactionTypeId ?? source?.transactionTypeId ?? null,
+      baselineSnapshotVersion: 1
+    };
+  }
+
+  return next;
+}
+
+export function normalizeBaselinePeriod(rawPeriod) {
+  const period = rawPeriod && typeof rawPeriod === 'object' ? rawPeriod : {};
+  const periodTypeId = Number(period.periodTypeId);
+  const startDate = normalizeDateOnlyString(period.startDate);
+  const endDate = normalizeDateOnlyString(period.endDate);
+
+  return {
+    periodTypeId:
+      Number.isFinite(periodTypeId) && periodTypeId >= 1 && periodTypeId <= 5
+        ? periodTypeId
+        : DEFAULT_PERIOD_TYPE_ID,
+    startDate,
+    endDate,
+    frozenAt: optionalText(period.frozenAt)
   };
 }
 
@@ -276,29 +459,48 @@ export function normalizeScenario(rawScenario) {
 
   const accounts = Array.isArray(base.accounts) ? base.accounts : [];
   const accountGroups = Array.isArray(base.accountGroups) ? base.accountGroups : [];
-  const transactions = Array.isArray(base.transactions) ? base.transactions : [];
+  const transactions = Array.isArray(base.transactions)
+    ? base.transactions.map(normalizeTransactionRule)
+    : [];
   const splitTransactionSetsRaw = Array.isArray(base.splitTransactionSets) ? base.splitTransactionSets : [];
   const splitTransactionSets = splitTransactionSetsRaw.length
     ? splitTransactionSetsRaw
     : deriveSplitTransactionSets(transactions);
-  const budgets = Array.isArray(base.budgets) ? base.budgets : [];
+  const transactionOccurrences = Array.isArray(base.transactionOccurrences)
+    ? base.transactionOccurrences
+      .map(normalizeTransactionOccurrence)
+      .map((occurrence) => materializeOccurrenceSnapshots(occurrence, transactions))
+    : [];
+  const baselinePeriods = Array.isArray(base.baselinePeriods)
+    ? base.baselinePeriods.map(normalizeBaselinePeriod)
+    : [];
 
   const projectionConfig = normalizeProjectionConfig(base.projection?.config);
   const rows = Array.isArray(base.projection?.rows) ? base.projection.rows : [];
+  const generatedAt =
+    typeof base.projection?.generatedAt === 'string'
+      ? base.projection.generatedAt
+      : null;
+  const stale = base.projection?.stale === true;
+  const staleAt =
+    typeof base.projection?.staleAt === 'string'
+      ? base.projection.staleAt
+      : null;
+  const staleReason =
+    typeof base.projection?.staleReason === 'string' && base.projection.staleReason.trim()
+      ? base.projection.staleReason.trim()
+      : null;
 
   const projection =
     projectionConfig && projectionConfig.startDate && projectionConfig.endDate
       ? {
           config: projectionConfig,
-          ...(rows.length ? { rows } : {}),
-          generatedAt: base.projection?.generatedAt ?? null
+          rows,
+          generatedAt,
+          stale,
+          staleAt: stale ? staleAt : null,
+          staleReason: stale ? staleReason : null
         }
-      : null;
-
-  const budgetWindowConfig = normalizeBudgetWindowConfig(base.budgetWindow?.config);
-  const budgetWindow =
-    budgetWindowConfig && (budgetWindowConfig.startDate || budgetWindowConfig.endDate)
-      ? { config: budgetWindowConfig }
       : null;
 
   const planning = base.planning && typeof base.planning === 'object' ? base.planning : {};
@@ -324,8 +526,7 @@ export function normalizeScenario(rawScenario) {
 
   const lineage = base.lineage && typeof base.lineage === 'object' ? base.lineage : null;
 
-  return {
-    ...base,
+  const normalized = {
     id,
     version,
     name,
@@ -335,42 +536,23 @@ export function normalizeScenario(rawScenario) {
     accountGroups,
     splitTransactionSets,
     transactions,
-    budgets,
-    budgetWindow,
+    transactionOccurrences,
+    baselinePeriods,
     projection,
     planning: nextPlanning
   };
+
+  if (base.advancedGoalSettings !== undefined) normalized.advancedGoalSettings = base.advancedGoalSettings;
+  if (base.fundSettings !== undefined) normalized.fundSettings = base.fundSettings;
+  return normalized;
 }
 
 export function getScenarioProjectionRows(scenario) {
   return scenario?.projection?.rows || [];
 }
 
-export function getScenarioBudgetWindowConfig(scenario) {
-  return scenario?.budgetWindow?.config || null;
-}
-
-export function setScenarioBudgetWindowConfig(scenario, config) {
-  if (!scenario) return;
-  if (!scenario.budgetWindow) {
-    scenario.budgetWindow = {};
-  }
-  scenario.budgetWindow.config = config;
-}
-
 export function sanitizeScenarioForWrite(rawScenario) {
   const scenario = normalizeScenario(rawScenario);
-
-  // Validate: if budgets exist, budgetWindow.config must be present with startDate and endDate
-  if (scenario.budgets && scenario.budgets.length > 0) {
-    const budgetConfig = scenario.budgetWindow?.config;
-    if (!budgetConfig || !budgetConfig.startDate || !budgetConfig.endDate) {
-      throw new Error(
-        `Scenario "${scenario.name}" has budgets but is missing required budgetWindow configuration. ` +
-        `budgetWindow.config must have both startDate and endDate.`
-      );
-    }
-  }
 
   const next = {
     id: scenario.id,
@@ -381,9 +563,9 @@ export function sanitizeScenarioForWrite(rawScenario) {
     accounts: scenario.accounts || [],
     accountGroups: scenario.accountGroups || [],
     splitTransactionSets: scenario.splitTransactionSets || [],
-    ...(scenario.transactions ? { transactions: scenario.transactions } : {}),
-    ...(scenario.budgets ? { budgets: scenario.budgets } : {}),
-    ...(scenario.budgetWindow !== undefined ? { budgetWindow: scenario.budgetWindow } : {}),
+    transactions: scenario.transactions || [],
+    transactionOccurrences: scenario.transactionOccurrences || [],
+    baselinePeriods: scenario.baselinePeriods || [],
     ...(scenario.projection !== undefined ? { projection: scenario.projection } : {}),
     ...(scenario.planning ? { planning: scenario.planning } : {})
   };
@@ -396,11 +578,15 @@ export function sanitizeScenarioForWrite(rawScenario) {
 
 export function sanitizeAppDataForWrite(rawAppData) {
   const normalized = normalizeAppData(rawAppData);
-  return {
+  const next = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     scenarios: (normalized.scenarios || []).map(sanitizeScenarioForWrite),
     uiState: normalizeUiState(normalized.uiState)
   };
+  if (normalized.migrationReport !== undefined && normalized.migrationReport !== null) {
+    next.migrationReport = normalized.migrationReport;
+  }
+  return next;
 }
 
 export function normalizeAppData(raw) {
@@ -411,6 +597,9 @@ export function normalizeAppData(raw) {
   return {
     schemaVersion: typeof base.schemaVersion === 'number' ? base.schemaVersion : CURRENT_SCHEMA_VERSION,
     scenarios: scenarios.map(normalizeScenario),
-    uiState
+    uiState,
+    ...(base.migrationReport && typeof base.migrationReport === 'object'
+      ? { migrationReport: base.migrationReport }
+      : {})
   };
 }

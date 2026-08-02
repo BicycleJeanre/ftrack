@@ -2,109 +2,116 @@
 
 ## 1.0 What Is a Scenario?
 
-A **scenario** is a version of your financial model: accounts, planned transactions, optional budgets, and the last generated projections.
+A **scenario** is an independent version of a financial model. It owns:
 
-Scenarios are designed for “baseline vs what-if” comparisons.
+- accounts and opening balances;
+- one-time and recurring transaction rules;
+- dated occurrence overrides, actuals, skips, and manual items;
+- frozen baseline periods;
+- the projection configuration and latest freshness-aware results; and
+- Goal Workshop planning settings when used.
 
-- **Baseline**: your current reality (starting balances + expected inflows/outflows).
-- **What-if versions**: copies of your baseline with different assumptions (raise, rent change, extra debt payment).
+Scenarios support “expected reality vs what-if” comparisons.
+
+- **Baseline scenario**: the version you maintain from real balances and
+  current expectations.
+- **What-if scenario**: a duplicate with different assumptions, such as a
+  raise, rent change, purchase, or extra debt payment.
 
 ## 2.0 What Is a Workflow?
 
-A **workflow** is a Forecast UI preset (left navigation) that controls which cards are visible (Summary, Budget, Generate Plan, etc.).
+A **workflow** is a Forecast UI preset that controls which cards are visible.
 
-Important rules.
-
-- Workflows are **view-only**. They do **not** change or “tag” a scenario.
-- Scenarios are **content-only**. They store your accounts and transactions; workflows decide how you work with them.
-- Workflow selection is global and is restored on reload (defaults to **General**).
+- Workflows are view-only. They do not change or tag a scenario.
+- Scenarios hold the data. Workflows determine how that same data is presented.
+- Workflow selection is global, restored on reload, and defaults to
+  **General**.
 
 ## 3.0 Scenario Versions and Duplication
 
-When you duplicate a scenario, FTrack creates a **new scenario** with:
+Duplicating a scenario creates a new scenario with:
 
-- a new `id`
-- an incremented `version`
-- a lineage record that links it back to its source
+- a new ID;
+- an incremented version; and
+- lineage linking it to the source scenario.
 
-This lets you keep a clean baseline and compare changes across versions.
+Rules, occurrences, baselines, and projection configuration are copied so the
+new version can be changed independently.
 
-## 4.0 Projection Window vs View-By vs Planning Window
+## 4.0 Time Controls
 
-FTrack has three separate “time” concepts that serve different purposes.
+FTrack has separate time settings for separate jobs.
 
-### 4.1 Projection Window (engine settings)
+### 4.1 Projection Window
 
-Each scenario has a **projection configuration**:
+Each scenario stores projection Start, End, and Period Type. These control the
+date range and interval used by the projection engine.
 
-- **Start** and **End** dates
-- a **Period Type** (Day/Week/Month/Quarter/Year)
+Edit them in the scenario list at the top of Forecast.
 
-This window controls what date range projections generate over.
+### 4.2 Plan & Actuals Period
 
-You edit these fields in the scenario list at the top of Forecast.
+The Budget workflow's Plan & Actuals card has its own View and Period controls.
+They determine which resolved occurrences are shown for review and tracking.
+They do not change the projection engine configuration.
 
-### 4.2 View By (UI grouping)
+### 4.3 Display View By
 
-Each grid card (Transactions, Budget, Projections) has a **View By** selector.
+Transactions and Projections can group or filter displayed data by a chosen
+period. Display grouping does not alter rule schedules or projection-engine
+Period Type.
 
-- This changes how data is grouped for display.
-- It does not change the projection engine settings.
-- It is remembered per card.
+### 4.4 Goal Workshop Planning Window
 
-### 4.3 Planning Windows (goal tooling)
+Goal Workshop Simple and Advanced modes share the Generate Plan card but use
+an explicit planning window that can differ from the projection window.
 
-Goal tooling uses explicit **planning windows** that can differ from the projection window:
+If projections should validate an applied plan through its goal date, extend
+the scenario projection End date to the same horizon.
 
-- **Generate Plan (Goal-Based)** uses the **Generate Plan planning window**
-- **Advanced Goal Solver** uses the **Solver planning window**
-
-You edit these inside the Generate Plan card when using those workflows.
-
-Tip: If you want projections to validate a plan all the way to a goal date, keep the projection window and the planning window aligned.
-
-## 5.0 Workflow Overview (what each workflow emphasizes)
+## 5.0 Workflow Overview
 
 ### 5.1 Budget
 
-Use when you want budgets and plan-vs-actual tracking.
+Use for period planning, baseline freeze, actuals, skips, unplanned items,
+variance, and synchronized projections.
 
-Includes: Accounts, Transactions, Budget, Projections.
+Includes: Accounts, Plan & Actuals, and Projections.
 
 ### 5.2 General
 
-Use for flexible planning with summary totals.
+Use for flexible rule editing and summary totals without period baseline and
+actual tracking.
 
-Includes: Summary Cards, Accounts, Transactions, Projections.
+Includes: Summary, Accounts, Transactions, and Projections.
 
 ### 5.3 Funds
 
-Use to model a pooled fund with NAV and share-based ownership.
+Use for a pooled fund with NAV, shares, and ownership.
 
-Includes: Funds Summary, Accounts, Transactions, Projections.
+Includes: Funds Summary, Accounts, and Transactions.
 
 ### 5.4 Debt Repayment
 
-Use to model payoff timelines and interest.
+Use for payoff strategies, interest, payoff dates, and variable-rate
+schedules.
 
-Includes: Debt Summary Cards, Accounts, Transactions, Projections (plus variable-rate schedules on accounts).
+Includes: Debt Summary, Accounts, Transactions, and Projections.
 
-### 5.5 Goal-Based
+### 5.5 Goal Workshop
 
-Use for simple, per-account goals.
+Use Simple mode for account-based goals and one generated contribution rule.
+Use Advanced mode for multiple goals and constraints.
 
-Includes: Accounts (with goal fields), Generate Plan, Transactions, Projections.
-
-### 5.6 Advanced Goal Solver
-
-Use for multi-goal planning with constraints and an applyable solution.
-
-Includes: Generate Plan (solver), Transactions, Projections.
+Includes: Accounts, Generate Plan, Transactions, and Projections.
 
 ## 6.0 Recommended Pattern
 
-1. Create a **Baseline** scenario and enter real starting balances.
-2. Add planned income/expenses with recurrence.
-3. Generate projections and confirm the baseline behaves as expected.
-4. Duplicate the baseline for each what-if change (raise, new expense, debt strategy).
-5. Compare ending balances, cash flow, and payoff dates across scenarios.
+1. Create a baseline scenario and enter real opening balances.
+2. Add expected one-time and recurring rules.
+3. In Budget, review the resolved Period and freeze its baseline.
+4. Let projections refresh and confirm the scenario behaves as expected.
+5. Duplicate the baseline for each major what-if change.
+6. Compare ending balances, low points, cash flow, and payoff dates.
+7. Keep actual learning in the maintained baseline; keep experiments in their
+   duplicates.

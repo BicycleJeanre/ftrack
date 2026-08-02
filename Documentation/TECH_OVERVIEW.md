@@ -8,10 +8,11 @@ FTrack is a web-based financial tracking and forecasting application. It focuses
 
 **Core Features**:
 - Multi-scenario financial modeling
-- Transaction planning (planned vs. actual)
-- Automated projections with periodic changes
+- Unified transaction-rule and dated-occurrence planning
+- Period baselines, current-plan adjustments, actuals, skips, and variance
+- Automated resolved-occurrence projections with explicit freshness
 - Goal-based scenario planning
-- Budget tracking
+- Plan & Actuals budget tracking
 - Data export/import
 
 ## 2.0 Core Tech Stack
@@ -32,7 +33,11 @@ FTrack is a web-based financial tracking and forecasting application. It focuses
 The application includes comprehensive user-facing documentation accessible from the navbar and home page. The documentation uses a single-page panel system for smooth navigation.
 
 **Location**: [pages/documentation.html](../pages/documentation.html)  
-**Panel Manager**: [js/doc-panel.js](../js/doc-panel.js)
+**Panel Controller**:
+[js/ui/controllers/doc-panel-controller.js](../js/ui/controllers/doc-panel-controller.js)
+
+**Repository Manifest Loader**:
+[js/shared/doc-repo-manifest.js](../js/shared/doc-repo-manifest.js)
 
 **Architecture**: 
 - Single HTML page with all documentation sections embedded as `.doc-panel` divs
@@ -43,8 +48,8 @@ The application includes comprehensive user-facing documentation accessible from
 **Documentation Sections**:
 1. **Getting Started** → Setup first budget and scenarios
 2. **Accounts** → Account types, balances, and management
-3. **Transactions** → Planned and actual transactions
-4. **Projections** → Understanding financial forecasts
+3. **Transactions** → Rules, period occurrences, baselines, and actuals
+4. **Projections** → Resolved-plan forecasts and freshness
 5. **Recurrence** → Setting up repeating transactions
 6. **Periodic Changes** → Automatic adjustments (raises, inflation)
 7. **Scenarios** → Multi-scenario planning
@@ -82,39 +87,64 @@ The technical documentation is modularized. Read the specific section required f
 **Read this if:** You are changing the Grid visualizations, editing the Forecast controller, or working on the frontend logic.
 *Covers: Tabulator implementation, GridFactory, Event Handling.*
 
-### [4. Advanced Goal Solver >](USER_ADVANCED_GOAL_SOLVER.md)
-**Read this if:** You are working on multi-goal planning, constraints, or solver outputs.
-*Covers: Definitions and guided use cases for solver configuration.*
+### [4. Plan & Actuals Workflow >](USER_BUDGET_WORKFLOW.md)
+**Read this if:** You are working on budget entry, occurrence adjustments,
+baselines, actuals, or projection synchronization.
+*Covers: Period and Recurring modes, edit scopes, variance, and freshness.*
+
+### [5. Goal Workshop — Advanced Mode >](USER_ADVANCED_GOAL_SOLVER.md)
+**Read this if:** You are working on multi-goal planning, constraints, or
+solver outputs.
+*Covers: Definitions and guided use cases for advanced solver configuration.*
 
 ## 5.0 Data Migration Strategy
 
-FTrack uses a versioned storage schema (`schemaVersion`). This build targets **schemaVersion 43** and **does not perform runtime migrations**.
+FTrack uses a versioned storage schema (`schemaVersion`). This build targets
+**schemaVersion 44**.
 
 ### 5.1 Runtime rule
 
-- Runtime code requires `schemaVersion === 43`.
-- If older data is present (legacy export or legacy local storage), the app will fail fast rather than attempting in-app migration.
+- Runtime writes require `schemaVersion === 44`.
+- Older local storage and imports are migrated through the same browser-safe
+  shared migrator.
+- Invalid, orphaned, duplicate, and ambiguous source rows are retained in the
+  app-level `migrationReport` instead of being silently discarded.
+- Future schema versions are rejected and are never downgraded.
 
-### 5.2 Standalone migration (QC-only)
+### 5.2 Standalone migration
 
 Legacy exports can be converted using the standalone migration utility:
 
-- `QC/migrate-app-data-to-schema43.js`
+- `QC/migrate-app-data-to-schema44.js`
 
 Example usage:
 
 ```bash
-node QC/migrate-app-data-to-schema43.js --input legacy.json --output schema43.json
+node QC/migrate-app-data-to-schema44.js \
+  --input legacy.json \
+  --output schema44.json \
+  --report migration-report.json
 ```
 
-The runtime application must not import or depend on QC migration code.
+The QC script is a thin wrapper around `js/shared/migration-utils.js`; runtime
+application code does not import QC code.
 
 ## 6.0 Quick Start Reference
 
-**Entry Point**: `index.html` → redirects to `pages/forecast.html`  
-**Main Controller**: `js/ui/controllers/forecast-controller.js`  
-**Calculation Engine**: `js/domain/calculations/calculation-engine.js`  
-**Storage**: `js/app/services/storage-service.js`  
+**Entry Point**: `index.html` → redirects to `pages/ftrack.html`
+
+**Main Controller**: `js/ui/controllers/forecast-controller.js`
+
+**Calculation Engine**: `js/domain/calculations/calculation-engine.js`
+
+**Occurrence Resolver**: `js/domain/queries/resolve-scenario-occurrences.js`
+
+**Occurrence Commands**: `js/app/managers/occurrence-manager.js`
+
+**Projection Engine**: `js/domain/calculations/projection-engine.js`
+
+**Storage**: `js/app/services/storage-service.js`
+
 **Configuration**: `assets/lookup-data.json`
 
 ### 6.1 Hosting Notes
@@ -132,12 +162,13 @@ npm run qc:full             # Run full QC verification and tests
 
 **Architecture**:
 1. Follow clean layered architecture (see [TECH_ARCHITECTURE.md](TECH_ARCHITECTURE.md))
-2. All calculations must go through the Calculation Engine
+2. Financial calculations belong in domain calculation/query modules
 3. UI code never contains business logic
 4. Use managers for business operations
 
 **Code Organization**:
-1. **No calculations in UI layer** - use `domain/calculations/`
+1. **No calculations in UI layer** - use `domain/calculations/` or
+   `domain/queries/`
 2. **Tabulator only** - do not introduce alternative grid libraries
 3. **Pure functions** - domain calculations must be pure (no side effects)
 4. **Single responsibility** - each module has one clear purpose
