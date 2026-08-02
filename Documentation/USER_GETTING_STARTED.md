@@ -6,6 +6,13 @@ FTrack combines transaction planning, budget tracking, actuals, and
 projections. Recurring rules create dated occurrences automatically, so there
 is no separate transaction-to-budget generation step.
 
+Use the in-app documentation in either of two ways:
+
+- Open **Workflow Guide: Plan, Track, and Project** when you know the outcome
+  you want and need to choose the right workflow.
+- Open **Interface Guide: Controls, Tables, and Editing** when you are already
+  on a screen and need to understand its controls or actions.
+
 ## 1.1 Key Concepts
 
 - **Scenario**: an independent version of your accounts, transaction rules,

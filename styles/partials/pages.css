@@ -808,6 +808,37 @@ html[data-theme="light"] .home-hero {
   color: var(--accent-primary);
 }
 
+.doc-guide-figure {
+  margin: 1.5em 0 2em;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.doc-guide-image-link {
+  display: block;
+  line-height: 0;
+}
+
+.doc-guide-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 760px;
+  object-fit: contain;
+  background: var(--bg-primary);
+}
+
+.doc-guide-figure figcaption {
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: 0.9em;
+  line-height: 1.5;
+  border-top: 1px solid var(--border-primary);
+}
+
 .md-content pre {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);

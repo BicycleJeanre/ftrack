@@ -35,4 +35,28 @@ test.describe('documentation frontend', () => {
     await expect(page.locator('#repo-doc-title')).toContainText('Plan & Actuals Workflow');
     await expect(page.locator('#repo-doc-content')).toContainText('one transaction-based plan');
   });
+
+  test('workflow and interface guides render local screenshot assets', async ({ page }) => {
+    await page.goto('/pages/documentation.html#repo-docs/WORKFLOWS__WORKFLOW_GUIDE');
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.locator('#repo-doc-title')).toContainText('Workflow Guide');
+    await expect(page.locator('#repo-doc-content')).toContainText('One Plan, Several Working Views');
+
+    const workflowImage = page.locator('#repo-doc-content img[alt="Workflow navigation and primary planning views"]');
+    await expect(workflowImage).toBeVisible();
+    await expect(workflowImage).toHaveAttribute('src', /\/Documentation\/assets\/user-guides\/workflow-navigation\.jpg$/);
+    await workflowImage.scrollIntoViewIfNeeded();
+    await expect.poll(() => workflowImage.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+
+    await page.goto('/pages/documentation.html#repo-docs/INTERFACE__INTERACTION_GUIDE');
+    await page.reload();
+    await expect(page.locator('#repo-doc-title')).toContainText('Interface Guide');
+    await expect(page.locator('#repo-doc-content')).toContainText('Period Controls');
+
+    const interfaceImage = page.locator('#repo-doc-content img[alt="Budget Period controls and plan comparison cards"]');
+    await expect(interfaceImage).toBeVisible();
+    await interfaceImage.scrollIntoViewIfNeeded();
+    await expect.poll(() => interfaceImage.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+  });
 });

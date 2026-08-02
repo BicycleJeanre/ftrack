@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-02T16:30:51.210Z",
+  "generatedAt": "2026-08-02T18:25:43.233Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -63,6 +63,13 @@
       "title": "Transaction Rules and Occurrences",
       "category": "Concepts",
       "file": "Documentation/CONCEPTS_TRANSACTIONS.md",
+      "kind": "md"
+    },
+    {
+      "id": "INTERFACE__INTERACTION_GUIDE",
+      "title": "Interface Guide: Controls, Tables, and Editing",
+      "category": "Interface",
+      "file": "Documentation/INTERFACE__INTERACTION_GUIDE.md",
       "kind": "md"
     },
     {
@@ -280,6 +287,13 @@
       "title": "Plan & Actuals Workflow",
       "category": "User",
       "file": "Documentation/USER_BUDGET_WORKFLOW.md",
+      "kind": "md"
+    },
+    {
+      "id": "WORKFLOWS__WORKFLOW_GUIDE",
+      "title": "Workflow Guide: Plan, Track, and Project",
+      "category": "Workflows",
+      "file": "Documentation/WORKFLOWS__WORKFLOW_GUIDE.md",
       "kind": "md"
     }
   ]
