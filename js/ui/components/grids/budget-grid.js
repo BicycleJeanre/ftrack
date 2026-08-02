@@ -232,7 +232,6 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     const displayAmount = useActualDisplay ? signedActualAmount : signedPlannedAmount;
     const formatOptionalMoney = (value) => (value === null || value === undefined || value === '') ? '—' : formatMoneyDisplay(value);
     const formattedDisplayAmount = formatOptionalMoney(displayAmount);
-    const plainDisplayAmount = hasValue(displayAmount) ? formatCurrency(displayAmount) : '—';
     const plainPlannedAmount = formatCurrency(signedPlannedAmount);
     const primaryName = budget?.primaryAccountName || findAccountName(budget.primaryAccountId);
     const secondaryName = budget?.secondaryAccountName || findAccountName(budget.secondaryAccountId);
@@ -275,13 +274,18 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     rowPrimary.appendChild(secondaryNameEl);
     rowPrimary.appendChild(amountEl);
 
-    // Line 2: flow description (left) + date (right)
+    // Line 2: directional money movement (left) + date (right).
+    // Money In moves from the secondary/source account into the primary account;
+    // Money Out moves from the primary account to the secondary/destination account.
     const rowSecondary = document.createElement('div');
     rowSecondary.className = 'grid-summary-row-secondary';
 
     const flowEl = document.createElement('span');
     flowEl.className = 'grid-summary-flow';
-    flowEl.textContent = `${primaryName} \u2192 ${plainDisplayAmount} \u2192 ${secondaryName}`;
+    const movementAmount = hasValue(displayAmount) ? formatCurrency(Math.abs(Number(displayAmount))) : '—';
+    const movementFrom = isMoneyOut ? primaryName : secondaryName;
+    const movementTo = isMoneyOut ? secondaryName : primaryName;
+    flowEl.textContent = `${movementFrom} \u2192 ${movementAmount} \u2192 ${movementTo}`;
 
     const dateEl = document.createElement('span');
     dateEl.className = 'grid-summary-date';
@@ -290,8 +294,14 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
     rowSecondary.appendChild(flowEl);
     rowSecondary.appendChild(dateEl);
 
+    // Line 3: budget description
+    const descriptionEl = document.createElement('div');
+    descriptionEl.className = 'grid-summary-description';
+    descriptionEl.textContent = budget?.description || '';
+
     content.appendChild(rowPrimary);
     content.appendChild(rowSecondary);
+    if (descriptionEl.textContent) content.appendChild(descriptionEl);
 
     // Actions rail: type capsule + icon buttons
     const actions = document.createElement('div');

@@ -193,22 +193,47 @@ export async function createFromProjections(scenarioId) {
         throw new Error('No planned transactions fall within the selected date range.');
     }
 
-    // Preserve completed entries; let saveAll handle all ID assignment
-    const existingActuals = (scenario.budgets || []).filter(b => {
-        const sName = typeof b.status === 'object' ? b.status?.name : b.status;
-        return sName === 'actual';
+    const existingBudgets = scenario.budgets || [];
+    const existingStatusName = (budget) => {
+        const s = typeof budget?.status === 'object' ? budget.status?.name : budget?.status;
+        return String(s || '').toLowerCase();
+    };
+
+    const occurrenceKey = (budget) => {
+        const sourceTransactionId = budget?.sourceTransactionId;
+        const occurrenceDate = budget?.occurrenceDate;
+        if (sourceTransactionId === null || sourceTransactionId === undefined || !occurrenceDate) {
+            return null;
+        }
+        const role = String(budget?.transactionGroupRole || '').trim().toLowerCase();
+        return `${sourceTransactionId}|${formatDateOnly(occurrenceDate)}|${role}`;
+    };
+
+    // Preserve all actuals (actual history should never be replaced).
+    // A matched actual is the sole state for its occurrence.
+    const existingActuals = existingBudgets.filter(budget => existingStatusName(budget) === 'actual');
+    const actualKeys = new Set(existingActuals.map(occurrenceKey).filter(Boolean));
+
+    // Preserve historical planned entries before the regeneration window start,
+    // unless a matching actual already represents that occurrence.
+    const cutoff = formatDateOnly(startDate);
+    const historicalPlanned = existingBudgets.filter(budget => {
+        if (existingStatusName(budget) === 'actual') return false;
+        if (!budget?.occurrenceDate) return true;
+        const key = occurrenceKey(budget);
+        return formatDateOnly(budget.occurrenceDate) < cutoff && (!key || !actualKeys.has(key));
     });
 
     // Build a set of already-covered occurrences so regenerating doesn't create a
     // duplicate planned entry alongside an existing actual for the same occurrence.
-    const actualKeys = new Set(
-        existingActuals.map(b => `${b.sourceTransactionId}|${b.occurrenceDate}`)
-    );
     const dedupedNew = newEntries.filter(
-        e => !actualKeys.has(`${e.sourceTransactionId}|${e.occurrenceDate}`)
+        entry => {
+            const key = occurrenceKey(entry);
+            return !key || !actualKeys.has(key);
+        }
     );
 
-    return await saveAll(scenarioId, [...existingActuals, ...dedupedNew]);
+    return await saveAll(scenarioId, [...existingActuals, ...historicalPlanned, ...dedupedNew]);
 }
 
 /**

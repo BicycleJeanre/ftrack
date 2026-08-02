@@ -17,6 +17,36 @@ const {
 const malformedImportFixturePath = path.resolve(__dirname, '../fixtures/malformed-import-data.json');
 
 test.describe('deeper edit paths and error states', () => {
+  test('shows budget descriptions and direction-aware money movement', async ({ page }) => {
+    const budgetDisplayData = loadSmokeData();
+    budgetDisplayData.scenarios[0].budgets.push({
+      id: 2002,
+      sourceTransactionId: null,
+      primaryAccountId: 1,
+      secondaryAccountId: 4,
+      transactionTypeId: 1,
+      amount: 3000,
+      plannedAmount: 3000,
+      description: 'Salary budget',
+      occurrenceDate: '2026-01-25',
+      recurrenceDescription: 'Monthly',
+      status: { name: 'planned', actualAmount: null, actualDate: null }
+    });
+
+    await gotoFTrack(page, budgetDisplayData);
+    await selectWorkflow(page, 'Budget');
+
+    const moneyOutCard = page.locator('#budgetSection .grid-summary-card', { hasText: 'Groceries budget' });
+    await expect(moneyOutCard.locator('.grid-summary-description')).toHaveText('Groceries budget');
+    await expect(moneyOutCard.locator('.grid-summary-flow')).toContainText('Checking');
+    await expect(moneyOutCard.locator('.grid-summary-flow')).toContainText('Groceries Expense');
+    await expect(moneyOutCard.locator('.grid-summary-flow')).toHaveText(/Checking.*→.*Groceries Expense/);
+
+    const moneyInCard = page.locator('#budgetSection .grid-summary-card', { hasText: 'Salary budget' });
+    await expect(moneyInCard.locator('.grid-summary-description')).toHaveText('Salary budget');
+    await expect(moneyInCard.locator('.grid-summary-flow')).toHaveText(/Salary Income.*→.*Checking/);
+  });
+
   test('edits a budget summary card amount and description', async ({ page }) => {
     await gotoFTrack(page);
     await selectWorkflow(page, 'Budget');

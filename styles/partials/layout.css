@@ -2524,6 +2524,14 @@ button.filter-modal-open {
   line-height: 1.2;
 }
 
+.budget-grid .grid-summary-description {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
 .budget-grid .grid-summary-actions {
   align-self: start;
   justify-self: end;

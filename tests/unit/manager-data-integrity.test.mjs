@@ -206,6 +206,199 @@ test('budget save strips UI-only fields and fills actual status defaults', async
   assert.equal(Object.hasOwn(budget, 'actualAmount'), false);
 });
 
+test('budget regeneration preserves history and actuals while replacing current planned rows', async () => {
+  await seed(baseAppData({
+    scenario: {
+      transactions: [
+        {
+          id: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 75,
+          effectiveDate: '2026-02-15',
+          description: 'Current source plan',
+          recurrence: null,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        },
+        {
+          id: 12,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 90,
+          effectiveDate: '2026-02-20',
+          description: 'Already actual',
+          recurrence: null,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ],
+      budgets: [
+        {
+          id: 101,
+          sourceTransactionId: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 60,
+          description: 'Historical override',
+          recurrenceDescription: 'One time',
+          occurrenceDate: '2026-01-15',
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        },
+        {
+          id: 102,
+          sourceTransactionId: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 65,
+          description: 'Stale current override',
+          recurrenceDescription: 'One time',
+          occurrenceDate: '2026-02-15',
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        },
+        {
+          id: 103,
+          sourceTransactionId: 12,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 90,
+          description: 'Actualized source',
+          recurrenceDescription: 'One time',
+          occurrenceDate: '2026-02-20',
+          periodicChange: null,
+          status: { name: 'actual', actualAmount: 92, actualDate: '2026-02-21' },
+          tags: []
+        }
+      ],
+      budgetWindow: {
+        config: {
+          startDate: '2026-02-01',
+          endDate: '2026-02-28',
+          periodTypeId: 3
+        }
+      }
+    }
+  }));
+
+  await BudgetManager.createFromProjections(1);
+
+  const budgets = (await DataStore.read()).scenarios[0].budgets;
+  const historical = budgets.find((budget) => budget.id === 101);
+  const regenerated = budgets.find(
+    (budget) => budget.sourceTransactionId === 10 && budget.occurrenceDate === '2026-02-15'
+  );
+  const actual = budgets.find((budget) => budget.id === 103);
+  const actualMatches = budgets.filter(
+    (budget) => budget.sourceTransactionId === 12 && budget.occurrenceDate === '2026-02-20'
+  );
+
+  assert.equal(historical.amount, 60);
+  assert.equal(historical.description, 'Historical override');
+  assert.equal(regenerated.amount, 75);
+  assert.equal(regenerated.description, 'Current source plan');
+  assert.notEqual(regenerated.id, 102);
+  assert.deepEqual(actual.status, {
+    name: 'actual',
+    actualAmount: 92,
+    actualDate: '2026-02-21'
+  });
+  assert.equal(actualMatches.length, 1);
+  assert.equal(actualMatches[0].status.name, 'actual');
+});
+
+test('budget regeneration drops a historical planned duplicate when a matching actual exists', async () => {
+  await seed(baseAppData({
+    scenario: {
+      transactions: [
+        {
+          id: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 25,
+          effectiveDate: '2026-01-15',
+          description: 'Historical source',
+          recurrence: null,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        },
+        {
+          id: 11,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 30,
+          effectiveDate: '2026-02-16',
+          description: 'Current source',
+          recurrence: null,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ],
+      budgets: [
+        {
+          id: 201,
+          sourceTransactionId: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 25,
+          description: 'Historical planned duplicate',
+          recurrenceDescription: 'One time',
+          occurrenceDate: '2026-01-15',
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        },
+        {
+          id: 202,
+          sourceTransactionId: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 25,
+          description: 'Historical actual',
+          recurrenceDescription: 'One time',
+          occurrenceDate: '2026-01-15',
+          periodicChange: null,
+          status: { name: 'actual', actualAmount: 27, actualDate: '2026-01-16' },
+          tags: []
+        }
+      ],
+      budgetWindow: {
+        config: {
+          startDate: '2026-02-01',
+          endDate: '2026-02-28',
+          periodTypeId: 3
+        }
+      }
+    }
+  }));
+
+  await BudgetManager.createFromProjections(1);
+
+  const matchingHistory = (await DataStore.read()).scenarios[0].budgets.filter(
+    (budget) => budget.sourceTransactionId === 10 && budget.occurrenceDate === '2026-01-15'
+  );
+
+  assert.equal(matchingHistory.length, 1);
+  assert.equal(matchingHistory[0].id, 202);
+  assert.equal(matchingHistory[0].status.name, 'actual');
+});
+
 test('scenario duplication preserves source data but clears generated projection rows', async () => {
   await ScenarioManager.duplicate(1, 'Duplicate Scenario');
   const data = await DataStore.read();
