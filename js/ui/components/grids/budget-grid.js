@@ -72,8 +72,8 @@ function normalizeBudgetForTransform(budget) {
     secondaryAccountId: budget.secondaryAccountId,
     transactionTypeId: budget.transactionTypeId,
     transactionType: budget.transactionType,
-    amount: budget.amount,
-    plannedAmount: budget.amount,
+    amount: budget.plannedAmount ?? budget.amount,
+    plannedAmount: budget.plannedAmount ?? budget.amount,
     actualAmount: budget.status?.actualAmount ?? null,
     description: budget.description,
     effectiveDate: budget.occurrenceDate,
@@ -224,7 +224,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
       card.style.borderLeft = '3px solid var(--accent-primary)';
       card.style.paddingLeft = '7px';
     }
-    const signedPlannedAmount = Number(budget?.plannedAmount || budget?.amount || 0);
+    const signedPlannedAmount = Number(budget?.plannedAmount ?? budget?.amount ?? 0);
     const rawActualAmount = hasValue(budget?.actualAmount) ? budget.actualAmount : budget?.status?.actualAmount;
     const signedActualAmount = hasValue(rawActualAmount) ? Number(rawActualAmount) : null;
     const actualDate = hasValue(budget?.actualDate) ? budget.actualDate : (hasValue(budget?.status?.actualDate) ? budget.status.actualDate : null);
@@ -356,7 +356,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
 
     const statusSelect = document.createElement('select');
     statusSelect.className = 'grid-summary-input';
-    statusSelect.innerHTML = `<option value="planned">Planned</option><option value="actual">Actual</option>`;
+    statusSelect.innerHTML = `<option value="planned">Planned</option><option value="actual">Actual</option><option value="skipped">Skipped</option>`;
     statusSelect.value = statusName;
 
     const actualAmountInput = document.createElement('input');
@@ -446,7 +446,9 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
         : allBudgets[idx]?.actualDate;
       const existingActualAmount = hasValue(existingActualAmountRaw) ? Math.abs(Number(existingActualAmountRaw)) : null;
       const existingActualDate = hasValue(existingActualDateRaw) ? existingActualDateRaw : null;
-      const defaultActualAmount = Math.abs(Number(allBudgets[idx]?.amount ?? budget?.amount ?? 0));
+      const defaultActualAmount = Math.abs(Number(
+        allBudgets[idx]?.plannedAmount ?? allBudgets[idx]?.amount ?? budget?.plannedAmount ?? budget?.amount ?? 0
+      ));
       const defaultActualDate = allBudgets[idx]?.occurrenceDate || budget?.occurrenceDate || null;
       const updatedStatus = typeof prevStatus === 'object'
         ? {
@@ -472,7 +474,9 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
       const idx = allBudgets.findIndex((b) => Number(b.id) === Number(originalBudgetId));
       if (idx === -1) return;
       const prevStatus = allBudgets[idx].status;
-      const newStatusName = statusSelect.value;
+      // Retain the stored state if a future/legacy status has no matching
+      // editor option instead of silently saving an empty status.
+      const newStatusName = statusSelect.value || statusName || 'planned';
       const enteredActualAmount = actualAmountInput.value !== '' ? Math.abs(Number(actualAmountInput.value)) : null;
       const enteredActualDate = actualDateInput.value || null;
       const existingActualAmountRaw = typeof prevStatus === 'object'
@@ -508,6 +512,7 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
         transactionTypeId: Number(typeSelect.value || 2),
         secondaryAccountId: secondaryAccountSelect.value ? Number(secondaryAccountSelect.value) : null,
         amount: Math.abs(Number(amountInput.value || 0)),
+        plannedAmount: Math.abs(Number(amountInput.value || 0)),
         description: descInput.value.trim(),
         status: updatedStatus,
         recurrenceDescription: recurrenceInput.value.trim() || allBudgets[idx].recurrenceDescription
@@ -548,7 +553,15 @@ function renderBudgetSummaryList({ container, budgets, accounts, onRefresh, filt
       const allBudgets = await getBudget(scenario);
       const source = allBudgets.find((b) => Number(b.id) === Number(originalBudgetId));
       if (!source) return;
-      const cloned = { ...source, id: 0 };
+      const cloned = {
+        ...source,
+        id: 0,
+        sourceTransactionId: null,
+        occurrenceKey: null,
+        scheduledDate: source.occurrenceDate || source.plannedDate || source.scheduledDate || null,
+        plannedDate: null,
+        origin: 'manual'
+      };
       allBudgets.push(cloned);
       await BudgetManager.saveAll(scenario, allBudgets);
       await onRefresh?.();
@@ -1276,7 +1289,13 @@ export async function loadBudgetGrid({
             if (idx === -1) return;
             const field = cell.getField();
             const value = cell.getValue();
-            if (field === 'occurrenceDate') allBudgetsForEdit[idx].occurrenceDate = value;
+            if (field === 'occurrenceDate') {
+              const scheduledDate =
+                allBudgetsForEdit[idx].scheduledDate || allBudgetsForEdit[idx].occurrenceDate;
+              allBudgetsForEdit[idx].occurrenceDate = value;
+              allBudgetsForEdit[idx].plannedDate =
+                scheduledDate && value !== scheduledDate ? value : null;
+            }
             if (field === 'description') allBudgetsForEdit[idx].description = value;
             if (field === 'transactionTypeName') allBudgetsForEdit[idx].transactionTypeId = value === 'Money Out' ? 2 : 1;
             if (field === 'secondaryAccountName') {
@@ -1289,6 +1308,7 @@ export async function loadBudgetGrid({
             }
             if (field === 'plannedAmount') {
               allBudgetsForEdit[idx].amount = Math.abs(Number(value || 0));
+              allBudgetsForEdit[idx].plannedAmount = Math.abs(Number(value || 0));
             }
             if (field === 'actualAmount') {
               const prevStatus = allBudgetsForEdit[idx].status;

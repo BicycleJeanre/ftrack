@@ -6,8 +6,8 @@ import { generateRecurrenceDates, calculatePeriodicChange } from './calculation-
 import { expandPeriodicChangeForCalculation } from './periodic-change-utils.js';
 import { getScenario, saveProjectionBundle } from '../../app/services/data-service.js';
 import { parseDateOnly, formatDateOnly } from '../../shared/date-utils.js';
-import { expandTransactions } from './transaction-expander.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
+import { resolveScenarioOccurrences } from '../queries/resolve-scenario-occurrences.js';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const DAYS_PER_YEAR = 365.25;
@@ -79,6 +79,7 @@ function roundMoney(value) {
 function resolveOccurrenceSplit(occurrence, absAmount) {
   const hasCapital = occurrence?.capitalAmount !== undefined && occurrence?.capitalAmount !== null;
   const hasInterest = occurrence?.interestAmount !== undefined && occurrence?.interestAmount !== null;
+  const role = String(occurrence?.transactionGroupRole || '').toLowerCase();
 
   if (hasCapital || hasInterest) {
     const rawCapital = hasCapital ? Math.abs(Number(occurrence.capitalAmount || 0)) : null;
@@ -97,7 +98,18 @@ function resolveOccurrenceSplit(occurrence, absAmount) {
     }
 
     const total = rawCapital + rawInterest;
-    if (!total || total <= absAmount) {
+    if (!total) {
+      return role === 'interest'
+        ? { capital: 0, interest: absAmount }
+        : { capital: absAmount, interest: 0 };
+    }
+    if (total < absAmount) {
+      const residual = absAmount - total;
+      return role === 'interest'
+        ? { capital: rawCapital, interest: rawInterest + residual }
+        : { capital: rawCapital + residual, interest: rawInterest };
+    }
+    if (total === absAmount) {
       return { capital: rawCapital, interest: rawInterest };
     }
 
@@ -108,95 +120,11 @@ function resolveOccurrenceSplit(occurrence, absAmount) {
     };
   }
 
-  const role = String(occurrence?.transactionGroupRole || '').toLowerCase();
   if (role === 'interest' || occurrence?.source === 'derivedPeriodicChange') {
     return { capital: 0, interest: absAmount };
   }
 
   return { capital: absAmount, interest: 0 };
-}
-
-function toSplitGroupId(value) {
-  return String(value || '').trim();
-}
-
-function statusName(entry) {
-  return typeof entry?.status === 'object' ? entry?.status?.name : entry?.status;
-}
-
-function getComponentAccountId(component) {
-  return Number(component?.secondaryAccountId ?? component?.accountId ?? 0) || null;
-}
-
-function getComponentAmount(component) {
-  return Math.abs(Number(component?.amount ?? component?.value ?? 0)) || 0;
-}
-
-function normalizeSplitProjectionTransactions(transactions = [], splitSets = []) {
-  const plannedTransactions = (Array.isArray(transactions) ? transactions : [])
-    .filter((tx) => statusName(tx) === 'planned');
-
-  const splitSetById = new Map(
-    (Array.isArray(splitSets) ? splitSets : [])
-      .map((set) => [toSplitGroupId(set?.id), set])
-      .filter(([id]) => Boolean(id))
-  );
-
-  if (!splitSetById.size) return plannedTransactions;
-
-  const transactionsByGroupId = new Map();
-  plannedTransactions.forEach((tx) => {
-    const groupId = toSplitGroupId(tx?.transactionGroupId);
-    if (!groupId) return;
-    if (!transactionsByGroupId.has(groupId)) transactionsByGroupId.set(groupId, []);
-    transactionsByGroupId.get(groupId).push(tx);
-  });
-
-  const normalized = plannedTransactions.filter((tx) => {
-    const groupId = toSplitGroupId(tx?.transactionGroupId);
-    return !groupId || !splitSetById.has(groupId);
-  });
-
-  splitSetById.forEach((set, groupId) => {
-    const groupTransactions = transactionsByGroupId.get(groupId) || [];
-    const firstTransaction = groupTransactions[0] || {};
-    const primaryAccountId = Number(set?.payingAccountId || firstTransaction?.primaryAccountId || 0) || null;
-    if (!primaryAccountId) return;
-
-    const components = Array.isArray(set?.components) ? set.components : [];
-    components.forEach((component, index) => {
-      const secondaryAccountId = getComponentAccountId(component);
-      const amount = getComponentAmount(component);
-      if (!secondaryAccountId || amount <= 0) return;
-
-      const role = String(component?.role || `component_${index + 1}`).trim().toLowerCase();
-      const matchedTransaction =
-        groupTransactions.find((tx) => String(tx?.transactionGroupRole || '').trim().toLowerCase() === role) ||
-        null;
-      const sourceTransaction = matchedTransaction || firstTransaction;
-
-      normalized.push({
-        ...sourceTransaction,
-        id: sourceTransaction?.id ?? `${groupId}:${role}:${index}`,
-        primaryAccountId,
-        secondaryAccountId,
-        transactionTypeId: Number(component?.transactionTypeId || sourceTransaction?.transactionTypeId || 2) === 1 ? 1 : 2,
-        amount,
-        description: String(component?.description || sourceTransaction?.description || set?.description || '').trim(),
-        recurrence: component?.recurrence || set?.recurrence || sourceTransaction?.recurrence || null,
-        periodicChange: component?.periodicChange || sourceTransaction?.periodicChange || null,
-        effectiveDate: sourceTransaction?.effectiveDate || set?.effectiveDate || null,
-        status: sourceTransaction?.status || { name: 'planned' },
-        transactionGroupId: groupId,
-        transactionGroupRole: role,
-        transactionGroupAccountGroupId: Number(component?.accountGroupId || sourceTransaction?.transactionGroupAccountGroupId || 0) || null,
-        capitalAmount: component?.capitalAmount ?? matchedTransaction?.capitalAmount ?? null,
-        interestAmount: component?.interestAmount ?? matchedTransaction?.interestAmount ?? null
-      });
-    });
-  });
-
-  return normalized;
 }
 
 function applyOccurrenceToStates({
@@ -292,7 +220,9 @@ function createDerivedPeriodicChangeOccurrence({
  * Generate projections for a scenario
  * @param {number} scenarioId - The scenario ID to generate projections for
  * @param {Object} options - Generation options
- * @param {string} options.source - 'transactions' (default) or 'budget'
+ * @param {string} options.source - Retained for schemaVersion 43 compatibility; calculation always uses the resolved plan
+ * @param {string} options.asOfDate - Optional YYYY-MM-DD date for overdue open commitments
+ * @param {string} options.openCommitmentStartDate - Optional explicit history boundary for overdue commitments
  * @param {string} options.periodicity - 'daily', 'weekly', 'monthly' (default), 'quarterly', 'yearly'
  * @returns {Promise<Array>} - Array of projection records
  */
@@ -337,86 +267,62 @@ function getProjectionConfig({ scenario, options = {} }) {
   const periodTypeIdRaw = options.periodTypeId ?? config.periodTypeId ?? 3;
   const periodTypeId = coercePeriodTypeId(periodTypeIdRaw) || 3;
   const source = options.source || config.source || 'transactions';
+  const asOfDate = options.asOfDate ?? config.asOfDate ?? null;
+  const openCommitmentStartDate =
+    options.openCommitmentStartDate ?? config.openCommitmentStartDate ?? null;
 
   return {
     startDate,
     endDate,
     periodTypeId,
-    source: source === 'budget' ? 'budget' : 'transactions'
+    source: source === 'budget' ? 'budget' : 'transactions',
+    ...(asOfDate ? { asOfDate } : {}),
+    ...(openCommitmentStartDate ? { openCommitmentStartDate } : {})
   };
 }
 
 export async function generateProjectionsForScenario(scenario, options = {}, lookupDataOverride = null) {
   const projectionConfig = getProjectionConfig({ scenario, options });
-  const source = projectionConfig.source || 'transactions';
   const lookupData = lookupDataOverride || (await loadLookup('lookup-data.json'));
 
   const accounts = scenario.accounts || [];
-  let plannedTransactions;
-
-  if (source === 'budget') {
-    const statusName = (budget) => (typeof budget.status === 'object' ? budget.status.name : budget.status);
-    plannedTransactions = (scenario.budgets || [])
-      .filter((budget) => statusName(budget) === 'planned')
-      .map((budget) => ({
-        id: budget.id,
-        primaryAccountId: budget.primaryAccountId,
-        secondaryAccountId: budget.secondaryAccountId,
-        transactionTypeId: budget.transactionTypeId,
-        amount: budget.amount,
-        description: budget.description,
-        recurrence: budget.recurrence,
-        periodicChange: null,
-        effectiveDate: budget.date,
-        status: budget.status,
-        transactionGroupId: budget.transactionGroupId ?? null,
-        transactionGroupRole: budget.transactionGroupRole ?? null
-      }));
-  } else {
-    plannedTransactions = normalizeSplitProjectionTransactions(
-      scenario.transactions || [],
-      scenario.splitTransactionSets || []
-    );
-  }
-
   const startDate = parseDateOnly(projectionConfig.startDate);
   const endDate = parseDateOnly(projectionConfig.endDate);
   if (!startDate || !endDate) {
     throw new Error('Scenario projection config missing startDate or endDate');
   }
 
-  const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, accounts);
-
-  const transactionOccurrences = expandedTransactions.map((txn) => {
-    const occDate = txn._occurrenceDate || parseDateOnly(txn.effectiveDate);
-    const occKey = occDate.getFullYear() * 10000 + (occDate.getMonth() + 1) * 100 + occDate.getDate();
-
-    let amount = txn.amount || 0;
-    if (txn.periodicChange) {
-      const expandedPC = expandPeriodicChangeForCalculation(txn.periodicChange, lookupData);
-      if (expandedPC) {
-        const txnStartDate = txn.recurrence?.startDate ? parseDateOnly(txn.recurrence.startDate) : startDate;
-        const yearsDiff = (occDate - txnStartDate) / (1000 * 60 * 60 * 24 * 365.25);
-        amount = calculatePeriodicChange(txn.amount, expandedPC, yearsDiff);
-      }
-    }
-
-    return {
-      date: occDate,
-      dateKey: occKey,
-      primaryAccountId: txn.primaryAccountId,
-      secondaryAccountId: txn.secondaryAccountId,
-      transactionTypeId: txn.transactionTypeId,
-      amount: amount,
-      description: txn.description || '',
-      sourceTransactionId: txn.id,
-      source: 'transaction',
-      transactionGroupId: txn.transactionGroupId ?? null,
-      transactionGroupRole: txn.transactionGroupRole ?? null,
-      capitalAmount: txn.capitalAmount ?? null,
-      interestAmount: txn.interestAmount ?? null
-    };
+  const { occurrences: resolvedOccurrences } = resolveScenarioOccurrences({
+    scenario,
+    startDate: projectionConfig.startDate,
+    endDate: projectionConfig.endDate,
+    asOfDate: projectionConfig.asOfDate ?? null,
+    openCommitmentStartDate: projectionConfig.openCommitmentStartDate ?? null,
+    lookupData
   });
+
+  const transactionOccurrences = resolvedOccurrences
+    .filter((occurrence) => occurrence.isIncludedInForecast && occurrence.validForProjection)
+    .map((occurrence) => {
+      const occurrenceDate = parseDateOnly(occurrence.forecastDate);
+      return {
+        date: occurrenceDate,
+        dateKey: toDateKey(occurrenceDate),
+        primaryAccountId: occurrence.primaryAccountId,
+        secondaryAccountId: occurrence.secondaryAccountId,
+        transactionTypeId: occurrence.transactionTypeId,
+        amount: occurrence.forecastAmount,
+        description: occurrence.description || '',
+        sourceTransactionId: occurrence.sourceTransactionId,
+        sourceBudgetId: occurrence.sourceBudgetId,
+        occurrenceKey: occurrence.occurrenceKey,
+        source: 'resolved-plan',
+        transactionGroupId: occurrence.transactionGroupId ?? null,
+        transactionGroupRole: occurrence.transactionGroupRole ?? null,
+        capitalAmount: occurrence.capitalAmount ?? null,
+        interestAmount: occurrence.interestAmount ?? null
+      };
+    });
 
   transactionOccurrences.sort((a, b) => a.dateKey - b.dateKey);
 

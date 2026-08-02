@@ -47,10 +47,10 @@ Create a scenario-level query that owns:
 - planned vs actual date selection
 - recurring expansion
 - split-set source normalization before expansion
-- transaction-like source selection from transactions or budgets
+- resolved rule/occurrence overlay from transactions and compatibility Budget records
 - consistent sorting by effective date
 
-This should be usable by UI, projections, and fund calculations.
+Implemented by `resolveScenarioOccurrences()` and consumed by projections, QC, and fund calculations. The legacy projection source selector is no longer a calculation branch.
 
 ### 3. Financial Entry Display Rows
 

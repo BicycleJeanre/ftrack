@@ -30,6 +30,9 @@ const AccountManager = await import('../../js/app/managers/account-manager.js');
 const BudgetManager = await import('../../js/app/managers/budget-manager.js');
 const ScenarioManager = await import('../../js/app/managers/scenario-manager.js');
 const TransactionManager = await import('../../js/app/managers/transaction-manager.js');
+const { resolveScenarioOccurrences } = await import(
+  '../../js/domain/queries/resolve-scenario-occurrences.js'
+);
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -194,6 +197,11 @@ test('budget save strips UI-only fields and fills actual status defaults', async
   const [budget] = (await DataStore.read()).scenarios[0].budgets;
   assert.equal(budget.id, 1);
   assert.equal(budget.amount, 99);
+  assert.equal(budget.plannedAmount, 99);
+  assert.equal(budget.baselineAmount, 99);
+  assert.equal(budget.scheduledDate, '2026-01-15');
+  assert.equal(budget.plannedDate, null);
+  assert.equal(budget.origin, 'generated');
   assert.deepEqual(budget.status, {
     name: 'actual',
     actualAmount: 99,
@@ -202,8 +210,155 @@ test('budget save strips UI-only fields and fills actual status defaults', async
   assert.equal(Object.hasOwn(budget, 'primaryAccount'), false);
   assert.equal(Object.hasOwn(budget, 'transactionType'), false);
   assert.equal(Object.hasOwn(budget, 'primaryAccountName'), false);
-  assert.equal(Object.hasOwn(budget, 'plannedAmount'), false);
   assert.equal(Object.hasOwn(budget, 'actualAmount'), false);
+});
+
+test('budget save preserves compatibility occurrence identity, baseline, reschedule, and split fields', async () => {
+  await BudgetManager.saveAll(1, [
+    {
+      id: 0,
+      sourceTransactionId: null,
+      primaryAccountId: 1,
+      secondaryAccountId: 3,
+      transactionGroupId: 'split-manual',
+      transactionGroupRole: 'interest',
+      transactionGroupAccountGroupId: 12,
+      transactionTypeId: 2,
+      amount: 55,
+      plannedAmount: 0,
+      baselineAmount: 0,
+      capitalAmount: 0,
+      interestAmount: 55,
+      description: 'Unexpected charge',
+      occurrenceDate: '2026-01-15',
+      occurrenceKey: 'budget:1',
+      scheduledDate: '2026-01-15',
+      plannedDate: '2026-01-16',
+      origin: 'manual',
+      status: { name: 'actual', actualAmount: 55, actualDate: '2026-01-16' },
+      tags: ['manual']
+    }
+  ]);
+
+  const [budget] = (await DataStore.read()).scenarios[0].budgets;
+  assert.equal(budget.occurrenceKey, 'budget:1');
+  assert.equal(budget.scheduledDate, '2026-01-15');
+  assert.equal(budget.plannedDate, '2026-01-16');
+  assert.equal(budget.plannedAmount, 0);
+  assert.equal(budget.baselineAmount, 0);
+  assert.equal(budget.origin, 'manual');
+  assert.equal(budget.transactionGroupAccountGroupId, 12);
+  assert.equal(budget.capitalAmount, 0);
+  assert.equal(budget.interestAmount, 55);
+});
+
+test('legacy budget amount and date edits stay synchronized with resolved plan fields', async () => {
+  const occurrenceKey = 'tx:10|date:2026-01-15|role:none';
+  await seed(baseAppData({
+    scenario: {
+      budgets: [
+        {
+          id: 50,
+          sourceTransactionId: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 100,
+          plannedAmount: 100,
+          baselineAmount: null,
+          description: 'Editable plan',
+          occurrenceDate: '2026-01-15',
+          occurrenceKey,
+          scheduledDate: '2026-01-15',
+          plannedDate: null,
+          origin: 'generated',
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ]
+    }
+  }));
+
+  const [existing] = (await DataStore.read()).scenarios[0].budgets;
+  await BudgetManager.saveAll(1, [{
+    ...existing,
+    amount: 120,
+    occurrenceDate: '2026-01-20'
+  }]);
+
+  const scenario = (await DataStore.read()).scenarios[0];
+  const [saved] = scenario.budgets;
+  assert.equal(saved.amount, 120);
+  assert.equal(saved.plannedAmount, 120);
+  assert.equal(saved.occurrenceKey, occurrenceKey);
+  assert.equal(saved.scheduledDate, '2026-01-15');
+  assert.equal(saved.plannedDate, '2026-01-20');
+  assert.equal(saved.isOverride, true);
+
+  const { occurrences } = resolveScenarioOccurrences({
+    scenario,
+    startDate: '2026-01-01',
+    endDate: '2026-01-31'
+  });
+  const matching = occurrences.filter((occurrence) => occurrence.sourceTransactionId === 10);
+  assert.equal(matching.length, 1);
+  assert.equal(matching[0].plannedAmount, 120);
+  assert.equal(matching[0].scheduledDate, '2026-01-15');
+  assert.equal(matching[0].effectiveDate, '2026-01-20');
+});
+
+test('budget regeneration uses stable scheduled identity to suppress a rescheduled actual duplicate', async () => {
+  const occurrenceKey = 'tx:10|date:2026-01-15|role:none';
+  await seed(baseAppData({
+    scenario: {
+      transactions: [
+        {
+          id: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 100,
+          effectiveDate: '2026-01-15',
+          description: 'Source plan',
+          recurrence: null,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ],
+      budgets: [
+        {
+          id: 60,
+          sourceTransactionId: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 100,
+          plannedAmount: 100,
+          baselineAmount: 100,
+          description: 'Rescheduled actual',
+          occurrenceDate: '2026-01-20',
+          occurrenceKey,
+          scheduledDate: '2026-01-15',
+          plannedDate: '2026-01-20',
+          origin: 'generated',
+          status: { name: 'actual', actualAmount: 105, actualDate: '2026-01-20' },
+          tags: []
+        }
+      ]
+    }
+  }));
+
+  await BudgetManager.createFromProjections(1);
+
+  const matching = (await DataStore.read()).scenarios[0].budgets.filter(
+    (budget) => budget.occurrenceKey === occurrenceKey
+  );
+  assert.equal(matching.length, 1);
+  assert.equal(matching[0].id, 60);
+  assert.equal(matching[0].status.name, 'actual');
+  assert.equal(matching[0].actualAmount, undefined);
+  assert.equal(matching[0].status.actualAmount, 105);
 });
 
 test('budget regeneration preserves history and actuals while replacing current planned rows', async () => {
@@ -315,6 +470,241 @@ test('budget regeneration preserves history and actuals while replacing current 
   });
   assert.equal(actualMatches.length, 1);
   assert.equal(actualMatches[0].status.name, 'actual');
+});
+
+test('budget regeneration preserves active-window overrides and refreshes compatibility snapshots', async () => {
+  const overrideKey = 'tx:10|date:2026-01-15|role:none';
+  const snapshotKey = 'tx:11|date:2026-01-16|role:none';
+  await seed(baseAppData({
+    scenario: {
+      budgets: [
+        {
+          id: 401,
+          sourceTransactionId: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 40,
+          plannedAmount: 40,
+          baselineAmount: 25,
+          description: 'Explicit occurrence override',
+          recurrenceDescription: 'One time',
+          occurrenceDate: '2026-01-20',
+          occurrenceKey: overrideKey,
+          scheduledDate: '2026-01-15',
+          plannedDate: '2026-01-20',
+          origin: 'generated',
+          isOverride: true,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        },
+        {
+          id: 402,
+          sourceTransactionId: 11,
+          primaryAccountId: 2,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 5,
+          plannedAmount: 5,
+          baselineAmount: null,
+          description: 'Replaceable generated snapshot',
+          recurrenceDescription: 'One time',
+          occurrenceDate: '2026-01-16',
+          occurrenceKey: snapshotKey,
+          scheduledDate: '2026-01-16',
+          plannedDate: null,
+          origin: 'generated',
+          isOverride: false,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ]
+    }
+  }));
+
+  await BudgetManager.createFromProjections(1);
+
+  const budgets = (await DataStore.read()).scenarios[0].budgets;
+  const overridden = budgets.filter((budget) => budget.occurrenceKey === overrideKey);
+  const refreshed = budgets.filter((budget) => budget.occurrenceKey === snapshotKey);
+
+  assert.equal(overridden.length, 1);
+  assert.equal(overridden[0].id, 401);
+  assert.equal(overridden[0].amount, 40);
+  assert.equal(overridden[0].occurrenceDate, '2026-01-20');
+  assert.equal(overridden[0].isOverride, true);
+
+  assert.equal(refreshed.length, 1);
+  assert.equal(refreshed[0].amount, 15);
+  assert.equal(refreshed[0].description, 'Savings fee');
+  assert.equal(refreshed[0].isOverride, false);
+});
+
+test('budget regeneration preserves explicit linked overrides outside the active window', async () => {
+  const januaryKey = 'tx:10|date:2026-01-15|role:none';
+  const februaryKey = 'tx:10|date:2026-02-15|role:none';
+  await seed(baseAppData({
+    scenario: {
+      transactions: [
+        {
+          id: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 100,
+          effectiveDate: '2026-01-15',
+          description: 'Monthly source plan',
+          recurrence: {
+            recurrenceType: 4,
+            startDate: '2026-01-15',
+            endDate: null,
+            interval: 1,
+            dayOfMonth: 15
+          },
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ],
+      budgets: [
+        {
+          id: 501,
+          sourceTransactionId: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 175,
+          plannedAmount: 175,
+          baselineAmount: 100,
+          description: 'Future explicit override',
+          recurrenceDescription: 'Monthly',
+          occurrenceDate: '2026-02-15',
+          occurrenceKey: februaryKey,
+          scheduledDate: '2026-02-15',
+          plannedDate: null,
+          origin: 'generated',
+          isOverride: true,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ],
+      budgetWindow: {
+        config: {
+          startDate: '2026-01-01',
+          endDate: '2026-01-31',
+          periodTypeId: 3
+        }
+      }
+    }
+  }));
+
+  await BudgetManager.createFromProjections(1);
+
+  const budgets = (await DataStore.read()).scenarios[0].budgets;
+  const january = budgets.filter((budget) => budget.occurrenceKey === januaryKey);
+  const february = budgets.filter((budget) => budget.occurrenceKey === februaryKey);
+
+  assert.equal(january.length, 1);
+  assert.equal(january[0].plannedAmount, 100);
+  assert.equal(january[0].isOverride, false);
+  assert.equal(february.length, 1);
+  assert.equal(february[0].id, 501);
+  assert.equal(february[0].plannedAmount, 175);
+  assert.equal(february[0].isOverride, true);
+});
+
+test('budget regeneration snapshots the resolved periodic-change amount', async () => {
+  await seed(baseAppData({
+    scenario: {
+      transactions: [
+        {
+          id: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 100,
+          effectiveDate: '2026-01-15',
+          description: 'Escalating monthly cost',
+          recurrence: {
+            recurrenceType: 4,
+            startDate: '2026-01-15',
+            endDate: null,
+            interval: 1,
+            dayOfMonth: 15
+          },
+          periodicChange: {
+            value: 10,
+            changeMode: 2,
+            changeType: 1,
+            period: 5
+          },
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ],
+      budgetWindow: {
+        config: {
+          startDate: '2027-01-01',
+          endDate: '2027-01-31',
+          periodTypeId: 3
+        }
+      }
+    }
+  }));
+
+  await BudgetManager.createFromProjections(1);
+
+  const [budget] = (await DataStore.read()).scenarios[0].budgets;
+  assert.equal(budget.occurrenceDate, '2027-01-15');
+  assert.ok(budget.amount > 109.9 && budget.amount < 110.1);
+  assert.equal(budget.amount, budget.plannedAmount);
+});
+
+test('untouched generated budgets do not pin later transaction-rule changes', async () => {
+  await seed(baseAppData({
+    scenario: {
+      transactions: [
+        {
+          id: 10,
+          primaryAccountId: 1,
+          secondaryAccountId: 3,
+          transactionTypeId: 2,
+          amount: 100,
+          effectiveDate: '2026-01-15',
+          description: 'Original rule',
+          recurrence: null,
+          periodicChange: null,
+          status: { name: 'planned', actualAmount: null, actualDate: null },
+          tags: []
+        }
+      ]
+    }
+  }));
+
+  await BudgetManager.createFromProjections(1);
+  let scenario = (await DataStore.read()).scenarios[0];
+  assert.equal(scenario.budgets[0].isOverride, false);
+
+  await TransactionManager.saveAll(1, [{
+    ...scenario.transactions[0],
+    amount: 140,
+    description: 'Updated rule'
+  }]);
+
+  scenario = (await DataStore.read()).scenarios[0];
+  const { occurrences } = resolveScenarioOccurrences({
+    scenario,
+    startDate: '2026-01-01',
+    endDate: '2026-01-31'
+  });
+
+  assert.equal(occurrences.length, 1);
+  assert.equal(occurrences[0].plannedAmount, 140);
+  assert.equal(occurrences[0].description, 'Updated rule');
+  assert.equal(occurrences[0].hasPlanOverride, false);
 });
 
 test('budget regeneration drops a historical planned duplicate when a matching actual exists', async () => {

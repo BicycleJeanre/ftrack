@@ -50,22 +50,21 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
 
 #### D. Budget Grid
 - **Type**: Multi-row, Editable.
-- **Behavior**: Displays budget occurrences (snapshot of projections) with actual tracking.
+- **Behavior**: Compatibility UI for stored dated occurrence overrides and actual tracking.
 - **Features**:
-  - **Creation**: "Save as Budget" button in Projections section creates budget from current projections.
+  - **Creation**: **Generate from Expanded Transactions** expands resolved rule occurrences over the Budget window.
   - **Editing**: Budget occurrences can be edited (amount, date, description, accounts).
-  - **Actuals Tracking**: Each occurrence can have plannedAmount and actualAmount.
-  - **Projection Source**: "Project from Budget" button generates new projections using budget.
+  - **Actuals Tracking**: Each occurrence can retain baseline, current planned amount, actual amount/date, status, and stable identity.
+  - **Override Intent**: When the plan is resolved, untouched generated snapshots inherit later source-rule changes; edited rows remain occurrence overrides.
   - Cell Editing: Calls `BudgetManager.saveAll()` via application layer.
+  - This card remains transitional until the approved live **Plan & Actuals** period view replaces Budget generation.
 
 #### E. Projection Grid
 - **Type**: Read-only display.
 - **Behavior**: Shows calculated financial projections by period.
 - **Features**:
-  - **Generation Sources**:
-    - "Generate Projections": Uses transactions as source (regenerate from original data).
-    - "Project from Budget": Uses budget occurrences as source (continue from budget).
-  - **Save as Budget**: Creates editable budget snapshot from projections.
+  - **Generation Input**: Always uses canonical resolved occurrences: actuals, current plan, future rule occurrences, manual entries, and skips.
+  - Legacy `projection.config.source` values remain readable but do not select a calculation path.
   - **Toolbar**: Account filter, period view controls, and inline totals (Income, Expenses, Net).
 
 #### F. Summary Cards
@@ -120,47 +119,52 @@ Scenarios and Accounts enforce single selection behavior.
 5. Transaction, Budget, and Projection grids filter to show only that account's data.
 
 ### 3.3 Budget Workflow
-1. **Create Budget**: User generates projections from transactions, then clicks "Save as Budget".
-2. **Edit Budget**: Budget grid allows editing amounts, dates, descriptions, and tracking actuals.
-3. **Project from Budget**: User clicks "Project from Budget" to generate new projections using budget as source.
-4. **Regenerate from Source**: User clicks "Generate Projections" to bypass budget and use original transactions.
+1. **Define Rules**: User creates recurring and one-time transaction rules.
+2. **Materialize Compatibility Rows**: The current Budget card can regenerate dated rows over its independent Budget window.
+3. **Edit Occurrences**: Amounts, dates, descriptions, status, and actuals can be changed per occurrence.
+4. **Recalculate**: Generate Projections resolves rules together with occurrence edits, actuals, skips, and manual entries.
 
-This pattern allows iterative planning: save projection → edit budget → reproject → refine budget.
+This is the schemaVersion 43 compatibility workflow. The approved next UI phase removes the materialization step and presents Period and Recurring modes in one **Plan & Actuals** card.
 
-### 3.4 Budget Creation from Projections
-Budget creation converts forward-looking projections into an editable baseline for tracking and refinement.
+### 3.4 Compatibility Budget Regeneration
+Budget regeneration materializes resolved rule occurrences for the independent Budget window.
 
 **Process**:
-1. User generates projections using "Generate Projections" (sources from transactions)
-2. Projection grid displays calculated values for each period
-3. "Save as Budget" button creates budget occurrences, copying:
-   - Period dates (startDate/endDate)
-   - Projected amounts as plannedAmount
+1. User configures the Budget window.
+2. **Generate from Expanded Transactions** calls `BudgetManager.createFromProjections()`.
+3. The manager calls `resolveScenarioOccurrences()` with existing Budget overlays omitted, then stores generated compatibility rows containing:
+   - Stable scheduled dates and occurrence keys
+   - Resolved periodic-change amounts as `plannedAmount`
    - Account associations (primaryAccountId/secondaryAccountId)
    - Transaction types (transactionTypeId)
    - Descriptions
+   - Split role, account-group, capital, and interest metadata
+   - `isOverride = false`
 
 **Technical Implementation**:
-- Budget occurrences are independent records (not linked to source transactions)
-- Each occurrence gets unique ID for individual tracking
-- Creation happens via `BudgetManager.createFromProjections()`
-- Budget data persists in scenario's `budgets` array
+- Generated occurrences retain `sourceTransactionId` and an immutable scheduled identity.
+- Existing actuals, skips, manual occurrences, and historical rows are preserved according to compatibility rules.
+- User edits flip override intent so later rule changes do not erase the occurrence-specific decision.
+- Budget data persists in `scenario.budgets` until the clean occurrence-schema migration.
 
-**Use Case**: User wants to establish a monthly spending plan based on projected expenses, then track actual spending against it.
+**Use Case**: Transitional support for existing Budget workflows and data while the live period view is introduced.
 
 ### 3.5 Budget vs. Actual Tracking
 Each budget occurrence supports dual-amount tracking to compare planned vs. actual financial events.
 
 **Data Structure**:
-- `plannedAmount`: Original budgeted amount (set when budget is created)
+- `baselineAmount`: Frozen or migrated comparison amount
+- `plannedAmount`: Latest expected amount
 - `actualAmount`: Real amount spent/received (edited by user as events occur)
-- `variance`: Calculated as `actualAmount - plannedAmount`
+- `scheduledDate`: Stable matching date
+- `plannedDate`: Optional occurrence-only reschedule
+- `actualDate`: Realized date
 
 **Workflow**:
-1. Budget created with plannedAmount from projections
+1. Budget compatibility row is generated or added manually.
 2. As real transactions occur, user updates actualAmount fields
-3. Grid displays both values for comparison
-4. Variance indicators show over/under budget status
+3. The resolver replaces the matching planned movement with actual amount/date.
+4. Baseline, current plan, actual, commitments, and variance totals can be calculated from canonical resolved occurrences.
 
 **Period Filtering**:
 - Budget grid filters by selected period (Month/Quarter/Year)
@@ -168,9 +172,9 @@ Each budget occurrence supports dual-amount tracking to compare planned vs. actu
 - Totals toolbar shows aggregated planned vs. actual for visible period
 
 **Technical Implementation**:
-- Budget filtering uses `BudgetManager.getByPeriod()`
-- Grid columns use `createMoneyColumn()` for consistent formatting
-- Totals calculated via `calculateCategoryTotals()` utility
+- Budget display uses the shared perspective-row query and period helpers.
+- Grid columns use shared grid-factory money/date columns.
+- Compatibility totals use `calculateBudgetTotals()`; the canonical comparison contract is `calculateResolvedOccurrenceTotals()`.
 
 **Use Case**: User budgets $500/month for groceries (plannedAmount), then tracks actual grocery spending each month (actualAmount) to identify overspending trends.
 

@@ -233,11 +233,24 @@ function getAdvancedGoalSolverWindow(scenario) {
 
 function getSolverProjectionOptions(scenario) {
   const window = getAdvancedGoalSolverWindow(scenario);
+  const projectionConfig = scenario?.projection?.config || {};
+  const asOfDate =
+    projectionConfig.asOfDate >= window.startDate &&
+    projectionConfig.asOfDate <= window.endDate
+      ? projectionConfig.asOfDate
+      : null;
+  const openCommitmentStartDate =
+    projectionConfig.openCommitmentStartDate &&
+    projectionConfig.openCommitmentStartDate <= window.startDate
+      ? projectionConfig.openCommitmentStartDate
+      : null;
   return {
     startDate: window.startDate,
     endDate: window.endDate,
     periodTypeId: 3, // Month (solver constraints are monthly)
-    source: 'transactions'
+    source: 'transactions',
+    ...(asOfDate ? { asOfDate } : {}),
+    ...(openCommitmentStartDate ? { openCommitmentStartDate } : {})
   };
 }
 

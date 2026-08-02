@@ -2,7 +2,7 @@
 // Shared helpers for persisting schemaVersion 43 app data.
 
 import { DEFAULT_WORKFLOW_ID, getWorkflowById } from './workflow-registry.js';
-import { formatDateOnly } from './date-utils.js';
+import { formatDateOnly, parseDateOnly } from './date-utils.js';
 
 export const CURRENT_SCHEMA_VERSION = 43;
 export const DEFAULT_PERIOD_TYPE_ID = 3; // Month
@@ -152,7 +152,22 @@ export function createDefaultAppData(overrides = {}) {
   };
 }
 
-function normalizeProjectionConfig(rawConfig) {
+export function normalizeDateOnlyString(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const parsed = parseDateOnly(value);
+  if (!(parsed instanceof Date) || Number.isNaN(parsed.valueOf())) return null;
+
+  const normalized = [
+    String(parsed.getFullYear()).padStart(4, '0'),
+    String(parsed.getMonth() + 1).padStart(2, '0'),
+    String(parsed.getDate()).padStart(2, '0')
+  ].join('-');
+
+  return normalized === value ? value : null;
+}
+
+export function normalizeProjectionConfig(rawConfig) {
   const defaults = getDefaultProjectionWindowDates();
   const base = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
 
@@ -164,12 +179,26 @@ function normalizeProjectionConfig(rawConfig) {
         DEFAULT_PERIOD_TYPE_ID;
 
   const source = base.source === 'budget' ? 'budget' : 'transactions';
+  let startDate = normalizeDateOnlyString(base.startDate) || defaults.startDate;
+  let endDate = normalizeDateOnlyString(base.endDate) || defaults.endDate;
+
+  if (startDate > endDate) {
+    startDate = defaults.startDate;
+    endDate = defaults.endDate;
+  }
+
+  const asOfDate = normalizeDateOnlyString(base.asOfDate);
+  const openCommitmentStartDate = normalizeDateOnlyString(base.openCommitmentStartDate);
 
   return {
-    startDate: typeof base.startDate === 'string' && base.startDate ? base.startDate : defaults.startDate,
-    endDate: typeof base.endDate === 'string' && base.endDate ? base.endDate : defaults.endDate,
+    startDate,
+    endDate,
     periodTypeId: Number.isFinite(Number(periodTypeId)) ? Number(periodTypeId) : DEFAULT_PERIOD_TYPE_ID,
-    source
+    source,
+    ...(asOfDate ? { asOfDate } : {}),
+    ...(openCommitmentStartDate && openCommitmentStartDate <= startDate
+      ? { openCommitmentStartDate }
+      : {})
   };
 }
 

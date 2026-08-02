@@ -2,7 +2,9 @@
 
 ## 1.0 Purpose
 
-1.1 Explain how to use the Budget workflow to plan spending, track actuals, and iterate using budgets and projections.
+1.1 Explain the current compatibility workflow for planning spending, tracking actuals, and recalculating projections from one resolved plan.
+
+1.2 The approved **Plan & Actuals** live period view is being implemented in phases. Until that UI phase is complete, Transactions and Budget remain separate cards.
 
 ## 2.0 When To Use Budget
 
@@ -44,13 +46,13 @@
 
 ## 5.0 Generate Budget From Planned Transactions
 
-5.1 Add planned transactions with recurrence to your scenario.
+5.1 Add planned transactions to your scenario.
 
-5.1.1 Transactions must have a recurrence pattern (even one-time transactions count).
+5.1.1 Transactions may be recurring or one-time; one-time entries need an effective date inside the Budget window.
 
-5.2 Click **Regenerate from Planned Transactions** button in the Budget tab.
+5.2 In the Budget card, click the `⊞` action with the tooltip **Generate from Expanded Transactions**.
 
-5.2.1 The button will expand all recurrence-based transactions into dated budget occurrences.
+5.2.1 The action expands recurring rules and includes dated one-time rules as Budget occurrences.
 
 5.2.2 Budget uses its own independent window dates, separate from projections.
 
@@ -70,11 +72,15 @@
 
 6.3 Compare planned vs actual to identify variances and refine future budgets.
 
-## 7.0 Regenerate Projections From Budget
+## 7.0 Recalculate Projections From The Resolved Plan
 
-7.1 After editing the Budget grid, you can regenerate projections using the budget as the source.
+7.1 After editing the Budget grid or recording actuals, click **Generate Projections** or **Regenerate projections**.
 
-7.2 This allows budget actuals and edits to flow into the projection.
+7.2 Projections automatically resolve transaction rules together with Budget occurrence edits, actuals, skips, and manual entries.
+
+7.3 There is no longer a calculation choice between Transactions and Budget. The old source value remains stored only for compatibility and does not change results.
+
+7.4 A matching actual replaces its planned occurrence and uses the actual amount and actual date.
 
 ## 8.0 Key Differences: Budget Window vs Projection Window
 
@@ -82,7 +88,7 @@
 
 8.2 Projection window: Independent date range used for generating cash flow projections and account balances.
 
-8.3 These are completely separate; changing one does not affect the other.
+8.3 These windows remain separate during the compatibility phase. The approved live period view will remove the Budget-generation window in a later schema/UI phase.
 
 8.4 Budget window is required; projections are optional.
 
@@ -92,14 +98,14 @@
 
 9.1.1 Confirm the selected workflow is Budget.
 
-9.1.2 Add planned transactions with recurrence patterns to the scenario.
+9.1.2 Add planned recurring or one-time transactions to the scenario.
 
 9.1.3 Configure a budget window (set start and end dates for budget regeneration).
 
-9.1.4 Click "Regenerate from Planned Transactions" to expand transactions into budget occurrences.
+9.1.4 Click the `⊞` **Generate from Expanded Transactions** action to expand transactions into budget occurrences.
 
-9.2 "Regenerate from Planned Transactions" button shows an error.
+9.2 **Generate from Expanded Transactions** shows an error.
 
-9.2.1 Ensure you have added planned transactions with recurrence patterns.
+9.2.1 Ensure you have added planned transactions whose dates overlap the Budget window.
 
 9.2.2 Budget window must be configured with both start and end dates.

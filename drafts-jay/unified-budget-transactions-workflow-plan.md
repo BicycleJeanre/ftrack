@@ -659,7 +659,7 @@ Deliverable:
 
 - approved target workflow and occurrence state table.
 
-### Phase 1: Introduce A Compatibility Occurrence Resolver
+### Phase 1: Introduce A Compatibility Occurrence Resolver — Implemented 2026-08-02
 
 Keep schemaVersion 43 temporarily.
 
@@ -689,7 +689,7 @@ Likely files:
 - `js/ui/transforms/data-aggregators.js`
 - new unit tests
 
-### Phase 2: Make Projections Use The Resolved Plan
+### Phase 2: Make Projections Use The Resolved Plan — Implemented 2026-08-02
 
 Refactor projection generation to:
 
@@ -1074,3 +1074,28 @@ The proposal was checked against the following implementation and documentation 
 | `js/app/services/validation-service.js` | Validation still requires transaction status while also containing older scenario-field assumptions, so schema cleanup must include validator reconciliation. |
 | Unit, QC, and Playwright suites | Existing coverage protects recurrence, perspective rows, manager normalization, budget actuals, projections, workflows, imports, and responsive behavior, but does not cover one resolved rule/occurrence timeline. |
 | Current user and technical guides | Several documents still describe removed or contradictory “Actual Transactions,” “Save as Budget,” and “Project from Budget” flows. |
+
+## 21. Implementation Progress
+
+### 21.1 Completed On 2026-08-02
+
+- Added the pure `resolveScenarioOccurrences()` compatibility query over schemaVersion 43.
+- Added stable generated and manual occurrence keys, actual replacement, skips, manual occurrences, reschedules, split-role identity, periodic changes, diagnostics, and explicit overdue/as-of handling.
+- Made projections ignore the legacy transaction-versus-budget source choice and always consume resolved occurrences.
+- Persisted optional projection `asOfDate` and `openCommitmentStartDate` values so a regenerated projection uses the same overdue policy.
+- Added explicit `isOverride` intent for newly generated Budget snapshots. When resolved, untouched snapshots inherit later source-rule changes; user edits remain occurrence overrides.
+- Hardened legacy compatibility so future recurring rows cannot bind to the wrong period, transaction actuals replace linked plans instead of double-counting, regeneration preserves explicit occurrence overrides, and invalid overdue-policy dates are normalized before projection.
+- Routed Funds contribution, redemption, and ownership calculations through resolved occurrences.
+- Made Budget regeneration use the resolver, preserve actuals, skips, manual entries, stable identity, periodic changes, and split metadata.
+- Added baseline/current-plan/actual comparison totals and corrected Forecast Position to actual net plus signed remaining commitments.
+- Made QC use the same resolved occurrence input, surface resolver diagnostics, and run the Advanced Goal Solver projection workflow.
+- Added unit, QC, build, and browser regression coverage for the compatibility slice.
+
+### 21.2 Deliberately Deferred To The Next Phases
+
+- The Budget screen is still the compatibility grid and still exposes generation/window actions. Phase 3 will convert it to a live resolved period view.
+- The Budget workflow still has separate Transactions and Budget cards. Phase 4 will replace them with the approved **Plan & Actuals** card.
+- Period-wide automatic baseline freeze and the manual **Freeze baseline** action require the Phase 5 command layer. The compatibility manager currently freezes the occurrence being actualized, not every occurrence in the reporting period.
+- “This occurrence,” “This and future,” “Entire series,” and “Repeat going forward” commands remain Phase 5 work.
+- Debounced automatic projection refresh, visible stale state, and reliable secondary-account projection grouping remain part of the UI phases. Stored projection totals and live grouping must not be presented as synchronized until that provenance work is complete.
+- SchemaVersion 43 remains in place. The `budgets`, `budgetWindow`, and legacy projection `source` fields stay readable until the tested Phase 6 migration.

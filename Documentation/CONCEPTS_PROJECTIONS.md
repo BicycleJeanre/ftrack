@@ -11,7 +11,17 @@
 
 ## 1.2 Generating Projections
 
-Projections show you where your finances are headed based on your planned transactions and account balances.
+Projections show you where your finances are headed based on account balances and the resolved plan.
+
+The resolved plan combines:
+
+- actual occurrences at their actual amount and date;
+- remaining planned occurrences at their latest planned amount and date;
+- future occurrences generated from recurring rules;
+- manual planned or actual occurrences; and
+- no movement for occurrences marked skipped.
+
+The legacy `transactions` versus `budget` projection-source setting is retained only for schemaVersion 43 compatibility. It no longer changes the calculation.
 
 1. Ensure all your accounts and planned transactions are set up correctly.
 2. Set the scenario **projection window** (Start, End, Period Type) in the scenario list at the top of Forecast.
@@ -37,7 +47,9 @@ Projections are only as good as your data. Here is how to improve accuracy.
 - Review and update planned transactions regularly.
 - Use recurrence for all repeating payments.
 - Add periodic changes for salary increases or known expense changes.
-- Compare projections to actuals and adjust the plan accordingly.
+- Record actuals and occurrence adjustments in Budget, then recalculate projections.
+- An actual replaces its matching planned occurrence; it is not added beside it.
+- Manual unplanned actuals and skipped occurrences are reflected when projections are recalculated.
 
 ## 1.5 View By (display grouping)
 

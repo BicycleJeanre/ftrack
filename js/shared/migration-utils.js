@@ -7,6 +7,7 @@ import {
   createDefaultUiState,
   getDefaultProjectionWindowDates,
   mapPeriodTypeNameToId,
+  normalizeProjectionConfig,
   sanitizeScenarioForWrite
 } from './app-data-utils.js';
 import {
@@ -56,6 +57,16 @@ function migrateScenario(legacyScenario) {
   const sourceRaw =
     (s?.projection?.config && typeof s.projection.config === 'object' ? s.projection.config.source : null) || null;
   const source = sourceRaw === 'budget' ? 'budget' : 'transactions';
+  const projectionConfig = normalizeProjectionConfig({
+    startDate,
+    endDate,
+    periodTypeId,
+    source,
+    asOfDate: s?.projection?.config?.asOfDate,
+    openCommitmentStartDate: s?.projection?.config?.openCommitmentStartDate
+  });
+  const normalizedStartDate = projectionConfig.startDate;
+  const normalizedEndDate = projectionConfig.endDate;
 
   const rows = Array.isArray(s?.projection?.rows)
     ? s.projection.rows
@@ -73,18 +84,13 @@ function migrateScenario(legacyScenario) {
     transactions: Array.isArray(s.transactions) ? s.transactions : [],
     budgets: Array.isArray(s.budgets) ? s.budgets : [],
     projection: {
-      config: {
-        startDate: String(startDate),
-        endDate: String(endDate),
-        periodTypeId,
-        source
-      },
+      config: projectionConfig,
       ...(rows.length ? { rows } : {}),
       generatedAt: s?.projection?.generatedAt ?? null
     },
     planning: {
-      generatePlan: { startDate: String(startDate), endDate: String(endDate) },
-      advancedGoalSolver: { startDate: String(startDate), endDate: String(endDate) }
+      generatePlan: { startDate: normalizedStartDate, endDate: normalizedEndDate },
+      advancedGoalSolver: { startDate: normalizedStartDate, endDate: normalizedEndDate }
     }
   };
 
@@ -97,8 +103,8 @@ function migrateScenario(legacyScenario) {
   if (existingBudgetWindowConfig || migrated.budgets.length > 0) {
     migrated.budgetWindow = {
       config: {
-        startDate: existingBudgetWindowConfig?.startDate || startDate,
-        endDate: existingBudgetWindowConfig?.endDate || endDate,
+        startDate: existingBudgetWindowConfig?.startDate || normalizedStartDate,
+        endDate: existingBudgetWindowConfig?.endDate || normalizedEndDate,
         periodTypeId: existingBudgetWindowConfig?.periodTypeId ?? periodTypeId
       }
     };

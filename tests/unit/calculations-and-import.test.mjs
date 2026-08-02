@@ -46,7 +46,9 @@ const { getRecurrenceDescription } = await import('../../js/domain/calculations/
 const { calculatePeriodicChange } = await import('../../js/domain/calculations/financial-calculations.js');
 const DataStore = await import('../../js/app/services/storage-service.js');
 const DataService = await import('../../js/app/services/data-service.js');
+const { getDefaultProjectionWindowDates } = await import('../../js/shared/app-data-utils.js');
 const { formatDateOnly, parseDateOnly } = await import('../../js/shared/date-utils.js');
+const { migrateAppData } = await import('../../js/shared/migration-utils.js');
 
 function isoDates(dates) {
   return dates.map((date) => formatDateOnly(date));
@@ -150,6 +152,17 @@ test('monthly recurrence intervals preserve the start-month anchor when filterin
   );
 });
 
+test('daily recurrence intervals preserve the saved start-date anchor in filtered windows', () => {
+  assert.deepEqual(
+    isoDates(generateRecurrenceDates({
+      recurrenceType: { id: 2, name: 'Daily' },
+      startDate: '2026-01-01',
+      interval: 3
+    }, parseDateOnly('2026-01-02'), parseDateOnly('2026-01-08'))),
+    ['2026-01-04', '2026-01-07']
+  );
+});
+
 test('recurrence summary includes the saved start date for recurring entries', () => {
   assert.equal(
     getRecurrenceDescription({
@@ -206,6 +219,73 @@ test('import replaces and merges app data while preserving current selection on 
   assert.deepEqual(data.scenarios.map((scenario) => scenario.id), [1, 2]);
   assert.equal(data.scenarios[1].name, 'Merged Scenario');
   assert.equal(data.uiState.lastScenarioId, null);
+});
+
+test('projection as-of and open-commitment boundaries survive normalization', async () => {
+  const imported = baseAppData('As-of projection');
+  imported.scenarios[0].projection.config.asOfDate = '2026-06-15';
+  imported.scenarios[0].projection.config.openCommitmentStartDate = '2026-01-01';
+
+  await DataService.importAppData(JSON.stringify(imported), false);
+
+  const config = (await DataStore.read()).scenarios[0].projection.config;
+  assert.equal(config.asOfDate, '2026-06-15');
+  assert.equal(config.openCommitmentStartDate, '2026-01-01');
+});
+
+test('projection config normalization drops invalid and misaligned date-policy values', async () => {
+  const imported = baseAppData('Invalid projection policy');
+  imported.scenarios[0].projection.config.asOfDate = '2026-02-30';
+  imported.scenarios[0].projection.config.openCommitmentStartDate = '2025/12/31';
+
+  await DataService.importAppData(JSON.stringify(imported), false);
+
+  let config = (await DataStore.read()).scenarios[0].projection.config;
+  assert.equal(Object.prototype.hasOwnProperty.call(config, 'asOfDate'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(config, 'openCommitmentStartDate'), false);
+
+  imported.scenarios[0].projection.config.asOfDate = '2026-06-15';
+  imported.scenarios[0].projection.config.openCommitmentStartDate = '2026-01-02';
+  await DataService.importAppData(JSON.stringify(imported), false);
+
+  config = (await DataStore.read()).scenarios[0].projection.config;
+  assert.equal(config.asOfDate, '2026-06-15');
+  assert.equal(Object.prototype.hasOwnProperty.call(config, 'openCommitmentStartDate'), false);
+});
+
+test('projection config normalization repairs invalid or inverted projection windows', async () => {
+  const defaults = getDefaultProjectionWindowDates();
+  const imported = baseAppData('Invalid projection window');
+  imported.scenarios[0].projection.config.startDate = '2026-12-31';
+  imported.scenarios[0].projection.config.endDate = '2026-01-01';
+
+  await DataService.importAppData(JSON.stringify(imported), false);
+
+  let config = (await DataStore.read()).scenarios[0].projection.config;
+  assert.equal(config.startDate, defaults.startDate);
+  assert.equal(config.endDate, defaults.endDate);
+
+  imported.scenarios[0].projection.config.startDate = '2026-02-30';
+  imported.scenarios[0].projection.config.endDate = 'not-a-date';
+  await DataService.importAppData(JSON.stringify(imported), false);
+
+  config = (await DataStore.read()).scenarios[0].projection.config;
+  assert.equal(config.startDate, defaults.startDate);
+  assert.equal(config.endDate, defaults.endDate);
+});
+
+test('legacy migration applies projection date-policy normalization before persistence', () => {
+  const legacy = baseAppData('Legacy projection policy');
+  legacy.schemaVersion = 42;
+  legacy.scenarios[0].projection.config.asOfDate = '06/15/2026';
+  legacy.scenarios[0].projection.config.openCommitmentStartDate = '2026-01-02';
+
+  const config = migrateAppData(legacy).scenarios[0].projection.config;
+
+  assert.equal(config.startDate, '2026-01-01');
+  assert.equal(config.endDate, '2026-12-31');
+  assert.equal(Object.prototype.hasOwnProperty.call(config, 'asOfDate'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(config, 'openCommitmentStartDate'), false);
 });
 
 test('import rejects malformed and structurally invalid app data', async () => {

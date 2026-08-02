@@ -261,23 +261,69 @@
       "budgets": [
         {
           "id": 1011,
-          "name": "Rent Budget",
-          "accountId": 4,
+          "sourceTransactionId": 1002,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 4,
+          "transactionTypeId": 2,
           "amount": 800,
-          "period": 3,
-          "startDate": "2026-01-01",
-          "endDate": "2026-12-31"
+          "plannedAmount": 800,
+          "baselineAmount": null,
+          "description": "UC-A2 Monthly rent",
+          "recurrenceDescription": "Monthly",
+          "occurrenceDate": "2026-01-01",
+          "occurrenceKey": "tx:1002|date:2026-01-01|role:none",
+          "scheduledDate": "2026-01-01",
+          "plannedDate": null,
+          "origin": "generated",
+          "isOverride": false,
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "UC-A2",
+            "UC-S2",
+            "expense"
+          ]
         },
         {
           "id": 1012,
-          "name": "Groceries Budget",
-          "accountId": 5,
+          "sourceTransactionId": 1003,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 5,
+          "transactionTypeId": 2,
           "amount": 200,
-          "period": 3,
+          "plannedAmount": 200,
+          "baselineAmount": null,
+          "description": "UC-A3 Monthly groceries",
+          "recurrenceDescription": "Monthly",
+          "occurrenceDate": "2026-01-05",
+          "occurrenceKey": "tx:1003|date:2026-01-05|role:none",
+          "scheduledDate": "2026-01-05",
+          "plannedDate": null,
+          "origin": "generated",
+          "isOverride": false,
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "UC-A3",
+            "UC-S2",
+            "expense"
+          ]
+        }
+      ],
+      "budgetWindow": {
+        "config": {
           "startDate": "2026-01-01",
           "endDate": "2026-12-31"
         }
-      ],
+      },
       "projection": {
         "config": {
           "startDate": "2026-01-01",

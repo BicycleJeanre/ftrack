@@ -53,7 +53,7 @@ Current behavior that matters for the tutorial:
    - `⊞` = **Set projection period**
    - `⊕` = **Generate projections**
    - `↺` = **Regenerate projections**
-13. The engine supports projection source = `budget`, but the current visible UI does **not** expose a source toggle. Do not script a “Project from Budget” step.
+13. The engine always resolves transactions and Budget occurrence records together. The legacy source value is compatibility-only, and the current visible UI does **not** expose a source toggle. Do not script a “Project from Budget” step.
 
 ## 3. Recording Strategy
 
@@ -241,7 +241,7 @@ These points should shape the recording:
 
 1. Do **not** say “set the projection window on the scenario row.” The current UI uses the **Projections** modal, not a scenario row editor.
 2. Do **not** say “Regenerate from Planned Transactions” as a visible button label. In the current UI, the budget action is an icon button with tooltip **Generate from Expanded Transactions**.
-3. Do **not** script a visible “Project from Budget” control. The engine supports it, but the current UI does not expose it.
+3. Do **not** script a visible “Project from Budget” control. Projections always consume the resolved plan, and the current UI does not expose a source toggle.
 4. Keep the transaction and budget perspective focused on **Checking** so the card list stays understandable.
 5. Hover icon buttons before clicking them so ScreenPal captures the tooltip text.
 
@@ -551,7 +551,7 @@ This is critical because the current UI uses many icon-only buttons.
 5. Use the exact sample values in this document.
 6. Keep the Transactions filter on `Checking` during transaction entry.
 7. Use the exact projection and budget windows in this document.
-8. Do not include any step that implies a visible “Project from Budget” button.
+8. Do not include any step that implies a visible “Project from Budget” button or a separate projection-source choice.
 
 ## 13. Optional Follow-Up Variant
 

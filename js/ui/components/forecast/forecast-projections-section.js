@@ -9,7 +9,7 @@ import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
 import { openTimeframeModal } from '../modals/timeframe-modal.js';
 import { createFilterModal } from '../modals/filter-modal.js';
 import { formatCurrency, formatMoneyDisplay, numValueClass } from '../../../shared/format-utils.js';
-import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
+import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows } from '../../transforms/transaction-row-transformer.js';
 import { getGroupAccountIds } from '../../../domain/utils/account-group-utils.js';
 
@@ -105,57 +105,45 @@ function getProjectionSourceOccurrences({ scenario, state }) {
   const periodsWithBounds = projectionPeriods.filter((period) => period?.startDate && period?.endDate);
   if (!periodsWithBounds.length) return [];
 
-  const startDate = parseDateOnly(periodsWithBounds[0].startDate);
-  const endDate = parseDateOnly(periodsWithBounds[periodsWithBounds.length - 1].endDate);
+  const startDateKey = periodsWithBounds[0].startDate;
+  const endDateKey = periodsWithBounds[periodsWithBounds.length - 1].endDate;
+  const startDate = parseDateOnly(startDateKey);
+  const endDate = parseDateOnly(endDateKey);
   if (!startDate || !endDate) return [];
 
-  const source = scenario?.projection?.config?.source === 'budget' ? 'budget' : 'transactions';
-  const statusName = (entry) => (typeof entry?.status === 'object' ? entry?.status?.name : entry?.status);
-
-  const sourceItems = source === 'budget'
-    ? (scenario?.budgets || [])
-      .filter((budget) => statusName(budget) === 'planned')
-      .map((budget) => ({
-        id: budget.id,
-        primaryAccountId: budget.primaryAccountId,
-        secondaryAccountId: budget.secondaryAccountId,
-        transactionTypeId: budget.transactionTypeId,
-        amount: budget.amount,
-        description: budget.description,
-        recurrence: budget.recurrence,
-        effectiveDate: budget.date,
-        status: budget.status
-      }))
-    : (scenario?.transactions || []).filter((tx) => statusName(tx) === 'planned');
-
-  return expandTransactions(sourceItems, startDate, endDate, scenario?.accounts || []);
+  return resolveScenarioOccurrences({
+    scenario,
+    startDate: startDateKey,
+    endDate: endDateKey,
+    asOfDate: scenario?.projection?.config?.asOfDate ?? null,
+    openCommitmentStartDate:
+      scenario?.projection?.config?.openCommitmentStartDate ?? null
+  }).occurrences.filter(
+    (occurrence) => occurrence.isIncludedInForecast && occurrence.validForProjection
+  );
 }
 
-function normalizeProjectionOccurrenceForTransform(entry, source) {
-  if (source === 'budget') {
-    return normalizeCanonicalTransaction({
-      id: entry.id,
-      primaryAccountId: entry.primaryAccountId,
-      secondaryAccountId: entry.secondaryAccountId,
-      transactionTypeId: entry.transactionTypeId,
-      transactionType: entry.transactionType,
-      amount: entry.amount,
-      plannedAmount: entry.amount,
-      actualAmount: entry.status?.actualAmount ?? null,
-      description: entry.description,
-      effectiveDate: entry.effectiveDate,
-      recurrence: entry.recurrence,
-      status: entry.status || { name: 'planned' }
-    });
-  }
-  return normalizeCanonicalTransaction(entry);
+function normalizeProjectionOccurrenceForTransform(entry) {
+  return normalizeCanonicalTransaction({
+    id: entry.occurrenceKey,
+    primaryAccountId: entry.primaryAccountId,
+    secondaryAccountId: entry.secondaryAccountId,
+    transactionTypeId: entry.transactionTypeId,
+    amount: entry.forecastAmount,
+    plannedAmount: entry.forecastAmount,
+    actualAmount: null,
+    description: entry.description,
+    effectiveDate: entry.forecastDate,
+    transactionGroupId: entry.transactionGroupId ?? null,
+    transactionGroupRole: entry.transactionGroupRole ?? null,
+    status: { name: 'planned', actualAmount: null, actualDate: null }
+  });
 }
 
 function getPerspectiveSecondaryByAccountPeriod({ scenario, state, accountMap }) {
   const projectionPeriods = state?.getProjectionPeriods?.() || [];
   if (!projectionPeriods.length) return new Map();
 
-  const source = scenario?.projection?.config?.source === 'budget' ? 'budget' : 'transactions';
   const occurrences = getProjectionSourceOccurrences({ scenario, state });
   if (!occurrences.length) return new Map();
 
@@ -167,11 +155,11 @@ function getPerspectiveSecondaryByAccountPeriod({ scenario, state, accountMap })
 
   const byAccountPeriod = new Map();
   occurrences.forEach((occurrence) => {
-    const periodId = toPeriodId(occurrence?._occurrenceDate || occurrence?.effectiveDate);
+    const periodId = toPeriodId(occurrence?.forecastDate);
     if (!periodId) return;
 
     const transformedRows = transformTransactionToRows(
-      normalizeProjectionOccurrenceForTransform(occurrence, source),
+      normalizeProjectionOccurrenceForTransform(occurrence),
       scenario?.accounts || []
     );
 

@@ -1,8 +1,8 @@
 // fund-utils.js
 // Minimal Funds scenario summary helpers
 
-import { parseDateOnly } from '../../shared/date-utils.js';
-import { expandTransactions } from '../calculations/transaction-expander.js';
+import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
+import { resolveScenarioOccurrences } from '../queries/resolve-scenario-occurrences.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows } from '../../ui/transforms/transaction-row-transformer.js';
 
 function safeNumber(value) {
@@ -32,7 +32,8 @@ const ACCOUNT_TYPE_ID_MAP = {
 function toDateOrNull(dateStr) {
   if (!dateStr) return null;
   try {
-    return parseDateOnly(dateStr);
+    const date = parseDateOnly(dateStr);
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
   } catch {
     return null;
   }
@@ -50,11 +51,65 @@ function sortByDateAsc(a, b) {
   return da - db;
 }
 
-function getStatusName(tx) {
-  const raw = tx?.status;
-  if (!raw) return 'planned';
-  if (typeof raw === 'object') return raw?.name || 'planned';
-  return String(raw);
+function buildResolvedFlowOccurrences({
+  scenario = {},
+  transactions = [],
+  accounts = [],
+  asOfDate = null
+}) {
+  const projectionConfig = scenario?.projection?.config || {};
+  const explicitAsOfDate =
+    asOfDate instanceof Date ? asOfDate : toDateOrNull(asOfDate);
+  const start =
+    toDateOrNull(projectionConfig.startDate) ||
+    new Date(1970, 0, 1);
+  const end =
+    explicitAsOfDate ||
+    toDateOrNull(projectionConfig.endDate) ||
+    new Date();
+  if (end < start) return [];
+
+  const startDate = formatDateOnly(start);
+  const endDate = formatDateOnly(end);
+  const resolvedScenario = {
+    ...scenario,
+    accounts: Array.isArray(scenario?.accounts) && scenario.accounts.length
+      ? scenario.accounts
+      : accounts,
+    transactions: Array.isArray(scenario?.transactions)
+      ? scenario.transactions
+      : transactions,
+    budgets: Array.isArray(scenario?.budgets) ? scenario.budgets : []
+  };
+
+  const { occurrences } = resolveScenarioOccurrences({
+    scenario: resolvedScenario,
+    startDate,
+    endDate,
+    asOfDate: explicitAsOfDate
+      ? endDate
+      : (projectionConfig.asOfDate || null),
+    openCommitmentStartDate:
+      projectionConfig.openCommitmentStartDate || null
+  });
+
+  return occurrences
+    .filter((occurrence) => occurrence.isIncludedInForecast && occurrence.validForProjection)
+    .map((occurrence) => normalizeCanonicalTransaction({
+      id: occurrence.occurrenceKey,
+      primaryAccountId: occurrence.primaryAccountId,
+      secondaryAccountId: occurrence.secondaryAccountId,
+      transactionTypeId: occurrence.transactionTypeId,
+      amount: occurrence.forecastAmount,
+      plannedAmount: occurrence.forecastAmount,
+      actualAmount: null,
+      description: occurrence.description,
+      effectiveDate: occurrence.forecastDate,
+      transactionGroupId: occurrence.transactionGroupId ?? null,
+      transactionGroupRole: occurrence.transactionGroupRole ?? null,
+      status: { name: 'planned', actualAmount: null, actualDate: null }
+    }))
+    .sort(sortByDateAsc);
 }
 
 export function getDefaultFundSettings() {
@@ -132,14 +187,12 @@ export function computeMoneyTotalsFromTransactions({
   scope = 'All',
   asOfDate = null
 }) {
-  const sourceTransactions = scenario?.transactions || transactions || [];
-
-  const start = toDateOrNull(scenario?.projection?.config?.startDate) || new Date(0);
-  const end = asOfDate || toDateOrNull(scenario?.projection?.config?.endDate) || new Date();
-
-  const occurrences = expandTransactions(sourceTransactions, start, end, accounts)
-    .map(normalizeCanonicalTransaction)
-    .sort(sortByDateAsc);
+  const occurrences = buildResolvedFlowOccurrences({
+    scenario,
+    transactions,
+    accounts,
+    asOfDate
+  });
 
   // Scope-aware totals:
   // - Scope = All: compute fund-level Money In/Out from the Asset-side flow (cross-type only).
@@ -265,21 +318,18 @@ export function computeInvestorFlows({
   asOfDate = null
 }) {
   const equityAccounts = accounts.filter(a => getAccountTypeId(a) === 3); // Equity ID
-  const start = toDateOrNull(scenario?.projection?.config?.startDate) || new Date(0);
-  const end = asOfDate || toDateOrNull(scenario?.projection?.config?.endDate) || new Date();
-
-  // Authoritative model: scenario.transactions with status.name = planned.
-  const planned = (scenario?.transactions || []).filter((tx) => getStatusName(tx) === 'planned');
-  const expanded = expandTransactions(planned, start, end, accounts)
-    .map(normalizeCanonicalTransaction)
-    .sort(sortByDateAsc);
+  const occurrences = buildResolvedFlowOccurrences({
+    scenario,
+    accounts,
+    asOfDate
+  });
 
   const flowsById = {};
   for (const a of equityAccounts) {
     flowsById[a.id] = { contributions: 0, redemptions: 0 };
   }
 
-  for (const occurrence of expanded) {
+  for (const occurrence of occurrences) {
     const rows = transformTransactionToRows(occurrence, accounts);
 
     const primaryAccount = accounts.find(a => Number(a?.id) === Number(occurrence?.primaryAccountId)) || null;

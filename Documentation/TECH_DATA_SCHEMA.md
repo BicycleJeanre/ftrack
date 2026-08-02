@@ -122,15 +122,23 @@ type ProjectionConfig = {
   startDate: string,
   endDate: string,
   periodTypeId: number,                    // Period ID (1=Day|2=Week|3=Month|4=Quarter|5=Year)
-  source?: "transactions" | "budget"       // Optional; defaults to "transactions"
+  source?: "transactions" | "budget",      // Schema 43 compatibility only; ignored by calculation
+  asOfDate?: string,                       // Optional overdue-commitment date (YYYY-MM-DD)
+  openCommitmentStartDate?: string         // Optional history boundary (YYYY-MM-DD)
 }
 ```
 
 2.4.1 Projection Source Semantics
 
-- `source = "transactions"` uses planned transactions as the forward-looking input.
-- `source = "budget"` is new functionality: uses budget occurrences as the forward-looking input and treats budget occurrences marked `status.name = "actual"` as locked.
-- Locked means: once a budget occurrence is marked complete via `status.name = "actual"`, it remains in the data and projections must include it from its actual date (`status.actualDate` if present, otherwise `occurrenceDate`) onward.
+- Projection calculation always uses `resolveScenarioOccurrences()`.
+- `transactions` supply recurring and one-time rules.
+- `budgets` temporarily supply dated overrides, actuals, skips, and manual occurrences.
+- Actuals replace their matching planned occurrence and use the actual amount/date.
+- Skipped occurrences are excluded.
+- Manual occurrences are included.
+- `source` is retained for schemaVersion 43 import/export compatibility but does not change results.
+- When `asOfDate` is supplied, unresolved items before that date are flagged overdue and forecast at the as-of date.
+- `openCommitmentStartDate` can explicitly widen rule expansion before the projection start so older unresolved commitments are carried into the current window.
 
 ---
 
@@ -151,9 +159,9 @@ type BudgetWindowConfig = {
 
 2.4.2.1 Budget Window Semantics
 
-- Budget window is the date range for "Regenerate from Planned Transactions" action.
+- Budget window is the date range for the `⊞` **Generate from Expanded Transactions** compatibility action.
 - It is **required** and independent from projection config; budgets and projections have completely separate scopes.
-- Budget regeneration expands **planned transactions WITH recurrence** (including one-time recurrence) within this window.
+- Budget regeneration expands recurring planned rules and includes non-recurring planned rules whose effective dates fall within this window.
 - No default; must be explicitly configured by user.
 
 ## 2.5 ScenarioPlanning
@@ -288,6 +296,12 @@ A transaction represents movement of money between accounts.
   periodicChange: PeriodicChange | null,
   transactionGroupId?: string | number | null,
   transactionGroupRole?: string | null,
+  effectiveDate: string | null,
+  status: {
+    name: "planned" | "actual",
+    actualAmount: number | null,
+    actualDate: string | null
+  },
   tags: string[]
 }
 ```
@@ -306,12 +320,15 @@ A transaction represents movement of money between accounts.
 | `periodicChange` | PeriodicChange \| null | No | Growth adjustment to transaction amount over time |
 | `transactionGroupId` | string \| number \| null | No | Optional compound/split grouping identifier shared by component transactions |
 | `transactionGroupRole` | string \| null | No | Optional component role (for example `principal`, `interest`, `fee`) |
+| `effectiveDate` | string \| null | No | One-time date or compatibility anchor for the rule |
+| `status` | Status object | Yes | Planned rule or legacy actual transaction |
 | `tags` | string[] | No | User-defined categories |
 
-4.2.1 Note: Transaction Actuals Are Not Stored
+4.2.1 Compatibility Actuals
 
-- Transactions do not store actuals or completion status.
-- Locking and actual capture are modeled on budget occurrences (see 4.5).
+- The canonical manager still accepts and stores transaction status with optional actual amount/date.
+- The resolver converts legacy actual-status transaction records into dated actual occurrences when they are not already represented in `budgets`.
+- The current Budget UI records occurrence actuals in `budgets`; the clean-schema migration will move all occurrence state to a dedicated occurrence collection.
 
 ### 4.3 Transaction Types
 
@@ -329,7 +346,7 @@ FTrack supports variable interest rates on accounts by using `Account.periodicCh
 
 ## 4.5 BudgetOccurrence
 
-A budget occurrence is a dated, editable instance of a planned transaction. Budget occurrences are also the only persisted location for completion status and locking semantics.
+During schemaVersion 43 compatibility, a budget occurrence is the persisted dated-occurrence and override record consumed by `resolveScenarioOccurrences()`. Untouched future occurrences remain derivable from transaction rules; generated Budget snapshots explicitly record whether they contain a real plan override.
 
 ### 4.5.1 Structure
 
@@ -341,14 +358,24 @@ type BudgetOccurrence = {
   secondaryAccountId: number | null,
   transactionTypeId: number | null,
   amount: number,
+  plannedAmount?: number,
+  baselineAmount?: number | null,
   description: string,
   recurrenceDescription: string,
   occurrenceDate: string,                 // YYYY-MM-DD
+  occurrenceKey?: string | null,
+  scheduledDate?: string | null,
+  plannedDate?: string | null,
+  origin?: "generated" | "manual" | "migrated",
+  isOverride?: boolean,
   periodicChange: PeriodicChange | null,
   transactionGroupId?: string | number | null,
   transactionGroupRole?: string | null,
+  transactionGroupAccountGroupId?: number | null,
+  capitalAmount?: number | null,
+  interestAmount?: number | null,
   status: {
-    name: "planned" | "actual",
+    name: "planned" | "actual" | "skipped",
     actualAmount: number | null,
     actualDate: string | null
   },
@@ -366,20 +393,32 @@ type BudgetOccurrence = {
 | `secondaryAccountId` | number \| null | No | Counterparty account ID (nullable for partially-specified entries) |
 | `transactionTypeId` | number \| null | No | Type classification (1=Income, 2=Expense) |
 | `amount` | number | Yes | Planned amount (unsigned) |
+| `plannedAmount` | number | No | Current planned amount; `amount` remains synchronized for compatibility |
+| `baselineAmount` | number \| null | No | Frozen or migrated comparison value; otherwise derived |
 | `description` | string | Yes | Display name |
 | `recurrenceDescription` | string | Yes | Human-readable recurrence pattern (UI convenience) |
 | `occurrenceDate` | string | Yes | Budget occurrence date (YYYY-MM-DD) |
+| `occurrenceKey` | string \| null | No | Stable identity, including source ID, scheduled date, and split role |
+| `scheduledDate` | string \| null | No | Immutable match date for a generated occurrence |
+| `plannedDate` | string \| null | No | Occurrence-only reschedule |
+| `origin` | string | No | Generated, manual, or migrated origin |
+| `isOverride` | boolean | No | `false` means an untouched generated snapshot inherits current rule fields |
 | `periodicChange` | PeriodicChange \| null | No | Optional escalation data carried from source transaction |
 | `transactionGroupId` | string \| number \| null | No | Optional compound/split grouping identifier inherited from source transaction |
 | `transactionGroupRole` | string \| null | No | Optional component role inherited from source transaction |
+| `transactionGroupAccountGroupId` | number \| null | No | Optional account-group link for a split component |
+| `capitalAmount` | number \| null | No | Optional capital component |
+| `interestAmount` | number \| null | No | Optional interest component |
 | `status` | Status object | Yes | See 4.5.3 |
 | `tags` | string[] | No | User-defined categories |
 
 ### 4.5.3 Status And Locking
 
 - `status.name = "actual"` indicates the occurrence is complete and locked.
+- `status.name = "skipped"` preserves the occurrence for history but excludes it from forecasts.
 - `status.actualAmount` stores the completed amount (nullable when planned).
 - `status.actualDate` stores the completed date; if null, `occurrenceDate` is the effective date for locked actuals.
+- A linked actual uses the stable scheduled occurrence key, so changing the actual date does not create a second planned movement.
 
 
 ---
@@ -613,7 +652,8 @@ type ProjectionPoint = {
 ### 9.2 Date Ranges
 
 - `scenario.projection.config.startDate` must be ≤ `scenario.projection.config.endDate`
-- If `recurrence.startDate` is before the projection window, the engine uses the projection window start as the effective start (no occurrences before the projection start are generated).
+- `openCommitmentStartDate`, when present, must be on or before the projection start.
+- The resolver normally expands rules from the projection start. An explicit `openCommitmentStartDate` may widen expansion so unresolved earlier commitments can forecast at `asOfDate`.
 - If `recurrence.startDate` is after the projection window end, the transaction generates no occurrences for that projection run.
 - `recurrence.endDate` (if present) must be ≥ `recurrence.startDate`
 
@@ -651,6 +691,7 @@ type ProjectionPoint = {
 
 | Date | Version | Changes |
 |------|---------|----------|
+| 2026-08-02 | 2.1 | Added the schemaVersion 43 resolved-occurrence compatibility contract, stable occurrence identity, baseline/current/actual fields, generated-snapshot override intent, and persisted as-of/open-commitment projection settings; projection source is now compatibility-only |
 | 2026-02-22 | 2.0 | Proposed workflow-based schema targeting `schemaVersion = 43`: scenarios simplified; added scenario `version` and `lineage`; projection config moved under `scenario.projection.config`; added `uiState` with workflow + per-card period view settings; added projection source semantics (`transactions` vs `budget`) |
 | 2026-02-12 | 1.1 | All LookupReferences must be numeric IDs only (no objects, no names) |
 | 2026-02-12 | 1.0 | Initial formal schema definition |

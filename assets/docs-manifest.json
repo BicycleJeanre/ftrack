@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-05-29T09:07:31.557Z",
+  "generatedAt": "2026-08-02T10:03:59.610Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -154,6 +154,13 @@
       "title": "Refactor Audit Report",
       "category": "Technical",
       "file": "Documentation/TECH_REFACTOR_AUDIT.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_IMPLEMENTATION_PLAN_SHARED_TIME_BASED_DISPLAY_LOGIC",
+      "title": "Shared Time-Based Display Logic Refactor",
+      "category": "Technical",
+      "file": "Documentation/TECH_IMPLEMENTATION_PLAN_SHARED_TIME_BASED_DISPLAY_LOGIC.md",
       "kind": "md"
     },
     {

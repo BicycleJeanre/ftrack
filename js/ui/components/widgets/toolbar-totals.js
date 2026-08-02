@@ -210,7 +210,7 @@ export function renderBudgetTotals(targetEl, totals, currency = 'ZAR') {
       label: 'Forecast Position',
       valueHtml: plannedNetBalance,
       valueClass: numValueClass(totals.plannedNetBalance),
-      calc: 'Realized Net − Open Commitments.',
+      calc: 'Realized Net + signed Open Commitments.',
       uses: 'Quick “where do we land if the remaining plan executes?” check.',
       shows: 'Projected budget position for the current view.'
     },

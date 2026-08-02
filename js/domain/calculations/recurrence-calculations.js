@@ -129,14 +129,34 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       }
       break;
 
-    case 2: // Daily
-      const interval = recurrence.interval || 1;
-      let currentDate = new Date(effectiveStart);
+    case 2: { // Daily
+      const dailyInterval = Math.max(1, Number(recurrence.interval || 1) || 1);
+      let currentDate = new Date(startDate);
+
+      if (currentDate < effectiveStart) {
+        const startDay = Date.UTC(
+          startDate.getFullYear(),
+          startDate.getMonth(),
+          startDate.getDate()
+        );
+        const effectiveStartDay = Date.UTC(
+          effectiveStart.getFullYear(),
+          effectiveStart.getMonth(),
+          effectiveStart.getDate()
+        );
+        const daysSinceStart = Math.floor(
+          (effectiveStartDay - startDay) / (1000 * 60 * 60 * 24)
+        );
+        const intervalsToSkip = Math.ceil(daysSinceStart / dailyInterval);
+        currentDate.setDate(currentDate.getDate() + (intervalsToSkip * dailyInterval));
+      }
+
       while (currentDate <= effectiveEnd) {
         dates.push(new Date(currentDate));
-        currentDate.setDate(currentDate.getDate() + interval);
+        currentDate.setDate(currentDate.getDate() + dailyInterval);
       }
       break;
+    }
 
     case 3: { // Weekly
       const weekInterval = recurrence.interval || 1;

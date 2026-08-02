@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Introduced the schemaVersion 43 resolved-plan compatibility layer for the unified Budget, Transactions, Actuals, and Projections workflow.
+  - Projections now combine actuals, latest planned occurrences, manual occurrences, recurring rules, and skips through one canonical occurrence resolver.
+  - The legacy projection source setting remains readable but no longer changes calculation results.
+  - Newly generated Budget snapshots distinguish untouched generated rows from true occurrence overrides, so resolved projections are not pinned by stale copies.
+  - Legacy actual transactions replace matching planned occurrences; regeneration preserves explicit overrides and skipped entries.
+  - Projection date-policy values are calendar-validated before storage or migration.
+  - Funds contribution, redemption, and ownership calculations now use the same resolved occurrences as projections.
+  - Optional as-of and open-commitment history boundaries persist with projection configuration.
+  - Capital and interest buckets reconcile to edited occurrence amounts.
+  - QC now surfaces resolver diagnostics and includes the Advanced Goal Solver projection workflow.
 - Consolidated Goal-Based and Advanced Goal Solver into a single **Goal Workshop** workflow with Simple and Advanced mode toggle.
   - Mode is persisted per scenario via `scenario.planning.goalWorkshopMode`; auto-detected from existing AGS goals for migrated scenarios.
   - Existing scenario data is fully backward-compatible; no migration script required.

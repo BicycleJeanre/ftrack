@@ -216,6 +216,10 @@ export function calculateBudgetTotals(rows, opts = {}) {
         const planned = Number(row?.[plannedField] || 0);
         const actual = Number(row?.[actualField] || 0);
         const id = getRowTypeId(row, opts);
+        const rawStatus = typeof row?.status === 'object' ? row.status?.name : (row?.statusName || row?.status);
+        const status = String(rawStatus || 'planned').trim().toLowerCase();
+        const isActual = status === 'actual';
+        const isSkipped = status === 'skipped';
         
         // Determine if it's Money In or Money Out based on transaction type
         const isMoneyIn = id === MONEY_IN_ID;
@@ -225,16 +229,18 @@ export function calculateBudgetTotals(rows, opts = {}) {
         const absActual = Math.abs(actual);
 
         // Calculate Money In/Out and Net based on planned amounts
-        if (isMoneyIn) {
-            acc.moneyIn += absPlanned;
-            acc.net += absPlanned;
-        } else if (isMoneyOut) {
-            acc.moneyOut += absPlanned;
-            acc.net -= absPlanned;
+        if (!isSkipped) {
+            if (isMoneyIn) {
+                acc.moneyIn += absPlanned;
+                acc.net += absPlanned;
+            } else if (isMoneyOut) {
+                acc.moneyOut += absPlanned;
+                acc.net -= absPlanned;
+            }
         }
 
         // Calculate Actual Net based on actual amounts
-        if (absActual > 0) {
+        if (isActual) {
             if (isMoneyIn) {
                 acc.actualNet += absActual;
             } else if (isMoneyOut) {
@@ -244,7 +250,7 @@ export function calculateBudgetTotals(rows, opts = {}) {
 
         // Planned Outstanding: planned amounts with no actual or zero actual
         // Money In adds, Money Out subtracts
-        if (absPlanned > 0 && absActual === 0) {
+        if (absPlanned > 0 && !isActual && !isSkipped) {
             if (isMoneyIn) {
                 acc.plannedOutstanding += absPlanned;
             } else if (isMoneyOut) {
@@ -254,7 +260,7 @@ export function calculateBudgetTotals(rows, opts = {}) {
 
         // Unplanned: actual amounts with no planned amount
         // Money In adds, Money Out subtracts
-        if (absActual > 0 && absPlanned === 0) {
+        if (isActual && absActual > 0 && absPlanned === 0) {
             if (isMoneyIn) {
                 acc.unplanned += absActual;
             } else if (isMoneyOut) {
@@ -265,6 +271,71 @@ export function calculateBudgetTotals(rows, opts = {}) {
         return acc;
     }, { moneyIn: 0, moneyOut: 0, net: 0, actualNet: 0, plannedOutstanding: 0, unplanned: 0, plannedNetBalance: 0 });
 
-    totals.plannedNetBalance = totals.actualNet - totals.plannedOutstanding;
+    totals.plannedNetBalance = totals.actualNet + totals.plannedOutstanding;
     return totals;
+}
+
+/**
+ * Calculate the approved baseline/current-plan/actual comparison contract from
+ * canonical resolved occurrences.
+ */
+export function calculateResolvedOccurrenceTotals(occurrences = []) {
+    const totals = {
+        baselineIncome: 0,
+        baselineExpenses: 0,
+        baselineNet: 0,
+        currentPlannedIncome: 0,
+        currentPlannedExpenses: 0,
+        currentPlannedNet: 0,
+        actualIncome: 0,
+        actualExpenses: 0,
+        actualNet: 0,
+        remainingCommitments: 0,
+        forecastNet: 0,
+        actualVsBaselineVariance: 0,
+        actualVsCurrentPlanVariance: 0,
+        unbudgetedActuals: 0
+    };
+
+    (Array.isArray(occurrences) ? occurrences : []).forEach((occurrence) => {
+        const typeId = Number(occurrence?.transactionTypeId);
+        if (typeId !== MONEY_IN_ID && typeId !== MONEY_OUT_ID) return;
+
+        const direction = typeId === MONEY_IN_ID ? 1 : -1;
+        const baselineAmount = Math.abs(Number(occurrence?.baselineAmount || 0));
+        const plannedAmount = Math.abs(Number(occurrence?.plannedAmount || 0));
+        const actualAmount = Math.abs(Number(occurrence?.actualAmount || 0));
+        const status = String(occurrence?.status || 'planned').trim().toLowerCase();
+
+        if (typeId === MONEY_IN_ID) {
+            totals.baselineIncome += baselineAmount;
+            if (status !== 'skipped') totals.currentPlannedIncome += plannedAmount;
+            if (status === 'actual') totals.actualIncome += actualAmount;
+        } else {
+            totals.baselineExpenses += baselineAmount;
+            if (status !== 'skipped') totals.currentPlannedExpenses += plannedAmount;
+            if (status === 'actual') totals.actualExpenses += actualAmount;
+        }
+
+        totals.baselineNet += direction * baselineAmount;
+        if (status !== 'skipped') {
+            totals.currentPlannedNet += direction * plannedAmount;
+        }
+        if (status === 'actual') {
+            totals.actualNet += direction * actualAmount;
+            if (occurrence?.isUnbudgetedActual || baselineAmount === 0) {
+                totals.unbudgetedActuals += direction * actualAmount;
+            }
+        } else if (status === 'planned' && occurrence?.isIncludedInForecast !== false) {
+            totals.remainingCommitments += direction * plannedAmount;
+        }
+    });
+
+    totals.forecastNet = totals.actualNet + totals.remainingCommitments;
+    totals.actualVsBaselineVariance = totals.actualNet - totals.baselineNet;
+    totals.actualVsCurrentPlanVariance = totals.actualNet - totals.currentPlannedNet;
+
+    return Object.fromEntries(
+        Object.entries(totals).map(([key, value]) => [key, clampMoney(value)])
+    );
 }
