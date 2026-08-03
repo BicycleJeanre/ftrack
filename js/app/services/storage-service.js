@@ -9,11 +9,9 @@ import {
     createDefaultAppData,
     sanitizeAppDataForWrite
 } from '../../shared/app-data-utils.js';
-import { migrateAppData } from '../../shared/migration-utils.js';
-import { notifySuccess } from '../../shared/notifications.js';
 
 // Web storage key
-const STORAGE_KEY = 'ftrack:app-data';
+export const STORAGE_KEY = 'ftrack:app-data';
 
 let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
 
@@ -34,14 +32,10 @@ export async function read() {
         return sanitizeAppDataForWrite(parsed);
     } catch (err) {
         if (err && err.name === 'SchemaVersionError' && parsed) {
-            try {
-                const migrated = migrateAppData(parsed);
-                await write(migrated);
-                notifySuccess('Your data has been automatically updated to the latest format.');
-                return migrated;
-            } catch (_migrationErr) {
-                throw err;
-            }
+            // Legacy browser data must be reviewed through the in-app upgrade
+            // center. Never replace the raw cache before the user has seen the
+            // change and validation report.
+            throw err;
         }
         return createDefaultAppData();
     }

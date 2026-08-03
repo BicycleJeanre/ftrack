@@ -10,8 +10,7 @@ const {
 const {
   selectWorkflow,
   openSectionFilters,
-  closeFilterModal,
-  confirmDialog
+  closeFilterModal
 } = require('../helpers/ui');
 
 const malformedImportFixturePath = path.resolve(__dirname, '../fixtures/malformed-import-data.json');
@@ -155,6 +154,7 @@ test.describe('deeper edit paths and error states', () => {
     await gotoFTrack(page, invalidData);
     await page.locator('#topbar-validate').click();
     await expect(page.locator('.validate-data-modal')).toBeVisible();
+    await page.getByRole('button', { name: /Current Browser Data/ }).click();
     await expect(page.locator('.validate-data-modal')).toContainText('issue');
     await expect(page.locator('.validate-data-modal')).toContainText('openDate');
   });
@@ -168,8 +168,13 @@ test.describe('deeper edit paths and error states', () => {
     const chooser = await chooserPromise;
     await chooser.setFiles(malformedImportFixturePath);
 
-    await confirmDialog(page);
-    await expect(page.locator('.notify-toast-error')).toContainText('Import failed');
+    const review = page.locator('.data-upgrade-modal');
+    await expect(review).toBeVisible();
+    await expect(review).toContainText('Validation');
+    await expect(review).toContainText('Failed');
+    await expect(review).toContainText('Invalid JSON');
+    await expect(review.locator('.data-upgrade-apply')).toBeDisabled();
+    await review.getByRole('button', { name: 'Cancel' }).click();
 
     const after = await readAppData(page);
     expect(after.scenarios).toHaveLength(before.scenarios.length);

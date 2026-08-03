@@ -84,6 +84,26 @@ occurrences, duplicate losers, ambiguous links, and orphaned source records are
 never silently discarded; their raw source record is retained in the relevant
 issue as `recoveryRecord`.
 
+### 1.1.5 In-App Upgrade Preflight
+
+Uploaded JSON and the raw `ftrack:data` browser-storage value use the same
+read-only preflight before import:
+
+1. Parse the selected JSON source.
+2. Reject non-object data, a missing `scenarios` array, malformed JSON, and
+   future schema versions.
+3. Migrate older schemas or sanitize schema 44 data in memory.
+4. Validate the exact prepared object with the application validation service.
+5. Deep-compare source and prepared data, classifying each path as added,
+   changed, or removed and attaching a human-readable reason.
+6. Return the prepared data and a downloadable report containing source and
+   target schema versions, counts, full changes, migration warnings, recovery
+   flags, and validation results.
+
+The preflight service does not write storage. The review modal enables apply
+only when validation passes. Startup intercepts legacy browser data before the
+normal data-store read so the original value remains intact until approval.
+
 ---
 
 ## 2.0 Scenario

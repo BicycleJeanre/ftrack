@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 43,
+  "scenarios": [
+    {
+      "id": 401,
+      "version": 1,
+      "name": "Legacy Browser Upgrade",
+      "description": "Schema 43 fixture for the in-app upgrade review.",
+      "accounts": [
+        {
+          "id": 1,
+          "name": "Legacy Checking",
+          "type": 1,
+          "currency": 1,
+          "startingBalance": 1000,
+          "openDate": "2026-01-01"
+        },
+        {
+          "id": 2,
+          "name": "Legacy Expense",
+          "type": 5,
+          "currency": 1,
+          "startingBalance": 0,
+          "openDate": "2026-01-01"
+        }
+      ],
+      "accountGroups": [],
+      "splitTransactionSets": [],
+      "transactions": [
+        {
+          "id": 10,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": 125,
+          "description": "Legacy monthly cost",
+          "recurrence": {
+            "recurrenceType": 4,
+            "startDate": "2026-01-15",
+            "endDate": null,
+            "interval": 1,
+            "dayOfMonth": 15
+          },
+          "periodicChange": null,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "legacy"
+          ]
+        }
+      ],
+      "budgets": [
+        {
+          "id": 100,
+          "sourceTransactionId": 10,
+          "primaryAccountId": 1,
+          "secondaryAccountId": 2,
+          "transactionTypeId": 2,
+          "amount": 125,
+          "plannedAmount": 125,
+          "baselineAmount": null,
+          "description": "Legacy monthly cost",
+          "occurrenceDate": "2026-01-15",
+          "scheduledDate": "2026-01-15",
+          "occurrenceKey": "tx:10|date:2026-01-15|role:none",
+          "origin": "generated",
+          "isOverride": false,
+          "status": {
+            "name": "planned",
+            "actualAmount": null,
+            "actualDate": null
+          },
+          "tags": [
+            "legacy"
+          ]
+        }
+      ],
+      "budgetWindow": {
+        "config": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "periodTypeId": 3
+        }
+      },
+      "projection": {
+        "config": {
+          "startDate": "2026-01-01",
+          "endDate": "2026-12-31",
+          "periodTypeId": 3,
+          "source": "budget"
+        },
+        "rows": [
+          {
+            "accountId": 1,
+            "date": "2026-01-31",
+            "balance": 875
+          }
+        ],
+        "generatedAt": "2026-01-31T00:00:00.000Z"
+      },
+      "planning": null
+    }
+  ],
+  "uiState": {
+    "lastWorkflowId": "budget",
+    "lastScenarioId": 401,
+    "lastScenarioVersion": 1,
+    "viewPeriodTypeIds": {
+      "transactions": 3,
+      "budgets": 3,
+      "projections": 3
+    },
+    "accordionStates": {}
+  }
+}

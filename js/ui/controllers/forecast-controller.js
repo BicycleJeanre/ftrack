@@ -12,6 +12,7 @@ import { openPeriodicChangeModal } from '../components/modals/periodic-change-mo
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
+import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js';
 import '../../shared/keyboard-shortcuts.js';
 import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';
@@ -2737,12 +2738,31 @@ function renderWorkflowNav(container) {
 
 // --- Place all function declarations above init() for hoisting and clarity ---
 
-// ...existing code...
+function renderLegacyUpgradeBlockedState() {
+  const forecast = document.getElementById('panel-forecast');
+  if (!forecast) return;
+  forecast.innerHTML = `
+    <main class="data-upgrade-blocked">
+      <h1>Browser data was left unchanged</h1>
+      <p>
+        FTrack has not opened the legacy cache because it must be upgraded and
+        validated before the application can safely use it.
+      </p>
+      <button type="button" class="icon-btn icon-btn--primary">Review Browser Data</button>
+    </main>
+  `;
+  forecast.querySelector('button')?.addEventListener('click', () => window.location.reload());
+}
 
 // Initialize the page
 async function init() {
   loadGlobals();
   initTooltips();
+  const browserDataReady = await ensureLegacyBrowserDataReviewed();
+  if (!browserDataReady) {
+    renderLegacyUpgradeBlockedState();
+    return;
+  }
   await loadUiState();
   const containers = buildGridContainer({
     accordionStates: uiState?.accordionStates || {},

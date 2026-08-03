@@ -2,9 +2,9 @@
 // Forecast page layout builder.
 // Updated to render the dashboard shell (sidebar + topbar + dash rows).
 
-import { downloadAppData, uploadAppData } from '../../../app/services/export-service.js';
+import { downloadAppData } from '../../../app/services/export-service.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
-import { openValidateDataModal } from '../modals/validate-data-modal.js';
+import { openDataUpgradeModal } from '../modals/data-upgrade-modal.js';
 import { getTheme, setTheme } from '../../../config.js';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
@@ -87,7 +87,7 @@ function buildTopbarActions() {
   importBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     try {
-      await uploadAppData(false);
+      await openDataUpgradeModal({ initialSource: 'file' });
     } catch (err) {
       notifyError('Import failed: ' + err.message);
     }
@@ -97,12 +97,12 @@ function buildTopbarActions() {
   validateBtn.type = 'button';
   validateBtn.className = 'icon-btn';
   validateBtn.id = 'topbar-validate';
-  validateBtn.title = 'Validate data file for errors';
-  validateBtn.textContent = '⊘ Validate';
+  validateBtn.title = 'Upgrade or validate app data';
+  validateBtn.textContent = '⊘ Data Check';
   validateBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     try {
-      await openValidateDataModal();
+      await openDataUpgradeModal();
     } catch (err) {
       notifyError('Validation error: ' + err.message);
     }

@@ -106,11 +106,18 @@ FTrack uses a versioned storage schema (`schemaVersion`). This build targets
 ### 5.1 Runtime rule
 
 - Runtime writes require `schemaVersion === 44`.
-- Older local storage and imports are migrated through the same browser-safe
-  shared migrator.
+- Uploaded JSON and raw browser storage pass through the in-app upgrade
+  preflight before replacement.
+- The preflight parses, migrates or sanitizes, validates the exact prepared
+  result, and computes a structured before/after change report in memory.
+- Older local storage and imports use the same browser-safe shared migrator.
+- Legacy browser data is not silently rewritten during normal storage reads;
+  startup requires an explicit review and apply action first.
 - Invalid, orphaned, duplicate, and ambiguous source rows are retained in the
   app-level `migrationReport` instead of being silently discarded.
 - Future schema versions are rejected and are never downgraded.
+- The UI allows downloading the complete change report or prepared JSON before
+  applying valid data.
 
 ### 5.2 Standalone migration
 

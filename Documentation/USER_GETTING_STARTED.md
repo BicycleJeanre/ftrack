@@ -125,6 +125,12 @@ for automatic refresh or click **Refresh projections now**.
 
 ### 1.6.5 Import Fails
 
-Current exports use schemaVersion 44. Older exports are migrated automatically
-on import and include a durable migration report. For offline conversion, use
-`QC/migrate-app-data-to-schema44.js`.
+Current exports use schemaVersion 44. Import opens an in-app Data Upgrade
+Review before anything is replaced. Check its Validation, What Changed, and
+Warnings and Recovery sections. You can download both the complete change
+report and the upgraded JSON. Import remains disabled for malformed data,
+validation failures, or future schema versions.
+
+Select **Data Check > Current Browser Data** to run the same review against the
+raw JSON already stored in this browser. Older browser data is also intercepted
+at startup and remains unchanged until you approve the upgrade.

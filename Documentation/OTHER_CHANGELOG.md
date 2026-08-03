@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added an in-app Data Upgrade Review for uploaded JSON and raw browser data.
+  - Upgrades are prepared and validated in memory before stored data changes.
+  - Every added, changed, and removed field is grouped with its reason.
+  - Complete change reports and upgraded JSON can be downloaded before apply.
+  - Validation failures and future schema versions cannot be applied.
+  - Legacy browser data is intercepted at startup and remains unchanged until
+    the user approves the reviewed upgrade.
 - Completed the schemaVersion 44 unified **Plan & Actuals** workflow.
   - Budget is now a live Period view over resolved plan occurrences rather
     than a separately generated dataset.
