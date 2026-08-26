@@ -7,7 +7,7 @@ import {
   analyzeAppDataUpgrade,
   browserDataNeedsUpgradeReview,
   readRawBrowserData
-} from '../../../app/services/data-upgrade-service.js';
+} from '../../../app/services/data-upgrade-service.js?v=20260826-safe-repair-2';
 import { importAppData } from '../../../app/services/data-service.js';
 import {
   downloadJsonData,

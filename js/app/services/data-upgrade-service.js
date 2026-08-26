@@ -13,7 +13,7 @@ import {
 import { migrateAppData } from '../../shared/migration-utils.js';
 import { validateAppData } from './validation-service.js';
 import { STORAGE_KEY } from './storage-service.js';
-import { prepareSafeAppDataRepairs } from './data-repair-service.js';
+import { prepareSafeAppDataRepairs } from './data-repair-service.js?v=20260826-safe-repair-2';
 
 const MAX_UI_CHANGES = 250;
 
