@@ -4,7 +4,7 @@
 
 import { downloadAppData } from '../../../app/services/export-service.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
-import { openDataUpgradeModal } from '../modals/data-upgrade-modal.js?v=20260826-migration-resolution-4';
+import { openDataUpgradeModal } from '../modals/data-upgrade-modal.js?v=20260826-migration-resolution-5';
 import { getTheme, setTheme } from '../../../config.js';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
