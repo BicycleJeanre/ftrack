@@ -116,11 +116,16 @@ function renderChangeGroups(analysis) {
 
 function renderWarnings(analysis) {
   if (!analysis.warnings.length) {
-    return '<div class="data-upgrade-empty">No migration warnings or recovery records.</div>';
+    return '<div class="data-upgrade-empty">No historical migration notes or retained recovery records.</div>';
   }
+  const visibleWarnings = analysis.warnings.slice(0, 100);
   return `
+    <p class="data-upgrade-history-note">
+      These are historical notes from an earlier migration, not active validation
+      failures. Retained source records remain in the downloadable change report.
+    </p>
     <ul class="data-upgrade-issue-list">
-      ${analysis.warnings.map((warning) => `
+      ${visibleWarnings.map((warning) => `
         <li>
           <strong>${escapeHtml(warning.code)}</strong>
           <span>${escapeHtml(warning.message)}</span>
@@ -129,17 +134,29 @@ function renderWarnings(analysis) {
         </li>
       `).join('')}
     </ul>
+    ${analysis.warnings.length > visibleWarnings.length ? `
+      <p class="data-upgrade-limit-note">
+        Showing 100 of ${analysis.warnings.length} historical notes. Download the
+        change report for the complete recovery audit.
+      </p>
+    ` : ''}
   `;
 }
 
 function renderValidation(analysis) {
   const issues = collectValidationIssues(analysis.validation);
+  const repairPrepared = analysis.repairApplied ? `
+    <div class="data-upgrade-repair-prepared">
+      Safe repairs are included in this preview. Review What Changed before applying them.
+    </div>
+  ` : '';
   if (!issues.length) {
     return `
       <div class="vd-summary vd-summary--ok">
         <span class="vd-summary-icon">✓</span>
         All ${analysis.validation.scenarioCount} scenario(s) passed the current validation rules.
       </div>
+      ${repairPrepared}
     `;
   }
   return `
@@ -147,6 +164,24 @@ function renderValidation(analysis) {
       <span class="vd-summary-icon">✗</span>
       Found ${issues.length} validation issue${issues.length === 1 ? '' : 's'}. Import and upgraded-data download are disabled.
     </div>
+    ${analysis.repairProposal?.available && !analysis.repairApplied ? `
+      <div class="data-upgrade-repair-offer">
+        <div>
+          <strong>${analysis.repairProposal.repairCount} safe repair${analysis.repairProposal.repairCount === 1 ? '' : 's'} available</strong>
+          <span>
+            These lossless normalizations should resolve
+            ${analysis.repairProposal.resolvesIssueCount} issue${analysis.repairProposal.resolvesIssueCount === 1 ? '' : 's'}.
+            ${analysis.repairProposal.remainingIssueCount
+              ? `${analysis.repairProposal.remainingIssueCount} issue${analysis.repairProposal.remainingIssueCount === 1 ? '' : 's'} will still need manual correction.`
+              : 'The repaired copy is expected to pass validation.'}
+          </span>
+        </div>
+        <button type="button" class="icon-btn icon-btn--primary data-upgrade-repair">
+          Preview Safe Repairs
+        </button>
+      </div>
+    ` : ''}
+    ${repairPrepared}
     <ul class="data-upgrade-issue-list">
       ${issues.map((entry) => `
         <li>
@@ -203,6 +238,7 @@ function renderAnalysis(modal, analysis, {
   onApply,
   onDownloadData,
   onDownloadReport,
+  onPrepareRepair,
   onChooseAnother,
   onCancel
 }) {
@@ -211,7 +247,9 @@ function renderAnalysis(modal, analysis, {
   const canApply = analysis.canApply &&
     (analysis.sourceKind === 'file' || analysis.changed || analysis.migrated);
   const applyLabel = analysis.sourceKind === 'browser'
-    ? (canApply ? 'Apply Upgrade to Browser Data' : 'Browser Data Is Current')
+    ? (canApply
+      ? (analysis.repairApplied ? 'Apply Safe Repairs to Browser Data' : 'Apply Upgrade to Browser Data')
+      : (analysis.isValid ? 'Browser Data Is Current' : 'Repairs Required'))
     : (analysis.migrated || analysis.changed ? 'Import Upgraded Data' : 'Import Validated Data');
 
   modal.innerHTML = `
@@ -236,8 +274,8 @@ function renderAnalysis(modal, analysis, {
         <span><strong>${summary.fieldsAdded}</strong> added</span>
         <span><strong>${summary.fieldsChanged}</strong> changed</span>
         <span><strong>${summary.fieldsRemoved}</strong> removed</span>
-        <span><strong>${summary.migrationWarnings}</strong> warnings</span>
-        <span><strong>${summary.recoveryRecords}</strong> recovery records</span>
+        <span><strong>${summary.migrationWarnings}</strong> historical notes</span>
+        <span><strong>${summary.recoveryRecords}</strong> retained source records</span>
       </div>
 
       <section class="data-upgrade-section">
@@ -251,7 +289,7 @@ function renderAnalysis(modal, analysis, {
       </section>
 
       <section class="data-upgrade-section">
-        <h3>Warnings and Recovery</h3>
+        <h3>Historical Migration Notes</h3>
         ${renderWarnings(analysis)}
       </section>
     </div>
@@ -267,6 +305,7 @@ function renderAnalysis(modal, analysis, {
   modal.querySelector('.data-upgrade-apply')?.addEventListener('click', onApply);
   modal.querySelector('.data-upgrade-data')?.addEventListener('click', onDownloadData);
   modal.querySelector('.data-upgrade-report')?.addEventListener('click', onDownloadReport);
+  modal.querySelector('.data-upgrade-repair')?.addEventListener('click', onPrepareRepair);
   modal.querySelector('.data-upgrade-another')?.addEventListener('click', onChooseAnother);
   modal.querySelector('.data-upgrade-cancel')?.addEventListener('click', onCancel);
   modal.querySelector('.modal-close-btn')?.addEventListener('click', onCancel);
@@ -285,6 +324,7 @@ export function openDataUpgradeModal({
   return new Promise((resolve) => {
     let settled = false;
     let currentAnalysis = null;
+    let currentSource = null;
     const { modal, close } = createModal({
       contentClass: 'data-upgrade-modal validate-data-modal',
       closeOnOverlay: !required,
@@ -342,6 +382,7 @@ export function openDataUpgradeModal({
     };
 
     const analyze = (source) => {
+      currentSource = source;
       renderLoading(modal, required, source.sourceLabel);
       currentAnalysis = analyzeAppDataUpgrade(source.rawText, {
         sourceLabel: source.sourceLabel,
@@ -352,6 +393,26 @@ export function openDataUpgradeModal({
         onApply: apply,
         onDownloadData: downloadData,
         onDownloadReport: downloadReport,
+        onPrepareRepair: prepareRepair,
+        onChooseAnother: showChooser,
+        onCancel: cancel
+      });
+    };
+
+    const prepareRepair = () => {
+      if (!currentSource || !currentAnalysis?.repairProposal?.available) return;
+      renderLoading(modal, required, 'safe repair preview');
+      currentAnalysis = analyzeAppDataUpgrade(currentSource.rawText, {
+        sourceLabel: currentSource.sourceLabel,
+        sourceKind: currentSource.sourceKind,
+        applySafeRepairs: true
+      });
+      renderAnalysis(modal, currentAnalysis, {
+        required,
+        onApply: apply,
+        onDownloadData: downloadData,
+        onDownloadReport: downloadReport,
+        onPrepareRepair: prepareRepair,
         onChooseAnother: showChooser,
         onCancel: cancel
       });
@@ -378,6 +439,7 @@ export function openDataUpgradeModal({
 
     function showChooser() {
       currentAnalysis = null;
+      currentSource = null;
       renderChooser(modal, {
         required,
         onUpload: chooseFile,

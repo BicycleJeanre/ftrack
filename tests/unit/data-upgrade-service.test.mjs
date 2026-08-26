@@ -30,6 +30,7 @@ const {
   browserDataNeedsUpgradeReview,
   readRawBrowserData
 } = await import('../../js/app/services/data-upgrade-service.js');
+const { prepareSafeAppDataRepairs } = await import('../../js/app/services/data-repair-service.js');
 const { STORAGE_KEY } = await import('../../js/app/services/storage-service.js');
 
 const MIGRATED_AT = '2026-08-03T08:00:00.000Z';
@@ -223,4 +224,51 @@ test('raw browser data can be selected without mutating localStorage', () => {
   assert.equal(result.isValid, true);
   assert.equal(result.sourceKind, 'browser');
   assert.equal(globalThis.localStorage.getItem(STORAGE_KEY), original);
+});
+
+test('safe repair preview resolves numeric strings without changing the source', () => {
+  const source = analyzeAppDataUpgrade(legacyApp(), { now: MIGRATED_AT }).data;
+  source.scenarios[0].accounts[0].id = '1';
+  source.scenarios[0].accounts[0].type = '1';
+  source.scenarios[0].accounts[0].startingBalance = '1250.50';
+  source.scenarios[0].transactions[0].recurrence.interval = '1';
+  const original = JSON.stringify(source);
+
+  const checked = analyzeAppDataUpgrade(source, { sourceKind: 'browser' });
+  assert.equal(checked.isValid, false);
+  assert.equal(checked.repairProposal.available, true);
+  assert.ok(checked.repairProposal.resolvesIssueCount >= 3);
+  assert.equal(JSON.stringify(source), original);
+
+  const repaired = analyzeAppDataUpgrade(source, {
+    sourceKind: 'browser',
+    applySafeRepairs: true
+  });
+  assert.equal(repaired.repairApplied, true);
+  assert.equal(repaired.isValid, true);
+  assert.equal(repaired.data.scenarios[0].accounts[0].id, 1);
+  assert.equal(repaired.data.scenarios[0].accounts[0].type, 1);
+  assert.equal(repaired.data.scenarios[0].accounts[0].startingBalance, 1250.5);
+  assert.equal(repaired.data.scenarios[0].transactions[0].recurrence.interval, 1);
+  assert.ok(repaired.changes.some((entry) =>
+    entry.path === 'scenarios[0].accounts[0].startingBalance'
+  ));
+});
+
+test('safe repairs never rewrite retained migration recovery records', () => {
+  const source = analyzeAppDataUpgrade(legacyApp(), { now: MIGRATED_AT }).data;
+  source.scenarios[0].accounts[0].startingBalance = '10';
+  source.migrationReport.scenarios[0].issues = [{
+    severity: 'warning',
+    code: 'retained-test',
+    message: 'Retained source record',
+    recoveryRecord: { startingBalance: '999' }
+  }];
+
+  const result = prepareSafeAppDataRepairs(source);
+  assert.equal(result.data.scenarios[0].accounts[0].startingBalance, 10);
+  assert.equal(
+    result.data.migrationReport.scenarios[0].issues[0].recoveryRecord.startingBalance,
+    '999'
+  );
 });

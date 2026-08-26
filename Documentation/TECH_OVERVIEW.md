@@ -116,6 +116,11 @@ FTrack uses a versioned storage schema (`schemaVersion`). This build targets
 - Invalid, orphaned, duplicate, and ambiguous source rows are retained in the
   app-level `migrationReport` instead of being silently discarded.
 - Future schema versions are rejected and are never downgraded.
+- Validation failures caused by losslessly normalizable legacy numeric strings
+  can be repaired in a separate preview. The original source is preserved until
+  the repaired copy passes validation and the user explicitly applies it.
+- Safe repair traversal is limited to financial scenario collections and never
+  modifies the durable `migrationReport` recovery audit.
 - The UI allows downloading the complete change report or prepared JSON before
   applying valid data.
 

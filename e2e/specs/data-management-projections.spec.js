@@ -89,6 +89,55 @@ test.describe('data management and projection browser flows', () => {
     await expect(page.locator('.validate-data-modal .vd-summary')).toContainText(/scenario/);
   });
 
+  test('previews and applies safe browser-data repairs while separating migration history', async ({ page }) => {
+    const damaged = await readAppData(page);
+    damaged.scenarios[0].accounts[0].id = '1';
+    damaged.scenarios[0].accounts[0].type = '1';
+    damaged.scenarios[0].accounts[0].startingBalance = '1200.50';
+    damaged.scenarios[0].transactions[0].recurrence.interval = '1';
+    const historicalIssues = Array.from({ length: 105 }, (_, index) => ({
+      severity: 'warning',
+      code: `historical-${index + 1}`,
+      message: 'Retained during an earlier migration',
+      action: 'converted-to-manual',
+      recoveryRecord: { startingBalance: '999' }
+    }));
+    damaged.migrationReport = {
+      fromSchemaVersion: 43,
+      toSchemaVersion: 44,
+      migratedAt: '2026-08-01T00:00:00.000Z',
+      summary: { recoveryRecordCount: historicalIssues.length },
+      scenarios: [{
+        scenarioId: damaged.scenarios[0].id,
+        scenarioIndex: 0,
+        issues: historicalIssues
+      }]
+    };
+    await page.evaluate(({ key, data }) => {
+      localStorage.setItem(key, JSON.stringify(data));
+    }, { key: STORAGE_KEY, data: damaged });
+
+    await page.locator('#topbar-validate').click();
+    await page.getByRole('button', { name: 'Current Browser Data' }).click();
+    const review = page.locator('.data-upgrade-modal');
+    await expect(review).toContainText('Failed');
+    await expect(review).toContainText('safe repairs available');
+    await expect(review).toContainText('105 historical notes');
+    await expect(review).toContainText('not active validation failures');
+    await expect(review.locator('.data-upgrade-section').last().locator('li')).toHaveCount(100);
+
+    await review.getByRole('button', { name: 'Preview Safe Repairs' }).click();
+    await expect(review).toContainText('Passed');
+    await expect(review).toContainText('Safe repairs are included in this preview');
+    await expect(review).toContainText('scenarios[0].accounts[0].startingBalance');
+    await review.getByRole('button', { name: 'Apply Safe Repairs to Browser Data' }).click();
+
+    await expect.poll(async () => {
+      const data = await readAppData(page);
+      return data.scenarios[0].accounts[0].startingBalance;
+    }).toBe(1200.5);
+  });
+
   test('upgrades an uploaded legacy file and downloads its complete change report', async ({ page }) => {
     const chooserPromise = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: /Import/ }).click();

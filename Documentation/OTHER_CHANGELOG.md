@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Validation failures and future schema versions cannot be applied.
   - Legacy browser data is intercepted at startup and remains unchanged until
     the user approves the reviewed upgrade.
+  - Validation failures caused by lossless legacy numeric strings now offer a
+    Preview Safe Repairs action, with exact changes shown before apply.
+  - Historical migration notes are separated from active validation failures,
+    while the complete recovery audit remains available in the change report.
 - Completed the schemaVersion 44 unified **Plan & Actuals** workflow.
   - Budget is now a live Period view over resolved plan occurrences rather
     than a separately generated dataset.

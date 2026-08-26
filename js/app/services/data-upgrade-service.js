@@ -13,6 +13,7 @@ import {
 import { migrateAppData } from '../../shared/migration-utils.js';
 import { validateAppData } from './validation-service.js';
 import { STORAGE_KEY } from './storage-service.js';
+import { prepareSafeAppDataRepairs } from './data-repair-service.js';
 
 const MAX_UI_CHANGES = 250;
 
@@ -217,7 +218,8 @@ function invalidAnalysis({
 export function analyzeAppDataUpgrade(source, {
   sourceLabel = 'Selected data',
   sourceKind = 'file',
-  now
+  now,
+  applySafeRepairs = false
 } = {}) {
   let original;
   try {
@@ -274,7 +276,25 @@ export function analyzeAppDataUpgrade(source, {
     });
   }
 
-  const validation = validateAppData(candidate);
+  const initialValidation = validateAppData(candidate);
+  const safeRepair = prepareSafeAppDataRepairs(candidate);
+  const proposedValidation = safeRepair.repairs.length
+    ? validateAppData(safeRepair.data)
+    : initialValidation;
+  const repairProposal = {
+    available: safeRepair.repairs.length > 0 && proposedValidation.totalIssues < initialValidation.totalIssues,
+    repairCount: safeRepair.repairs.length,
+    resolvesIssueCount: Math.max(0, initialValidation.totalIssues - proposedValidation.totalIssues),
+    remainingIssueCount: proposedValidation.totalIssues,
+    repairs: safeRepair.repairs
+  };
+  if (applySafeRepairs && repairProposal.available) {
+    candidate = safeRepair.data;
+  }
+
+  const validation = applySafeRepairs && repairProposal.available
+    ? proposedValidation
+    : initialValidation;
   const changes = collectChanges(original, candidate);
   const actions = countChangeActions(changes);
   const warnings = flattenMigrationWarnings(candidate.migrationReport);
@@ -286,6 +306,8 @@ export function analyzeAppDataUpgrade(source, {
     fromSchemaVersion,
     toSchemaVersion: CURRENT_SCHEMA_VERSION,
     migrated,
+    repairApplied: Boolean(applySafeRepairs && repairProposal.available),
+    repairProposal,
     validationPassed: validation.isValid,
     summary: {
       fieldsAdded: actions.added,
@@ -296,6 +318,7 @@ export function analyzeAppDataUpgrade(source, {
       validationIssues: validation.totalIssues
     },
     migrationSummary: candidate.migrationReport?.summary || null,
+    repairs: applySafeRepairs ? safeRepair.repairs : [],
     changes,
     warnings,
     validation
@@ -305,6 +328,8 @@ export function analyzeAppDataUpgrade(source, {
     isValid: validation.isValid,
     canApply: validation.isValid,
     migrated,
+    repairApplied: Boolean(applySafeRepairs && repairProposal.available),
+    repairProposal,
     changed: changes.length > 0,
     fromSchemaVersion,
     toSchemaVersion: CURRENT_SCHEMA_VERSION,

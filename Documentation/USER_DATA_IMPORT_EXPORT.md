@@ -46,7 +46,8 @@ the file before changing your browser data.
 4.4.3 What Changed groups every added, changed, or removed field and explains
 why it changed.
 
-4.4.4 Warnings and Recovery identifies records retained for manual follow-up.
+4.4.4 Historical Migration Notes identifies records retained by earlier
+migrations. These notes are an audit trail, not current validation failures.
 
 4.4.5 Download Change Report saves the complete machine-readable audit.
 
@@ -74,6 +75,19 @@ before loading the data.
 5.5 The original browser data remains unchanged until you select Apply Upgrade
 to Browser Data.
 
+5.6 If validation finds legacy values that can be normalized without losing
+information, select Preview Safe Repairs.
+
+5.6.1 The preview lists every proposed change in What Changed and validates the
+repaired copy before enabling Apply Safe Repairs to Browser Data.
+
+5.6.2 Safe repairs cover unambiguous data-type normalization, such as numeric
+IDs or amounts stored as numeric strings. They do not guess missing values,
+rewrite ambiguous records, or alter retained recovery records.
+
+5.6.3 Historical notes are limited to 100 visible entries for readability. The
+downloadable change report retains the complete audit.
+
 ## 6.0 Clear Data
 
 6.1 Use the navbar button Clear Data.
@@ -97,6 +111,10 @@ invalid references, or other current-schema violations.
 Recovery, and the downloadable change report before applying the result.
 
 7.1.4 Future schema versions are not downgraded.
+
+7.1.5 If Preview Safe Repairs is available, use it to prepare a valid copy and
+review each change. Any issues still shown afterward require correction in the
+source data because FTrack cannot resolve them without making assumptions.
 
 7.2 You hit storage limits.
 

@@ -94,15 +94,23 @@ read-only preflight before import:
    future schema versions.
 3. Migrate older schemas or sanitize schema 44 data in memory.
 4. Validate the exact prepared object with the application validation service.
-5. Deep-compare source and prepared data, classifying each path as added,
+5. When validation fails, compute an optional safe-repair proposal from a copy.
+   Repairs are limited to lossless numeric-string normalization in supported
+   financial paths. No dates are guessed, lookup objects are preserved, and
+   `migrationReport` recovery records are excluded from traversal.
+6. On request, validate the repaired copy and use it only if the user previews
+   and explicitly applies it.
+7. Deep-compare source and prepared data, classifying each path as added,
    changed, or removed and attaching a human-readable reason.
-6. Return the prepared data and a downloadable report containing source and
+8. Return the prepared data and a downloadable report containing source and
    target schema versions, counts, full changes, migration warnings, recovery
-   flags, and validation results.
+   flags, validation results, and applied safe-repair actions.
 
 The preflight service does not write storage. The review modal enables apply
 only when validation passes. Startup intercepts legacy browser data before the
 normal data-store read so the original value remains intact until approval.
+Historical migration warnings remain visible separately from active validation
+issues and never block apply by themselves.
 
 ---
 
