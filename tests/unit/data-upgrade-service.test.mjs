@@ -272,3 +272,35 @@ test('safe repairs never rewrite retained migration recovery records', () => {
     '999'
   );
 });
+
+test('historical migration notes can be resolved without changing financial data', () => {
+  const source = analyzeAppDataUpgrade(legacyApp(), { now: MIGRATED_AT }).data;
+  source.migrationReport.scenarios[0].issues = [{
+    severity: 'warning',
+    code: 'ambiguous-recurring-occurrence',
+    message: 'Preserved as a manual occurrence',
+    action: 'converted-to-manual',
+    recoveryRecord: { id: 100, amount: 100 }
+  }];
+  source.migrationReport.summary.warningCount = 1;
+  source.migrationReport.summary.recoveryRecordCount = 1;
+  const financialData = JSON.stringify(source.scenarios);
+  const original = JSON.stringify(source);
+
+  const checked = analyzeAppDataUpgrade(source, { sourceKind: 'browser' });
+  assert.equal(checked.isValid, true);
+  assert.equal(checked.historicalNoteProposal.available, true);
+  assert.ok(checked.historicalNoteProposal.noteCount > 0);
+
+  const resolved = analyzeAppDataUpgrade(source, {
+    sourceKind: 'browser',
+    archiveMigrationReport: true
+  });
+  assert.equal(resolved.historicalNotesArchived, true);
+  assert.equal(resolved.isValid, true);
+  assert.equal(resolved.data.migrationReport, undefined);
+  assert.equal(JSON.stringify(resolved.data.scenarios), financialData);
+  assert.equal(JSON.stringify(source), original);
+  assert.ok(resolved.report.archivedMigrationReport);
+  assert.ok(resolved.changes.some((entry) => entry.path === 'migrationReport'));
+});

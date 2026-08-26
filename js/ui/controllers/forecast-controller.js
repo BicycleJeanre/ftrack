@@ -12,7 +12,7 @@ import { openPeriodicChangeModal } from '../components/modals/periodic-change-mo
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
-import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js?v=20260826-safe-repair-2';
+import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js?v=20260826-migration-resolution-3';
 import '../../shared/keyboard-shortcuts.js';
 import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';

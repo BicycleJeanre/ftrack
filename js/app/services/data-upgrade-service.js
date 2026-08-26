@@ -13,7 +13,7 @@ import {
 import { migrateAppData } from '../../shared/migration-utils.js';
 import { validateAppData } from './validation-service.js';
 import { STORAGE_KEY } from './storage-service.js';
-import { prepareSafeAppDataRepairs } from './data-repair-service.js?v=20260826-safe-repair-2';
+import { prepareSafeAppDataRepairs } from './data-repair-service.js?v=20260826-migration-resolution-3';
 
 const MAX_UI_CHANGES = 250;
 
@@ -219,7 +219,8 @@ export function analyzeAppDataUpgrade(source, {
   sourceLabel = 'Selected data',
   sourceKind = 'file',
   now,
-  applySafeRepairs = false
+  applySafeRepairs = false,
+  archiveMigrationReport = false
 } = {}) {
   let original;
   try {
@@ -295,6 +296,25 @@ export function analyzeAppDataUpgrade(source, {
   const validation = applySafeRepairs && repairProposal.available
     ? proposedValidation
     : initialValidation;
+  const historicalWarnings = flattenMigrationWarnings(candidate.migrationReport);
+  const historicalRecoveryRecords = Number(
+    candidate.migrationReport?.summary?.recoveryRecordCount || 0
+  );
+  const historicalNoteProposal = {
+    available: validation.isValid && historicalWarnings.length > 0,
+    noteCount: historicalWarnings.length,
+    recoveryRecordCount: historicalRecoveryRecords
+  };
+  const historicalNotesArchived = Boolean(
+    archiveMigrationReport && historicalNoteProposal.available
+  );
+  const archivedMigrationReport = historicalNotesArchived
+    ? cloneJson(candidate.migrationReport)
+    : null;
+  if (historicalNotesArchived) {
+    delete candidate.migrationReport;
+  }
+
   const changes = collectChanges(original, candidate);
   const actions = countChangeActions(changes);
   const warnings = flattenMigrationWarnings(candidate.migrationReport);
@@ -308,6 +328,8 @@ export function analyzeAppDataUpgrade(source, {
     migrated,
     repairApplied: Boolean(applySafeRepairs && repairProposal.available),
     repairProposal,
+    historicalNotesArchived,
+    historicalNoteProposal,
     validationPassed: validation.isValid,
     summary: {
       fieldsAdded: actions.added,
@@ -318,6 +340,7 @@ export function analyzeAppDataUpgrade(source, {
       validationIssues: validation.totalIssues
     },
     migrationSummary: candidate.migrationReport?.summary || null,
+    archivedMigrationReport,
     repairs: applySafeRepairs ? safeRepair.repairs : [],
     changes,
     warnings,
@@ -330,6 +353,8 @@ export function analyzeAppDataUpgrade(source, {
     migrated,
     repairApplied: Boolean(applySafeRepairs && repairProposal.available),
     repairProposal,
+    historicalNotesArchived,
+    historicalNoteProposal,
     changed: changes.length > 0,
     fromSchemaVersion,
     toSchemaVersion: CURRENT_SCHEMA_VERSION,

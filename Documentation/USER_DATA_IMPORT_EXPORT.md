@@ -88,6 +88,19 @@ rewrite ambiguous records, or alter retained recovery records.
 5.6.3 Historical notes are limited to 100 visible entries for readability. The
 downloadable change report retains the complete audit.
 
+5.7 If validation passes but historical migration notes remain, select Resolve
+Historical Notes.
+
+5.7.1 These notes describe recovery actions that were already applied, such as
+preserving an occurrence as manual when its recurring identity was ambiguous.
+
+5.7.2 Previewing the resolution removes only the stored migration audit. It does
+not remove accounts, rules, occurrences, actuals, baselines, or projections.
+
+5.7.3 Download the change report before applying if you want to retain a
+permanent copy of every raw recovery record. The preview report also embeds the
+complete archived migration report.
+
 ## 6.0 Clear Data
 
 6.1 Use the navbar button Clear Data.

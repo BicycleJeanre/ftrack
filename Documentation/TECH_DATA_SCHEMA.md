@@ -112,6 +112,12 @@ normal data-store read so the original value remains intact until approval.
 Historical migration warnings remain visible separately from active validation
 issues and never block apply by themselves.
 
+When current data validates, the preflight can prepare an explicit historical
+note resolution. This removes the root `migrationReport` only; all scenario
+financial collections remain byte-for-byte equivalent. The downloadable change
+report embeds the removed report as `archivedMigrationReport` so the recovery
+audit can be retained outside browser storage.
+
 ---
 
 ## 2.0 Scenario

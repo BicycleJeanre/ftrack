@@ -138,6 +138,50 @@ test.describe('data management and projection browser flows', () => {
     }).toBe(1200.5);
   });
 
+  test('resolves retained migration notes without changing financial records', async ({ page }) => {
+    const source = await readAppData(page);
+    const occurrenceCount = source.scenarios[0].transactionOccurrences.length;
+    const historicalIssues = Array.from({ length: 105 }, (_, index) => ({
+      severity: 'warning',
+      code: 'ambiguous-recurring-occurrence',
+      message: 'A linked recurring occurrence lacked stable scheduled identity and was preserved as a manual occurrence.',
+      action: 'converted-to-manual',
+      recoveryRecord: { id: index + 1, amount: 100 }
+    }));
+    source.migrationReport = {
+      fromSchemaVersion: 43,
+      toSchemaVersion: 44,
+      migratedAt: '2026-08-01T00:00:00.000Z',
+      summary: { recoveryRecordCount: historicalIssues.length },
+      scenarios: [{
+        scenarioId: source.scenarios[0].id,
+        scenarioIndex: 0,
+        issues: historicalIssues
+      }]
+    };
+    await page.evaluate(({ key, data }) => {
+      localStorage.setItem(key, JSON.stringify(data));
+    }, { key: STORAGE_KEY, data: source });
+
+    await page.locator('#topbar-validate').click();
+    await page.getByRole('button', { name: 'Current Browser Data' }).click();
+    const review = page.locator('.data-upgrade-modal');
+    await expect(review).toContainText('105 historical notes');
+    await review.getByRole('button', { name: 'Resolve Historical Notes', exact: true }).click();
+    await expect(review).toContainText('105 historical migration notes will be removed');
+    await expect(review).toContainText('Financial accounts, rules, occurrences, actuals, and projections are unchanged');
+    await expect(review).toContainText('migrationReport');
+    await review.getByRole('button', { name: 'Apply Resolved Migration Cleanup' }).click();
+
+    await expect.poll(async () => {
+      const data = await readAppData(page);
+      return {
+        hasMigrationReport: Boolean(data.migrationReport),
+        occurrenceCount: data.scenarios[0].transactionOccurrences.length
+      };
+    }).toEqual({ hasMigrationReport: false, occurrenceCount });
+  });
+
   test('upgrades an uploaded legacy file and downloads its complete change report', async ({ page }) => {
     const chooserPromise = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: /Import/ }).click();

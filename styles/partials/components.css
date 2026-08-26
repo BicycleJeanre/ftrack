@@ -860,6 +860,27 @@ input[type="checkbox"] {
   border-radius: var(--radius-md);
 }
 
+.data-upgrade-history-resolution {
+  align-items: center;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 38%, transparent);
+  border-radius: 10px;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin: 0.75rem 0 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.data-upgrade-history-resolution div {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.data-upgrade-history-resolution span {
+  color: var(--text-muted);
+}
+
 .data-upgrade-footer {
   flex-wrap: wrap;
 }
@@ -922,6 +943,12 @@ input[type="checkbox"] {
   }
 
   .data-upgrade-repair-offer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+
+  .data-upgrade-history-resolution {
     align-items: stretch;
     flex-direction: column;
   }
