@@ -1,7 +1,7 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
 import { downloadAppData } from '../../app/services/export-service.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
-import { openDataUpgradeModal } from '../components/modals/data-upgrade-modal.js?v=20260826-migration-resolution-3';
+import { openDataUpgradeModal } from '../components/modals/data-upgrade-modal.js?v=20260826-migration-resolution-4';
 
 // Web-only: Show clear data button for browser storage management
 const clearDataBtn = '<button id="nav-clear" class="icon-btn icon-btn--danger" title="Clear all data from browser storage">⊗ Clear</button>';

@@ -7,7 +7,7 @@ import {
   analyzeAppDataUpgrade,
   browserDataNeedsUpgradeReview,
   readRawBrowserData
-} from '../../../app/services/data-upgrade-service.js?v=20260826-migration-resolution-3';
+} from '../../../app/services/data-upgrade-service.js?v=20260826-migration-resolution-4';
 import { importAppData } from '../../../app/services/data-service.js';
 import {
   downloadJsonData,
@@ -115,13 +115,15 @@ function renderChangeGroups(analysis) {
 }
 
 function renderWarnings(analysis) {
-  if (analysis.historicalNotesArchived) {
+  if (analysis.migrationResolutionApplied) {
     return `
       <div class="data-upgrade-repair-prepared">
-        ${analysis.historicalNoteProposal.noteCount} historical migration note${analysis.historicalNoteProposal.noteCount === 1 ? '' : 's'}
-        will be removed from browser data. Financial accounts, rules, occurrences,
-        actuals, and projections are unchanged. The downloaded change report retains
-        the complete recovery audit.
+        ${analysis.migrationResolutionProposal.resolvableCount} migrated occurrence${analysis.migrationResolutionProposal.resolvableCount === 1 ? '' : 's'}
+        will be relinked to proven recurring rules and scheduled dates.
+        ${analysis.warnings.length
+          ? `${analysis.warnings.length} note${analysis.warnings.length === 1 ? '' : 's'} remain unresolved and are retained.`
+          : 'All associated recovery notes are resolved.'}
+        The downloaded change report retains the original recovery audit.
       </div>
     `;
   }
@@ -134,19 +136,23 @@ function renderWarnings(analysis) {
       These are historical notes from an earlier migration, not active validation
       failures. Retained source records remain in the downloadable change report.
     </p>
-    ${analysis.historicalNoteProposal?.available ? `
+    ${analysis.migrationResolutionProposal?.available ? `
       <div class="data-upgrade-history-resolution">
         <div>
-          <strong>Finish resolving this migration</strong>
+          <strong>${analysis.migrationResolutionProposal.resolvableCount} recurring occurrence link${analysis.migrationResolutionProposal.resolvableCount === 1 ? '' : 's'} can be resolved</strong>
           <span>
-            The listed recovery actions have already been applied to the live financial
-            data. Preview removal of these audit notes after downloading the change report
-            if you want a permanent copy.
+            FTrack proved the original rule, scheduled date, and collision-free occurrence
+            identity for these records. Preview the relinks before applying them.
           </span>
         </div>
-        <button type="button" class="icon-btn icon-btn--primary data-upgrade-archive">
-          Preview Resolve Historical Notes
+        <button type="button" class="icon-btn icon-btn--primary data-upgrade-migration-resolution">
+          Preview Resolve Recurring Links
         </button>
+      </div>
+    ` : analysis.warnings.length ? `
+      <div class="data-upgrade-history-note">
+        No retained record can be relinked automatically without guessing. These notes
+        remain unresolved and will not be removed.
       </div>
     ` : ''}
     <ul class="data-upgrade-issue-list">
@@ -264,7 +270,7 @@ function renderAnalysis(modal, analysis, {
   onDownloadData,
   onDownloadReport,
   onPrepareRepair,
-  onPrepareArchive,
+  onPrepareMigrationResolution,
   onChooseAnother,
   onCancel
 }) {
@@ -272,15 +278,15 @@ function renderAnalysis(modal, analysis, {
   const versionLabel = `${analysis.fromSchemaVersion ?? 'Unknown'} → ${analysis.toSchemaVersion}`;
   const canApply = analysis.canApply &&
     (analysis.sourceKind === 'file' || analysis.changed || analysis.migrated);
-  const canPrepareArchive = analysis.sourceKind === 'browser' &&
-    analysis.historicalNoteProposal?.available &&
-    !analysis.historicalNotesArchived &&
+  const canPrepareMigrationResolution = analysis.sourceKind === 'browser' &&
+    analysis.migrationResolutionProposal?.available &&
+    !analysis.migrationResolutionApplied &&
     !canApply;
   const applyLabel = analysis.sourceKind === 'browser'
-    ? (analysis.historicalNotesArchived
-      ? 'Apply Resolved Migration Cleanup'
-      : (canPrepareArchive
-        ? 'Resolve Historical Notes'
+    ? (analysis.migrationResolutionApplied
+      ? 'Apply Resolved Recurring Links'
+      : (canPrepareMigrationResolution
+        ? 'Resolve Recurring Links'
         : (canApply
           ? (analysis.repairApplied ? 'Apply Safe Repairs to Browser Data' : 'Apply Upgrade to Browser Data')
           : (analysis.isValid ? 'Browser Data Is Current' : 'Repairs Required'))))
@@ -331,19 +337,19 @@ function renderAnalysis(modal, analysis, {
       <button type="button" class="icon-btn data-upgrade-another">Choose Another Source</button>
       <button type="button" class="icon-btn data-upgrade-report">Download Change Report</button>
       <button type="button" class="icon-btn data-upgrade-data" ${analysis.canApply ? '' : 'disabled'}>Download Upgraded JSON</button>
-      <button type="button" class="icon-btn icon-btn--primary data-upgrade-apply" ${canApply || canPrepareArchive ? '' : 'disabled'}>${escapeHtml(applyLabel)}</button>
+      <button type="button" class="icon-btn icon-btn--primary data-upgrade-apply" ${canApply || canPrepareMigrationResolution ? '' : 'disabled'}>${escapeHtml(applyLabel)}</button>
       <button type="button" class="icon-btn data-upgrade-cancel">Cancel</button>
     </div>
   `;
 
   modal.querySelector('.data-upgrade-apply')?.addEventListener(
     'click',
-    canPrepareArchive ? onPrepareArchive : onApply
+    canPrepareMigrationResolution ? onPrepareMigrationResolution : onApply
   );
   modal.querySelector('.data-upgrade-data')?.addEventListener('click', onDownloadData);
   modal.querySelector('.data-upgrade-report')?.addEventListener('click', onDownloadReport);
   modal.querySelector('.data-upgrade-repair')?.addEventListener('click', onPrepareRepair);
-  modal.querySelector('.data-upgrade-archive')?.addEventListener('click', onPrepareArchive);
+  modal.querySelector('.data-upgrade-migration-resolution')?.addEventListener('click', onPrepareMigrationResolution);
   modal.querySelector('.data-upgrade-another')?.addEventListener('click', onChooseAnother);
   modal.querySelector('.data-upgrade-cancel')?.addEventListener('click', onCancel);
   modal.querySelector('.modal-close-btn')?.addEventListener('click', onCancel);
@@ -432,7 +438,7 @@ export function openDataUpgradeModal({
         onDownloadData: downloadData,
         onDownloadReport: downloadReport,
         onPrepareRepair: prepareRepair,
-        onPrepareArchive: prepareArchive,
+        onPrepareMigrationResolution: prepareMigrationResolution,
         onChooseAnother: showChooser,
         onCancel: cancel
       });
@@ -452,20 +458,20 @@ export function openDataUpgradeModal({
         onDownloadData: downloadData,
         onDownloadReport: downloadReport,
         onPrepareRepair: prepareRepair,
-        onPrepareArchive: prepareArchive,
+        onPrepareMigrationResolution: prepareMigrationResolution,
         onChooseAnother: showChooser,
         onCancel: cancel
       });
     };
 
-    const prepareArchive = () => {
-      if (!currentSource || !currentAnalysis?.historicalNoteProposal?.available) return;
-      renderLoading(modal, required, 'historical note cleanup preview');
+    const prepareMigrationResolution = () => {
+      if (!currentSource || !currentAnalysis?.migrationResolutionProposal?.available) return;
+      renderLoading(modal, required, 'recurring-link resolution preview');
       currentAnalysis = analyzeAppDataUpgrade(currentSource.rawText, {
         sourceLabel: currentSource.sourceLabel,
         sourceKind: currentSource.sourceKind,
         applySafeRepairs: currentAnalysis.repairApplied,
-        archiveMigrationReport: true
+        applyMigrationResolutions: true
       });
       renderAnalysis(modal, currentAnalysis, {
         required,
@@ -473,7 +479,7 @@ export function openDataUpgradeModal({
         onDownloadData: downloadData,
         onDownloadReport: downloadReport,
         onPrepareRepair: prepareRepair,
-        onPrepareArchive: prepareArchive,
+        onPrepareMigrationResolution: prepareMigrationResolution,
         onChooseAnother: showChooser,
         onCancel: cancel
       });

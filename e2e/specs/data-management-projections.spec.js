@@ -138,16 +138,41 @@ test.describe('data management and projection browser flows', () => {
     }).toBe(1200.5);
   });
 
-  test('resolves retained migration notes without changing financial records', async ({ page }) => {
+  test('relinks recoverable migrated occurrences without dropping financial records', async ({ page }) => {
     const source = await readAppData(page);
-    const occurrenceCount = source.scenarios[0].transactionOccurrences.length;
-    const historicalIssues = Array.from({ length: 105 }, (_, index) => ({
-      severity: 'warning',
-      code: 'ambiguous-recurring-occurrence',
-      message: 'A linked recurring occurrence lacked stable scheduled identity and was preserved as a manual occurrence.',
-      action: 'converted-to-manual',
-      recoveryRecord: { id: index + 1, amount: 100 }
-    }));
+    const scenario = source.scenarios[0];
+    const recurringRule = scenario.transactions.find((transaction) => transaction.id === 1002);
+    const occurrenceTemplate = scenario.transactionOccurrences[0];
+    const historicalIssues = [];
+    for (let index = 0; index < 105; index += 1) {
+      const monthIndex = index + 1;
+      const year = 2026 + Math.floor(monthIndex / 12);
+      const month = (monthIndex % 12) + 1;
+      const scheduledDate = `${year}-${String(month).padStart(2, '0')}-10`;
+      const id = 3000 + index;
+      scenario.transactionOccurrences.push({
+        ...occurrenceTemplate,
+        id,
+        sourceTransactionId: null,
+        occurrenceKey: `occurrence:${id}`,
+        scheduledDate,
+        origin: 'migrated'
+      });
+      historicalIssues.push({
+        severity: 'warning',
+        code: 'ambiguous-recurring-occurrence',
+        message: 'A linked recurring occurrence lacked stable scheduled identity and was preserved as a manual occurrence.',
+        action: 'converted-to-manual',
+        sourceId: id,
+        recoveryRecord: {
+          id,
+          sourceTransactionId: recurringRule.id,
+          occurrenceDate: scheduledDate,
+          amount: recurringRule.amount
+        }
+      });
+    }
+    const occurrenceCount = scenario.transactionOccurrences.length;
     source.migrationReport = {
       fromSchemaVersion: 43,
       toSchemaVersion: 44,
@@ -167,19 +192,22 @@ test.describe('data management and projection browser flows', () => {
     await page.getByRole('button', { name: 'Current Browser Data' }).click();
     const review = page.locator('.data-upgrade-modal');
     await expect(review).toContainText('105 historical notes');
-    await review.getByRole('button', { name: 'Resolve Historical Notes', exact: true }).click();
-    await expect(review).toContainText('105 historical migration notes will be removed');
-    await expect(review).toContainText('Financial accounts, rules, occurrences, actuals, and projections are unchanged');
-    await expect(review).toContainText('migrationReport');
-    await review.getByRole('button', { name: 'Apply Resolved Migration Cleanup' }).click();
+    await review.getByRole('button', { name: 'Resolve Recurring Links', exact: true }).click();
+    await expect(review).toContainText('105 migrated occurrences will be relinked');
+    await expect(review).toContainText('All associated recovery notes are resolved');
+    await expect(review).toContainText('sourceTransactionId');
+    await review.getByRole('button', { name: 'Apply Resolved Recurring Links' }).click();
 
     await expect.poll(async () => {
       const data = await readAppData(page);
       return {
         hasMigrationReport: Boolean(data.migrationReport),
-        occurrenceCount: data.scenarios[0].transactionOccurrences.length
+        occurrenceCount: data.scenarios[0].transactionOccurrences.length,
+        linkedCount: data.scenarios[0].transactionOccurrences.filter((occurrence) => (
+          occurrence.id >= 3000 && occurrence.sourceTransactionId === recurringRule.id
+        )).length
       };
-    }).toEqual({ hasMigrationReport: false, occurrenceCount });
+    }).toEqual({ hasMigrationReport: false, occurrenceCount, linkedCount: 105 });
   });
 
   test('upgrades an uploaded legacy file and downloads its complete change report', async ({ page }) => {

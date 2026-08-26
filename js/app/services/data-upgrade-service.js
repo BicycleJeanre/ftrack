@@ -13,7 +13,8 @@ import {
 import { migrateAppData } from '../../shared/migration-utils.js';
 import { validateAppData } from './validation-service.js';
 import { STORAGE_KEY } from './storage-service.js';
-import { prepareSafeAppDataRepairs } from './data-repair-service.js?v=20260826-migration-resolution-3';
+import { prepareSafeAppDataRepairs } from './data-repair-service.js?v=20260826-migration-resolution-4';
+import { prepareMigrationRecoveryResolutions } from './migration-recovery-service.js?v=20260826-migration-resolution-4';
 
 const MAX_UI_CHANGES = 250;
 
@@ -220,7 +221,7 @@ export function analyzeAppDataUpgrade(source, {
   sourceKind = 'file',
   now,
   applySafeRepairs = false,
-  archiveMigrationReport = false
+  applyMigrationResolutions = false
 } = {}) {
   let original;
   try {
@@ -293,26 +294,23 @@ export function analyzeAppDataUpgrade(source, {
     candidate = safeRepair.data;
   }
 
-  const validation = applySafeRepairs && repairProposal.available
+  let validation = applySafeRepairs && repairProposal.available
     ? proposedValidation
     : initialValidation;
-  const historicalWarnings = flattenMigrationWarnings(candidate.migrationReport);
-  const historicalRecoveryRecords = Number(
-    candidate.migrationReport?.summary?.recoveryRecordCount || 0
-  );
-  const historicalNoteProposal = {
-    available: validation.isValid && historicalWarnings.length > 0,
-    noteCount: historicalWarnings.length,
-    recoveryRecordCount: historicalRecoveryRecords
+  const migrationRecovery = prepareMigrationRecoveryResolutions(candidate);
+  const migrationResolutionProposal = {
+    available: validation.isValid && migrationRecovery.resolutions.length > 0,
+    resolvableCount: migrationRecovery.resolutions.length,
+    unresolvedCount: migrationRecovery.unresolved.length,
+    resolutions: migrationRecovery.resolutions,
+    unresolved: migrationRecovery.unresolved
   };
-  const historicalNotesArchived = Boolean(
-    archiveMigrationReport && historicalNoteProposal.available
+  const migrationResolutionApplied = Boolean(
+    applyMigrationResolutions && migrationResolutionProposal.available
   );
-  const archivedMigrationReport = historicalNotesArchived
-    ? cloneJson(candidate.migrationReport)
-    : null;
-  if (historicalNotesArchived) {
-    delete candidate.migrationReport;
+  if (migrationResolutionApplied) {
+    candidate = migrationRecovery.data;
+    validation = validateAppData(candidate);
   }
 
   const changes = collectChanges(original, candidate);
@@ -328,8 +326,8 @@ export function analyzeAppDataUpgrade(source, {
     migrated,
     repairApplied: Boolean(applySafeRepairs && repairProposal.available),
     repairProposal,
-    historicalNotesArchived,
-    historicalNoteProposal,
+    migrationResolutionApplied,
+    migrationResolutionProposal,
     validationPassed: validation.isValid,
     summary: {
       fieldsAdded: actions.added,
@@ -340,7 +338,12 @@ export function analyzeAppDataUpgrade(source, {
       validationIssues: validation.totalIssues
     },
     migrationSummary: candidate.migrationReport?.summary || null,
-    archivedMigrationReport,
+    resolvedMigrationReport: migrationResolutionApplied
+      ? migrationRecovery.originalMigrationReport
+      : null,
+    migrationResolutions: migrationResolutionApplied
+      ? migrationRecovery.resolutions
+      : [],
     repairs: applySafeRepairs ? safeRepair.repairs : [],
     changes,
     warnings,
@@ -353,8 +356,8 @@ export function analyzeAppDataUpgrade(source, {
     migrated,
     repairApplied: Boolean(applySafeRepairs && repairProposal.available),
     repairProposal,
-    historicalNotesArchived,
-    historicalNoteProposal,
+    migrationResolutionApplied,
+    migrationResolutionProposal,
     changed: changes.length > 0,
     fromSchemaVersion,
     toSchemaVersion: CURRENT_SCHEMA_VERSION,

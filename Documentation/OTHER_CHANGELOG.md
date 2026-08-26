@@ -20,9 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Preview Safe Repairs action, with exact changes shown before apply.
   - Historical migration notes are separated from active validation failures,
     while the complete recovery audit remains available in the change report.
-  - Valid browser data with retained recovery notes can now finish migration
-    through a previewed Resolve Historical Notes action. The cleanup removes
-    only the audit report and preserves it in the downloadable change report.
+  - Valid browser data can now deterministically relink migrated manual
+    occurrences to proven recurring rules and scheduled dates. Notes that cannot
+    be resolved without guessing remain visible and retained.
 - Completed the schemaVersion 44 unified **Plan & Actuals** workflow.
   - Budget is now a live Period view over resolved plan occurrences rather
     than a separately generated dataset.
