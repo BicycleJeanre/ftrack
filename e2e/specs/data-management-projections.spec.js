@@ -196,6 +196,87 @@ test.describe('data management and projection browser flows', () => {
     }).toBe(1200.5);
   });
 
+  test('reviews recovered transactions as manual, removed, or linked to recurrence', async ({ page }) => {
+    const source = await readAppData(page);
+    const scenario = source.scenarios[0];
+    const recurringRule = scenario.transactions.find((transaction) => transaction.id === 1002);
+    const template = scenario.transactionOccurrences[0];
+    const recovered = [
+      { id: 4101, description: 'Recovery Link', scheduledDate: '2026-02-10' },
+      { id: 4102, description: 'Recovery Manual', scheduledDate: '2026-03-10' },
+      { id: 4103, description: 'Recovery Remove', scheduledDate: '2026-04-10' },
+      ...Array.from({ length: 24 }, (_, index) => ({
+        id: 4200 + index,
+        description: `Recovery Pending ${index + 1}`,
+        scheduledDate: '2026-05-10'
+      }))
+    ];
+    scenario.transactionOccurrences.push(...recovered.map((entry) => ({
+      ...template,
+      ...entry,
+      sourceTransactionId: null,
+      occurrenceKey: `occurrence:${entry.id}`,
+      origin: 'migrated'
+    })));
+    source.migrationReport = {
+      fromSchemaVersion: 43,
+      toSchemaVersion: 44,
+      migratedAt: '2026-08-01T00:00:00.000Z',
+      summary: { warningCount: 3, recoveryRecordCount: 3 },
+      scenarios: [{
+        scenarioId: scenario.id,
+        scenarioIndex: 0,
+        issues: recovered.map((entry, index) => ({
+          severity: 'warning',
+          code: index === 0 ? 'ambiguous-recurring-occurrence' : 'orphan-source-transaction',
+          message: 'Preserved as a manual occurrence.',
+          action: 'converted-to-manual',
+          sourceId: entry.id,
+          recoveryRecord: { id: entry.id, sourceTransactionId: recurringRule.id }
+        }))
+      }]
+    };
+    await page.evaluate(({ key, data }) => localStorage.setItem(key, JSON.stringify(data)), {
+      key: STORAGE_KEY,
+      data: source
+    });
+
+    await page.locator('#topbar-validate').click();
+    await page.getByRole('button', { name: 'Current Browser Data' }).click();
+    const review = page.locator('.data-upgrade-modal');
+    await review.getByRole('button', { name: 'Review Transactions' }).click();
+    await expect(review).toContainText('0 of 27 reviewed');
+    await expect(review).toContainText('Showing 1–25');
+    await review.getByRole('button', { name: 'Next 25' }).click();
+    await expect(review).toContainText('Showing 26–27');
+    await review.getByRole('button', { name: 'Previous 25' }).click();
+
+    const linkRow = review.locator('.data-upgrade-recovery-item', { hasText: 'Recovery Link' });
+    await linkRow.locator('.data-recovery-rule').selectOption(String(recurringRule.id));
+    await linkRow.getByRole('button', { name: 'Link to Recurrence' }).click();
+    const manualRow = review.locator('.data-upgrade-recovery-item', { hasText: 'Recovery Manual' });
+    await manualRow.getByRole('button', { name: 'Confirm Manual' }).click();
+    const removeRow = review.locator('.data-upgrade-recovery-item', { hasText: 'Recovery Remove' });
+    await removeRow.getByRole('button', { name: 'Remove Transaction' }).click();
+    await expect(review).toContainText('3 of 27 reviewed');
+    await review.getByRole('button', { name: 'Preview 3 Decisions' }).click();
+
+    await expect(review).toContainText('24 historical notes');
+    await review.getByRole('button', { name: 'Apply Recovery Decisions to Browser Data' }).click();
+
+    await expect.poll(async () => {
+      const data = await readAppData(page);
+      return data.migrationReport?.resolutionHistory?.length;
+    }).toBe(3);
+    const applied = await readAppData(page);
+    const linked = applied.scenarios[0].transactionOccurrences.find((entry) => entry.id === 4101);
+    const manual = applied.scenarios[0].transactionOccurrences.find((entry) => entry.id === 4102);
+    expect(linked.sourceTransactionId).toBe(recurringRule.id);
+    expect(linked.occurrenceKey).toBe(`tx:${recurringRule.id}|date:2026-02-10|role:none`);
+    expect(manual.sourceTransactionId).toBeNull();
+    expect(applied.scenarios[0].transactionOccurrences.some((entry) => entry.id === 4103)).toBe(false);
+  });
+
   test('relinks recoverable migrated occurrences without dropping financial records', async ({ page }) => {
     const source = await readAppData(page);
     const scenario = source.scenarios[0];

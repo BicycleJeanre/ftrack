@@ -356,3 +356,61 @@ test('ambiguous occurrences remain unresolved when their dates do not match the 
   assert.equal(checked.data.migrationReport.scenarios[0].issues.length, 1);
   assert.equal(checked.data.scenarios[0].transactionOccurrences[0].sourceTransactionId, null);
 });
+
+test('review decisions confirm manual, link recurring, and remove recovered transactions', () => {
+  const source = analyzeAppDataUpgrade(legacyApp(), { now: MIGRATED_AT }).data;
+  const scenario = source.scenarios[0];
+  const template = scenario.transactionOccurrences[0];
+  scenario.transactionOccurrences = [
+    { ...template, id: 201, sourceTransactionId: null, occurrenceKey: 'occurrence:201', scheduledDate: '2026-01-15' },
+    { ...template, id: 202, sourceTransactionId: null, occurrenceKey: 'occurrence:202', scheduledDate: '2026-02-15' },
+    { ...template, id: 203, sourceTransactionId: null, occurrenceKey: 'occurrence:203', scheduledDate: '2026-03-15' }
+  ];
+  source.migrationReport = {
+    fromSchemaVersion: 43,
+    toSchemaVersion: 44,
+    migratedAt: MIGRATED_AT,
+    summary: { warningCount: 3, recoveryRecordCount: 3 },
+    scenarios: [{
+      scenarioId: scenario.id,
+      scenarioIndex: 0,
+      issues: scenario.transactionOccurrences.map((occurrence, index) => ({
+        severity: 'warning',
+        code: index === 1 ? 'orphan-source-transaction' : 'ambiguous-recurring-occurrence',
+        message: 'Preserved as a manual occurrence.',
+        action: 'converted-to-manual',
+        sourceId: occurrence.id,
+        recoveryRecord: { id: occurrence.id, sourceTransactionId: 10 }
+      }))
+    }]
+  };
+  const original = JSON.stringify(source);
+
+  const reviewed = analyzeAppDataUpgrade(source, {
+    sourceKind: 'browser',
+    now: '2026-08-29T12:00:00.000Z',
+    recoveryDecisions: [
+      { key: '0:0', action: 'link', ruleId: 10, scheduledDate: '2026-01-15' },
+      { key: '0:1', action: 'confirm-manual' },
+      { key: '0:2', action: 'remove' }
+    ]
+  });
+
+  assert.equal(reviewed.isValid, true, JSON.stringify(reviewed.validation));
+  assert.equal(reviewed.recoveryDecisionsApplied, true);
+  assert.equal(reviewed.warnings.length, 0);
+  assert.equal(reviewed.data.migrationReport.summary.warningCount, 0);
+  assert.equal(reviewed.data.migrationReport.summary.recoveryRecordCount, 0);
+  assert.equal(reviewed.data.migrationReport.summary.resolvedRecoveryRecordCount, 3);
+  assert.equal(reviewed.data.migrationReport.resolutionHistory.length, 3);
+  assert.equal(reviewed.data.scenarios[0].transactionOccurrences.length, 2);
+  const linked = reviewed.data.scenarios[0].transactionOccurrences.find((entry) => entry.id === 201);
+  const manual = reviewed.data.scenarios[0].transactionOccurrences.find((entry) => entry.id === 202);
+  assert.equal(linked.sourceTransactionId, 10);
+  assert.equal(linked.occurrenceKey, 'tx:10|date:2026-01-15|role:none');
+  assert.equal(manual.sourceTransactionId, null);
+  assert.equal(manual.occurrenceKey, 'occurrence:202');
+  assert.equal(reviewed.data.scenarios[0].transactionOccurrences.some((entry) => entry.id === 203), false);
+  assert.equal(reviewed.report.recoveryDecisions.length, 3);
+  assert.equal(JSON.stringify(source), original);
+});

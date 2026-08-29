@@ -14,7 +14,11 @@ import { migrateAppData } from '../../shared/migration-utils.js';
 import { validateAppData } from './validation-service.js';
 import { STORAGE_KEY } from './storage-service.js';
 import { prepareSafeAppDataRepairs } from './data-repair-service.js?v=20260829-import-repair-6';
-import { prepareMigrationRecoveryResolutions } from './migration-recovery-service.js?v=20260829-import-repair-6';
+import {
+  listMigrationRecoveryReviewItems,
+  prepareMigrationRecoveryDecisions,
+  prepareMigrationRecoveryResolutions
+} from './migration-recovery-service.js?v=20260829-recovery-review-7';
 
 const MAX_UI_CHANGES = 250;
 
@@ -221,7 +225,8 @@ export function analyzeAppDataUpgrade(source, {
   sourceKind = 'file',
   now,
   applySafeRepairs = false,
-  applyMigrationResolutions = false
+  applyMigrationResolutions = false,
+  recoveryDecisions = []
 } = {}) {
   let original;
   try {
@@ -294,9 +299,14 @@ export function analyzeAppDataUpgrade(source, {
     candidate = safeRepair.data;
   }
 
-  let validation = applySafeRepairs && repairProposal.available
-    ? proposedValidation
-    : initialValidation;
+  const manualRecovery = recoveryDecisions.length
+    ? prepareMigrationRecoveryDecisions(candidate, recoveryDecisions, { resolvedAt: now })
+    : { data: candidate, resolutions: [] };
+  candidate = manualRecovery.data;
+
+  let validation = recoveryDecisions.length
+    ? validateAppData(candidate)
+    : (applySafeRepairs && repairProposal.available ? proposedValidation : initialValidation);
   const migrationRecovery = prepareMigrationRecoveryResolutions(candidate);
   const migrationResolutionProposal = {
     available: validation.isValid && migrationRecovery.resolutions.length > 0,
@@ -312,6 +322,7 @@ export function analyzeAppDataUpgrade(source, {
     candidate = migrationRecovery.data;
     validation = validateAppData(candidate);
   }
+  const recoveryReviewItems = listMigrationRecoveryReviewItems(candidate);
 
   const changes = collectChanges(original, candidate);
   const actions = countChangeActions(changes);
@@ -328,6 +339,7 @@ export function analyzeAppDataUpgrade(source, {
     repairProposal,
     migrationResolutionApplied,
     migrationResolutionProposal,
+    recoveryDecisionsApplied: manualRecovery.resolutions.length > 0,
     validationPassed: validation.isValid,
     summary: {
       fieldsAdded: actions.added,
@@ -344,6 +356,7 @@ export function analyzeAppDataUpgrade(source, {
     migrationResolutions: migrationResolutionApplied
       ? migrationRecovery.resolutions
       : [],
+    recoveryDecisions: manualRecovery.resolutions,
     repairs: applySafeRepairs ? safeRepair.repairs : [],
     changes,
     warnings,
@@ -358,6 +371,8 @@ export function analyzeAppDataUpgrade(source, {
     repairProposal,
     migrationResolutionApplied,
     migrationResolutionProposal,
+    recoveryDecisionsApplied: manualRecovery.resolutions.length > 0,
+    recoveryReviewItems,
     changed: changes.length > 0,
     fromSchemaVersion,
     toSchemaVersion: CURRENT_SCHEMA_VERSION,

@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Valid browser data can now deterministically relink migrated manual
     occurrences to proven recurring rules and scheduled dates. Notes that cannot
     be resolved without guessing remain visible and retained.
+  - Added paged review for retained converted-to-manual transactions. Each can
+    be confirmed as manual, removed, or explicitly linked to a recurring rule
+    and generated date, with validation and a change preview before apply.
+  - Applied recovery decisions close the active note, retain a durable
+    resolution history, and mark projections stale when financial plan content
+    changes.
 - Completed the schemaVersion 44 unified **Plan & Actuals** workflow.
   - Budget is now a live Period view over resolved plan occurrences rather
     than a separately generated dataset.

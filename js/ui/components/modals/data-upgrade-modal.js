@@ -7,7 +7,7 @@ import {
   analyzeAppDataUpgrade,
   browserDataNeedsUpgradeReview,
   readRawBrowserData
-} from '../../../app/services/data-upgrade-service.js?v=20260829-import-repair-6';
+} from '../../../app/services/data-upgrade-service.js?v=20260829-recovery-review-7';
 import { importAppData } from '../../../app/services/data-service.js';
 import {
   downloadJsonData,
@@ -136,6 +136,17 @@ function renderWarnings(analysis) {
       These are historical notes from an earlier migration, not active validation
       failures. Retained source records remain in the downloadable change report.
     </p>
+    ${analysis.recoveryReviewItems?.length && !analysis.recoveryDecisionsApplied ? `
+      <div class="data-upgrade-history-resolution">
+        <div>
+          <strong>Review ${analysis.recoveryReviewItems.length} recovered transaction${analysis.recoveryReviewItems.length === 1 ? '' : 's'}</strong>
+          <span>Confirm each record as manual, link it to a recurring rule, or remove it. Decisions are previewed before browser data changes.</span>
+        </div>
+        <button type="button" class="icon-btn icon-btn--primary data-upgrade-recovery-review">
+          Review Transactions
+        </button>
+      </div>
+    ` : ''}
     ${analysis.migrationResolutionProposal?.available ? `
       <div class="data-upgrade-history-resolution">
         <div>
@@ -271,6 +282,7 @@ function renderAnalysis(modal, analysis, {
   onDownloadReport,
   onPrepareRepair,
   onPrepareMigrationResolution,
+  onReviewRecovery,
   onChooseAnother,
   onCancel
 }) {
@@ -283,13 +295,15 @@ function renderAnalysis(modal, analysis, {
     !analysis.migrationResolutionApplied &&
     !canApply;
   const applyLabel = analysis.sourceKind === 'browser'
-    ? (analysis.migrationResolutionApplied
-      ? 'Apply Resolved Recurring Links'
-      : (canPrepareMigrationResolution
-        ? 'Resolve Recurring Links'
-        : (canApply
-          ? (analysis.repairApplied ? 'Apply Safe Repairs to Browser Data' : 'Apply Upgrade to Browser Data')
-          : (analysis.isValid ? 'Browser Data Is Current' : 'Repairs Required'))))
+    ? (analysis.recoveryDecisionsApplied
+      ? 'Apply Recovery Decisions to Browser Data'
+      : (analysis.migrationResolutionApplied
+        ? 'Apply Resolved Recurring Links'
+        : (canPrepareMigrationResolution
+          ? 'Resolve Recurring Links'
+          : (canApply
+            ? (analysis.repairApplied ? 'Apply Safe Repairs to Browser Data' : 'Apply Upgrade to Browser Data')
+            : (analysis.isValid ? 'Browser Data Is Current' : 'Repairs Required')))))
     : (analysis.migrated || analysis.changed ? 'Import Upgraded Data' : 'Import Validated Data');
 
   modal.innerHTML = `
@@ -350,7 +364,118 @@ function renderAnalysis(modal, analysis, {
   modal.querySelector('.data-upgrade-report')?.addEventListener('click', onDownloadReport);
   modal.querySelector('.data-upgrade-repair')?.addEventListener('click', onPrepareRepair);
   modal.querySelector('.data-upgrade-migration-resolution')?.addEventListener('click', onPrepareMigrationResolution);
+  modal.querySelector('.data-upgrade-recovery-review')?.addEventListener('click', onReviewRecovery);
   modal.querySelector('.data-upgrade-another')?.addEventListener('click', onChooseAnother);
+  modal.querySelector('.data-upgrade-cancel')?.addEventListener('click', onCancel);
+  modal.querySelector('.modal-close-btn')?.addEventListener('click', onCancel);
+}
+
+function renderRecoveryReview(modal, analysis, decisions, {
+  required,
+  page,
+  onChooseDecision,
+  onPreview,
+  onPage,
+  onBack,
+  onCancel
+}) {
+  const items = analysis.recoveryReviewItems || [];
+  const pageSize = 25;
+  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+  const currentPage = Math.min(Math.max(0, page || 0), pageCount - 1);
+  const pageStart = currentPage * pageSize;
+  const visibleItems = items.slice(pageStart, pageStart + pageSize);
+  modal.innerHTML = `
+    ${renderHeader('Review Recovered Transactions', required)}
+    <div class="modal-body data-upgrade-body">
+      <p class="data-upgrade-intro">
+        These transactions are financially valid. Choose how their uncertain migration history should be closed.
+        Nothing is saved until you preview and apply the decisions.
+      </p>
+      <div class="data-upgrade-review-summary">
+        <strong>${decisions.size} of ${items.length} reviewed</strong>
+        <span>Showing ${pageStart + 1}–${Math.min(pageStart + pageSize, items.length)}. Unreviewed records remain unchanged.</span>
+      </div>
+      <div class="data-upgrade-recovery-list">
+        ${visibleItems.map((item) => {
+          const decision = decisions.get(item.key);
+          const ruleOptions = item.rules.map((rule) => `
+            <option value="${escapeHtml(rule.id)}" ${String(decision?.ruleId) === String(rule.id) ? 'selected' : ''}>
+              ${escapeHtml(rule.label)} (#${escapeHtml(rule.id)})
+            </option>
+          `).join('');
+          const decisionLabel = decision?.action === 'confirm-manual'
+            ? 'Confirmed as manual'
+            : (decision?.action === 'remove'
+              ? 'Will be removed'
+              : (decision?.action === 'link' ? 'Will be linked to recurrence' : 'Not reviewed'));
+          return `
+            <article class="data-upgrade-recovery-item" data-recovery-key="${escapeHtml(item.key)}">
+              <div class="data-upgrade-recovery-heading">
+                <div>
+                  <strong>${escapeHtml(item.description)}</strong>
+                  <span>${escapeHtml(item.scenarioName)} · ${escapeHtml(item.code)}</span>
+                </div>
+                <span class="data-upgrade-recovery-decision ${decision ? 'is-decided' : ''}">${escapeHtml(decisionLabel)}</span>
+              </div>
+              <dl class="data-upgrade-recovery-details">
+                <div><dt>Date</dt><dd>${escapeHtml(item.scheduledDate || 'Unknown')}</dd></div>
+                <div><dt>Status</dt><dd>${escapeHtml(item.status || 'planned')}</dd></div>
+                <div><dt>Amount</dt><dd>${escapeHtml(formatValue(item.amount))}</dd></div>
+                <div><dt>Movement</dt><dd>${escapeHtml([item.primaryAccount, item.secondaryAccount].filter(Boolean).join(' → ') || 'Unknown accounts')}</dd></div>
+              </dl>
+              <p>${escapeHtml(item.message)}</p>
+              <div class="data-upgrade-recovery-actions">
+                <button type="button" class="icon-btn data-recovery-manual">Confirm Manual</button>
+                <button type="button" class="icon-btn icon-btn--danger data-recovery-remove">Remove Transaction</button>
+                <div class="data-upgrade-recovery-link">
+                  <select class="data-recovery-rule" aria-label="Recurring rule" ${item.rules.length ? '' : 'disabled'}>
+                    <option value="">Select recurring rule</option>
+                    ${ruleOptions}
+                  </select>
+                  <input class="data-recovery-date" type="date" aria-label="Scheduled recurrence date" value="${escapeHtml(decision?.scheduledDate || item.scheduledDate || '')}">
+                  <button type="button" class="icon-btn data-recovery-link" ${item.rules.length ? '' : 'disabled'}>Link to Recurrence</button>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('')}
+      </div>
+    </div>
+    <div class="modal-footer data-upgrade-footer">
+      <button type="button" class="icon-btn data-recovery-back">Back to Review</button>
+      <button type="button" class="icon-btn data-recovery-previous" ${currentPage === 0 ? 'disabled' : ''}>Previous 25</button>
+      <span class="data-upgrade-page-label">Page ${currentPage + 1} of ${pageCount}</span>
+      <button type="button" class="icon-btn data-recovery-next" ${currentPage >= pageCount - 1 ? 'disabled' : ''}>Next 25</button>
+      <button type="button" class="icon-btn icon-btn--primary data-recovery-preview" ${decisions.size ? '' : 'disabled'}>
+        Preview ${decisions.size} Decision${decisions.size === 1 ? '' : 's'}
+      </button>
+      <button type="button" class="icon-btn data-upgrade-cancel">Cancel</button>
+    </div>
+  `;
+
+  modal.querySelectorAll('.data-upgrade-recovery-item').forEach((row) => {
+    const key = row.dataset.recoveryKey;
+    row.querySelector('.data-recovery-manual')?.addEventListener('click', () => (
+      onChooseDecision({ key, action: 'confirm-manual' })
+    ));
+    row.querySelector('.data-recovery-remove')?.addEventListener('click', () => (
+      onChooseDecision({ key, action: 'remove' })
+    ));
+    row.querySelector('.data-recovery-link')?.addEventListener('click', () => {
+      const ruleId = row.querySelector('.data-recovery-rule')?.value;
+      const scheduledDate = row.querySelector('.data-recovery-date')?.value;
+      if (!ruleId || !scheduledDate) {
+        notifyError('Select a recurring rule and scheduled date.');
+        return;
+      }
+      onChooseDecision({ key, action: 'link', ruleId: Number(ruleId), scheduledDate });
+    });
+  });
+  modal.querySelector('.data-recovery-preview')?.addEventListener('click', onPreview);
+  modal.querySelector('.data-recovery-previous')?.addEventListener('click', () => onPage(currentPage - 1));
+  modal.querySelector('.data-recovery-next')?.addEventListener('click', () => onPage(currentPage + 1));
+  modal.querySelector('.data-recovery-back')?.addEventListener('click', onBack);
   modal.querySelector('.data-upgrade-cancel')?.addEventListener('click', onCancel);
   modal.querySelector('.modal-close-btn')?.addEventListener('click', onCancel);
 }
@@ -369,6 +494,8 @@ export function openDataUpgradeModal({
     let settled = false;
     let currentAnalysis = null;
     let currentSource = null;
+    let recoveryPage = 0;
+    const recoveryDecisions = new Map();
     const { modal, close } = createModal({
       contentClass: 'data-upgrade-modal validate-data-modal',
       closeOnOverlay: !required,
@@ -425,13 +552,7 @@ export function openDataUpgradeModal({
       }
     };
 
-    const analyze = (source) => {
-      currentSource = source;
-      renderLoading(modal, required, source.sourceLabel);
-      currentAnalysis = analyzeAppDataUpgrade(source.rawText, {
-        sourceLabel: source.sourceLabel,
-        sourceKind: source.sourceKind
-      });
+    function showAnalysis() {
       renderAnalysis(modal, currentAnalysis, {
         required,
         onApply: apply,
@@ -439,9 +560,22 @@ export function openDataUpgradeModal({
         onDownloadReport: downloadReport,
         onPrepareRepair: prepareRepair,
         onPrepareMigrationResolution: prepareMigrationResolution,
+        onReviewRecovery: showRecoveryReview,
         onChooseAnother: showChooser,
         onCancel: cancel
       });
+    }
+
+    const analyze = (source) => {
+      currentSource = source;
+      recoveryDecisions.clear();
+      recoveryPage = 0;
+      renderLoading(modal, required, source.sourceLabel);
+      currentAnalysis = analyzeAppDataUpgrade(source.rawText, {
+        sourceLabel: source.sourceLabel,
+        sourceKind: source.sourceKind
+      });
+      showAnalysis();
     };
 
     const prepareRepair = () => {
@@ -452,16 +586,7 @@ export function openDataUpgradeModal({
         sourceKind: currentSource.sourceKind,
         applySafeRepairs: true
       });
-      renderAnalysis(modal, currentAnalysis, {
-        required,
-        onApply: apply,
-        onDownloadData: downloadData,
-        onDownloadReport: downloadReport,
-        onPrepareRepair: prepareRepair,
-        onPrepareMigrationResolution: prepareMigrationResolution,
-        onChooseAnother: showChooser,
-        onCancel: cancel
-      });
+      showAnalysis();
     };
 
     const prepareMigrationResolution = () => {
@@ -473,17 +598,52 @@ export function openDataUpgradeModal({
         applySafeRepairs: currentAnalysis.repairApplied,
         applyMigrationResolutions: true
       });
-      renderAnalysis(modal, currentAnalysis, {
+      showAnalysis();
+    };
+
+    function showRecoveryReview() {
+      if (!currentAnalysis?.recoveryReviewItems?.length) return;
+      renderRecoveryReview(modal, currentAnalysis, recoveryDecisions, {
         required,
-        onApply: apply,
-        onDownloadData: downloadData,
-        onDownloadReport: downloadReport,
-        onPrepareRepair: prepareRepair,
-        onPrepareMigrationResolution: prepareMigrationResolution,
-        onChooseAnother: showChooser,
+        page: recoveryPage,
+        onChooseDecision: chooseRecoveryDecision,
+        onPreview: previewRecoveryDecisions,
+        onPage: (page) => {
+          recoveryPage = page;
+          showRecoveryReview();
+        },
+        onBack: showAnalysis,
         onCancel: cancel
       });
-    };
+    }
+
+    function chooseRecoveryDecision(decision) {
+      recoveryDecisions.set(decision.key, decision);
+      showRecoveryReview();
+    }
+
+    function previewRecoveryDecisions() {
+      if (!currentSource || !recoveryDecisions.size) return;
+      const includeSafeRepairs = currentAnalysis?.repairApplied;
+      renderLoading(modal, required, 'recovery decision preview');
+      try {
+        currentAnalysis = analyzeAppDataUpgrade(currentSource.rawText, {
+          sourceLabel: currentSource.sourceLabel,
+          sourceKind: currentSource.sourceKind,
+          applySafeRepairs: includeSafeRepairs,
+          recoveryDecisions: [...recoveryDecisions.values()]
+        });
+        showAnalysis();
+      } catch (error) {
+        notifyError(error.message || 'Unable to prepare recovery decisions.');
+        currentAnalysis = analyzeAppDataUpgrade(currentSource.rawText, {
+          sourceLabel: currentSource.sourceLabel,
+          sourceKind: currentSource.sourceKind,
+          applySafeRepairs: includeSafeRepairs
+        });
+        showRecoveryReview();
+      }
+    }
 
     const chooseFile = async () => {
       const selected = await selectJsonDataFile();
@@ -507,6 +667,8 @@ export function openDataUpgradeModal({
     function showChooser() {
       currentAnalysis = null;
       currentSource = null;
+      recoveryDecisions.clear();
+      recoveryPage = 0;
       renderChooser(modal, {
         required,
         onUpload: chooseFile,

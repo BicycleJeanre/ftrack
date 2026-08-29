@@ -117,6 +117,15 @@ normal data-store read so the original value remains intact until approval.
 Historical migration warnings remain visible separately from active validation
 issues and never block apply by themselves.
 
+Converted-to-manual recovery records support explicit review decisions. A user
+may confirm the occurrence as manual, remove it, or link it to a selected
+recurring rule and scheduled date. Links are accepted only when the selected
+rule generates the date and the linked occurrence key is collision-free.
+Applied issues are removed from the active migration issue list and an immutable
+summary is appended to `migrationReport.resolutionHistory`. The report summary
+tracks `resolvedRecoveryRecordCount`; unresolved issues remain unchanged.
+Decisions that link or remove occurrences mark projections stale.
+
 When current data validates, the preflight can prepare deterministic recovery
 of `ambiguous-recurring-occurrence` records. A migrated manual occurrence is
 relinked only when its recovery record identifies exactly one current rule, its

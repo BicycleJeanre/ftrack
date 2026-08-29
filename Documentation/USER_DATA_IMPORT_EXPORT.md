@@ -110,6 +110,30 @@ not removed or marked resolved automatically.
 5.7.4 The preview report embeds the original migration report and every applied
 relink for auditability.
 
+5.8 If recovered transactions cannot be relinked automatically, select Review
+Transactions in Historical Migration Notes.
+
+5.8.1 Review pages show the transaction description, scenario, date, status,
+amount, and account movement. Up to 25 records are shown per page.
+
+5.8.2 Select Confirm Manual when the transaction is an intentional standalone
+budget entry. The occurrence remains unchanged and its recovery note is closed.
+
+5.8.3 Select Remove Transaction when the recovered occurrence should not exist.
+The occurrence is removed only after the decision preview is applied.
+
+5.8.4 To reconnect a transaction, select a recurring rule and scheduled date,
+then select Link to Recurrence. FTrack accepts the link only when the rule
+generates that date and the resulting occurrence identity does not collide.
+
+5.8.5 Select Preview Decisions to revalidate the complete data set and review
+every change before applying it. Unreviewed records and their notes remain
+unchanged.
+
+5.8.6 Applied decisions are appended to migrationReport.resolutionHistory with
+the scenario, occurrence, decision, and resolution time. Link and remove choices
+also mark saved projections stale so they are refreshed from the revised plan.
+
 ## 6.0 Clear Data
 
 6.1 Use the navbar button Clear Data.
