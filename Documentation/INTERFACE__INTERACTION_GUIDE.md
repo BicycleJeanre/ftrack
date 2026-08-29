@@ -62,20 +62,27 @@ Plan & Actuals has two modes:
 The selected tab is highlighted. Switching tabs changes the working view; it
 does not move or convert data.
 
+Both modes keep primary actions in the header and place Account, Group By,
+and specialized split filters inside the single **Filters** panel. This avoids
+showing the same selectors in both the header and the open panel.
+
 ## 6.0 Period Controls
 
 ![General Plan & Actuals Period controls and comparison cards](assets/user-guides/budget-period.jpg "The Period toolbar controls time, account perspective, grouping, creation, baseline freezing, and filters.")
 
-From left to right:
+The consolidated top toolbar keeps the frequent actions together:
 
-- **View** changes the time grain: Day, Week, Month, Quarter, or Year.
-- **Period** selects a specific time bucket.
-- **Previous** and **Next** move one bucket at the selected time grain.
-- **Account** limits results to one account perspective.
-- **Group** organizes items by Status, Movement, or Repeat.
+- **Previous**, **Period**, and **Next** navigate the selected time grain.
 - **Add item** creates a one-time planned or actual movement.
 - **Freeze baseline** preserves the predicted budget for comparison.
-- **Filters** opens additional filtering controls.
+- **Filters** opens the remaining view and organization settings. Its number
+  indicates active Account or Group filters.
+
+Inside Filters:
+
+- **Period Type** changes the time grain: Day, Week, Month, Quarter, or Year.
+- **Account** limits results to one account perspective.
+- **Group By** organizes items by Status, Movement, or Repeat.
 
 Changing the time grain can change which Period choices are available. Account
 and Group change presentation only; they do not change the stored plan.

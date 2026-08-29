@@ -35,9 +35,20 @@ test.describe('documented workflow smoke coverage', () => {
     await expect(page.locator('#budgetTable .plan-actuals-item').first()).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Period' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('tab', { name: 'Recurring' })).toBeVisible();
+    await expect(page.locator('#budgetSection #plan-period-inline')).toBeVisible();
+    await expect(page.locator('#budgetSection #plan-period-type-inline')).toHaveCount(0);
+    await expect(page.locator('#budgetSection #plan-account-inline')).toHaveCount(0);
+    await expect(page.locator('#budgetSection #plan-group-inline')).toHaveCount(0);
+    await expect(page.locator('#budgetSection').getByRole('button', {
+      name: 'Filters',
+      exact: true
+    })).toContainText('Filters');
 
     await openSectionFilters(page, '#budgetSection');
     await expect(page.locator('.filter-modal')).toContainText('Filter Plan & Actuals');
+    await expect(page.locator('.filter-modal')).toContainText('Period Type:');
+    await expect(page.locator('.filter-modal')).toContainText('Account:');
+    await expect(page.locator('.filter-modal')).toContainText('Group By:');
     await expect(page.locator('.filter-modal button[title="Add item"]')).toBeVisible();
     await closeFilterModal(page);
 
@@ -64,6 +75,12 @@ test.describe('documented workflow smoke coverage', () => {
   test('General exposes summary and projection controls', async ({ page }) => {
     await selectWorkflow(page, 'General');
     await expectUnifiedPlanSurface(page);
+    await expect(page.locator('#budgetSection #tx-account-filter-select-inline')).toHaveCount(0);
+    await expect(page.locator('#budgetSection #tx-grouping-select-summary-inline')).toHaveCount(0);
+    await expect(page.locator('#budgetSection').getByRole('button', {
+      name: 'Filters',
+      exact: true
+    })).toContainText('Filters');
     await expect(page.locator('#summaryCardsContent')).toContainText('OVERALL TOTAL');
 
     await openSectionFilters(page, '#projectionsSection');

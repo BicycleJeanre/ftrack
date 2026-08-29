@@ -3519,10 +3519,19 @@ export async function loadMasterTransactionsGrid({
         // Create filter button and modal
         const filterButton = document.createElement('button');
         filterButton.type = 'button';
-        filterButton.className = 'icon-btn';
+        filterButton.className = 'icon-btn plan-actuals-filter-button';
         filterButton.title = 'Open filters';
-        filterButton.textContent = '⚙';
         filterButton.setAttribute('aria-label', 'Filters');
+        const activeFilterCount = [
+          accountFilterSelect.value,
+          groupBySelectSummary.value,
+          splitGroupSelectSummary.value,
+          splitRoleSelectSummary.value,
+          splitAccountGroupSelectSummary.value
+        ].filter(Boolean).length;
+        filterButton.textContent = activeFilterCount
+          ? `⚙ Filters ${activeFilterCount}`
+          : '⚙ Filters';
 
         const inlineAccountFilterSelect = accountFilterSelect.cloneNode(true);
         inlineAccountFilterSelect.id = 'tx-account-filter-select-inline';
@@ -3626,7 +3635,7 @@ export async function loadMasterTransactionsGrid({
         });
 
         filterButton.style.marginLeft = 'auto';
-        controls.appendChild(inlineFilters);
+        if (!rulesOnly) controls.appendChild(inlineFilters);
         controls.appendChild(inlineAddButton);
         controls.appendChild(inlineSplitButton);
         controls.appendChild(filterButton);

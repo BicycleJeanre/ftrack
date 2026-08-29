@@ -237,19 +237,6 @@ function buildComparisonOccurrences(occurrences, accountFilterId) {
   });
 }
 
-function createHeaderFilterItem(labelText, control, className = '') {
-  const item = document.createElement('div');
-  item.className = `header-filter-item${className ? ` ${className}` : ''}`;
-  if (labelText) {
-    const label = document.createElement('label');
-    label.textContent = labelText;
-    if (control?.id) label.htmlFor = control.id;
-    item.appendChild(label);
-  }
-  item.appendChild(control);
-  return item;
-}
-
 function createSelect(id, options, value = '') {
   const select = document.createElement('select');
   select.id = id;
@@ -1533,28 +1520,24 @@ async function renderPeriodView({
       .map((value) => ({ value, label: value }));
 
     const modalPeriodType = createSelect('plan-period-type', periodTypeOptions, periodType);
-    const inlinePeriodType = createSelect('plan-period-type-inline', periodTypeOptions, periodType);
     const modalPeriod = createSelect('plan-period', periodOptions, selectedId);
     const inlinePeriod = createSelect('plan-period-inline', periodOptions, selectedId);
     const modalAccount = createSelect('plan-account', accountOptions, state?.getBudgetAccountFilterId?.() || '');
-    const inlineAccount = createSelect('plan-account-inline', accountOptions, state?.getBudgetAccountFilterId?.() || '');
     const modalGroup = createSelect('plan-group', groupOptions, state?.getGroupBy?.() || '');
-    const inlineGroup = createSelect('plan-group-inline', groupOptions, state?.getGroupBy?.() || '');
+    inlinePeriod.setAttribute('aria-label', 'Period');
 
     const sync = (left, right, value) => {
       left.value = String(value ?? '');
       right.value = String(value ?? '');
     };
     const setPeriodType = async (value) => {
-      sync(modalPeriodType, inlinePeriodType, value);
+      modalPeriodType.value = String(value ?? '');
       state?.setBudgetPeriodType?.(value);
       state?.setBudgetPeriods?.([]);
       state?.setBudgetPeriod?.(null);
       await reload();
     };
-    [modalPeriodType, inlinePeriodType].forEach((select) => {
-      select.addEventListener('change', () => setPeriodType(select.value));
-    });
+    modalPeriodType.addEventListener('change', () => setPeriodType(modalPeriodType.value));
     const setPeriod = async (value) => {
       sync(modalPeriod, inlinePeriod, value);
       state?.setBudgetPeriod?.(value || null);
@@ -1565,21 +1548,17 @@ async function renderPeriodView({
       select.addEventListener('change', () => setPeriod(select.value));
     });
     const setAccount = async (value) => {
-      sync(modalAccount, inlineAccount, value);
+      modalAccount.value = String(value ?? '');
       state?.setBudgetAccountFilterId?.(value ? Number(value) : null);
       await reload();
     };
-    [modalAccount, inlineAccount].forEach((select) => {
-      select.addEventListener('change', () => setAccount(select.value));
-    });
+    modalAccount.addEventListener('change', () => setAccount(modalAccount.value));
     const setGroup = async (value) => {
-      sync(modalGroup, inlineGroup, value);
+      modalGroup.value = String(value ?? '');
       state?.setGroupBy?.(value || '');
       await reload();
     };
-    [modalGroup, inlineGroup].forEach((select) => {
-      select.addEventListener('change', () => setGroup(select.value));
-    });
+    modalGroup.addEventListener('change', () => setGroup(modalGroup.value));
 
     const movePeriod = async (offset) => {
       const index = findPeriodIndexById(periods, state?.getBudgetPeriod?.());
@@ -1587,9 +1566,9 @@ async function renderPeriodView({
       const nextIndex = Math.min(Math.max(safeIndex + offset, 0), Math.max(0, periods.length - 1));
       await setPeriod(periods[nextIndex]?.id || null);
     };
-    const buildNav = () => {
+    const buildNav = (periodSelect = null) => {
       const nav = document.createElement('div');
-      nav.className = 'period-nav';
+      nav.className = `period-nav${periodSelect ? ' plan-actuals-period-nav' : ''}`;
       const previous = document.createElement('button');
       previous.type = 'button';
       previous.className = 'period-btn';
@@ -1609,6 +1588,7 @@ async function renderPeriodView({
         movePeriod(1);
       });
       nav.appendChild(previous);
+      if (periodSelect) nav.appendChild(periodSelect);
       nav.appendChild(next);
       return nav;
     };
@@ -1662,18 +1642,18 @@ async function renderPeriodView({
 
     const inlineFilters = document.createElement('div');
     inlineFilters.className = 'card-inline-filters plan-actuals-inline-filters';
-    inlineFilters.appendChild(createHeaderFilterItem('View', inlinePeriodType, 'filter-period-type'));
-    inlineFilters.appendChild(createHeaderFilterItem('Period', inlinePeriod, 'filter-period'));
-    inlineFilters.appendChild(createHeaderFilterItem('', buildNav(), 'filter-period-nav'));
-    inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccount, 'filter-account'));
-    inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroup, 'filter-group'));
+    inlineFilters.appendChild(buildNav(inlinePeriod));
 
     const filterButton = document.createElement('button');
     filterButton.type = 'button';
-    filterButton.className = 'icon-btn';
+    filterButton.className = 'icon-btn plan-actuals-filter-button';
     filterButton.title = 'Open filters';
     filterButton.setAttribute('aria-label', 'Filters');
-    filterButton.textContent = '⚙';
+    const activeFilterCount = Number(Boolean(state?.getBudgetAccountFilterId?.())) +
+      Number(Boolean(state?.getGroupBy?.()));
+    filterButton.textContent = activeFilterCount
+      ? `⚙ Filters ${activeFilterCount}`
+      : '⚙ Filters';
     const modalActions = document.createElement('div');
     modalActions.className = 'modal-filter-actions';
     modalActions.appendChild(addModal);

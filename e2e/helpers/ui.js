@@ -61,7 +61,7 @@ async function selectWorkflow(page, name) {
 async function openSectionFilters(page, sectionSelector) {
   const section = page.locator(sectionSelector);
   await expect(section).toBeVisible();
-  const filterButton = section.locator('button[title="Open filters"]');
+  const filterButton = section.getByRole('button', { name: 'Filters', exact: true });
   await expect(filterButton).toHaveCount(1);
   await filterButton.click();
   await expect(page.locator('.filter-modal')).toBeVisible();

@@ -1294,6 +1294,29 @@ body.dashboard-shell {
   flex: 0 0 auto;
 }
 
+.plan-actuals-inline-filters {
+  flex: 0 1 auto;
+  margin-left: auto;
+  overflow: visible;
+}
+
+.plan-actuals-period-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.plan-actuals-period-nav .input-select {
+  max-width: 160px;
+}
+
+.plan-actuals-filter-button {
+  width: auto;
+  min-width: auto;
+  padding-inline: 8px;
+  white-space: nowrap;
+}
+
 @media (max-width: 1000px) {
   .card-inline-filters,
   .card-inline-action,
