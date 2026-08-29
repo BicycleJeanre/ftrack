@@ -105,8 +105,7 @@ test.describe('deeper edit paths and error states', () => {
 
     await gotoFTrack(page, emptyAccountsData);
     await selectWorkflow(page, 'General');
-    await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal button[title="Add recurring rule"]').click();
+    await page.locator('#budgetSection button[title="Add recurring rule"]').click();
     await expect(page.locator('.notify-toast-error')).toContainText(
       'Please create at least one account before adding a recurring plan rule.'
     );

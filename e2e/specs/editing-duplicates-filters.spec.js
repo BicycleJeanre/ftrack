@@ -64,7 +64,7 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await waitForCollectionCount(page, 'transactionOccurrences', occurrenceCount + 1);
   });
 
-  test('applies account and recurring-plan filters from filter popovers', async ({ page }) => {
+  test('applies account and recurring-plan filters from their controls', async ({ page }) => {
     await selectWorkflow(page, 'General');
 
     await openSectionFilters(page, '#accountsSection');
@@ -73,9 +73,8 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await expect(page.locator('.account-card', { hasText: 'Credit Card' })).toBeVisible();
     await expect(page.locator('.account-card', { hasText: 'Checking' })).toHaveCount(0);
 
-    await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal select').first().selectOption({ label: 'Salary Income' });
-    await closeFilterModal(page);
+    await page.locator('#budgetSection #tx-account-filter-select')
+      .selectOption({ label: 'Salary Income' });
     await expect(page.locator('#budgetTable .recurring-rule-card')).toHaveCount(1);
     await expect(page.locator('#budgetTable')).toContainText('Salary Income');
   });

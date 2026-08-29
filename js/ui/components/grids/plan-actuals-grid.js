@@ -11,7 +11,6 @@ import { findPeriodById, findPeriodIndexById } from '../../../shared/period-wind
 import { transformTransactionToRows } from '../../transforms/transaction-row-transformer.js';
 import { calculateResolvedOccurrenceTotals } from '../../transforms/data-aggregators.js';
 import { renderTotalsCard } from '../widgets/totals-card.js';
-import { createFilterModal } from '../modals/filter-modal.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { createGrid, refreshGridData } from './grid-factory.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
@@ -249,6 +248,19 @@ function createSelect(id, options, value = '') {
   });
   select.value = String(value ?? '');
   return select;
+}
+
+function createHeaderFilterItem(labelText, control, className = '') {
+  const item = document.createElement('div');
+  item.className = `header-filter-item${className ? ` ${className}` : ''}`;
+  if (labelText) {
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    if (control?.id) label.htmlFor = control.id;
+    item.appendChild(label);
+  }
+  item.appendChild(control);
+  return item;
 }
 
 function ensureModeToggle({ container, viewKey, view, onChange }) {
@@ -1519,46 +1531,39 @@ async function renderPeriodView({
     const periodTypeOptions = ['Day', 'Week', 'Month', 'Quarter', 'Year']
       .map((value) => ({ value, label: value }));
 
-    const modalPeriodType = createSelect('plan-period-type', periodTypeOptions, periodType);
-    const modalPeriod = createSelect('plan-period', periodOptions, selectedId);
+    const inlinePeriodType = createSelect('plan-period-type-inline', periodTypeOptions, periodType);
     const inlinePeriod = createSelect('plan-period-inline', periodOptions, selectedId);
-    const modalAccount = createSelect('plan-account', accountOptions, state?.getBudgetAccountFilterId?.() || '');
-    const modalGroup = createSelect('plan-group', groupOptions, state?.getGroupBy?.() || '');
+    const inlineAccount = createSelect('plan-account-inline', accountOptions, state?.getBudgetAccountFilterId?.() || '');
+    const inlineGroup = createSelect('plan-group-inline', groupOptions, state?.getGroupBy?.() || '');
     inlinePeriod.setAttribute('aria-label', 'Period');
 
-    const sync = (left, right, value) => {
-      left.value = String(value ?? '');
-      right.value = String(value ?? '');
-    };
     const setPeriodType = async (value) => {
-      modalPeriodType.value = String(value ?? '');
+      inlinePeriodType.value = String(value ?? '');
       state?.setBudgetPeriodType?.(value);
       state?.setBudgetPeriods?.([]);
       state?.setBudgetPeriod?.(null);
       await reload();
     };
-    modalPeriodType.addEventListener('change', () => setPeriodType(modalPeriodType.value));
+    inlinePeriodType.addEventListener('change', () => setPeriodType(inlinePeriodType.value));
     const setPeriod = async (value) => {
-      sync(modalPeriod, inlinePeriod, value);
+      inlinePeriod.value = String(value ?? '');
       state?.setBudgetPeriod?.(value || null);
       pendingEditor = null;
       await reload();
     };
-    [modalPeriod, inlinePeriod].forEach((select) => {
-      select.addEventListener('change', () => setPeriod(select.value));
-    });
+    inlinePeriod.addEventListener('change', () => setPeriod(inlinePeriod.value));
     const setAccount = async (value) => {
-      modalAccount.value = String(value ?? '');
+      inlineAccount.value = String(value ?? '');
       state?.setBudgetAccountFilterId?.(value ? Number(value) : null);
       await reload();
     };
-    modalAccount.addEventListener('change', () => setAccount(modalAccount.value));
+    inlineAccount.addEventListener('change', () => setAccount(inlineAccount.value));
     const setGroup = async (value) => {
-      modalGroup.value = String(value ?? '');
+      inlineGroup.value = String(value ?? '');
       state?.setGroupBy?.(value || '');
       await reload();
     };
-    modalGroup.addEventListener('change', () => setGroup(modalGroup.value));
+    inlineGroup.addEventListener('change', () => setGroup(inlineGroup.value));
 
     const movePeriod = async (offset) => {
       const index = findPeriodIndexById(periods, state?.getBudgetPeriod?.());
@@ -1607,13 +1612,6 @@ async function renderPeriodView({
       event.stopPropagation();
       addItem();
     });
-    const addModal = addInline.cloneNode(true);
-    addModal.className = 'icon-btn';
-    addModal.addEventListener('click', (event) => {
-      event.preventDefault();
-      addItem();
-    });
-
     const freeze = async (button) => runAction(button, async () => {
       if (!startDate || !endDate) return;
       await OccurrenceManager.freezePeriodBaseline(scenario.id, {
@@ -1633,49 +1631,22 @@ async function renderPeriodView({
       event.stopPropagation();
       freeze(freezeInline);
     });
-    const freezeModal = freezeInline.cloneNode(true);
-    freezeModal.className = 'icon-btn';
-    freezeModal.addEventListener('click', (event) => {
-      event.preventDefault();
-      freeze(freezeModal);
-    });
-
     const inlineFilters = document.createElement('div');
-    inlineFilters.className = 'card-inline-filters plan-actuals-inline-filters';
-    inlineFilters.appendChild(buildNav(inlinePeriod));
-
-    const filterButton = document.createElement('button');
-    filterButton.type = 'button';
-    filterButton.className = 'icon-btn plan-actuals-filter-button';
-    filterButton.title = 'Open filters';
-    filterButton.setAttribute('aria-label', 'Filters');
-    const activeFilterCount = Number(Boolean(state?.getBudgetAccountFilterId?.())) +
-      Number(Boolean(state?.getGroupBy?.()));
-    filterButton.textContent = activeFilterCount
-      ? `⚙ Filters ${activeFilterCount}`
-      : '⚙ Filters';
-    const modalActions = document.createElement('div');
-    modalActions.className = 'modal-filter-actions';
-    modalActions.appendChild(addModal);
-    modalActions.appendChild(freezeModal);
-    createFilterModal({
-      id: 'plan-actuals-filter-modal',
-      title: 'Filter Plan & Actuals',
-      trigger: filterButton,
-      items: [
-        { id: 'view', label: 'Period Type:', control: modalPeriodType },
-        { id: 'period', label: 'Period:', control: modalPeriod },
-        { id: 'period-nav', label: '', control: buildNav() },
-        { id: 'account', label: 'Account:', control: modalAccount },
-        { id: 'group', label: 'Group By:', control: modalGroup },
-        { id: 'actions', label: 'Actions:', control: modalActions }
-      ]
-    });
+    inlineFilters.className = 'card-inline-filters plan-actuals-inline-filters plan-actuals-toolbar';
+    inlineFilters.setAttribute('role', 'toolbar');
+    inlineFilters.setAttribute('aria-label', 'Plan and actuals period controls');
+    inlineFilters.appendChild(createHeaderFilterItem('View', inlinePeriodType, 'filter-period-type'));
+    inlineFilters.appendChild(createHeaderFilterItem('Period', buildNav(inlinePeriod), 'filter-period'));
+    inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccount, 'filter-account'));
+    inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroup, 'filter-group'));
+    const actions = document.createElement('div');
+    actions.className = 'plan-actuals-toolbar-actions';
+    actions.setAttribute('aria-label', 'Period actions');
+    actions.appendChild(addInline);
+    actions.appendChild(freezeInline);
+    inlineFilters.appendChild(actions);
 
     controls.appendChild(inlineFilters);
-    controls.appendChild(addInline);
-    controls.appendChild(freezeInline);
-    controls.appendChild(filterButton);
   }
 
   const accountFilterId = state?.getBudgetAccountFilterId?.();

@@ -37,10 +37,8 @@ test.describe('frontend add and remove functionality', () => {
 
     await expect(page.getByRole('tab', { name: 'Recurring' }))
       .toHaveAttribute('aria-selected', 'true');
-    await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal button[title="Add recurring rule"]').click();
+    await page.locator('#budgetSection button[title="Add recurring rule"]').click();
     await waitForCollectionCount(page, 'transactions', before + 1);
-    await closeFilterModal(page);
 
     await expect(page.locator('#budgetTable .recurring-rule-card')).toHaveCount(before + 1);
   });
@@ -50,9 +48,7 @@ test.describe('frontend add and remove functionality', () => {
     await page.getByRole('tab', { name: 'Period', exact: true }).click();
     const before = (await currentScenario(page)).transactionOccurrences.length;
 
-    await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal button[title="Add item"]').click();
-    await closeFilterModal(page);
+    await page.locator('#budgetSection button[title="Add item"]').click();
 
     const form = page.locator('#budgetSection .plan-actuals-new-item form');
     await expect(form).toBeVisible();

@@ -32,9 +32,8 @@ test.describe('detail workflow reachability', () => {
     await expect(page.locator('#accountsSection')).toBeHidden();
     await expect(page.locator('#budgetSection').getByRole('tab', { name: 'Recurring', exact: true }))
       .toHaveAttribute('aria-selected', 'true');
-    await openSectionFilters(page, '#budgetSection');
-    await expect(page.locator('.filter-modal')).toContainText('Filter Recurring Plan Rules');
-    await expect(page.locator('#tx-grouping-select-summary option')).toHaveText([
+    await expect(page.locator('#budgetSection .plan-actuals-toolbar')).toBeVisible();
+    await expect(page.locator('#budgetSection #tx-grouping-select-summary option')).toHaveText([
       'None',
       'Movement',
       'Primary Account',
@@ -43,9 +42,8 @@ test.describe('detail workflow reachability', () => {
       'Split Role',
       'Split Account Group'
     ]);
-    await expect(page.locator('#tx-split-group-filter-summary option').first())
+    await expect(page.locator('#budgetSection #tx-split-group-filter-summary option').first())
       .toHaveText('All Recurring Splits');
-    await closeFilterModal(page);
 
     await selectWorkflow(page, 'Plan & Actuals (Detail)');
     await expect(page.locator('#budgetSection')).toBeVisible();
@@ -415,11 +413,10 @@ test.describe('detail workflow reachability', () => {
     await selectWorkflow(page, 'Plan Rules (Detail)');
     await expect(page.locator('#budgetTable .recurring-rules-detail-grid.tabulator'))
       .toBeVisible();
-    await openSectionFilters(page, '#budgetSection');
 
     await page.evaluate(() => {
       const refresh = document.querySelector(
-        '.filter-modal button[title="Refresh recurring rules"]'
+        '#budgetSection button[title="Refresh recurring rules"]'
       );
       const general = [...document.querySelectorAll('.workflow-nav-item')]
         .find((button) => button.textContent?.trim() === 'General');

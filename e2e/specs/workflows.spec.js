@@ -36,21 +36,15 @@ test.describe('documented workflow smoke coverage', () => {
     await expect(page.getByRole('tab', { name: 'Period' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('tab', { name: 'Recurring' })).toBeVisible();
     await expect(page.locator('#budgetSection #plan-period-inline')).toBeVisible();
-    await expect(page.locator('#budgetSection #plan-period-type-inline')).toHaveCount(0);
-    await expect(page.locator('#budgetSection #plan-account-inline')).toHaveCount(0);
-    await expect(page.locator('#budgetSection #plan-group-inline')).toHaveCount(0);
+    await expect(page.locator('#budgetSection #plan-period-type-inline')).toBeVisible();
+    await expect(page.locator('#budgetSection #plan-account-inline')).toBeVisible();
+    await expect(page.locator('#budgetSection #plan-group-inline')).toBeVisible();
     await expect(page.locator('#budgetSection').getByRole('button', {
       name: 'Filters',
       exact: true
-    })).toContainText('Filters');
-
-    await openSectionFilters(page, '#budgetSection');
-    await expect(page.locator('.filter-modal')).toContainText('Filter Plan & Actuals');
-    await expect(page.locator('.filter-modal')).toContainText('Period Type:');
-    await expect(page.locator('.filter-modal')).toContainText('Account:');
-    await expect(page.locator('.filter-modal')).toContainText('Group By:');
-    await expect(page.locator('.filter-modal button[title="Add item"]')).toBeVisible();
-    await closeFilterModal(page);
+    })).toHaveCount(0);
+    await expect(page.locator('#budgetSection button[title="Add item"]')).toBeVisible();
+    await expect(page.locator('#budgetSection button[title="Freeze baseline"]')).toBeVisible();
 
     await openSectionFilters(page, '#projectionsSection');
     await expect(page.locator('.filter-modal')).toContainText('Filter Projections');
@@ -75,12 +69,15 @@ test.describe('documented workflow smoke coverage', () => {
   test('General exposes summary and projection controls', async ({ page }) => {
     await selectWorkflow(page, 'General');
     await expectUnifiedPlanSurface(page);
-    await expect(page.locator('#budgetSection #tx-account-filter-select-inline')).toHaveCount(0);
-    await expect(page.locator('#budgetSection #tx-grouping-select-summary-inline')).toHaveCount(0);
+    await expect(page.locator('#budgetSection #tx-account-filter-select')).toBeVisible();
+    await expect(page.locator('#budgetSection #tx-grouping-select-summary')).toBeVisible();
+    await expect(page.locator('#budgetSection #tx-split-group-filter-summary')).toBeVisible();
+    await expect(page.locator('#budgetSection #tx-split-role-filter-summary')).toBeVisible();
+    await expect(page.locator('#budgetSection #tx-split-account-group-filter-summary')).toBeVisible();
     await expect(page.locator('#budgetSection').getByRole('button', {
       name: 'Filters',
       exact: true
-    })).toContainText('Filters');
+    })).toHaveCount(0);
     await expect(page.locator('#summaryCardsContent')).toContainText('OVERALL TOTAL');
 
     await openSectionFilters(page, '#projectionsSection');
@@ -193,9 +190,7 @@ test.describe('documented workflow smoke coverage', () => {
 
     await selectWorkflow(page, 'General');
     await page.locator('#budgetSection').getByRole('tab', { name: 'Period', exact: true }).click();
-    await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal button[title="Add item"]').click();
-    await closeFilterModal(page);
+    await page.locator('#budgetSection button[title="Add item"]').click();
 
     const form = page.locator('#budgetSection .plan-actuals-new-item form');
     await expect(form).toBeVisible();

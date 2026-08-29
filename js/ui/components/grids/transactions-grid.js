@@ -3516,176 +3516,55 @@ export async function loadMasterTransactionsGrid({
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
 
-        // Create filter button and modal
-        const filterButton = document.createElement('button');
-        filterButton.type = 'button';
-        filterButton.className = 'icon-btn plan-actuals-filter-button';
-        filterButton.title = 'Open filters';
-        filterButton.setAttribute('aria-label', 'Filters');
-        const activeFilterCount = [
-          accountFilterSelect.value,
-          groupBySelectSummary.value,
-          splitGroupSelectSummary.value,
-          splitRoleSelectSummary.value,
-          splitAccountGroupSelectSummary.value
-        ].filter(Boolean).length;
-        filterButton.textContent = activeFilterCount
-          ? `⚙ Filters ${activeFilterCount}`
-          : '⚙ Filters';
-
-        const inlineAccountFilterSelect = accountFilterSelect.cloneNode(true);
-        inlineAccountFilterSelect.id = 'tx-account-filter-select-inline';
-        inlineAccountFilterSelect.value = accountFilterSelect.value;
-
-        const inlinePeriodTypeSelect = periodTypeSelect.cloneNode(true);
-        inlinePeriodTypeSelect.id = 'tx-period-type-select-summary-inline';
-        inlinePeriodTypeSelect.value = periodTypeSelect.value;
-
-        const inlinePeriodSelectSummary = periodSelectSummary.cloneNode(true);
-        inlinePeriodSelectSummary.id = 'tx-period-select-summary-inline';
-        inlinePeriodSelectSummary.value = periodSelectSummary.value;
-
-        const inlinePrevBtnSummary = document.createElement('button');
-        inlinePrevBtnSummary.type = 'button';
-        inlinePrevBtnSummary.className = 'period-btn';
-        inlinePrevBtnSummary.textContent = '<';
-        inlinePrevBtnSummary.title = 'Previous period';
-
-        const inlineNextBtnSummary = document.createElement('button');
-        inlineNextBtnSummary.type = 'button';
-        inlineNextBtnSummary.className = 'period-btn';
-        inlineNextBtnSummary.textContent = '>';
-        inlineNextBtnSummary.title = 'Next period';
-
-        const inlinePeriodNavSummary = document.createElement('div');
-        inlinePeriodNavSummary.className = 'period-nav';
-        inlinePeriodNavSummary.appendChild(inlinePrevBtnSummary);
-        inlinePeriodNavSummary.appendChild(inlineNextBtnSummary);
-
-        const inlineGroupBySelectSummary = groupBySelectSummary.cloneNode(true);
-        inlineGroupBySelectSummary.id = 'tx-grouping-select-summary-inline';
-        inlineGroupBySelectSummary.value = groupBySelectSummary.value;
-
         const addButton = document.createElement('button');
-        addButton.className = 'icon-btn';
+        addButton.className = 'icon-btn card-inline-action';
         addButton.title = rulesOnly ? 'Add recurring rule' : 'Add Transaction';
         addButton.textContent = '+';
 
         const splitButton = document.createElement('button');
-        splitButton.className = 'icon-btn';
+        splitButton.className = 'icon-btn card-inline-action';
         splitButton.title = rulesOnly
           ? 'Create recurring split rule'
           : 'Create Split Payment Set';
         splitButton.textContent = '⇄';
 
         const refreshButton = document.createElement('button');
-        refreshButton.className = 'icon-btn';
+        refreshButton.className = 'icon-btn card-inline-action';
         refreshButton.title = rulesOnly ? 'Refresh recurring rules' : 'Refresh Transactions';
         refreshButton.textContent = '⟳';
 
-        const modalActions = document.createElement('div');
-        modalActions.className = 'modal-filter-actions';
-        modalActions.appendChild(addButton);
-        modalActions.appendChild(splitButton);
-        modalActions.appendChild(refreshButton);
-
         const inlineFilters = document.createElement('div');
-        inlineFilters.className = 'card-inline-filters transactions-inline-filters';
-        inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccountFilterSelect, 'filter-account'));
+        inlineFilters.className = 'card-inline-filters transactions-inline-filters plan-actuals-toolbar';
+        inlineFilters.setAttribute('role', 'toolbar');
+        inlineFilters.setAttribute('aria-label', rulesOnly
+          ? 'Recurring plan rule controls'
+          : 'Transaction controls');
+        inlineFilters.appendChild(createHeaderFilterItem('Account', accountFilterSelect, 'filter-account'));
         if (!rulesOnly) {
-          inlineFilters.appendChild(createHeaderFilterItem('View', inlinePeriodTypeSelect, 'filter-period-type'));
-          inlineFilters.appendChild(createHeaderFilterItem('Period', inlinePeriodSelectSummary, 'filter-period'));
-          inlineFilters.appendChild(createHeaderFilterItem('', inlinePeriodNavSummary, 'filter-period-nav'));
+          inlineFilters.appendChild(createHeaderFilterItem('View', periodTypeSelect, 'filter-period-type'));
+          inlineFilters.appendChild(createHeaderFilterItem('Period', periodSelectSummary, 'filter-period'));
+          inlineFilters.appendChild(createHeaderFilterItem('', periodNavSummary, 'filter-period-nav'));
         }
-        inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroupBySelectSummary, 'filter-group'));
-
-        const inlineAddButton = document.createElement('button');
-        inlineAddButton.className = 'icon-btn card-inline-action';
-        inlineAddButton.title = rulesOnly ? 'Add recurring rule' : 'Add Transaction';
-        inlineAddButton.textContent = '+';
-
-        const inlineSplitButton = document.createElement('button');
-        inlineSplitButton.className = 'icon-btn card-inline-action';
-        inlineSplitButton.title = rulesOnly
-          ? 'Create recurring split rule'
-          : 'Create Split Payment Set';
-        inlineSplitButton.textContent = '⇄';
-
-        const filterModal = createFilterModal({
-          id: 'tx-filters-summary-modal',
-          title: rulesOnly ? 'Filter Recurring Plan Rules' : 'Filter Transactions',
-          trigger: filterButton,
-          items: [
-            { id: 'account', label: 'Account:', control: accountFilterSelect },
-            ...(!rulesOnly ? [
-              { id: 'period-type', label: 'Period Type:', control: periodTypeSelect },
-              { id: 'period', label: 'Period:', control: periodSelectSummary },
-              { id: 'period-nav', label: '', control: periodNavSummary }
-            ] : []),
-            { id: 'group-by', label: 'Group By:', control: groupBySelectSummary },
-            {
-              id: 'split-group',
-              label: rulesOnly ? 'Recurring Split:' : 'Split Set:',
-              control: splitGroupSelectSummary
-            },
-            { id: 'split-role', label: 'Role:', control: splitRoleSelectSummary },
-            { id: 'split-account-group', label: 'Split Account Group:', control: splitAccountGroupSelectSummary },
-            { id: 'actions', label: 'Actions:', control: modalActions }
-          ]
-        });
-
-        filterButton.style.marginLeft = 'auto';
-        if (!rulesOnly) controls.appendChild(inlineFilters);
-        controls.appendChild(inlineAddButton);
-        controls.appendChild(inlineSplitButton);
-        controls.appendChild(filterButton);
-
-        inlineAccountFilterSelect.addEventListener('change', (e) => {
-          transactionsGridState.state.dropdowns[accountFilterStateKey] = e.target.value;
-          loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        });
-
-        inlinePeriodTypeSelect.addEventListener('change', async () => {
-          state?.setActualPeriodType?.(inlinePeriodTypeSelect.value);
-          state?.setTransactionsPeriods?.([]);
-          state?.setActualPeriod?.(null);
-          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        });
-
-        inlinePeriodSelectSummary.addEventListener('change', async () => {
-          const nextPeriodId = inlinePeriodSelectSummary.value ? String(inlinePeriodSelectSummary.value) : null;
-          state?.setActualPeriod?.(nextPeriodId);
-          await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        });
-
-        inlinePrevBtnSummary.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const allPeriodsSummary = state?.getTransactionsPeriods?.() || [];
-          const currentIdx = findPeriodIndexById(allPeriodsSummary, state?.getActualPeriod?.());
-          if (currentIdx > 0) {
-            state?.setActualPeriod?.(String(allPeriodsSummary[currentIdx - 1].id));
-            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-          }
-        });
-
-        inlineNextBtnSummary.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const allPeriodsSummary = state?.getTransactionsPeriods?.() || [];
-          const currentIdx = findPeriodIndexById(allPeriodsSummary, state?.getActualPeriod?.());
-          if (currentIdx >= 0 && currentIdx < allPeriodsSummary.length - 1) {
-            state?.setActualPeriod?.(String(allPeriodsSummary[currentIdx + 1].id));
-            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-          } else if (currentIdx === -1 && allPeriodsSummary.length > 0) {
-            state?.setActualPeriod?.(String(allPeriodsSummary[0].id));
-            await loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-          }
-        });
-
-        inlineGroupBySelectSummary.addEventListener('change', () => {
-          transactionsGridState.state.dropdowns[groupByStateKey] = inlineGroupBySelectSummary.value;
-          state?.setGroupBy?.(inlineGroupBySelectSummary.value);
-          loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
-        });
+        inlineFilters.appendChild(createHeaderFilterItem('Group', groupBySelectSummary, 'filter-group'));
+        inlineFilters.appendChild(createHeaderFilterItem(
+          rulesOnly ? 'Split' : 'Split Set',
+          splitGroupSelectSummary,
+          'filter-split-group'
+        ));
+        inlineFilters.appendChild(createHeaderFilterItem('Role', splitRoleSelectSummary, 'filter-split-role'));
+        inlineFilters.appendChild(createHeaderFilterItem(
+          'Account Group',
+          splitAccountGroupSelectSummary,
+          'filter-split-account-group'
+        ));
+        const actions = document.createElement('div');
+        actions.className = 'plan-actuals-toolbar-actions';
+        actions.setAttribute('aria-label', rulesOnly ? 'Recurring rule actions' : 'Transaction actions');
+        actions.appendChild(addButton);
+        actions.appendChild(splitButton);
+        actions.appendChild(refreshButton);
+        inlineFilters.appendChild(actions);
+        controls.appendChild(inlineFilters);
 
         const handleAddTransaction = async (e) => {
           e.stopPropagation();
@@ -3768,7 +3647,6 @@ export async function loadMasterTransactionsGrid({
             );
           }
         };
-        inlineAddButton.addEventListener('click', handleAddTransaction);
         addButton.addEventListener('click', handleAddTransaction);
 
         const handleCreateSplitTransaction = async (e) => {
@@ -3851,7 +3729,6 @@ export async function loadMasterTransactionsGrid({
             );
           }
         };
-        inlineSplitButton.addEventListener('click', handleCreateSplitTransaction);
         splitButton.addEventListener('click', handleCreateSplitTransaction);
 
         refreshButton.addEventListener('click', async (e) => {

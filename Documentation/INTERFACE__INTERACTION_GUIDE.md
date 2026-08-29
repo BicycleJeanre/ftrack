@@ -62,27 +62,22 @@ Plan & Actuals has two modes:
 The selected tab is highlighted. Switching tabs changes the working view; it
 does not move or convert data.
 
-Both modes keep primary actions in the header and place Account, Group By,
-and specialized split filters inside the single **Filters** panel. This avoids
-showing the same selectors in both the header and the open panel.
+Both modes keep their controls and primary actions together in one visible top
+toolbar. There is no separate filter pop-up to open before changing the view.
+On narrower screens, scroll the toolbar horizontally to reach every control.
 
 ## 6.0 Period Controls
 
-![General Plan & Actuals Period controls and comparison cards](assets/user-guides/budget-period.jpg "The Period toolbar controls time, account perspective, grouping, creation, baseline freezing, and filters.")
+![General Plan & Actuals Period controls and comparison cards](assets/user-guides/budget-period.jpg "The Period toolbar controls time, account perspective, grouping, creation, and baseline freezing.")
 
 The consolidated top toolbar keeps the frequent actions together:
 
+- **View** changes the time grain: Day, Week, Month, Quarter, or Year.
 - **Previous**, **Period**, and **Next** navigate the selected time grain.
+- **Account** limits results to one account perspective.
+- **Group** organizes items by Status, Movement, or Repeat.
 - **Add item** creates a one-time planned or actual movement.
 - **Freeze baseline** preserves the predicted budget for comparison.
-- **Filters** opens the remaining view and organization settings. Its number
-  indicates active Account or Group filters.
-
-Inside Filters:
-
-- **Period Type** changes the time grain: Day, Week, Month, Quarter, or Year.
-- **Account** limits results to one account perspective.
-- **Group By** organizes items by Status, Movement, or Repeat.
 
 Changing the time grain can change which Period choices are available. Account
 and Group change presentation only; they do not change the stored plan.
@@ -157,11 +152,14 @@ a rule that was consistently defined incorrectly.
 The Recurring toolbar includes:
 
 - **Account** to limit the rule list.
-- **Group** to organize by movement, primary or secondary account, recurring
-  split, split role, or split account group.
+- **Group** to organize the visible rules.
+- **Split**, **Role**, and **Account Group** to narrow linked split rules.
 - **Add rule** to create a one-time or recurring rule.
 - **Split** to build or manage linked split components.
-- **Filters** for additional rule filtering.
+- **Refresh** to reload the current rules.
+
+All of these controls remain visible in the same top toolbar. On a narrow
+screen, scroll the toolbar horizontally instead of opening a separate panel.
 
 Each rule card shows the movement, description, repeat schedule, adjustment,
 active range, next date, and tags. Its actions allow duplication or ending the

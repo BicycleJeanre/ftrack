@@ -23,9 +23,7 @@ function editorField(form, label) {
 }
 
 async function openNewItemEditor(page) {
-  await openSectionFilters(page, '#budgetSection');
-  await page.locator('.filter-modal button[title="Add item"]').click();
-  await closeFilterModal(page);
+  await page.locator('#budgetSection button[title="Add item"]').click();
   const form = page.locator('#budgetSection .plan-actuals-new-item form');
   await expect(form).toBeVisible();
   return form;
@@ -284,10 +282,8 @@ test.describe('unified Plan & Actuals workflow', () => {
   });
 
   test('renders Period money movement from the selected account perspective', async ({ page }) => {
-    await openSectionFilters(page, '#budgetSection');
-    const accountFilter = page.locator('.filter-modal #plan-account');
+    const accountFilter = page.locator('#budgetSection #plan-account-inline');
     await accountFilter.selectOption('5');
-    await closeFilterModal(page);
 
     const groceriesCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Groceries budget'
@@ -297,10 +293,8 @@ test.describe('unified Plan & Actuals workflow', () => {
       .toHaveText(/Money In: Checking.*→.*Groceries Expense/);
 
     await selectWorkflow(page, 'Plan & Actuals (Detail)');
-    await openSectionFilters(page, '#budgetSection');
-    const detailAccountFilter = page.locator('.filter-modal #plan-account');
+    const detailAccountFilter = page.locator('#budgetSection #plan-account-inline');
     await detailAccountFilter.selectOption('5');
-    await closeFilterModal(page);
 
     const groceriesDetailRow = page.locator(
       '#budgetTable .plan-actuals-detail-grid .tabulator-row',
@@ -564,10 +558,8 @@ test.describe('unified Plan & Actuals workflow', () => {
 
   test('keeps Recurring Money In edits canonical under a secondary-account filter', async ({ page }) => {
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
-    await openSectionFilters(page, '#budgetSection');
-    const accountFilter = page.locator('.filter-modal #tx-account-filter-select');
+    const accountFilter = page.locator('#budgetSection #tx-account-filter-select');
     await accountFilter.selectOption('4');
-    await closeFilterModal(page);
 
     let salaryRule = page.locator('#budgetTable .recurring-rule-card', {
       hasText: 'Monthly salary'
@@ -907,8 +899,7 @@ test.describe('recurring split rule editing', () => {
       '#budgetTable .recurring-rule-card[data-source-transaction-id="1013"]'
     )).toHaveCount(0);
 
-    await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal #tx-split-role-filter-summary').selectOption('interest');
+    await page.locator('#budgetSection #tx-split-role-filter-summary').selectOption('interest');
     await expect(page.locator(
       '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
     )).toHaveCount(1);
@@ -925,11 +916,8 @@ test.describe('recurring split rule editing', () => {
       { has: page.locator('.label', { hasText: /^Interest Out$/ }) }
     );
     await expect(interestOutMetric.locator('.value')).toContainText('150');
-    await page.locator('.filter-modal #tx-split-role-filter-summary').selectOption('');
-    await closeFilterModal(page);
-    await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal #tx-account-filter-select').selectOption('7');
-    await closeFilterModal(page);
+    await page.locator('#budgetSection #tx-split-role-filter-summary').selectOption('');
+    await page.locator('#budgetSection #tx-account-filter-select').selectOption('7');
     const interestAccountCard = page.locator(
       '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
     );
@@ -944,9 +932,7 @@ test.describe('recurring split rule editing', () => {
       { has: page.locator('.label', { hasText: /^Interest In$/ }) }
     );
     await expect(interestInMetric.locator('.value')).toContainText('150');
-    await openSectionFilters(page, '#budgetSection');
-    await page.locator('.filter-modal #tx-account-filter-select').selectOption('');
-    await closeFilterModal(page);
+    await page.locator('#budgetSection #tx-account-filter-select').selectOption('');
 
     await principalCard.locator('.recurring-rule-description').click();
     let form = principalCard.locator('.grid-summary-form');
