@@ -82,10 +82,16 @@ information, select Preview Safe Repairs.
 repaired copy before enabling Apply Safe Repairs to Browser Data.
 
 5.6.2 Safe repairs cover unambiguous data-type normalization, such as numeric
-IDs or amounts stored as numeric strings. They do not guess missing values,
+IDs or amounts stored as numeric strings. They can also reconstruct required
+legacy metadata when the saved data provides one deterministic answer: a
+missing account currency from the single currency used by the surrounding app
+data, an empty transaction description from its account names, and missing
+Yearly recurrence month/day values from its saved start date.
+
+5.6.3 Safe repairs do not invent amounts, choose between conflicting currencies,
 rewrite ambiguous records, or alter retained recovery records.
 
-5.6.3 Historical notes are limited to 100 visible entries for readability. The
+5.6.4 Historical notes are limited to 100 visible entries for readability. The
 downloadable change report retains the complete audit.
 
 5.7 If validation passes but recoverable recurring-link notes remain, select
@@ -129,8 +135,12 @@ Recovery, and the downloadable change report before applying the result.
 7.1.4 Future schema versions are not downgraded.
 
 7.1.5 If Preview Safe Repairs is available, use it to prepare a valid copy and
-review each change. Any issues still shown afterward require correction in the
-source data because FTrack cannot resolve them without making assumptions.
+review each change. The Import Upgraded Data button is enabled once the repaired
+copy passes validation. Historical migration notes may remain visible; they are
+audit records and do not disable import.
+
+7.1.6 Any active validation issues still shown after the repair preview require
+correction in the source data because FTrack cannot resolve them deterministically.
 
 7.2 You hit storage limits.
 

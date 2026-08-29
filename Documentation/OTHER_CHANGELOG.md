@@ -16,8 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Validation failures and future schema versions cannot be applied.
   - Legacy browser data is intercepted at startup and remains unchanged until
     the user approves the reviewed upgrade.
-  - Validation failures caused by lossless legacy numeric strings now offer a
-    Preview Safe Repairs action, with exact changes shown before apply.
+  - Validation failures caused by lossless legacy numeric strings or
+    deterministically recoverable required fields now offer a Preview Safe
+    Repairs action, with exact changes shown before apply.
+  - Legacy imports can reconstruct missing currency from one unambiguous app
+    currency, empty descriptions from transaction account names, and Yearly
+    month/day fields from the saved recurrence start date.
   - Historical migration notes are separated from active validation failures,
     while the complete recovery audit remains available in the change report.
   - Valid browser data can now deterministically relink migrated manual

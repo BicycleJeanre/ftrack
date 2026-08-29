@@ -80,6 +80,64 @@ test.describe('data management and projection browser flows', () => {
     expect(after.scenarios[0].name).toBe(before.scenarios[0].name);
   });
 
+  test('repairs required legacy fields and imports upgraded data with retained warnings', async ({ page }) => {
+    const source = await readAppData(page);
+    const scenario = source.scenarios[0];
+    scenario.name = 'Repaired Legacy Import';
+    scenario.accounts[0].currency = null;
+    scenario.transactions[0].description = '';
+    scenario.transactions[0].recurrence = {
+      recurrenceType: 7,
+      startDate: '2026-04-23',
+      endDate: null,
+      interval: 1,
+      month: null,
+      dayOfYear: null
+    };
+    source.migrationReport = {
+      fromSchemaVersion: 43,
+      toSchemaVersion: 44,
+      migratedAt: '2026-08-01T00:00:00.000Z',
+      summary: { warningCount: 1, recoveryRecordCount: 1 },
+      scenarios: [{
+        scenarioId: scenario.id,
+        scenarioIndex: 0,
+        issues: [{
+          severity: 'warning',
+          code: 'orphan-source-transaction',
+          message: 'Preserved as a manual occurrence.',
+          action: 'converted-to-manual',
+          recoveryRecord: { id: 9001 }
+        }]
+      }]
+    };
+
+    const chooserPromise = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: /Import/ }).click();
+    const chooser = await chooserPromise;
+    await chooser.setFiles({
+      name: 'legacy-required-fields.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(source))
+    });
+
+    const review = page.locator('.data-upgrade-modal');
+    await expect(review).toContainText('Failed');
+    await expect(review).toContainText('safe repairs available');
+    await review.getByRole('button', { name: 'Preview Safe Repairs' }).click();
+    await expect(review).toContainText('Passed');
+    await expect(review).toContainText('1 historical notes');
+    await review.getByRole('button', { name: 'Import Upgraded Data' }).click();
+
+    await expect(page.locator('.scenario-list-item', { hasText: 'Repaired Legacy Import' })).toBeVisible();
+    const imported = await readAppData(page);
+    expect(imported.scenarios[0].accounts[0].currency).toBe(1);
+    expect(imported.scenarios[0].transactions[0].description).toBe('Checking → Salary Income');
+    expect(imported.scenarios[0].transactions[0].recurrence.month).toBe(4);
+    expect(imported.scenarios[0].transactions[0].recurrence.dayOfYear).toBe(23);
+    expect(imported.migrationReport.summary.recoveryRecordCount).toBe(1);
+  });
+
   test('opens the data checker for the current browser data', async ({ page }) => {
     await page.locator('#topbar-validate').click();
     await expect(page.locator('.validate-data-modal')).toBeVisible();

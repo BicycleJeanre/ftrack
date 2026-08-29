@@ -231,7 +231,16 @@ test('safe repair preview resolves numeric strings without changing the source',
   source.scenarios[0].accounts[0].id = '1';
   source.scenarios[0].accounts[0].type = '1';
   source.scenarios[0].accounts[0].startingBalance = '1250.50';
-  source.scenarios[0].transactions[0].recurrence.interval = '1';
+  source.scenarios[0].accounts[1].currency = null;
+  source.scenarios[0].transactions[0].description = '';
+  source.scenarios[0].transactions[0].recurrence = {
+    recurrenceType: 7,
+    startDate: '2026-04-23',
+    endDate: null,
+    interval: '1',
+    month: null,
+    dayOfYear: null
+  };
   const original = JSON.stringify(source);
 
   const checked = analyzeAppDataUpgrade(source, { sourceKind: 'browser' });
@@ -245,11 +254,15 @@ test('safe repair preview resolves numeric strings without changing the source',
     applySafeRepairs: true
   });
   assert.equal(repaired.repairApplied, true);
-  assert.equal(repaired.isValid, true);
+  assert.equal(repaired.isValid, true, JSON.stringify(repaired.validation));
   assert.equal(repaired.data.scenarios[0].accounts[0].id, 1);
   assert.equal(repaired.data.scenarios[0].accounts[0].type, 1);
   assert.equal(repaired.data.scenarios[0].accounts[0].startingBalance, 1250.5);
+  assert.equal(repaired.data.scenarios[0].accounts[1].currency, 1);
+  assert.equal(repaired.data.scenarios[0].transactions[0].description, 'Checking → Expense');
   assert.equal(repaired.data.scenarios[0].transactions[0].recurrence.interval, 1);
+  assert.equal(repaired.data.scenarios[0].transactions[0].recurrence.month, 4);
+  assert.equal(repaired.data.scenarios[0].transactions[0].recurrence.dayOfYear, 23);
   assert.ok(repaired.changes.some((entry) =>
     entry.path === 'scenarios[0].accounts[0].startingBalance'
   ));

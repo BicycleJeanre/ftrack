@@ -95,9 +95,14 @@ read-only preflight before import:
 3. Migrate older schemas or sanitize schema 44 data in memory.
 4. Validate the exact prepared object with the application validation service.
 5. When validation fails, compute an optional safe-repair proposal from a copy.
-   Repairs are limited to lossless numeric-string normalization in supported
-   financial paths. No dates are guessed, lookup objects are preserved, and
-   `migrationReport` recovery records are excluded from traversal.
+   Repairs include lossless numeric-string normalization in supported financial
+   paths and deterministic reconstruction of required legacy metadata. Missing
+   currency is filled only when surrounding app data has one unique valid
+   currency; empty transaction descriptions are derived from referenced account
+   names; and missing Yearly month/day fields are derived from the saved start
+   date. Financial amounts are never invented, conflicting currencies are not
+   selected, lookup objects are preserved, and `migrationReport` recovery
+   records are excluded from traversal.
 6. On request, validate the repaired copy and use it only if the user previews
    and explicitly applies it.
 7. Deep-compare source and prepared data, classifying each path as added,
