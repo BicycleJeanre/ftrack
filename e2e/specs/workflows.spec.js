@@ -25,10 +25,12 @@ test.describe('documented workflow smoke coverage', () => {
     await gotoFTrack(page);
   });
 
-  test('Budget exposes unified Plan & Actuals and projection controls', async ({ page }) => {
-    await selectWorkflow(page, 'Budget');
+  test('General exposes unified Plan & Actuals period and projection controls', async ({ page }) => {
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
     await expect(page.locator('#budgetSection')).toBeVisible();
     await expect(page.locator('#transactionsSection')).toBeHidden();
+    await expect(page.locator('#summaryCardsSection')).toBeVisible();
     await expect(page.locator('#budgetSection .forecast-card')).toHaveCount(1);
     await expect(page.locator('#budgetTable .plan-actuals-item').first()).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Period' })).toHaveAttribute('aria-selected', 'true');
@@ -47,8 +49,8 @@ test.describe('documented workflow smoke coverage', () => {
     await closeFilterModal(page);
   });
 
-  test('Budget row accordion hides the budget section body', async ({ page }) => {
-    await selectWorkflow(page, 'Budget');
+  test('General row accordion hides the Plan & Actuals section body', async ({ page }) => {
+    await selectWorkflow(page, 'General');
 
     const planSection = page.locator('#budgetSection');
     const planBody = planSection.locator(':scope > .dash-row-body');
@@ -172,7 +174,8 @@ test.describe('documented workflow smoke coverage', () => {
   test('shares a manual actual through the unified Period surface across workflows', async ({ page }) => {
     const description = 'Cross-workflow actual';
 
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.locator('#budgetSection').getByRole('tab', { name: 'Period', exact: true }).click();
     await openSectionFilters(page, '#budgetSection');
     await page.locator('.filter-modal button[title="Add item"]').click();
     await closeFilterModal(page);
@@ -196,8 +199,8 @@ test.describe('documented workflow smoke coverage', () => {
 
     for (const workflow of ['General', 'Funds', 'Debt Repayment', 'Goal Workshop']) {
       await selectWorkflow(page, workflow);
-      await expectUnifiedPlanSurface(page);
       await page.locator('#budgetSection').getByRole('tab', { name: 'Period', exact: true }).click();
+      await expectUnifiedPlanSurface(page, 'period');
       await expect(page.locator('#budgetSection .plan-actuals-item', { hasText: description }))
         .toBeVisible();
       await expect(page.locator('#budgetSection .plan-actuals-item', { hasText: description }))

@@ -192,6 +192,22 @@ test('current-schema data is still validated and invalid references block apply'
   );
 });
 
+test('data checker routes legacy Budget preferences to General without changing plan items', () => {
+  const source = analyzeAppDataUpgrade(legacyApp(), { now: MIGRATED_AT }).data;
+  source.uiState.lastWorkflowId = 'budget';
+  const occurrences = JSON.stringify(source.scenarios[0].transactionOccurrences);
+
+  const result = analyzeAppDataUpgrade(source, { sourceKind: 'browser' });
+
+  assert.equal(result.isValid, true);
+  assert.equal(result.changed, true);
+  assert.equal(result.data.uiState.lastWorkflowId, 'general');
+  assert.equal(JSON.stringify(result.data.scenarios[0].transactionOccurrences), occurrences);
+  assert.ok(result.changes.some((entry) => (
+    entry.path === 'uiState.lastWorkflowId' && entry.after === 'general'
+  )));
+});
+
 test('malformed JSON and future schemas return downloadable failure reports', () => {
   const malformed = analyzeAppDataUpgrade('{not json', {
     sourceLabel: 'broken.json'

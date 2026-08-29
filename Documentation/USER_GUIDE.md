@@ -110,9 +110,9 @@ A rule includes:
 Examples include a paycheck every second Friday, rent on the first day of the
 month, weekly groceries, or an annual insurance bill.
 
-Manage rules in **Plan & Actuals → Recurring** in every main workflow. Budget
-opens Plan & Actuals in Period by default for tracking; General, Funds, Debt
-Repayment, and Goal Workshop open it in Recurring by default for rule entry.
+Manage rules in **Plan & Actuals → Recurring** in every main workflow. General,
+Funds, Debt Repayment, and Goal Workshop open it in Recurring by default for
+rule entry. In General, switch to Period for budget and actual tracking.
 Both views remain available from the same card.
 
 ### 2.4 Period Occurrences
@@ -179,7 +179,6 @@ does not change or tag the selected scenario.
 
 | Workflow | Main cards | Plan & Actuals default |
 |---|---|---|
-| **Budget** | Accounts, Plan & Actuals, Projections | Period |
 | **General** | Summary totals, Accounts, Plan & Actuals, Projections | Recurring |
 | **Funds** | Pooled-fund summary, Accounts, Plan & Actuals | Recurring |
 | **Debt Repayment** | Debt summary, Accounts, Plan & Actuals, Projections | Recurring |
@@ -188,8 +187,8 @@ does not change or tag the selected scenario.
 Goal Workshop's Generate Plan card includes Simple and Advanced modes.
 
 Every main workflow can switch between Recurring rule entry and Period
-baseline, actual, skip, and variance tracking. The default only sets the view
-shown when the workflow opens.
+baseline, actual, skip, and variance tracking. Budgeting now lives in General's
+Period view instead of a duplicate Budget workflow.
 
 Detail shortcuts use the same component:
 
@@ -220,7 +219,7 @@ Goal Workshop also has a separate Generate Plan planning window.
 ### 3.1 Create or Select a Scenario
 
 1. Go to **Forecast**.
-2. Select **Budget** in the left navigation.
+2. Select **General** in the left navigation.
 3. Click **+ Add New**, enter a scenario name, and save it.
 4. Set projection Start, End, and Period Type on the scenario row.
 5. Select the scenario row to make it active.
@@ -438,7 +437,7 @@ configuration. Recording it Actual or Skipped removes that uncertainty.
 
 ### 5.1 Start of a Period
 
-1. Open Budget → Plan & Actuals → Period.
+1. Open General → Plan & Actuals → Period.
 2. Review resolved occurrences.
 3. Add known one-time costs or income.
 4. Make occurrence-only corrections.
@@ -620,6 +619,11 @@ references.
 If imported data behaves unexpectedly, review the migration report retained
 with schemaVersion 44 app data. Legacy rows that cannot be converted cleanly
 are retained there for recovery rather than silently discarded.
+
+Data Check upgrades legacy Budget rows into plan occurrences and updates a
+saved Budget navigation preference to General. Converted manual items remain
+reviewable: confirm them as manual, remove them, or link them to a recurring
+rule. Passing validation does not dismiss those historical decisions.
 
 The focused workflow guide is available in
 [Plan & Actuals Workflow](USER_BUDGET_WORKFLOW.md).

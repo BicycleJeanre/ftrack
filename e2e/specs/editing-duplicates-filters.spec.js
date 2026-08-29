@@ -58,7 +58,7 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
     await page.locator('#budgetTable button[title="Duplicate recurring rule"]').first().click();
     await waitForCollectionCount(page, 'transactions', transactionCount + 1);
 
-    await selectWorkflow(page, 'Budget');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
     const occurrenceCount = (await currentScenario(page)).transactionOccurrences.length;
     await page.locator('#budgetTable button[title="Duplicate item"]').first().click();
     await waitForCollectionCount(page, 'transactionOccurrences', occurrenceCount + 1);

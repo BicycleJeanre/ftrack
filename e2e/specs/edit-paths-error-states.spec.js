@@ -18,7 +18,8 @@ const malformedImportFixturePath = path.resolve(__dirname, '../fixtures/malforme
 test.describe('deeper edit paths and error states', () => {
   test('shows plan descriptions and direction-aware money movement', async ({ page }) => {
     await gotoFTrack(page);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
 
     const moneyOutCard = page.locator('#budgetSection .grid-summary-card', { hasText: 'Groceries budget' });
     await expect(moneyOutCard.locator('.grid-summary-description')).toHaveText('Groceries budget');
@@ -42,7 +43,8 @@ test.describe('deeper edit paths and error states', () => {
 
   test('edits a plan occurrence amount and description', async ({ page }) => {
     await gotoFTrack(page);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
 
     const card = page.locator('#budgetSection .grid-summary-card', { hasText: 'Groceries budget' });
     const occurrenceKey = await card.getAttribute('data-occurrence-key');

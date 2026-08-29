@@ -216,7 +216,8 @@ function buildRecurringSplitAppData() {
 test.describe('unified Plan & Actuals workflow', () => {
   test.beforeEach(async ({ page }) => {
     await gotoFTrack(page);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
   });
 
   test('uses one card with Period and Recurring modes and no separate Transactions card', async ({ page }) => {
@@ -730,7 +731,8 @@ test.describe('persisted projection freshness', () => {
     };
 
     await gotoFTrack(page, appData);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
     await waitForScenario(page, (scenario) => (
       scenario.projection?.stale === false &&
       !scenario.projection?.staleAt &&
@@ -746,7 +748,7 @@ test.describe('persisted projection freshness', () => {
 test.describe('recurring split rule editing', () => {
   test('creates a recurring split set from the unified Recurring card', async ({ page }) => {
     await gotoFTrack(page);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     const createSplitButton = page.locator(
@@ -847,7 +849,7 @@ test.describe('recurring split rule editing', () => {
 
   test('discards an abandoned recurring split draft without leaving grouped rules', async ({ page }) => {
     await gotoFTrack(page);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     await page.locator(
@@ -882,8 +884,9 @@ test.describe('recurring split rule editing', () => {
   });
 
   test('uses one principal card and safely applies Future then Entire Series split edits', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-08-02T12:00:00Z'));
     await gotoFTrack(page, buildRecurringSplitAppData());
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     const splitCards = page.locator(
@@ -1064,8 +1067,9 @@ test.describe('recurring split rule editing', () => {
   });
 
   test('duplicates a whole split set and ends the source series without deleting history', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-08-02T12:00:00Z'));
     await gotoFTrack(page, buildRecurringSplitAppData());
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     const sourceCard = page.locator(
@@ -1139,7 +1143,7 @@ test.describe('recurring split rule editing', () => {
 test.describe('recurring rule lifecycle actions', () => {
   test('duplicates an independent rule and ends only the copy', async ({ page }) => {
     await gotoFTrack(page);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     const sourceCard = page.locator('#budgetTable .recurring-rule-card', {
@@ -1215,7 +1219,7 @@ test.describe('recurring rule lifecycle actions', () => {
       updatedAt: null
     });
     await gotoFTrack(page, appData);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     const salaryCard = page.locator('#budgetTable .recurring-rule-card', {
@@ -1266,7 +1270,8 @@ test.describe('one-time linked plan items', () => {
     });
 
     await gotoFTrack(page, appData);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
     const card = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Annual filing fee'
     });

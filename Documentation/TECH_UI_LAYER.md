@@ -58,8 +58,9 @@ selection, and refresh behavior across the visible sections.
   - Supports whole-rule and whole-split-set duplication.
   - Uses `OccurrenceManager.endSeries()` instead of destructive rule deletion. The command ends every affected rule and split component before the next unresolved occurrence, preserves prior actual/skipped/frozen evidence, and refuses to cross protected future history.
   - New recurring-rule and recurring split-set creation use the transaction application service; a split set and all component rules persist atomically.
-- **Summary presentation**: Uses compact cards. Budget defaults to Period;
-  General, Funds, Debt Repayment, and Goal Workshop default to Recurring.
+- **Summary presentation**: Uses compact cards. General, Funds, Debt
+  Repayment, and Goal Workshop default to Recurring; Period is the budget and
+  actual-tracking view in the same component.
 - **Detail presentation**:
   - **Plan Rules (Detail)** defaults to a Tabulator of recurring rule
     segments with safe scoped editing and expandable rule metadata.
@@ -140,7 +141,6 @@ Every main workflow uses the same financial-activity component:
 
 | Workflow | Presentation | Default view |
 |---|---|---|
-| Budget | Summary | Period |
 | General | Summary | Recurring |
 | Funds | Summary | Recurring |
 | Debt Repayment | Summary | Recurring |
@@ -150,6 +150,10 @@ Every main workflow uses the same financial-activity component:
 
 The default does not remove the other subview. Both Period and Recurring
 remain available from the unified component.
+
+Legacy workflow ID `budget` and legacy scenario type 1 resolve to General.
+This compatibility alias is sanitized by Data Check so old files keep all
+financial data while their saved navigation preference is updated.
 
 1. **Define Rules**: Recurring mode edits canonical transaction rules and rule segments.
 2. **Resolve a Period**: Period mode queries the live occurrence timeline for the selected range.

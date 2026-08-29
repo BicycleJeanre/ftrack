@@ -11,7 +11,7 @@ test.describe('app shell and workflow navigation', () => {
     await openSidebar(page);
 
     await expect(page.locator('.topbar')).toBeVisible();
-    await expect(page.locator('#workflowNav')).toContainText('Budget');
+    await expect(page.locator('#workflowNav').getByRole('button', { name: 'Budget', exact: true })).toHaveCount(0);
     await expect(page.locator('#workflowNav')).toContainText('General');
     await expect(page.locator('#workflowNav')).toContainText('Funds');
     await expect(page.locator('#workflowNav')).toContainText('Debt Repayment');
@@ -21,13 +21,6 @@ test.describe('app shell and workflow navigation', () => {
   });
 
   test('switches workflow cards according to the frontend registry', async ({ page }) => {
-    await selectWorkflow(page, 'Budget');
-    await expect(page.locator('#budgetSection')).toBeVisible();
-    await expect(page.locator('#transactionsSection')).toBeHidden();
-    await expect(page.locator('#summaryCardsSection')).toBeHidden();
-    await expect(page.locator('#budgetSection').getByRole('tab', { name: 'Period', exact: true }))
-      .toHaveAttribute('aria-selected', 'true');
-
     await selectWorkflow(page, 'General');
     await expect(page.locator('#summaryCardsSection')).toBeVisible();
     await expect(page.locator('#budgetSection')).toBeVisible();

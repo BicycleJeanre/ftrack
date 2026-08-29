@@ -54,7 +54,8 @@ test.describe('scenario, plan and actuals, and account group functional flows', 
   });
 
   test('marks a planned occurrence actual and preserves its planned amount and date', async ({ page }) => {
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
     const card = page.locator('#budgetSection .plan-actuals-item', { hasText: 'Groceries budget' });
     const occurrenceKey = await card.getAttribute('data-occurrence-key');
 

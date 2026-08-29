@@ -147,6 +147,28 @@ test.describe('data management and projection browser flows', () => {
     await expect(page.locator('.validate-data-modal .vd-summary')).toContainText(/scenario/);
   });
 
+  test('repairs a retired Budget workflow preference without changing plan items', async ({ page }) => {
+    const source = await readAppData(page);
+    source.uiState.lastWorkflowId = 'budget';
+    const occurrenceCount = source.scenarios[0].transactionOccurrences.length;
+    await page.evaluate(({ key, data }) => localStorage.setItem(key, JSON.stringify(data)), {
+      key: STORAGE_KEY,
+      data: source
+    });
+
+    await page.locator('#topbar-validate').click();
+    await page.getByRole('button', { name: 'Current Browser Data' }).click();
+    const review = page.locator('.data-upgrade-modal');
+    await expect(review).toContainText('Passed');
+    await expect(review).toContainText('uiState.lastWorkflowId');
+    await expect(review).toContainText('Routed the retired Budget workflow preference to General');
+    await review.getByRole('button', { name: 'Apply Upgrade to Browser Data' }).click();
+
+    await expect.poll(async () => (await readAppData(page)).uiState.lastWorkflowId).toBe('general');
+    const applied = await readAppData(page);
+    expect(applied.scenarios[0].transactionOccurrences).toHaveLength(occurrenceCount);
+  });
+
   test('previews and applies safe browser-data repairs while separating migration history', async ({ page }) => {
     const damaged = await readAppData(page);
     damaged.scenarios[0].accounts[0].id = '1';

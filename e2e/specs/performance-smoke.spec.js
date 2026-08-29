@@ -102,7 +102,8 @@ test.describe('frontend performance smoke', () => {
     await expectNoHorizontalOverflow(page);
 
     const budgetStartedAt = Date.now();
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
     expect((await currentScenario(page)).transactionOccurrences).toHaveLength(180);
     await expect(page.locator('#budgetSection .grid-summary-card').first()).toBeVisible();
     expect(Date.now() - budgetStartedAt).toBeLessThan(8_000);

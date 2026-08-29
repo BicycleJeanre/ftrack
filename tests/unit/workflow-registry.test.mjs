@@ -9,7 +9,6 @@ import {
 
 test('all user-facing planning workflows route through Plan & Actuals', () => {
   const expectedDefaults = new Map([
-    ['budget', 'period'],
     ['general', 'recurring'],
     ['funds', 'recurring'],
     ['debt-repayment', 'recurring'],
@@ -30,6 +29,11 @@ test('all user-facing planning workflows route through Plan & Actuals', () => {
     assert.ok(workflow.visibleCards.includes('planActuals'), workflowId);
     assert.ok(!workflow.visibleCards.includes('transactions'), workflowId);
   });
+});
+
+test('legacy Budget workflow references route to General without exposing duplicate navigation', () => {
+  assert.equal(WORKFLOWS.some((workflow) => workflow.id === 'budget'), false);
+  assert.equal(getWorkflowById('budget')?.id, 'general');
 });
 
 test('both planning detail routes use the unified detail presentation', () => {

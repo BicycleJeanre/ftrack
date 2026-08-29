@@ -8,16 +8,15 @@ adjustments and actuals, and projections resolve both automatically.
 
 1.2 You no longer generate or clear a separate Budget dataset.
 
-## 2.0 Open the Workflow
+## 2.0 Open Budget Planning
 
-2.1 Go to Forecast and select the workflow that matches the task:
+2.1 Go to Forecast, select **General**, then select **Period** in Plan &
+Actuals for budget entry and tracking. Select **Recurring** in the same card
+for reusable rules. General replaces the former Budget navigation preset and
+adds its summary totals without creating a second copy of the plan.
 
-- **Budget** opens Plan & Actuals in Period for immediate tracking.
-- **General**, **Funds**, **Debt Repayment**, and **Goal Workshop** open Plan &
-  Actuals in Recurring for immediate rule entry.
-
-The initial view is only a default. Period and Recurring remain available in
-every main workflow.
+Funds, Debt Repayment, and Goal Workshop use the same Plan & Actuals data when
+their specialized views are useful.
 
 2.2 Create or select a scenario and add the accounts used by its money movements.
 

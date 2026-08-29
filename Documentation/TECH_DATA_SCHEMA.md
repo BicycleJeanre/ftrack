@@ -34,6 +34,9 @@ type UiState = {
 
 - `schemaVersion` is incremented for breaking storage changes.
 - The unified rule/occurrence workflow uses `schemaVersion = 44`.
+- Data Check normalizes the retired `budget` workflow preference to `general`.
+  Legacy budget rows still migrate into occurrences and ambiguous source links
+  remain available in the recovery-review queue.
 - Schema 44 migration reports are stored at the app-data root so automatic and
   imported migrations remain inspectable and recoverable.
 

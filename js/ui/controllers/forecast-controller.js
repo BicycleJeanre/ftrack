@@ -12,7 +12,7 @@ import { openPeriodicChangeModal } from '../components/modals/periodic-change-mo
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
-import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js?v=20260829-recovery-review-7';
+import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
 import '../../shared/keyboard-shortcuts.js';
 import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';
@@ -28,7 +28,7 @@ import {
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
-import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=20260829-recovery-review-7';
+import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=20260829-general-workflow-8';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore

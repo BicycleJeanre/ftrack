@@ -13,12 +13,12 @@ import {
 import { migrateAppData } from '../../shared/migration-utils.js';
 import { validateAppData } from './validation-service.js';
 import { STORAGE_KEY } from './storage-service.js';
-import { prepareSafeAppDataRepairs } from './data-repair-service.js?v=20260829-import-repair-6';
+import { prepareSafeAppDataRepairs } from './data-repair-service.js?v=20260829-general-workflow-8';
 import {
   listMigrationRecoveryReviewItems,
   prepareMigrationRecoveryDecisions,
   prepareMigrationRecoveryResolutions
-} from './migration-recovery-service.js?v=20260829-recovery-review-7';
+} from './migration-recovery-service.js?v=20260829-general-workflow-8';
 
 const MAX_UI_CHANGES = 250;
 
@@ -62,6 +62,7 @@ function changeCategory(path) {
 
 function changeReason(path, action) {
   if (path === 'schemaVersion') return 'Updated to the current FTrack schema version.';
+  if (path === 'uiState.lastWorkflowId') return 'Routed the retired Budget workflow preference to General.';
   if (path.endsWith('.budgets')) return 'Legacy budgets were replaced by unified plan occurrences.';
   if (path.endsWith('.budgetWindow')) return 'Legacy budget dates were moved into current planning and projection configuration.';
   if (path.includes('.transactionOccurrences')) return 'Unified period occurrences store planned, actual, skipped, and baseline-linked activity.';

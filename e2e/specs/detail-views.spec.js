@@ -411,7 +411,7 @@ test.describe('detail workflow reachability', () => {
     await expect(refreshButton).not.toHaveAttribute('aria-busy', 'true');
   });
 
-  test('does not let a Plan Rules refresh restore its presentation after Budget navigation', async ({ page }) => {
+  test('does not let a Plan Rules refresh restore its presentation after General navigation', async ({ page }) => {
     await selectWorkflow(page, 'Plan Rules (Detail)');
     await expect(page.locator('#budgetTable .recurring-rules-detail-grid.tabulator'))
       .toBeVisible();
@@ -421,21 +421,21 @@ test.describe('detail workflow reachability', () => {
       const refresh = document.querySelector(
         '.filter-modal button[title="Refresh recurring rules"]'
       );
-      const budget = [...document.querySelectorAll('.workflow-nav-item')]
-        .find((button) => button.textContent?.trim() === 'Budget');
-      if (!refresh || !budget) throw new Error('Plan Rules refresh/Budget controls unavailable');
+      const general = [...document.querySelectorAll('.workflow-nav-item')]
+        .find((button) => button.textContent?.trim() === 'General');
+      if (!refresh || !general) throw new Error('Plan Rules refresh/General controls unavailable');
 
       // Keep both requests in one browser task so the refresh is awaiting its
-      // scenario read when Budget synchronously revokes its render authority.
+      // scenario read when General synchronously revokes its render authority.
       refresh.click();
-      budget.click();
+      general.click();
     });
     await closeFilterModal(page);
 
-    await expect(page.getByRole('button', { name: 'Budget', exact: true }))
+    await expect(page.getByRole('button', { name: 'General', exact: true }))
       .toHaveClass(/active/);
     await expect(page.locator('#budgetTable .recurring-rules-detail-grid')).toHaveCount(0);
-    await expect(page.locator('#budgetSection .plan-actuals-item').first()).toBeVisible();
+    await expect(page.locator('#budgetSection .recurring-rule-card').first()).toBeVisible();
   });
 
   test('serializes manual projection generation with workflow navigation', async ({ page }) => {

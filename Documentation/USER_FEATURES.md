@@ -1,8 +1,8 @@
 # FTrack User Features
 
-**Version**: 3.1
+**Version**: 3.2
 
-**Last Updated**: August 2, 2026
+**Last Updated**: August 29, 2026
 
 **Purpose**: Current implemented user functionality
 
@@ -23,7 +23,6 @@ Quarter, or Year.
 
 1.5 Select a Forecast workflow without changing or tagging the scenario data:
 
-- Budget
 - General
 - Funds
 - Debt Repayment
@@ -76,9 +75,9 @@ interest, and fees.
 
 3.6 Manage rules in **Plan & Actuals → Recurring** in every main workflow.
 
-3.7 Budget opens Plan & Actuals in Period by default. General, Funds, Debt
-Repayment, and Goal Workshop open it in Recurring by default; the other view
-remains available.
+3.7 General, Funds, Debt Repayment, and Goal Workshop open Plan & Actuals in
+Recurring by default. Select Period for budget and actual tracking; the chosen
+view is retained while switching workflows.
 
 3.8 Edit a recurring rule with an explicit scope:
 
@@ -98,8 +97,8 @@ deleting prior actual, skipped, or frozen history.
 
 ## 4.0 Plan & Actuals
 
-4.1 Use one unified Plan & Actuals card in Budget, General, Funds, Debt
-Repayment, and Goal Workshop.
+4.1 Use one unified Plan & Actuals card in General, Funds, Debt Repayment, and
+Goal Workshop.
 
 4.2 Switch between:
 
@@ -271,7 +270,7 @@ individual guides.
 
 ## 10.0 Recommended First Budget
 
-1. Select **Budget**.
+1. Select **General**, then open **Plan & Actuals → Recurring**.
 2. Create or select a scenario and set its projection window.
 3. Add accounts and opening balances.
 4. Create expected repeating movements in **Plan & Actuals → Recurring**.

@@ -27,12 +27,13 @@ test.describe('visual regression baselines', () => {
     });
   });
 
-  test('Budget workflow at compact laptop size', async ({ page }) => {
+  test('General Period view at compact laptop size', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await gotoFTrack(page);
     await disableVolatileEffects(page);
-    await selectWorkflow(page, 'Budget');
-    await expect(page).toHaveScreenshot('budget-compact-laptop.png', {
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await expect(page).toHaveScreenshot('general-period-compact-laptop.png', {
       animations: 'disabled',
       maxDiffPixelRatio: 0.02
     });

@@ -64,7 +64,7 @@ does not move or convert data.
 
 ## 6.0 Period Controls
 
-![Budget Period controls and plan comparison cards](assets/user-guides/budget-period.jpg "The Period toolbar controls time, account perspective, grouping, creation, baseline freezing, and filters.")
+![General Plan & Actuals Period controls and comparison cards](assets/user-guides/budget-period.jpg "The Period toolbar controls time, account perspective, grouping, creation, baseline freezing, and filters.")
 
 From left to right:
 

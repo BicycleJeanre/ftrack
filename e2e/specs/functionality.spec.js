@@ -46,7 +46,8 @@ test.describe('frontend add and remove functionality', () => {
   });
 
   test('adds a planned item from the unified Plan & Actuals workflow', async ({ page }) => {
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
     const before = (await currentScenario(page)).transactionOccurrences.length;
 
     await openSectionFilters(page, '#budgetSection');

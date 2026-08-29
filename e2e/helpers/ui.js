@@ -1,7 +1,6 @@
 const { expect } = require('@playwright/test');
 
 const WORKFLOW_IDS_BY_NAME = {
-  Budget: 'budget',
   General: 'general',
   Funds: 'funds',
   'Debt Repayment': 'debt-repayment',

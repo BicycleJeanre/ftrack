@@ -71,35 +71,30 @@ the scenario projection End date to the same horizon.
 
 ## 5.0 Workflow Overview
 
-### 5.1 Budget
-
-Use for period planning, baseline freeze, actuals, skips, unplanned items,
-variance, and synchronized projections.
-
-Includes: Accounts, Plan & Actuals, and Projections.
-
-### 5.2 General
+### 5.1 General
 
 Use for flexible rule editing, period tracking, summary totals, and
 projections. Plan & Actuals opens on Recurring by default; Period remains
-available for baseline and actual tracking.
+available for budget entry, baseline freeze, actuals, skips, unplanned items,
+variance, and synchronized projections. The former Budget preset is now this
+Period view inside General.
 
 Includes: Summary, Accounts, Plan & Actuals, and Projections.
 
-### 5.3 Funds
+### 5.2 Funds
 
 Use for a pooled fund with NAV, shares, and ownership.
 
 Includes: Funds Summary, Accounts, and Plan & Actuals.
 
-### 5.4 Debt Repayment
+### 5.3 Debt Repayment
 
 Use for payoff strategies, interest, payoff dates, and variable-rate
 schedules.
 
 Includes: Debt Summary, Accounts, Plan & Actuals, and Projections.
 
-### 5.5 Goal Workshop
+### 5.4 Goal Workshop
 
 Use Simple mode for account-based goals and one generated contribution rule.
 Use Advanced mode for multiple goals and constraints.
@@ -110,7 +105,8 @@ Includes: Accounts, Generate Plan, Plan & Actuals, and Projections.
 
 1. Create a baseline scenario and enter real opening balances.
 2. Add expected one-time and recurring rules.
-3. In Budget, review the resolved Period and freeze its baseline.
+3. In General, open Plan & Actuals → Period, review the resolved plan, and
+   freeze its baseline.
 4. Let projections refresh and confirm the scenario behaves as expected.
 5. Duplicate the baseline for each major what-if change.
 6. Compare ending balances, low points, cash flow, and payoff dates.

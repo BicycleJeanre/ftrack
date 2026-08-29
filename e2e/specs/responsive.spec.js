@@ -15,7 +15,8 @@ for (const viewport of viewports) {
     await gotoFTrack(page);
 
     await expectNoHorizontalOverflow(page);
-    await selectWorkflow(page, 'Budget');
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
     await expectNoHorizontalOverflow(page);
     await selectWorkflow(page, 'Goal Workshop');
     await expectNoHorizontalOverflow(page);

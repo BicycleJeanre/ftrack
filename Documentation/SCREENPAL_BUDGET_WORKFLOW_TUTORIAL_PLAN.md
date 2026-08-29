@@ -2,8 +2,9 @@
 
 ## 1.0 Purpose
 
-Create a ScreenPal tutorial that teaches the current Budget workflow from
-initial plan entry through period tracking and refreshed projections.
+Create a ScreenPal tutorial that teaches budget planning in the General
+workflow from initial plan entry through period tracking and refreshed
+projections.
 
 The tutorial must show one connected model:
 
@@ -25,13 +26,13 @@ from transaction rows. Period occurrences appear automatically from the rules.
 ### 2.1 Audience
 
 - New FTrack users.
-- Existing users learning the unified Budget workflow.
+- Existing users learning the unified Plan & Actuals workflow in General.
 - Users whose largest problems are unexpected period costs, costs that later
   become recurring, and cumbersome future-plan adjustments.
 
 ### 2.2 By the End, the Viewer Can
 
-1. Select Budget and create a scenario.
+1. Select General and create a scenario.
 2. Add accounts and repeating rules.
 3. Review the automatically resolved Period.
 4. Freeze a baseline.
@@ -48,8 +49,8 @@ Use these as recording guardrails.
 
 ### 3.1 Workflow and Cards
 
-- Select **Budget** in the Forecast left navigation.
-- Budget shows **Accounts**, **Plan & Actuals**, and **Projections**.
+- Select **General** in the Forecast left navigation.
+- General shows **Summary**, **Accounts**, **Plan & Actuals**, and **Projections**.
 - Plan & Actuals switches between **Period** and **Recurring**.
 - **Plan & Actuals (Detail)** provides an expanded version of the same card.
 
@@ -226,13 +227,13 @@ currency differs, retain the same numeric values.
 
 **Callout**: `One plan. Period adjustments. Actuals. Projections.`
 
-### Scene 2 — Select Budget and Create the Scenario
+### Scene 2 — Select General and Create the Scenario
 
 **Duration**: 35–50 seconds
 
 **Actions**:
 
-1. Select **Budget**.
+1. Select **General**.
 2. Create `Household Plan Tutorial`.
 3. Set the projection window to April through June 2026.
 4. Select the scenario.
@@ -475,7 +476,7 @@ Use only where it reinforces a transition:
 ### 10.1 Before Recording
 
 - Start from a clean fictional dataset.
-- Verify Budget is visible and selected.
+- Verify General is visible and selected.
 - Verify the demonstration scenario window.
 - Verify all account names and balances.
 - Verify the first Period is April 2026.

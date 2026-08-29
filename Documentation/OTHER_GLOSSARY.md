@@ -14,8 +14,9 @@ A reference guide to common terms used throughout FTrack.
 ## 1.2 B
 
 - **Balance**: The amount of money in an account at a specific point in time. Opening balance is your starting point; projected balance shows where you will be in the future.
-- **Budget**: A workflow preset that opens Plan & Actuals in Period view for
-  baseline, current-plan, actual, commitment, and variance tracking.
+- **Budget**: The period plan tracked in **General → Plan & Actuals → Period**,
+  including baseline, current plan, actuals, commitments, and variance. It is
+  not a separate stored dataset or navigation workflow.
 
 ## 1.3 C
 

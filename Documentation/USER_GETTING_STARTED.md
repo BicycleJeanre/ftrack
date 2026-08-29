@@ -28,7 +28,7 @@ Use the in-app documentation in either of two ways:
 
 ## 1.2 Step by Step
 
-1. Go to **Forecast** and select **Budget** in the left navigation.
+1. Go to **Forecast** and select **General** in the left navigation.
 2. Create a scenario with **+ Add New**, or select an existing scenario.
 3. Set the scenario's projection **Start**, **End**, and **Period Type**.
    Month is a useful starting point.
@@ -97,15 +97,16 @@ At the end of the period:
   Actuals.
 
 Every primary workflow supports period baselines, actuals, skips, and variance
-tracking through the same Plan & Actuals card. Budget simply opens on Period;
-the other primary workflows open on Recurring.
+tracking through the same Plan & Actuals card. General includes the summary
+view that previously distinguished Budget; select **Period** whenever you want
+to create or track a budget.
 
 ## 1.6 Troubleshooting
 
 ### 1.6.1 Plan & Actuals Is Not Visible
 
-Select any primary workflow: **Budget**, **General**, **Funds**, **Debt
-Repayment**, or **Goal Workshop**. Detail shortcuts intentionally isolate one
+Select any primary workflow: **General**, **Funds**, **Debt Repayment**, or
+**Goal Workshop**. Detail shortcuts intentionally isolate one
 surface.
 
 ### 1.6.2 Generate Plan Is Not Visible
@@ -134,3 +135,9 @@ validation failures, or future schema versions.
 Select **Data Check > Current Browser Data** to run the same review against the
 raw JSON already stored in this browser. Older browser data is also intercepted
 at startup and remains unchanged until you approve the upgrade.
+
+Legacy Budget data is not discarded when its navigation preset is retired.
+Data Check converts stored budget rows into current plan occurrences, routes a
+saved Budget workflow preference to General, validates the result, and lists
+every ambiguous converted item for review. Use **Confirm Manual**, **Remove**,
+or **Link to Recurrence** before importing or applying the upgraded data.

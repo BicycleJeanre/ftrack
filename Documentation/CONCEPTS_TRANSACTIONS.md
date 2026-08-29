@@ -30,8 +30,8 @@ Examples include:
 - a one-time purchase on a known date.
 
 Create and maintain rules in **Plan & Actuals → Recurring** in any primary
-workflow. Budget opens on Period by default; General, Funds, Debt Repayment,
-and Goal Workshop open on Recurring by default.
+workflow. In General, switch to **Period** to create and track the budget from
+the dated occurrences produced by those same rules.
 
 A rule may include:
 

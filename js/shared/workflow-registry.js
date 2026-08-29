@@ -4,7 +4,7 @@
 export const DEFAULT_WORKFLOW_ID = 'general';
 
 export const LEGACY_SCENARIO_TYPE_ID_TO_WORKFLOW_ID = {
-  1: 'budget',
+  1: 'general',
   2: 'general',
   3: 'funds',
   4: 'debt-repayment',
@@ -13,31 +13,6 @@ export const LEGACY_SCENARIO_TYPE_ID_TO_WORKFLOW_ID = {
 };
 
 export const WORKFLOWS = [
-  {
-    id: 'budget',
-    name: 'Budget',
-    activity: {
-      surface: 'planActuals',
-      presentation: 'summary',
-      defaultView: 'period'
-    },
-    visibleCards: [
-      'scenarioPicker',
-      'accounts',
-      'planActuals',
-      'projections'
-    ],
-    showAccounts: true,
-    showPlannedTransactions: false,
-    showActualTransactions: false,
-    showBudget: true,
-    showPlanActuals: true,
-    showProjections: true,
-    showGeneratePlan: false,
-    showSummaryCards: false,
-    summaryMode: null,
-    supportsPeriodicChangeSchedule: false
-  },
   {
     id: 'general',
     name: 'General',
@@ -217,6 +192,7 @@ export const WORKFLOWS = [
 ];
 
 export function getWorkflowById(id) {
+  if (id === 'budget') id = 'general';
   if (!id) return WORKFLOWS.find((w) => w.id === DEFAULT_WORKFLOW_ID) || WORKFLOWS[0] || null;
   return WORKFLOWS.find((w) => w.id === id) || WORKFLOWS.find((w) => w.id === DEFAULT_WORKFLOW_ID) || WORKFLOWS[0] || null;
 }

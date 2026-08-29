@@ -5,10 +5,10 @@
 This guide answers: **Which workflow should I use for the job I am trying to
 complete?**
 
-- Use **Budget** to build a period plan, record actuals, and compare the
-  baseline, current plan, forecast, and actual results.
-- Use **General** to review overall financial health across accounts, Plan &
-  Actuals, summaries, and projections.
+- Use **General → Plan & Actuals → Period** to build a budget, record actuals,
+  and compare the baseline, current plan, forecast, and actual results.
+- Use **General → Plan & Actuals → Recurring** to maintain reusable rules while
+  reviewing overall financial health, summaries, and projections.
 - Use **Funds** to review pooled-fund value, shares, ownership, contributions,
   and redemptions alongside the plan.
 - Use **Debt Repayment** to review payoff progress, interest, projected
@@ -33,13 +33,13 @@ are different views over the selected scenario's shared planning data:
    balances.
 
 Changing workflows does not copy, move, or regenerate this data. A rule added
-in Goal Workshop is visible in Budget. An actual recorded in Budget affects
-General, Funds, Debt Repayment, and Projections wherever it is relevant.
+in Goal Workshop is visible in General. An actual recorded in General affects
+Funds, Debt Repayment, Goal Workshop, and Projections wherever it is relevant.
 
-## 3.0 Budget: Build and Track a Period
+## 3.0 General: Build and Track a Budget Period
 
-Budget opens **Plan & Actuals → Period** because its main job is period
-tracking.
+General opens **Plan & Actuals → Recurring** for plan entry. Select **Period**
+in that card when the job is budget and actual tracking.
 
 ### 3.1 Set Up the Expected Plan
 
@@ -76,7 +76,7 @@ When an existing recurring cost changes, edit the occurrence and choose:
 5. Add an Actual item when something unexpected happens.
 6. Review the comparison totals and individual variances.
 
-![Budget Period view with plan comparison cards](assets/user-guides/budget-period.jpg "Period compares the frozen baseline, current plan, actuals, open commitments, forecast, and variances.")
+![General Period view with plan comparison cards](assets/user-guides/budget-period.jpg "Period compares the frozen baseline, current plan, actuals, open commitments, forecast, and variances.")
 
 The comparison terms mean:
 
@@ -94,7 +94,7 @@ General is the broadest review workflow. It opens Plan & Actuals on
 
 - Summary totals for the scenario.
 - Account balances and account-level information.
-- The same Period and Recurring plan used by Budget.
+- The same Period and Recurring plan used by General.
 - Forward projections.
 
 Use General after changing rules or actuals when you want to see the wider

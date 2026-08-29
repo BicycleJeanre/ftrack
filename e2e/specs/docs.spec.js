@@ -54,7 +54,7 @@ test.describe('documentation frontend', () => {
     await expect(page.locator('#repo-doc-title')).toContainText('Interface Guide');
     await expect(page.locator('#repo-doc-content')).toContainText('Period Controls');
 
-    const interfaceImage = page.locator('#repo-doc-content img[alt="Budget Period controls and plan comparison cards"]');
+    const interfaceImage = page.locator('#repo-doc-content img[alt="General Plan & Actuals Period controls and comparison cards"]');
     await expect(interfaceImage).toBeVisible();
     await interfaceImage.scrollIntoViewIfNeeded();
     await expect.poll(() => interfaceImage.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
