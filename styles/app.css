@@ -15,7 +15,7 @@
 @import url('./partials/components.css');
 
 /* 3. Layout Styles - Header, Sidebar, Grids, Main Layouts */
-@import url('./partials/layout.css?v=20260831-workspace-state-19');
+@import url('./partials/layout.css?v=20260831-workspace-state-21');
 
 /* 4. Page-Specific Styles - Documentation, Home, Pages */
 @import url('./partials/pages.css');

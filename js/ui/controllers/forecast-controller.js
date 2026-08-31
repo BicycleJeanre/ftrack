@@ -18,7 +18,11 @@ import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
 import { initTooltips } from '../../shared/tooltips.js';
-import { getScenarioProjectionRows, mapPeriodTypeNameToId } from '../../shared/app-data-utils.js';
+import {
+  getScenarioProjectionRows,
+  mapPeriodTypeNameToId,
+  normalizeUiState
+} from '../../shared/app-data-utils.js?v=20260831-workspace-state-20';
 import {
   DEFAULT_WORKFLOW_ID,
   WORKFLOWS,
@@ -28,7 +32,7 @@ import {
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
-import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=20260829-general-workflow-8';
+import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=20260831-workspace-state-21';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore
@@ -81,7 +85,7 @@ import { generateProjections } from '../../domain/calculations/projection-engine
 
 let currentScenario = null;
 let uiState = null;
-let planActualsWorkspaceRevision = 0;
+const PLAN_ACTUALS_WORKSPACE_STORAGE_KEY = 'ftrack:plan-actuals-workspaces:v1';
 let currentWorkflowId = DEFAULT_WORKFLOW_ID;
 let transactionsAccountFilterId = null; // Track account filter for transactions view (independent of budget/projections)
 let budgetAccountFilterId = null; // Track account filter for budget view (independent of transactions/projections)
@@ -308,8 +312,14 @@ function isFundsWorkflow(workflowConfig) {
 }
 
 async function patchUiState(nextPartial) {
+  const planActualsWorkspaceByScenario =
+    uiState?.planActualsWorkspaceByScenario || {};
   try {
-    uiState = await UiStateManager.patch(nextPartial);
+    const persisted = await UiStateManager.patch(nextPartial);
+    uiState = {
+      ...persisted,
+      planActualsWorkspaceByScenario
+    };
   } catch (err) {
     logger.error('[UiState] Failed to persist uiState:', err);
   }
@@ -319,6 +329,34 @@ async function patchUiState(nextPartial) {
 function getPlanActualsWorkspace(scenarioId = currentScenario?.id) {
   const key = String(Number(scenarioId || 0));
   return uiState?.planActualsWorkspaceByScenario?.[key] || {};
+}
+
+function normalizePlanActualsWorkspaces(workspaces) {
+  return normalizeUiState({
+    planActualsWorkspaceByScenario:
+      workspaces && typeof workspaces === 'object' ? workspaces : {}
+  }).planActualsWorkspaceByScenario;
+}
+
+function readPlanActualsWorkspaces() {
+  try {
+    const raw = localStorage.getItem(PLAN_ACTUALS_WORKSPACE_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return normalizePlanActualsWorkspaces(parsed?.workspaces || parsed);
+  } catch (err) {
+    console.error('[UiState] Failed to read Plan & Actuals workspace:', err);
+    return {};
+  }
+}
+
+function writePlanActualsWorkspaces(workspaces) {
+  const normalized = normalizePlanActualsWorkspaces(workspaces);
+  localStorage.setItem(PLAN_ACTUALS_WORKSPACE_STORAGE_KEY, JSON.stringify({
+    version: 1,
+    workspaces: normalized
+  }));
+  return normalized;
 }
 
 function patchPlanActualsWorkspace(partial = {}, scenarioId = currentScenario?.id) {
@@ -336,16 +374,15 @@ function patchPlanActualsWorkspace(partial = {}, scenarioId = currentScenario?.i
     ...(uiState || {}),
     planActualsWorkspaceByScenario: nextWorkspaces
   };
-  const revision = ++planActualsWorkspaceRevision;
-  return UiStateManager.patch({
-    planActualsWorkspaceByScenario: nextWorkspaces
-  }).then((persisted) => {
-    if (revision === planActualsWorkspaceRevision) uiState = persisted;
-    return persisted;
-  }).catch((err) => {
+  try {
+    const normalized = writePlanActualsWorkspaces(nextWorkspaces);
+    uiState.planActualsWorkspaceByScenario = normalized;
+  } catch (err) {
+    console.error('[UiState] Failed to persist Plan & Actuals workspace:', err);
     logger.error('[UiState] Failed to persist Plan & Actuals workspace:', err);
-    return uiState;
-  });
+    notifyError('FTrack could not save the current Plan & Actuals filters.');
+  }
+  return Promise.resolve(uiState);
 }
 
 function restorePlanActualsWorkspace(scenario) {
@@ -365,6 +402,29 @@ function restorePlanActualsWorkspace(scenario) {
 
 async function loadUiState() {
   uiState = await UiStateManager.get();
+
+  const appDataWorkspaces = normalizePlanActualsWorkspaces(
+    uiState?.planActualsWorkspaceByScenario || {}
+  );
+  const preferenceWorkspaces = readPlanActualsWorkspaces();
+  const mergedWorkspaces = {
+    ...appDataWorkspaces,
+    ...preferenceWorkspaces
+  };
+  uiState = {
+    ...(uiState || {}),
+    planActualsWorkspaceByScenario: mergedWorkspaces
+  };
+  if (
+    !Object.keys(preferenceWorkspaces).length &&
+    Object.keys(appDataWorkspaces).length
+  ) {
+    try {
+      writePlanActualsWorkspaces(appDataWorkspaces);
+    } catch (err) {
+      console.error('[UiState] Failed to migrate Plan & Actuals workspace:', err);
+    }
+  }
 
   currentWorkflowId = getWorkflowById(uiState?.lastWorkflowId || DEFAULT_WORKFLOW_ID)?.id ||
     DEFAULT_WORKFLOW_ID;
@@ -1002,8 +1062,6 @@ async function buildScenarioGrid(container) {
 
     // Re-establish selection
     const persistedScenarioId = uiState?.lastScenarioId ?? null;
-    const persistedScenarioVersion = uiState?.lastScenarioVersion ?? null;
-
     let desiredScenarioId =
       selectedScenarioIdSnapshot != null ? selectedScenarioIdSnapshot : (persistedScenarioId != null ? persistedScenarioId : null);
 
@@ -1011,10 +1069,6 @@ async function buildScenarioGrid(container) {
       const match = (scenarios || []).find((s) => Number(s.id) === Number(desiredScenarioId)) || null;
       if (!match) {
         desiredScenarioId = null;
-      } else if (Number(match.id) === Number(persistedScenarioId) && persistedScenarioVersion != null) {
-        if (Number(match.version) !== Number(persistedScenarioVersion)) {
-          desiredScenarioId = null;
-        }
       }
     }
 

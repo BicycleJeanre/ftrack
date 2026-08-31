@@ -129,4 +129,5 @@ export async function transaction(modifyFn) {
  */
 export async function clear() {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('ftrack:plan-actuals-workspaces:v1');
 }

@@ -3,6 +3,7 @@ const path = require('node:path');
 const { expect } = require('@playwright/test');
 
 const STORAGE_KEY = 'ftrack:app-data';
+const PLAN_ACTUALS_WORKSPACE_STORAGE_KEY = 'ftrack:plan-actuals-workspaces:v1';
 const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/frontend-smoke-data.json');
 
 function clone(value) {
@@ -35,23 +36,32 @@ async function readAppData(page) {
   return page.evaluate((key) => JSON.parse(window.localStorage.getItem(key)), STORAGE_KEY);
 }
 
+async function readPlanActualsWorkspaces(page) {
+  return page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed?.workspaces || parsed || {};
+  }, PLAN_ACTUALS_WORKSPACE_STORAGE_KEY);
+}
+
 async function currentScenario(page) {
   const data = await readAppData(page);
   const id = Number(data?.uiState?.lastScenarioId || data?.scenarios?.[0]?.id);
   return data.scenarios.find((scenario) => Number(scenario.id) === id) || data.scenarios[0];
 }
 
-async function waitForAppReady(page) {
+async function waitForAppReady(page, expectedScenarioCount = 1) {
   await page.waitForLoadState('domcontentloaded');
   await expect(page.locator('.app-container')).toBeVisible();
   await expect(page.locator('#workflowNav')).toBeAttached();
-  await expect(page.locator('.scenario-list-item')).toHaveCount(1);
+  await expect(page.locator('.scenario-list-item')).toHaveCount(expectedScenarioCount);
 }
 
 async function gotoFTrack(page, appData = loadSmokeData()) {
   await seedAppData(page, appData);
   await page.goto('/pages/ftrack.html', { waitUntil: 'domcontentloaded' });
-  await waitForAppReady(page);
+  await waitForAppReady(page, appData.scenarios.length);
 }
 
 async function waitForScenarioCount(page, expected) {
@@ -78,6 +88,7 @@ async function waitForScenario(page, predicate, message = 'scenario predicate') 
 module.exports = {
   STORAGE_KEY,
   loadSmokeData,
+  readPlanActualsWorkspaces,
   seedAppData,
   readAppData,
   currentScenario,

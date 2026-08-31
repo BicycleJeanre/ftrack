@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const {
   loadSmokeData,
   gotoFTrack,
-  readAppData,
+  readPlanActualsWorkspaces,
   currentScenario,
   waitForAppReady,
   waitForCollectionCount,
@@ -213,6 +213,38 @@ function buildRecurringSplitAppData() {
   return appData;
 }
 
+test.describe('saved Plan and Actuals scenario workspace', () => {
+  test('restores the selected scenario after its data version changes', async ({ page }) => {
+    const appData = loadSmokeData();
+    const changedScenario = JSON.parse(JSON.stringify(appData.scenarios[0]));
+    changedScenario.id = 202;
+    changedScenario.version = 9;
+    changedScenario.name = 'Changed scenario version';
+    appData.scenarios.push(changedScenario);
+    appData.uiState.lastScenarioId = changedScenario.id;
+    appData.uiState.lastScenarioVersion = 1;
+    appData.uiState.planActualsWorkspaceByScenario = {
+      [changedScenario.id]: {
+        viewByContext: { general: 'period' },
+        periodTypeId: 3,
+        periodId: '2026-12',
+        accountId: 1,
+        groupBy: 'movement'
+      }
+    };
+
+    await gotoFTrack(page, appData);
+
+    await expect(page.locator('.scenario-list-item.selected'))
+      .toHaveAttribute('data-scenario-id', String(changedScenario.id));
+    await expect(page.getByRole('tab', { name: 'Period', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#plan-period-inline')).toHaveValue('2026-12');
+    await expect(page.locator('#plan-account-inline')).toHaveValue('1');
+    await expect(page.locator('#plan-group-inline')).toHaveValue('movement');
+  });
+});
+
 test.describe('unified Plan & Actuals workflow', () => {
   test.beforeEach(async ({ page }) => {
     await gotoFTrack(page);
@@ -277,8 +309,8 @@ test.describe('unified Plan & Actuals workflow', () => {
     await page.locator('#tx-grouping-select-summary').selectOption('secondaryAccountName');
 
     await expect.poll(async () => {
-      const data = await readAppData(page);
-      return data.uiState?.planActualsWorkspaceByScenario?.[String(scenarioId)];
+      const workspaces = await readPlanActualsWorkspaces(page);
+      return workspaces?.[String(scenarioId)];
     }).toMatchObject({
       viewByContext: { general: 'recurring' },
       periodTypeId: 3,

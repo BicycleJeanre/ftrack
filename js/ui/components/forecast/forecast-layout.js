@@ -118,6 +118,7 @@ function buildTopbarActions() {
     if (!await confirmDialog('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) return;
     try {
       localStorage.removeItem('ftrack:app-data');
+      localStorage.removeItem('ftrack:plan-actuals-workspaces:v1');
       notifySuccess('All data cleared successfully. The page will now reload.');
       window.location.reload();
     } catch (err) {
