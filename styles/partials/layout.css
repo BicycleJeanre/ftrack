@@ -2963,6 +2963,54 @@ button.filter-modal-open {
   flex-direction: column;
 }
 
+.plan-actuals-completion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.plan-actuals-completion:hover,
+.plan-actuals-completion:focus-within {
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+
+.plan-actuals-completion input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.plan-actuals-completion.is-complete {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--color-positive);
+  cursor: default;
+}
+
+.plan-actuals-completion:has(input:disabled):not(.is-complete) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.plan-actuals-completion.is-saving {
+  opacity: 0.7;
+}
+
 .plan-actuals-new-item,
 .plan-actuals-editor-wrap {
   grid-column: 1 / -1;

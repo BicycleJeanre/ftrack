@@ -63,7 +63,7 @@ it will not cross protected future history.
 
 ## 4.0 Track Actuals
 
-4.1 Click **Mark actual** for a planned item, or edit it and choose Actual to enter a different amount or date.
+4.1 Tick **Actual** for a planned item, or edit it and choose Actual to enter a different amount or date.
 
 4.2 The first actual in a period freezes that period's baseline automatically. You can also click **Freeze baseline** before actuals are entered.
 

@@ -59,7 +59,7 @@ test.describe('scenario, plan and actuals, and account group functional flows', 
     const card = page.locator('#budgetSection .plan-actuals-item', { hasText: 'Groceries budget' });
     const occurrenceKey = await card.getAttribute('data-occurrence-key');
 
-    await card.locator('button[title="Mark actual"]').click();
+    await card.locator('.plan-actuals-completion input[type="checkbox"]').check();
 
     await waitForScenario(page, (scenario) => {
       const occurrence = scenario.transactionOccurrences.find(

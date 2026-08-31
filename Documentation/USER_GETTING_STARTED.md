@@ -46,7 +46,7 @@ Use the in-app documentation in either of two ways:
 8. Click **Freeze baseline** when the selected period's plan is ready. The
    first actual in an unfrozen period also freezes it automatically.
 9. Record reality:
-   - click **Mark actual** for something that happened;
+   - tick **Actual** for something that happened;
    - edit the actual amount or date when it differs;
    - use **Skip occurrence** for something that will not happen; or
    - use **Add item** to record an unexpected actual.

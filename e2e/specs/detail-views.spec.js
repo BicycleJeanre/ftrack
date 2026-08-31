@@ -164,7 +164,12 @@ test.describe('detail workflow reachability', () => {
     ]) {
       await expect(headerTitles.filter({ hasText: new RegExp(`^${title}$`) })).toHaveCount(1);
     }
-    await expect(planTable.locator('.tabulator-row').first()).toBeVisible();
+    const firstRow = planTable.locator('.tabulator-row').first();
+    await expect(firstRow).toBeVisible();
+    await expect(firstRow.locator(
+      '.plan-actuals-completion input[type="checkbox"]'
+    )).toHaveCount(1);
+    await expect(firstRow.locator('.plan-actuals-completion')).toContainText('Actual');
     await expect(page.locator('#budgetSection .plan-actuals-item')).toHaveCount(0);
   });
 

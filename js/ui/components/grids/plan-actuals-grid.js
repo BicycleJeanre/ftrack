@@ -829,6 +829,58 @@ function actionButton({ title, text, onClick, className = '' }) {
   return button;
 }
 
+function buildCompletionControl({ occurrence, scenarioId, state }) {
+  const status = statusName(occurrence);
+  const isActual = status === 'actual';
+  const isSkipped = status === 'skipped';
+  const label = document.createElement('label');
+  label.className = `plan-actuals-completion${isActual ? ' is-complete' : ''}`;
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = isActual;
+  checkbox.disabled = isActual || isSkipped;
+  checkbox.setAttribute(
+    'aria-label',
+    isActual ? 'Actual / completed' : `Mark ${occurrence.description || 'item'} as actual`
+  );
+  checkbox.title = isSkipped
+    ? 'Skipped items cannot be marked actual'
+    : (isActual ? 'Actual / completed' : 'Mark as actual / completed');
+
+  const text = document.createElement('span');
+  text.textContent = 'Actual';
+
+  label.addEventListener('click', (event) => event.stopPropagation());
+  label.addEventListener('mousedown', (event) => event.stopPropagation());
+  checkbox.addEventListener('change', async (event) => {
+    event.stopPropagation();
+    if (!checkbox.checked || checkbox.disabled) return;
+    checkbox.disabled = true;
+    label.classList.add('is-saving');
+    try {
+      await OccurrenceManager.markActual(
+        scenarioId,
+        occurrence.occurrenceKey,
+        {
+          actualAmount: occurrence.plannedAmount,
+          actualDate: occurrence.effectiveDate || occurrence.scheduledDate,
+          period: baselinePeriodForDate(state, occurrence.scheduledDate)
+        }
+      );
+    } catch (error) {
+      checkbox.checked = false;
+      checkbox.disabled = false;
+      label.classList.remove('is-saving');
+      notifyError(error?.message || String(error));
+    }
+  });
+
+  label.appendChild(checkbox);
+  label.appendChild(text);
+  return label;
+}
+
 function buildOccurrenceActions({
   occurrence,
   scenarioId,
@@ -840,21 +892,7 @@ function buildOccurrenceActions({
   actions.className =
     `grid-summary-actions plan-actuals-actions${className ? ` ${className}` : ''}`;
 
-  if (occurrence.status !== 'actual' && occurrence.status !== 'skipped') {
-    actions.appendChild(actionButton({
-      title: 'Mark actual',
-      text: '✓',
-      onClick: (button) => runAction(button, () => OccurrenceManager.markActual(
-        scenarioId,
-        occurrence.occurrenceKey,
-        {
-          actualAmount: occurrence.plannedAmount,
-          actualDate: occurrence.effectiveDate || occurrence.scheduledDate,
-          period: baselinePeriodForDate(state, occurrence.scheduledDate)
-        }
-      ))
-    }));
-  }
+  actions.appendChild(buildCompletionControl({ occurrence, scenarioId, state }));
   if (occurrence.status !== 'skipped' && occurrence.status !== 'actual') {
     actions.appendChild(actionButton({
       title: 'Skip occurrence',

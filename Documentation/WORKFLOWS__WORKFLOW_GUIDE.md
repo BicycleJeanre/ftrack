@@ -70,7 +70,7 @@ When an existing recurring cost changes, edit the occurrence and choose:
 
 1. Click **Freeze baseline** when the selected period represents the plan you
    intended to follow. The first actual also freezes an unfrozen period.
-2. Use **Mark actual** when a planned item happens.
+2. Tick **Actual** when a planned item happens.
 3. Edit the actual amount or date when reality differs from the plan.
 4. Use **Skip occurrence** when a planned item will not happen.
 5. Add an Actual item when something unexpected happens.

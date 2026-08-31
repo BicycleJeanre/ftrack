@@ -354,7 +354,7 @@ After freeze:
 
 For an expected item:
 
-1. click **Mark actual**;
+1. tick **Actual**;
 2. edit the item if its actual amount or date differs; or
 3. use **Skip occurrence** if it will not happen.
 

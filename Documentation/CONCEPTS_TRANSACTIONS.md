@@ -120,7 +120,7 @@ period.
 
 For a planned occurrence:
 
-1. Click **Mark actual** when it happens.
+1. Tick **Actual** when it happens.
 2. Edit the item if the actual amount or date differs.
 3. Use **Skip occurrence** if it will not happen.
 

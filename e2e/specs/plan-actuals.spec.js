@@ -427,7 +427,11 @@ test.describe('unified Plan & Actuals workflow', () => {
       hasText: 'Groceries budget'
     });
     const groceryKey = await groceryCard.getAttribute('data-occurrence-key');
-    await groceryCard.locator('button[title="Mark actual"]').click();
+    const groceryCompletion = groceryCard.locator(
+      '.plan-actuals-completion input[type="checkbox"]'
+    );
+    await expect(groceryCompletion).not.toBeChecked();
+    await groceryCompletion.check();
     await waitForScenario(page, (scenario) => {
       const occurrence = scenario.transactionOccurrences.find(
         (item) => item.occurrenceKey === groceryKey
@@ -437,6 +441,8 @@ test.describe('unified Plan & Actuals workflow', () => {
     const actualMetric = groceryCard.locator('.plan-actuals-metric').filter({
       has: page.locator('.label', { hasText: /^Actual$/ })
     });
+    await expect(groceryCompletion).toBeChecked();
+    await expect(groceryCompletion).toBeDisabled();
     await expect(groceryCard).toHaveClass(/money-out/);
     await expect(actualMetric.locator('.value')).toHaveText('-R 450,00');
     await expect(actualMetric.locator('.value')).toHaveClass(/negative/);
@@ -461,7 +467,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     const skippedCard = page.locator(
       `#budgetSection .plan-actuals-item[data-occurrence-key="${paymentKey}"]`
     );
-    await skippedCard.locator('button[title="Edit item"]').click();
+    await skippedCard.getByRole('button', { name: 'Edit item' }).click();
     const restoreForm = skippedCard.locator('form');
     await expect(editorField(restoreForm, 'Repeat').locator('button')).toBeDisabled();
     await expect(editorField(restoreForm, 'Apply change to')).toHaveCount(0);

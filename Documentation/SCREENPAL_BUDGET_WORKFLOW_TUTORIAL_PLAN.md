@@ -83,7 +83,8 @@ Use these as recording guardrails.
 
 - **Freeze baseline** locks the comparison plan for the selected period.
 - The first actual freezes an unfrozen period automatically.
-- **Mark actual** can use the planned amount/date or be edited afterward.
+- The **Actual** checkbox can use the planned amount/date; edit the item when
+  either differs.
 - **Skip occurrence** excludes the item from projections.
 - A manual Actual is treated as unplanned, with zero baseline and current
   plan.

@@ -127,7 +127,8 @@ Use item-level variance to find the cause of a summary-level difference.
 
 The available actions depend on the item's status and origin:
 
-- **Mark actual** records a planned item as completed.
+- **Actual checkbox** records a planned item as completed using its planned
+  amount and date. It remains checked once the item is actual.
 - **Skip occurrence** excludes a planned occurrence that will not happen.
 - **Edit item** opens the occurrence editor.
 - **Duplicate item** creates a separate one-time planned copy.
