@@ -200,6 +200,26 @@ function buildDisplayRows({ occurrences, accounts, accountFilterId }) {
   });
 }
 
+function attachPromotedRecurrence(occurrences, transactions) {
+  const promotedRules = new Map(
+    (Array.isArray(transactions) ? transactions : [])
+      .filter((transaction) => transaction?.promotedFromOccurrenceKey)
+      .map((transaction) => [String(transaction.promotedFromOccurrenceKey), transaction])
+  );
+
+  return (Array.isArray(occurrences) ? occurrences : []).map((occurrence) => {
+    const promotedRule = promotedRules.get(String(occurrence?.occurrenceKey || ''));
+    if (!promotedRule) return occurrence;
+    return {
+      ...occurrence,
+      recurrence: promotedRule.recurrence || occurrence.recurrence || null,
+      recurrenceDescription:
+        promotedRule.recurrenceDescription || occurrence.recurrenceDescription || '',
+      promotedTransactionId: promotedRule.id
+    };
+  });
+}
+
 function perspectiveType(typeId, primaryAccountId, secondaryAccountId, accountFilterId) {
   const normalizedTypeId = Number(typeId);
   if (normalizedTypeId !== 1 && normalizedTypeId !== 2) return null;
@@ -540,9 +560,11 @@ function buildOccurrenceEditor({
 
   const isNew = !occurrence;
   const existingStatus = String(occurrence?.status || 'planned');
-  const hasLinkedSource = Boolean(occurrence?.sourceTransactionId);
+  const hasPromotedSource = Boolean(occurrence?.promotedTransactionId);
+  const hasLinkedSource = Boolean(occurrence?.sourceTransactionId) || hasPromotedSource;
   const hasRecurringSource = hasLinkedSource && isRecurringPattern(occurrence?.recurrence);
-  const canEditLinkedSeries = hasRecurringSource && existingStatus === 'planned';
+  const canEditLinkedSeries = Boolean(occurrence?.sourceTransactionId) &&
+    hasRecurringSource && existingStatus === 'planned';
   const { period, startDate } = selectedPeriodRange(state);
   const defaultPrimaryId = accounts?.[0]?.id ?? null;
   const defaultDate = occurrence?.effectiveDate || occurrence?.scheduledDate || startDate || formatDateOnly(new Date());
@@ -642,7 +664,11 @@ function buildOccurrenceEditor({
   scopeSelect.className = 'grid-summary-input';
   scopeSelect.disabled = !canEditLinkedSeries;
 
-  if (hasLinkedSource && !canEditLinkedSeries && existingStatus !== 'actual') {
+  if (hasPromotedSource) {
+    recurrenceButton.disabled = true;
+    recurrenceButton.title =
+      'This item started a recurring rule. Edit future recurrence in the Recurring view.';
+  } else if (hasLinkedSource && !canEditLinkedSeries && existingStatus !== 'actual') {
     recurrenceButton.disabled = true;
     recurrenceButton.title = hasRecurringSource
       ? 'Restore this occurrence to planned before changing its recurring series.'
@@ -730,7 +756,10 @@ function buildOccurrenceEditor({
       description: occurrenceUpdates.description
     };
     if (recurrenceTouched) ruleUpdates.recurrence = selectedRecurrence;
-    const promotionRuleUpdates = { ...ruleUpdates };
+    const promotionRuleUpdates = {
+      ...ruleUpdates,
+      amount: selectedStatus === 'actual' ? actualAmount : plannedAmount
+    };
     delete promotionRuleUpdates.recurrence;
 
     await runAction(saveButton, async () => {
@@ -926,7 +955,11 @@ function buildOccurrenceActions({
       notifySuccess('Item duplicated as a one-time plan.');
     })
   }));
-  if (!occurrence.sourceTransactionId && occurrence.status !== 'skipped') {
+  if (
+    !occurrence.sourceTransactionId &&
+    !occurrence.promotedTransactionId &&
+    occurrence.status !== 'skipped'
+  ) {
     actions.appendChild(actionButton({
       title: 'Repeat going forward',
       text: '↻',
@@ -1744,8 +1777,12 @@ async function renderPeriodView({
   }
 
   const accountFilterId = state?.getBudgetAccountFilterId?.();
+  const displayOccurrences = attachPromotedRecurrence(
+    resolved.occurrences,
+    scenario.transactions || []
+  );
   const rows = buildDisplayRows({
-    occurrences: resolved.occurrences,
+    occurrences: displayOccurrences,
     accounts: scenario.accounts || [],
     accountFilterId
   });

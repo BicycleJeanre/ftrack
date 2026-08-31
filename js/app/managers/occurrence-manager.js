@@ -2158,6 +2158,17 @@ export async function promoteOccurrenceToRecurring(
           'Only a manual occurrence can be promoted to a recurring rule.'
         );
       }
+      const existingPromotedRule = (scenario.transactions || []).find(
+        (transaction) =>
+          String(transaction?.promotedFromOccurrenceKey || '') === String(occurrenceKey)
+      );
+      if (existingPromotedRule) {
+        throw new OccurrenceCommandError(
+          'occurrence-already-promoted',
+          'This item already has a recurring rule.',
+          { transactionId: existingPromotedRule.id }
+        );
+      }
       if (!recurrence || recurrenceTypeId(recurrence) === 1) {
         throw new OccurrenceCommandError(
           'recurring-rule-required',

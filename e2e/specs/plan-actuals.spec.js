@@ -495,6 +495,82 @@ test.describe('unified Plan & Actuals workflow', () => {
     }, 'manual actual and frozen period baseline persisted');
   });
 
+  test('shows recurring schedules for actuals created or promoted as recurring', async ({ page }) => {
+    const directForm = await openNewItemEditor(page);
+    await fillNewItem(directForm, {
+      date: '2026-01-26',
+      description: 'Recurring actual at creation',
+      amount: 0,
+      status: 'actual',
+      actualAmount: 180
+    });
+    await editorField(directForm, 'Repeat').locator('button').click();
+    let recurrenceModal = page.locator('.modal-recurrence');
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await recurrenceModal.locator('#startDate').fill('2026-01-26');
+    await recurrenceModal.locator('#dayOfMonth').fill('26');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+    await directForm.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Recurring actual at creation'
+      );
+      return actual?.status === 'actual' && scenario.transactions.some(
+        (transaction) =>
+          transaction.promotedFromOccurrenceKey === actual.occurrenceKey &&
+          Number(transaction.recurrence?.dayOfMonth) === 26 &&
+          Number(transaction.amount) === 180
+      );
+    }, 'actual created with a recurring rule');
+
+    const directCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Recurring actual at creation'
+    });
+    await expect(directCard.locator('.plan-actuals-repeat'))
+      .toHaveText('Every month on day 26 until 2026-04-30');
+    await expect(directCard.getByRole('button', { name: 'Repeat going forward' }))
+      .toHaveCount(0);
+
+    const promotedForm = await openNewItemEditor(page);
+    await fillNewItem(promotedForm, {
+      date: '2026-01-27',
+      description: 'Actual promoted after creation',
+      amount: 0,
+      status: 'actual',
+      actualAmount: 95
+    });
+    await promotedForm.getByRole('button', { name: 'Add item' }).click();
+
+    const promotedCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Actual promoted after creation'
+    });
+    await promotedCard.getByRole('button', { name: 'Repeat going forward' }).click();
+    recurrenceModal = page.locator('.modal-recurrence');
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await recurrenceModal.locator('#startDate').fill('2026-01-27');
+    await recurrenceModal.locator('#dayOfMonth').fill('27');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Actual promoted after creation'
+      );
+      return actual?.status === 'actual' && scenario.transactions.some(
+        (transaction) =>
+          transaction.promotedFromOccurrenceKey === actual.occurrenceKey &&
+          Number(transaction.recurrence?.dayOfMonth) === 27
+      );
+    }, 'existing actual promoted to a recurring rule');
+
+    await expect(promotedCard.locator('.plan-actuals-repeat'))
+      .toHaveText('Every month on day 27 until 2026-04-30');
+    await expect(promotedCard.getByRole('button', { name: 'Repeat going forward' }))
+      .toHaveCount(0);
+  });
+
   test('treats a One Time recurrence selection as a manual one-time item', async ({ page }) => {
     const before = await currentScenario(page);
     const form = await openNewItemEditor(page);

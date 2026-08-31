@@ -501,6 +501,23 @@ test('promoteOccurrenceToRecurring preserves the manual occurrence and starts on
       (occurrence) => occurrence.occurrenceKey === created.occurrence.occurrenceKey
     )
   );
+
+  await assert.rejects(
+    () => OccurrenceManager.promoteOccurrenceToRecurring(
+      1,
+      created.occurrence.occurrenceKey,
+      {
+        recurrence: {
+          recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+          startDate: '2026-01-20',
+          endDate: null,
+          interval: 1,
+          dayOfMonth: 20
+        }
+      }
+    ),
+    (error) => error?.code === 'occurrence-already-promoted'
+  );
 });
 
 test('rules introduced after a period freeze keep a zero baseline inside that period', async () => {
