@@ -101,6 +101,11 @@ example, Checking → Groceries Expense means money leaves Checking.
 The direction label and color are meaningful. Do not infer direction only
 from the account order.
 
+Card accents follow movement direction rather than plan status: Money In uses
+green and Money Out uses red. On actual items, Money Out actual amounts are
+shown as red negative values so cash leaving the selected account is explicit.
+The planned or actual pill remains the status indicator.
+
 ## 8.0 Period Summary Metrics
 
 - **Baseline Net** is the frozen predicted amount for the period.

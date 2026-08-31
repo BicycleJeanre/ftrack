@@ -956,8 +956,13 @@ function renderOccurrenceCards({
       }
     }
 
+    const displayMovement = movementDimensions(row);
+    const movementClass = Number(displayMovement.transactionTypeId) === 1
+      ? 'money-in'
+      : 'money-out';
     const card = document.createElement('article');
-    card.className = `grid-summary-card plan-actuals-item status-${statusName(occurrence)}`;
+    card.className =
+      `grid-summary-card plan-actuals-item ${movementClass} status-${statusName(occurrence)}`;
     card.dataset.occurrenceKey = occurrence.occurrenceKey;
 
     const content = document.createElement('div');
@@ -981,7 +986,6 @@ function renderOccurrenceCards({
 
     const movement = document.createElement('div');
     movement.className = 'grid-summary-flow plan-actuals-movement';
-    const displayMovement = movementDimensions(row);
     const type = movementTypeLabel(displayMovement.transactionTypeId);
     movement.textContent =
       `${type}: ${movementTextFromDimensions(displayMovement, accounts)}`;
@@ -995,10 +999,13 @@ function renderOccurrenceCards({
     const perspectiveOccurrence = row._comparisonOccurrence || occurrence;
     const baseline = Math.abs(Number(perspectiveOccurrence.baselineAmount || 0));
     const planned = Math.abs(Number(perspectiveOccurrence.plannedAmount || 0));
-    const actual = occurrence.status === 'actual' && hasValue(perspectiveOccurrence.actualAmount)
+    const actualAmount = occurrence.status === 'actual' && hasValue(perspectiveOccurrence.actualAmount)
       ? Math.abs(Number(perspectiveOccurrence.actualAmount))
       : null;
-    const variance = (actual ?? planned) - baseline;
+    const actual = actualAmount === null
+      ? null
+      : signedAmount(actualAmount, displayMovement.transactionTypeId);
+    const variance = (actualAmount ?? planned) - baseline;
     [
       ['Baseline', baseline],
       ['Current', planned],

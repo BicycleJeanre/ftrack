@@ -245,6 +245,12 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(page.locator('#budgetTable')).toContainText('Groceries');
     await expect(page.locator('#budgetTable .recurring-rule-card', {
       hasText: 'Monthly salary'
+    })).toHaveClass(/money-in/);
+    await expect(page.locator(
+      '#budgetTable .recurring-rule-card[data-source-transaction-id="1002"]'
+    )).toHaveClass(/money-out/);
+    await expect(page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary'
     }).locator('.recurring-rule-movement'))
       .toHaveText(/Salary Income.*→.*Checking/);
 
@@ -261,12 +267,14 @@ test.describe('unified Plan & Actuals workflow', () => {
       .toHaveText(/Money Out: Checking.*→.*Groceries Expense/);
     await expect(moneyOutCard.locator('.plan-actuals-description'))
       .toHaveText('Groceries budget');
+    await expect(moneyOutCard).toHaveClass(/money-out/);
 
     const moneyInCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Monthly salary'
     });
     await expect(moneyInCard.locator('.plan-actuals-movement'))
       .toHaveText(/Money In: Salary Income.*→.*Checking/);
+    await expect(moneyInCard).toHaveClass(/money-in/);
 
     for (const card of [moneyOutCard, moneyInCard]) {
       expect(await card.evaluate((element) => {
@@ -392,6 +400,12 @@ test.describe('unified Plan & Actuals workflow', () => {
       );
       return occurrence?.status === 'actual' && Number(occurrence.actualAmount) === 450;
     }, 'planned occurrence marked actual');
+    const actualMetric = groceryCard.locator('.plan-actuals-metric').filter({
+      has: page.locator('.label', { hasText: /^Actual$/ })
+    });
+    await expect(groceryCard).toHaveClass(/money-out/);
+    await expect(actualMetric.locator('.value')).toHaveText('-R 450,00');
+    await expect(actualMetric.locator('.value')).toHaveClass(/negative/);
     await expectPlanTotal(page, 'Baseline Net', 'R 2 300,00');
     await expectPlanTotal(page, 'Current Plan Net', 'R 2 300,00');
     await expectPlanTotal(page, 'Actual Net', '-R 450,00');

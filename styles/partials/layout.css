@@ -2791,17 +2791,22 @@ button.filter-modal-open {
   padding: 9px 10px;
 }
 
-.plan-actuals-grid .plan-actuals-item.status-actual {
+.plan-actuals-grid .plan-actuals-item.money-in,
+.budget-grid .recurring-rule-card.money-in {
   border-left-color: var(--color-positive);
 }
 
-.plan-actuals-grid .plan-actuals-item.status-overdue {
-  border-left-color: var(--danger);
+.plan-actuals-grid .plan-actuals-item.money-out,
+.budget-grid .recurring-rule-card.money-out {
+  border-left-color: var(--color-negative);
 }
 
 .plan-actuals-grid .plan-actuals-item.status-skipped {
-  border-left-color: var(--text-muted);
   opacity: 0.72;
+}
+
+.budget-grid .recurring-rule-card {
+  border-left-width: 3px;
 }
 
 .plan-actuals-item-top {

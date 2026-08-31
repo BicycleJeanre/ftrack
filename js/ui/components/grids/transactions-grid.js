@@ -1152,8 +1152,10 @@ function renderTransactionsSummaryList({
     const inlineSplitEditable =
       Boolean(splitGroupId) && (!sourceSplitRole || sourceSplitRole === 'principal');
     const cardSplitRole = splitRole.includes(',') ? sourceSplitRole : splitRole;
+    const movementClass = displayTypeId === 1 ? 'money-in' : 'money-out';
     const card = document.createElement('div');
-    card.className = `grid-summary-card${rulesOnly ? ' recurring-rule-card' : ''}`;
+    card.className =
+      `grid-summary-card ${movementClass}${rulesOnly ? ' recurring-rule-card' : ''}`;
     card.dataset.sourceTransactionId = String(originalTransactionId);
     if (splitGroupId) card.dataset.splitGroupId = splitGroupId;
     if (cardSplitRole) card.dataset.splitRole = cardSplitRole;
