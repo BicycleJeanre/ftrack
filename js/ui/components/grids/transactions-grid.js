@@ -3304,6 +3304,17 @@ export async function loadMasterTransactionsGrid({
   }
 
   const dropdownState = transactionsGridState?.state?.dropdowns || {};
+  const persistedRulesWorkspace = rulesOnly
+    ? (state?.getPlanActualsWorkspace?.() || {})
+    : null;
+  if (persistedRulesWorkspace) {
+    dropdownState[splitGroupFilterStateKey] =
+      persistedRulesWorkspace.recurringSplitGroupId || '';
+    dropdownState[splitRoleFilterStateKey] =
+      persistedRulesWorkspace.recurringSplitRole || '';
+    dropdownState[splitAccountGroupFilterStateKey] =
+      persistedRulesWorkspace.recurringSplitAccountGroupId || '';
+  }
   const splitAccountGroupLabelLookup = buildAccountGroupLabelLookup(currentScenario.accountGroups || []);
 
   if (!workflowConfig?.showPlannedTransactions) {
@@ -3344,7 +3355,9 @@ export async function loadMasterTransactionsGrid({
             accountFilterSelect.appendChild(opt);
           });
         const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
-        const storedSummaryAccount = dropdownState[accountFilterStateKey];
+        const storedSummaryAccount = rulesOnly
+          ? state?.getTransactionsAccountFilterId?.()
+          : dropdownState[accountFilterStateKey];
         const defaultSummaryAccount = rulesOnly
           ? (storedSummaryAccount || '')
           : (storedSummaryAccount || (firstAccountId ? String(firstAccountId) : ''));
@@ -3354,6 +3367,11 @@ export async function loadMasterTransactionsGrid({
         }
         accountFilterSelect.addEventListener('change', (e) => {
           transactionsGridState.state.dropdowns[accountFilterStateKey] = e.target.value;
+          if (rulesOnly) {
+            state?.setTransactionsAccountFilterId?.(
+              e.target.value ? Number(e.target.value) : null
+            );
+          }
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
 
@@ -3489,6 +3507,11 @@ export async function loadMasterTransactionsGrid({
         splitGroupSelectSummary.value = String(dropdownState[splitGroupFilterStateKey] || '');
         splitGroupSelectSummary.addEventListener('change', () => {
           transactionsGridState.state.dropdowns[splitGroupFilterStateKey] = splitGroupSelectSummary.value;
+          if (rulesOnly) {
+            state?.patchPlanActualsWorkspace?.({
+              recurringSplitGroupId: splitGroupSelectSummary.value || null
+            });
+          }
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
 
@@ -3505,6 +3528,11 @@ export async function loadMasterTransactionsGrid({
         splitRoleSelectSummary.value = String(dropdownState[splitRoleFilterStateKey] || '');
         splitRoleSelectSummary.addEventListener('change', () => {
           transactionsGridState.state.dropdowns[splitRoleFilterStateKey] = splitRoleSelectSummary.value;
+          if (rulesOnly) {
+            state?.patchPlanActualsWorkspace?.({
+              recurringSplitRole: splitRoleSelectSummary.value || null
+            });
+          }
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
 
@@ -3521,6 +3549,14 @@ export async function loadMasterTransactionsGrid({
         splitAccountGroupSelectSummary.value = String(dropdownState[splitAccountGroupFilterStateKey] || '');
         splitAccountGroupSelectSummary.addEventListener('change', () => {
           transactionsGridState.state.dropdowns[splitAccountGroupFilterStateKey] = splitAccountGroupSelectSummary.value;
+          if (rulesOnly) {
+            state?.patchPlanActualsWorkspace?.({
+              recurringSplitAccountGroupId:
+                splitAccountGroupSelectSummary.value
+                  ? Number(splitAccountGroupSelectSummary.value)
+                  : null
+            });
+          }
           loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
         });
 
@@ -4075,7 +4111,9 @@ export async function loadMasterTransactionsGrid({
               opt.textContent = account.name;
               accountFilterSelect.appendChild(opt);
             });
-          const storedDetailAccount = dropdownState[accountFilterStateKey];
+          const storedDetailAccount = rulesOnly
+            ? state?.getTransactionsAccountFilterId?.()
+            : dropdownState[accountFilterStateKey];
           const detailFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
           const defaultDetailAccount = storedDetailAccount || (detailFirstAccountId ? String(detailFirstAccountId) : '');
           if (defaultDetailAccount) {
@@ -4185,7 +4223,9 @@ export async function loadMasterTransactionsGrid({
             groupBySelect.appendChild(opt);
           });
           const detailGroupBy = String(dropdownState[groupByStateKey] || '');
-          const currentGroupBy = detailGroupBy || state?.getGroupBy?.() || '';
+          const currentGroupBy = rulesOnly
+            ? (state?.getGroupBy?.() || '')
+            : (detailGroupBy || state?.getGroupBy?.() || '');
           groupBySelect.value = currentGroupBy;
           if (currentGroupBy && !detailGroupBy) {
             state?.setGroupBy?.(currentGroupBy);
@@ -4211,6 +4251,11 @@ export async function loadMasterTransactionsGrid({
           splitGroupSelect.value = String(dropdownState[splitGroupFilterStateKey] || '');
           splitGroupSelect.addEventListener('change', () => {
             transactionsGridState.state.dropdowns[splitGroupFilterStateKey] = splitGroupSelect.value;
+            if (rulesOnly) {
+              state?.patchPlanActualsWorkspace?.({
+                recurringSplitGroupId: splitGroupSelect.value || null
+              });
+            }
             loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           });
 
@@ -4227,6 +4272,11 @@ export async function loadMasterTransactionsGrid({
           splitRoleSelect.value = String(dropdownState[splitRoleFilterStateKey] || '');
           splitRoleSelect.addEventListener('change', () => {
             transactionsGridState.state.dropdowns[splitRoleFilterStateKey] = splitRoleSelect.value;
+            if (rulesOnly) {
+              state?.patchPlanActualsWorkspace?.({
+                recurringSplitRole: splitRoleSelect.value || null
+              });
+            }
             loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           });
 
@@ -4243,6 +4293,14 @@ export async function loadMasterTransactionsGrid({
           splitAccountGroupSelect.value = String(dropdownState[splitAccountGroupFilterStateKey] || '');
           splitAccountGroupSelect.addEventListener('change', () => {
             transactionsGridState.state.dropdowns[splitAccountGroupFilterStateKey] = splitAccountGroupSelect.value;
+            if (rulesOnly) {
+              state?.patchPlanActualsWorkspace?.({
+                recurringSplitAccountGroupId:
+                  splitAccountGroupSelect.value
+                    ? Number(splitAccountGroupSelect.value)
+                    : null
+              });
+            }
             loadMasterTransactionsGrid({ container, scenarioState, getWorkflowConfig, state, tables, callbacks, logger });
           });
 

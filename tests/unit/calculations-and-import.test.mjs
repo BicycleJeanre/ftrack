@@ -46,7 +46,10 @@ const { getRecurrenceDescription } = await import('../../js/domain/calculations/
 const { calculatePeriodicChange } = await import('../../js/domain/calculations/financial-calculations.js');
 const DataStore = await import('../../js/app/services/storage-service.js');
 const DataService = await import('../../js/app/services/data-service.js');
-const { getDefaultProjectionWindowDates } = await import('../../js/shared/app-data-utils.js');
+const {
+  getDefaultProjectionWindowDates,
+  normalizeUiState
+} = await import('../../js/shared/app-data-utils.js');
 const { formatDateOnly, parseDateOnly } = await import('../../js/shared/date-utils.js');
 const { migrateAppData } = await import('../../js/shared/migration-utils.js');
 
@@ -195,6 +198,49 @@ test('recurrence summary shows frequency and optional end date without a recurri
     }),
     'One time on 2026-06-01'
   );
+});
+
+test('ui state normalizes per-scenario Plan and Actuals workspace selections', () => {
+  const state = normalizeUiState({
+    lastWorkflowId: 'general',
+    planActualsWorkspaceByScenario: {
+      1: {
+        viewByContext: {
+          general: 'recurring',
+          'plan-rules-detail': 'recurring',
+          invalid: 'unsupported'
+        },
+        periodTypeId: 4,
+        periodId: '2026-Q2',
+        accountId: '3',
+        groupBy: 'movement',
+        recurringAccountId: 4,
+        recurringGroupBy: 'secondaryAccountName',
+        recurringSplitGroupId: 'loan-payment',
+        recurringSplitRole: 'interest',
+        recurringSplitAccountGroupId: '8'
+      },
+      invalid: { view: 'recurring' }
+    }
+  });
+
+  assert.deepEqual(state.planActualsWorkspaceByScenario, {
+    1: {
+      viewByContext: {
+        general: 'recurring',
+        'plan-rules-detail': 'recurring'
+      },
+      periodTypeId: 4,
+      periodId: '2026-Q2',
+      accountId: 3,
+      groupBy: 'movement',
+      recurringAccountId: 4,
+      recurringGroupBy: 'secondaryAccountName',
+      recurringSplitGroupId: 'loan-payment',
+      recurringSplitRole: 'interest',
+      recurringSplitAccountGroupId: 8
+    }
+  });
 });
 
 test('periodic change math covers fixed amount, nominal compounding, and custom compounding', () => {

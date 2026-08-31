@@ -109,6 +109,11 @@ export function createDefaultUiState(overrides = {}) {
       projections: DEFAULT_PERIOD_TYPE_ID,
       ...(overrides.viewPeriodTypeIds || {})
     },
+    planActualsWorkspaceByScenario:
+      overrides.planActualsWorkspaceByScenario &&
+      typeof overrides.planActualsWorkspaceByScenario === 'object'
+        ? overrides.planActualsWorkspaceByScenario
+        : {},
     accordionStates: overrides.accordionStates && typeof overrides.accordionStates === 'object' ? overrides.accordionStates : {},
     ...overrides,
     lastWorkflowId: safeWorkflowId
@@ -131,6 +136,73 @@ export function normalizeUiState(raw) {
     Object.entries(rawAccordion).filter(([, v]) => typeof v === 'boolean')
   );
 
+  const rawWorkspaces = base.planActualsWorkspaceByScenario &&
+    typeof base.planActualsWorkspaceByScenario === 'object'
+      ? base.planActualsWorkspaceByScenario
+      : {};
+  const periodViews = new Set(['period', 'recurring']);
+  const periodGroups = new Set(['', 'status', 'movement', 'repeat']);
+  const recurringGroups = new Set([
+    '',
+    'transactionTypeName',
+    'primaryAccountName',
+    'secondaryAccountName',
+    'transactionGroupId',
+    'transactionGroupRole',
+    'transactionGroupAccountGroupLabel'
+  ]);
+  const cleanOptionalString = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    return String(value).slice(0, 200);
+  };
+  const cleanOptionalId = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  };
+  const planActualsWorkspaceByScenario = Object.fromEntries(
+    Object.entries(rawWorkspaces)
+      .filter(([scenarioId, workspace]) => (
+        Number.isFinite(Number(scenarioId)) && Number(scenarioId) > 0 &&
+        workspace && typeof workspace === 'object'
+      ))
+      .map(([scenarioId, workspace]) => {
+        const periodTypeId = Number(workspace.periodTypeId);
+        const periodGroup = String(workspace.groupBy || '');
+        const recurringGroup = String(workspace.recurringGroupBy || '');
+        const rawViews = workspace.viewByContext && typeof workspace.viewByContext === 'object'
+          ? workspace.viewByContext
+          : {};
+        const viewByContext = Object.fromEntries(
+          Object.entries(rawViews)
+            .filter(([contextKey, view]) => (
+              contextKey && contextKey.length <= 100 && periodViews.has(String(view))
+            ))
+            .map(([contextKey, view]) => [contextKey, String(view)])
+        );
+        if (!viewByContext.general && periodViews.has(String(workspace.view || ''))) {
+          viewByContext.general = String(workspace.view);
+        }
+        return [String(Number(scenarioId)), {
+          viewByContext,
+          periodTypeId:
+            Number.isInteger(periodTypeId) && periodTypeId >= 1 && periodTypeId <= 5
+              ? periodTypeId
+              : DEFAULT_PERIOD_TYPE_ID,
+          periodId: cleanOptionalString(workspace.periodId),
+          accountId: cleanOptionalId(workspace.accountId),
+          groupBy: periodGroups.has(periodGroup) ? periodGroup : '',
+          recurringAccountId: cleanOptionalId(workspace.recurringAccountId),
+          recurringGroupBy: recurringGroups.has(recurringGroup) ? recurringGroup : '',
+          recurringSplitGroupId: cleanOptionalString(workspace.recurringSplitGroupId),
+          recurringSplitRole: cleanOptionalString(workspace.recurringSplitRole),
+          recurringSplitAccountGroupId: cleanOptionalId(
+            workspace.recurringSplitAccountGroupId
+          )
+        }];
+      })
+  );
+
   return {
     lastWorkflowId: workflowId,
     lastScenarioId: base.lastScenarioId == null ? null : Number(base.lastScenarioId),
@@ -143,6 +215,7 @@ export function normalizeUiState(raw) {
         DEFAULT_PERIOD_TYPE_ID,
       projections: cleanPeriod(view.projections) ?? DEFAULT_PERIOD_TYPE_ID
     },
+    planActualsWorkspaceByScenario,
     accordionStates
   };
 }

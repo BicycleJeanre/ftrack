@@ -66,6 +66,10 @@ Both modes keep their controls and primary actions together in one visible top
 toolbar. There is no separate filter pop-up to open before changing the view.
 On narrower screens, scroll the toolbar horizontally to reach every control.
 
+The app remembers the last Plan & Actuals workspace separately for each
+scenario. Returning to the app restores Period versus Recurring, the time view,
+selected period, account, grouping, and the Recurring filter selections.
+
 ## 6.0 Period Controls
 
 ![General Plan & Actuals Period controls and comparison cards](assets/user-guides/budget-period.jpg "The Period toolbar controls time, account perspective, grouping, creation, and baseline freezing.")

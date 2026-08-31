@@ -2,7 +2,9 @@ const { test, expect } = require('@playwright/test');
 const {
   loadSmokeData,
   gotoFTrack,
+  readAppData,
   currentScenario,
+  waitForAppReady,
   waitForCollectionCount,
   waitForScenario
 } = require('../helpers/app-data');
@@ -257,6 +259,50 @@ test.describe('unified Plan & Actuals workflow', () => {
     await periodTab.click();
     await expect(periodTab).toHaveAttribute('aria-selected', 'true');
     await expect(planSection).toContainText('Groceries budget');
+  });
+
+  test('restores the last Plan and Actuals workspace after a full reload', async ({ page }) => {
+    const scenarioId = (await currentScenario(page)).id;
+    const periodSelect = page.locator('#plan-period-inline');
+    const savedPeriodId = await periodSelect.locator('option').evaluateAll((options) => {
+      if (options.length < 2) throw new Error('Expected multiple planning periods');
+      return options.at(-1).value;
+    });
+    await periodSelect.selectOption(savedPeriodId);
+    await page.locator('#plan-account-inline').selectOption('1');
+    await page.locator('#plan-group-inline').selectOption('movement');
+
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    await page.locator('#tx-account-filter-select').selectOption('1');
+    await page.locator('#tx-grouping-select-summary').selectOption('secondaryAccountName');
+
+    await expect.poll(async () => {
+      const data = await readAppData(page);
+      return data.uiState?.planActualsWorkspaceByScenario?.[String(scenarioId)];
+    }).toMatchObject({
+      viewByContext: { general: 'recurring' },
+      periodTypeId: 3,
+      periodId: savedPeriodId,
+      accountId: 1,
+      groupBy: 'movement',
+      recurringAccountId: 1,
+      recurringGroupBy: 'secondaryAccountName'
+    });
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page);
+
+    await expect(page.getByRole('tab', { name: 'Recurring', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#tx-account-filter-select')).toHaveValue('1');
+    await expect(page.locator('#tx-grouping-select-summary'))
+      .toHaveValue('secondaryAccountName');
+
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await expect(page.locator('#plan-period-type-inline')).toHaveValue('Month');
+    await expect(page.locator('#plan-period-inline')).toHaveValue(savedPeriodId);
+    await expect(page.locator('#plan-account-inline')).toHaveValue('1');
+    await expect(page.locator('#plan-group-inline')).toHaveValue('movement');
   });
 
   test('renders descriptions immediately below direction-aware money movements', async ({ page }) => {

@@ -46,11 +46,11 @@ import {
 import {
   loadMasterTransactionsGrid as loadMasterTransactionsGridCore,
   teardownRecurringRulesDetailGrid
-} from '../components/grids/transactions-grid.js?v=20260831-actual-checkbox-17';
+} from '../components/grids/transactions-grid.js?v=20260831-workspace-state-19';
 import {
   loadPlanActualsGrid as loadPlanActualsGridCore,
   teardownPlanActualsGrid as teardownPlanActualsGridCore
-} from '../components/grids/plan-actuals-grid.js?v=20260831-actual-checkbox-17';
+} from '../components/grids/plan-actuals-grid.js?v=20260831-workspace-state-19';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js';
@@ -81,6 +81,7 @@ import { generateProjections } from '../../domain/calculations/projection-engine
 
 let currentScenario = null;
 let uiState = null;
+let planActualsWorkspaceRevision = 0;
 let currentWorkflowId = DEFAULT_WORKFLOW_ID;
 let transactionsAccountFilterId = null; // Track account filter for transactions view (independent of budget/projections)
 let budgetAccountFilterId = null; // Track account filter for budget view (independent of transactions/projections)
@@ -315,6 +316,53 @@ async function patchUiState(nextPartial) {
   return uiState;
 }
 
+function getPlanActualsWorkspace(scenarioId = currentScenario?.id) {
+  const key = String(Number(scenarioId || 0));
+  return uiState?.planActualsWorkspaceByScenario?.[key] || {};
+}
+
+function patchPlanActualsWorkspace(partial = {}, scenarioId = currentScenario?.id) {
+  const id = Number(scenarioId || 0);
+  if (!id) return Promise.resolve(uiState);
+  const key = String(id);
+  const nextWorkspaces = {
+    ...(uiState?.planActualsWorkspaceByScenario || {}),
+    [key]: {
+      ...getPlanActualsWorkspace(id),
+      ...(partial && typeof partial === 'object' ? partial : {})
+    }
+  };
+  uiState = {
+    ...(uiState || {}),
+    planActualsWorkspaceByScenario: nextWorkspaces
+  };
+  const revision = ++planActualsWorkspaceRevision;
+  return UiStateManager.patch({
+    planActualsWorkspaceByScenario: nextWorkspaces
+  }).then((persisted) => {
+    if (revision === planActualsWorkspaceRevision) uiState = persisted;
+    return persisted;
+  }).catch((err) => {
+    logger.error('[UiState] Failed to persist Plan & Actuals workspace:', err);
+    return uiState;
+  });
+}
+
+function restorePlanActualsWorkspace(scenario) {
+  const workspace = getPlanActualsWorkspace(scenario?.id);
+  const accountIds = new Set((scenario?.accounts || []).map((account) => Number(account.id)));
+  const validAccount = (value) => {
+    const id = Number(value || 0);
+    return id && accountIds.has(id) ? id : null;
+  };
+  budgetPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(workspace.periodTypeId) || 3] || 'Month';
+  budgetPeriod = workspace.periodId || null;
+  budgetAccountFilterId = validAccount(workspace.accountId);
+  budgetGroupBy = workspace.groupBy || '';
+  transactionsAccountFilterId = validAccount(workspace.recurringAccountId);
+  transactionsGroupBy = workspace.recurringGroupBy || '';
+}
+
 async function loadUiState() {
   uiState = await UiStateManager.get();
 
@@ -382,6 +430,7 @@ async function setCurrentScenarioById(scenarioId) {
     transactionsPeriods = [];
     budgetPeriods = [];
     projectionPeriods = [];
+    restorePlanActualsWorkspace(currentScenario);
 
     await patchUiState({
       lastScenarioId: currentScenario.id,
@@ -1065,6 +1114,9 @@ async function loadMasterTransactionsGrid(
       getTransactionsAccountFilterId: () => transactionsAccountFilterId,
       setTransactionsAccountFilterId: (nextId) => {
         transactionsAccountFilterId = nextId;
+        if (rulesOnly) {
+          patchPlanActualsWorkspace({ recurringAccountId: nextId });
+        }
       },
       getActualPeriod: () => rulesOnly ? null : actualPeriod,
       setActualPeriod: (nextPeriod) => {
@@ -1092,11 +1144,16 @@ async function loadMasterTransactionsGrid(
       getGroupBy: () => transactionsGroupBy,
       setGroupBy: (nextField) => {
         transactionsGroupBy = nextField;
+        if (rulesOnly) {
+          patchPlanActualsWorkspace({ recurringGroupBy: nextField || '' });
+        }
       },
       getAllPeriodsExpanded: () => transactionsAllPeriodsExpanded,
       setAllPeriodsExpanded: (nextFlag) => {
         transactionsAllPeriodsExpanded = nextFlag;
-      }
+      },
+      getPlanActualsWorkspace: () => getPlanActualsWorkspace(),
+      patchPlanActualsWorkspace: (partial) => patchPlanActualsWorkspace(partial)
     },
     tables: {
       getMasterTransactionsTable: () => masterTransactionsTable,
@@ -1366,22 +1423,28 @@ async function loadBudgetGrid(container) {
       getBudgetAccountFilterId: () => budgetAccountFilterId,
       setBudgetAccountFilterId: (nextId) => {
         budgetAccountFilterId = nextId;
+        patchPlanActualsWorkspace({ accountId: nextId });
       },
       getBudgetPeriod: () => budgetPeriod,
       setBudgetPeriod: (nextPeriod) => {
         budgetPeriod = nextPeriod;
+        patchPlanActualsWorkspace({ periodId: nextPeriod });
       },
       getBudgetPeriodType: () => budgetPeriodType,
       setBudgetPeriodType: (nextType) => {
         budgetPeriodType = nextType;
         const nextId = mapPeriodTypeNameToId(nextType) || 3;
-          patchUiState({
-            viewPeriodTypeIds: {
-              ...(uiState?.viewPeriodTypeIds || {}),
-              planActuals: nextId
-            }
-          });
-        },
+        patchPlanActualsWorkspace({
+          periodTypeId: nextId,
+          periodId: null
+        });
+        patchUiState({
+          viewPeriodTypeIds: {
+            ...(uiState?.viewPeriodTypeIds || {}),
+            planActuals: nextId
+          }
+        });
+      },
       getBudgetPeriods: () => budgetPeriods,
       setBudgetPeriods: (nextPeriods) => {
         budgetPeriods = nextPeriods;
@@ -1389,11 +1452,24 @@ async function loadBudgetGrid(container) {
       getGroupBy: () => budgetGroupBy,
       setGroupBy: (nextField) => {
         budgetGroupBy = nextField;
+        patchPlanActualsWorkspace({ groupBy: nextField || '' });
       }
     },
     presentation,
     callbacks: {
       teardownRecurringView: teardownRecurringRulesDetailGrid,
+      getPersistedView: () => (
+        getPlanActualsWorkspace()?.viewByContext?.[presentation.contextKey] || null
+      ),
+      setPersistedView: (nextView) => {
+        const workspace = getPlanActualsWorkspace();
+        return patchPlanActualsWorkspace({
+          viewByContext: {
+            ...(workspace.viewByContext || {}),
+            [presentation.contextKey]: nextView
+          }
+        });
+      },
       loadRecurringView: (recurringContainer, recurringPresentation = presentation) => (
         isRenderCurrent()
           ? loadMasterTransactionsGrid(recurringContainer, {

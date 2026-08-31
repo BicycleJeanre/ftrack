@@ -1858,6 +1858,7 @@ export async function loadPlanActualsGrid({
   const viewKey = `${resolvedPresentation.contextKey}:${scenarioId}`;
   const view =
     viewByContextScenario.get(viewKey) ||
+    callbacks?.getPersistedView?.() ||
     resolvedPresentation.defaultView;
   const reload = async () => loadPlanActualsGrid({
     container,
@@ -1872,7 +1873,8 @@ export async function loadPlanActualsGrid({
     container,
     viewKey,
     view,
-    onChange: async () => {
+    onChange: async (nextView) => {
+      await callbacks?.setPersistedView?.(nextView);
       teardownPlanActualsGrid({
         container,
         teardownRecurringView: callbacks?.teardownRecurringView

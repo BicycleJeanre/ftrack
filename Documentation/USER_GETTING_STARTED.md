@@ -54,6 +54,9 @@ Use the in-app documentation in either of two ways:
     trigger an automatic refresh. Use **Refresh projections now** if you do not
     want to wait.
 
+FTrack remembers the last Plan & Actuals tab, period, account, grouping, and
+Recurring filters for each scenario, so a reload returns to the same workspace.
+
 ## 1.3 Reading Money Movements
 
 - **Money In** flows from the secondary/source account into the
