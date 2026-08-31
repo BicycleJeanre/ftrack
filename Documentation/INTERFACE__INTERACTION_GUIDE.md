@@ -133,7 +133,7 @@ The available actions depend on the item's status and origin:
 
 - **Actual checkbox** records a planned item as completed using its planned
   amount and date. It remains checked once the item is actual.
-- **Skip occurrence** excludes a planned occurrence that will not happen.
+- **Remove this occurrence** excludes a planned occurrence that will not happen.
 - **Edit item** opens the occurrence editor.
 - **Duplicate item** creates a separate one-time planned copy.
 - **Restore to planned** becomes available when editing a skipped item.

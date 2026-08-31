@@ -85,7 +85,7 @@ Use these as recording guardrails.
 - The first actual freezes an unfrozen period automatically.
 - The **Actual** checkbox can use the planned amount/date; edit the item when
   either differs.
-- **Skip occurrence** excludes the item from projections.
+- **Remove this occurrence** excludes the item from projections.
 - A manual Actual is treated as unplanned, with zero baseline and current
   plan.
 
@@ -390,7 +390,7 @@ Pause after saving each rule so its repeat description is readable.
 
 **Actions**:
 
-1. Hover or briefly identify **Skip occurrence**.
+1. Hover or briefly identify **Remove this occurrence**.
 2. Identify **Duplicate item**.
 3. Do not save either action in the master dataset unless a separate retake is
    available.

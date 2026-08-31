@@ -867,6 +867,82 @@ test('updateSplitSeries atomically segments all roles and preserves past actual 
   assert.equal(dispatchedEvents.length, 1);
 });
 
+test('updateSplitSeries replaces future line items while preserving earlier split history', async () => {
+  await seed(splitData());
+
+  await OccurrenceManager.updateSplitSeries(
+    1,
+    'tx:10|date:2026-02-15|role:principal',
+    {
+      scope: 'future',
+      setUpdates: {
+        description: 'Running costs',
+        strategy: 'manual',
+        payingAccountId: 1,
+        targetAccountId: 2,
+        recurrence: splitData().scenarios[0].splitTransactionSets[0].recurrence,
+        tags: ['household']
+      },
+      replacementComponents: [
+        {
+          role: 'principal',
+          accountId: 2,
+          transactionTypeId: 2,
+          amount: 70,
+          description: 'Groceries'
+        },
+        {
+          role: 'line_shop',
+          accountId: 3,
+          transactionTypeId: 2,
+          amount: 30,
+          description: 'Hardware shop'
+        }
+      ]
+    }
+  );
+
+  const current = await scenario();
+  const historical = current.splitTransactionSets.find((set) => set.id === 'payment');
+  const replacement = current.splitTransactionSets.find((set) => set.id !== 'payment');
+  assert.equal(historical.totalAmount, 100);
+  assert.deepEqual(
+    historical.components.map((component) => component.role),
+    ['principal', 'interest']
+  );
+  assert.ok(replacement);
+  assert.equal(replacement.description, 'Running costs');
+  assert.equal(replacement.totalAmount, 100);
+  assert.deepEqual(
+    replacement.components.map((component) => component.role),
+    ['principal', 'line_shop']
+  );
+  assert.deepEqual(
+    replacement.components.map((component) => component.description),
+    ['Groceries', 'Hardware shop']
+  );
+  const replacementRules = current.transactions.filter(
+    (rule) => rule.transactionGroupId === replacement.id
+  );
+  assert.equal(replacementRules.length, 2);
+  assert.equal(
+    replacementRules.find((rule) => rule.transactionGroupRole === 'principal').amount,
+    70
+  );
+  assert.equal(
+    replacementRules.find((rule) => rule.transactionGroupRole === 'line_shop').amount,
+    30
+  );
+  assert.ok(!replacementRules.some(
+    (rule) => rule.transactionGroupRole === 'interest'
+  ));
+  const february = resolveWindow(current, '2026-02-01', '2026-02-28');
+  assert.deepEqual(
+    february.map((occurrence) => occurrence.description).sort(),
+    ['Groceries', 'Hardware shop']
+  );
+});
+
 test('updateSplitSeries entire-series scope updates later split segments without rewriting the past', async () => {
   await seed(splitData());
   await OccurrenceManager.updateThisAndFuture(

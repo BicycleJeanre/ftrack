@@ -328,6 +328,16 @@ Recurring also lets you duplicate a normal rule or a whole split set. Use
 occurrence. FTrack retains prior actuals, skips, and frozen baselines and
 refuses to end a series across protected future history.
 
+From a Period card, **Remove this occurrence** affects only that date.
+**Delete this and future occurrences** ends the linked rule from the selected
+date forward after confirmation.
+
+For a grouped cost such as Running Costs, select **Create recurring
+transaction with line items**. Choose the paying account once, then use **Add
+line** for each destination account, value, and description. The component
+movements retain the normal two-account model but are maintained as one
+grouped recurring transaction.
+
 ### 3.8 Duplicate or Start Repeating
 
 - **Duplicate item** creates a new one-time planned copy.
@@ -356,7 +366,7 @@ For an expected item:
 
 1. tick **Actual**;
 2. edit the item if its actual amount or date differs; or
-3. use **Skip occurrence** if it will not happen.
+3. use **Remove this occurrence** if it will not happen.
 
 For an unexpected item:
 

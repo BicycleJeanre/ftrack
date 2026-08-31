@@ -50,11 +50,11 @@ import {
 import {
   loadMasterTransactionsGrid as loadMasterTransactionsGridCore,
   teardownRecurringRulesDetailGrid
-} from '../components/grids/transactions-grid.js?v=20260831-workspace-state-19';
+} from '../components/grids/transactions-grid.js?v=20260831-line-items-series-27';
 import {
   loadPlanActualsGrid as loadPlanActualsGridCore,
   teardownPlanActualsGrid as teardownPlanActualsGridCore
-} from '../components/grids/plan-actuals-grid.js?v=20260831-status-filter-26';
+} from '../components/grids/plan-actuals-grid.js?v=20260831-line-items-series-27';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js';

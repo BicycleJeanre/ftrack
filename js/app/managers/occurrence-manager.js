@@ -105,6 +105,17 @@ function normalizeRole(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeTransactionTypeId(value) {
+  const typeId = Number(value || 2);
+  if (typeId !== 1 && typeId !== 2) {
+    throw new OccurrenceCommandError(
+      'invalid-transaction-type',
+      'transactionTypeId must be Money In (1) or Money Out (2).'
+    );
+  }
+  return typeId;
+}
+
 function normalizeDate(value, field = 'date', { nullable = false } = {}) {
   if (nullable && (value === null || value === undefined || value === '')) return null;
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -1413,6 +1424,228 @@ function applySplitUpdatesToGroups(
   });
 }
 
+function normalizeReplacementSplitComponents(components = []) {
+  if (!Array.isArray(components) || !components.length) {
+    throw new OccurrenceCommandError(
+      'split-components-required',
+      'At least one split line item is required.'
+    );
+  }
+  const seenRoles = new Set();
+  const normalized = components.flatMap((component, index) => {
+    const role = normalizeRole(component?.role);
+    if (!role) {
+      throw new OccurrenceCommandError(
+        'split-component-role-required',
+        `components[${index}].role is required.`
+      );
+    }
+    if (seenRoles.has(role)) {
+      throw new OccurrenceCommandError(
+        'duplicate-split-component-role',
+        `Split component role ${role} was provided more than once.`
+      );
+    }
+    seenRoles.add(role);
+    const amount = absoluteAmount(
+      component?.amount ?? component?.value,
+      `components[${index}].amount`
+    );
+    if (amount <= 0) return [];
+    const accountId = positiveId(
+      component?.secondaryAccountId ?? component?.accountId,
+      `components[${index}].accountId`
+    );
+    return [{
+      role,
+      accountId,
+      secondaryAccountId: accountId,
+      transactionTypeId: normalizeTransactionTypeId(component?.transactionTypeId),
+      amount,
+      value: amount,
+      description: String(component?.description || '').trim(),
+      accountGroupId: positiveId(
+        component?.accountGroupId,
+        `components[${index}].accountGroupId`,
+        { nullable: true }
+      ),
+      recurrence: clonePlain(component?.recurrence || null),
+      periodicChange: clonePlain(component?.periodicChange || null),
+      amountMode: String(component?.amountMode || 'fixed').trim().toLowerCase() || 'fixed',
+      order: Number.isFinite(Number(component?.order)) ? Number(component.order) : index
+    }];
+  });
+  if (!normalized.length) {
+    throw new OccurrenceCommandError(
+      'split-components-required',
+      'At least one line item must have an account and an amount greater than zero.'
+    );
+  }
+  return normalized;
+}
+
+function replaceSplitComponentsInGroups(
+  scenario,
+  groupIds,
+  rawComponents,
+  setUpdates,
+  timestamp
+) {
+  const components = normalizeReplacementSplitComponents(rawComponents);
+  const affectedGroupIds = new Set(groupIds);
+
+  affectedGroupIds.forEach((groupId) => {
+    const setIndex = (scenario.splitTransactionSets || []).findIndex(
+      (set) => String(set?.id || '').trim() === groupId
+    );
+    if (setIndex < 0) {
+      throw new OccurrenceCommandError(
+        'split-set-not-found',
+        `Split transaction set ${groupId} was not found.`
+      );
+    }
+    const sourceSet = scenario.splitTransactionSets[setIndex];
+    const groupRules = (scenario.transactions || []).filter(
+      (rule) => String(rule?.transactionGroupId || '').trim() === groupId
+    );
+    if (!groupRules.length) {
+      throw new OccurrenceCommandError(
+        'split-rules-not-found',
+        `Split transaction set ${groupId} has no component rules.`
+      );
+    }
+
+    const existingByRole = new Map(
+      groupRules.map((rule) => [normalizeRole(rule?.transactionGroupRole), rule])
+    );
+    const nextRoles = new Set(components.map((component) => component.role));
+    const removedRules = groupRules.filter(
+      (rule) => !nextRoles.has(normalizeRole(rule?.transactionGroupRole))
+    );
+    const removedSourceIds = new Set(removedRules.map((rule) => Number(rule.id)));
+    const segmentStart =
+      sourceSet?.activeFrom ||
+      sourceSet?.recurrence?.startDate ||
+      sourceSet?.effectiveDate ||
+      ruleStartDate(groupRules[0]);
+    const protectedRemovedHistory = (scenario.transactionOccurrences || []).filter(
+      (occurrence) => (
+        removedSourceIds.has(Number(occurrence?.sourceTransactionId)) &&
+        (!segmentStart || occurrence?.scheduledDate >= segmentStart) &&
+        hasProtectedOccurrenceEvidence(occurrence)
+      )
+    );
+    if (protectedRemovedHistory.length) {
+      throw new OccurrenceCommandError(
+        'split-component-history-conflict',
+        'A line item with actual, removed, or frozen history cannot be deleted from this series segment.',
+        {
+          occurrenceKeys: protectedRemovedHistory.map(
+            (occurrence) => occurrence?.occurrenceKey
+          )
+        }
+      );
+    }
+
+    if (removedSourceIds.size) {
+      scenario.transactions = (scenario.transactions || []).filter(
+        (rule) => !removedSourceIds.has(Number(rule?.id))
+      );
+      scenario.transactionOccurrences = (scenario.transactionOccurrences || []).filter(
+        (occurrence) => !removedSourceIds.has(Number(occurrence?.sourceTransactionId))
+      );
+    }
+
+    const payingAccountId = hasOwn(setUpdates, 'payingAccountId')
+      ? setUpdates.payingAccountId
+      : positiveId(sourceSet?.payingAccountId, 'payingAccountId');
+    const sharedRecurrence = clonePlain(
+      setUpdates?.recurrence || sourceSet?.recurrence || groupRules[0]?.recurrence || null
+    );
+    const segmentEnd = sourceSet?.activeTo ?? sourceSet?.recurrence?.endDate ?? null;
+    let nextId = allocateNextId(scenario.transactions);
+    const templateRule = groupRules.find(
+      (rule) => !removedSourceIds.has(Number(rule?.id))
+    ) || groupRules[0];
+
+    components.forEach((component) => {
+      const existing = existingByRole.get(component.role) || null;
+      const recurrence = component.recurrence || sharedRecurrence;
+      const rulePatch = {
+        primaryAccountId: payingAccountId,
+        secondaryAccountId: component.accountId,
+        transactionTypeId: component.transactionTypeId,
+        amount: component.amount,
+        description: component.description,
+        recurrence,
+        periodicChange: component.periodicChange,
+        tags: hasOwn(setUpdates, 'tags')
+          ? [...setUpdates.tags]
+          : [...(templateRule?.tags || [])]
+      };
+      if (existing && !removedSourceIds.has(Number(existing.id))) {
+        const index = scenario.transactions.findIndex(
+          (rule) => Number(rule?.id) === Number(existing.id)
+        );
+        scenario.transactions[index] = {
+          ...applyRulePatch(existing, rulePatch, timestamp, {
+            startDate: ruleStartDate(existing),
+            endDate: existing?.activeTo ?? existing?.recurrence?.endDate ?? segmentEnd
+          }),
+          transactionGroupAccountGroupId: component.accountGroupId
+        };
+        return;
+      }
+
+      const id = nextId++;
+      scenario.transactions.push({
+        ...clonePlain(templateRule),
+        ...rulePatch,
+        id,
+        effectiveDate: segmentStart,
+        transactionGroupId: groupId,
+        transactionGroupRole: component.role,
+        transactionGroupAccountGroupId: component.accountGroupId,
+        status: { name: 'planned', actualAmount: null, actualDate: null },
+        seriesRootId: id,
+        supersedesTransactionId: null,
+        activeFrom: segmentStart,
+        activeTo: segmentEnd,
+        promotedFromOccurrenceKey: null,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      });
+    });
+
+    const storedComponents = components.map((component) => ({
+      role: component.role,
+      accountId: component.accountId,
+      transactionTypeId: component.transactionTypeId,
+      accountGroupId: component.accountGroupId,
+      description: component.description,
+      recurrence: component.recurrence || sharedRecurrence,
+      periodicChange: component.periodicChange,
+      amountMode: component.amountMode,
+      value: component.amount,
+      order: component.order
+    }));
+    scenario.splitTransactionSets[setIndex] = {
+      ...clonePlain(sourceSet),
+      ...clonePlain(setUpdates),
+      id: groupId,
+      payingAccountId,
+      recurrence: sharedRecurrence,
+      components: storedComponents,
+      totalAmount: storedComponents.reduce(
+        (sum, component) => sum + Math.abs(Number(component.value || 0)),
+        0
+      ),
+      createdAt: sourceSet.createdAt || timestamp,
+      updatedAt: timestamp
+    };
+  });
+}
+
 function nextRecurrenceDate(recurrence, afterDate) {
   const normalizedAfter = normalizeDate(afterDate, 'afterDate');
   const start = addDays(normalizedAfter, 1);
@@ -1775,7 +2008,8 @@ export async function updateSplitSeries(
   {
     scope = 'future',
     setUpdates = {},
-    componentUpdates = []
+    componentUpdates = [],
+    replacementComponents = null
   } = {}
 ) {
   const normalizedScope = String(scope || '').trim().toLowerCase();
@@ -1786,7 +2020,20 @@ export async function updateSplitSeries(
     );
   }
   const normalizedSetUpdates = normalizeSplitSetUpdates(setUpdates);
-  const updatesByRole = normalizeSplitComponentUpdates(componentUpdates);
+  const hasReplacementComponents = Array.isArray(replacementComponents);
+  const updatesByRole = hasReplacementComponents
+    ? new Map(normalizeReplacementSplitComponents(replacementComponents).map((component) => [
+      component.role,
+      normalizeRuleUpdates({
+        amount: component.amount,
+        secondaryAccountId: component.accountId,
+        transactionTypeId: component.transactionTypeId,
+        description: component.description,
+        periodicChange: component.periodicChange,
+        recurrence: component.recurrence
+      })
+    ]))
+    : normalizeSplitComponentUpdates(componentUpdates);
 
   return runCommand(
     scenarioId,
@@ -1867,7 +2114,7 @@ export async function updateSplitSeries(
       const missingRoles = [...updatesByRole.keys()].filter(
         (role) => !availableRoles.has(role)
       );
-      if (missingRoles.length) {
+      if (missingRoles.length && !hasReplacementComponents) {
         throw new OccurrenceCommandError(
           'split-component-not-found',
           `Split component role${missingRoles.length === 1 ? '' : 's'} ` +
@@ -1893,13 +2140,23 @@ export async function updateSplitSeries(
         });
       }
 
-      applySplitUpdatesToGroups(
-        scenario,
-        affectedGroupIds,
-        updatesByRole,
-        normalizedSetUpdates,
-        timestamp
-      );
+      if (hasReplacementComponents) {
+        replaceSplitComponentsInGroups(
+          scenario,
+          affectedGroupIds,
+          replacementComponents,
+          normalizedSetUpdates,
+          timestamp
+        );
+      } else {
+        applySplitUpdatesToGroups(
+          scenario,
+          affectedGroupIds,
+          updatesByRole,
+          normalizedSetUpdates,
+          timestamp
+        );
+      }
       return {
         occurrenceKey: result.occurrenceKey,
         affectedOccurrenceKeys: [occurrenceKey, result.occurrenceKey],

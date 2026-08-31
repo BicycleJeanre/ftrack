@@ -16,7 +16,7 @@ import { renderTotalsCard } from '../widgets/totals-card.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openQuickAccountModal } from '../modals/quick-account-modal.js';
 import { createGrid, refreshGridData } from './grid-factory.js';
-import { notifyError, notifySuccess } from '../../../shared/notifications.js';
+import { confirmDialog, notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { getScenarioPeriods } from '../../../app/services/data-service.js';
 import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js';
 import * as AccountManager from '../../../app/managers/account-manager.js';
@@ -1022,11 +1022,32 @@ function buildOccurrenceActions({
 
   if (occurrence.status !== 'skipped' && occurrence.status !== 'actual') {
     actions.appendChild(actionButton({
-      title: 'Skip occurrence',
+      title: 'Remove this occurrence',
       text: '⊘',
-      onClick: (button) => runAction(button, () => (
-        OccurrenceManager.markSkipped(scenarioId, occurrence.occurrenceKey)
-      ))
+      onClick: (button) => runAction(button, async () => {
+        await OccurrenceManager.markSkipped(scenarioId, occurrence.occurrenceKey);
+        notifySuccess('This occurrence was removed from the current period.');
+      })
+    }));
+  }
+  if (
+    occurrence.status === 'planned' &&
+    occurrence.sourceTransactionId &&
+    isRecurringPattern(occurrence.recurrence)
+  ) {
+    actions.appendChild(actionButton({
+      title: 'Delete this and future occurrences',
+      text: '⨉',
+      onClick: async (button) => {
+        const confirmed = await confirmDialog(
+          'Delete this occurrence and the remaining recurring sequence? Past actuals, removed occurrences, and frozen baselines will be preserved.'
+        );
+        if (!confirmed) return;
+        await runAction(button, async () => {
+          await OccurrenceManager.endSeries(scenarioId, occurrence.occurrenceKey);
+          notifySuccess('This and future occurrences were removed.');
+        });
+      }
     }));
   }
   actions.appendChild(actionButton({

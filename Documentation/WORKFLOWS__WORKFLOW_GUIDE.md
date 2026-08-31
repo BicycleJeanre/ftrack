@@ -72,7 +72,7 @@ When an existing recurring cost changes, edit the occurrence and choose:
    intended to follow. The first actual also freezes an unfrozen period.
 2. Tick **Actual** when a planned item happens.
 3. Edit the actual amount or date when reality differs from the plan.
-4. Use **Skip occurrence** when a planned item will not happen.
+4. Use **Remove this occurrence** when a planned item will not happen.
 5. Add an Actual item when something unexpected happens.
 6. Review the comparison totals and individual variances.
 

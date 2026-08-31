@@ -96,6 +96,17 @@ In Recurring, duplication copies either one rule or the whole split set.
 occurrence. It is history-safe: protected actual, skipped, and frozen evidence
 is retained rather than destructively deleting the rule lineage.
 
+The same controls are available directly on Period cards. **Remove this
+occurrence** skips only the selected date. **Delete this and future
+occurrences** ends the linked recurring sequence from that date forward.
+
+Use **Create recurring transaction with line items** when one intent contains
+several destination values. Each line keeps the normal primary/secondary
+account movement, amount, and description, while FTrack stores and displays
+the lines as one grouped transaction rule. Additional line items can be added
+or removed together and applied safely to this-and-future or the current
+series.
+
 Use **Duplicate item** to make a one-time planned copy. Use
 **Repeat going forward** to turn a manual item into a recurring rule without
 removing the original occurrence.
@@ -122,7 +133,7 @@ For a planned occurrence:
 
 1. Tick **Actual** when it happens.
 2. Edit the item if the actual amount or date differs.
-3. Use **Skip occurrence** if it will not happen.
+3. Use **Remove this occurrence** if it will not happen.
 
 For an unexpected movement, click **Add item** and create it as Actual. A
 manual actual has a zero baseline and zero current plan, so it is counted as an

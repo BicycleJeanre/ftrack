@@ -70,8 +70,9 @@ tags, and effective date.
 
 3.4 Configure flat, percentage, or compound periodic amount changes.
 
-3.5 Create and view grouped transaction components such as principal,
-interest, and fees.
+3.5 Create and view grouped transaction line items. Each destination retains
+its own account, amount, description, and normal two-account movement; loan
+groups can still use principal, interest, and fee components.
 
 3.6 Manage rules in **Plan & Actuals → Recurring** in every main workflow.
 
@@ -94,6 +95,9 @@ recurrence, and linked account-group/rate metadata.
 3.11 Duplicate a recurring rule or complete split set, or use
 **End recurring series** to stop future unresolved occurrences without
 deleting prior actual, skipped, or frozen history.
+
+3.12 From Period, remove one occurrence or delete that occurrence and the
+remaining recurring sequence with separate, explicit controls.
 
 ## 4.0 Plan & Actuals
 

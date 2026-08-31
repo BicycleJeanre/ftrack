@@ -536,6 +536,38 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(combinedMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 700,00');
   });
 
+  test('removes one occurrence or deletes its recurring sequence from the period card', async ({ page }) => {
+    const creditCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Credit card payment'
+    });
+    const creditKey = await creditCard.getAttribute('data-occurrence-key');
+    await creditCard.getByRole('button', { name: 'Remove this occurrence' }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === creditKey && occurrence.status === 'skipped'
+    ), 'single occurrence removed from its period');
+
+    const groceries = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    const groceryKey = await groceries.getAttribute('data-occurrence-key');
+    const sourceRuleId = Number(String(groceryKey || '').match(/^tx:(\d+)/)?.[1] || 0);
+    expect(sourceRuleId).toBeTruthy();
+    await groceries.getByRole('button', {
+      name: 'Delete this and future occurrences'
+    }).click();
+    await expect(page.locator('.confirm-dialog-message')).toContainText(
+      'remaining recurring sequence'
+    );
+    await confirmDialog(page);
+
+    await waitForScenario(page, (scenario) => !scenario.transactions.some(
+      (rule) => Number(rule.id) === Number(sourceRuleId)
+    ), 'recurring sequence removed from the selected occurrence forward');
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    })).toHaveCount(0);
+  });
+
   test('adds both a planned item and a manual actual', async ({ page }) => {
     const before = (await currentScenario(page)).transactionOccurrences.length;
 
@@ -765,7 +797,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       hasText: 'Credit card payment'
     });
     const paymentKey = await paymentCard.getAttribute('data-occurrence-key');
-    await paymentCard.locator('button[title="Skip occurrence"]').click();
+    await paymentCard.locator('button[title="Remove this occurrence"]').click();
     await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
       (occurrence) => occurrence.occurrenceKey === paymentKey && occurrence.status === 'skipped'
     ), 'occurrence marked skipped');
@@ -1170,7 +1202,7 @@ test.describe('recurring split rule editing', () => {
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     const createSplitButton = page.locator(
-      '#budgetSection button[title="Create recurring split rule"]'
+      '#budgetSection button[title="Create recurring transaction with line items"]'
     );
     await expect(createSplitButton).toBeVisible();
     await createSplitButton.click();
@@ -1206,9 +1238,14 @@ test.describe('recurring split rule editing', () => {
     await form.locator('.tx-split-inline-cell', {
       hasText: 'Interest Amount'
     }).locator('input').fill('200');
+    await form.getByRole('button', { name: 'Add line' }).click();
+    const addedLine = form.locator('.tx-split-line-item').last();
+    await addedLine.locator('.tx-split-line-account').selectOption('6');
+    await addedLine.locator('.tx-split-line-amount').fill('100');
+    await addedLine.locator('.tx-split-line-description').fill('Running shop');
     await expect(
       form.locator('.tx-split-inline-cell', { hasText: 'Principal Amount' }).locator('input')
-    ).toHaveValue('800.00');
+    ).toHaveValue('700.00');
 
     await draftCard.locator('.grid-summary-header').evaluate((header) => {
       header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -1222,6 +1259,9 @@ test.describe('recurring split rule editing', () => {
       const byRole = new Map(
         (splitSet?.components || []).map((component) => [component.role, component])
       );
+      const runningShop = (splitSet?.components || []).find(
+        (component) => component.description === 'Running shop'
+      );
       const recurrenceType = Number(
         typeof splitSet?.recurrence?.recurrenceType === 'object'
           ? splitSet.recurrence.recurrenceType.id
@@ -1230,11 +1270,13 @@ test.describe('recurring split rule editing', () => {
       return Number(splitSet?.totalAmount) === 1000 &&
         splitSet?.description === 'Recurring loan split' &&
         recurrenceType === 4 &&
-        Number(byRole.get('principal')?.value) === 800 &&
+        Number(byRole.get('principal')?.value) === 700 &&
         Number(byRole.get('principal')?.accountId) === 3 &&
         Number(byRole.get('interest')?.value) === 200 &&
         Number(byRole.get('interest')?.accountId) === 5 &&
-        groupRules.length === 2 &&
+        Number(runningShop?.value) === 100 &&
+        Number(runningShop?.accountId) === 6 &&
+        groupRules.length === 3 &&
         groupRules.every((rule) => (
           Number(rule.primaryAccountId) === 2 &&
           Number(
@@ -1271,7 +1313,7 @@ test.describe('recurring split rule editing', () => {
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     await page.locator(
-      '#budgetSection button[title="Create recurring split rule"]'
+      '#budgetSection button[title="Create recurring transaction with line items"]'
     ).click();
     const draftCard = page.locator(
       '#budgetTable .recurring-rule-card[data-split-role="principal"]'
@@ -1367,17 +1409,22 @@ test.describe('recurring split rule editing', () => {
     await expect(
       form.locator('.tx-split-inline-cell', { hasText: 'Interest Amount' }).locator('input')
     ).toHaveValue('150.00');
-    await expect(form.locator('.tx-split-inline')).toContainText('preserved components 50.00');
+    await expect(form.locator('.tx-split-inline')).toContainText('line items 50.00');
 
     await editorField(form, 'Amount').first().locator('input').fill('1200');
     await form.locator('.tx-split-inline-cell', {
       hasText: 'Interest Amount'
     }).locator('input').fill('200');
+    await form.getByRole('button', { name: 'Add line' }).click();
+    const maintenanceLine = form.locator('.tx-split-line-item').last();
+    await maintenanceLine.locator('.tx-split-line-account').selectOption('6');
+    await maintenanceLine.locator('.tx-split-line-amount').fill('25');
+    await maintenanceLine.locator('.tx-split-line-description').fill('Maintenance');
     await editorField(form, 'Description').locator('input').fill('Loan payment from August');
     await editorField(form, 'Apply change to').locator('select').selectOption('future');
     await expect(
       form.locator('.tx-split-inline-cell', { hasText: 'Principal Amount' }).locator('input')
-    ).toHaveValue('950.00');
+    ).toHaveValue('925.00');
 
     await principalCard.locator('.grid-summary-header').evaluate((header) => {
       header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -1396,6 +1443,9 @@ test.describe('recurring split rule editing', () => {
       const byRole = new Map(
         (replacement?.components || []).map((component) => [component.role, component])
       );
+      const maintenance = (replacement?.components || []).find(
+        (component) => component.description === 'Maintenance'
+      );
       if (
         actual?.status === 'actual' &&
         Number(actual.actualAmount) === 805 &&
@@ -1406,10 +1456,12 @@ test.describe('recurring split rule editing', () => {
         oldSet?.activeTo === '2026-08-14' &&
         oldSet?.recurrence?.endDate === '2026-08-14' &&
         Number(oldSet.totalAmount) === 1000 &&
-        Number(byRole.get('principal')?.value) === 950 &&
+        Number(byRole.get('principal')?.value) === 925 &&
         Number(byRole.get('interest')?.value) === 200 &&
         Number(byRole.get('insurance')?.value) === 50 &&
         Number(byRole.get('insurance')?.accountId) === 5 &&
+        Number(maintenance?.value) === 25 &&
+        Number(maintenance?.accountId) === 6 &&
         Number(replacement?.totalAmount) === 1200 &&
         replacement?.activeFrom === '2026-08-15'
       ) {
@@ -1435,7 +1487,7 @@ test.describe('recurring split rule editing', () => {
     await editorField(form, 'Apply change to').locator('select').selectOption('series');
     await expect(
       form.locator('.tx-split-inline-cell', { hasText: 'Principal Amount' }).locator('input')
-    ).toHaveValue('1000.00');
+    ).toHaveValue('975.00');
 
     await replacementCard.locator('.grid-summary-header').evaluate((header) => {
       header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -1453,6 +1505,9 @@ test.describe('recurring split rule editing', () => {
       const byRole = new Map(
         (replacement?.components || []).map((component) => [component.role, component])
       );
+      const maintenance = (replacement?.components || []).find(
+        (component) => component.description === 'Maintenance'
+      );
       const replacementRules = scenario.transactions.filter(
         (transaction) => transaction.transactionGroupId === replacementGroupId
       );
@@ -1469,11 +1524,13 @@ test.describe('recurring split rule editing', () => {
         Number(oldSet.totalAmount) === 1000 &&
         replacement?.id === replacementGroupId &&
         Number(replacement?.totalAmount) === 1300 &&
-        Number(byRole.get('principal')?.value) === 1000 &&
+        Number(byRole.get('principal')?.value) === 975 &&
         Number(byRole.get('interest')?.value) === 250 &&
         Number(byRole.get('insurance')?.value) === 50 &&
         Number(byRole.get('insurance')?.accountId) === 5 &&
-        replacementRules.length === 3 &&
+        Number(maintenance?.value) === 25 &&
+        Number(maintenance?.accountId) === 6 &&
+        replacementRules.length === 4 &&
         replacementRules.some(
           (rule) => rule.transactionGroupRole === 'insurance' && Number(rule.amount) === 50
         ) &&

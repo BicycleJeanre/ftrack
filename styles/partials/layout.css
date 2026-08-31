@@ -2350,6 +2350,53 @@ button.filter-modal-open {
   gap: 6px;
 }
 
+.tx-split-line-items {
+  border-top: 1px solid var(--border-secondary);
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 10px;
+}
+
+.tx-split-line-items-header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.tx-split-add-line {
+  min-height: 30px;
+  padding: 4px 10px;
+}
+
+.tx-split-line-items-body {
+  display: grid;
+  gap: 8px;
+}
+
+.tx-split-line-item {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(145px, 1.35fr) minmax(90px, 0.65fr) minmax(150px, 1.4fr) auto;
+}
+
+.tx-split-remove-line {
+  color: var(--color-negative);
+}
+
+@media (max-width: 700px) {
+  .tx-split-line-item {
+    grid-template-columns: minmax(0, 1fr) minmax(90px, 0.55fr) auto;
+  }
+
+  .tx-split-line-description {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
 /* ==================================== Grid Toolbar ====================================*/
 
 .grid-toolbar {

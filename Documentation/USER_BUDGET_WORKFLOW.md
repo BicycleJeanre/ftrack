@@ -33,10 +33,17 @@ their specialized views are useful.
 component set, grouping metadata, recurrence, and linked account-group/rate
 details together as a new future segment or an entire-series revision.
 
+Use **Create recurring transaction with line items** for one grouped intent
+with several destination accounts. **Add line** captures each destination,
+amount, and description without reopening or duplicating the parent rule.
+
 3.1.2 Use **Duplicate recurring rule** to copy a normal rule or its entire
 split set. Use **End recurring series** to stop it before the next unresolved
 occurrence. Ending a series keeps prior actuals, skips, and frozen baselines;
 it will not cross protected future history.
+
+Period cards expose the same distinction directly: remove only the selected
+occurrence, or delete the linked recurrence from that occurrence forward.
 
 3.2 In **Period**, click **Add item** to enter a one-time planned or actual movement.
 
@@ -67,7 +74,7 @@ it will not cross protected future history.
 
 4.2 The first actual in a period freezes that period's baseline automatically. You can also click **Freeze baseline** before actuals are entered.
 
-4.3 Click **Skip occurrence** when a planned event will not happen. Edit a skipped item and choose **Restore to planned** if it becomes active again.
+4.3 Click **Remove this occurrence** when a planned event will not happen. Edit a removed item and choose **Restore to planned** if it becomes active again.
 
 4.4 Add a manual Actual when an unexpected cost or income was not in the plan. Its baseline and current plan are zero, so it appears as an unplanned actual.
 

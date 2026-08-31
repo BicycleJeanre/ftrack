@@ -1389,14 +1389,14 @@ function renderTransactionsSummaryList({
         const componentCount = Array.isArray(existingSplitSet?.components)
           ? existingSplitSet.components.length
           : 0;
-        splitMeta.textContent = `Split: ${componentCount || 'linked'} component${
+        splitMeta.textContent = `Line items: ${componentCount || 'linked'} component${
           componentCount === 1 ? '' : 's'
         }`;
         metadata.appendChild(splitMeta);
         const splitGuidance = document.createElement('span');
         splitGuidance.className = 'recurring-rule-guidance';
         splitGuidance.textContent =
-          'Edit the shared split allocation and apply it to this-and-future or the entire current series.';
+          'Edit all destination values together and apply them to this-and-future or the entire current series.';
         metadata.appendChild(splitGuidance);
       }
       content.appendChild(metadata);
@@ -1590,7 +1590,7 @@ function renderTransactionsSummaryList({
 
     const splitOptionsLabel = document.createElement('label');
     splitOptionsLabel.className = 'grid-summary-label';
-    splitOptionsLabel.textContent = 'Split Options';
+    splitOptionsLabel.textContent = 'Line Items & Allocation';
 
     const splitOptionsBody = document.createElement('div');
     splitOptionsBody.className = 'tx-split-inline-body';
@@ -1669,6 +1669,143 @@ function renderTransactionsSummaryList({
     splitAmountsRow.appendChild(splitInterestAmountWrap);
     splitAmountsRow.appendChild(splitPrincipalAmountWrap);
 
+    const existingAdditionalComponents = Array.isArray(existingSplitSet?.components)
+      ? existingSplitSet.components.filter((component) => {
+          const role = String(component?.role || '').trim().toLowerCase();
+          return role && role !== 'principal' && role !== 'interest';
+        })
+      : [];
+    let nextAdditionalLineId = existingAdditionalComponents.length + 1;
+    const splitLineRows = [];
+    const splitLineItems = document.createElement('div');
+    splitLineItems.className = 'tx-split-line-items';
+    const splitLineItemsHeader = document.createElement('div');
+    splitLineItemsHeader.className = 'tx-split-line-items-header';
+    const splitLineItemsTitle = document.createElement('span');
+    splitLineItemsTitle.className = 'text-secondary';
+    splitLineItemsTitle.textContent = 'Additional line items';
+    const addSplitLineButton = document.createElement('button');
+    addSplitLineButton.type = 'button';
+    addSplitLineButton.className = 'btn btn-secondary tx-split-add-line';
+    addSplitLineButton.textContent = '+ Add line';
+    addSplitLineButton.title = 'Add another destination and value to this transaction';
+    splitLineItemsHeader.appendChild(splitLineItemsTitle);
+    splitLineItemsHeader.appendChild(addSplitLineButton);
+    const splitLineItemsBody = document.createElement('div');
+    splitLineItemsBody.className = 'tx-split-line-items-body';
+    splitLineItems.appendChild(splitLineItemsHeader);
+    splitLineItems.appendChild(splitLineItemsBody);
+
+    const refreshSplitLineAccountOptions = () => {
+      const primaryId = Number(primaryAccountSelect.value || 0) || null;
+      splitLineRows.forEach(({ accountSelect }) => {
+        Array.from(accountSelect.options).forEach((option) => {
+          option.disabled = Boolean(
+            Number(option.value || 0) &&
+            primaryId &&
+            Number(option.value) === primaryId
+          );
+        });
+        if (primaryId && Number(accountSelect.value || 0) === primaryId) {
+          accountSelect.value = '';
+        }
+      });
+    };
+
+    const addSplitLine = (component = {}) => {
+      const role = String(component?.role || '').trim().toLowerCase() ||
+        `line_${Date.now()}_${nextAdditionalLineId++}`;
+      const row = document.createElement('div');
+      row.className = 'tx-split-line-item';
+      row.dataset.role = role;
+      const accountSelect = buildAccountSelect(
+        Number(component?.accountId ?? component?.secondaryAccountId ?? 0) || null,
+        true,
+        Number(typeSelect.value || 2) === 1 ? 4 : 5
+      );
+      accountSelect.className = 'grid-summary-input tx-split-line-account';
+      accountSelect.setAttribute('aria-label', 'Line destination account');
+      const amount = document.createElement('input');
+      amount.type = 'number';
+      amount.min = '0';
+      amount.step = '0.01';
+      amount.className = 'grid-summary-input tx-split-line-amount';
+      amount.value = Math.abs(Number(component?.value ?? component?.amount ?? 0)) || '';
+      amount.placeholder = 'Amount';
+      amount.setAttribute('aria-label', 'Line amount');
+      const description = document.createElement('input');
+      description.type = 'text';
+      description.className = 'grid-summary-input tx-split-line-description';
+      description.value = String(component?.description || '').trim();
+      description.placeholder = 'What is this for?';
+      description.setAttribute('aria-label', 'Line description');
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'icon-btn tx-split-remove-line';
+      remove.title = 'Remove line item';
+      remove.setAttribute('aria-label', 'Remove line item');
+      remove.textContent = '×';
+      const line = {
+        row,
+        role,
+        accountSelect,
+        amount,
+        description,
+        accountGroupId: Number(component?.accountGroupId || 0) || null,
+        periodicChange: component?.periodicChange || null
+      };
+      splitLineRows.push(line);
+      row.appendChild(accountSelect);
+      row.appendChild(amount);
+      row.appendChild(description);
+      row.appendChild(remove);
+      splitLineItemsBody.appendChild(row);
+      accountSelect.addEventListener('change', () => updateSplitInlinePreview());
+      amount.addEventListener('input', () => updateSplitInlinePreview());
+      description.addEventListener('input', () => updateSplitInlinePreview());
+      remove.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const index = splitLineRows.indexOf(line);
+        if (index >= 0) splitLineRows.splice(index, 1);
+        row.remove();
+        updateSplitInlinePreview();
+      });
+      refreshSplitLineAccountOptions();
+      return line;
+    };
+
+    const getAdditionalSplitComponents = ({ transactionTypeId, recurrence } = {}) => (
+      splitLineRows.flatMap((line, index) => {
+        const accountId = Number(line.accountSelect.value || 0) || null;
+        const amount = Math.abs(Number(line.amount.value || 0)) || 0;
+        if (!accountId || amount <= 0) return [];
+        return [{
+          role: line.role,
+          accountId,
+          secondaryAccountId: accountId,
+          transactionTypeId: Number(transactionTypeId || typeSelect.value || 2) === 1 ? 1 : 2,
+          amount,
+          value: amount,
+          description: line.description.value.trim(),
+          amountMode: 'fixed',
+          accountGroupId: line.accountGroupId,
+          recurrence: recurrence || null,
+          periodicChange: line.periodicChange,
+          order: index + 2
+        }];
+      })
+    );
+    const getSplitAdditionalTotal = () => getAdditionalSplitComponents().reduce(
+      (sum, component) => sum + component.amount,
+      0
+    );
+    existingAdditionalComponents.forEach(addSplitLine);
+    addSplitLineButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      addSplitLine();
+      updateSplitInlinePreview();
+    });
+
     const splitPeriodicRow = document.createElement('div');
     splitPeriodicRow.className = 'tx-split-inline-row';
     const splitPeriodicLabel = document.createElement('span');
@@ -1691,6 +1828,7 @@ function renderTransactionsSummaryList({
     splitOptionsBody.appendChild(splitModeRow);
     splitOptionsBody.appendChild(splitInterestAccountRow);
     splitOptionsBody.appendChild(splitAmountsRow);
+    splitOptionsBody.appendChild(splitLineItems);
     splitOptionsBody.appendChild(splitPeriodicRow);
     splitOptionsBody.appendChild(splitHint);
     splitOptionsField.appendChild(splitOptionsLabel);
@@ -1698,14 +1836,6 @@ function renderTransactionsSummaryList({
 
     let splitTargetPeriodicChangeTouched = false;
     let splitTargetPeriodicChange = null;
-    const preservedSplitAdditionalTotal = Array.isArray(existingSplitSet?.components)
-      ? existingSplitSet.components.reduce((sum, component) => {
-          const role = String(component?.role || '').trim().toLowerCase();
-          if (role === 'principal' || role === 'interest') return sum;
-          return sum + (Math.abs(Number(component?.value ?? component?.amount ?? 0)) || 0);
-        }, 0)
-      : 0;
-
     const getSelectedSecondaryAccount = () => {
       const selectedId = Number(secondaryAccountSelect.value || 0) || null;
       if (!selectedId) return null;
@@ -1732,7 +1862,8 @@ function renderTransactionsSummaryList({
       const recurrence = getSplitRecurrence();
       const accrualDays = getAccrualDays();
       const mode = splitModeSelect.value === 'manual' ? 'manual' : 'top_down';
-      const allocatableAmount = Math.max(0, totalAmount - preservedSplitAdditionalTotal);
+      const additionalTotal = getSplitAdditionalTotal();
+      const allocatableAmount = Math.max(0, totalAmount - additionalTotal);
       let interestAmount = Math.abs(Number(splitInterestAmountInput.value || 0)) || 0;
 
       if (mode === 'top_down') {
@@ -1766,8 +1897,8 @@ function renderTransactionsSummaryList({
       splitPeriodicSummary.textContent = hasPeriodic
         ? `Derived accrual: ${Number(accrualDays).toFixed(2)} day(s) per cycle.`
         : 'No periodic change set on secondary account.';
-      const additionalSuffix = preservedSplitAdditionalTotal > 0
-        ? ` + preserved components ${preservedSplitAdditionalTotal.toFixed(2)}`
+      const additionalSuffix = additionalTotal > 0
+        ? ` + line items ${additionalTotal.toFixed(2)}`
         : '';
       splitHint.textContent = mode === 'manual'
         ? `Manual allocation: principal ${principalAmount.toFixed(2)} + interest ${interestAmount.toFixed(2)}${additionalSuffix} = amount ${totalAmount.toFixed(2)}.`
@@ -1818,6 +1949,7 @@ function renderTransactionsSummaryList({
       splitInterestAmountInput.addEventListener('input', updateSplitInlinePreview);
       amountInput.addEventListener('input', updateSplitInlinePreview);
       secondaryAccountSelect.addEventListener('change', updateSplitInlinePreview);
+      primaryAccountSelect.addEventListener('change', refreshSplitLineAccountOptions);
       splitPeriodicBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         suppressAutoSaveOnce();
@@ -2057,6 +2189,15 @@ function renderTransactionsSummaryList({
             ? Number(secondaryAccountSelect.value)
             : null;
           const totalAmount = Math.abs(Number(amountInput.value || 0)) || 0;
+          const selectedTypeId = Number(typeSelect.value || displayTypeId || 2) === 1 ? 1 : 2;
+          const additionalComponents = getAdditionalSplitComponents({
+            transactionTypeId: selectedTypeId,
+            recurrence: currentRecurrence || sourceRule?.recurrence || null
+          });
+          const additionalTotal = additionalComponents.reduce(
+            (sum, component) => sum + component.amount,
+            0
+          );
           if (!primaryAccountId) {
             notifyError('Primary account is required for recurring split rules.');
             return false;
@@ -2070,11 +2211,11 @@ function renderTransactionsSummaryList({
             return false;
           }
           if (
-            preservedSplitAdditionalTotal > 0 &&
-            totalAmount <= preservedSplitAdditionalTotal
+            additionalTotal > 0 &&
+            totalAmount <= additionalTotal
           ) {
             notifyError(
-              `Amount must be greater than the preserved component total of ${preservedSplitAdditionalTotal.toFixed(2)}.`
+              `Amount must be greater than the additional line-item total of ${additionalTotal.toFixed(2)}.`
             );
             return false;
           }
@@ -2103,7 +2244,7 @@ function renderTransactionsSummaryList({
           });
           const allocatableAmount = Math.max(
             0,
-            totalAmount - preservedSplitAdditionalTotal
+            totalAmount - additionalTotal
           );
           let interestAmount = Math.abs(Number(splitInterestAmountInput.value || 0)) || 0;
           if (modeValue === 'top_down') {
@@ -2123,7 +2264,6 @@ function renderTransactionsSummaryList({
           const principalAmount = Math.max(0, allocatableAmount - interestAmount);
           splitPrincipalAmountInput.value = principalAmount.toFixed(2);
 
-          const selectedTypeId = Number(typeSelect.value || displayTypeId || 2) === 1 ? 1 : 2;
           const selectedInterestAccountId = splitInterestAccountSelect.value
             ? Number(splitInterestAccountSelect.value)
             : null;
@@ -2242,7 +2382,8 @@ function renderTransactionsSummaryList({
                   recurrence: splitRecurrence,
                   periodicChange: null,
                   order: 1
-                }
+                },
+                ...additionalComponents
               ]
             };
             const componentTransactions = buildCompoundTransactions(createPayload);
@@ -2294,6 +2435,31 @@ function renderTransactionsSummaryList({
                   periodicChange: splitInterestComponent?.periodicChange || null,
                   recurrence: splitRecurrence
                 }
+              ],
+              replacementComponents: [
+                {
+                  role: 'principal',
+                  amount: principalAmount,
+                  secondaryAccountId: targetAccountId,
+                  transactionTypeId: selectedTypeId,
+                  description: descInput.value.trim(),
+                  periodicChange: currentPeriodicChange,
+                  recurrence: splitRecurrence,
+                  amountMode: modeValue === 'manual' ? 'fixed' : 'remainder',
+                  order: 0
+                },
+                {
+                  role: 'interest',
+                  amount: interestAmount,
+                  secondaryAccountId: resolvedInterestAccountId,
+                  transactionTypeId: selectedTypeId,
+                  description: String(splitInterestComponent?.description || 'Interest').trim(),
+                  periodicChange: splitInterestComponent?.periodicChange || null,
+                  recurrence: splitRecurrence,
+                  amountMode: modeValue === 'manual' ? 'fixed' : 'derived',
+                  order: 1
+                },
+                ...additionalComponents
               ]
             }
           );
@@ -2345,6 +2511,7 @@ function renderTransactionsSummaryList({
         const primaryAccountId = Number(sourceTx?.primaryAccountId || 0) || null;
         const targetAccountId = secondaryAccountSelect.value ? Number(secondaryAccountSelect.value) : null;
         const totalAmount = Math.abs(Number(amountInput.value || 0)) || 0;
+        const additionalTotal = getSplitAdditionalTotal();
         if (!primaryAccountId) {
           notifyError('Primary account is required for split transactions.');
           return false;
@@ -2358,11 +2525,11 @@ function renderTransactionsSummaryList({
           return false;
         }
         if (
-          preservedSplitAdditionalTotal > 0 &&
-          totalAmount <= preservedSplitAdditionalTotal
+          additionalTotal > 0 &&
+          totalAmount <= additionalTotal
         ) {
           notifyError(
-            `Amount must be greater than the preserved component total of ${preservedSplitAdditionalTotal.toFixed(2)}.`
+            `Amount must be greater than the additional line-item total of ${additionalTotal.toFixed(2)}.`
           );
           return false;
         }
@@ -2394,7 +2561,7 @@ function renderTransactionsSummaryList({
 
         const allocatableAmount = Math.max(
           0,
-          totalAmount - preservedSplitAdditionalTotal
+          totalAmount - additionalTotal
         );
         let interestAmount = Math.abs(Number(splitInterestAmountInput.value || 0)) || 0;
         if (modeValue === 'top_down') {
@@ -2419,34 +2586,15 @@ function renderTransactionsSummaryList({
         const componentTypeId = isFlippedRow
           ? (selectedDisplayTypeId === 1 ? 2 : 1)
           : selectedDisplayTypeId;
+        const additionalComponents = getAdditionalSplitComponents({
+          transactionTypeId: componentTypeId,
+          recurrence: splitRecurrence
+        });
         const targetGroupId = findPrimaryGroupIdForAccount(scenarioBefore?.accountGroups || [], targetAccountId);
         const interestGroupId = findPrimaryGroupIdForAccount(
           scenarioBefore?.accountGroups || [],
           interestAccountId
         );
-        const preservedAdditionalComponents = Array.isArray(existingSplitSet?.components)
-          ? existingSplitSet.components
-            .filter((component) => {
-              const role = String(component?.role || '').trim().toLowerCase();
-              return role && role !== 'principal' && role !== 'interest';
-            })
-            .map((component, index) => ({
-              role: String(component?.role || '').trim().toLowerCase() || `additional_${index + 1}`,
-              accountId: Number(component?.accountId || 0) || null,
-              secondaryAccountId: Number(component?.accountId || 0) || null,
-              transactionTypeId: Number(component?.transactionTypeId || componentTypeId || 2) === 1 ? 1 : 2,
-              amount: Math.abs(Number(component?.value ?? component?.amount ?? 0)) || 0,
-              value: Math.abs(Number(component?.value ?? component?.amount ?? 0)) || 0,
-              description: String(component?.description || '').trim(),
-              amountMode: String(component?.amountMode || 'fixed').trim().toLowerCase() || 'fixed',
-              accountGroupId: Number(component?.accountGroupId || 0) || null,
-              recurrence: component?.recurrence || splitRecurrence || null,
-              periodicChange: component?.periodicChange || null,
-              order: Number.isFinite(Number(component?.order)) ? Number(component.order) : index + 2
-            }))
-            .filter((component) => component.amount > 0 && component.secondaryAccountId)
-          : [];
-
         let workingPayload = {
           mode: modeValue,
           strategy: modeValue,
@@ -2498,7 +2646,7 @@ function renderTransactionsSummaryList({
               periodicChange: null,
               order: 1
             },
-            ...preservedAdditionalComponents
+            ...additionalComponents
           ]
         };
 
@@ -3626,8 +3774,8 @@ export async function loadMasterTransactionsGrid({
         const splitButton = document.createElement('button');
         splitButton.className = 'icon-btn card-inline-action';
         splitButton.title = rulesOnly
-          ? 'Create recurring split rule'
-          : 'Create Split Payment Set';
+          ? 'Create recurring transaction with line items'
+          : 'Create transaction with line items';
         splitButton.textContent = '⇄';
 
         const refreshButton = document.createElement('button');

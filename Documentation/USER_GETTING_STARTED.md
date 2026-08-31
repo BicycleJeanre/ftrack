@@ -48,7 +48,7 @@ Use the in-app documentation in either of two ways:
 9. Record reality:
    - tick **Actual** for something that happened;
    - edit the actual amount or date when it differs;
-   - use **Skip occurrence** for something that will not happen; or
+   - use **Remove this occurrence** for something that will not happen; or
    - use **Add item** to record an unexpected actual.
 10. Review **Projections**. Plan and actual changes mark projections stale and
     trigger an automatic refresh. Use **Refresh projections now** if you do not
