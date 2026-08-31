@@ -142,6 +142,7 @@ export function normalizeUiState(raw) {
       : {};
   const periodViews = new Set(['period', 'recurring']);
   const periodGroups = new Set(['', 'status', 'movement', 'repeat']);
+  const periodStatuses = new Set(['', 'planned', 'actual']);
   const recurringGroups = new Set([
     '',
     'transactionTypeName',
@@ -169,6 +170,7 @@ export function normalizeUiState(raw) {
       .map(([scenarioId, workspace]) => {
         const periodTypeId = Number(workspace.periodTypeId);
         const periodGroup = String(workspace.groupBy || '');
+        const periodStatus = String(workspace.statusFilter || '');
         const recurringGroup = String(workspace.recurringGroupBy || '');
         const rawViews = workspace.viewByContext && typeof workspace.viewByContext === 'object'
           ? workspace.viewByContext
@@ -191,6 +193,7 @@ export function normalizeUiState(raw) {
               : DEFAULT_PERIOD_TYPE_ID,
           periodId: cleanOptionalString(workspace.periodId),
           accountId: cleanOptionalId(workspace.accountId),
+          statusFilter: periodStatuses.has(periodStatus) ? periodStatus : '',
           groupBy: periodGroups.has(periodGroup) ? periodGroup : '',
           recurringAccountId: cleanOptionalId(workspace.recurringAccountId),
           recurringGroupBy: recurringGroups.has(recurringGroup) ? recurringGroup : '',

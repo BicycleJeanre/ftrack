@@ -1577,6 +1577,7 @@ async function renderOccurrenceDetailTable({
     startDate: detailStartDate || '',
     endDate: detailEndDate || '',
     accountId: Number(state?.getBudgetAccountFilterId?.() || 0),
+    statusFilter: state?.getBudgetStatusFilter?.() || '',
     groupBy: state?.getGroupBy?.() || ''
   });
   const detailContextChanged =
@@ -1760,12 +1761,22 @@ async function renderPeriodView({
       { value: 'movement', label: 'Movement' },
       { value: 'repeat', label: 'Repeat' }
     ];
+    const statusOptions = [
+      { value: '', label: 'Both' },
+      { value: 'planned', label: 'Planned' },
+      { value: 'actual', label: 'Actual' }
+    ];
     const periodTypeOptions = ['Day', 'Week', 'Month', 'Quarter', 'Year']
       .map((value) => ({ value, label: value }));
 
     const inlinePeriodType = createSelect('plan-period-type-inline', periodTypeOptions, periodType);
     const inlinePeriod = createSelect('plan-period-inline', periodOptions, selectedId);
     const inlineAccount = createSelect('plan-account-inline', accountOptions, state?.getBudgetAccountFilterId?.() || '');
+    const inlineStatus = createSelect(
+      'plan-status-inline',
+      statusOptions,
+      state?.getBudgetStatusFilter?.() || ''
+    );
     const inlineGroup = createSelect('plan-group-inline', groupOptions, state?.getGroupBy?.() || '');
     inlinePeriod.setAttribute('aria-label', 'Period');
 
@@ -1790,6 +1801,12 @@ async function renderPeriodView({
       await reload();
     };
     inlineAccount.addEventListener('change', () => setAccount(inlineAccount.value));
+    const setStatus = async (value) => {
+      inlineStatus.value = String(value ?? '');
+      state?.setBudgetStatusFilter?.(value || '');
+      await reload();
+    };
+    inlineStatus.addEventListener('change', () => setStatus(inlineStatus.value));
     const setGroup = async (value) => {
       inlineGroup.value = String(value ?? '');
       state?.setGroupBy?.(value || '');
@@ -1870,6 +1887,7 @@ async function renderPeriodView({
     inlineFilters.appendChild(createHeaderFilterItem('View', inlinePeriodType, 'filter-period-type'));
     inlineFilters.appendChild(createHeaderFilterItem('Period', buildNav(inlinePeriod), 'filter-period'));
     inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccount, 'filter-account'));
+    inlineFilters.appendChild(createHeaderFilterItem('Status', inlineStatus, 'filter-status'));
     inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroup, 'filter-group'));
     const actions = document.createElement('div');
     actions.className = 'plan-actuals-toolbar-actions';
@@ -1882,8 +1900,12 @@ async function renderPeriodView({
   }
 
   const accountFilterId = state?.getBudgetAccountFilterId?.();
+  const statusFilter = String(state?.getBudgetStatusFilter?.() || '');
+  const visibleOccurrences = statusFilter
+    ? resolved.occurrences.filter((occurrence) => occurrence?.status === statusFilter)
+    : resolved.occurrences;
   const displayOccurrences = attachPromotedRecurrence(
-    resolved.occurrences,
+    visibleOccurrences,
     scenario.transactions || []
   );
   const rows = buildDisplayRows({
@@ -1892,7 +1914,7 @@ async function renderPeriodView({
     accountFilterId
   });
   const totalsOccurrences = buildComparisonOccurrences(
-    resolved.occurrences,
+    visibleOccurrences,
     accountFilterId
   );
 

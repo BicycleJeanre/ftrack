@@ -54,7 +54,7 @@ import {
 import {
   loadPlanActualsGrid as loadPlanActualsGridCore,
   teardownPlanActualsGrid as teardownPlanActualsGridCore
-} from '../components/grids/plan-actuals-grid.js?v=20260831-inline-account-add-25';
+} from '../components/grids/plan-actuals-grid.js?v=20260831-status-filter-26';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js';
@@ -395,6 +395,7 @@ function restorePlanActualsWorkspace(scenario) {
   budgetPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(workspace.periodTypeId) || 3] || 'Month';
   budgetPeriod = workspace.periodId || null;
   budgetAccountFilterId = validAccount(workspace.accountId);
+  budgetStatusFilter = workspace.statusFilter || '';
   budgetGroupBy = workspace.groupBy || '';
   transactionsAccountFilterId = validAccount(workspace.recurringAccountId);
   transactionsGroupBy = workspace.recurringGroupBy || '';
@@ -1478,6 +1479,11 @@ async function loadBudgetGrid(container) {
       setBudgetAccountFilterId: (nextId) => {
         budgetAccountFilterId = nextId;
         patchPlanActualsWorkspace({ accountId: nextId });
+      },
+      getBudgetStatusFilter: () => budgetStatusFilter,
+      setBudgetStatusFilter: (nextStatus) => {
+        budgetStatusFilter = nextStatus;
+        patchPlanActualsWorkspace({ statusFilter: nextStatus || '' });
       },
       getBudgetPeriod: () => budgetPeriod,
       setBudgetPeriod: (nextPeriod) => {

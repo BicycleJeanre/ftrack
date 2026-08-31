@@ -321,6 +321,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     });
     await periodSelect.selectOption(savedPeriodId);
     await page.locator('#plan-account-inline').selectOption('1');
+    await page.locator('#plan-status-inline').selectOption('planned');
     await page.locator('#plan-group-inline').selectOption('movement');
 
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
@@ -335,6 +336,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       periodTypeId: 3,
       periodId: savedPeriodId,
       accountId: 1,
+      statusFilter: 'planned',
       groupBy: 'movement',
       recurringAccountId: 1,
       recurringGroupBy: 'secondaryAccountName'
@@ -353,6 +355,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(page.locator('#plan-period-type-inline')).toHaveValue('Month');
     await expect(page.locator('#plan-period-inline')).toHaveValue(savedPeriodId);
     await expect(page.locator('#plan-account-inline')).toHaveValue('1');
+    await expect(page.locator('#plan-status-inline')).toHaveValue('planned');
     await expect(page.locator('#plan-group-inline')).toHaveValue('movement');
   });
 
@@ -477,6 +480,60 @@ test.describe('unified Plan & Actuals workflow', () => {
     });
     await expect(recurringMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
     await expect(recurringMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 700,00');
+  });
+
+  test('filters planned and actual cards and recalculates group totals', async ({ page }) => {
+    await page.locator('#budgetSection #plan-group-inline').selectOption('movement');
+
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    const groceryKey = await groceryCard.getAttribute('data-occurrence-key');
+    await groceryCard.locator('.plan-actuals-completion input[type="checkbox"]').check();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === groceryKey &&
+        occurrence.status === 'actual' &&
+        Number(occurrence.actualAmount) === 450
+    ), 'grocery occurrence marked actual');
+
+    const statusFilter = page.locator('#budgetSection #plan-status-inline');
+    await statusFilter.selectOption('actual');
+
+    await expect(page.locator('#budgetSection .plan-actuals-item')).toHaveCount(1);
+    await expect(page.locator('#budgetSection .plan-actuals-item')).toContainText('Groceries budget');
+    const actualMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(actualMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 450,00');
+    await expect(page.locator('#budgetSection .grid-summary-group-label', {
+      hasText: /^Money In$/
+    })).toHaveCount(0);
+    await expectPlanTotal(page, 'Baseline Net', '-R 450,00');
+    await expectPlanTotal(page, 'Current Plan Net', '-R 450,00');
+    await expectPlanTotal(page, 'Actual Net', '-R 450,00');
+    await expectPlanTotal(page, 'Open Commitments', 'R 0,00');
+
+    await statusFilter.selectOption('planned');
+    await expect(page.locator('#budgetSection .plan-actuals-item')).toHaveCount(2);
+    const plannedMoneyIn = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money In$/ })
+    });
+    const plannedMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(plannedMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
+    await expect(plannedMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 250,00');
+
+    await statusFilter.selectOption('');
+    await expect(page.locator('#budgetSection .plan-actuals-item')).toHaveCount(3);
+    const combinedMoneyIn = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money In$/ })
+    });
+    const combinedMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(combinedMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
+    await expect(combinedMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 700,00');
   });
 
   test('adds both a planned item and a manual actual', async ({ page }) => {
