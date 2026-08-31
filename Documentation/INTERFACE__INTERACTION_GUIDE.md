@@ -86,6 +86,7 @@ and Group change presentation only; they do not change the stored plan.
 
 Each summary card contains:
 
+- The secondary or external counterparty account as the first line.
 - Status, effective date, and whether it came from a recurring rule.
 - A direction-aware money movement.
 - The description on a separate line under the movement.

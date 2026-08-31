@@ -15,7 +15,7 @@
 @import url('./partials/components.css');
 
 /* 3. Layout Styles - Header, Sidebar, Grids, Main Layouts */
-@import url('./partials/layout.css?v=20260831-movement-cards-12');
+@import url('./partials/layout.css?v=20260831-counterparty-heading-13');
 
 /* 4. Page-Specific Styles - Documentation, Home, Pages */
 @import url('./partials/pages.css');

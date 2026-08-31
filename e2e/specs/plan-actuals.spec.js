@@ -265,6 +265,8 @@ test.describe('unified Plan & Actuals workflow', () => {
     });
     await expect(moneyOutCard.locator('.plan-actuals-movement'))
       .toHaveText(/Money Out: Checking.*→.*Groceries Expense/);
+    await expect(moneyOutCard.locator('.plan-actuals-counterparty'))
+      .toHaveText('Groceries Expense');
     await expect(moneyOutCard.locator('.plan-actuals-description'))
       .toHaveText('Groceries budget');
     await expect(moneyOutCard).toHaveClass(/money-out/);
@@ -274,15 +276,20 @@ test.describe('unified Plan & Actuals workflow', () => {
     });
     await expect(moneyInCard.locator('.plan-actuals-movement'))
       .toHaveText(/Money In: Salary Income.*→.*Checking/);
+    await expect(moneyInCard.locator('.plan-actuals-counterparty'))
+      .toHaveText('Salary Income');
     await expect(moneyInCard).toHaveClass(/money-in/);
 
     for (const card of [moneyOutCard, moneyInCard]) {
       expect(await card.evaluate((element) => {
         const movement = element.querySelector('.plan-actuals-movement');
+        const counterparty = element.querySelector('.plan-actuals-counterparty');
         const description = element.querySelector('.plan-actuals-description');
         return Boolean(
+          counterparty &&
           movement &&
           description &&
+          (counterparty.compareDocumentPosition(movement) & Node.DOCUMENT_POSITION_FOLLOWING) &&
           (movement.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING)
         );
       })).toBe(true);

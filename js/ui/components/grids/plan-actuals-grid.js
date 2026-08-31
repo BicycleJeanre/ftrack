@@ -968,6 +968,12 @@ function renderOccurrenceCards({
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
 
+    const counterparty = document.createElement('div');
+    counterparty.className = 'grid-summary-title plan-actuals-counterparty';
+    counterparty.textContent = displayMovement.secondaryAccountId
+      ? accountName(accounts, displayMovement.secondaryAccountId)
+      : 'External';
+
     const top = document.createElement('div');
     top.className = 'plan-actuals-item-top';
     const status = document.createElement('span');
@@ -1025,6 +1031,7 @@ function renderOccurrenceCards({
       comparison.appendChild(metric);
     });
 
+    content.appendChild(counterparty);
     content.appendChild(top);
     content.appendChild(movement);
     content.appendChild(description);

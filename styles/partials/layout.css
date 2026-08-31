@@ -2817,6 +2817,12 @@ button.filter-modal-open {
   min-width: 0;
 }
 
+.plan-actuals-counterparty {
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .plan-actuals-status,
 .plan-actuals-repeat {
   display: inline-flex;
