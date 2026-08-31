@@ -1048,11 +1048,16 @@ function renderOccurrenceCards({
       ? accountName(accounts, displayMovement.secondaryAccountId)
       : 'External';
 
-    const top = document.createElement('div');
-    top.className = 'plan-actuals-item-top';
+    const heading = document.createElement('div');
+    heading.className = 'plan-actuals-heading-row';
     const status = document.createElement('span');
     status.className = `plan-actuals-status status-${statusName(occurrence)}`;
     status.textContent = statusName(occurrence).replaceAll('-', ' ');
+    heading.appendChild(counterparty);
+    heading.appendChild(status);
+
+    const schedule = document.createElement('div');
+    schedule.className = 'plan-actuals-schedule-row';
     const date = document.createElement('time');
     date.className = 'grid-summary-date';
     date.dateTime = occurrence.effectiveDate || '';
@@ -1060,9 +1065,9 @@ function renderOccurrenceCards({
     const repeat = document.createElement('span');
     repeat.className = 'plan-actuals-repeat';
     repeat.textContent = recurrenceLabel(occurrence);
-    top.appendChild(status);
-    top.appendChild(date);
-    top.appendChild(repeat);
+    repeat.title = repeat.textContent;
+    schedule.appendChild(repeat);
+    schedule.appendChild(date);
 
     const movement = document.createElement('div');
     movement.className = 'grid-summary-flow plan-actuals-movement';
@@ -1100,16 +1105,11 @@ function renderOccurrenceCards({
       const valueEl = document.createElement('span');
       valueEl.className = `value ${value === null ? 'empty' : numValueClass(value)}`;
       valueEl.textContent = value === null ? '—' : formatCurrency(value);
+      valueEl.title = valueEl.textContent;
       metric.appendChild(labelEl);
       metric.appendChild(valueEl);
       comparison.appendChild(metric);
     });
-
-    content.appendChild(counterparty);
-    content.appendChild(top);
-    content.appendChild(movement);
-    content.appendChild(description);
-    content.appendChild(comparison);
 
     const actions = buildOccurrenceActions({
       occurrence,
@@ -1117,9 +1117,15 @@ function renderOccurrenceCards({
       state,
       onEdit
     });
+    schedule.appendChild(actions);
+
+    content.appendChild(heading);
+    content.appendChild(schedule);
+    content.appendChild(movement);
+    content.appendChild(description);
+    content.appendChild(comparison);
 
     card.appendChild(content);
-    card.appendChild(actions);
     list.appendChild(card);
   });
 }

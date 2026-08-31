@@ -2814,9 +2814,9 @@ button.filter-modal-open {
 
 .plan-actuals-grid .plan-actuals-item {
   container-type: inline-size;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   border-left: 3px solid var(--border-secondary);
-  padding: 9px 10px;
+  padding: 7px 9px;
 }
 
 .plan-actuals-grid .plan-actuals-item.money-in,
@@ -2837,18 +2837,31 @@ button.filter-modal-open {
   border-left-width: 3px;
 }
 
-.plan-actuals-item-top {
+.plan-actuals-heading-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 8px;
+  gap: 7px;
   min-width: 0;
 }
 
 .plan-actuals-counterparty {
-  margin-bottom: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
   font-size: 13px;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-actuals-schedule-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  margin-top: 3px;
 }
 
 .plan-actuals-status,
@@ -2883,40 +2896,46 @@ button.filter-modal-open {
   text-decoration: line-through;
 }
 
-.plan-actuals-item-top .grid-summary-date {
+.plan-actuals-schedule-row .grid-summary-date {
   margin-left: 0;
   color: var(--text-secondary);
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .plan-actuals-repeat {
+  min-width: 0;
   border-color: rgba(0, 212, 255, 0.28);
   background: var(--accent-subtle);
   color: var(--accent-primary);
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .plan-actuals-movement {
-  margin-top: 6px;
+  margin-top: 5px;
   color: var(--text-primary);
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.25;
 }
 
 .plan-actuals-description {
   display: block;
-  margin-top: 3px;
+  margin-top: 2px;
   color: var(--text-secondary);
   font-size: 11px;
-  line-height: 1.35;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .plan-actuals-comparison {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 8px;
-  padding-top: 7px;
+  gap: 6px;
+  margin-top: 5px;
+  padding-top: 5px;
   border-top: 1px solid var(--border-primary);
 }
 
@@ -2937,10 +2956,12 @@ button.filter-modal-open {
 
 .plan-actuals-metric .value {
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 650;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plan-actuals-metric .value.positive {
@@ -2960,7 +2981,9 @@ button.filter-modal-open {
 }
 
 .plan-actuals-actions {
-  flex-direction: column;
+  flex-direction: row;
+  gap: 3px;
+  justify-self: end;
 }
 
 .plan-actuals-completion {
@@ -2968,8 +2991,8 @@ button.filter-modal-open {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 28px;
-  padding: 4px 7px;
+  min-height: 24px;
+  padding: 3px 6px;
   border: 1px solid var(--border-secondary);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
@@ -3048,15 +3071,13 @@ button.filter-modal-open {
   border-color: var(--border-accent);
 }
 
-@container (max-width: 460px) {
-  .plan-actuals-comparison {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@container (max-width: 340px) {
+  .plan-actuals-completion span {
+    display: none;
   }
 
-  .plan-actuals-actions {
-    flex-direction: row;
-    grid-column: 1 / -1;
-    justify-self: end;
+  .plan-actuals-completion {
+    padding-inline: 3px;
   }
 }
 
@@ -3073,12 +3094,6 @@ button.filter-modal-open {
 
   .plan-actuals-grid .plan-actuals-item {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .plan-actuals-actions {
-    flex-direction: row;
-    grid-column: 1;
-    justify-self: end;
   }
 }
 

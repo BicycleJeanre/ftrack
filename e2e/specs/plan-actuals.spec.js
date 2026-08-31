@@ -349,6 +349,32 @@ test.describe('unified Plan & Actuals workflow', () => {
       .toHaveText('Groceries budget');
     await expect(moneyOutCard).toHaveClass(/money-out/);
 
+    await expect(moneyOutCard.locator('.plan-actuals-heading-row'))
+      .toContainText('Groceries Expense');
+    await expect(moneyOutCard.locator('.plan-actuals-heading-row .plan-actuals-status'))
+      .toHaveText('planned');
+    await expect(moneyOutCard.locator('.plan-actuals-schedule-row .plan-actuals-repeat'))
+      .toContainText('Every month');
+    await expect(moneyOutCard.locator('.plan-actuals-schedule-row time'))
+      .toHaveText('2026-01-10');
+
+    const contentOrder = await moneyOutCard.locator('.grid-summary-content').evaluate((content) => (
+      [...content.children].map((child) => child.className)
+    ));
+    expect(contentOrder).toEqual([
+      'plan-actuals-heading-row',
+      'plan-actuals-schedule-row',
+      'grid-summary-flow plan-actuals-movement',
+      'grid-summary-description plan-actuals-description',
+      'plan-actuals-comparison'
+    ]);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const metricTops = await moneyOutCard.locator('.plan-actuals-metric').evaluateAll((metrics) => (
+      metrics.map((metric) => Math.round(metric.getBoundingClientRect().top))
+    ));
+    expect(Math.max(...metricTops) - Math.min(...metricTops)).toBeLessThanOrEqual(1);
+
     const moneyInCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Monthly salary'
     });
@@ -563,12 +589,18 @@ test.describe('unified Plan & Actuals workflow', () => {
     await salaryCard.locator('button[title="Duplicate item"]').click();
     await waitForCollectionCount(page, 'transactionOccurrences', occurrenceCount + 1);
 
-    const manualCopy = page.locator('#budgetSection .plan-actuals-item', {
-      hasText: 'Monthly salary'
-    }).filter({ has: page.locator('button[title="Repeat going forward"]') });
-    await expect(manualCopy).toHaveCount(1);
-    const manualKey = await manualCopy.getAttribute('data-occurrence-key');
-    await manualCopy.locator('button[title="Repeat going forward"]').click();
+    const repeatButton = page.locator('#budgetSection').getByRole('button', {
+      name: 'Repeat going forward'
+    });
+    await expect(repeatButton).toHaveCount(1);
+    const manualKey = await repeatButton.evaluate((button) => {
+      const card = button.closest('.plan-actuals-item');
+      return card?.textContent?.includes('Monthly salary')
+        ? card.dataset.occurrenceKey
+        : null;
+    });
+    expect(manualKey).toBeTruthy();
+    await repeatButton.click();
 
     const recurrenceModal = page.locator('.modal-recurrence');
     await expect(recurrenceModal).toBeVisible();
