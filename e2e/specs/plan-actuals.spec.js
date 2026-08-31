@@ -323,6 +323,33 @@ test.describe('unified Plan & Actuals workflow', () => {
     ).toContainText(/Money In: Checking.*→.*Groceries Expense/);
   });
 
+  test('shows signed totals beside Period and Recurring group headers', async ({ page }) => {
+    await page.locator('#budgetSection #plan-group-inline').selectOption('movement');
+
+    const periodMoneyIn = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money In$/ })
+    });
+    const periodMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(periodMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
+    await expect(periodMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 700,00');
+    await expect(periodMoneyOut.locator('.grid-summary-group-total')).toHaveClass(/negative/);
+
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    await page.locator('#budgetSection #tx-grouping-select-summary')
+      .selectOption('transactionTypeName');
+
+    const recurringMoneyIn = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money In$/ })
+    });
+    const recurringMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(recurringMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
+    await expect(recurringMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 700,00');
+  });
+
   test('adds both a planned item and a manual actual', async ({ page }) => {
     const before = (await currentScenario(page)).transactionOccurrences.length;
 

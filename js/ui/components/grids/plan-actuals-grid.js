@@ -938,9 +938,32 @@ function renderOccurrenceCards({
     if (groupBy === 'repeat') return recurrenceLabel(row);
     return '';
   };
+  const groupContribution = (row) => {
+    const occurrence = row?._canonicalOccurrence || row;
+    const comparison = row?._comparisonOccurrence || occurrence;
+    const typeId = movementDimensions(row).transactionTypeId;
+    const status = String(occurrence?.status || 'planned').trim().toLowerCase();
+    if (status === 'actual' && hasValue(comparison?.actualAmount)) {
+      return signedAmount(comparison.actualAmount, typeId);
+    }
+    if (
+      status === 'planned' &&
+      comparison?.isIncludedInForecast !== false
+    ) {
+      return signedAmount(comparison?.plannedAmount, typeId);
+    }
+    return 0;
+  };
   const sorted = groupBy
     ? [...rows].sort((a, b) => groupValue(a).localeCompare(groupValue(b)))
     : rows;
+  const groupTotals = groupBy
+    ? sorted.reduce((totals, row) => {
+        const key = groupValue(row) || 'Other';
+        totals.set(key, Number(totals.get(key) || 0) + groupContribution(row));
+        return totals;
+      }, new Map())
+    : new Map();
   let previousGroup = null;
 
   sorted.forEach((row) => {
@@ -951,7 +974,15 @@ function renderOccurrenceCards({
         previousGroup = nextGroup;
         const groupHeader = document.createElement('div');
         groupHeader.className = 'grid-summary-group-header';
-        groupHeader.textContent = nextGroup;
+        const groupLabel = document.createElement('span');
+        groupLabel.className = 'grid-summary-group-label';
+        groupLabel.textContent = nextGroup;
+        const groupTotal = document.createElement('span');
+        const total = Number(groupTotals.get(nextGroup) || 0);
+        groupTotal.className = `grid-summary-group-total ${numValueClass(total)}`;
+        groupTotal.textContent = formatCurrency(total);
+        groupHeader.appendChild(groupLabel);
+        groupHeader.appendChild(groupTotal);
         list.appendChild(groupHeader);
       }
     }

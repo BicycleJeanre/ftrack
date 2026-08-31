@@ -81,6 +81,9 @@ The consolidated top toolbar keeps the frequent actions together:
 
 Changing the time grain can change which Period choices are available. Account
 and Group change presentation only; they do not change the stored plan.
+When grouping is active, each grouping bar shows its signed forecast total next
+to the header. Actual items contribute their actual amount, open items contribute
+their current plan, and skipped items contribute zero.
 
 ## 7.0 Reading a Period Item
 
@@ -170,6 +173,8 @@ screen, scroll the toolbar horizontally instead of opening a separate panel.
 Each rule card shows the movement, description, repeat schedule, adjustment,
 active range, next date, and tags. Its actions allow duplication or ending the
 series. Select a rule to edit its definition and choose the required scope.
+When rules are grouped, each grouping bar shows the signed total of the visible
+rules next to its header.
 
 ## 12.0 Detail Tables
 

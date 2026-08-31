@@ -46,11 +46,11 @@ import {
 import {
   loadMasterTransactionsGrid as loadMasterTransactionsGridCore,
   teardownRecurringRulesDetailGrid
-} from '../components/grids/transactions-grid.js?v=20260831-movement-cards-12';
+} from '../components/grids/transactions-grid.js?v=20260831-group-totals-14';
 import {
   loadPlanActualsGrid as loadPlanActualsGridCore,
   teardownPlanActualsGrid as teardownPlanActualsGridCore
-} from '../components/grids/plan-actuals-grid.js?v=20260831-counterparty-heading-13';
+} from '../components/grids/plan-actuals-grid.js?v=20260831-group-totals-14';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js';

@@ -1480,6 +1480,10 @@ body.dashboard-shell {
 
 /* Group headers must span all columns and look like Tabulator group rows */
 .grid-summary-list .grid-summary-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
   grid-column: 1 / -1;
   background: var(--bg-elevated);
   color: var(--text-primary);
@@ -1491,6 +1495,30 @@ body.dashboard-shell {
   border-top: 1px solid var(--border-secondary);
   border-bottom: 1px solid var(--border-secondary);
   margin-top: var(--spacing-xs);
+}
+
+.grid-summary-group-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.grid-summary-group-total {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.grid-summary-group-total.positive {
+  color: var(--color-positive);
+}
+
+.grid-summary-group-total.negative {
+  color: var(--color-negative);
+}
+
+.grid-summary-group-total.zero {
+  color: var(--color-zero);
 }
 
 .grid-summary-list .grid-summary-group-header:first-child {

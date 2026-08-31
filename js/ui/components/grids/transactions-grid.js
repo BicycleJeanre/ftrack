@@ -29,7 +29,7 @@ import * as TransactionManager from '../../../app/managers/transaction-manager.j
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { GridStateManager } from './grid-state.js';
 import * as DataService from '../../../app/services/data-service.js';
-import { formatCurrency } from '../../../shared/format-utils.js';
+import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
 import { renderMoneyTotals } from '../widgets/toolbar-totals.js';
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
 import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js';
@@ -1096,6 +1096,14 @@ function renderTransactionsSummaryList({
   };
 
   // Render grouped cards with headers
+  const groupTotals = groupByField
+    ? displayRows.reduce((totals, row) => {
+        const key = String(row?.[groupByField] || '(ungrouped)');
+        const amount = Number(row?.plannedAmount ?? row?.amount ?? 0);
+        totals.set(key, Number(totals.get(key) || 0) + (Number.isFinite(amount) ? amount : 0));
+        return totals;
+      }, new Map())
+    : new Map();
   let currentGroupValue = null;
   displayRows.forEach((tx, idx) => {
     // Insert group header if grouping is active and group value changed
@@ -1104,7 +1112,15 @@ function renderTransactionsSummaryList({
       if (groupValue !== currentGroupValue) {
         const groupHeader = document.createElement('div');
         groupHeader.className = 'grid-summary-group-header';
-        groupHeader.textContent = groupValue || '(ungrouped)';
+        const groupLabel = document.createElement('span');
+        groupLabel.className = 'grid-summary-group-label';
+        groupLabel.textContent = groupValue || '(ungrouped)';
+        const groupTotal = document.createElement('span');
+        const total = Number(groupTotals.get(groupValue || '(ungrouped)') || 0);
+        groupTotal.className = `grid-summary-group-total ${numValueClass(total)}`;
+        groupTotal.textContent = formatCurrency(total);
+        groupHeader.appendChild(groupLabel);
+        groupHeader.appendChild(groupTotal);
         list.appendChild(groupHeader);
         currentGroupValue = groupValue;
       }
