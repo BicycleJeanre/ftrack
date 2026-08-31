@@ -49,6 +49,25 @@ async function fillNewItem(form, {
   await editorField(form, 'Description').locator('input').fill(description);
 }
 
+async function addInlineAccount(page, form, fieldLabel, {
+  name,
+  typeId,
+  currencyId = 1,
+  startingBalance = 0
+}) {
+  const select = editorField(form, fieldLabel).locator('select');
+  await select.selectOption('__add_account__');
+  const modal = page.locator('.modal-quick-account');
+  await expect(modal).toBeVisible();
+  await modal.getByLabel('Name').fill(name);
+  await modal.getByLabel('Type').selectOption(String(typeId));
+  await modal.getByLabel('Currency').selectOption(String(currencyId));
+  await modal.getByLabel('Starting Balance').fill(String(startingBalance));
+  await modal.getByRole('button', { name: 'Use Account' }).click();
+  await expect(modal).toBeHidden();
+  await expect(select.locator('option:checked')).toContainText(name);
+}
+
 async function selectPlanPeriod(page, label) {
   const select = page.locator('#plan-period-inline');
   const value = await select.locator('option').filter({ hasText: label }).getAttribute('value');
@@ -501,6 +520,48 @@ test.describe('unified Plan & Actuals workflow', () => {
     }, 'manual actual and frozen period baseline persisted');
   });
 
+  test('creates primary and secondary accounts inline without losing the item draft', async ({ page }) => {
+    const form = await openNewItemEditor(page);
+    await editorField(form, 'Date').locator('input').fill('2026-01-28');
+    await editorField(form, 'Current plan').locator('input').fill('140');
+    await editorField(form, 'Description').locator('input').fill('Inline account purchase');
+
+    await addInlineAccount(page, form, 'Primary account', {
+      name: 'Inline Wallet',
+      typeId: 1,
+      startingBalance: 50
+    });
+    await addInlineAccount(page, form, 'Secondary account', {
+      name: 'Inline Purchase Expense',
+      typeId: 5
+    });
+
+    await expect(editorField(form, 'Date').locator('input')).toHaveValue('2026-01-28');
+    await expect(editorField(form, 'Current plan').locator('input')).toHaveValue('140');
+    await expect(editorField(form, 'Description').locator('input'))
+      .toHaveValue('Inline account purchase');
+    await form.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const primary = scenario.accounts.find((account) => account.name === 'Inline Wallet');
+      const secondary = scenario.accounts.find(
+        (account) => account.name === 'Inline Purchase Expense'
+      );
+      const occurrence = scenario.transactionOccurrences.find(
+        (item) => item.description === 'Inline account purchase'
+      );
+      return Number(primary?.startingBalance) === 50 &&
+        Number(primary?.type?.id ?? primary?.type) === 1 &&
+        Number(secondary?.type?.id ?? secondary?.type) === 5 &&
+        Number(occurrence?.primaryAccountId) === Number(primary?.id) &&
+        Number(occurrence?.secondaryAccountId) === Number(secondary?.id);
+    }, 'inline-created accounts linked to the new plan item');
+
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Inline account purchase'
+    })).toBeVisible();
+  });
+
   test('shows recurring schedules for actuals created or promoted as recurring', async ({ page }) => {
     const directForm = await openNewItemEditor(page);
     await fillNewItem(directForm, {
@@ -877,6 +938,35 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(salaryRule.locator('.grid-summary-type')).toHaveText('Money Out');
     await expect(salaryRule.locator('.recurring-rule-movement'))
       .toHaveText(/Salary Income.*→.*Savings Goal/);
+  });
+
+  test('adds an account inline while editing a recurring rule', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const salaryRule = page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary'
+    });
+    await salaryRule.locator('.recurring-rule-description').click();
+    const form = salaryRule.locator('.grid-summary-form');
+    await expect(form).toBeVisible();
+
+    await addInlineAccount(page, form, 'Source account', {
+      name: 'Inline Recurring Income',
+      typeId: 4
+    });
+    await salaryRule.locator('.grid-summary-header').evaluate((header) => {
+      header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await waitForScenario(page, (scenario) => {
+      const account = scenario.accounts.find(
+        (item) => item.name === 'Inline Recurring Income'
+      );
+      return Number(account?.type?.id ?? account?.type) === 4 &&
+        scenario.transactions.some((item) => (
+          Number(item.seriesRootId || item.id) === 1001 &&
+          Number(item.secondaryAccountId) === Number(account?.id)
+        ));
+    }, 'inline-created account linked to recurring rule');
   });
 
   test('shows stale state and automatically returns projections to current after plan changes', async ({ page }) => {

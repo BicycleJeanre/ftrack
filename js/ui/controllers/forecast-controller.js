@@ -54,7 +54,7 @@ import {
 import {
   loadPlanActualsGrid as loadPlanActualsGridCore,
   teardownPlanActualsGrid as teardownPlanActualsGridCore
-} from '../components/grids/plan-actuals-grid.js?v=20260831-unified-actual-control-24';
+} from '../components/grids/plan-actuals-grid.js?v=20260831-inline-account-add-25';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js';

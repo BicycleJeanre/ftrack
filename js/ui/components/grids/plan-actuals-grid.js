@@ -14,12 +14,15 @@ import { transformTransactionToRows } from '../../transforms/transaction-row-tra
 import { calculateResolvedOccurrenceTotals } from '../../transforms/data-aggregators.js';
 import { renderTotalsCard } from '../widgets/totals-card.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
+import { openQuickAccountModal } from '../modals/quick-account-modal.js';
 import { createGrid, refreshGridData } from './grid-factory.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { getScenarioPeriods } from '../../../app/services/data-service.js';
 import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js';
+import * as AccountManager from '../../../app/managers/account-manager.js';
 
 const viewByContextScenario = new Map();
+const ADD_ACCOUNT_OPTION = '__add_account__';
 let pendingEditor = null;
 let lastPlanActualsDetailTable = null;
 let lastPlanActualsDetailTableReady = false;
@@ -528,7 +531,15 @@ function normalizeRecurringPattern(recurrence) {
   return isRecurringPattern(recurrence) ? recurrence : null;
 }
 
-function buildAccountSelect(accounts, selectedId, { includeNone = false } = {}) {
+function buildAccountSelect(
+  accounts,
+  selectedId,
+  {
+    includeNone = false,
+    onQuickAdd = null,
+    quickAddDefaultTypeId = 1
+  } = {}
+) {
   const select = document.createElement('select');
   select.className = 'grid-summary-input';
   if (includeNone) {
@@ -543,7 +554,35 @@ function buildAccountSelect(accounts, selectedId, { includeNone = false } = {}) 
     option.textContent = account.name || String(account.id);
     select.appendChild(option);
   });
+  if (typeof onQuickAdd === 'function') {
+    const addOption = document.createElement('option');
+    addOption.value = ADD_ACCOUNT_OPTION;
+    addOption.textContent = '＋ Add new account…';
+    select.appendChild(addOption);
+  }
   select.value = hasValue(selectedId) ? String(selectedId) : '';
+  let previousValue = select.value;
+  select.addEventListener('change', async () => {
+    if (select.value !== ADD_ACCOUNT_OPTION) {
+      previousValue = select.value;
+      return;
+    }
+    select.value = previousValue;
+    const payload = await openQuickAccountModal({
+      defaultTypeId: typeof quickAddDefaultTypeId === 'function'
+        ? quickAddDefaultTypeId()
+        : quickAddDefaultTypeId
+    });
+    if (!payload) return;
+    const draft = onQuickAdd(payload);
+    if (!draft?.value) return;
+    const option = document.createElement('option');
+    option.value = draft.value;
+    option.textContent = `${draft.label || payload.name} (new)`;
+    select.insertBefore(option, select.querySelector(`option[value="${ADD_ACCOUNT_OPTION}"]`));
+    select.value = draft.value;
+    previousValue = draft.value;
+  });
   return select;
 }
 
@@ -570,19 +609,76 @@ function buildOccurrenceEditor({
   const defaultDate = occurrence?.effectiveDate || occurrence?.scheduledDate || startDate || formatDateOnly(new Date());
   let selectedRecurrence = normalizeRecurringPattern(occurrence?.recurrence);
   let recurrenceTouched = false;
+  let nextAccountDraftId = 1;
+  const accountDrafts = new Map();
+  const materializedAccountIds = new Map();
 
-  const primarySelect = buildAccountSelect(accounts, occurrence?.primaryAccountId ?? defaultPrimaryId);
-  const secondarySelect = buildAccountSelect(accounts, occurrence?.secondaryAccountId, { includeNone: true });
+  const registerAccountDraft = (payload) => {
+    const value = `draft-account-${nextAccountDraftId++}`;
+    accountDrafts.set(value, payload);
+    return { value, label: payload.name };
+  };
+
   const typeSelect = createSelect('', [
     { value: 1, label: 'Money In' },
     { value: 2, label: 'Money Out' }
   ], occurrence?.transactionTypeId || 2);
   typeSelect.className = 'grid-summary-input';
+  const primarySelect = buildAccountSelect(
+    accounts,
+    occurrence?.primaryAccountId ?? defaultPrimaryId,
+    {
+      onQuickAdd: registerAccountDraft,
+      quickAddDefaultTypeId: 1
+    }
+  );
+  const secondarySelect = buildAccountSelect(
+    accounts,
+    occurrence?.secondaryAccountId,
+    {
+      includeNone: true,
+      onQuickAdd: registerAccountDraft,
+      quickAddDefaultTypeId: () => Number(typeSelect.value) === 1 ? 4 : 5
+    }
+  );
 
   const dateInput = document.createElement('input');
   dateInput.type = 'date';
   dateInput.className = 'grid-summary-input';
   dateInput.value = defaultDate || '';
+
+  const resolveSelectedAccountId = async (value) => {
+    if (!value) return null;
+    if (materializedAccountIds.has(value)) return materializedAccountIds.get(value);
+    const draft = accountDrafts.get(value);
+    if (!draft) {
+      const accountId = Number(value);
+      return Number.isFinite(accountId) && accountId > 0 ? accountId : null;
+    }
+
+    const data = await AccountManager.create(
+      scenarioId,
+      {
+        ...draft,
+        openDate: dateInput.value || defaultDate
+      },
+      { notify: false }
+    );
+    const updatedScenario = data.scenarios?.find(
+      (item) => Number(item.id) === Number(scenarioId)
+    );
+    const createdAccount = updatedScenario?.accounts?.[updatedScenario.accounts.length - 1];
+    const accountId = Number(createdAccount?.id || 0) || null;
+    if (!accountId) throw new Error(`Could not create account "${draft.name}".`);
+    materializedAccountIds.set(value, accountId);
+    if (
+      Array.isArray(accounts) &&
+      !accounts.some((account) => Number(account?.id) === accountId)
+    ) {
+      accounts.push(createdAccount);
+    }
+    return accountId;
+  };
 
   const descriptionInput = document.createElement('input');
   descriptionInput.type = 'text';
@@ -740,29 +836,30 @@ function buildOccurrenceEditor({
     const plannedAmount = Math.abs(Number(plannedInput.value || 0));
     const actualAmount = Math.abs(Number(actualInput.value || plannedAmount || 0));
     const selectedStatus = statusSelect.value || 'planned';
-    const occurrenceUpdates = {
-      primaryAccountId: primarySelect.value ? Number(primarySelect.value) : null,
-      secondaryAccountId: secondarySelect.value ? Number(secondarySelect.value) : null,
-      transactionTypeId: Number(typeSelect.value || 2),
-      plannedDate: dateInput.value || null,
-      plannedAmount,
-      description: descriptionInput.value.trim()
-    };
-    const ruleUpdates = {
-      primaryAccountId: occurrenceUpdates.primaryAccountId,
-      secondaryAccountId: occurrenceUpdates.secondaryAccountId,
-      transactionTypeId: occurrenceUpdates.transactionTypeId,
-      amount: plannedAmount,
-      description: occurrenceUpdates.description
-    };
-    if (recurrenceTouched) ruleUpdates.recurrence = selectedRecurrence;
-    const promotionRuleUpdates = {
-      ...ruleUpdates,
-      amount: selectedStatus === 'actual' ? actualAmount : plannedAmount
-    };
-    delete promotionRuleUpdates.recurrence;
 
     await runAction(saveButton, async () => {
+      const occurrenceUpdates = {
+        primaryAccountId: await resolveSelectedAccountId(primarySelect.value),
+        secondaryAccountId: await resolveSelectedAccountId(secondarySelect.value),
+        transactionTypeId: Number(typeSelect.value || 2),
+        plannedDate: dateInput.value || null,
+        plannedAmount,
+        description: descriptionInput.value.trim()
+      };
+      const ruleUpdates = {
+        primaryAccountId: occurrenceUpdates.primaryAccountId,
+        secondaryAccountId: occurrenceUpdates.secondaryAccountId,
+        transactionTypeId: occurrenceUpdates.transactionTypeId,
+        amount: plannedAmount,
+        description: occurrenceUpdates.description
+      };
+      if (recurrenceTouched) ruleUpdates.recurrence = selectedRecurrence;
+      const promotionRuleUpdates = {
+        ...ruleUpdates,
+        amount: selectedStatus === 'actual' ? actualAmount : plannedAmount
+      };
+      delete promotionRuleUpdates.recurrence;
+
       if (isNew) {
         const scheduledDate = dateInput.value || defaultDate;
         const created = await OccurrenceManager.createManualOccurrence(scenarioId, {

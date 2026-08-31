@@ -107,7 +107,7 @@ export async function saveAll(scenarioId, accounts) {
  * @param {Object} accountData - The account data
  * @returns {Promise<Object>} - The created account
  */
-export async function create(scenarioId, accountData) {
+export async function create(scenarioId, accountData, { notify = true } = {}) {
     const result = await DataStore.transaction(async (data) => {
         const scenarioIndex = data.scenarios.findIndex(s => s.id === scenarioId);
         
@@ -147,7 +147,7 @@ export async function create(scenarioId, accountData) {
         
         return data;
     });
-    dispatchPlanChanged(scenarioId);
+    if (notify) dispatchPlanChanged(scenarioId);
     return result;
 }
 

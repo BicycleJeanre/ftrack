@@ -1511,6 +1511,16 @@ input[type="checkbox"] {
   margin-top: 20px;
 }
 
+.modal-quick-account {
+  width: min(420px, calc(100vw - 24px));
+}
+
+.modal-quick-account-error {
+  min-height: 18px;
+  color: var(--danger);
+  font-size: 0.85em;
+}
+
 .modal-periodic-button {
   padding: 8px 14px;
   border: none;

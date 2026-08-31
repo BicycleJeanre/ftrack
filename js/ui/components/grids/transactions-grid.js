@@ -6,6 +6,7 @@ import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
 import { openTextInputModal } from '../modals/text-input-modal.js';
+import { openQuickAccountModal } from '../modals/quick-account-modal.js';
 import { createFilterModal } from '../modals/filter-modal.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
@@ -35,6 +36,7 @@ import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
 import { renderMoneyTotals } from '../widgets/toolbar-totals.js';
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
 import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js';
+import * as AccountManager from '../../../app/managers/account-manager.js';
 
 const {
   getScenario,
@@ -1078,7 +1080,8 @@ function renderTransactionsSummaryList({
   }
   const findAccountName = (id) => visibleAccounts.find((a) => Number(a.id) === Number(id))?.name || 'Unassigned';
 
-  const buildAccountSelect = (selectedId, includeNone = false) => {
+  const accountSelects = [];
+  const buildAccountSelect = (selectedId, includeNone = false, defaultTypeId = 1) => {
     const sel = document.createElement('select');
     sel.className = 'grid-summary-input';
     if (includeNone) {
@@ -1093,7 +1096,60 @@ function renderTransactionsSummaryList({
       opt.textContent = a.name;
       sel.appendChild(opt);
     });
+    const addOpt = document.createElement('option');
+    addOpt.value = '__add_account__';
+    addOpt.textContent = '＋ Add new account…';
+    sel.appendChild(addOpt);
     sel.value = selectedId ? String(selectedId) : '';
+    let previousValue = sel.value;
+    sel.addEventListener('change', async () => {
+      if (sel.value !== '__add_account__') {
+        previousValue = sel.value;
+        return;
+      }
+      sel.value = previousValue;
+      const payload = await openQuickAccountModal({ defaultTypeId });
+      if (!payload) return;
+      try {
+        const data = await AccountManager.create(
+          scenario.id,
+          {
+            ...payload,
+            openDate: scenario?.projection?.config?.startDate || formatDateOnly(new Date())
+          },
+          { notify: false }
+        );
+        const updatedScenario = data.scenarios?.find(
+          (item) => Number(item.id) === Number(scenario.id)
+        );
+        const created = updatedScenario?.accounts?.[updatedScenario.accounts.length - 1];
+        if (!created?.id) throw new Error(`Could not create account "${payload.name}".`);
+        if (!visibleAccounts.some((account) => Number(account.id) === Number(created.id))) {
+          visibleAccounts.push(created);
+        }
+        if (
+          Array.isArray(accounts) &&
+          !accounts.some((account) => Number(account.id) === Number(created.id))
+        ) {
+          accounts.push(created);
+        }
+        accountSelects.forEach((accountSelect) => {
+          const option = document.createElement('option');
+          option.value = String(created.id);
+          option.textContent = created.name;
+          accountSelect.insertBefore(
+            option,
+            accountSelect.querySelector('option[value="__add_account__"]')
+          );
+        });
+        sel.value = String(created.id);
+        previousValue = sel.value;
+        sel.dispatchEvent(new Event('change'));
+      } catch (error) {
+        notifyError(error?.message || String(error));
+      }
+    });
+    accountSelects.push(sel);
     return sel;
   };
 
@@ -1234,11 +1290,13 @@ function renderTransactionsSummaryList({
     // -- Account selects --
     const primaryAccountSelect = buildAccountSelect(
       editableTx?.primaryAccountId,
-      false
+      false,
+      1
     );
     const secondaryAccountSelect = buildAccountSelect(
       inlineSplitEditable ? defaultSplitTargetAccountId : editableTx?.secondaryAccountId,
-      true
+      true,
+      editableTypeId === 1 ? 4 : 5
     );
 
     // Line 1: secondary account name + amount (amount pushed right)
