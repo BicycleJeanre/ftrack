@@ -156,7 +156,7 @@ a rule that was consistently defined incorrectly.
 
 ## 11.0 Recurring Controls and Rule Cards
 
-![Recurring plan rules with toolbar and direction labels](assets/user-guides/recurring-rules.jpg "Recurring shows reusable rule segments, totals, movement direction, schedule, active dates, and tags.")
+![Recurring plan rules with toolbar and direction labels](assets/user-guides/recurring-rules.jpg "Recurring shows reusable rule segments, totals, movement direction, schedule, next occurrence, and tags.")
 
 The Recurring toolbar includes:
 
@@ -171,8 +171,10 @@ All of these controls remain visible in the same top toolbar. On a narrow
 screen, scroll the toolbar horizontally instead of opening a separate panel.
 
 Each rule card shows the movement, description, repeat schedule, adjustment,
-active range, next date, and tags. Its actions allow duplication or ending the
-series. Select a rule to edit its definition and choose the required scope.
+next date, and tags. The repeat label shows the frequency and its optional end
+date; it does not repeat the stored start date. Its actions allow duplication
+or ending the series. Select a rule to edit its definition and choose the
+required scope.
 When rules are grouped, each grouping bar shows the signed total of the visible
 rules next to its header.
 

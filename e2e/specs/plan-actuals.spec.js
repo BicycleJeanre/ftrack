@@ -489,7 +489,9 @@ test.describe('unified Plan & Actuals workflow', () => {
     const recurrenceModal = page.locator('.modal-recurrence');
     await expect(recurrenceModal).toBeVisible();
     await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await recurrenceModal.locator('#startDate').fill('2026-01-01');
     await recurrenceModal.locator('#dayOfMonth').fill('25');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
     await recurrenceModal.locator('button[title="Save"]').click();
 
     await waitForCollectionCount(page, 'transactions', transactionCount + 1);
@@ -501,6 +503,31 @@ test.describe('unified Plan & Actuals workflow', () => {
             : transaction.recurrence?.recurrenceType
         ) === 4
     ), 'manual copy promoted to a recurring rule');
+
+    const promotedScenario = await currentScenario(page);
+    const promotedRule = promotedScenario.transactions.find(
+      (transaction) => transaction.promotedFromOccurrenceKey === manualKey
+    );
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const promotedRuleCard = page.locator(
+      `#budgetTable .recurring-rule-card[data-source-transaction-id="${promotedRule.id}"]`
+    );
+    await expect(promotedRuleCard).toBeVisible();
+    await expect(promotedRuleCard.locator('.recurring-rule-metadata'))
+      .toContainText('Repeat: Every month on day 25 until 2026-04-30');
+    await expect(promotedRuleCard.locator('.recurring-rule-metadata'))
+      .not.toContainText('Active:');
+    await expect(promotedRuleCard.locator('.recurring-rule-metadata'))
+      .not.toContainText(' from ');
+
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await page.locator('#budgetSection button[title="Next period"]').click();
+    const generatedCard = page.locator('#budgetSection .plan-actuals-item', {
+      has: page.locator('.plan-actuals-repeat', {
+        hasText: /^Every month on day 25 until 2026-04-30$/
+      })
+    });
+    await expect(generatedCard).toHaveCount(1);
   });
 
   test('applies occurrence, this-and-future, and entire-series edits without rewriting actual history', async ({ page }) => {

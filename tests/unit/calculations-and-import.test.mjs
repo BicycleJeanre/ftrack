@@ -166,16 +166,26 @@ test('daily recurrence intervals preserve the saved start-date anchor in filtere
   );
 });
 
-test('recurrence summary includes the saved start date for recurring entries', () => {
+test('recurrence summary shows frequency and optional end date without a recurring start date', () => {
   assert.equal(
     getRecurrenceDescription({
       recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
       startDate: '2026-06-01',
-      endDate: null,
+      endDate: '2026-12-31',
       interval: 1,
       dayOfMonth: 1
     }),
-    'Every month on day 1 from 2026-06-01'
+    'Every month on day 1 until 2026-12-31'
+  );
+
+  assert.equal(
+    getRecurrenceDescription({
+      recurrenceType: { id: 2, name: 'Daily' },
+      startDate: '2026-06-01',
+      endDate: null,
+      interval: 2
+    }),
+    'Every 2 days'
   );
 
   assert.equal(

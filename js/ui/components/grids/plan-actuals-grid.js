@@ -3,7 +3,9 @@
 
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
 import { generatePeriods } from '../../../domain/calculations/period-utils.js';
-import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
+import {
+  getRecurrenceDescription
+} from '../../../domain/calculations/recurrence-utils.js?v=20260831-recurrence-labels-16';
 import { getDefaultProjectionWindowDates, mapPeriodTypeNameToId } from '../../../shared/app-data-utils.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
@@ -485,8 +487,11 @@ async function runAction(button, action) {
 }
 
 function recurrenceLabel(occurrence) {
-  return occurrence?.recurrenceDescription ||
-    (occurrence?.recurrence ? 'Recurring' : 'One time');
+  if (occurrence?.recurrence) {
+    const description = getRecurrenceDescription(occurrence.recurrence);
+    if (description) return description;
+  }
+  return occurrence?.recurrenceDescription || 'One time';
 }
 
 function recurrenceTypeId(recurrence) {

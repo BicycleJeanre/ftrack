@@ -9,7 +9,9 @@ import { openTextInputModal } from '../modals/text-input-modal.js';
 import { createFilterModal } from '../modals/filter-modal.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import { expandTransactions } from '../../../domain/calculations/transaction-expander.js';
-import { getRecurrenceDescription } from '../../../domain/calculations/recurrence-utils.js';
+import {
+  getRecurrenceDescription
+} from '../../../domain/calculations/recurrence-utils.js?v=20260831-recurrence-labels-16';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
 import {
   buildCompoundTransactions,
@@ -1312,17 +1314,6 @@ function renderTransactionsSummaryList({
       tagsMeta.textContent = `Tags: ${
         Array.isArray(editableTx?.tags) && editableTx.tags.length ? editableTx.tags.join(', ') : 'None'
       }`;
-      const activeStart =
-        sourceCanonicalTx?.activeFrom ||
-        sourceCanonicalTx?.recurrence?.startDate ||
-        sourceCanonicalTx?.effectiveDate ||
-        'Not set';
-      const activeEnd =
-        sourceCanonicalTx?.activeTo ||
-        sourceCanonicalTx?.recurrence?.endDate ||
-        'Ongoing';
-      const activeMeta = document.createElement('span');
-      activeMeta.textContent = `Active: ${activeStart} → ${activeEnd}`;
       const nextMeta = document.createElement('span');
       const nextOccurrence =
         nextUnresolvedOccurrenceForRule?.(sourceCanonicalTx || tx) || null;
@@ -1333,7 +1324,6 @@ function renderTransactionsSummaryList({
       nextMeta.textContent = nextDate ? `Next: ${nextDate}` : 'Next: Ended';
       metadata.appendChild(recurrenceMeta);
       metadata.appendChild(periodicMeta);
-      metadata.appendChild(activeMeta);
       metadata.appendChild(nextMeta);
       metadata.appendChild(tagsMeta);
       if (splitGroupId) {
