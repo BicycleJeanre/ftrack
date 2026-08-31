@@ -169,7 +169,8 @@ test.describe('detail workflow reachability', () => {
     await expect(firstRow.locator(
       '.plan-actuals-completion input[type="checkbox"]'
     )).toHaveCount(1);
-    await expect(firstRow.locator('.plan-actuals-completion')).toContainText('Actual');
+    await expect(firstRow.locator('.plan-actuals-status.plan-actuals-completion'))
+      .toHaveCount(1);
     await expect(page.locator('#budgetSection .plan-actuals-item')).toHaveCount(0);
   });
 

@@ -2990,19 +2990,19 @@ button.filter-modal-open {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-height: 24px;
-  padding: 3px 6px;
+  gap: 4px;
+  min-height: 22px;
+  padding: 2px 7px;
   border: 1px solid var(--border-secondary);
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   background: var(--bg-secondary);
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.03em;
   line-height: 1;
-  text-transform: uppercase;
+  text-transform: capitalize;
   white-space: nowrap;
 }
 
@@ -3013,9 +3013,10 @@ button.filter-modal-open {
 }
 
 .plan-actuals-completion input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   margin: 0;
+  accent-color: var(--color-positive);
 }
 
 .plan-actuals-completion.is-complete {
@@ -3069,16 +3070,6 @@ button.filter-modal-open {
 .plan-actuals-recurrence-btn:hover,
 .plan-actuals-recurrence-btn:focus-visible {
   border-color: var(--border-accent);
-}
-
-@container (max-width: 340px) {
-  .plan-actuals-completion span {
-    display: none;
-  }
-
-  .plan-actuals-completion {
-    padding-inline: 3px;
-  }
 }
 
 @media (max-width: 1000px) {

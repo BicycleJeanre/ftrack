@@ -863,7 +863,9 @@ function buildCompletionControl({ occurrence, scenarioId, state }) {
   const isActual = status === 'actual';
   const isSkipped = status === 'skipped';
   const label = document.createElement('label');
-  label.className = `plan-actuals-completion${isActual ? ' is-complete' : ''}`;
+  label.className =
+    `plan-actuals-status plan-actuals-completion status-${status}` +
+    `${isActual ? ' is-complete' : ''}`;
 
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
@@ -878,7 +880,7 @@ function buildCompletionControl({ occurrence, scenarioId, state }) {
     : (isActual ? 'Actual / completed' : 'Mark as actual / completed');
 
   const text = document.createElement('span');
-  text.textContent = 'Actual';
+  text.textContent = status.replaceAll('-', ' ');
 
   label.addEventListener('click', (event) => event.stopPropagation());
   label.addEventListener('mousedown', (event) => event.stopPropagation());
@@ -921,7 +923,6 @@ function buildOccurrenceActions({
   actions.className =
     `grid-summary-actions plan-actuals-actions${className ? ` ${className}` : ''}`;
 
-  actions.appendChild(buildCompletionControl({ occurrence, scenarioId, state }));
   if (occurrence.status !== 'skipped' && occurrence.status !== 'actual') {
     actions.appendChild(actionButton({
       title: 'Skip occurrence',
@@ -1083,9 +1084,7 @@ function renderOccurrenceCards({
 
     const heading = document.createElement('div');
     heading.className = 'plan-actuals-heading-row';
-    const status = document.createElement('span');
-    status.className = `plan-actuals-status status-${statusName(occurrence)}`;
-    status.textContent = statusName(occurrence).replaceAll('-', ' ');
+    const status = buildCompletionControl({ occurrence, scenarioId, state });
     heading.appendChild(counterparty);
     heading.appendChild(status);
 
@@ -1250,6 +1249,15 @@ function detailMoneyFormatter(cell) {
 
 function detailStatusFormatter(cell) {
   const value = String(cell.getValue() || 'planned').trim().toLowerCase();
+  const occurrence = cell.getRow().getData()?._canonicalOccurrence;
+  const runtime = planActualsDetailRuntime;
+  if (occurrence && runtime) {
+    return buildCompletionControl({
+      occurrence,
+      scenarioId: runtime.scenarioId,
+      state: runtime.state
+    });
+  }
   const span = document.createElement('span');
   span.className = `plan-actuals-status status-${value.replaceAll(' ', '-')}`;
   span.textContent = value;

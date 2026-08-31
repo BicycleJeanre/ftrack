@@ -15,7 +15,7 @@
 @import url('./partials/components.css');
 
 /* 3. Layout Styles - Header, Sidebar, Grids, Main Layouts */
-@import url('./partials/layout.css?v=20260831-actual-recurrence-23');
+@import url('./partials/layout.css?v=20260831-unified-actual-control-24');
 
 /* 4. Page-Specific Styles - Documentation, Home, Pages */
 @import url('./partials/pages.css');

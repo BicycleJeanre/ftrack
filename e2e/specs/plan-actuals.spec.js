@@ -353,6 +353,12 @@ test.describe('unified Plan & Actuals workflow', () => {
       .toContainText('Groceries Expense');
     await expect(moneyOutCard.locator('.plan-actuals-heading-row .plan-actuals-status'))
       .toHaveText('planned');
+    await expect(moneyOutCard.locator(
+      '.plan-actuals-heading-row .plan-actuals-completion input[type="checkbox"]'
+    )).toHaveCount(1);
+    await expect(moneyOutCard.locator(
+      '.plan-actuals-schedule-row .plan-actuals-completion'
+    )).toHaveCount(0);
     await expect(moneyOutCard.locator('.plan-actuals-schedule-row .plan-actuals-repeat'))
       .toContainText('Every month');
     await expect(moneyOutCard.locator('.plan-actuals-schedule-row time'))
@@ -623,6 +629,8 @@ test.describe('unified Plan & Actuals workflow', () => {
     });
     await expect(groceryCompletion).toBeChecked();
     await expect(groceryCompletion).toBeDisabled();
+    await expect(groceryCard.locator('.plan-actuals-heading-row .plan-actuals-completion'))
+      .toHaveText('actual');
     await expect(groceryCard).toHaveClass(/money-out/);
     await expect(actualMetric.locator('.value')).toHaveText('-R 450,00');
     await expect(actualMetric.locator('.value')).toHaveClass(/negative/);
