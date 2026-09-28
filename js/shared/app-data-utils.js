@@ -1,11 +1,13 @@
 // app-data-utils.js
-// Shared helpers for persisting schemaVersion 43 app data.
+// Shared helpers for persisting schemaVersion 44 app data.
 
 import { DEFAULT_WORKFLOW_ID, getWorkflowById } from './workflow-registry.js';
-import { formatDateOnly } from './date-utils.js';
+import { formatDateOnly, parseDateOnly } from './date-utils.js';
 
-export const CURRENT_SCHEMA_VERSION = 43;
+export const CURRENT_SCHEMA_VERSION = 44;
 export const DEFAULT_PERIOD_TYPE_ID = 3; // Month
+const VALID_OCCURRENCE_STATUSES = new Set(['planned', 'actual', 'skipped']);
+const VALID_OCCURRENCE_ORIGINS = new Set(['generated', 'manual', 'migrated']);
 
 export class SchemaVersionError extends Error {
   constructor({ expected, actual, message } = {}) {
@@ -18,7 +20,7 @@ export class SchemaVersionError extends Error {
   }
 }
 
-export function assertSchemaVersion43(rawAppData) {
+export function assertCurrentSchemaVersion(rawAppData) {
   const actual = rawAppData && typeof rawAppData === 'object' ? rawAppData.schemaVersion : null;
   if (actual !== CURRENT_SCHEMA_VERSION) {
     throw new SchemaVersionError({
@@ -26,8 +28,7 @@ export function assertSchemaVersion43(rawAppData) {
       actual,
       message:
         `Unsupported schemaVersion ${actual == null ? 'missing' : actual}. ` +
-        `This build requires schemaVersion ${CURRENT_SCHEMA_VERSION}. ` +
-        'Run the standalone migration tool (QC-only) to convert legacy data to schemaVersion 43.'
+        `This build requires schemaVersion ${CURRENT_SCHEMA_VERSION}.`
     });
   }
 }
@@ -104,10 +105,15 @@ export function createDefaultUiState(overrides = {}) {
     lastScenarioVersion: null,
     viewPeriodTypeIds: {
       transactions: DEFAULT_PERIOD_TYPE_ID,
-      budgets: DEFAULT_PERIOD_TYPE_ID,
+      planActuals: DEFAULT_PERIOD_TYPE_ID,
       projections: DEFAULT_PERIOD_TYPE_ID,
       ...(overrides.viewPeriodTypeIds || {})
     },
+    planActualsWorkspaceByScenario:
+      overrides.planActualsWorkspaceByScenario &&
+      typeof overrides.planActualsWorkspaceByScenario === 'object'
+        ? overrides.planActualsWorkspaceByScenario
+        : {},
     accordionStates: overrides.accordionStates && typeof overrides.accordionStates === 'object' ? overrides.accordionStates : {},
     ...overrides,
     lastWorkflowId: safeWorkflowId
@@ -130,15 +136,125 @@ export function normalizeUiState(raw) {
     Object.entries(rawAccordion).filter(([, v]) => typeof v === 'boolean')
   );
 
+  const rawWorkspaces = base.planActualsWorkspaceByScenario &&
+    typeof base.planActualsWorkspaceByScenario === 'object'
+      ? base.planActualsWorkspaceByScenario
+      : {};
+  const periodViews = new Set(['period', 'recurring']);
+  const periodGroups = new Set(['', 'status', 'movement', 'repeat']);
+  const periodStatuses = new Set(['', 'planned', 'actual']);
+  const periodHistoryFilters = new Set(['', 'closed', 'captured', 'live']);
+  const recurringGroups = new Set([
+    '',
+    'transactionTypeName',
+    'primaryAccountName',
+    'secondaryAccountName',
+    'transactionGroupId',
+    'transactionGroupRole',
+    'transactionGroupAccountGroupLabel'
+  ]);
+  const cleanOptionalString = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    return String(value).slice(0, 200);
+  };
+  const cleanOptionalId = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  };
+  const cleanAccountScope = (value) => {
+    const scope = String(value || '');
+    return /^(type|group):[1-9]\d*$/.test(scope) ? scope : '';
+  };
+  const planActualsWorkspaceByScenario = Object.fromEntries(
+    Object.entries(rawWorkspaces)
+      .filter(([scenarioId, workspace]) => (
+        Number.isFinite(Number(scenarioId)) && Number(scenarioId) > 0 &&
+        workspace && typeof workspace === 'object'
+      ))
+      .map(([scenarioId, workspace]) => {
+        const periodTypeId = Number(workspace.periodTypeId);
+        const periodGroup = String(workspace.groupBy || '');
+        const periodStatus = String(workspace.statusFilter || '');
+        const rawPeriodHistoryFilter = String(workspace.historyFilter || '');
+        const periodHistoryFilter = rawPeriodHistoryFilter === 'frozen'
+          ? 'closed'
+          : rawPeriodHistoryFilter;
+        const recurringGroup = String(workspace.recurringGroupBy || '');
+        const rawViews = workspace.viewByContext && typeof workspace.viewByContext === 'object'
+          ? workspace.viewByContext
+          : {};
+        const viewByContext = Object.fromEntries(
+          Object.entries(rawViews)
+            .filter(([contextKey, view]) => (
+              contextKey && contextKey.length <= 100 && periodViews.has(String(view))
+            ))
+            .map(([contextKey, view]) => [contextKey, String(view)])
+        );
+        if (!viewByContext.general && periodViews.has(String(workspace.view || ''))) {
+          viewByContext.general = String(workspace.view);
+        }
+        return [String(Number(scenarioId)), {
+          viewByContext,
+          periodTypeId:
+            Number.isInteger(periodTypeId) && periodTypeId >= 1 && periodTypeId <= 5
+              ? periodTypeId
+              : DEFAULT_PERIOD_TYPE_ID,
+          periodId: cleanOptionalString(workspace.periodId),
+          accountId: cleanOptionalId(workspace.accountId),
+          accountScope: cleanAccountScope(workspace.accountScope),
+          statusFilter: periodStatuses.has(periodStatus) ? periodStatus : '',
+          historyFilter: periodHistoryFilters.has(periodHistoryFilter)
+            ? periodHistoryFilter
+            : '',
+          groupBy: periodGroups.has(periodGroup) ? periodGroup : '',
+          recurringAccountId: cleanOptionalId(workspace.recurringAccountId),
+          recurringAccountScope: cleanAccountScope(
+            workspace.recurringAccountScope
+          ),
+          recurringGroupBy: recurringGroups.has(recurringGroup) ? recurringGroup : '',
+          recurringSplitGroupId: cleanOptionalString(workspace.recurringSplitGroupId),
+          recurringSplitRole: cleanOptionalString(workspace.recurringSplitRole),
+          recurringSplitAccountGroupId: cleanOptionalId(
+            workspace.recurringSplitAccountGroupId
+          ),
+          ...(() => {
+            const selectedVariantByPeriod =
+              workspace.selectedVariantByPeriod &&
+              typeof workspace.selectedVariantByPeriod === 'object'
+                ? Object.fromEntries(
+                    Object.entries(workspace.selectedVariantByPeriod)
+                      .filter(([periodKey, variantId]) => (
+                        periodKey && periodKey.length <= 220 &&
+                        variantId && String(variantId).length <= 220
+                      ))
+                      .map(([periodKey, variantId]) => [
+                        String(periodKey),
+                        String(variantId)
+                      ])
+                  )
+                : {};
+            return Object.keys(selectedVariantByPeriod).length
+              ? { selectedVariantByPeriod }
+              : {};
+          })()
+        }];
+      })
+  );
+
   return {
     lastWorkflowId: workflowId,
     lastScenarioId: base.lastScenarioId == null ? null : Number(base.lastScenarioId),
     lastScenarioVersion: base.lastScenarioVersion == null ? null : Number(base.lastScenarioVersion),
     viewPeriodTypeIds: {
       transactions: cleanPeriod(view.transactions) ?? DEFAULT_PERIOD_TYPE_ID,
-      budgets: cleanPeriod(view.budgets) ?? DEFAULT_PERIOD_TYPE_ID,
+      planActuals:
+        cleanPeriod(view.planActuals) ??
+        cleanPeriod(view.budgets) ??
+        DEFAULT_PERIOD_TYPE_ID,
       projections: cleanPeriod(view.projections) ?? DEFAULT_PERIOD_TYPE_ID
     },
+    planActualsWorkspaceByScenario,
     accordionStates
   };
 }
@@ -152,7 +268,22 @@ export function createDefaultAppData(overrides = {}) {
   };
 }
 
-function normalizeProjectionConfig(rawConfig) {
+export function normalizeDateOnlyString(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const parsed = parseDateOnly(value);
+  if (!(parsed instanceof Date) || Number.isNaN(parsed.valueOf())) return null;
+
+  const normalized = [
+    String(parsed.getFullYear()).padStart(4, '0'),
+    String(parsed.getMonth() + 1).padStart(2, '0'),
+    String(parsed.getDate()).padStart(2, '0')
+  ].join('-');
+
+  return normalized === value ? value : null;
+}
+
+export function normalizeProjectionConfig(rawConfig) {
   const defaults = getDefaultProjectionWindowDates();
   const base = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
 
@@ -163,23 +294,316 @@ function normalizeProjectionConfig(rawConfig) {
       : (typeof periodTypeIdRaw === 'object' ? Number(periodTypeIdRaw?.id) : mapPeriodTypeNameToId(periodTypeIdRaw)) ||
         DEFAULT_PERIOD_TYPE_ID;
 
-  const source = base.source === 'budget' ? 'budget' : 'transactions';
+  let startDate = normalizeDateOnlyString(base.startDate) || defaults.startDate;
+  let endDate = normalizeDateOnlyString(base.endDate) || defaults.endDate;
+
+  if (startDate > endDate) {
+    startDate = defaults.startDate;
+    endDate = defaults.endDate;
+  }
+
+  const asOfDate = normalizeDateOnlyString(base.asOfDate);
+  const openCommitmentStartDate = normalizeDateOnlyString(base.openCommitmentStartDate);
 
   return {
-    startDate: typeof base.startDate === 'string' && base.startDate ? base.startDate : defaults.startDate,
-    endDate: typeof base.endDate === 'string' && base.endDate ? base.endDate : defaults.endDate,
+    startDate,
+    endDate,
     periodTypeId: Number.isFinite(Number(periodTypeId)) ? Number(periodTypeId) : DEFAULT_PERIOD_TYPE_ID,
-    source
+    ...(asOfDate ? { asOfDate } : {}),
+    ...(openCommitmentStartDate && openCommitmentStartDate <= startDate
+      ? { openCommitmentStartDate }
+      : {})
   };
 }
 
-function normalizeBudgetWindowConfig(rawConfig) {
-  const base = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+function optionalId(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function optionalAmount(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.abs(number) : null;
+}
+
+function optionalText(value) {
+  if (value === null || value === undefined) return null;
+  return String(value);
+}
+
+function normalizeTransactionLineItems(rawItems, fallbackDate = null) {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems.flatMap((rawItem, index) => {
+    if (!rawItem || typeof rawItem !== 'object') return [];
+    const amount = Number(rawItem.amount);
+    if (!Number.isFinite(amount) || Math.abs(amount) <= 0) return [];
+    const date = normalizeDateOnlyString(rawItem.date) || fallbackDate || null;
+    return [{
+      id: String(rawItem.id || `line-${index + 1}`).trim() || `line-${index + 1}`,
+      date,
+      description: String(rawItem.description || '').trim(),
+      amount: Math.abs(amount)
+    }];
+  });
+}
+
+export function normalizeTransactionRule(rawTransaction) {
+  const transaction = rawTransaction && typeof rawTransaction === 'object' ? rawTransaction : {};
+  const transactionTypeId = Number(transaction.transactionTypeId) === 1 ? 1 : 2;
+
+  const lineItems = normalizeTransactionLineItems(
+    transaction.lineItems,
+    normalizeDateOnlyString(transaction.effectiveDate)
+  );
+  const itemizedAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
 
   return {
-    startDate: typeof base.startDate === 'string' && base.startDate ? base.startDate : null,
-    endDate: typeof base.endDate === 'string' && base.endDate ? base.endDate : null
+    id: Number(transaction.id) || 0,
+    seriesRootId: optionalId(transaction.seriesRootId),
+    supersedesTransactionId: optionalId(transaction.supersedesTransactionId),
+    promotedFromOccurrenceKey: optionalText(transaction.promotedFromOccurrenceKey),
+    primaryAccountId: optionalId(transaction.primaryAccountId),
+    secondaryAccountId: optionalId(transaction.secondaryAccountId),
+    transactionTypeId,
+    amount: lineItems.length
+      ? itemizedAmount
+      : Math.abs(Number(transaction.amount) || 0),
+    description: String(transaction.description || ''),
+    recurrence: transaction.recurrence && typeof transaction.recurrence === 'object'
+      ? transaction.recurrence
+      : null,
+    periodicChange: transaction.periodicChange && typeof transaction.periodicChange === 'object'
+      ? transaction.periodicChange
+      : null,
+    effectiveDate: normalizeDateOnlyString(transaction.effectiveDate),
+    activeFrom: normalizeDateOnlyString(transaction.activeFrom),
+    activeTo: normalizeDateOnlyString(transaction.activeTo),
+    transactionGroupId: transaction.transactionGroupId ?? null,
+    transactionGroupRole: optionalText(transaction.transactionGroupRole),
+    transactionGroupAccountGroupId: optionalId(transaction.transactionGroupAccountGroupId),
+    capitalAmount: optionalAmount(transaction.capitalAmount),
+    interestAmount: optionalAmount(transaction.interestAmount),
+    tags: Array.isArray(transaction.tags) ? [...transaction.tags] : [],
+    ...(lineItems.length ? { lineItems } : {}),
+    createdAt: optionalText(transaction.createdAt),
+    updatedAt: optionalText(transaction.updatedAt)
   };
+}
+
+export function normalizeTransactionOccurrence(rawOccurrence) {
+  const occurrence = rawOccurrence && typeof rawOccurrence === 'object' ? rawOccurrence : {};
+  const rawStatus = String(occurrence.status || '').trim().toLowerCase();
+  const rawOrigin = String(occurrence.origin || '').trim().toLowerCase();
+
+  const scheduledDate = normalizeDateOnlyString(occurrence.scheduledDate);
+  const lineItems = normalizeTransactionLineItems(
+    occurrence.lineItems,
+    scheduledDate
+  );
+  const itemizedAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
+  const normalizedStatus = VALID_OCCURRENCE_STATUSES.has(rawStatus)
+    ? rawStatus
+    : 'planned';
+
+  return {
+    id: Number(occurrence.id) || 0,
+    sourceTransactionId: optionalId(occurrence.sourceTransactionId),
+    occurrenceKey: String(occurrence.occurrenceKey || '').trim(),
+    scheduledDate,
+    plannedDate: normalizeDateOnlyString(occurrence.plannedDate),
+    actualDate: normalizeDateOnlyString(occurrence.actualDate),
+    baselineAmount: optionalAmount(occurrence.baselineAmount),
+    baselinePrimaryAccountId: optionalId(occurrence.baselinePrimaryAccountId),
+    baselineSecondaryAccountId: optionalId(occurrence.baselineSecondaryAccountId),
+    baselineTransactionTypeId:
+      Number(occurrence.baselineTransactionTypeId) === 1
+        ? 1
+        : (Number(occurrence.baselineTransactionTypeId) === 2 ? 2 : null),
+    baselineSnapshotVersion:
+      Number(occurrence.baselineSnapshotVersion) === 1 ? 1 : null,
+    plannedAmount:
+      lineItems.length && normalizedStatus !== 'actual'
+        ? itemizedAmount
+        : optionalAmount(occurrence.plannedAmount),
+    actualAmount:
+      lineItems.length && normalizedStatus === 'actual'
+        ? itemizedAmount
+        : optionalAmount(occurrence.actualAmount),
+    status: normalizedStatus,
+    origin: VALID_OCCURRENCE_ORIGINS.has(rawOrigin) ? rawOrigin : 'manual',
+    actualSnapshotVersion:
+      Number(occurrence.actualSnapshotVersion) === 1 ? 1 : null,
+    isOverride:
+      typeof occurrence.isOverride === 'boolean'
+        ? occurrence.isOverride
+        : null,
+    primaryAccountId: optionalId(occurrence.primaryAccountId),
+    secondaryAccountId: optionalId(occurrence.secondaryAccountId),
+    transactionTypeId:
+      Number(occurrence.transactionTypeId) === 1
+        ? 1
+        : (Number(occurrence.transactionTypeId) === 2 ? 2 : null),
+    description: optionalText(occurrence.description),
+    tags: Array.isArray(occurrence.tags) ? [...occurrence.tags] : null,
+    transactionGroupId: occurrence.transactionGroupId ?? null,
+    transactionGroupRole: optionalText(occurrence.transactionGroupRole),
+    transactionGroupAccountGroupId: optionalId(occurrence.transactionGroupAccountGroupId),
+    capitalAmount: optionalAmount(occurrence.capitalAmount),
+    interestAmount: optionalAmount(occurrence.interestAmount),
+    recurrence:
+      occurrence.recurrence && typeof occurrence.recurrence === 'object'
+        ? occurrence.recurrence
+        : null,
+    recurrenceDescription: optionalText(occurrence.recurrenceDescription),
+    periodicChange:
+      occurrence.periodicChange && typeof occurrence.periodicChange === 'object'
+        ? occurrence.periodicChange
+        : null,
+    ...(lineItems.length ? { lineItems } : {}),
+    createdAt: optionalText(occurrence.createdAt),
+    updatedAt: optionalText(occurrence.updatedAt)
+  };
+}
+
+function materializeOccurrenceSnapshots(occurrence, transactions) {
+  const source = occurrence?.sourceTransactionId == null
+    ? null
+    : transactions.find(
+      (transaction) =>
+        Number(transaction?.id) === Number(occurrence.sourceTransactionId)
+    ) || null;
+  let next = { ...occurrence };
+
+  if (next.status === 'actual' && next.actualSnapshotVersion !== 1) {
+    const fallback = (field, emptyValue = null) => (
+      next[field] !== null && next[field] !== undefined
+        ? next[field]
+        : (source?.[field] !== null && source?.[field] !== undefined
+          ? source[field]
+          : emptyValue)
+    );
+    next = {
+      ...next,
+      primaryAccountId: fallback('primaryAccountId'),
+      secondaryAccountId: fallback('secondaryAccountId'),
+      transactionTypeId: fallback('transactionTypeId'),
+      description: fallback('description', ''),
+      tags: Array.isArray(next.tags)
+        ? [...next.tags]
+        : (Array.isArray(source?.tags) ? [...source.tags] : []),
+      transactionGroupId: fallback('transactionGroupId'),
+      transactionGroupRole: fallback('transactionGroupRole'),
+      transactionGroupAccountGroupId: fallback('transactionGroupAccountGroupId'),
+      capitalAmount: fallback('capitalAmount'),
+      interestAmount: fallback('interestAmount'),
+      recurrence:
+        next.recurrence !== null && next.recurrence !== undefined
+          ? next.recurrence
+          : (source?.recurrence ?? null),
+      recurrenceDescription: fallback('recurrenceDescription', ''),
+      periodicChange:
+        next.periodicChange !== null && next.periodicChange !== undefined
+          ? next.periodicChange
+          : (source?.periodicChange ?? null),
+      lineItems: Array.isArray(next.lineItems)
+        ? next.lineItems.map((item) => ({ ...item }))
+        : (Array.isArray(source?.lineItems)
+          ? source.lineItems.map((item) => ({ ...item }))
+          : []),
+      actualSnapshotVersion: 1
+    };
+  }
+
+  if (
+    next.baselineAmount !== null &&
+    next.baselineAmount !== undefined &&
+    next.baselineSnapshotVersion !== 1
+  ) {
+    next = {
+      ...next,
+      baselinePrimaryAccountId:
+        next.baselinePrimaryAccountId ?? next.primaryAccountId ?? source?.primaryAccountId ?? null,
+      baselineSecondaryAccountId:
+        next.baselineSecondaryAccountId ?? next.secondaryAccountId ?? source?.secondaryAccountId ?? null,
+      baselineTransactionTypeId:
+        next.baselineTransactionTypeId ?? next.transactionTypeId ?? source?.transactionTypeId ?? null,
+      baselineSnapshotVersion: 1
+    };
+  }
+
+  return next;
+}
+
+export function normalizeBaselinePeriod(rawPeriod) {
+  const period = rawPeriod && typeof rawPeriod === 'object' ? rawPeriod : {};
+  const periodTypeId = Number(period.periodTypeId);
+  const startDate = normalizeDateOnlyString(period.startDate);
+  const endDate = normalizeDateOnlyString(period.endDate);
+
+  return {
+    periodTypeId:
+      Number.isFinite(periodTypeId) && periodTypeId >= 1 && periodTypeId <= 5
+        ? periodTypeId
+        : DEFAULT_PERIOD_TYPE_ID,
+    startDate,
+    endDate,
+    frozenAt: optionalText(period.frozenAt)
+  };
+}
+
+function deriveSplitTransactionSets(transactions = []) {
+  const grouped = new Map();
+  (Array.isArray(transactions) ? transactions : []).forEach((txn) => {
+    const groupId = String(txn?.transactionGroupId || '').trim();
+    if (!groupId) return;
+    if (!grouped.has(groupId)) grouped.set(groupId, []);
+    grouped.get(groupId).push(txn);
+  });
+
+  return Array.from(grouped.entries()).map(([groupId, groupTransactions]) => {
+    const first = groupTransactions[0] || {};
+    const components = groupTransactions
+      .map((txn, index) => {
+        const role = String(txn?.transactionGroupRole || '').trim().toLowerCase() || `adhoc_${index + 1}`;
+        const accountId = Number(txn?.secondaryAccountId || 0) || null;
+        const value = Math.abs(Number(txn?.amount || 0));
+        if (!accountId || value <= 0) return null;
+        const amountMode = role === 'principal' ? 'remainder' : (role === 'interest' ? 'derived' : 'fixed');
+        return {
+          role,
+          accountId,
+          transactionTypeId: Number(txn?.transactionTypeId || 2) === 1 ? 1 : 2,
+          accountGroupId: Number(txn?.transactionGroupAccountGroupId || 0) || null,
+          description: String(txn?.description || '').trim(),
+          recurrence: txn?.recurrence || null,
+          periodicChange: txn?.periodicChange || null,
+          amountMode,
+          value,
+          order: index
+        };
+      })
+      .filter(Boolean);
+
+    const totalAmount = components.reduce((sum, component) => sum + Number(component?.value || 0), 0);
+    const principalComponent = components.find((component) => component.role === 'principal') || null;
+
+    return {
+      id: groupId,
+      description: String(first?.description || '').trim(),
+      payingAccountId: Number(first?.primaryAccountId || 0) || null,
+      effectiveDate: first?.effectiveDate || null,
+      strategy: 'manual',
+      targetAccountId: Number(principalComponent?.accountId || 0) || null,
+      interestSource: 'none',
+      customRate: null,
+      totalAmount,
+      components,
+      recurrence: null,
+      tags: []
+    };
+  });
 }
 
 export function normalizeScenario(rawScenario) {
@@ -193,25 +617,49 @@ export function normalizeScenario(rawScenario) {
     base.description === null || typeof base.description === 'string' ? base.description : String(base.description || '');
 
   const accounts = Array.isArray(base.accounts) ? base.accounts : [];
-  const transactions = Array.isArray(base.transactions) ? base.transactions : [];
-  const budgets = Array.isArray(base.budgets) ? base.budgets : [];
+  const accountGroups = Array.isArray(base.accountGroups) ? base.accountGroups : [];
+  const transactions = Array.isArray(base.transactions)
+    ? base.transactions.map(normalizeTransactionRule)
+    : [];
+  const splitTransactionSetsRaw = Array.isArray(base.splitTransactionSets) ? base.splitTransactionSets : [];
+  const splitTransactionSets = splitTransactionSetsRaw.length
+    ? splitTransactionSetsRaw
+    : deriveSplitTransactionSets(transactions);
+  const transactionOccurrences = Array.isArray(base.transactionOccurrences)
+    ? base.transactionOccurrences
+      .map(normalizeTransactionOccurrence)
+      .map((occurrence) => materializeOccurrenceSnapshots(occurrence, transactions))
+    : [];
+  const baselinePeriods = Array.isArray(base.baselinePeriods)
+    ? base.baselinePeriods.map(normalizeBaselinePeriod)
+    : [];
 
   const projectionConfig = normalizeProjectionConfig(base.projection?.config);
   const rows = Array.isArray(base.projection?.rows) ? base.projection.rows : [];
+  const generatedAt =
+    typeof base.projection?.generatedAt === 'string'
+      ? base.projection.generatedAt
+      : null;
+  const stale = base.projection?.stale === true;
+  const staleAt =
+    typeof base.projection?.staleAt === 'string'
+      ? base.projection.staleAt
+      : null;
+  const staleReason =
+    typeof base.projection?.staleReason === 'string' && base.projection.staleReason.trim()
+      ? base.projection.staleReason.trim()
+      : null;
 
   const projection =
     projectionConfig && projectionConfig.startDate && projectionConfig.endDate
       ? {
           config: projectionConfig,
-          ...(rows.length ? { rows } : {}),
-          generatedAt: base.projection?.generatedAt ?? null
+          rows,
+          generatedAt,
+          stale,
+          staleAt: stale ? staleAt : null,
+          staleReason: stale ? staleReason : null
         }
-      : null;
-
-  const budgetWindowConfig = normalizeBudgetWindowConfig(base.budgetWindow?.config);
-  const budgetWindow =
-    budgetWindowConfig && (budgetWindowConfig.startDate || budgetWindowConfig.endDate)
-      ? { config: budgetWindowConfig }
       : null;
 
   const planning = base.planning && typeof base.planning === 'object' ? base.planning : {};
@@ -227,9 +675,35 @@ export function normalizeScenario(rawScenario) {
   // Planning windows: defaults to projection window, but can be overridden per goal solver
   // These do NOT affect projection generation; projections always use scenario.projection.config
   // Planning windows are only used by Generate Plan and Advanced Goal Solver for their respective horizons
+  const periodVariants = Array.isArray(planning.periodVariants)
+    ? planning.periodVariants.flatMap((rawVariant) => {
+        if (!rawVariant || typeof rawVariant !== 'object') return [];
+        const id = String(rawVariant.id || '').trim();
+        const name = String(rawVariant.name || '').trim();
+        const startDate = normalizeDateOnlyString(rawVariant.startDate);
+        const endDate = normalizeDateOnlyString(rawVariant.endDate);
+        if (!id || !name || !startDate || !endDate) return [];
+        return [{
+          id,
+          name,
+          periodType: String(rawVariant.periodType || 'Month'),
+          periodId: String(rawVariant.periodId || ''),
+          startDate,
+          endDate,
+          createdAt: optionalText(rawVariant.createdAt),
+          updatedAt: optionalText(rawVariant.updatedAt),
+          occurrences: Array.isArray(rawVariant.occurrences)
+            ? rawVariant.occurrences
+              .filter((item) => item && typeof item === 'object' && item.occurrenceKey)
+              .map((item) => ({ ...item }))
+            : []
+        }];
+      })
+    : [];
   const nextPlanning = {
     generatePlan: cleanWindow(planning.generatePlan, defaultWindow),
     advancedGoalSolver: cleanWindow(planning.advancedGoalSolver, defaultWindow),
+    periodVariants,
     ...(planning.goalWorkshopMode === 'simple' || planning.goalWorkshopMode === 'advanced'
       ? { goalWorkshopMode: planning.goalWorkshopMode }
       : {})
@@ -237,51 +711,33 @@ export function normalizeScenario(rawScenario) {
 
   const lineage = base.lineage && typeof base.lineage === 'object' ? base.lineage : null;
 
-  return {
-    ...base,
+  const normalized = {
     id,
     version,
     name,
     description,
     lineage,
     accounts,
+    accountGroups,
+    splitTransactionSets,
     transactions,
-    budgets,
-    budgetWindow,
+    transactionOccurrences,
+    baselinePeriods,
     projection,
     planning: nextPlanning
   };
+
+  if (base.advancedGoalSettings !== undefined) normalized.advancedGoalSettings = base.advancedGoalSettings;
+  if (base.fundSettings !== undefined) normalized.fundSettings = base.fundSettings;
+  return normalized;
 }
 
 export function getScenarioProjectionRows(scenario) {
   return scenario?.projection?.rows || [];
 }
 
-export function getScenarioBudgetWindowConfig(scenario) {
-  return scenario?.budgetWindow?.config || null;
-}
-
-export function setScenarioBudgetWindowConfig(scenario, config) {
-  if (!scenario) return;
-  if (!scenario.budgetWindow) {
-    scenario.budgetWindow = {};
-  }
-  scenario.budgetWindow.config = config;
-}
-
 export function sanitizeScenarioForWrite(rawScenario) {
   const scenario = normalizeScenario(rawScenario);
-
-  // Validate: if budgets exist, budgetWindow.config must be present with startDate and endDate
-  if (scenario.budgets && scenario.budgets.length > 0) {
-    const budgetConfig = scenario.budgetWindow?.config;
-    if (!budgetConfig || !budgetConfig.startDate || !budgetConfig.endDate) {
-      throw new Error(
-        `Scenario "${scenario.name}" has budgets but is missing required budgetWindow configuration. ` +
-        `budgetWindow.config must have both startDate and endDate.`
-      );
-    }
-  }
 
   const next = {
     id: scenario.id,
@@ -290,9 +746,11 @@ export function sanitizeScenarioForWrite(rawScenario) {
     description: scenario.description ?? null,
     ...(scenario.lineage !== undefined ? { lineage: scenario.lineage } : {}),
     accounts: scenario.accounts || [],
-    ...(scenario.transactions ? { transactions: scenario.transactions } : {}),
-    ...(scenario.budgets ? { budgets: scenario.budgets } : {}),
-    ...(scenario.budgetWindow !== undefined ? { budgetWindow: scenario.budgetWindow } : {}),
+    accountGroups: scenario.accountGroups || [],
+    splitTransactionSets: scenario.splitTransactionSets || [],
+    transactions: scenario.transactions || [],
+    transactionOccurrences: scenario.transactionOccurrences || [],
+    baselinePeriods: scenario.baselinePeriods || [],
     ...(scenario.projection !== undefined ? { projection: scenario.projection } : {}),
     ...(scenario.planning ? { planning: scenario.planning } : {})
   };
@@ -305,11 +763,15 @@ export function sanitizeScenarioForWrite(rawScenario) {
 
 export function sanitizeAppDataForWrite(rawAppData) {
   const normalized = normalizeAppData(rawAppData);
-  return {
+  const next = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     scenarios: (normalized.scenarios || []).map(sanitizeScenarioForWrite),
     uiState: normalizeUiState(normalized.uiState)
   };
+  if (normalized.migrationReport !== undefined && normalized.migrationReport !== null) {
+    next.migrationReport = normalized.migrationReport;
+  }
+  return next;
 }
 
 export function normalizeAppData(raw) {
@@ -320,6 +782,9 @@ export function normalizeAppData(raw) {
   return {
     schemaVersion: typeof base.schemaVersion === 'number' ? base.schemaVersion : CURRENT_SCHEMA_VERSION,
     scenarios: scenarios.map(normalizeScenario),
-    uiState
+    uiState,
+    ...(base.migrationReport && typeof base.migrationReport === 'object'
+      ? { migrationReport: base.migrationReport }
+      : {})
   };
 }

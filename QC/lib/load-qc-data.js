@@ -44,7 +44,7 @@ function loadUseCaseMapping(customPath = DEFAULT_PATHS.useCaseMapping) {
 function getScenariosByWorkflow(qcInputData, workflowName, useCaseMapping = null) {
   const scenarios = qcInputData.scenarios || [];
 
-  // Schema 43 datasets do not store workflow on scenarios.
+  // Schema 44 datasets do not store workflow on scenarios.
   // Use the mapping file's explicit scenarioIds list instead.
   const mapping = useCaseMapping?.workflowMappings?.[workflowName] || null;
   const ids = Array.isArray(mapping?.scenarioIds) ? mapping.scenarioIds : [];

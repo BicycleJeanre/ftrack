@@ -39,31 +39,30 @@ The `docId` is based on the filename without extension.
 
 Workflows are Forecast UI presets (left navigation). They control which cards are visible, but they do not change your scenario data.
 
-2.1 Budget.
+2.1 General.
 
-2.1.1 Use when you want plan vs actual tracking, budgets, and variance.
+2.1.1 Use for budget creation, recurring rule entry, period tracking,
+baselines, actuals, variance, summary totals, and projections. Budgeting is a
+task inside General rather than a separate workflow.
 
-2.2 General.
+2.2 Funds.
 
-2.2.1 Use for flexible what-if planning with summary totals.
+2.2.1 Use to model a shared pool with NAV and share-based ownership.
 
-2.3 Funds.
+2.3 Debt Repayment.
 
-2.3.1 Use to model a shared pool with NAV and share-based ownership.
+2.3.1 Use for payoff timelines, interest, and payoff dates.
 
-2.4 Debt Repayment.
+2.4 Goal Workshop.
 
-2.4.1 Use for payoff timelines, interest, and payoff dates.
-
-2.5 Goal Workshop.
-
-2.5.1 Use for goal-based planning. Simple mode generates a single contribution plan per account. Advanced mode solves multi-goal constraints across accounts.
+2.4.1 Use for goal-based planning. Simple mode generates a single contribution plan per account. Advanced mode solves multi-goal constraints across accounts.
 
 ## 3.0 Choosing Goal Workshop Mode
 
 3.1 If you want to reach a savings target.
 
-3.1.1 Use Simple mode when one account goal is enough and you want one generated contribution transaction.
+3.1.1 Use Simple mode when one account goal is enough and you want one
+generated contribution Plan Rule.
 
 3.1.2 Use Advanced mode when you need constraints such as max outflow per month, locked accounts, or floors.
 

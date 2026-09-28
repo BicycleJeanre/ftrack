@@ -10,17 +10,18 @@
 
 2.1.1 Model one or more debts as liability accounts.
 
-2.1.2 Add planned payments as transactions.
+2.1.2 Add recurring payment rules and one-time payment occurrences.
 
 2.1.3 Apply interest as an account periodic change, including variable rates.
 
 2.1.4 See payoff dates and interest paid in the summary cards.
 
-2.2 Do not use Debt Repayment when you need.
+2.2 Debt Repayment includes the same Plan & Actuals tracking used by every main
+workflow. Use Goal Workshop instead when you need multi-goal planning with
+constraints.
 
-2.2.1 Budget vs actual tracking.
-
-2.2.2 Multi-goal planning with constraints. Use Advanced Goal Solver for that.
+2.2.1 Use Goal Workshop in Advanced
+mode for that.
 
 ## 3.0 Create A Debt Repayment Scenario
 
@@ -54,25 +55,39 @@
 
 4.3.3 If you have a variable rate, use the rate schedule editor to set date ranges.
 
+4.3.4 Set **Interest Posting Day** when the lender posts interest on a specific
+day each month. Days 29–31 automatically use month-end in shorter months. Leave
+it blank to retain period-end accrual.
+
 4.4 Notes.
 
 4.4.1 A schedule entry overrides the base periodic change for its date range.
 
 4.4.2 Avoid overlapping ranges.
 
-## 5.0 Add Payment Transactions
+## 5.0 Add Payment Rules
 
-5.1 In Transactions, add planned payments that reduce the liability balance.
+5.1 Open **Plan & Actuals → Recurring** and add planned payments that reduce
+the liability balance.
 
-5.2 Use recurring transactions for monthly minimum payments.
+5.2 Use recurring rules for monthly minimum payments.
 
-5.3 Add extra payments as separate transactions so you can turn them on or off.
+5.3 Add extra payments as separate rules or one-time Period items so you can
+adjust them independently.
+
+5.3.1 For an automated multi-debt strategy, use Goal Workshop Advanced mode:
+enter each contractual minimum, set the total Max outflow per month, and choose
+Snowball or Avalanche for the extra capacity.
 
 5.4 Use realistic start dates so the projection timeline matches expected payments.
 
-## 6.0 Generate Projections
+5.5 Switch to **Period** to adjust a specific payment, add an unplanned cost,
+record an actual, or compare baseline, current plan, actual, and variance.
 
-6.1 Click Generate Projections.
+## 6.0 Refresh Projections
+
+6.1 Allow automatic refresh to complete after plan changes, or use
+**Refresh projections now** for an immediate calculation.
 
 6.2 Review.
 

@@ -13,10 +13,6 @@ function round2(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
-function statusName(tx) {
-  return typeof tx?.status === 'object' ? tx.status?.name : tx?.status;
-}
-
 async function importModule(relativePathFromRepo) {
   const absolutePath = path.resolve(process.cwd(), relativePathFromRepo);
   return import(pathToFileURL(absolutePath).href);
@@ -25,24 +21,18 @@ async function importModule(relativePathFromRepo) {
 async function loadCalculationModules() {
   const [
     projectionEngine,
-    transactionExpander,
     dateUtils,
-    calculationEngine,
-    periodicChangeUtils
+    occurrenceResolver
   ] = await Promise.all([
     importModule('js/domain/calculations/projection-engine.js'),
-    importModule('js/domain/calculations/transaction-expander.js'),
     importModule('js/shared/date-utils.js'),
-    importModule('js/domain/calculations/calculation-engine.js'),
-    importModule('js/domain/calculations/periodic-change-utils.js')
+    importModule('js/domain/queries/resolve-scenario-occurrences.js')
   ]);
 
   return {
     generateProjectionsForScenario: projectionEngine.generateProjectionsForScenario,
-    expandTransactions: transactionExpander.expandTransactions,
     parseDateOnly: dateUtils.parseDateOnly,
-    calculatePeriodicChange: calculationEngine.calculatePeriodicChange,
-    expandPeriodicChangeForCalculation: periodicChangeUtils.expandPeriodicChangeForCalculation
+    resolveScenarioOccurrences: occurrenceResolver.resolveScenarioOccurrences
   };
 }
 
@@ -86,41 +76,40 @@ function buildScenarioActuals(scenario, projections) {
 }
 
 function buildOccurrencesForScenario(scenario, modules, lookupData) {
-  const { expandTransactions, parseDateOnly, calculatePeriodicChange, expandPeriodicChangeForCalculation } = modules;
+  const { parseDateOnly, resolveScenarioOccurrences } = modules;
 
   const projectionConfig = scenario?.projection?.config || {};
   const windowStart = projectionConfig.startDate;
   const windowEnd = projectionConfig.endDate;
 
-  const startDate = parseDateOnly(windowStart);
-  const endDate = parseDateOnly(windowEnd);
-  const plannedTransactions = (scenario.transactions || []).filter((tx) => statusName(tx) === 'planned');
-  const expandedTransactions = expandTransactions(plannedTransactions, startDate, endDate, scenario.accounts || []);
-
-  return expandedTransactions.map((tx) => {
-    const occurrenceDate = tx._occurrenceDate || parseDateOnly(tx.effectiveDate);
-    let occurrenceAmount = Math.abs(tx.amount || 0);
-
-    if (tx.periodicChange) {
-      const expandedPc = expandPeriodicChangeForCalculation(tx.periodicChange, lookupData);
-      if (expandedPc) {
-        const txStartDate = tx.recurrence?.startDate ? parseDateOnly(tx.recurrence.startDate) : startDate;
-        const yearsDiff = (occurrenceDate - txStartDate) / (1000 * 60 * 60 * 24 * 365.25);
-        occurrenceAmount = Math.abs(calculatePeriodicChange(tx.amount, expandedPc, yearsDiff));
-      }
-    }
-
-    return {
-      transactionId: tx.id,
-      date: occurrenceDate,
-      transactionTypeId: tx.transactionTypeId,
-      amount: occurrenceAmount,
-      primaryAccountId: tx.primaryAccountId,
-      secondaryAccountId: tx.secondaryAccountId,
-      tags: tx.tags || [],
-      description: tx.description || ''
-    };
+  const { occurrences, diagnostics } = resolveScenarioOccurrences({
+    scenario,
+    startDate: windowStart,
+    endDate: windowEnd,
+    lookupData
   });
+  if (diagnostics.length) {
+    const summary = diagnostics
+      .map((diagnostic) => diagnostic?.code || diagnostic?.message || 'unknown-diagnostic')
+      .join(', ');
+    throw new Error(
+      `Scenario ${scenario?.id ?? 'unknown'} occurrence resolution produced diagnostics: ${summary}`
+    );
+  }
+
+  return occurrences
+    .filter((occurrence) => occurrence.isIncludedInForecast && occurrence.validForProjection)
+    .map((occurrence) => ({
+      transactionId: occurrence.sourceTransactionId ?? occurrence.sourceBudgetId,
+      occurrenceKey: occurrence.occurrenceKey,
+      date: parseDateOnly(occurrence.forecastDate),
+      transactionTypeId: occurrence.transactionTypeId,
+      amount: occurrence.forecastAmount,
+      primaryAccountId: occurrence.primaryAccountId,
+      secondaryAccountId: occurrence.secondaryAccountId,
+      tags: occurrence.tags || [],
+      description: occurrence.description || ''
+    }));
 }
 
 function sumByTransactionType(occurrences, transactionTypeId) {

@@ -7,7 +7,9 @@ import { parseDateOnly } from '../../shared/date-utils.js';
 export function getRecurrenceDescription(recurrence) {
   if (!recurrence || !recurrence.recurrenceType) return '';
 
-  const typeId = recurrence.recurrenceType.id;
+  const typeId = typeof recurrence.recurrenceType === 'object'
+    ? recurrence.recurrenceType.id
+    : recurrence.recurrenceType;
   const interval = recurrence.interval && recurrence.interval > 1 ? recurrence.interval : 1;
   const end = recurrence.endDate ? ` until ${recurrence.endDate}` : '';
 
@@ -68,9 +70,9 @@ export function getRecurrenceDescription(recurrence) {
     }
     case 11: { // Custom Dates
       const count = recurrence.customDates ? recurrence.customDates.split(',').filter(Boolean).length : 0;
-      return count > 0 ? `Custom: ${count} dates` : 'Custom dates';
+      return count > 0 ? `Custom: ${count} dates${end}` : `Custom dates${end}`;
     }
     default:
-      return recurrence.recurrenceType.name || 'Recurring';
+      return `${recurrence.recurrenceType.name || 'Recurring'}${end}`;
   }
 }

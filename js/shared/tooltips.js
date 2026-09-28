@@ -38,6 +38,9 @@ function position(tip) {
   let y = mouseY + GAP;
   if (x + tw > vw - 8) x = mouseX - tw - GAP;
   if (y + th > vh - 8) y = mouseY - th - GAP;
+  // Clamp to viewport to avoid offscreen tooltips (e.g., very wide or edge hovers).
+  x = Math.min(Math.max(x, 8), Math.max(8, vw - tw - 8));
+  y = Math.min(Math.max(y, 8), Math.max(8, vh - th - 8));
   tip.style.left = x + 'px';
   tip.style.top = y + 'px';
 }

@@ -12,10 +12,10 @@
 @import url('./partials/base.css');
 
 /* 2. Component Styles - Buttons, Inputs, Badges, Modals */
-@import url('./partials/components.css');
+@import url('./partials/components.css?v=20260901-account-group-filter-42');
 
 /* 3. Layout Styles - Header, Sidebar, Grids, Main Layouts */
-@import url('./partials/layout.css');
+@import url('./partials/layout.css?v=20260927-secondary-account-shortcut-54');
 
 /* 4. Page-Specific Styles - Documentation, Home, Pages */
 @import url('./partials/pages.css');

@@ -1,7 +1,7 @@
 // Unified Navbar JS - injects the navbar into #main-navbar on every page
-import { downloadAppData, uploadAppData } from '../../app/services/export-service.js';
+import { downloadAppData } from '../../app/services/export-service.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
-import { openValidateDataModal } from '../components/modals/validate-data-modal.js';
+import { openDataUpgradeModal } from '../components/modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
 
 // Web-only: Show clear data button for browser storage management
 const clearDataBtn = '<button id="nav-clear" class="icon-btn icon-btn--danger" title="Clear all data from browser storage">⊗ Clear</button>';
@@ -23,7 +23,7 @@ const navLinks = `
   <button id="nav-theme" class="icon-btn" title="Toggle theme"></button>
   <button id="nav-export" class="icon-btn" title="Export data to file">⬆ Export</button>
   <button id="nav-import" class="icon-btn" title="Import data from file">⬇ Import</button>
-  <button id="nav-validate" class="icon-btn" title="Validate data file for errors">⊘ Validate</button>
+  <button id="nav-validate" class="icon-btn" title="Upgrade or validate app data">⊘ Data Check</button>
   ${clearDataBtn}
 `;
 
@@ -92,10 +92,7 @@ async function attachDataHandlers() {
     importBtn.addEventListener('click', async function(e) {
       e.preventDefault();
       try {
-        const success = await uploadAppData(false); // false = replace mode
-        if (success) {
-        } else {
-        }
+        await openDataUpgradeModal({ initialSource: 'file' });
       } catch (err) {
         notifyError('Import failed: ' + err.message);
       }
@@ -106,7 +103,7 @@ async function attachDataHandlers() {
     validateBtn.addEventListener('click', async function(e) {
       e.preventDefault();
       try {
-        await openValidateDataModal();
+        await openDataUpgradeModal();
       } catch (err) {
         notifyError('Validation error: ' + err.message);
       }
@@ -121,6 +118,7 @@ async function attachDataHandlers() {
       if (await confirmDialog('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) {
         try {
           localStorage.removeItem('ftrack:app-data');
+          localStorage.removeItem('ftrack:plan-actuals-workspaces:v1');
           notifySuccess('All data cleared successfully. The page will now reload.');
           window.location.reload();
         } catch (err) {

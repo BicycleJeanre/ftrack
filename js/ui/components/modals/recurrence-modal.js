@@ -4,6 +4,25 @@
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { createModal } from './modal-factory.js';
 
+const RECURRENCE_TYPE_NAMES = {
+    1: 'One Time',
+    2: 'Daily',
+    3: 'Weekly',
+    4: 'Monthly - Day of Month',
+    5: 'Monthly - Week of Month',
+    6: 'Quarterly',
+    7: 'Yearly',
+    11: 'Custom Dates'
+};
+
+export function normalizeRecurrenceTypeId(value, fallback = 1) {
+    const raw = value && typeof value === 'object' ? value.id : value;
+    const parsed = Number(raw);
+    return Object.prototype.hasOwnProperty.call(RECURRENCE_TYPE_NAMES, parsed)
+        ? parsed
+        : fallback;
+}
+
 /**
  * Open a modal to edit recurrence data
  * @param {Object} currentValue - Current recurrence object
@@ -13,11 +32,12 @@ export function openRecurrenceModal(currentValue, onSave) {
     const { modal, close } = createModal({ contentClass: 'modal-recurrence' });
 
     // Extract current values or use defaults
-    const recurrenceTypeId = currentValue?.recurrenceType || 1;
+    const recurrenceTypeId = normalizeRecurrenceTypeId(currentValue?.recurrenceType ?? currentValue?.recurrenceTypeId);
     const startDate = currentValue?.startDate || formatDateOnly(new Date());
     const endDate = currentValue?.endDate || '';
     const interval = currentValue?.interval || 1;
-    const dayOfMonth = currentValue?.dayOfMonth || 1;
+    const startDayOfMonth = Number(String(startDate).slice(8, 10)) || 1;
+    const dayOfMonth = currentValue?.dayOfMonth || startDayOfMonth;
 
     modal.innerHTML = `
         <h2 class="modal-periodic-title">
@@ -112,21 +132,11 @@ export function openRecurrenceModal(currentValue, onSave) {
 
     saveBtn.addEventListener('click', () => {
         const selectedTypeId = parseInt(modal.querySelector('#recurrenceType').value);
-        const typeNames = {
-            1: 'One Time',
-            2: 'Daily',
-            3: 'Weekly',
-            4: 'Monthly - Day of Month',
-            5: 'Monthly - Week of Month',
-            6: 'Quarterly',
-            7: 'Yearly',
-            11: 'Custom Dates'
-        };
         
         const recurrence = {
             recurrenceType: {
                 id: selectedTypeId,
-                name: typeNames[selectedTypeId]
+                name: RECURRENCE_TYPE_NAMES[selectedTypeId]
             },
             startDate: modal.querySelector('#startDate').value,
             endDate: modal.querySelector('#endDate').value || null,

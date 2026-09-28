@@ -1,7 +1,14 @@
-# Refactor Audit Report
+# Historical Refactor Audit Report
 
 **Date**: February 23, 2026  
 **Purpose**: Code review validating implementation against TECH_IMPLEMENTATION_PLAN.md, TECH_REFACTOR_WORKFLOWS.md, and TECH_DATA_SCHEMA.md
+
+> **Historical snapshot:** This report records the schemaVersion 43 refactor at
+> the date above. The current application uses schemaVersion 44 and the unified
+> Plan & Actuals workflow documented in
+> [TECH_ARCHITECTURE.md](TECH_ARCHITECTURE.md) and
+> [TECH_DATA_SCHEMA.md](TECH_DATA_SCHEMA.md). Several files and findings below
+> were subsequently removed or resolved.
 
 ---
 
@@ -87,7 +94,7 @@ export async function delete(scenarioId)                       // Lines 104-112 
 - [js/ui/controllers/forecast-controller.js](../js/ui/controllers/forecast-controller.js#L8): `import * as ScenarioManager`
 - [js/ui/controllers/forecast-controller.js](../js/ui/controllers/forecast-controller.js#L583): `await ScenarioManager.duplicate(scenario.id)`
 - [js/ui/components/forecast/forecast-generate-plan.js](../js/ui/components/forecast/forecast-generate-plan.js#L22): `import * as ScenarioManager`
-- [js/ui/components/grids/budget-grid.js](../js/ui/components/grids/budget-grid.js#L16): `import * as ScenarioManager`
+- Historical `js/ui/components/grids/budget-grid.js`: `import * as ScenarioManager`
 
 **Data Layer** (data-service.js) uses internal functions, appears to be service-level API  
 **data-manager.js** - **NOT USED ANYWHERE**
@@ -167,7 +174,7 @@ TECH_REFACTOR_WORKFLOWS.md (8.0.2):
 
 **Context**:  
 TECH_QC_METHOD.md (5.0) explicitly states:
-> For schemaVersion 43 datasets, workflow suites select scenarios by `scenarioIds` from `QC/mappings/use-case-to-scenario-type.json` **(legacy filename retained)**.
+> For schemaVersion 44 datasets, workflow suites select scenarios by `scenarioIds` from `QC/mappings/use-case-to-scenario-type.json` **(legacy filename retained)**.
 
 **Note**: This is not a bug; the legacy filename was intentionally preserved for backwards compatibility.
 
@@ -188,11 +195,11 @@ TECH_QC_METHOD.md (5.0) explicitly states:
 | `scenario.projection.rows` storage | ✅ | [js/app/services/data-service.js](../js/app/services/data-service.js#L655) |
 | `scenario.planning.generatePlan` | ✅ | [js/ui/components/forecast/forecast-generate-plan.js](../js/ui/components/forecast/forecast-generate-plan.js#L47) |
 | `scenario.planning.advancedGoalSolver` | ✅ | [js/domain/utils/advanced-goal-solver.js](../js/domain/utils/advanced-goal-solver.js#L191) |
-| `scenario.budgetWindow.config` independent | ✅ | [js/shared/app-data-utils.js](../js/shared/app-data-utils.js#L150) |
-| `uiState.lastWorkflowId` persisted | ✅ | [js/data-manager.js](../js/data-manager.js#L151) |
+| Legacy `scenario.budgetWindow` removed | ✅ | [js/app/services/validation-service.js](../js/app/services/validation-service.js) rejects it in schemaVersion 44 |
+| `uiState.lastWorkflowId` persisted | ✅ | [js/shared/app-data-utils.js](../js/shared/app-data-utils.js) |
 | `uiState.lastScenarioVersion` persisted | ✅ | [js/ui/controllers/forecast-controller.js](../js/ui/controllers/forecast-controller.js#L216) |
 | `uiState.viewPeriodTypeIds` per-card | ✅ | [js/ui/controllers/forecast-controller.js](../js/ui/controllers/forecast-controller.js#L781) |
-| schemaVersion = 43 enforced | ✅ | [js/shared/app-data-utils.js](../js/shared/app-data-utils.js#L23) |
+| schemaVersion = 44 enforced | ✅ | [js/shared/app-data-utils.js](../js/shared/app-data-utils.js) |
 
 ### 4.2 Projection Engine Compliance
 
@@ -247,7 +254,7 @@ TECH_QC_METHOD.md (5.0) explicitly states:
 | 2.0 Data Model & Storage Alignment | Remove old fields; add new schema 43 fields | ✅ COMPLETE | All schema 43 fields present; old fields properly removed |
 | 3.0 Projection Engine & Period Views | Read from `projection.config`; maintain per-card views | ✅ COMPLETE | Engine correctly reads from new location |
 | 4.0 Workflow Registry & Forecast UI | Replace type config with code registry; persist workflow selection | ✅ COMPLETE | Registry implemented; UI respects workflow selection |
-| 5.0 Standalone Migration Module | Build QC-only migration tool | ✅ COMPLETE | [QC/migrate-app-data-to-schema43.js](../QC/migrate-app-data-to-schema43.js) exists and is QC-only |
+| 5.0 Standalone Migration Module | Build QC-only migration tool | ✅ COMPLETE | [QC/migrate-app-data-to-schema44.js](../QC/migrate-app-data-to-schema44.js) exists and is QC-only |
 | 8.0 Documentation Updates | Update references from "scenario types" to "workflows" | ⚠️ PARTIAL | Documentation updated; test directory naming not updated |
 | 9.0 Validation & Rollout | QC passes; import/export round-trip works; no runtime migration refs | ✅ COMPLETE | QC tests pass; migration module is QC-only |
 
@@ -274,4 +281,3 @@ TECH_QC_METHOD.md (5.0) explicitly states:
 | Date | Version | Changes |
 |------|---------|---------|
 | 2026-02-23 | 1.0 | Initial audit report: identified data-manager.js dead code, triple duplication, QC directory naming inconsistency |
-

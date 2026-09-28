@@ -3,8 +3,24 @@
  * Web-only export and import functionality for app data
  */
 
-import { exportAppData, importAppData } from './data-service.js';
-import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
+import { exportAppData } from './data-service.js';
+import { notifyError } from '../../shared/notifications.js';
+
+/**
+ * Download a JavaScript value as a formatted JSON file.
+ */
+export function downloadJsonData(value, filename) {
+  const json = `${JSON.stringify(value, null, 2)}\n`;
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
 
 /**
  * Download app data as JSON file
@@ -32,9 +48,9 @@ export async function downloadAppData() {
 
 /**
  * Select and read file using file input
- * @returns {Promise<string>} - JSON string from file
+ * @returns {Promise<{name: string, text: string}|null>}
  */
-async function selectAndReadFile() {
+export async function selectJsonDataFile() {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -49,7 +65,10 @@ async function selectAndReadFile() {
       
       const reader = new FileReader();
       reader.onload = (event) => {
-        resolve(event.target.result);
+        resolve({
+          name: file.name || 'selected-data.json',
+          text: String(event.target.result || '')
+        });
       };
       reader.onerror = () => {
         notifyError('Failed to read file');
@@ -60,36 +79,4 @@ async function selectAndReadFile() {
     
     input.click();
   });
-}
-
-/**
- * Upload and import app data from JSON file
- * @param {boolean} merge - Whether to merge or replace data
- */
-export async function uploadAppData(merge = false) {
-  try {
-    const jsonString = await selectAndReadFile();
-    
-    if (!jsonString) {
-      return false;
-    }
-    
-    // Confirm action
-    const action = merge ? 'merge with' : 'replace';
-    const confirmed = await confirmDialog(`This will ${action} your current data. Continue?`);
-    
-    if (!confirmed) {
-      return false;
-    }
-    
-    await importAppData(jsonString, merge);
-    
-    notifySuccess('Data imported successfully! The page will reload.');
-    setTimeout(() => window.location.reload(), 1000);
-    
-    return true;
-  } catch (err) {
-    notifyError(`Import failed: ${err.message}`);
-    return false;
-  }
 }

@@ -2,9 +2,12 @@
 // Forecast page layout builder.
 // Updated to render the dashboard shell (sidebar + topbar + dash rows).
 
-import { downloadAppData, uploadAppData } from '../../../app/services/export-service.js';
+import { downloadAppData } from '../../../app/services/export-service.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
+import { openDataUpgradeModal } from '../modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
 import { getTheme, setTheme } from '../../../config.js';
+import { getCloudSyncState, subscribeCloudSync } from '../../../app/services/cloud-sync-coordinator.js';
+import { openCloudAccountModal } from '../modals/cloud-account-modal.js';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
 const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;
@@ -64,6 +67,23 @@ function buildTopbarActions() {
     applyTheme(themeBtn);
   });
 
+  const cloudBtn = document.createElement('button');
+  cloudBtn.type = 'button';
+  cloudBtn.className = 'icon-btn cloud-status-button';
+  cloudBtn.title = 'Account and cloud save';
+  cloudBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    openCloudAccountModal();
+  });
+  const renderCloudState = (state = getCloudSyncState()) => {
+    cloudBtn.dataset.state = state.phase;
+    cloudBtn.classList.toggle('cloud-status-button--attention', ['conflict', 'error'].includes(state.phase));
+    cloudBtn.textContent = `☁ ${state.label}${state.configured && state.pending && state.phase !== 'saving' ? ' •' : ''}`;
+    cloudBtn.setAttribute('aria-label', `Account and cloud save: ${state.label}`);
+  };
+  renderCloudState();
+  subscribeCloudSync(renderCloudState);
+
   const exportBtn = document.createElement('button');
   exportBtn.type = 'button';
   exportBtn.className = 'icon-btn';
@@ -86,9 +106,24 @@ function buildTopbarActions() {
   importBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     try {
-      await uploadAppData(false);
+      await openDataUpgradeModal({ initialSource: 'file' });
     } catch (err) {
       notifyError('Import failed: ' + err.message);
+    }
+  });
+
+  const validateBtn = document.createElement('button');
+  validateBtn.type = 'button';
+  validateBtn.className = 'icon-btn';
+  validateBtn.id = 'topbar-validate';
+  validateBtn.title = 'Upgrade or validate app data';
+  validateBtn.textContent = '⊘ Data Check';
+  validateBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try {
+      await openDataUpgradeModal();
+    } catch (err) {
+      notifyError('Validation error: ' + err.message);
     }
   });
 
@@ -102,6 +137,7 @@ function buildTopbarActions() {
     if (!await confirmDialog('Are you sure you want to clear all data? This cannot be undone.\n\nConsider exporting your data first.')) return;
     try {
       localStorage.removeItem('ftrack:app-data');
+      localStorage.removeItem('ftrack:plan-actuals-workspaces:v1');
       notifySuccess('All data cleared successfully. The page will now reload.');
       window.location.reload();
     } catch (err) {
@@ -110,8 +146,10 @@ function buildTopbarActions() {
   });
 
   actions.appendChild(themeBtn);
+  actions.appendChild(cloudBtn);
   actions.appendChild(exportBtn);
   actions.appendChild(importBtn);
+  actions.appendChild(validateBtn);
   actions.appendChild(clearBtn);
   return actions;
 }
@@ -140,7 +178,9 @@ function buildDashRow({ id, title, defaultCollapsed = false, showControls = true
     const refreshBtn = buildIconButton({
       title: 'Refresh',
       svg: '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      onClick: () => document.dispatchEvent(new CustomEvent('forecast:refresh'))
+      onClick: () => document.dispatchEvent(new CustomEvent('forecast:refresh', {
+        detail: { button: refreshBtn }
+      }))
     });
 
     controls.appendChild(refreshBtn);
@@ -183,7 +223,7 @@ function wireNarrowPanelAccordion({
   headerLeft.insertBefore(chevron, headerLeft.firstChild || null);
 
   let isOpen = accordionStates[stateKey] !== false;
-  const media = window.matchMedia('(max-width: 1023px)');
+  const media = window.matchMedia('(max-width: 800px)');
 
   const isEnabled = () => media.matches && !middleRow.classList.contains('mode-detail');
 
@@ -340,7 +380,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
 
   const { row: middleRow, body: middleBody } = buildDashRow({
     id: 'row-middle',
-    title: 'Accounts & Transactions',
+    title: 'Accounts & Planning',
     defaultCollapsed: accordionStates['row-middle'] !== true,
     onToggle: (isOpen) => onAccordionToggle?.('row-middle', isOpen)
   });
@@ -377,13 +417,14 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
   const txPanel = document.createElement('div');
   txPanel.className = 'dash-panel forecast-card';
   txPanel.id = 'transactionsSection';
+  txPanel.classList.add('hidden');
   const txHeader = document.createElement('div');
   txHeader.className = 'dash-panel-header card-header';
   const txHeaderLeft = document.createElement('div');
   txHeaderLeft.className = 'card-header-actions';
   const txLabel = document.createElement('div');
   txLabel.className = 'dash-panel-label';
-  txLabel.textContent = 'Transactions';
+  txLabel.textContent = 'Plan Rules';
   txHeaderLeft.appendChild(txLabel);
   const txControls = document.createElement('div');
   txControls.className = 'card-header-controls';
@@ -425,7 +466,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
 
   const { row: budgetSection, body: budgetBody } = buildDashRow({
     id: 'budgetSection',
-    title: 'Budget',
+    title: 'Plan & Actuals',
     defaultCollapsed: accordionStates['budgetSection'] !== true,
     onToggle: (isOpen) => onAccordionToggle?.('budgetSection', isOpen)
   });
@@ -437,7 +478,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
   budgetHeaderLeft.className = 'card-header-actions';
   const budgetLabel = document.createElement('div');
   budgetLabel.className = 'dash-panel-label';
-  budgetLabel.textContent = 'Budget';
+  budgetLabel.textContent = 'Plan & Actuals';
   budgetHeaderLeft.appendChild(budgetLabel);
   const budgetControls = document.createElement('div');
   budgetControls.className = 'card-header-controls';

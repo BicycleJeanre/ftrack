@@ -1,47 +1,179 @@
-# Transactions Guide
+# Transaction Rules and Occurrences
 
-## 1.0 Transactions Guide
+## 1.0 One Transaction-Based Plan
 
-## 1.1 Planned Transactions
+FTrack uses one transaction model for planning, budget tracking, and
+projections. You do not create transactions in one place and then generate a
+separate budget from them.
 
-- **Purpose**: Define all expected future income and expenses.
-- **Recurrence**: Set weekly, monthly, or custom repeating schedules.
-- **Periodic change**: Apply increases, decreases, or compounding effects.
-- **Dual-entry**: Always assign a secondary account for accuracy.
+The model has two layers:
 
-## 1.2 Creating A Planned Transaction
+- **Transaction rules** describe expected one-time or recurring money
+  movements.
+- **Transaction occurrences** are the dated items produced by those rules.
+  Occurrences also hold exceptions, actuals, skips, manual items, and frozen
+  baseline values.
 
-Planned transactions are the backbone of your budget. They represent income and expenses you expect to occur.
+Projections resolve these two layers into the same dated timeline shown in
+**Plan & Actuals**.
 
-1. Navigate to the Planned Transactions tab.
-2. Click Add Transaction.
-3. Enter the description such as Monthly Rent.
-4. Select the primary account, where money comes from or goes to.
-5. Select the secondary account, the other side of the transaction.
-6. Enter the amount.
-7. Set the transaction date.
-8. Configure recurrence if this is a repeating transaction.
-9. Save the transaction.
+## 1.1 Transaction Rules
 
-## 1.3 Actual Transactions
+A rule answers: “What should normally happen?”
 
-- **Reality check**: Mark planned items as completed or adjust amounts.
-- **Period filters**: Focus on a specific month or time range.
-- **Variance**: Compare planned vs actual spending and income.
+Examples include:
 
-## 1.4 Recording Actual Transactions
+- a paycheck every second Friday;
+- rent on the first day of each month;
+- groceries every Saturday;
+- an annual insurance payment; or
+- a one-time purchase on a known date.
 
-As transactions occur in the real world, log them as Actual Transactions. This helps you track how your real spending compares to your plan.
+Create and maintain rules in **Plan & Actuals → Recurring** in any primary
+workflow. In General, switch to **Period** to create and track the budget from
+the dated occurrences produced by those same rules.
 
-- Log actual transactions weekly to keep your data current.
-- Compare actuals to planned amounts to identify spending patterns.
-- Use variance analysis to refine future budgets.
+A rule may include:
 
-## 1.5 Transaction Types
+- movement type: **Money In** or **Money Out**;
+- primary and optional secondary account;
+- amount and description;
+- one-time or recurring schedule;
+- tags; and
+- a periodic amount change, such as an annual raise or inflation increase.
 
-Transactions are categorized by their nature and lifecycle.
+## 1.2 Money Movement
 
-- **Planned**: Expected future transactions with optional recurrence.
-- **Actual**: Transactions that have already occurred.
-- **One-time**: Non-recurring transactions.
-- **Recurring**: Transactions that repeat on a schedule.
+The movement label is always from the primary account's perspective:
+
+- **Money In** flows from the secondary/source account into the
+  primary/receiving account.
+- **Money Out** flows from the primary/source account to the
+  secondary/receiving account.
+
+Examples:
+
+| Movement | Primary account | Secondary account | Meaning |
+|---|---|---|---|
+| Money In | Checking | Salary Income | Salary flows into Checking |
+| Money Out | Checking | Rent Expense | Rent flows out of Checking |
+| Money Out | Checking | Savings | Money transfers from Checking to Savings |
+
+The description appears on its own line under the movement in the Period
+summary so similarly shaped movements remain easy to distinguish.
+
+## 1.3 Period Occurrences
+
+An occurrence answers: “What is planned or what happened on this date?”
+
+Open **Plan & Actuals → Period** to see the occurrences for a selected Day,
+Week, Month, Quarter, or Year. Repeating rules appear there automatically; no
+generation step is required.
+
+Most future occurrences stay derived from their rules. FTrack stores an
+occurrence only when dated state must survive, including:
+
+- a change to this occurrence only;
+- an actual amount or date;
+- a skipped occurrence;
+- a manual planned or actual item; or
+- a frozen baseline.
+
+## 1.4 Editing Scope
+
+Choose scope deliberately when changing a linked recurring occurrence:
+
+- **This occurrence only** changes the selected dated item.
+- **This and future** starts a new rule segment at the selected occurrence and
+  applies the revised current-plan values to every unresolved occurrence from
+  that point forward. Captured baselines and prior actuals remain unchanged.
+- **Entire series** changes the current and future segments in the logical
+  series.
+
+Changing the repeat pattern requires **This and future** or **Entire series**.
+Past actuals remain protected from later rule edits.
+
+In Recurring, duplication copies either one rule or the whole split set.
+**End recurring series** bounds the logical series before its next unresolved
+occurrence. It is history-safe: protected actual, skipped, and frozen evidence
+is retained rather than destructively deleting the rule lineage. If protected
+evidence exists after the end boundary, it becomes independent one-time history
+so the recurring sequence can still end safely.
+
+The same controls are available directly on Period cards. **Remove this
+occurrence** skips only the selected date. **Delete this and future
+occurrences** ends the linked recurring sequence from that date forward.
+
+Use the normal **+ Add item** action in Period, or edit any existing Period
+transaction, when several line items belong to the same primary/secondary
+account movement.
+Each line item has its own date, description, and amount, and the parent
+transaction total is calculated from those line items. This works for
+planned and actual transactions and does not require recurrence.
+
+Use **Create recurring account allocation** when one recurring intent needs
+separate destination accounts. Account allocation is distinct from line-item
+detail: allocation creates multiple account movements, while line items roll
+up inside one movement.
+
+Use **Duplicate item** to make a one-time planned copy. Use
+**Repeat going forward** to turn a manual item into a recurring rule without
+removing the original occurrence.
+
+When a repeat pattern is chosen while adding a new planned item, FTrack creates
+one recurring rule in a single save. The transaction date becomes the first
+occurrence and anchors the recurring schedule; no separate manual copy is
+created.
+
+## 1.5 Baseline, Current Plan, and Actual
+
+Each Period item can be compared across three values:
+
+- **Baseline**: the plan captured for comparison.
+- **Current plan**: the latest planned amount after adjustments.
+- **Actual**: the realized amount and date.
+
+Open **History** to manage closed periods independently of the current
+transaction view. The manager defaults to Month, shows every closed date
+range, also surfaces baselines captured for individual transactions, and
+supports individual or complete clearing. Marking an item Actual captures only
+that item's baseline; it does not close the month or prevent other plan edits.
+
+Actual status is reversible when an entry was completed or categorized by
+mistake. Unticking Actual restores the occurrence to planned without deleting
+the transaction. Editing an actual can correct its
+accounts, movement, amount, description, and line items; a repeat change starts
+with future occurrences and does not rewrite earlier history.
+
+Once captured, later plan changes affect Current plan but not Baseline. Closing
+a period captures every item in it as historical comparison data. This
+makes the variance meaningful even when you improve the plan during the
+period.
+
+## 1.6 Tracking Reality
+
+For a planned occurrence:
+
+1. Tick **Actual** when it happens.
+2. Edit the item if the actual amount or date differs.
+3. Use **Skip this occurrence** if it will not happen. Restore it from the card
+   if plans change, or permanently delete a non-actual one-time transaction.
+
+For an unexpected movement, click **Add item** and create it as Actual. A
+manual actual has a zero baseline and zero current plan, so it is counted as an
+unplanned actual.
+
+A matching actual replaces its planned occurrence in projections; it is not
+added as a second movement.
+
+## 1.7 A Useful Review Rhythm
+
+- Review the upcoming Period at the start of each time period.
+- Use **History** to close a period when it should become protected history.
+- Record actuals and exceptions during the period.
+- At period end, compare Baseline, Current plan, Actual, and the variance
+  totals.
+- Turn newly learned repeating costs into rules with **Repeat going forward**,
+  or revise an existing rule with **This and future**.
+
+This rhythm lets the budget learn from prior periods without rebuilding it.

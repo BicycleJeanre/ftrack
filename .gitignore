@@ -11,6 +11,8 @@ budget/node_modules/
 # Ignore build output
 /dist/
 /build/
+e2e-report/
+test-results/
 
 # Ignore system files
 Thumbs.db
@@ -33,3 +35,4 @@ app-data.json.backup
 *.json.bak
 project_notes.md
 ftrack-backup*
+cli.py

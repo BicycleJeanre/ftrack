@@ -2,7 +2,7 @@
 // Modal for editing an account-level periodic change schedule (date-bounded overrides)
 
 import { createModal } from './modal-factory.js';
-import { openPeriodicChangeModal } from './periodic-change-modal.js';
+import { openPeriodicChangeModal } from './periodic-change-modal.js?v=20260901-strategy-matrix-35';
 import { getPeriodicChangeDescription } from '../../../domain/calculations/periodic-change-utils.js';
 import { parseDateOnly, formatDateOnly } from '../../../shared/date-utils.js';
 import { notifyError } from '../../../shared/notifications.js';

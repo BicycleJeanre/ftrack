@@ -7,23 +7,32 @@ import { createGrid, refreshGridData, formatMoneyDisplay, formatNumberDisplay } 
 import * as ScenarioManager from '../../app/managers/scenario-manager.js';
 import * as AccountManager from '../../app/managers/account-manager.js';
 import * as TransactionManager from '../../app/managers/transaction-manager.js';
-import * as BudgetManager from '../../app/managers/budget-manager.js';
 import { openRecurrenceModal } from '../components/modals/recurrence-modal.js';
-import { openPeriodicChangeModal } from '../components/modals/periodic-change-modal.js';
+import { openPeriodicChangeModal } from '../components/modals/periodic-change-modal.js?v=20260901-strategy-matrix-35';
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
-import keyboardShortcuts from '../../shared/keyboard-shortcuts.js';
+import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
+import '../../shared/keyboard-shortcuts.js';
 import { loadGlobals } from '../../global-app.js';
 import { createLogger } from '../../shared/logger.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifications.js';
 import { initTooltips } from '../../shared/tooltips.js';
-import { getScenarioProjectionRows, mapPeriodTypeNameToId } from '../../shared/app-data-utils.js';
-import { DEFAULT_WORKFLOW_ID, WORKFLOWS, getWorkflowById } from '../../shared/workflow-registry.js';
+import {
+  getScenarioProjectionRows,
+  mapPeriodTypeNameToId,
+  normalizeUiState
+} from '../../shared/app-data-utils.js?v=20260831-manager-cache-32';
+import {
+  DEFAULT_WORKFLOW_ID,
+  WORKFLOWS,
+  getWorkflowActivity,
+  getWorkflowById
+} from '../../shared/workflow-registry.js';
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
-import { buildGridContainer } from '../components/forecast/forecast-layout.js';
+import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=20260831-workspace-state-21';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore
@@ -32,17 +41,27 @@ import {
   getFilteredProjections as getFilteredProjectionsCore,
   updateProjectionTotals as updateProjectionTotalsCore
 } from '../components/forecast/forecast-projections.js';
+import {
+  filterAccountsByScope,
+  populateAccountSelect
+} from '../components/widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
-import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js';
+import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=20260901-account-group-filter-42';
 import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
   loadAccountsGrid as loadAccountsGridCore
 } from '../components/grids/accounts-grid.js';
-import { loadMasterTransactionsGrid as loadMasterTransactionsGridCore } from '../components/grids/transactions-grid.js';
-import { loadBudgetGrid as loadBudgetGridCore } from '../components/grids/budget-grid.js';
+import {
+  loadMasterTransactionsGrid as loadMasterTransactionsGridCore,
+  teardownRecurringRulesDetailGrid
+} from '../components/grids/transactions-grid.js?v=20260901-click-off-details-43';
+import {
+  loadPlanActualsGrid as loadPlanActualsGridCore,
+  teardownPlanActualsGrid as teardownPlanActualsGridCore
+} from '../components/grids/plan-actuals-grid.js?v=20260927-secondary-account-shortcut-54';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
-} from '../components/forecast/forecast-projections-section.js';
+} from '../components/forecast/forecast-projections-section.js?v=20260901-account-group-filter-42';
 
 const logger = createLogger('ForecastController');
 
@@ -64,16 +83,19 @@ import {
   getTransactions,
   createTransaction,
   createAccount,
-  getScenarioPeriods,
-  getBudget
+  getScenarioPeriods
 } from '../../app/services/data-service.js';
-import { generateProjections, clearProjections } from '../../domain/calculations/projection-engine.js';
+import { generateProjections } from '../../domain/calculations/projection-engine.js?v=20260901-strategy-matrix-35';
+import { initializeCloudSync } from '../../app/services/cloud-sync-coordinator.js';
 
 let currentScenario = null;
 let uiState = null;
+const PLAN_ACTUALS_WORKSPACE_STORAGE_KEY = 'ftrack:plan-actuals-workspaces:v1';
 let currentWorkflowId = DEFAULT_WORKFLOW_ID;
 let transactionsAccountFilterId = null; // Track account filter for transactions view (independent of budget/projections)
+let transactionsAccountScope = ''; // Optional account type/group used to shorten recurring account lists
 let budgetAccountFilterId = null; // Track account filter for budget view (independent of transactions/projections)
+let budgetAccountScope = ''; // Optional account type/group used to shorten Period account lists
 let projectionsAccountFilterId = null; // Track account filter for projections view (independent of transactions/budget)
 let actualPeriod = null; // Selected period for actual transactions
 let actualPeriodType = 'Month'; // Selected period type for transactions view
@@ -92,19 +114,33 @@ let transactionsAllPeriodsExpanded = false; // When period is All, show expanded
 
 // Budget context - additional filter state
 let budgetStatusFilter = ''; // '' = All, 'planned', 'actual'
+let budgetHistoryFilter = ''; // '' = All, 'closed', 'captured', 'live'
 let budgetGroupBy = ''; // '' = None, 'transactionTypeName', 'statusName', 'secondaryAccountName'
 
 // Projections context - additional filter state
 let projectionsGroupBy = ''; // '' = None, 'accountType', 'secondaryAccountName'
 
-let budgetGridLoadToken = 0; // Prevent stale budget renders
+let planningRefreshGeneration = 0;
+let pendingPlanningRefresh = null;
+let activePlanningRefresh = null;
+let planningRefreshDrainPromise = null;
+const planningNavigationGenerations = {
+  scenario: 0,
+  workflow: 0,
+  refresh: 0,
+  projection: 0
+};
+let planningNavigationTail = Promise.resolve();
+let planningNavigationPendingCount = 0;
+let resolvePlanningNavigationIdle = null;
+let planningNavigationIdlePromise = Promise.resolve();
 let scenariosTable = null; // Store scenarios table instance to preserve selection/scroll
 let masterTransactionsTable = null; // Store transactions table instance for filtering
 let masterBudgetTable = null; // Store budget table instance for filtering
 let fundSummaryTable = null; // Store fund summary table instance to reduce jumping
 let generalSummaryTable = null; // Store general summary table instance to reduce jumping
 let summaryCardsAccountTypeFilter = 'All';
-let generalSummaryScope = 'All';
+let generalSummaryScope = '';
 let generalSummaryAccountId = 0;
 
 const PERIOD_TYPE_ID_TO_NAME = {
@@ -122,6 +158,8 @@ function createTransactionsStateInterface() {
   return {
     getAccountFilterId: () => transactionsAccountFilterId,
     setAccountFilterId: (id) => { transactionsAccountFilterId = id; },
+    getAccountScope: () => transactionsAccountScope,
+    setAccountScope: (scope) => { transactionsAccountScope = scope || ''; },
     getStatusFilter: () => transactionsStatusFilter,
     setStatusFilter: (status) => { transactionsStatusFilter = status; },
     getPeriodType: () => actualPeriodType,
@@ -141,8 +179,12 @@ function createBudgetStateInterface() {
   return {
     getAccountFilterId: () => budgetAccountFilterId,
     setAccountFilterId: (id) => { budgetAccountFilterId = id; },
+    getAccountScope: () => budgetAccountScope,
+    setAccountScope: (scope) => { budgetAccountScope = scope || ''; },
     getStatusFilter: () => budgetStatusFilter,
     setStatusFilter: (status) => { budgetStatusFilter = status; },
+    getHistoryFilter: () => budgetHistoryFilter,
+    setHistoryFilter: (history) => { budgetHistoryFilter = history; },
     getPeriodType: () => budgetPeriodType,
     setPeriodType: (type) => { budgetPeriodType = type; },
     getPeriod: () => budgetPeriod,
@@ -196,8 +238,79 @@ function restorePageScroll(snapshot) {
   }
 }
 
+function renderSummaryExplainBlock({ calc = '', use = '', shows = '' } = {}) {
+  // Explanations are shown as hover tooltips to reduce visual clutter.
+  // Kept as a helper for compatibility with older call sites.
+  return '';
+}
+
+function renderSummaryMetric({
+  label,
+  valueHtml,
+  valueClass = '',
+  calc = '',
+  use = '',
+  shows = ''
+}) {
+  const cls = valueClass ? ` ${valueClass}` : '';
+  const lines = [];
+  if (calc) lines.push(`Calc: ${calc}`);
+  if (use) lines.push(`Uses: ${use}`);
+  if (shows) lines.push(`Shows: ${shows}`);
+  const tooltip = lines.join('\n');
+  const tooltipAttr = tooltip
+    ? ` data-tooltip="${tooltip.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;').replaceAll('\n', '&#10;')}"`
+    : '';
+  const tooltipCls = tooltip ? ' has-tooltip' : '';
+
+  return `<div class="summary-card-row"><span class="label${tooltipCls}"${tooltipAttr}>${label}</span><span class="value${cls}${tooltipCls}"${tooltipAttr}>${valueHtml}</span></div>`;
+}
+
+function getProjectionInterestBuckets(projectionRow) {
+  const legacyInterest = Number(projectionRow?.interest || 0);
+  const earned = Number(
+    projectionRow?.interestIn ??
+    (legacyInterest > 0 ? legacyInterest : 0)
+  );
+  const paidAbs = Number(
+    projectionRow?.interestOut ??
+    (legacyInterest < 0 ? Math.abs(legacyInterest) : 0)
+  );
+
+  return {
+    earned,
+    paidNegative: -Math.abs(paidAbs)
+  };
+}
+
 function getWorkflowConfig() {
   return getWorkflowById(currentWorkflowId);
+}
+
+function getActivityConfig(workflowConfig = getWorkflowConfig()) {
+  return getWorkflowActivity(workflowConfig);
+}
+
+function setCurrentScenarioIfActive(nextScenario) {
+  const activeScenarioId = Number(currentScenario?.id || 0);
+  const nextScenarioId = Number(nextScenario?.id || 0);
+  if (
+    !activeScenarioId ||
+    !nextScenarioId ||
+    nextScenarioId !== activeScenarioId
+  ) {
+    logger.warn(
+      '[Forecast] Ignored a stale component scenario update.',
+      { activeScenarioId, nextScenarioId }
+    );
+    return false;
+  }
+  currentScenario = nextScenario;
+  return true;
+}
+
+function workflowShowsPlanActuals(workflowConfig = getWorkflowConfig()) {
+  return getActivityConfig(workflowConfig)?.surface === 'planActuals';
 }
 
 function isDebtWorkflow(workflowConfig) {
@@ -213,22 +326,130 @@ function isFundsWorkflow(workflowConfig) {
 }
 
 async function patchUiState(nextPartial) {
+  const planActualsWorkspaceByScenario =
+    uiState?.planActualsWorkspaceByScenario || {};
   try {
-    uiState = await UiStateManager.patch(nextPartial);
+    const persisted = await UiStateManager.patch(nextPartial);
+    uiState = {
+      ...persisted,
+      planActualsWorkspaceByScenario
+    };
   } catch (err) {
     logger.error('[UiState] Failed to persist uiState:', err);
   }
   return uiState;
 }
 
+function getPlanActualsWorkspace(scenarioId = currentScenario?.id) {
+  const key = String(Number(scenarioId || 0));
+  return uiState?.planActualsWorkspaceByScenario?.[key] || {};
+}
+
+function normalizePlanActualsWorkspaces(workspaces) {
+  return normalizeUiState({
+    planActualsWorkspaceByScenario:
+      workspaces && typeof workspaces === 'object' ? workspaces : {}
+  }).planActualsWorkspaceByScenario;
+}
+
+function readPlanActualsWorkspaces() {
+  try {
+    const raw = localStorage.getItem(PLAN_ACTUALS_WORKSPACE_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return normalizePlanActualsWorkspaces(parsed?.workspaces || parsed);
+  } catch (err) {
+    console.error('[UiState] Failed to read Plan & Actuals workspace:', err);
+    return {};
+  }
+}
+
+function writePlanActualsWorkspaces(workspaces) {
+  const normalized = normalizePlanActualsWorkspaces(workspaces);
+  localStorage.setItem(PLAN_ACTUALS_WORKSPACE_STORAGE_KEY, JSON.stringify({
+    version: 1,
+    workspaces: normalized
+  }));
+  return normalized;
+}
+
+function patchPlanActualsWorkspace(partial = {}, scenarioId = currentScenario?.id) {
+  const id = Number(scenarioId || 0);
+  if (!id) return Promise.resolve(uiState);
+  const key = String(id);
+  const nextWorkspaces = {
+    ...(uiState?.planActualsWorkspaceByScenario || {}),
+    [key]: {
+      ...getPlanActualsWorkspace(id),
+      ...(partial && typeof partial === 'object' ? partial : {})
+    }
+  };
+  uiState = {
+    ...(uiState || {}),
+    planActualsWorkspaceByScenario: nextWorkspaces
+  };
+  try {
+    const normalized = writePlanActualsWorkspaces(nextWorkspaces);
+    uiState.planActualsWorkspaceByScenario = normalized;
+  } catch (err) {
+    console.error('[UiState] Failed to persist Plan & Actuals workspace:', err);
+    logger.error('[UiState] Failed to persist Plan & Actuals workspace:', err);
+    notifyError('FTrack could not save the current Plan & Actuals filters.');
+  }
+  return Promise.resolve(uiState);
+}
+
+function restorePlanActualsWorkspace(scenario) {
+  const workspace = getPlanActualsWorkspace(scenario?.id);
+  const accountIds = new Set((scenario?.accounts || []).map((account) => Number(account.id)));
+  const validAccount = (value) => {
+    const id = Number(value || 0);
+    return id && accountIds.has(id) ? id : null;
+  };
+  budgetPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(workspace.periodTypeId) || 3] || 'Month';
+  budgetPeriod = workspace.periodId || null;
+  budgetAccountFilterId = validAccount(workspace.accountId);
+  budgetAccountScope = workspace.accountScope || '';
+  budgetStatusFilter = workspace.statusFilter || '';
+  budgetHistoryFilter = workspace.historyFilter || '';
+  budgetGroupBy = workspace.groupBy || '';
+  transactionsAccountFilterId = validAccount(workspace.recurringAccountId);
+  transactionsAccountScope = workspace.recurringAccountScope || '';
+  transactionsGroupBy = workspace.recurringGroupBy || '';
+}
+
 async function loadUiState() {
   uiState = await UiStateManager.get();
 
-  currentWorkflowId = DEFAULT_WORKFLOW_ID;
+  const appDataWorkspaces = normalizePlanActualsWorkspaces(
+    uiState?.planActualsWorkspaceByScenario || {}
+  );
+  const preferenceWorkspaces = readPlanActualsWorkspaces();
+  const mergedWorkspaces = {
+    ...appDataWorkspaces,
+    ...preferenceWorkspaces
+  };
+  uiState = {
+    ...(uiState || {}),
+    planActualsWorkspaceByScenario: mergedWorkspaces
+  };
+  if (
+    !Object.keys(preferenceWorkspaces).length &&
+    Object.keys(appDataWorkspaces).length
+  ) {
+    try {
+      writePlanActualsWorkspaces(appDataWorkspaces);
+    } catch (err) {
+      console.error('[UiState] Failed to migrate Plan & Actuals workspace:', err);
+    }
+  }
+
+  currentWorkflowId = getWorkflowById(uiState?.lastWorkflowId || DEFAULT_WORKFLOW_ID)?.id ||
+    DEFAULT_WORKFLOW_ID;
 
   const view = uiState?.viewPeriodTypeIds || {};
   actualPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.transactions) || 3] || 'Month';
-  budgetPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.budgets) || 3] || 'Month';
+  budgetPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.planActuals) || 3] || 'Month';
   projectionPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(view.projections) || 3] || 'Month';
 }
 
@@ -261,36 +482,105 @@ function updateProjectionTotals(container, projections = null) {
 async function setCurrentScenarioById(scenarioId) {
   const idNum = scenarioId != null ? Number(scenarioId) : null;
   if (!Number.isFinite(idNum)) return;
-  if (currentScenario && Number(currentScenario.id) === idNum) return;
+  return runPlanningNavigation(async (isCurrentNavigation) => {
+    const next = await getScenario(idNum);
+    if (!next || !isCurrentNavigation()) return;
 
-  const next = await getScenario(idNum);
-  if (!next) return;
+    currentScenario = next;
+    // Reset all filter state across contexts
+    // Transactions context
+    transactionsAccountFilterId = null;
+    transactionsAccountScope = '';
+    transactionsStatusFilter = '';
+    actualPeriod = null;
+    transactionsGroupBy = '';
+    transactionsAllPeriodsExpanded = false;
+    // Budget context
+    budgetAccountFilterId = null;
+    budgetAccountScope = '';
+    budgetStatusFilter = '';
+    budgetHistoryFilter = '';
+    budgetPeriod = null;
+    budgetGroupBy = '';
+    // Projections context
+    projectionsAccountFilterId = null;
+    projectionPeriod = null;
+    projectionsGroupBy = '';
+    // Clear computed period lists so each grid recomputes from the new scenario's date window.
+    // Period TYPES are preserved (user preference), but period arrays must be invalidated.
+    transactionsPeriods = [];
+    budgetPeriods = [];
+    projectionPeriods = [];
+    restorePlanActualsWorkspace(currentScenario);
 
-  currentScenario = next;
-  // Reset all filter state across contexts
-  // Transactions context
+    await patchUiState({
+      lastScenarioId: currentScenario.id,
+      lastScenarioVersion: currentScenario.version
+    });
+    if (!isCurrentNavigation()) return;
+
+    await loadScenarioData();
+    if (isCurrentNavigation()) {
+      requestStaleProjectionRefresh(currentScenario);
+    }
+  }, {
+    lane: 'scenario',
+    reason: `scenario ${idNum}`
+  });
+}
+
+function resetScenarioScopedCaches() {
   transactionsAccountFilterId = null;
+  transactionsAccountScope = '';
   transactionsStatusFilter = '';
   actualPeriod = null;
   transactionsGroupBy = '';
   transactionsAllPeriodsExpanded = false;
-  // Budget context
   budgetAccountFilterId = null;
+  budgetAccountScope = '';
   budgetStatusFilter = '';
+  budgetHistoryFilter = '';
   budgetPeriod = null;
   budgetGroupBy = '';
-  // Projections context
   projectionsAccountFilterId = null;
   projectionPeriod = null;
   projectionsGroupBy = '';
-  // Note: Period types NOT reset (preserved across scenario changes)
+  transactionsPeriods = [];
+  budgetPeriods = [];
+  projectionPeriods = [];
+  summaryCardsAccountTypeFilter = 'All';
+  generalSummaryScope = '';
+  generalSummaryAccountId = 0;
+  fundSummaryScope = 'All';
+}
 
-  await patchUiState({
-    lastScenarioId: currentScenario.id,
-    lastScenarioVersion: currentScenario.version
+async function clearCurrentScenario() {
+  return runPlanningNavigation(async (isCurrentNavigation) => {
+    currentScenario = null;
+    resetScenarioScopedCaches();
+    await patchUiState({
+      lastScenarioId: null,
+      lastScenarioVersion: null
+    });
+    if (!isCurrentNavigation()) return;
+    await loadScenarioData();
+  }, {
+    lane: 'scenario',
+    reason: 'no scenarios available'
   });
+}
 
-  await loadScenarioData();
+function requestStaleProjectionRefresh(scenario) {
+  const config = scenario?.projection?.config || {};
+  const isStale = scenario?.projection?.stale === true ||
+    Boolean(scenario?.projection?.staleAt);
+  if (!isStale || !config.startDate || !config.endDate) return;
+  document.dispatchEvent(new CustomEvent('forecast:planChanged', {
+    detail: {
+      scenarioId: Number(scenario.id),
+      reason: 'Persisted stale projection'
+    }
+  }));
 }
 
 async function buildScenarioGrid(container) {
@@ -630,6 +920,7 @@ async function buildScenarioGrid(container) {
       placeholder.className = 'scenarios-list-placeholder';
       placeholder.textContent = 'No scenarios yet. Click + Add New to create your first scenario.';
       listContainer.appendChild(placeholder);
+      await clearCurrentScenario();
     } else {
       scenarios.forEach((scenario) => {
         const item = document.createElement('div');
@@ -795,8 +1086,6 @@ async function buildScenarioGrid(container) {
 
     // Re-establish selection
     const persistedScenarioId = uiState?.lastScenarioId ?? null;
-    const persistedScenarioVersion = uiState?.lastScenarioVersion ?? null;
-
     let desiredScenarioId =
       selectedScenarioIdSnapshot != null ? selectedScenarioIdSnapshot : (persistedScenarioId != null ? persistedScenarioId : null);
 
@@ -804,10 +1093,6 @@ async function buildScenarioGrid(container) {
       const match = (scenarios || []).find((s) => Number(s.id) === Number(desiredScenarioId)) || null;
       if (!match) {
         desiredScenarioId = null;
-      } else if (Number(match.id) === Number(persistedScenarioId) && persistedScenarioVersion != null) {
-        if (Number(match.version) !== Number(persistedScenarioVersion)) {
-          desiredScenarioId = null;
-        }
       }
     }
 
@@ -831,17 +1116,17 @@ async function buildScenarioGrid(container) {
  * Load the Generate Plan section for Goal Workshop scenarios
  */
 async function loadGeneratePlanSection(container) {
+  const isRenderCurrent = capturePlanningRenderAuthority();
   return loadGeneratePlanSectionCore({
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     workflowId: getWorkflowConfig()?.id,
-    loadMasterTransactionsGrid,
+    loadMasterTransactionsGrid: reloadActiveFinancialActivity,
     loadProjectionsSection,
+    isRenderCurrent,
     logger
   });
 }
@@ -855,12 +1140,10 @@ function buildAccountsGridColumns(lookupData, workflowConfig = null) {
     workflowConfig,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     reloadAccountsGrid: loadAccountsGrid,
-    reloadMasterTransactionsGrid: loadMasterTransactionsGrid,
+    reloadMasterTransactionsGrid: reloadActiveFinancialActivity,
     logger
   });
 }
@@ -871,35 +1154,60 @@ async function loadAccountsGrid(container) {
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     getWorkflowConfig,
-    reloadMasterTransactionsGrid: loadMasterTransactionsGrid,
+    reloadMasterTransactionsGrid: reloadActiveFinancialActivity,
     logger
   });
 }
 
 // Load master transactions grid (unified planned and actual)
-async function loadMasterTransactionsGrid(container) {
+async function loadMasterTransactionsGrid(
+  container,
+  { rulesOnly = false, presentation = null } = {}
+) {
+  const isRenderCurrent = capturePlanningRenderAuthority();
   return loadMasterTransactionsGridCore({
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
-    getWorkflowConfig,
+    getWorkflowConfig: () => {
+      const workflow = getWorkflowConfig();
+      return rulesOnly
+        ? {
+            ...workflow,
+            showPlannedTransactions: true,
+            showActualTransactions: false,
+            transactionsMode: presentation?.mode === 'detail'
+              ? 'rules-detail'
+              : 'summary',
+            rulesOnly: true
+          }
+        : workflow;
+    },
     state: {
       getTransactionsAccountFilterId: () => transactionsAccountFilterId,
       setTransactionsAccountFilterId: (nextId) => {
         transactionsAccountFilterId = nextId;
+        if (rulesOnly) {
+          patchPlanActualsWorkspace({ recurringAccountId: nextId });
+        }
       },
-      getActualPeriod: () => actualPeriod,
+      getTransactionsAccountScope: () => transactionsAccountScope,
+      setTransactionsAccountScope: (nextScope) => {
+        transactionsAccountScope = nextScope || '';
+        if (rulesOnly) {
+          patchPlanActualsWorkspace({
+            recurringAccountScope: transactionsAccountScope
+          });
+        }
+      },
+      getActualPeriod: () => rulesOnly ? null : actualPeriod,
       setActualPeriod: (nextPeriod) => {
-        actualPeriod = nextPeriod;
+        if (!rulesOnly) actualPeriod = nextPeriod;
       },
       getActualPeriodType: () => actualPeriodType,
       setActualPeriodType: (nextType) => {
@@ -923,11 +1231,16 @@ async function loadMasterTransactionsGrid(container) {
       getGroupBy: () => transactionsGroupBy,
       setGroupBy: (nextField) => {
         transactionsGroupBy = nextField;
+        if (rulesOnly) {
+          patchPlanActualsWorkspace({ recurringGroupBy: nextField || '' });
+        }
       },
       getAllPeriodsExpanded: () => transactionsAllPeriodsExpanded,
       setAllPeriodsExpanded: (nextFlag) => {
         transactionsAllPeriodsExpanded = nextFlag;
-      }
+      },
+      getPlanActualsWorkspace: () => getPlanActualsWorkspace(),
+      patchPlanActualsWorkspace: (partial) => patchPlanActualsWorkspace(partial)
     },
     tables: {
       getMasterTransactionsTable: () => masterTransactionsTable,
@@ -939,41 +1252,298 @@ async function loadMasterTransactionsGrid(container) {
     callbacks: {
       updateTransactionTotals,
       updateBudgetTotals,
-      loadProjectionsSection,
-      refreshSummaryCards,
+      loadProjectionsSection: (...args) => (
+        isRenderCurrent() ? loadProjectionsSection(...args) : Promise.resolve()
+      ),
+      refreshSummaryCards: (...args) => (
+        isRenderCurrent() ? refreshSummaryCards(...args) : Promise.resolve()
+      ),
+      isRenderCurrent,
       getEl
     },
     logger
   });
 }
 
+async function renderActiveFinancialActivity() {
+  const activity = getActivityConfig();
+  if (activity?.surface === 'planActuals') {
+    const container = getEl('budgetTable');
+    if (container) return loadBudgetGrid(container);
+    return;
+  }
+  if (activity?.surface === 'transactions') {
+    const container = getEl('transactionsTable');
+    if (container) return loadMasterTransactionsGrid(container);
+  }
+}
+
+function isPlanningRefreshCurrent(request) {
+  return (
+    request?.generation === planningRefreshGeneration &&
+    Number(currentScenario?.id || 0) === Number(request?.scenarioId || 0)
+  );
+}
+
+async function applyPlanningRefresh(request) {
+  const refreshed = await getScenario(request.scenarioId);
+  if (!refreshed || !isPlanningRefreshCurrent(request)) return;
+
+  currentScenario = refreshed;
+
+  if (request.refreshActivity) {
+    await renderActiveFinancialActivity();
+    if (!isPlanningRefreshCurrent(request)) return;
+  }
+
+  if (request.includeGeneratePlan && getWorkflowConfig()?.showGeneratePlan) {
+    const generatePlanContainer = getEl('generatePlanContent');
+    if (generatePlanContainer) {
+      await loadGeneratePlanSection(generatePlanContainer);
+      if (!isPlanningRefreshCurrent(request)) return;
+    }
+  }
+
+  if (request.includeProjections && getWorkflowConfig()?.showProjections) {
+    const projectionsContainer = getEl('projectionsContent');
+    if (projectionsContainer) {
+      await loadProjectionsSection(projectionsContainer);
+      if (!isPlanningRefreshCurrent(request)) return;
+    }
+  }
+
+  if (request.includeSummary) {
+    await refreshSummaryCards();
+  }
+}
+
+async function drainPlanningRefreshes() {
+  // Manager events are dispatched before their caller resumes. Waiting one
+  // turn lets the caller finish setting editor state and coalesces any legacy
+  // callback/event pair into one authoritative refresh.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  while (pendingPlanningRefresh) {
+    const request = pendingPlanningRefresh;
+    pendingPlanningRefresh = null;
+    activePlanningRefresh = request;
+    try {
+      await applyPlanningRefresh(request);
+    } catch (error) {
+      logger.error(
+        `[PlanningRefresh] Failed to refresh after ${request.reason || 'a planning change'}:`,
+        error
+      );
+    } finally {
+      if (activePlanningRefresh === request) {
+        activePlanningRefresh = null;
+      }
+    }
+  }
+}
+
+function ensurePlanningRefreshDrain() {
+  // A refresh requested from inside (or while waiting behind) navigation must
+  // stay pending until every queued navigation has finished. Starting its
+  // drain here would deadlock with runPlanningNavigation's pre-action refresh
+  // barrier, which intentionally waits for drains that predate navigation.
+  if (planningNavigationPendingCount > 0) {
+    return planningNavigationIdlePromise.then(() => ensurePlanningRefreshDrain());
+  }
+
+  if (!planningRefreshDrainPromise) {
+    planningRefreshDrainPromise = drainPlanningRefreshes().finally(() => {
+      planningRefreshDrainPromise = null;
+      if (pendingPlanningRefresh) {
+        return ensurePlanningRefreshDrain();
+      }
+      return undefined;
+    });
+  }
+  return planningRefreshDrainPromise;
+}
+
+function requestPlanningRefresh({
+  scenarioId = currentScenario?.id,
+  refreshActivity = true,
+  includeGeneratePlan = false,
+  includeProjections = false,
+  includeSummary = false,
+  reason = ''
+} = {}) {
+  const normalizedScenarioId = Number(scenarioId || 0);
+  if (!normalizedScenarioId) return Promise.resolve();
+
+  const generation = ++planningRefreshGeneration;
+  const carry = (
+    Number(pendingPlanningRefresh?.scenarioId || 0) === normalizedScenarioId
+      ? pendingPlanningRefresh
+      : (
+          Number(activePlanningRefresh?.scenarioId || 0) === normalizedScenarioId
+            ? activePlanningRefresh
+            : null
+        )
+  );
+  pendingPlanningRefresh = {
+    generation,
+    scenarioId: normalizedScenarioId,
+    refreshActivity: Boolean(refreshActivity || carry?.refreshActivity),
+    includeGeneratePlan: Boolean(includeGeneratePlan || carry?.includeGeneratePlan),
+    includeProjections: Boolean(includeProjections || carry?.includeProjections),
+    includeSummary: Boolean(includeSummary || carry?.includeSummary),
+    reason: reason || carry?.reason || 'a planning change'
+  };
+
+  return ensurePlanningRefreshDrain();
+}
+
+function invalidatePlanningRefreshesForNavigation() {
+  planningRefreshGeneration += 1;
+  pendingPlanningRefresh = null;
+}
+
+async function awaitPlanningRefreshNavigationBarrier() {
+  invalidatePlanningRefreshesForNavigation();
+
+  while (planningRefreshDrainPromise) {
+    const inFlightDrain = planningRefreshDrainPromise;
+    try {
+      await inFlightDrain;
+    } catch (error) {
+      logger.error('[PlanningRefresh] Navigation barrier drain failed:', error);
+    }
+    // A request may have arrived while the previous render was unwinding.
+    // Invalidate it before checking whether another drain must be awaited.
+    invalidatePlanningRefreshesForNavigation();
+  }
+}
+
+function runPlanningNavigation(
+  action,
+  {
+    lane,
+    reason = 'planning navigation'
+  } = {}
+) {
+  if (!Object.prototype.hasOwnProperty.call(planningNavigationGenerations, lane)) {
+    throw new Error(`Unknown planning navigation lane: ${lane}`);
+  }
+  const navigationGeneration = ++planningNavigationGenerations[lane];
+  planningNavigationPendingCount += 1;
+  if (planningNavigationPendingCount === 1) {
+    planningNavigationIdlePromise = new Promise((resolve) => {
+      resolvePlanningNavigationIdle = resolve;
+    });
+  }
+
+  // Invalidate synchronously so an already-running refresh cannot remain
+  // authoritative while this navigation waits its turn.
+  invalidatePlanningRefreshesForNavigation();
+
+  const operation = planningNavigationTail.then(async () => {
+    await awaitPlanningRefreshNavigationBarrier();
+    if (navigationGeneration !== planningNavigationGenerations[lane]) return false;
+
+    const isCurrentNavigation = () => (
+      navigationGeneration === planningNavigationGenerations[lane]
+    );
+    await action(isCurrentNavigation);
+    return isCurrentNavigation();
+  });
+
+  const trackedOperation = operation.finally(() => {
+    planningNavigationPendingCount = Math.max(0, planningNavigationPendingCount - 1);
+    if (planningNavigationPendingCount === 0) {
+      const resolveIdle = resolvePlanningNavigationIdle;
+      resolvePlanningNavigationIdle = null;
+      resolveIdle?.();
+    }
+  });
+
+  // Keep later navigations serial even when the caller handles an error.
+  planningNavigationTail = trackedOperation.catch((error) => {
+    logger.error(`[PlanningNavigation] Failed during ${reason}:`, error);
+  });
+  return trackedOperation;
+}
+
+function capturePlanningRenderAuthority() {
+  const scenarioId = Number(currentScenario?.id || 0);
+  const workflowId = getWorkflowConfig()?.id || null;
+  const scenarioGeneration = planningNavigationGenerations.scenario;
+  const workflowGeneration = planningNavigationGenerations.workflow;
+
+  return () => (
+    Number(currentScenario?.id || 0) === scenarioId &&
+    (getWorkflowConfig()?.id || null) === workflowId &&
+    planningNavigationGenerations.scenario === scenarioGeneration &&
+    planningNavigationGenerations.workflow === workflowGeneration
+  );
+}
+
+async function reloadActiveFinancialActivity() {
+  return requestPlanningRefresh({
+    scenarioId: currentScenario?.id,
+    refreshActivity: true,
+    reason: 'an activity callback'
+  });
+}
+
 // Load budget grid
 async function loadBudgetGrid(container) {
-  return loadBudgetGridCore({
+  const isRenderCurrent = capturePlanningRenderAuthority();
+  const workflow = getWorkflowConfig();
+  const activity = getActivityConfig(workflow) || {};
+  const presentation = {
+    mode: activity.presentation || (workflow?.budgetMode === 'detail' ? 'detail' : 'summary'),
+    contextKey: workflow?.id || 'plan-actuals',
+    defaultView: activity.defaultView || 'period'
+  };
+
+  return loadPlanActualsGridCore({
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     state: {
       getBudgetAccountFilterId: () => budgetAccountFilterId,
       setBudgetAccountFilterId: (nextId) => {
         budgetAccountFilterId = nextId;
+        patchPlanActualsWorkspace({ accountId: nextId });
+      },
+      getBudgetAccountScope: () => budgetAccountScope,
+      setBudgetAccountScope: (nextScope) => {
+        budgetAccountScope = nextScope || '';
+        patchPlanActualsWorkspace({ accountScope: budgetAccountScope });
+      },
+      getBudgetStatusFilter: () => budgetStatusFilter,
+      setBudgetStatusFilter: (nextStatus) => {
+        budgetStatusFilter = nextStatus;
+        patchPlanActualsWorkspace({ statusFilter: nextStatus || '' });
+      },
+      getBudgetHistoryFilter: () => budgetHistoryFilter,
+      setBudgetHistoryFilter: (nextHistory) => {
+        budgetHistoryFilter = nextHistory;
+        patchPlanActualsWorkspace({ historyFilter: nextHistory || '' });
       },
       getBudgetPeriod: () => budgetPeriod,
       setBudgetPeriod: (nextPeriod) => {
         budgetPeriod = nextPeriod;
+        patchPlanActualsWorkspace({ periodId: nextPeriod });
       },
       getBudgetPeriodType: () => budgetPeriodType,
       setBudgetPeriodType: (nextType) => {
         budgetPeriodType = nextType;
         const nextId = mapPeriodTypeNameToId(nextType) || 3;
+        patchPlanActualsWorkspace({
+          periodTypeId: nextId,
+          periodId: null
+        });
         patchUiState({
           viewPeriodTypeIds: {
             ...(uiState?.viewPeriodTypeIds || {}),
-            budgets: nextId
+            planActuals: nextId
           }
         });
       },
@@ -981,30 +1551,48 @@ async function loadBudgetGrid(container) {
       setBudgetPeriods: (nextPeriods) => {
         budgetPeriods = nextPeriods;
       },
-      getStatusFilter: () => budgetStatusFilter,
-      setStatusFilter: (nextStatus) => {
-        budgetStatusFilter = nextStatus;
-      },
       getGroupBy: () => budgetGroupBy,
       setGroupBy: (nextField) => {
         budgetGroupBy = nextField;
+        patchPlanActualsWorkspace({ groupBy: nextField || '' });
       },
-      bumpBudgetGridLoadToken: () => ++budgetGridLoadToken,
-      getBudgetGridLoadToken: () => budgetGridLoadToken,
-      getBudgetMode: () => getWorkflowConfig()?.budgetMode
+      getSelectedVariant: (periodKey) => (
+        getPlanActualsWorkspace()?.selectedVariantByPeriod?.[periodKey] || ''
+      ),
+      setSelectedVariant: (periodKey, variantId) => {
+        const workspace = getPlanActualsWorkspace();
+        const selectedVariantByPeriod = {
+          ...(workspace.selectedVariantByPeriod || {})
+        };
+        if (variantId) selectedVariantByPeriod[periodKey] = String(variantId);
+        else delete selectedVariantByPeriod[periodKey];
+        patchPlanActualsWorkspace({ selectedVariantByPeriod });
+      }
     },
-    tables: {
-      getMasterBudgetTable: () => masterBudgetTable,
-      setMasterBudgetTable: (nextTable) => {
-        masterBudgetTable = nextTable;
-      },
-      getMasterTransactionsTable: () => masterTransactionsTable
-    },
+    presentation,
     callbacks: {
-      updateBudgetTotals,
-      updateTransactionTotals,
-      loadProjectionsSection,
-      getEl
+      teardownRecurringView: teardownRecurringRulesDetailGrid,
+      getPersistedView: () => (
+        getPlanActualsWorkspace()?.viewByContext?.[presentation.contextKey] || null
+      ),
+      setPersistedView: (nextView) => {
+        const workspace = getPlanActualsWorkspace();
+        return patchPlanActualsWorkspace({
+          viewByContext: {
+            ...(workspace.viewByContext || {}),
+            [presentation.contextKey]: nextView
+          }
+        });
+      },
+      loadRecurringView: (recurringContainer, recurringPresentation = presentation) => (
+        isRenderCurrent()
+          ? loadMasterTransactionsGrid(recurringContainer, {
+              rulesOnly: true,
+              presentation: recurringPresentation
+            })
+          : Promise.resolve()
+      ),
+      isRenderCurrent
     },
     logger
   });
@@ -1028,6 +1616,11 @@ async function loadDebtSummaryCards(container, options = {}) {
   }
 
   const scrollSnapshot = getPageScrollSnapshot();
+
+  // The overall card lives alongside (rather than inside) the grouped cards.
+  // Remove the previous render before handling filters or appending the next
+  // one so repeated refreshes and filter changes remain idempotent.
+  container.querySelectorAll(':scope > .overall-total').forEach((el) => el.remove());
 
   // Render account-type selector in filter modal
   let filterSelect = container.querySelector('#summary-cards-type-filter');
@@ -1168,12 +1761,9 @@ async function loadDebtSummaryCards(container, options = {}) {
     let interestPaid = 0;
     
     accountProjections.forEach(p => {
-      const interest = Number(p.interest || 0);
-      if (interest >= 0) {
-        interestEarned += interest;
-      } else {
-        interestPaid += interest; // Keep as negative
-      }
+      const buckets = getProjectionInterestBuckets(p);
+      interestEarned += buckets.earned;
+      interestPaid += buckets.paidNegative;
     });
     
     totalInterestEarned += interestEarned;
@@ -1233,31 +1823,57 @@ async function loadDebtSummaryCards(container, options = {}) {
 
   // Create overall total card (only when multiple accounts exist)
   if (filteredAccounts.length > 1) {
+    const interestDirection = Number(totalInterestEarned || 0) + Number(totalInterestPaid || 0);
     const totalCard = document.createElement('div');
     totalCard.className = 'summary-card overall-total';
-    totalCard.innerHTML = `
-      <div class="summary-card-title">OVERALL TOTAL</div>
-      <div class="summary-card-row">
-        <span class="label">Starting Balance:</span>
-        <span class="value">${formatMoneyDisplay(totalStarting)}</span>
-      </div>
-      <div class="summary-card-row">
-        <span class="label">Projected End:</span>
-        <span class="value">${formatMoneyDisplay(totalProjectedEnd)}</span>
-      </div>
-      <div class="summary-card-row">
-        <span class="label">Interest Earned:</span>
-        <span class="value interest-earned">${formatMoneyDisplay(totalInterestEarned)}</span>
-      </div>
-      <div class="summary-card-row">
-        <span class="label">Interest Paid:</span>
-        <span class="value interest-paid">${formatMoneyDisplay(totalInterestPaid)}</span>
-      </div>
-      <div class="summary-card-row">
-        <span class="label">Accounts:</span>
-        <span class="value">${filteredAccounts.length}</span>
-      </div>
-    `;
+    const rows = [
+      renderSummaryMetric({
+        label: 'Starting Balance:',
+        valueHtml: formatMoneyDisplay(totalStarting),
+        calc: 'Sum of starting balances for the currently selected/filtered accounts.',
+        use: 'Baseline for repayment trajectory.',
+        shows: 'Combined starting debt position.'
+      }),
+      renderSummaryMetric({
+        label: 'Projected End:',
+        valueHtml: formatMoneyDisplay(totalProjectedEnd),
+        calc: 'Sum of each account’s last projected balance (falls back to starting balance if no projections).',
+        use: 'Quick check of where balances land by the forecast end.',
+        shows: 'Combined projected end balance across selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Earned:',
+        valueHtml: formatMoneyDisplay(totalInterestEarned),
+        valueClass: 'interest-earned',
+        calc: 'Sum of positive `interest` values across projections for the selected accounts.',
+        use: 'Spot interest income (e.g., offsetting positions).',
+        shows: 'Total interest earned over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Paid:',
+        valueHtml: formatMoneyDisplay(totalInterestPaid),
+        valueClass: 'interest-paid',
+        calc: 'Sum of negative `interest` values across projections for the selected accounts.',
+        use: 'Understand interest cost of carrying debt.',
+        shows: 'Total interest paid over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Direction:',
+        valueHtml: formatMoneyDisplay(interestDirection),
+        valueClass: interestDirection >= 0 ? 'interest-earned' : 'interest-paid',
+        calc: 'Interest Earned + Interest Paid (net interest).',
+        use: 'Single signal for whether interest is net positive or net negative.',
+        shows: 'Net interest over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Accounts:',
+        valueHtml: String(filteredAccounts.length),
+        calc: 'Count of accounts included after filters are applied.',
+        use: 'Validate scope of this summary.',
+        shows: 'Number of accounts included in totals.'
+      })
+    ];
+    totalCard.innerHTML = `<div class="summary-card-title">OVERALL TOTAL</div>${rows.join('')}`;
     // Place overall total at the top of the summary container so it uses full width
     try {
       if (groupWrapper && groupWrapper.parentNode === container) {
@@ -1324,7 +1940,6 @@ async function loadFundsSummaryCards(container, options = {}) {
     return found ? Number(found.id) : 0;
   };
 
-  const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
   const projectionsIndex = buildProjectionsIndex(getScenarioProjectionRows(currentScenario));
   const scrollSnapshot = getPageScrollSnapshot();
 
@@ -1365,15 +1980,58 @@ async function loadFundsSummaryCards(container, options = {}) {
 
   const totalsCard = document.createElement('div');
   totalsCard.className = 'summary-card overall-total';
-  totalsCard.innerHTML = `
-    <div class="summary-card-title">FUND TOTALS</div>
-    <div class="summary-card-row"><span class="label">Total shares:</span><span class="value neutral"><input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" value="${Number.isFinite(totalShares) ? totalShares.toFixed(4) : ''}" /></span></div>
-    <div class="summary-card-row"><span class="label">NAV:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
-    <div class="summary-card-row"><span class="label">Share price:</span><span class="value neutral">${sharePrice === null ? 'N/A' : formatMoneyDisplay(sharePrice)}</span></div>
-    <div class="summary-card-row"><span class="label">Contributions:</span><span class="value">${formatMoneyDisplay(investorTotals.contributions)}</span></div>
-    <div class="summary-card-row"><span class="label">Redemptions:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(investorTotals.redemptions || 0))}</span></div>
-    <div class="summary-card-row"><span class="label">Net:</span><span class="value">${formatMoneyDisplay(investorTotals.net)}</span></div>
-  `;
+  {
+    const rows = [
+      renderSummaryMetric({
+        label: 'Total shares:',
+        valueHtml: `<input id="fund-total-shares" class="input control-input" type="number" step="0.0001" min="0" value="${Number.isFinite(totalShares) ? totalShares.toFixed(4) : ''}" />`,
+        valueClass: 'neutral',
+        calc: 'Computed from equity-account share allocations (can be overridden by the value you enter here).',
+        use: 'Used as the denominator for ownership % and for share price.',
+        shows: 'Total outstanding shares for the fund.'
+      }),
+      renderSummaryMetric({
+        label: 'NAV:',
+        valueHtml: formatMoneyDisplay(nav),
+        calc: 'Net Asset Value across included accounts (assets minus liabilities).',
+        use: 'Primary valuation snapshot for the fund.',
+        shows: 'Total fund value at the current projection snapshot.'
+      }),
+      renderSummaryMetric({
+        label: 'Share price:',
+        valueHtml: sharePrice === null ? 'N/A' : formatMoneyDisplay(sharePrice),
+        valueClass: 'neutral',
+        calc: 'NAV ÷ Total shares (if total shares is > 0).',
+        use: 'Convert investor shares into implied value.',
+        shows: 'Value per share for the current snapshot.'
+      }),
+      renderSummaryMetric({
+        label: 'Contributions:',
+        valueHtml: formatMoneyDisplay(investorTotals.contributions),
+        valueClass: 'positive',
+        calc: 'Sum of contribution flows into the fund.',
+        use: 'Track capital added by investors.',
+        shows: 'Total contributed capital over the available history.'
+      }),
+      renderSummaryMetric({
+        label: 'Redemptions:',
+        valueHtml: formatMoneyDisplay(-Math.abs(investorTotals.redemptions || 0)),
+        valueClass: 'negative',
+        calc: 'Sum of redemption flows out of the fund.',
+        use: 'Track withdrawals / capital returned.',
+        shows: 'Total redeemed capital over the available history.'
+      }),
+      renderSummaryMetric({
+        label: 'Net:',
+        valueHtml: formatMoneyDisplay(investorTotals.net),
+        valueClass: Number(investorTotals.net || 0) >= 0 ? 'positive' : 'negative',
+        calc: 'Contributions + Redemptions (net investor flows).',
+        use: 'Quick signal for net inflow vs outflow.',
+        shows: 'Net capital movement from investors.'
+      })
+    ];
+    totalsCard.innerHTML = `<div class="summary-card-title">FUND TOTALS</div>${rows.join('')}`;
+  }
   container.appendChild(totalsCard);
 
   // Attach total shares input handler (moved into totals card)
@@ -1542,36 +2200,16 @@ async function loadGeneralSummaryCards(container, options = {}) {
     return Number.isFinite(id) ? id : 0;
   };
   const getAccountTypeName = (account) => accountTypeNameById.get(getAccountTypeId(account)) || '';
-  const scopeTypeId = (scopeName) => {
-    if (!scopeName || scopeName === 'All') return 0;
-    const found = (lookupData?.accountTypes || []).find((t) => t.name === scopeName);
-    return found ? Number(found.id) : 0;
-  };
-
-  // Only render the two static filters (account type and account) and the summary cards grid.
+  // The account menu owns its type/group list filter so the interaction is
+  // consistent with every other account picker in the application.
   container.innerHTML = '';
 
   let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
   if (!options.simple) {
     // Create filter controls
-    const typeSelect = document.createElement('select');
-    typeSelect.id = 'general-summary-type-filter';
-    typeSelect.className = 'input-select control-select';
-    scopeOptions.forEach((option) => {
-      const opt = document.createElement('option');
-      opt.value = option;
-      opt.textContent = option;
-      typeSelect.appendChild(opt);
-    });
-
     const accountSelect = document.createElement('select');
     accountSelect.id = 'general-summary-account';
     accountSelect.className = 'input-select control-select';
-
-    typeSelect.addEventListener('change', async () => {
-      generalSummaryScope = typeSelect.value;
-      await loadGeneralSummaryCards(container, options);
-    });
 
     accountSelect.addEventListener('change', async () => {
       generalSummaryAccountId = Number(accountSelect.value) || 0;
@@ -1591,7 +2229,6 @@ async function loadGeneralSummaryCards(container, options = {}) {
       title: 'Filter Summary',
       trigger: filterButton,
       items: [
-        { id: 'account-type', label: 'Account Type:', control: typeSelect },
         { id: 'account', label: 'Account:', control: accountSelect }
       ]
     });
@@ -1603,19 +2240,20 @@ async function loadGeneralSummaryCards(container, options = {}) {
     container.appendChild(toolbar);
 
     // Populate filter values
-    typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
-
     const selectedId = Number(generalSummaryAccountId) || 0;
-    const opts = ['<option value="0">All</option>']
-      .concat(
-        accounts
-          .slice()
-          .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
-          .map((a) => `<option value="${Number(a.id)}">${String(a.name || 'Unnamed')}</option>`)
-      )
-      .join('');
-    accountSelect.innerHTML = opts;
-    accountSelect.value = String(selectedId);
+    populateAccountSelect(accountSelect, {
+      accounts,
+      accountGroups: currentScenario.accountGroups || [],
+      scope: generalSummaryScope,
+      selectedValue: selectedId ? String(selectedId) : '0',
+      includeAll: false,
+      emptyLabel: 'All Accounts',
+      emptyValue: '0',
+      preserveCurrentOutsideScope: false,
+      onScopeChange: (nextScope) => {
+        generalSummaryScope = nextScope;
+      }
+    });
     generalSummaryAccountId = Number(accountSelect.value) || 0;
   }
 
@@ -1623,10 +2261,11 @@ async function loadGeneralSummaryCards(container, options = {}) {
   // Clear any previous empty messages.
   container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
-  const selectedScopeTypeId = scopeTypeId(generalSummaryScope);
-  let filteredAccounts = generalSummaryScope === 'All'
-    ? accounts
-    : accounts.filter((a) => getAccountTypeId(a) === selectedScopeTypeId);
+  let filteredAccounts = filterAccountsByScope(
+    accounts,
+    currentScenario.accountGroups || [],
+    generalSummaryScope
+  );
 
   if (Number(generalSummaryAccountId) > 0) {
     filteredAccounts = filteredAccounts.filter((a) => Number(a.id) === Number(generalSummaryAccountId));
@@ -1682,7 +2321,7 @@ async function loadGeneralSummaryCards(container, options = {}) {
   const orderedGroupKeys = (() => {
     const preferredOrder = ['Liability', 'Asset', 'Equity', 'Income', 'Expense'];
     const remaining = Object.keys(groupedAccounts).filter(key => !preferredOrder.includes(key)).sort();
-    if (generalSummaryScope !== 'All') {
+    if (generalSummaryScope) {
       return Object.keys(groupedAccounts);
     }
     return [...preferredOrder.filter(key => groupedAccounts[key]), ...remaining];
@@ -1720,9 +2359,9 @@ async function loadGeneralSummaryCards(container, options = {}) {
       let interestEarned = 0;
       let interestPaid = 0;
       for (const p of accountProjections) {
-        const interest = Number(p?.interest || 0);
-        if (interest >= 0) interestEarned += interest;
-        else interestPaid += interest;
+        const buckets = getProjectionInterestBuckets(p);
+        interestEarned += buckets.earned;
+        interestPaid += buckets.paidNegative;
       }
       totalInterestEarned += interestEarned;
       totalInterestPaid += interestPaid;
@@ -1744,19 +2383,82 @@ async function loadGeneralSummaryCards(container, options = {}) {
   }
 
   const { nav, totalAssets, totalLiabilities } = computeNav({ accounts: filteredAccounts, projectionsIndex, asOfDate: null });
+  const interestDirection = Number(totalInterestEarned || 0) + Number(totalInterestPaid || 0);
   const totalCard = document.createElement('div');
   totalCard.className = 'summary-card overall-total';
-  totalCard.innerHTML = `
-    <div class="summary-card-title">OVERALL TOTAL</div>
-    <div class="summary-card-row"><span class="label">Starting Balance:</span><span class="value">${formatMoneyDisplay(totalStarting)}</span></div>
-    <div class="summary-card-row"><span class="label">Projected End:</span><span class="value">${formatMoneyDisplay(totalProjectedEnd)}</span></div>
-    <div class="summary-card-row"><span class="label">Interest Earned:</span><span class="value interest-earned">${formatMoneyDisplay(totalInterestEarned)}</span></div>
-    <div class="summary-card-row"><span class="label">Interest Paid:</span><span class="value interest-paid">${formatMoneyDisplay(totalInterestPaid)}</span></div>
-    <div class="summary-card-row"><span class="label">Net Worth:</span><span class="value">${formatMoneyDisplay(nav)}</span></div>
-    <div class="summary-card-row"><span class="label">Total Assets:</span><span class="value positive">${formatMoneyDisplay(totalAssets)}</span></div>
-    <div class="summary-card-row"><span class="label">Total Liabilities:</span><span class="value negative">${formatMoneyDisplay(-Math.abs(totalLiabilities || 0))}</span></div>
-    <div class="summary-card-row"><span class="label">Accounts:</span><span class="value">${filteredAccounts.length}</span></div>
-  `;
+  {
+    const rows = [
+      renderSummaryMetric({
+        label: 'Starting Balance:',
+        valueHtml: formatMoneyDisplay(totalStarting),
+        calc: 'Sum of starting balances for the accounts included by the current filters.',
+        use: 'Baseline for comparing projected outcomes.',
+        shows: 'Combined starting position for the selected scope.'
+      }),
+      renderSummaryMetric({
+        label: 'Projected End:',
+        valueHtml: formatMoneyDisplay(totalProjectedEnd),
+        calc: 'Sum of each account’s last projected balance (falls back to starting balance if no projections).',
+        use: 'End-of-horizon snapshot for the selected scope.',
+        shows: 'Combined projected end balance across selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Earned:',
+        valueHtml: formatMoneyDisplay(totalInterestEarned),
+        valueClass: 'interest-earned',
+        calc: 'Sum of positive `interest` values across projections for the selected accounts.',
+        use: 'Understand interest income contribution.',
+        shows: 'Total interest earned over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Paid:',
+        valueHtml: formatMoneyDisplay(totalInterestPaid),
+        valueClass: 'interest-paid',
+        calc: 'Sum of negative `interest` values across projections for the selected accounts.',
+        use: 'Understand interest cost contribution.',
+        shows: 'Total interest paid over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Interest Direction:',
+        valueHtml: formatMoneyDisplay(interestDirection),
+        valueClass: interestDirection >= 0 ? 'interest-earned' : 'interest-paid',
+        calc: 'Interest Earned + Interest Paid (net interest).',
+        use: 'Single signal for whether interest is net positive or net negative.',
+        shows: 'Net interest over the projection horizon.'
+      }),
+      renderSummaryMetric({
+        label: 'Net Worth:',
+        valueHtml: formatMoneyDisplay(nav),
+        calc: 'Total Assets − Total Liabilities for the selected scope.',
+        use: 'Quick solvency snapshot.',
+        shows: 'Combined net worth for the selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Total Assets:',
+        valueHtml: formatMoneyDisplay(totalAssets),
+        valueClass: 'positive',
+        calc: 'Sum of balances for asset accounts within the selected scope.',
+        use: 'Understand asset base size.',
+        shows: 'Combined assets for the selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Total Liabilities:',
+        valueHtml: formatMoneyDisplay(-Math.abs(totalLiabilities || 0)),
+        valueClass: 'negative',
+        calc: 'Sum of balances for liability accounts within the selected scope.',
+        use: 'Understand debt load.',
+        shows: 'Combined liabilities for the selected accounts.'
+      }),
+      renderSummaryMetric({
+        label: 'Accounts:',
+        valueHtml: String(filteredAccounts.length),
+        calc: 'Count of accounts included after filters are applied.',
+        use: 'Validate scope of this summary.',
+        shows: 'Number of accounts included in totals.'
+      })
+    ];
+    totalCard.innerHTML = `<div class="summary-card-title">OVERALL TOTAL</div>${rows.join('')}`;
+  }
     // Place overall total at the top of the summary container so it uses full width
     try {
       if (groupWrapper && groupWrapper.parentNode === container) {
@@ -1831,7 +2533,7 @@ async function loadSummaryCards(container, options = {}) {
 
   // Always default to summary card grid view on load
   if (typeof window !== 'undefined') {
-    if (typeof generalSummaryScope !== 'string' || !generalSummaryScope) generalSummaryScope = 'All';
+    if (typeof generalSummaryScope !== 'string') generalSummaryScope = '';
     if (typeof generalSummaryAccountId !== 'number') generalSummaryAccountId = 0;
   }
 
@@ -1862,24 +2564,18 @@ async function refreshSummaryCards() {
     return;
   }
 
-  // Minimal plan requirement: General + Funds summaries refresh after edits.
-  if (!isGeneralWorkflow(workflowConfig) && !isFundsWorkflow(workflowConfig)) {
-    return;
-  }
-
   const useSimple = isGeneralWorkflow(workflowConfig);
   await loadSummaryCards(getEl('summaryCardsContent'), { simple: useSimple });
 }
 
 // Load projections section (buttons and grid)
 async function loadProjectionsSection(container) {
+  const isRenderCurrent = capturePlanningRenderAuthority();
   return loadProjectionsSectionCore({
     container,
     scenarioState: {
       get: () => currentScenario,
-      set: (nextScenario) => {
-        currentScenario = nextScenario;
-      }
+      set: setCurrentScenarioIfActive
     },
     getWorkflowConfig,
     state: {
@@ -1916,16 +2612,117 @@ async function loadProjectionsSection(container) {
       getMasterBudgetTable: () => masterBudgetTable
     },
     callbacks: {
-      loadBudgetGrid,
-      loadSummaryCards,
+      loadBudgetGrid: (...args) => (
+        isRenderCurrent() ? loadBudgetGrid(...args) : Promise.resolve()
+      ),
+      loadSummaryCards: (...args) => (
+        isRenderCurrent() ? loadSummaryCards(...args) : Promise.resolve()
+      ),
       updateTransactionTotals,
       updateBudgetTotals,
       updateProjectionTotals,
+      runProjectionNavigation: (
+        action,
+        {
+          reason = 'projection action',
+          periodWindowChanged = false
+        } = {}
+      ) => (
+        runPlanningNavigation(async (isCurrentNavigation) => {
+          const completed = await action(isCurrentNavigation);
+          if (!completed || !isCurrentNavigation()) return;
+
+          const workflowConfig = getWorkflowConfig();
+          if (periodWindowChanged) {
+            projectionPeriods = [];
+            projectionPeriod = null;
+            budgetPeriods = [];
+            budgetPeriod = null;
+
+            if (workflowShowsPlanActuals(workflowConfig)) {
+              const budgetContainer = getEl('budgetTable');
+              if (budgetContainer) {
+                await loadBudgetGrid(budgetContainer);
+                if (!isCurrentNavigation()) return;
+              }
+            }
+
+            if (workflowConfig?.showProjections) {
+              const projectionsContainer = getEl('projectionsContent');
+              if (projectionsContainer) {
+                await loadProjectionsSection(projectionsContainer);
+                if (!isCurrentNavigation()) return;
+              }
+            }
+          }
+
+          if (workflowConfig?.showSummaryCards) {
+            await refreshSummaryCards();
+          }
+        }, {
+          lane: 'projection',
+          reason
+        })
+      ),
       getFilteredProjections,
+      isRenderCurrent,
       getEl
     },
     logger
   });
+}
+
+function renderNoScenarioPlaceholder(container) {
+  if (!container) return;
+  const placeholder = document.createElement('div');
+  placeholder.className = 'empty-message';
+  placeholder.dataset.emptyReason = 'no-scenario';
+  placeholder.textContent = 'No scenario selected. Create a scenario to begin.';
+  container.replaceChildren(placeholder);
+}
+
+function clearScenarioDataSurfaces(containers) {
+  teardownPlanActualsGridCore({
+    container: containers.budgetTable,
+    teardownRecurringView: teardownRecurringRulesDetailGrid
+  });
+
+  for (const table of [
+    masterTransactionsTable,
+    masterBudgetTable,
+    fundSummaryTable,
+    generalSummaryTable
+  ]) {
+    try {
+      table?.destroy?.();
+    } catch (_) {
+      // A detached table must not prevent the remaining surfaces from clearing.
+    }
+  }
+  masterTransactionsTable = null;
+  masterBudgetTable = null;
+  fundSummaryTable = null;
+  generalSummaryTable = null;
+
+  [
+    'accountsSection',
+    'transactionsSection',
+    'budgetSection',
+    'projectionsSection'
+  ].forEach((sectionId) => {
+    const controls = getEl(sectionId)?.querySelector('.card-header-controls');
+    controls?.replaceChildren();
+  });
+  document.querySelectorAll('.filter-modal-overlay').forEach((overlay) => overlay.remove());
+
+  [
+    containers.accountsTable,
+    containers.transactionsTable,
+    containers.budgetTable,
+    containers.projectionsContent,
+    containers.summaryCardsContent,
+    getEl('generatePlanContent')
+  ].forEach(renderNoScenarioPlaceholder);
 }
 
 // Load all data for current scenario
@@ -1954,11 +2751,10 @@ async function loadScenarioData() {
 
   const showAccounts = workflowConfig ? !!workflowConfig.showAccounts : true;
   const showGeneratePlan = workflowConfig ? !!workflowConfig.showGeneratePlan : false;
-  const showTransactions = workflowConfig
-    ? !!(workflowConfig.showPlannedTransactions || workflowConfig.showActualTransactions)
-    : true;
+  const activity = getActivityConfig(workflowConfig);
+  const showTransactions = activity?.surface === 'transactions';
   const showProjections = workflowConfig ? !!workflowConfig.showProjections : true;
-  const showBudget = workflowConfig ? workflowConfig.showBudget !== false : true;
+  const showBudget = activity?.surface === 'planActuals';
   const showSummaryCards = workflowConfig ? !!workflowConfig.showSummaryCards : false;
   
   if (showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
@@ -1968,9 +2764,16 @@ async function loadScenarioData() {
   if (showBudget) budgetSection.classList.remove('hidden'); else budgetSection.classList.add('hidden');
   if (showSummaryCards) summaryCardsSection.classList.remove('hidden'); else summaryCardsSection.classList.add('hidden');
 
+  const rowMiddle = getEl('row-middle');
+  const middleTitle = rowMiddle?.querySelector(':scope > .dash-row-header .dash-row-title');
+  if (middleTitle) {
+    middleTitle.textContent = showAccounts && showTransactions
+      ? 'Accounts & Planning'
+      : (showAccounts ? 'Accounts' : 'Planning');
+  }
+
   // For detail workflows: hide the outer accordion wrapper and expand the
   // body so the Tabulator grid fills all available space.
-  const rowMiddle = getEl('row-middle');
   if (rowMiddle) {
     const isMiddleDetail = workflowConfig?.accountsMode === 'detail' || workflowConfig?.transactionsMode === 'detail';
     if (isMiddleDetail) {
@@ -1988,7 +2791,7 @@ async function loadScenarioData() {
   }
 
   if (budgetSection) {
-    if (workflowConfig?.budgetMode === 'detail') {
+    if (showBudget && activity?.presentation === 'detail') {
       budgetSection.classList.add('mode-detail');
     } else {
       budgetSection.classList.remove('mode-detail');
@@ -2001,6 +2804,11 @@ async function loadScenarioData() {
     } else {
       projectionsSection.classList.remove('mode-detail');
     }
+  }
+
+  if (!currentScenario) {
+    clearScenarioDataSurfaces(containers);
+    return;
   }
 
   // Clear any stale placeholders without destroying stable grid containers.
@@ -2031,7 +2839,10 @@ async function loadScenarioData() {
   if (showBudget) {
     await loadBudgetGrid(containers.budgetTable);
   } else {
-    containers.budgetTable.innerHTML = '';
+    teardownPlanActualsGridCore({
+      container: containers.budgetTable,
+      teardownRecurringView: teardownRecurringRulesDetailGrid
+    });
   }
 
   if (showProjections) {
@@ -2065,16 +2876,29 @@ function renderWorkflowNav(container) {
     btn.textContent = workflow.name || workflow.id;
     btn.addEventListener('click', async () => {
       const nextId = getWorkflowById(workflow.id)?.id || DEFAULT_WORKFLOW_ID;
-      if (nextId === currentWorkflowId) return;
-
-      currentWorkflowId = nextId;
-      await patchUiState({ lastWorkflowId: nextId });
-      renderWorkflowNav(container);
+      const closeMobileSidebar = () => {
+        if (window.matchMedia?.('(max-width: 640px)').matches) {
+          container.closest('.sidebar')?.classList.remove('open');
+          document.querySelector('.sidebar-backdrop')?.classList.add('hidden');
+        }
+      };
 
       try {
-        await loadScenarioData();
+        await runPlanningNavigation(async (isCurrentNavigation) => {
+          currentWorkflowId = nextId;
+          await patchUiState({ lastWorkflowId: nextId });
+          if (!isCurrentNavigation()) return;
+
+          renderWorkflowNav(container);
+          await loadScenarioData();
+        }, {
+          lane: 'workflow',
+          reason: `workflow ${nextId}`
+        });
       } catch (err) {
         logger.error('[WorkflowNav] Failed to reload scenario data after workflow switch:', err);
+      } finally {
+        closeMobileSidebar();
       }
     });
 
@@ -2084,12 +2908,31 @@ function renderWorkflowNav(container) {
 
 // --- Place all function declarations above init() for hoisting and clarity ---
 
-// ...existing code...
+function renderLegacyUpgradeBlockedState() {
+  const forecast = document.getElementById('panel-forecast');
+  if (!forecast) return;
+  forecast.innerHTML = `
+    <main class="data-upgrade-blocked">
+      <h1>Browser data was left unchanged</h1>
+      <p>
+        FTrack has not opened the legacy cache because it must be upgraded and
+        validated before the application can safely use it.
+      </p>
+      <button type="button" class="icon-btn icon-btn--primary">Review Browser Data</button>
+    </main>
+  `;
+  forecast.querySelector('button')?.addEventListener('click', () => window.location.reload());
+}
 
 // Initialize the page
 async function init() {
   loadGlobals();
   initTooltips();
+  const browserDataReady = await ensureLegacyBrowserDataReviewed();
+  if (!browserDataReady) {
+    renderLegacyUpgradeBlockedState();
+    return;
+  }
   await loadUiState();
   const containers = buildGridContainer({
     accordionStates: uiState?.accordionStates || {},
@@ -2098,50 +2941,127 @@ async function init() {
       patchUiState({ accordionStates: { ...current, [id]: isOpen } });
     }
   });
+  document.addEventListener('ftrack:cloudDataApplied', () => window.location.reload(), { once: true });
+  await initializeCloudSync();
   renderWorkflowNav(containers.workflowNav);
-  await buildScenarioGrid(containers.scenarioSelector);
-  // loadScenarioData is now called from buildScenarioGrid when initial scenario is set
-  initializeKeyboardShortcuts();
-  document.addEventListener('forecast:accountsUpdated', async () => {
-    try {
-      await refreshSummaryCards();
-    } catch (e) {
-      // keep existing behavior: ignore
-    }
+  document.addEventListener('forecast:accountsUpdated', () => {
+    const workflowConfig = getWorkflowConfig();
+    void requestPlanningRefresh({
+      scenarioId: currentScenario?.id,
+      refreshActivity: true,
+      includeGeneratePlan: Boolean(workflowConfig?.showGeneratePlan),
+      includeProjections: Boolean(workflowConfig?.showProjections),
+      includeSummary: Boolean(workflowConfig?.showSummaryCards),
+      reason: 'an account change'
+    });
   });
 
   let refreshInFlight = false;
-  document.addEventListener('forecast:refresh', async () => {
+  document.addEventListener('forecast:refresh', async (event) => {
     if (refreshInFlight) return;
     if (!currentScenario) return;
+    const refreshButton = event?.detail?.button;
     refreshInFlight = true;
+    if (refreshButton) {
+      refreshButton.disabled = true;
+      refreshButton.classList.add('is-loading');
+      refreshButton.setAttribute('aria-busy', 'true');
+    }
     try {
-      await loadScenarioData();
+      await runPlanningNavigation(async (isCurrentNavigation) => {
+        const scenarioId = Number(currentScenario?.id || 0);
+        if (!scenarioId || !isCurrentNavigation()) return;
+
+        const refreshedScenario = await getScenario(scenarioId);
+        if (!refreshedScenario || !isCurrentNavigation()) return;
+
+        currentScenario = refreshedScenario;
+        // Clear cached period arrays so all grids recompute from the freshly-loaded
+        // scenario's date window (budget window / projection config may have changed).
+        transactionsPeriods = [];
+        budgetPeriods = [];
+        projectionPeriods = [];
+        await loadScenarioData();
+      }, {
+        lane: 'refresh',
+        reason: 'manual refresh'
+      });
     } catch (err) {
       logger.error('[Forecast] Refresh failed:', err);
     } finally {
+      if (refreshButton?.isConnected) {
+        refreshButton.disabled = false;
+        refreshButton.classList.remove('is-loading');
+        refreshButton.removeAttribute('aria-busy');
+      }
       refreshInFlight = false;
     }
   });
-  
-}
 
-/**
- * Initialize keyboard shortcut event listeners
- */
-function initializeKeyboardShortcuts() {
-  // Listen for shortcut events
-  document.addEventListener('shortcut:generateProjections', async () => {
-    if (currentScenario) {
-      const projectionsContainer = document.getElementById('projectionsContent');
-      if (projectionsContainer) {
-        await loadProjectionsSection(projectionsContainer);
-      }
+  const projectionRefreshTimers = new Map();
+  document.addEventListener('forecast:planChanged', (event) => {
+    const scenarioId = Number(event?.detail?.scenarioId || currentScenario?.id || 0);
+    if (!scenarioId || Number(currentScenario?.id || 0) !== scenarioId) return;
+    const currentConfig = currentScenario?.projection?.config || {};
+    if (currentConfig.startDate && currentConfig.endDate) {
+      document.documentElement.dataset.projectionRefreshingScenarioId = String(scenarioId);
     }
+
+    const workflowConfig = getWorkflowConfig();
+    void requestPlanningRefresh({
+      scenarioId,
+      refreshActivity: workflowShowsPlanActuals(workflowConfig),
+      includeGeneratePlan: Boolean(workflowConfig?.showGeneratePlan),
+      includeProjections: Boolean(workflowConfig?.showProjections),
+      includeSummary: Boolean(workflowConfig?.showSummaryCards),
+      reason: event?.detail?.reason || 'a plan change'
+    });
+
+    const existingTimer = projectionRefreshTimers.get(scenarioId);
+    if (existingTimer) clearTimeout(existingTimer);
+    const timer = setTimeout(async () => {
+      projectionRefreshTimers.delete(scenarioId);
+      if (Number(currentScenario?.id || 0) !== scenarioId) return;
+
+      try {
+        const latest = await getScenario(scenarioId);
+        const config = latest?.projection?.config || {};
+        if (!config.startDate || !config.endDate) return;
+
+        await generateProjections(scenarioId, {
+          startDate: config.startDate,
+          endDate: config.endDate,
+          periodTypeId: config.periodTypeId,
+          asOfDate: config.asOfDate ?? null,
+          openCommitmentStartDate: config.openCommitmentStartDate ?? null
+        });
+
+        const workflowConfig = getWorkflowConfig();
+        await requestPlanningRefresh({
+          scenarioId,
+          refreshActivity: false,
+          includeProjections: Boolean(workflowConfig?.showProjections),
+          includeSummary: Boolean(workflowConfig?.showSummaryCards),
+          reason: 'automatic projection generation'
+        });
+      } catch (err) {
+        logger.error('[Projections] Automatic refresh failed:', err);
+      } finally {
+        if (
+          document.documentElement.dataset.projectionRefreshingScenarioId ===
+          String(scenarioId)
+        ) {
+          delete document.documentElement.dataset.projectionRefreshingScenarioId;
+        }
+      }
+    }, 500);
+    projectionRefreshTimers.set(scenarioId, timer);
   });
 
+  await buildScenarioGrid(containers.scenarioSelector);
+  // loadScenarioData is called from buildScenarioGrid when the initial scenario is set.
+  
 }
-
 
 init().catch(err => {
   console.error('forecast-controller: init failed', err);

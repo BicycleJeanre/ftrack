@@ -76,6 +76,11 @@
         "UC-E4",
         "UC-S9"
       ]
+    },
+    "Advanced Goal Solver": {
+      "testFile": "QC/tests/workflows/advanced-goal-solver.test.js",
+      "scenarioIds": [107],
+      "useCases": []
     }
   },
   "useCaseDetails": {

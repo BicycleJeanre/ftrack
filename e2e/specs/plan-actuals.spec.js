@@ -1,0 +1,2310 @@
+const { test, expect } = require('@playwright/test');
+const {
+  STORAGE_KEY,
+  loadSmokeData,
+  gotoFTrack,
+  readPlanActualsWorkspaces,
+  currentScenario,
+  waitForAppReady,
+  waitForCollectionCount,
+  waitForScenario
+} = require('../helpers/app-data');
+const {
+  selectWorkflow,
+  openSectionFilters,
+  closeFilterModal,
+  confirmDialog
+} = require('../helpers/ui');
+
+function editorField(form, label) {
+  const exactLabel = new RegExp(
+    `^${String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`
+  );
+  return form.locator('label.grid-summary-label')
+    .filter({ hasText: exactLabel })
+    .locator('..');
+}
+
+async function openNewItemEditor(page) {
+  await page.locator('#budgetSection button[title="Add item"]').click();
+  const form = page.locator('#budgetSection .plan-actuals-new-item form');
+  await expect(form).toBeVisible();
+  return form;
+}
+
+async function fillNewItem(form, {
+  date,
+  description,
+  amount,
+  status = 'planned',
+  actualAmount = null
+}) {
+  await editorField(form, 'Secondary account').locator('select').selectOption('5');
+  await editorField(form, 'Movement').locator('select').selectOption('2');
+  await editorField(form, 'Date').locator('input').fill(date);
+  await editorField(form, 'Current plan').locator('input').fill(String(amount));
+  await editorField(form, 'Status').locator('select').selectOption(status);
+  if (actualAmount !== null) {
+    await editorField(form, 'Actual amount').locator('input').fill(String(actualAmount));
+  }
+  await editorField(form, 'Description').locator('input').fill(description);
+}
+
+async function addInlineAccount(page, form, fieldLabel, {
+  name,
+  typeId,
+  currencyId = 1,
+  startingBalance = 0
+}) {
+  const select = editorField(form, fieldLabel).locator('select');
+  await select.selectOption('__add_account__');
+  const modal = page.locator('.modal-quick-account');
+  await expect(modal).toBeVisible();
+  await modal.getByLabel('Name').fill(name);
+  await modal.getByLabel('Type').selectOption(String(typeId));
+  await modal.getByLabel('Currency').selectOption(String(currencyId));
+  await modal.getByLabel('Starting Balance').fill(String(startingBalance));
+  await modal.getByRole('button', { name: 'Use Account' }).click();
+  await expect(modal).toBeHidden();
+  await expect(select.locator('option:checked')).toContainText(name);
+}
+
+async function selectPlanPeriod(page, label) {
+  const select = page.locator('#plan-period-inline');
+  const value = await select.locator('option').filter({ hasText: label }).getAttribute('value');
+  expect(value, `Plan period option containing "${label}"`).toBeTruthy();
+  await select.selectOption(value);
+  await expect(select).toHaveValue(value);
+}
+
+async function chooseAccountFromDialog(page, selectId, {
+  scope = '',
+  accountName
+}) {
+  await page.locator(`#${selectId}-dialog-trigger`).click();
+  const dialog = page.locator('.selection-dialog');
+  await expect(dialog).toBeVisible();
+  if (scope) {
+    const scopeSelector = scope.startsWith('group:')
+      ? '.selection-dialog-group-filter'
+      : '.selection-dialog-type-filter';
+    await dialog.locator(scopeSelector).selectOption(scope);
+    await expect(dialog).toBeVisible();
+  }
+  await dialog.getByRole('option', { name: new RegExp(`^${accountName}`) }).click();
+  await expect(dialog).toBeHidden();
+}
+
+async function expectPlanTotal(page, label, value) {
+  const metric = page.locator('#budgetSection .plan-actuals-totals .total-metric', {
+    has: page.locator('.label', { hasText: label })
+  });
+  await expect(metric.locator('.label')).toHaveText(label);
+  await expect(metric.locator('.value')).toHaveText(value);
+}
+
+function buildRecurringSplitAppData() {
+  const appData = loadSmokeData();
+  const scenario = appData.scenarios[0];
+  const recurrence = {
+    recurrenceType: 4,
+    startDate: '2026-01-15',
+    endDate: null,
+    interval: 1,
+    dayOfMonth: 15
+  };
+  const groupId = 'loan-payment';
+  const splitRules = [
+    {
+      id: 1011,
+      secondaryAccountId: 3,
+      amount: 800,
+      description: 'Loan principal',
+      transactionGroupRole: 'principal'
+    },
+    {
+      id: 1012,
+      secondaryAccountId: 7,
+      amount: 150,
+      description: 'Loan interest',
+      transactionGroupRole: 'interest'
+    },
+    {
+      id: 1013,
+      secondaryAccountId: 5,
+      amount: 50,
+      description: 'Loan insurance',
+      transactionGroupRole: 'insurance'
+    }
+  ].map((rule) => ({
+    ...rule,
+    primaryAccountId: 1,
+    transactionTypeId: 2,
+    effectiveDate: '2026-01-15',
+    recurrence: { ...recurrence },
+    periodicChange: null,
+    tags: ['debt'],
+    transactionGroupId: groupId
+  }));
+
+  scenario.accounts.push({
+    id: 7,
+    name: 'Loan Interest Expense',
+    type: { id: 5, name: 'Expense' },
+    currency: { id: 1, name: 'ZAR' },
+    startingBalance: 0,
+    openDate: '2026-01-01',
+    periodicChange: null,
+    goalAmount: null,
+    goalDate: null,
+    tags: ['debt']
+  });
+  scenario.transactions.push(...splitRules);
+  scenario.splitTransactionSets.push({
+    id: groupId,
+    description: 'Loan payment',
+    payingAccountId: 1,
+    effectiveDate: '2026-01-15',
+    strategy: 'manual',
+    targetAccountId: 3,
+    interestSource: 'manual',
+    customRate: null,
+    totalAmount: 1000,
+    recurrence: { ...recurrence },
+    tags: ['debt'],
+    components: [
+      {
+        role: 'principal',
+        accountId: 3,
+        transactionTypeId: 2,
+        description: 'Loan principal',
+        recurrence: { ...recurrence },
+        periodicChange: null,
+        amountMode: 'fixed',
+        value: 800,
+        order: 0
+      },
+      {
+        role: 'interest',
+        accountId: 7,
+        transactionTypeId: 2,
+        description: 'Loan interest',
+        recurrence: { ...recurrence },
+        periodicChange: null,
+        amountMode: 'fixed',
+        value: 150,
+        order: 1
+      },
+      {
+        role: 'insurance',
+        accountId: 5,
+        transactionTypeId: 2,
+        description: 'Loan insurance',
+        recurrence: { ...recurrence },
+        periodicChange: null,
+        amountMode: 'fixed',
+        value: 50,
+        order: 2
+      }
+    ]
+  });
+  scenario.transactionOccurrences.push({
+    id: 2090,
+    sourceTransactionId: 1011,
+    occurrenceKey: 'tx:1011|date:2026-01-15|role:principal',
+    scheduledDate: '2026-01-15',
+    plannedDate: null,
+    actualDate: '2026-01-16',
+    baselineAmount: 800,
+    plannedAmount: 800,
+    actualAmount: 805,
+    status: 'actual',
+    origin: 'generated',
+    isOverride: true,
+    primaryAccountId: 1,
+    secondaryAccountId: 3,
+    transactionTypeId: 2,
+    baselinePrimaryAccountId: 1,
+    baselineSecondaryAccountId: 3,
+    baselineTransactionTypeId: 2,
+    baselineSnapshotVersion: 1,
+    actualSnapshotVersion: 1,
+    description: 'January loan actual',
+    tags: ['debt'],
+    transactionGroupId: groupId,
+    transactionGroupRole: 'principal',
+    transactionGroupAccountGroupId: null,
+    capitalAmount: 800,
+    interestAmount: 0,
+    recurrence: null,
+    recurrenceDescription: null,
+    periodicChange: null,
+    createdAt: '2026-01-16T10:00:00.000Z',
+    updatedAt: '2026-01-16T10:00:00.000Z'
+  });
+  scenario.baselinePeriods.push({
+    periodTypeId: 3,
+    startDate: '2026-01-01',
+    endDate: '2026-01-31',
+    frozenAt: '2026-01-16T10:00:00.000Z'
+  });
+  return appData;
+}
+
+test.describe('saved Plan and Actuals scenario workspace', () => {
+  test('restores the selected scenario after its data version changes', async ({ page }) => {
+    const appData = loadSmokeData();
+    const changedScenario = JSON.parse(JSON.stringify(appData.scenarios[0]));
+    changedScenario.id = 202;
+    changedScenario.version = 9;
+    changedScenario.name = 'Changed scenario version';
+    appData.scenarios.push(changedScenario);
+    appData.uiState.lastScenarioId = changedScenario.id;
+    appData.uiState.lastScenarioVersion = 1;
+    appData.uiState.planActualsWorkspaceByScenario = {
+      [changedScenario.id]: {
+        viewByContext: { general: 'period' },
+        periodTypeId: 3,
+        periodId: '2026-12',
+        accountId: 1,
+        groupBy: 'movement'
+      }
+    };
+
+    await gotoFTrack(page, appData);
+
+    await expect(page.locator('.scenario-list-item.selected'))
+      .toHaveAttribute('data-scenario-id', String(changedScenario.id));
+    await expect(page.getByRole('tab', { name: 'Period', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#plan-period-inline')).toHaveValue('2026-12');
+    await expect(page.locator('#plan-account-inline')).toHaveValue('1');
+    await expect(page.locator('#plan-group-inline')).toHaveValue('movement');
+  });
+});
+
+test.describe('unified Plan & Actuals workflow', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoFTrack(page);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+  });
+
+  test('uses one card with Period and Recurring modes and no separate Transactions card', async ({ page }) => {
+    const planSection = page.locator('#budgetSection');
+    await expect(planSection).toBeVisible();
+    await expect(planSection.locator('.forecast-card')).toHaveCount(1);
+    await expect(page.locator('#transactionsSection')).toBeHidden();
+    const totals = planSection.locator('.plan-actuals-totals');
+    await expect(totals).toContainText('Baseline Net');
+    await expect(totals).toContainText('Current Plan Net');
+    await expect(totals).toContainText('Actual Net');
+    await expect(totals).toContainText('Open Commitments');
+    await expect(totals).toContainText('Forecast Net');
+    await expect(totals).toContainText('Actual vs Baseline');
+    await expect(totals).toContainText('Actual vs Current');
+    await expect(totals).toContainText('Unplanned Actuals');
+    await expect(totals.locator('.totals-group')).toHaveCount(3);
+    await expect(totals.locator('.totals-group-title')).toHaveText([
+      'Baseline',
+      'Current Outlook',
+      'Performance & Exceptions'
+    ]);
+    await expect(totals.locator('.totals-group-baseline .summary-card-row .label'))
+      .toHaveText(['Baseline Net']);
+    await expect(totals.locator('.totals-group-current-outlook .summary-card-row .label'))
+      .toHaveText(['Current Plan Net', 'Actual Net', 'Open Commitments', 'Forecast Net']);
+    await expect(totals.locator('.totals-group-performance .summary-card-row .label'))
+      .toHaveText(['Actual vs Baseline', 'Actual vs Current', 'Unplanned Actuals']);
+
+    const periodTab = page.getByRole('tab', { name: 'Period', exact: true });
+    const recurringTab = page.getByRole('tab', { name: 'Recurring', exact: true });
+    await expect(periodTab).toHaveAttribute('aria-selected', 'true');
+    await expect(recurringTab).toHaveAttribute('aria-selected', 'false');
+    await expect(planSection).toContainText('Groceries budget');
+
+    await recurringTab.click();
+    await expect(recurringTab).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#budgetTable')).toContainText('Monthly salary');
+    await expect(page.locator('#budgetTable')).toContainText('Groceries');
+    await expect(page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary'
+    })).toHaveClass(/money-in/);
+    await expect(page.locator(
+      '#budgetTable .recurring-rule-card[data-source-transaction-id="1002"]'
+    )).toHaveClass(/money-out/);
+    await expect(page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary'
+    }).locator('.recurring-rule-movement'))
+      .toHaveText(/Salary Income.*→.*Checking/);
+
+    await periodTab.click();
+    await expect(periodTab).toHaveAttribute('aria-selected', 'true');
+    await expect(planSection).toContainText('Groceries budget');
+  });
+
+  test('stacks grouped totals without horizontal overflow on narrow screens', async ({ page }) => {
+    await page.setViewportSize({ width: 700, height: 900 });
+    const totals = page.locator('#budgetSection .plan-actuals-totals');
+    await expect(totals.locator('.totals-group')).toHaveCount(3);
+    await expect.poll(async () => totals.locator('.plan-actuals-total-groups').evaluate(
+      (element) => element.scrollWidth <= element.clientWidth
+    )).toBe(true);
+
+    const groupPositions = await totals.locator('.totals-group').evaluateAll(
+      (groups) => groups.map((group) => Math.round(group.getBoundingClientRect().left))
+    );
+    expect(new Set(groupPositions).size).toBe(1);
+  });
+
+  test('restores the last Plan and Actuals workspace after a full reload', async ({ page }) => {
+    const scenarioId = (await currentScenario(page)).id;
+    const periodSelect = page.locator('#plan-period-inline');
+    const savedPeriodId = await periodSelect.locator('option').evaluateAll((options) => {
+      if (options.length < 2) throw new Error('Expected multiple planning periods');
+      return options.at(-1).value;
+    });
+    await periodSelect.selectOption(savedPeriodId);
+    await chooseAccountFromDialog(page, 'plan-account-inline', {
+      scope: 'type:1',
+      accountName: 'Checking'
+    });
+    await page.locator('#plan-status-inline').selectOption('planned');
+    await page.locator('#plan-history-inline').selectOption('live');
+    await page.locator('#plan-group-inline').selectOption('movement');
+
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    await chooseAccountFromDialog(page, 'tx-account-filter-select', {
+      scope: 'type:1',
+      accountName: 'Checking'
+    });
+    await page.locator('#tx-grouping-select-summary').selectOption('secondaryAccountName');
+
+    await expect.poll(async () => {
+      const workspaces = await readPlanActualsWorkspaces(page);
+      return workspaces?.[String(scenarioId)];
+    }).toMatchObject({
+      viewByContext: { general: 'recurring' },
+      periodTypeId: 3,
+      periodId: savedPeriodId,
+      accountId: 1,
+      accountScope: 'type:1',
+      statusFilter: 'planned',
+      historyFilter: 'live',
+      groupBy: 'movement',
+      recurringAccountId: 1,
+      recurringAccountScope: 'type:1',
+      recurringGroupBy: 'secondaryAccountName'
+    });
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page);
+
+    await expect(page.getByRole('tab', { name: 'Recurring', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#tx-account-filter-select')).toHaveAttribute('data-account-scope', 'type:1');
+    await expect(page.locator('#tx-account-filter-select')).toHaveValue('1');
+    await expect(page.locator('#tx-grouping-select-summary'))
+      .toHaveValue('secondaryAccountName');
+
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await expect(page.locator('#plan-period-type-inline')).toHaveValue('Month');
+    await expect(page.locator('#plan-period-inline')).toHaveValue(savedPeriodId);
+    await expect(page.locator('#plan-account-inline')).toHaveAttribute('data-account-scope', 'type:1');
+    await expect(page.locator('#plan-account-inline')).toHaveValue('1');
+    await expect(page.locator('#plan-status-inline')).toHaveValue('planned');
+    await expect(page.locator('#plan-history-inline')).toHaveValue('live');
+    await expect(page.locator('#plan-group-inline')).toHaveValue('movement');
+  });
+
+  test('filters Period and Recurring account selectors by account type', async ({ page }) => {
+    const periodAccount = page.locator('#plan-account-inline');
+    await page.locator('#plan-account-inline-dialog-trigger').click();
+    let dialog = page.locator('.selection-dialog');
+    await dialog.locator('.selection-dialog-type-filter').selectOption('type:1');
+    await expect(dialog.locator('.selection-dialog-group-filter')).toBeVisible();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('option', { name: /^Checking/ })).toBeVisible();
+    await expect(dialog.getByRole('option', { name: /^Credit Card/ })).toHaveCount(0);
+    await dialog.getByRole('option', { name: /^Checking/ }).click();
+    await expect(periodAccount).toHaveAttribute('data-account-scope', 'type:1');
+    await expect(periodAccount.locator('option[value="1"]')).toHaveText('Checking');
+    await expect(periodAccount.locator('option[value="2"]')).toHaveText('Savings Goal');
+    await expect(periodAccount.locator('option[value="3"]')).toHaveCount(0);
+
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const recurringAccount = page.locator('#tx-account-filter-select');
+    await page.locator('#tx-account-filter-select-dialog-trigger').click();
+    dialog = page.locator('.selection-dialog');
+    await dialog.locator('.selection-dialog-type-filter').selectOption('type:5');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('option', { name: /^Groceries Expense/ })).toBeVisible();
+    await dialog.getByRole('option', { name: /^Groceries Expense/ }).click();
+    await expect(recurringAccount).toHaveAttribute('data-account-scope', 'type:5');
+    await expect(recurringAccount.locator('option[value="5"]')).toHaveText('Groceries Expense');
+    await expect(recurringAccount.locator('option[value="1"]')).toHaveCount(0);
+    await expect(recurringAccount).toHaveValue('5');
+  });
+
+  test('shows and filters closed period history on cards', async ({ page }) => {
+    const cards = page.locator('#budgetSection .plan-actuals-item');
+    await expect(cards.first()).toBeVisible();
+    await expect(cards.locator('.plan-actuals-history-badge.is-live').first())
+      .toHaveText('Live');
+
+    await page.getByRole('button', { name: 'Manage period history' }).click();
+    const manager = page.locator('.baseline-period-manager-modal');
+    await expect(manager).toBeVisible();
+    await expect(manager.locator('#baseline-manager-period-type')).toHaveValue('3');
+    await manager.getByRole('button', { name: 'Close selected period' }).click();
+    await expect(manager.locator('.baseline-period-manager-row')).toHaveCount(1);
+    await manager.locator('#baseline-manager-close').click();
+    await expect(cards.locator('.plan-actuals-history-badge.is-closed').first())
+      .toHaveText('Closed');
+
+    await page.locator('#plan-history-inline').selectOption('closed');
+    await expect(cards.first()).toHaveAttribute('data-baseline-history', 'closed');
+    await expect(page.locator(
+      '#budgetSection .plan-actuals-item[data-baseline-history="live"]'
+    )).toHaveCount(0);
+
+    await page.locator('#plan-history-inline').selectOption('');
+    await page.getByRole('button', { name: 'Manage period history' }).click();
+    await page.locator('.baseline-period-manager-modal')
+      .getByRole('button', { name: /^Reopen Month / })
+      .click();
+    await confirmDialog(page);
+    await page.locator('.baseline-period-manager-modal #baseline-manager-close').click();
+    await expect(cards.locator('.plan-actuals-history-badge.is-live').first())
+      .toHaveText('Live');
+    await expect(page.locator('#budgetSection')
+      .getByRole('button', { name: 'Manage period history' }))
+      .toBeVisible();
+  });
+
+  test('surfaces and clears stored baseline snapshots that have no period marker', async ({ page }) => {
+    const appData = loadSmokeData();
+    const scenario = appData.scenarios[0];
+    scenario.baselinePeriods = [];
+    Object.assign(scenario.transactionOccurrences[0], {
+      baselineAmount: 450,
+      plannedAmount: 450,
+      isOverride: false,
+      baselinePrimaryAccountId: 1,
+      baselineSecondaryAccountId: 5,
+      baselineTransactionTypeId: 2,
+      baselineSnapshotVersion: 1,
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    });
+    await page.addInitScript(({ key, data }) => {
+      window.localStorage.setItem(key, JSON.stringify(data));
+    }, { key: STORAGE_KEY, data: appData });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page, appData.scenarios.length);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await waitForScenario(page, (current) => current.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey ===
+        'tx:1002|date:2026-01-10|role:none' &&
+        Number(occurrence.baselineSnapshotVersion) === 1 &&
+        Number(occurrence.baselineAmount) === 450
+    ), 'unlinked transaction baseline loaded');
+
+    const groceryCard = page.locator(
+      '#budgetSection .plan-actuals-item[data-occurrence-key="tx:1002|date:2026-01-10|role:none"]'
+    );
+    await expect(groceryCard.locator('.plan-actuals-history-badge.is-captured'))
+      .toHaveText('Baseline captured');
+
+    await page.getByRole('button', { name: 'Manage period history' }).click();
+    const manager = page.locator('.baseline-period-manager-modal');
+    await expect(manager.locator('#baseline-manager-count'))
+      .toHaveText('0 closed periods · 1 individual baseline');
+    const orphanRow = manager.locator('.baseline-period-manager-row.is-unlinked');
+    await expect(orphanRow).toContainText('January 2026');
+    await orphanRow.getByRole('button', { name: 'Clear stored baselines January 2026' }).click();
+    await confirmDialog(page);
+
+    await waitForScenario(page, (current) => (
+      !current.transactionOccurrences.some(
+        (occurrence) => occurrence.occurrenceKey ===
+          'tx:1002|date:2026-01-10|role:none'
+      )
+    ), 'unlinked transaction baseline cleared');
+    await expect(manager.locator('.baseline-period-manager-empty')).toBeVisible();
+    await manager.locator('#baseline-manager-close').click();
+    await expect(groceryCard.locator('.plan-actuals-history-badge.is-live'))
+      .toHaveText('Live');
+  });
+
+  test('manages an annual closed marker and can clear all baseline history', async ({ page }) => {
+    await page.getByRole('button', { name: 'Manage period history' }).click();
+    const manager = page.locator('.baseline-period-manager-modal');
+    await manager.locator('#baseline-manager-period-type').selectOption('5');
+    await expect(manager.locator('#baseline-manager-period')).toHaveValue('2026');
+    await manager.getByRole('button', { name: 'Close selected period' }).click();
+
+    await waitForScenario(page, (scenario) => (
+      scenario.baselinePeriods.length === 1 &&
+      Number(scenario.baselinePeriods[0].periodTypeId) === 5
+    ), 'annual baseline marker frozen');
+    await expect(manager.locator('.baseline-period-manager-row')).toContainText('Year');
+
+    await manager.getByRole('button', { name: 'Clear all baseline history' }).click();
+    await confirmDialog(page);
+    await waitForScenario(page, (scenario) => scenario.baselinePeriods.length === 0, 'all period baselines unfrozen');
+    await expect(manager.locator('.baseline-period-manager-empty')).toBeVisible();
+  });
+
+  test('records an item baseline without closing a period even from the Year display', async ({ page }) => {
+    await page.locator('#plan-period-type-inline').selectOption('Year');
+    await expect(page.locator('#plan-period-inline')).toHaveValue('2026');
+
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    const occurrenceKey = await groceryCard.getAttribute('data-occurrence-key');
+    await groceryCard.locator('.plan-actuals-completion input[type="checkbox"]').check();
+
+    await waitForScenario(page, (scenario) => (
+      scenario.transactionOccurrences.some((occurrence) => (
+        occurrence.occurrenceKey === occurrenceKey &&
+        occurrence.status === 'actual' &&
+        Number(occurrence.baselineSnapshotVersion) === 1
+      )) &&
+      scenario.baselinePeriods.length === 0
+    ), 'actual captured only the item baseline');
+  });
+
+  test('opens a Period card by clicking its content and closes it when clicking off the item', async ({ page }) => {
+    const card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await card.locator('.plan-actuals-description').click();
+    await expect(card.locator('form.plan-actuals-editor')).toBeVisible();
+    await page.locator('#budgetSection .plan-actuals-totals').click();
+    await expect(card.locator('form.plan-actuals-editor')).toHaveCount(0);
+  });
+
+  test('closes an expanded Recurring card when clicking off the item', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const card = page.locator('#budgetTable .recurring-rule-card').first();
+    await card.locator('.grid-summary-content').click();
+    await expect(card.locator('.grid-summary-form')).toBeVisible();
+    await page.locator('#budgetTable #transactionsContent .total-metric').first().click();
+    await expect(card.locator('.grid-summary-form')).toBeHidden();
+  });
+
+  test('creates a non-recurring itemized actual from the standard Period editor', async ({ page }) => {
+    await expect(page.locator(
+      '#budgetSection button[title="Add transaction with line items"]'
+    )).toHaveCount(0);
+    const form = await openNewItemEditor(page);
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(0);
+    await expect(form.locator('.plan-actuals-add-line-item')).toHaveText('+ Add line item');
+    await form.locator('.plan-actuals-add-line-item').click();
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(1);
+    await editorField(form, 'Secondary account').locator('select').selectOption('5');
+    await editorField(form, 'Status').locator('select').selectOption('actual');
+    await editorField(form, 'Description').locator('input').fill('Itemized shop transaction');
+    await form.locator('.plan-actuals-line-item-description').fill('First line item');
+    await form.locator('.plan-actuals-line-item-amount').fill('25');
+    await form.locator('.plan-actuals-add-line-item').click();
+    await form.locator('.plan-actuals-line-item-description').nth(1).fill('Second line item');
+    await form.locator('.plan-actuals-line-item-amount').nth(1).fill('35');
+    await expect(editorField(form, 'Actual amount').locator('input')).toHaveValue('60.00');
+    await form.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Itemized shop transaction' &&
+        occurrence.status === 'actual' &&
+        occurrence.actualAmount === 60 &&
+        occurrence.lineItems?.length === 2
+    ), 'itemized transaction total persisted');
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Itemized shop transaction'
+    }).locator('.plan-actuals-line-item-summary')).toContainText('2 line items');
+  });
+
+  test('adds a line item to an existing transaction and increases its total', async ({ page }) => {
+    const card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await card.locator('button[title="Edit item"]').click();
+    const form = card.locator('form.plan-actuals-editor');
+    await expect(form).toBeVisible();
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(0);
+
+    await form.locator('.plan-actuals-add-line-item').click();
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(2);
+    await expect(form.locator('.plan-actuals-line-item-amount').first()).toHaveValue('450');
+    await form.locator('.plan-actuals-line-item-description').nth(1).fill('Additional shop line item');
+    await form.locator('.plan-actuals-line-item-amount').nth(1).fill('50');
+    await expect(editorField(form, 'Current plan').locator('input')).toHaveValue('500.00');
+    await form.getByRole('button', { name: 'Save' }).click();
+
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === 'tx:1002|date:2026-01-10|role:none' &&
+        occurrence.plannedAmount === 500 &&
+        occurrence.lineItems?.length === 2
+    ), 'existing transaction line item increased the total');
+    await expect(card.locator('.plan-actuals-line-item-summary')).toContainText('2 line items');
+    await expect(card.locator('.plan-actuals-metric', { hasText: 'Current' }).locator('.value'))
+      .toHaveText('R 500,00');
+  });
+
+  test('renders descriptions immediately below direction-aware money movements', async ({ page }) => {
+    const moneyOutCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await expect(moneyOutCard.locator('.plan-actuals-movement'))
+      .toHaveText(/Money Out: Checking.*→.*Groceries Expense/);
+    await expect(moneyOutCard.locator('.plan-actuals-counterparty'))
+      .toHaveText('Groceries Expense');
+    await expect(moneyOutCard.locator('.plan-actuals-description'))
+      .toHaveText('Groceries budget');
+    await expect(moneyOutCard).toHaveClass(/money-out/);
+
+    await expect(moneyOutCard.locator('.plan-actuals-heading-row'))
+      .toContainText('Groceries Expense');
+    await expect(moneyOutCard.locator('.plan-actuals-heading-row .plan-actuals-status'))
+      .toHaveText('planned');
+    await expect(moneyOutCard.locator(
+      '.plan-actuals-heading-row .plan-actuals-completion input[type="checkbox"]'
+    )).toHaveCount(1);
+    await expect(moneyOutCard.locator(
+      '.plan-actuals-schedule-row .plan-actuals-completion'
+    )).toHaveCount(0);
+    await expect(moneyOutCard.locator('.plan-actuals-schedule-row .plan-actuals-repeat'))
+      .toContainText('Every month');
+    await expect(moneyOutCard.locator('.plan-actuals-schedule-row time'))
+      .toHaveText('2026-01-10');
+
+    const contentOrder = await moneyOutCard.locator('.grid-summary-content').evaluate((content) => (
+      [...content.children].map((child) => child.className)
+    ));
+    expect(contentOrder).toEqual([
+      'plan-actuals-heading-row',
+      'plan-actuals-schedule-row',
+      'grid-summary-flow plan-actuals-movement',
+      'grid-summary-description plan-actuals-description',
+      'plan-actuals-line-item-summary',
+      'plan-actuals-comparison'
+    ]);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const metricTops = await moneyOutCard.locator('.plan-actuals-metric').evaluateAll((metrics) => (
+      metrics.map((metric) => Math.round(metric.getBoundingClientRect().top))
+    ));
+    expect(Math.max(...metricTops) - Math.min(...metricTops)).toBeLessThanOrEqual(1);
+
+    const moneyInCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Monthly salary'
+    });
+    await expect(moneyInCard.locator('.plan-actuals-movement'))
+      .toHaveText(/Money In: Salary Income.*→.*Checking/);
+    await expect(moneyInCard.locator('.plan-actuals-counterparty'))
+      .toHaveText('Salary Income');
+    await expect(moneyInCard).toHaveClass(/money-in/);
+
+    for (const card of [moneyOutCard, moneyInCard]) {
+      expect(await card.evaluate((element) => {
+        const movement = element.querySelector('.plan-actuals-movement');
+        const counterparty = element.querySelector('.plan-actuals-counterparty');
+        const description = element.querySelector('.plan-actuals-description');
+        return Boolean(
+          counterparty &&
+          movement &&
+          description &&
+          (counterparty.compareDocumentPosition(movement) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+          (movement.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING)
+        );
+      })).toBe(true);
+    }
+  });
+
+  test('renders Period money movement from the selected account perspective', async ({ page }) => {
+    const accountFilter = page.locator('#budgetSection #plan-account-inline');
+    await accountFilter.selectOption('5');
+
+    const groceriesCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await expect(groceriesCard).toBeVisible();
+    await expect(groceriesCard.locator('.plan-actuals-movement'))
+      .toHaveText(/Money In: Checking.*→.*Groceries Expense/);
+
+    await selectWorkflow(page, 'Plan & Actuals (Detail)');
+    const detailAccountFilter = page.locator('#budgetSection #plan-account-inline');
+    await detailAccountFilter.selectOption('5');
+
+    const groceriesDetailRow = page.locator(
+      '#budgetTable .plan-actuals-detail-grid .tabulator-row',
+      { hasText: 'Groceries budget' }
+    );
+    await expect(groceriesDetailRow).toBeVisible();
+    await expect(
+      groceriesDetailRow.locator(
+        '.tabulator-cell[tabulator-field="movement"] .plan-actuals-detail-movement'
+      )
+    ).toContainText(/Money In: Checking.*→.*Groceries Expense/);
+  });
+
+  test('uses the filtered account as the primary account for new transactions', async ({ page }) => {
+    const accountFilter = page.locator('#budgetSection #plan-account-inline');
+    await accountFilter.selectOption('2');
+
+    let form = await openNewItemEditor(page);
+    await expect(editorField(form, 'Primary account').locator('select')).toHaveValue('2');
+    await form.getByRole('button', { name: 'Cancel' }).click();
+
+    await selectWorkflow(page, 'Plan & Actuals (Detail)');
+    const detailAccountFilter = page.locator('#budgetSection #plan-account-inline');
+    await detailAccountFilter.selectOption('5');
+
+    form = await openNewItemEditor(page);
+    await expect(editorField(form, 'Primary account').locator('select')).toHaveValue('5');
+  });
+
+  test('shows signed totals beside Period and Recurring group headers', async ({ page }) => {
+    await page.locator('#budgetSection #plan-group-inline').selectOption('movement');
+
+    const periodMoneyIn = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money In$/ })
+    });
+    const periodMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(periodMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
+    await expect(periodMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 700,00');
+    await expect(periodMoneyOut.locator('.grid-summary-group-total')).toHaveClass(/negative/);
+
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    await page.locator('#budgetSection #tx-grouping-select-summary')
+      .selectOption('transactionTypeName');
+
+    const recurringMoneyIn = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money In$/ })
+    });
+    const recurringMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(recurringMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
+    await expect(recurringMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 700,00');
+  });
+
+  test('filters planned and actual cards and recalculates group totals', async ({ page }) => {
+    await page.locator('#budgetSection #plan-group-inline').selectOption('movement');
+
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    const groceryKey = await groceryCard.getAttribute('data-occurrence-key');
+    await groceryCard.locator('.plan-actuals-completion input[type="checkbox"]').check();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === groceryKey &&
+        occurrence.status === 'actual' &&
+        Number(occurrence.actualAmount) === 450
+    ), 'grocery occurrence marked actual');
+
+    const statusFilter = page.locator('#budgetSection #plan-status-inline');
+    await statusFilter.selectOption('actual');
+
+    await expect(page.locator('#budgetSection .plan-actuals-item')).toHaveCount(1);
+    await expect(page.locator('#budgetSection .plan-actuals-item')).toContainText('Groceries budget');
+    const actualMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(actualMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 450,00');
+    await expect(page.locator('#budgetSection .grid-summary-group-label', {
+      hasText: /^Money In$/
+    })).toHaveCount(0);
+    await expectPlanTotal(page, 'Baseline Net', '-R 450,00');
+    await expectPlanTotal(page, 'Current Plan Net', '-R 450,00');
+    await expectPlanTotal(page, 'Actual Net', '-R 450,00');
+    await expectPlanTotal(page, 'Open Commitments', 'R 0,00');
+
+    await statusFilter.selectOption('planned');
+    await expect(page.locator('#budgetSection .plan-actuals-item')).toHaveCount(2);
+    const plannedMoneyIn = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money In$/ })
+    });
+    const plannedMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(plannedMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
+    await expect(plannedMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 250,00');
+
+    await statusFilter.selectOption('');
+    await expect(page.locator('#budgetSection .plan-actuals-item')).toHaveCount(3);
+    const combinedMoneyIn = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money In$/ })
+    });
+    const combinedMoneyOut = page.locator('#budgetSection .grid-summary-group-header', {
+      has: page.locator('.grid-summary-group-label', { hasText: /^Money Out$/ })
+    });
+    await expect(combinedMoneyIn.locator('.grid-summary-group-total')).toHaveText('R 3 000,00');
+    await expect(combinedMoneyOut.locator('.grid-summary-group-total')).toHaveText('-R 700,00');
+  });
+
+  test('removes one occurrence or deletes its recurring sequence from the period card', async ({ page }) => {
+    const creditCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Credit card payment'
+    });
+    const creditKey = await creditCard.getAttribute('data-occurrence-key');
+    await creditCard.getByRole('button', { name: 'Skip this occurrence' }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === creditKey && occurrence.status === 'skipped'
+    ), 'single occurrence removed from its period');
+    await expect(page.locator(
+      `#budgetSection .plan-actuals-item[data-occurrence-key="${creditKey}"]`
+    ).getByRole('button', { name: 'Restore to planned' })).toBeVisible();
+
+    const groceries = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    const groceryKey = await groceries.getAttribute('data-occurrence-key');
+    const sourceRuleId = Number(String(groceryKey || '').match(/^tx:(\d+)/)?.[1] || 0);
+    expect(sourceRuleId).toBeTruthy();
+    await groceries.getByRole('button', {
+      name: 'Delete this and future occurrences'
+    }).click();
+    await expect(page.locator('.confirm-dialog-message')).toContainText(
+      'remaining recurring sequence'
+    );
+    await confirmDialog(page);
+
+    await waitForScenario(page, (scenario) => !scenario.transactions.some(
+      (rule) => Number(rule.id) === Number(sourceRuleId)
+    ), 'recurring sequence removed from the selected occurrence forward');
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    })).toHaveCount(0);
+  });
+
+  test('adds both a planned item and a manual actual', async ({ page }) => {
+    const before = (await currentScenario(page)).transactionOccurrences.length;
+
+    const plannedForm = await openNewItemEditor(page);
+    await fillNewItem(plannedForm, {
+      date: '2026-01-20',
+      description: 'Extra period cost',
+      amount: 125
+    });
+    await plannedForm.getByRole('button', { name: 'Add item' }).click();
+    await waitForCollectionCount(page, 'transactionOccurrences', before + 1);
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Extra period cost' &&
+        occurrence.status === 'planned' &&
+        Number(occurrence.plannedAmount) === 125
+    ), 'planned manual occurrence persisted');
+
+    const actualForm = await openNewItemEditor(page);
+    await fillNewItem(actualForm, {
+      date: '2026-01-22',
+      description: 'Unplanned repair',
+      amount: 0,
+      status: 'actual',
+      actualAmount: 275
+    });
+    await actualForm.getByRole('button', { name: 'Add item' }).click();
+    await waitForCollectionCount(page, 'transactionOccurrences', before + 2);
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Unplanned repair'
+      );
+      return actual?.status === 'actual' &&
+        Number(actual.actualAmount) === 275 &&
+        Number(actual.baselineAmount) === 0 &&
+        actual.actualDate === '2026-01-22' &&
+        scenario.baselinePeriods.length === 0;
+    }, 'manual actual persisted without closing the period');
+
+    const actualCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Unplanned repair'
+    });
+    await actualCard.locator('.plan-actuals-description').click();
+    let editForm = actualCard.locator('form.plan-actuals-editor');
+    await expect(editorField(editForm, 'Primary account').locator('select')).toBeEnabled();
+    await expect(editorField(editForm, 'Secondary account').locator('select')).toBeEnabled();
+    await expect(editorField(editForm, 'Movement').locator('select')).toBeEnabled();
+    await expect(editorField(editForm, 'Repeat').locator('button')).toBeEnabled();
+    await expect(editorField(editForm, 'Status').locator('select'))
+      .toContainText('Planned (undo actual)');
+
+    await editorField(editForm, 'Primary account').locator('select').selectOption('2');
+    await editorField(editForm, 'Secondary account').locator('select').selectOption('4');
+    await editorField(editForm, 'Movement').locator('select').selectOption('1');
+    await editorField(editForm, 'Repeat').locator('button').click();
+    const recurrenceModal = page.locator('.modal-recurrence');
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await recurrenceModal.locator('#startDate').fill('2026-01-22');
+    await recurrenceModal.locator('#dayOfMonth').fill('22');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+    await editForm.getByRole('button', { name: 'Save' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Unplanned repair'
+      );
+      const futureRule = scenario.transactions.find(
+        (transaction) => transaction.promotedFromOccurrenceKey === actual?.occurrenceKey
+      );
+      return actual?.status === 'actual' &&
+        Number(actual.primaryAccountId) === 2 &&
+        Number(actual.secondaryAccountId) === 4 &&
+        Number(actual.transactionTypeId) === 1 &&
+        Number(futureRule?.recurrence?.dayOfMonth) === 22;
+    }, 'actual movement and repeat edits persisted');
+
+    const actualCheckbox = actualCard.locator(
+      '.plan-actuals-completion input[type="checkbox"]'
+    );
+    await expect(actualCheckbox).toBeChecked();
+    await expect(actualCheckbox).toBeEnabled();
+    await actualCheckbox.uncheck();
+    await waitForScenario(page, (scenario) => {
+      const restored = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Unplanned repair'
+      );
+      return restored?.status === 'planned' &&
+        Number(restored.plannedAmount) === 275 &&
+        restored.actualAmount === null &&
+        restored.actualDate === null;
+    }, 'actual transaction restored to planned');
+    await expect(actualCheckbox).not.toBeChecked();
+  });
+
+  test('permanently deletes a skipped one-time transaction', async ({ page }) => {
+    const form = await openNewItemEditor(page);
+    await fillNewItem(form, {
+      date: '2026-01-20',
+      description: 'Delete this one-time transaction',
+      amount: 125
+    });
+    await form.getByRole('button', { name: 'Add item' }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Delete this one-time transaction'
+    ), 'manual transaction created');
+
+    let card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Delete this one-time transaction'
+    });
+    await card.getByRole('button', { name: 'Skip this occurrence' }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Delete this one-time transaction' &&
+        occurrence.status === 'skipped'
+    ), 'manual transaction skipped');
+
+    card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Delete this one-time transaction'
+    });
+    await expect(card.getByRole('button', { name: 'Restore to planned' })).toBeVisible();
+    await card.getByRole('button', { name: 'Delete transaction permanently' }).click();
+    await expect(page.locator('.confirm-dialog-message')).toContainText(
+      'Permanently delete this transaction'
+    );
+    await confirmDialog(page);
+
+    await waitForScenario(page, (scenario) => !scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Delete this one-time transaction'
+    ), 'manual transaction permanently deleted');
+    await expect(card).toHaveCount(0);
+  });
+
+  test('creates primary and secondary accounts inline without losing the item draft', async ({ page }) => {
+    const form = await openNewItemEditor(page);
+    await editorField(form, 'Date').locator('input').fill('2026-01-28');
+    await editorField(form, 'Current plan').locator('input').fill('140');
+    await editorField(form, 'Description').locator('input').fill('Inline account purchase');
+
+    await addInlineAccount(page, form, 'Primary account', {
+      name: 'Inline Wallet',
+      typeId: 1,
+      startingBalance: 50
+    });
+    await addInlineAccount(page, form, 'Secondary account', {
+      name: 'Inline Purchase Expense',
+      typeId: 5
+    });
+
+    await expect(editorField(form, 'Date').locator('input')).toHaveValue('2026-01-28');
+    await expect(editorField(form, 'Current plan').locator('input')).toHaveValue('140');
+    await expect(editorField(form, 'Description').locator('input'))
+      .toHaveValue('Inline account purchase');
+    await form.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const primary = scenario.accounts.find((account) => account.name === 'Inline Wallet');
+      const secondary = scenario.accounts.find(
+        (account) => account.name === 'Inline Purchase Expense'
+      );
+      const occurrence = scenario.transactionOccurrences.find(
+        (item) => item.description === 'Inline account purchase'
+      );
+      return Number(primary?.startingBalance) === 50 &&
+        Number(primary?.type?.id ?? primary?.type) === 1 &&
+        Number(secondary?.type?.id ?? secondary?.type) === 5 &&
+        Number(occurrence?.primaryAccountId) === Number(primary?.id) &&
+        Number(occurrence?.secondaryAccountId) === Number(secondary?.id);
+    }, 'inline-created accounts linked to the new plan item');
+
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Inline account purchase'
+    })).toBeVisible();
+  });
+
+  test('creates a planned recurring transaction once on the edited date', async ({ page }) => {
+    const before = await currentScenario(page);
+    const form = await openNewItemEditor(page);
+    await fillNewItem(form, {
+      date: '2026-01-15',
+      description: 'Atomic recurring plan',
+      amount: 140
+    });
+    await editorField(form, 'Repeat').locator('button').click();
+    const recurrenceModal = page.locator('.modal-recurrence');
+    await expect(recurrenceModal.locator('#startDate')).toHaveValue('2026-01-15');
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await expect(recurrenceModal.locator('#dayOfMonth')).toHaveValue('15');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+    await form.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const rule = scenario.transactions.find(
+        (transaction) => transaction.description === 'Atomic recurring plan'
+      );
+      return scenario.transactions.length === before.transactions.length + 1 &&
+        rule?.effectiveDate === '2026-01-15' &&
+        rule?.recurrence?.startDate === '2026-01-15' &&
+        Number(rule?.recurrence?.dayOfMonth) === 15 &&
+        !scenario.transactionOccurrences.some(
+          (occurrence) => occurrence.description === 'Atomic recurring plan'
+        );
+    }, 'planned recurring transaction saved atomically');
+
+    const cards = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Atomic recurring plan'
+    });
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('2026-01-15');
+    await expect(cards.first().locator('.plan-actuals-repeat'))
+      .toHaveText('Every month on day 15 until 2026-04-30');
+  });
+
+  test('shows recurring schedules for actuals created or promoted as recurring', async ({ page }) => {
+    const directForm = await openNewItemEditor(page);
+    await fillNewItem(directForm, {
+      date: '2026-01-26',
+      description: 'Recurring actual at creation',
+      amount: 0,
+      status: 'actual',
+      actualAmount: 180
+    });
+    await editorField(directForm, 'Repeat').locator('button').click();
+    let recurrenceModal = page.locator('.modal-recurrence');
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await recurrenceModal.locator('#startDate').fill('2026-01-26');
+    await recurrenceModal.locator('#dayOfMonth').fill('26');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+    await directForm.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Recurring actual at creation'
+      );
+      return actual?.status === 'actual' && scenario.transactions.some(
+        (transaction) =>
+          transaction.promotedFromOccurrenceKey === actual.occurrenceKey &&
+          Number(transaction.recurrence?.dayOfMonth) === 26 &&
+          Number(transaction.amount) === 180
+      );
+    }, 'actual created with a recurring rule');
+
+    const directCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Recurring actual at creation'
+    });
+    await expect(directCard.locator('.plan-actuals-repeat'))
+      .toHaveText('Every month on day 26 until 2026-04-30');
+    await expect(directCard.getByRole('button', { name: 'Repeat going forward' }))
+      .toHaveCount(0);
+
+    const promotedForm = await openNewItemEditor(page);
+    await fillNewItem(promotedForm, {
+      date: '2026-01-27',
+      description: 'Actual promoted after creation',
+      amount: 0,
+      status: 'actual',
+      actualAmount: 95
+    });
+    await promotedForm.getByRole('button', { name: 'Add item' }).click();
+
+    const promotedCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Actual promoted after creation'
+    });
+    await promotedCard.getByRole('button', { name: 'Repeat going forward' }).click();
+    recurrenceModal = page.locator('.modal-recurrence');
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await recurrenceModal.locator('#startDate').fill('2026-01-27');
+    await recurrenceModal.locator('#dayOfMonth').fill('27');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Actual promoted after creation'
+      );
+      return actual?.status === 'actual' && scenario.transactions.some(
+        (transaction) =>
+          transaction.promotedFromOccurrenceKey === actual.occurrenceKey &&
+          Number(transaction.recurrence?.dayOfMonth) === 27
+      );
+    }, 'existing actual promoted to a recurring rule');
+
+    await expect(promotedCard.locator('.plan-actuals-repeat'))
+      .toHaveText('Every month on day 27 until 2026-04-30');
+    await expect(promotedCard.getByRole('button', { name: 'Repeat going forward' }))
+      .toHaveCount(0);
+  });
+
+  test('treats a One Time recurrence selection as a manual one-time item', async ({ page }) => {
+    const before = await currentScenario(page);
+    const form = await openNewItemEditor(page);
+    await fillNewItem(form, {
+      date: '2026-01-24',
+      description: 'One-time period adjustment',
+      amount: 90
+    });
+
+    await editorField(form, 'Repeat').locator('button').click();
+    const recurrenceModal = page.locator('.modal-recurrence');
+    await expect(recurrenceModal).toBeVisible();
+    await recurrenceModal.locator('#recurrenceType').selectOption('1');
+    await recurrenceModal.locator('button[title="Save"]').click();
+    await expect(editorField(form, 'Repeat').locator('button')).toHaveText('One time');
+
+    await form.getByRole('button', { name: 'Add item' }).click();
+    await waitForScenario(page, (scenario) => (
+      scenario.transactions.length === before.transactions.length &&
+      scenario.transactionOccurrences.some(
+        (occurrence) => occurrence.description === 'One-time period adjustment' &&
+          occurrence.status === 'planned' &&
+          !occurrence.sourceTransactionId
+      ) &&
+      !scenario.transactions.some(
+        (transaction) => transaction.promotedFromOccurrenceKey &&
+          transaction.description === 'One-time period adjustment'
+      )
+    ), 'one-time item persisted without recurring-rule promotion');
+  });
+
+  test('marks actual, skips and restores, duplicates, and promotes a manual copy to recurring', async ({ page }) => {
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    const groceryKey = await groceryCard.getAttribute('data-occurrence-key');
+    const groceryCompletion = groceryCard.locator(
+      '.plan-actuals-completion input[type="checkbox"]'
+    );
+    await expect(groceryCompletion).not.toBeChecked();
+    await groceryCompletion.check();
+    await waitForScenario(page, (scenario) => {
+      const occurrence = scenario.transactionOccurrences.find(
+        (item) => item.occurrenceKey === groceryKey
+      );
+      return occurrence?.status === 'actual' && Number(occurrence.actualAmount) === 450;
+    }, 'planned occurrence marked actual');
+    const actualMetric = groceryCard.locator('.plan-actuals-metric').filter({
+      has: page.locator('.label', { hasText: /^Actual$/ })
+    });
+    await expect(groceryCompletion).toBeChecked();
+    await expect(groceryCompletion).toBeEnabled();
+    await expect(groceryCard.locator('.plan-actuals-heading-row .plan-actuals-completion'))
+      .toHaveText('actual');
+    await expect(groceryCard).toHaveClass(/money-out/);
+    await expect(actualMetric.locator('.value')).toHaveText('-R 450,00');
+    await expect(actualMetric.locator('.value')).toHaveClass(/negative/);
+    await expectPlanTotal(page, 'Baseline Net', 'R 2 300,00');
+    await expectPlanTotal(page, 'Current Plan Net', 'R 2 300,00');
+    await expectPlanTotal(page, 'Actual Net', '-R 450,00');
+    await expectPlanTotal(page, 'Open Commitments', 'R 2 750,00');
+    await expectPlanTotal(page, 'Forecast Net', 'R 2 300,00');
+    await expectPlanTotal(page, 'Actual vs Baseline', '-R 2 750,00');
+    await expectPlanTotal(page, 'Actual vs Current', '-R 2 750,00');
+    await expectPlanTotal(page, 'Unplanned Actuals', 'R 0,00');
+
+    const paymentCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Credit card payment'
+    });
+    const paymentKey = await paymentCard.getAttribute('data-occurrence-key');
+    await paymentCard.locator('button[title="Skip this occurrence"]').click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === paymentKey && occurrence.status === 'skipped'
+    ), 'occurrence marked skipped');
+
+    const skippedCard = page.locator(
+      `#budgetSection .plan-actuals-item[data-occurrence-key="${paymentKey}"]`
+    );
+    await expect(skippedCard).toHaveClass(/status-skipped/);
+    await expect.poll(async () => Number(await skippedCard
+      .locator(':scope > .grid-summary-content')
+      .evaluate((element) => getComputedStyle(element).opacity)))
+      .toBeLessThan(0.6);
+    await expectPlanTotal(page, 'Baseline Net', 'R 2 300,00');
+    await expectPlanTotal(page, 'Current Plan Net', 'R 2 550,00');
+    await expectPlanTotal(page, 'Actual Net', '-R 450,00');
+    await expectPlanTotal(page, 'Open Commitments', 'R 3 000,00');
+    await expectPlanTotal(page, 'Forecast Net', 'R 2 550,00');
+    await expectPlanTotal(page, 'Actual vs Current', '-R 3 000,00');
+    await skippedCard.getByRole('button', { name: 'Edit item' }).click();
+    const restoreForm = skippedCard.locator('form');
+    await expect(editorField(restoreForm, 'Repeat').locator('button')).toBeDisabled();
+    await expect(editorField(restoreForm, 'Apply change to')).toHaveCount(0);
+    await editorField(restoreForm, 'Status').locator('select').selectOption('planned');
+    await restoreForm.getByRole('button', { name: 'Save' }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === paymentKey && occurrence.status === 'planned'
+    ), 'skipped occurrence restored to planned');
+
+    const transactionCount = (await currentScenario(page)).transactions.length;
+    const occurrenceCount = (await currentScenario(page)).transactionOccurrences.length;
+    const salaryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Monthly salary'
+    }).first();
+    await salaryCard.locator('button[title="Duplicate item"]').click();
+    await waitForCollectionCount(page, 'transactionOccurrences', occurrenceCount + 1);
+
+    const repeatButton = page.locator('#budgetSection').getByRole('button', {
+      name: 'Repeat going forward'
+    });
+    await expect(repeatButton).toHaveCount(1);
+    const manualKey = await repeatButton.evaluate((button) => {
+      const card = button.closest('.plan-actuals-item');
+      return card?.textContent?.includes('Monthly salary')
+        ? card.dataset.occurrenceKey
+        : null;
+    });
+    expect(manualKey).toBeTruthy();
+    await repeatButton.click();
+
+    const recurrenceModal = page.locator('.modal-recurrence');
+    await expect(recurrenceModal).toBeVisible();
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await recurrenceModal.locator('#startDate').fill('2026-01-01');
+    await recurrenceModal.locator('#dayOfMonth').fill('25');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+
+    await waitForCollectionCount(page, 'transactions', transactionCount + 1);
+    await waitForScenario(page, (scenario) => scenario.transactions.some(
+      (transaction) => transaction.promotedFromOccurrenceKey === manualKey &&
+        Number(
+          typeof transaction.recurrence?.recurrenceType === 'object'
+            ? transaction.recurrence.recurrenceType.id
+            : transaction.recurrence?.recurrenceType
+        ) === 4
+    ), 'manual copy promoted to a recurring rule');
+
+    const promotedScenario = await currentScenario(page);
+    const promotedRule = promotedScenario.transactions.find(
+      (transaction) => transaction.promotedFromOccurrenceKey === manualKey
+    );
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const promotedRuleCard = page.locator(
+      `#budgetTable .recurring-rule-card[data-source-transaction-id="${promotedRule.id}"]`
+    );
+    await expect(promotedRuleCard).toBeVisible();
+    await expect(promotedRuleCard.locator('.recurring-rule-metadata'))
+      .toContainText('Repeat: Every month on day 25 until 2026-04-30');
+    await expect(promotedRuleCard.locator('.recurring-rule-metadata'))
+      .not.toContainText('Active:');
+    await expect(promotedRuleCard.locator('.recurring-rule-metadata'))
+      .not.toContainText(' from ');
+
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await page.locator('#budgetSection button[title="Next period"]').click();
+    const generatedCard = page.locator('#budgetSection .plan-actuals-item', {
+      has: page.locator('.plan-actuals-repeat', {
+        hasText: /^Every month on day 25 until 2026-04-30$/
+      })
+    });
+    await expect(generatedCard).toHaveCount(1);
+  });
+
+  test('applies occurrence, this-and-future, and entire-series edits without rewriting actual history', async ({ page }) => {
+    let groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    const januaryKey = await groceryCard.getAttribute('data-occurrence-key');
+
+    await groceryCard.locator('button[title="Edit item"]').click();
+    let form = groceryCard.locator('form');
+    await editorField(form, 'Current plan').locator('input').fill('475');
+    await editorField(form, 'Description').locator('input').fill('January groceries override');
+    await editorField(form, 'Apply change to').locator('select').selectOption('occurrence');
+    await form.getByRole('button', { name: 'Save' }).click();
+    await waitForScenario(page, (scenario) => {
+      const occurrence = scenario.transactionOccurrences.find(
+        (item) => item.occurrenceKey === januaryKey
+      );
+      const source = scenario.transactions.find((item) => Number(item.id) === 1002);
+      return Number(occurrence?.plannedAmount) === 475 &&
+        occurrence?.description === 'January groceries override' &&
+        Number(source?.amount) === 450 &&
+        source?.description === 'Groceries';
+    }, 'occurrence-only override persisted without changing its rule');
+
+    groceryCard = page.locator(
+      `#budgetSection .plan-actuals-item[data-occurrence-key="${januaryKey}"]`
+    );
+    await groceryCard.locator('button[title="Edit item"]').click();
+    form = groceryCard.locator('form');
+    await editorField(form, 'Status').locator('select').selectOption('actual');
+    await editorField(form, 'Actual amount').locator('input').fill('468');
+    await form.getByRole('button', { name: 'Save' }).click();
+    await waitForScenario(page, (scenario) => {
+      const occurrence = scenario.transactionOccurrences.find(
+        (item) => item.occurrenceKey === januaryKey
+      );
+      return occurrence?.status === 'actual' &&
+        Number(occurrence.actualAmount) === 468 &&
+        occurrence.actualDate === '2026-01-10' &&
+        occurrence.description === 'January groceries override';
+    }, 'January actual metadata persisted');
+
+    await selectPlanPeriod(page, 'February 2026');
+    let futureCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries'
+    });
+    const februaryKey = await futureCard.getAttribute('data-occurrence-key');
+    await futureCard.locator('button[title="Edit item"]').click();
+    form = futureCard.locator('form');
+    await editorField(form, 'Current plan').locator('input').fill('500');
+    await editorField(form, 'Description').locator('input').fill('Groceries from February');
+    await editorField(form, 'Apply change to').locator('select').selectOption('future');
+    await form.getByRole('button', { name: 'Save' }).click();
+    await waitForScenario(page, (scenario) => {
+      const januaryActual = scenario.transactionOccurrences.find(
+        (item) => item.occurrenceKey === januaryKey
+      );
+      const originalRule = scenario.transactions.find((item) => Number(item.id) === 1002);
+      const replacement = scenario.transactions.find(
+        (item) => Number(item.seriesRootId) === 1002 &&
+          Number(item.supersedesTransactionId) === 1002
+      );
+      return januaryActual?.status === 'actual' &&
+        Number(januaryActual.actualAmount) === 468 &&
+        januaryActual.actualDate === '2026-01-10' &&
+        Number(originalRule?.amount) === 450 &&
+        originalRule?.activeTo === '2026-02-09' &&
+        Number(replacement?.amount) === 500 &&
+        replacement?.activeFrom === '2026-02-10' &&
+        replacement?.description === 'Groceries from February';
+    }, 'this-and-future split preserved January actual history');
+
+    await selectPlanPeriod(page, 'March 2026');
+    const seriesCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries from February'
+    });
+    await expect(
+      seriesCard.locator('.plan-actuals-metric', { hasText: 'Current' }).locator('.value')
+    ).toHaveText('R 500,00');
+    await seriesCard.locator('button[title="Edit item"]').click();
+    form = seriesCard.locator('form');
+    await editorField(form, 'Current plan').locator('input').fill('525');
+    await editorField(form, 'Description').locator('input').fill('Groceries current series');
+    await editorField(form, 'Apply change to').locator('select').selectOption('series');
+    await form.getByRole('button', { name: 'Save' }).click();
+    await waitForScenario(page, (scenario) => {
+      const januaryActual = scenario.transactionOccurrences.find(
+        (item) => item.occurrenceKey === januaryKey
+      );
+      const marchRules = scenario.transactions.filter(
+        (item) => Number(item.seriesRootId) === 1002 &&
+          String(item.activeFrom || item.recurrence?.startDate || '') >= '2026-03-10'
+      );
+      return januaryActual?.status === 'actual' &&
+        Number(januaryActual.actualAmount) === 468 &&
+        januaryActual.actualDate === '2026-01-10' &&
+        marchRules.some(
+          (item) => Number(item.amount) === 525 &&
+            item.description === 'Groceries current series'
+        );
+    }, 'entire-series edit preserved actual history');
+
+    expect(februaryKey).toContain('2026-02-10');
+  });
+
+  test('keeps Recurring Money In edits canonical under a secondary-account filter', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const accountFilter = page.locator('#budgetSection #tx-account-filter-select');
+    await accountFilter.selectOption('4');
+
+    let salaryRule = page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary'
+    });
+    await expect(salaryRule).toHaveAttribute('data-source-transaction-id', '1001');
+    await expect(salaryRule.locator('.grid-summary-type')).toHaveText('Money Out');
+    await expect(salaryRule.locator('.recurring-rule-movement'))
+      .toHaveText(/Salary Income.*→.*Checking/);
+
+    await salaryRule.locator('.recurring-rule-description').click();
+    const form = salaryRule.locator('.grid-summary-form');
+    await expect(form).toBeVisible();
+    await expect(editorField(form, 'Receiving account').locator('select')).toHaveValue('1');
+    await expect(editorField(form, 'Source account').locator('select')).toHaveValue('4');
+    await expect(editorField(form, 'Movement').locator('select')).toHaveValue('1');
+    await expect(
+      editorField(form, 'Source account').locator('option[value="1"]')
+    ).toBeDisabled();
+    await editorField(form, 'Receiving account').locator('select').selectOption('2');
+    await editorField(form, 'Description').locator('input').fill('Monthly salary canonical edit');
+    await editorField(form, 'Apply change to').locator('select').selectOption('future');
+
+    await salaryRule.locator('.grid-summary-header').evaluate((header) => {
+      header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await waitForScenario(page, (scenario) => scenario.transactions.some(
+      (transaction) => (
+        Number(transaction.seriesRootId || transaction.id) === 1001 &&
+        transaction.description === 'Monthly salary canonical edit' &&
+        Number(transaction.primaryAccountId) === 2 &&
+        Number(transaction.secondaryAccountId) === 4 &&
+        Number(transaction.transactionTypeId) === 1
+      )
+    ), 'secondary-filtered recurring edit preserved canonical Money In fields');
+
+    salaryRule = page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary canonical edit'
+    });
+    await expect(salaryRule.locator('.grid-summary-type')).toHaveText('Money Out');
+    await expect(salaryRule.locator('.recurring-rule-movement'))
+      .toHaveText(/Salary Income.*→.*Savings Goal/);
+  });
+
+  test('adds an account inline while editing a recurring rule', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const salaryRule = page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary'
+    });
+    await salaryRule.locator('.recurring-rule-description').click();
+    const form = salaryRule.locator('.grid-summary-form');
+    await expect(form).toBeVisible();
+
+    await addInlineAccount(page, form, 'Source account', {
+      name: 'Inline Recurring Income',
+      typeId: 4
+    });
+    await salaryRule.locator('.grid-summary-header').evaluate((header) => {
+      header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await waitForScenario(page, (scenario) => {
+      const account = scenario.accounts.find(
+        (item) => item.name === 'Inline Recurring Income'
+      );
+      return Number(account?.type?.id ?? account?.type) === 4 &&
+        scenario.transactions.some((item) => (
+          Number(item.seriesRootId || item.id) === 1001 &&
+          Number(item.secondaryAccountId) === Number(account?.id)
+        ));
+    }, 'inline-created account linked to recurring rule');
+  });
+
+  test('shows stale state and automatically returns projections to current after plan changes', async ({ page }) => {
+    await openSectionFilters(page, '#projectionsSection');
+    await page.locator('.filter-modal button[title="Refresh projections now"]').click();
+    await waitForScenario(page, (scenario) => (
+      (scenario.projection?.rows || []).length > 0 &&
+      scenario.projection?.stale === false &&
+      Boolean(scenario.projection?.generatedAt)
+    ), 'initial projection refresh completed');
+    await closeFilterModal(page);
+    await expect(page.locator('#projectionsSection .projection-freshness')).toHaveText('Current');
+
+    const generatedAt = (await currentScenario(page)).projection.generatedAt;
+    await page.evaluate(() => {
+      const nativeSetTimeout = window.setTimeout.bind(window);
+      window.setTimeout = (callback, delay, ...args) => (
+        nativeSetTimeout(callback, delay === 500 ? 1500 : delay, ...args)
+      );
+      window.__e2eProjectionFreshness = [];
+      const capture = () => {
+        document.querySelectorAll('.projection-freshness').forEach((element) => {
+          window.__e2eProjectionFreshness.push(element.textContent || '');
+        });
+      };
+      capture();
+      window.__e2eProjectionObserver = new MutationObserver(capture);
+      window.__e2eProjectionObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+    });
+
+    await page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Credit card payment'
+    }).locator('button[title="Duplicate item"]').click();
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Credit card payment'
+    })).toHaveCount(2);
+
+    const groceriesCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries'
+    }).first();
+    await groceriesCard.locator('button[title="Edit item"]').click();
+    const groceriesForm = groceriesCard.locator('form');
+    await expect(groceriesForm).toBeVisible();
+    await editorField(groceriesForm, 'Description').locator('input')
+      .fill('Unsaved editor survives projection completion');
+
+    await expect.poll(() => page.evaluate(() => (
+      window.__e2eProjectionFreshness.some((value) => value.includes('Stale'))
+    )), { message: 'stale freshness state was displayed' }).toBe(true);
+
+    await waitForScenario(page, (scenario) => (
+      scenario.projection?.stale === false &&
+      Boolean(scenario.projection?.generatedAt) &&
+      scenario.projection.generatedAt !== generatedAt
+    ), 'automatic projection refresh completed');
+    await expect(page.locator('#projectionsSection .projection-freshness')).toHaveText('Current');
+    await expect(groceriesForm).toBeVisible();
+    await expect(editorField(groceriesForm, 'Description').locator('input'))
+      .toHaveValue('Unsaved editor survives projection completion');
+  });
+
+  test('Set projection period refreshes Plan and Projection period bounds together', async ({ page }) => {
+    await page.locator(
+      '#projectionsSection button.card-inline-action[title="Set projection period"]'
+    ).click();
+    await page.locator('#timeframe-start-date').fill('2026-03-01');
+    await page.locator('#timeframe-end-date').fill('2026-04-30');
+    await page.locator('#timeframe-period-type').selectOption('3');
+    await page.locator('#timeframe-confirm-btn').click();
+
+    await waitForScenario(page, (scenario) => (
+      scenario.projection?.config?.startDate === '2026-03-01' &&
+      scenario.projection?.config?.endDate === '2026-04-30' &&
+      (scenario.projection?.rows || []).length > 0 &&
+      (scenario.projection?.rows || []).every(
+        (row) => row.date >= '2026-03-01' && row.date <= '2026-04-30'
+      )
+    ), 'projection window and rows moved to March-April');
+
+    await expect(page.locator('#plan-period-inline option')).toHaveText([
+      'March 2026',
+      'April 2026'
+    ]);
+    await expect(page.locator('#projections-period-select-inline option')).toHaveText([
+      'All',
+      'March 2026',
+      'April 2026'
+    ]);
+    await expect(page.locator('#projectionsSection .grid-summary-date')).not.toHaveCount(0);
+    const renderedDates = await page.locator(
+      '#projectionsSection .grid-summary-date'
+    ).allTextContents();
+    expect(renderedDates.every(
+      (date) => date >= '2026-03-01' && date <= '2026-04-30'
+    )).toBe(true);
+  });
+});
+
+test.describe('persisted projection freshness', () => {
+  test('automatically rebuilds a stale projection after a full app restart', async ({ page }) => {
+    const appData = loadSmokeData();
+    const staleGeneratedAt = '2025-12-31T12:00:00.000Z';
+    appData.scenarios[0].projection = {
+      ...appData.scenarios[0].projection,
+      rows: [
+        {
+          period: '2026-01',
+          accountId: 1,
+          startBalance: 1200,
+          totalIn: 0,
+          totalOut: 0,
+          endBalance: 1200
+        }
+      ],
+      generatedAt: staleGeneratedAt,
+      stale: true,
+      staleAt: '2026-01-01T00:00:00.000Z',
+      staleReason: 'Persisted plan edit before restart'
+    };
+
+    await gotoFTrack(page, appData);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await waitForScenario(page, (scenario) => (
+      scenario.projection?.stale === false &&
+      !scenario.projection?.staleAt &&
+      Boolean(scenario.projection?.generatedAt) &&
+      scenario.projection.generatedAt !== staleGeneratedAt &&
+      (scenario.projection?.rows || []).length > 0
+    ), 'persisted stale projection automatically rebuilt after restart');
+
+    await expect(page.locator('#projectionsSection .projection-freshness')).toHaveText('Current');
+  });
+});
+
+test.describe('recurring split rule editing', () => {
+  test('creates a recurring split set from the unified Recurring card', async ({ page }) => {
+    await gotoFTrack(page);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+
+    const createSplitButton = page.locator(
+      '#budgetSection button[title="Create recurring account allocation"]'
+    );
+    await expect(createSplitButton).toBeVisible();
+    await createSplitButton.click();
+
+    const draftCard = page.locator(
+      '#budgetTable .recurring-rule-card[data-split-role="principal"]'
+    ).last();
+    await expect(draftCard).toHaveCount(1);
+    await expect(draftCard).toHaveAttribute('data-split-role', 'principal');
+    const groupId = await draftCard.getAttribute('data-split-group-id');
+    expect(groupId).toBeTruthy();
+    const form = draftCard.locator('.grid-summary-form');
+    if (!await form.isVisible()) {
+      await draftCard.locator('.recurring-rule-description').click();
+    }
+    await expect(form).toBeVisible();
+    await expect(form.locator('.tx-split-inline')).toBeVisible();
+    await expect(editorField(form, 'Paying account').locator('select')).toHaveValue('1');
+    await editorField(form, 'Paying account').locator('select').selectOption('2');
+    await editorField(form, 'Destination account').locator('select').selectOption('3');
+    await expect(
+      editorField(form, 'Destination account').locator('option[value="2"]')
+    ).toBeDisabled();
+    await editorField(form, 'Amount').first().locator('input').fill('1000');
+    await editorField(form, 'Movement').locator('select').selectOption('2');
+    await editorField(form, 'Description').locator('input').fill('Recurring loan split');
+    await form.locator('.tx-split-inline-row', {
+      hasText: 'Allocation Strategy'
+    }).locator('select').selectOption('manual');
+    await form.locator('.tx-split-inline-row', {
+      hasText: 'Interest Account'
+    }).locator('select').selectOption('5');
+    await form.locator('.tx-split-inline-cell', {
+      hasText: 'Interest Amount'
+    }).locator('input').fill('200');
+    await form.getByRole('button', { name: 'Add line' }).click();
+    const addedLine = form.locator('.tx-split-line-item').last();
+    await addedLine.locator('.tx-split-line-account').selectOption('6');
+    await addedLine.locator('.tx-split-line-amount').fill('100');
+    await addedLine.locator('.tx-split-line-description').fill('Running shop');
+    await expect(
+      form.locator('.tx-split-inline-cell', { hasText: 'Principal Amount' }).locator('input')
+    ).toHaveValue('700.00');
+
+    await draftCard.locator('.grid-summary-header').evaluate((header) => {
+      header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await waitForScenario(page, (scenario) => {
+      const splitSet = scenario.splitTransactionSets.find((set) => set.id === groupId);
+      const groupRules = scenario.transactions.filter(
+        (transaction) => transaction.transactionGroupId === groupId
+      );
+      const byRole = new Map(
+        (splitSet?.components || []).map((component) => [component.role, component])
+      );
+      const runningShop = (splitSet?.components || []).find(
+        (component) => component.description === 'Running shop'
+      );
+      const recurrenceType = Number(
+        typeof splitSet?.recurrence?.recurrenceType === 'object'
+          ? splitSet.recurrence.recurrenceType.id
+          : splitSet?.recurrence?.recurrenceType
+      );
+      return Number(splitSet?.totalAmount) === 1000 &&
+        splitSet?.description === 'Recurring loan split' &&
+        recurrenceType === 4 &&
+        Number(byRole.get('principal')?.value) === 700 &&
+        Number(byRole.get('principal')?.accountId) === 3 &&
+        Number(byRole.get('interest')?.value) === 200 &&
+        Number(byRole.get('interest')?.accountId) === 5 &&
+        Number(runningShop?.value) === 100 &&
+        Number(runningShop?.accountId) === 6 &&
+        groupRules.length === 3 &&
+        groupRules.every((rule) => (
+          Number(rule.primaryAccountId) === 2 &&
+          Number(
+            typeof rule.recurrence?.recurrenceType === 'object'
+              ? rule.recurrence.recurrenceType.id
+              : rule.recurrence?.recurrenceType
+          ) === 4
+        ));
+    }, 'recurring split set and component rules persisted');
+
+    await expect(page.locator(
+      `#budgetTable .recurring-rule-card[data-split-group-id="${groupId}"]`
+    )).toHaveCount(1);
+
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Recurring loan split'
+    })).toHaveCount(1);
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Interest'
+    })).toHaveCount(1);
+    await waitForScenario(page, (scenario) => {
+      const januarySavings = (scenario.projection?.rows || []).find(
+        (row) => Number(row.accountId) === 2 && row.date === '2026-01-01'
+      );
+      return scenario.projection?.stale === false &&
+        Number(januarySavings?.expenses) === 1000;
+    }, 'new recurring split appeared in period occurrences and projections');
+  });
+
+  test('discards an abandoned recurring split draft without leaving grouped rules', async ({ page }) => {
+    await gotoFTrack(page);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+
+    await page.locator(
+      '#budgetSection button[title="Create recurring account allocation"]'
+    ).click();
+    const draftCard = page.locator(
+      '#budgetTable .recurring-rule-card[data-split-role="principal"]'
+    ).last();
+    const groupId = await draftCard.getAttribute('data-split-group-id');
+    expect(groupId).toBeTruthy();
+    await waitForScenario(page, (scenario) => scenario.transactions.some(
+      (rule) => rule.transactionGroupId === groupId
+    ), 'recurring split draft persisted');
+
+    await draftCard.locator('button[title="Discard recurring split draft"]').click();
+    await expect(page.locator('.confirm-dialog-message')).toContainText(
+      'Discard this unsaved recurring split draft'
+    );
+    await confirmDialog(page);
+
+    await waitForScenario(page, (scenario) => (
+      !scenario.transactions.some(
+        (rule) => rule.transactionGroupId === groupId
+      ) &&
+      !scenario.splitTransactionSets.some(
+        (set) => set.id === groupId
+      )
+    ), 'abandoned recurring split draft removed atomically');
+    await expect(page.locator(
+      `#budgetTable .recurring-rule-card[data-split-group-id="${groupId}"]`
+    )).toHaveCount(0);
+  });
+
+  test('uses one principal card and safely applies Future then Entire Series split edits', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-08-02T12:00:00Z'));
+    await gotoFTrack(page, buildRecurringSplitAppData());
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+
+    const splitCards = page.locator(
+      '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
+    );
+    await expect(splitCards).toHaveCount(1);
+    const principalCard = splitCards.first();
+    await expect(principalCard).toHaveAttribute('data-source-transaction-id', '1011');
+    await expect(principalCard).toHaveAttribute('data-split-role', 'principal');
+    await expect(page.locator(
+      '#budgetTable .recurring-rule-card[data-source-transaction-id="1012"]'
+    )).toHaveCount(0);
+    await expect(page.locator(
+      '#budgetTable .recurring-rule-card[data-source-transaction-id="1013"]'
+    )).toHaveCount(0);
+
+    await page.locator('#budgetSection #tx-split-role-filter-summary').selectOption('interest');
+    await expect(page.locator(
+      '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
+    )).toHaveCount(1);
+    const interestRoleCard = page.locator(
+      '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
+    );
+    await expect(interestRoleCard).toHaveAttribute('data-split-role', 'interest');
+    await expect(interestRoleCard.locator('.grid-summary-type')).toHaveText('Money Out');
+    await expect(interestRoleCard.locator('.recurring-rule-movement'))
+      .toHaveText(/Checking.*→.*Loan Interest Expense/);
+    await expect(interestRoleCard.locator('.grid-summary-amount')).toContainText('150');
+    const interestOutMetric = page.locator(
+      '#budgetTable #transactionsContent .total-metric',
+      { has: page.locator('.label', { hasText: /^Interest Out$/ }) }
+    );
+    await expect(interestOutMetric.locator('.value')).toContainText('150');
+    await page.locator('#budgetSection #tx-split-role-filter-summary').selectOption('');
+    await page.locator('#budgetSection #tx-account-filter-select').selectOption('7');
+    const interestAccountCard = page.locator(
+      '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
+    );
+    await expect(interestAccountCard).toHaveCount(1);
+    await expect(interestAccountCard).toHaveAttribute('data-split-role', 'interest');
+    await expect(interestAccountCard.locator('.grid-summary-type')).toHaveText('Money In');
+    await expect(interestAccountCard.locator('.recurring-rule-movement'))
+      .toHaveText(/Checking.*→.*Loan Interest Expense/);
+    await expect(interestAccountCard.locator('.grid-summary-amount')).toContainText('150');
+    const interestInMetric = page.locator(
+      '#budgetTable #transactionsContent .total-metric',
+      { has: page.locator('.label', { hasText: /^Interest In$/ }) }
+    );
+    await expect(interestInMetric.locator('.value')).toContainText('150');
+    await page.locator('#budgetSection #tx-account-filter-select').selectOption('');
+
+    await principalCard.locator('.recurring-rule-description').click();
+    let form = principalCard.locator('.grid-summary-form');
+    await expect(form).toBeVisible();
+    await expect(form.locator('.tx-split-inline')).toBeVisible();
+    await expect(editorField(form, 'Amount').first().locator('input')).toHaveValue('1000');
+    await expect(
+      form.locator('.tx-split-inline-cell', { hasText: 'Principal Amount' }).locator('input')
+    ).toHaveValue('800.00');
+    await expect(
+      form.locator('.tx-split-inline-cell', { hasText: 'Interest Amount' }).locator('input')
+    ).toHaveValue('150.00');
+    await expect(form.locator('.tx-split-inline')).toContainText('line items 50.00');
+
+    await editorField(form, 'Amount').first().locator('input').fill('1200');
+    await form.locator('.tx-split-inline-cell', {
+      hasText: 'Interest Amount'
+    }).locator('input').fill('200');
+    await form.getByRole('button', { name: 'Add line' }).click();
+    const maintenanceLine = form.locator('.tx-split-line-item').last();
+    await maintenanceLine.locator('.tx-split-line-account').selectOption('6');
+    await maintenanceLine.locator('.tx-split-line-amount').fill('25');
+    await maintenanceLine.locator('.tx-split-line-description').fill('Maintenance');
+    await editorField(form, 'Description').locator('input').fill('Loan payment from August');
+    await editorField(form, 'Apply change to').locator('select').selectOption('future');
+    await expect(
+      form.locator('.tx-split-inline-cell', { hasText: 'Principal Amount' }).locator('input')
+    ).toHaveValue('925.00');
+
+    await principalCard.locator('.grid-summary-header').evaluate((header) => {
+      header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    let replacementGroupId = null;
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.occurrenceKey ===
+          'tx:1011|date:2026-01-15|role:principal'
+      );
+      const oldSet = scenario.splitTransactionSets.find((set) => set.id === 'loan-payment');
+      const replacement = scenario.splitTransactionSets.find(
+        (set) => set.id !== 'loan-payment' && set.supersedesTransactionGroupId === 'loan-payment'
+      );
+      const byRole = new Map(
+        (replacement?.components || []).map((component) => [component.role, component])
+      );
+      const maintenance = (replacement?.components || []).find(
+        (component) => component.description === 'Maintenance'
+      );
+      if (
+        actual?.status === 'actual' &&
+        Number(actual.actualAmount) === 805 &&
+        Number(actual.baselineAmount) === 800 &&
+        actual.actualDate === '2026-01-16' &&
+        actual.sourceTransactionId === 1011 &&
+        actual.transactionGroupId === 'loan-payment' &&
+        oldSet?.activeTo === '2026-08-14' &&
+        oldSet?.recurrence?.endDate === '2026-08-14' &&
+        Number(oldSet.totalAmount) === 1000 &&
+        Number(byRole.get('principal')?.value) === 925 &&
+        Number(byRole.get('interest')?.value) === 200 &&
+        Number(byRole.get('insurance')?.value) === 50 &&
+        Number(byRole.get('insurance')?.accountId) === 5 &&
+        Number(maintenance?.value) === 25 &&
+        Number(maintenance?.accountId) === 6 &&
+        Number(replacement?.totalAmount) === 1200 &&
+        replacement?.activeFrom === '2026-08-15'
+      ) {
+        replacementGroupId = replacement.id;
+        return true;
+      }
+      return false;
+    }, 'future split edit segmented the group without rewriting actual history');
+    expect(replacementGroupId).toBeTruthy();
+
+    const replacementCard = page.locator(
+      `#budgetTable .recurring-rule-card[data-split-group-id="${replacementGroupId}"]`
+    );
+    await expect(replacementCard).toHaveCount(1);
+    await replacementCard.locator('.recurring-rule-description').click();
+    form = replacementCard.locator('.grid-summary-form');
+    await expect(form).toBeVisible();
+    await editorField(form, 'Amount').first().locator('input').fill('1300');
+    await form.locator('.tx-split-inline-cell', {
+      hasText: 'Interest Amount'
+    }).locator('input').fill('250');
+    await editorField(form, 'Description').locator('input').fill('Loan payment current series');
+    await editorField(form, 'Apply change to').locator('select').selectOption('series');
+    await expect(
+      form.locator('.tx-split-inline-cell', { hasText: 'Principal Amount' }).locator('input')
+    ).toHaveValue('975.00');
+
+    await replacementCard.locator('.grid-summary-header').evaluate((header) => {
+      header.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.occurrenceKey ===
+          'tx:1011|date:2026-01-15|role:principal'
+      );
+      const oldSet = scenario.splitTransactionSets.find((set) => set.id === 'loan-payment');
+      const replacement = scenario.splitTransactionSets.find(
+        (set) => set.id === replacementGroupId
+      );
+      const byRole = new Map(
+        (replacement?.components || []).map((component) => [component.role, component])
+      );
+      const maintenance = (replacement?.components || []).find(
+        (component) => component.description === 'Maintenance'
+      );
+      const replacementRules = scenario.transactions.filter(
+        (transaction) => transaction.transactionGroupId === replacementGroupId
+      );
+      const augustChecking = (scenario.projection?.rows || []).find(
+        (row) => Number(row.accountId) === 1 && row.date === '2026-08-01'
+      );
+      return actual?.status === 'actual' &&
+        Number(actual.actualAmount) === 805 &&
+        Number(actual.baselineAmount) === 800 &&
+        actual.actualDate === '2026-01-16' &&
+        actual.sourceTransactionId === 1011 &&
+        actual.transactionGroupId === 'loan-payment' &&
+        oldSet?.activeTo === '2026-08-14' &&
+        Number(oldSet.totalAmount) === 1000 &&
+        replacement?.id === replacementGroupId &&
+        Number(replacement?.totalAmount) === 1300 &&
+        Number(byRole.get('principal')?.value) === 975 &&
+        Number(byRole.get('interest')?.value) === 250 &&
+        Number(byRole.get('insurance')?.value) === 50 &&
+        Number(byRole.get('insurance')?.accountId) === 5 &&
+        Number(maintenance?.value) === 25 &&
+        Number(maintenance?.accountId) === 6 &&
+        replacementRules.length === 4 &&
+        replacementRules.some(
+          (rule) => rule.transactionGroupRole === 'insurance' && Number(rule.amount) === 50
+        ) &&
+        scenario.projection?.stale === false &&
+        Number(augustChecking?.expenses) === 2000;
+    }, 'entire-series split edit preserved history, group identity, extra roles, and projection totals');
+  });
+
+  test('duplicates a whole split set and ends the source series without deleting history', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-08-02T12:00:00Z'));
+    await gotoFTrack(page, buildRecurringSplitAppData());
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+
+    const sourceCard = page.locator(
+      '#budgetTable .recurring-rule-card[data-split-group-id="loan-payment"]'
+    );
+    await sourceCard.locator('button[title="Duplicate recurring split rule"]').click();
+
+    let copyGroupId = null;
+    await waitForScenario(page, (scenario) => {
+      const copySet = scenario.splitTransactionSets.find(
+        (set) => set.id !== 'loan-payment' && set.description === 'Loan payment copy'
+      );
+      const copyRules = scenario.transactions.filter(
+        (rule) => rule.transactionGroupId === copySet?.id
+      );
+      if (
+        Number(copySet?.totalAmount) === 1000 &&
+        copySet?.components?.length === 3 &&
+        copyRules.length === 3 &&
+        copyRules.every((rule) => !rule.seriesRootId && !rule.supersedesTransactionId)
+      ) {
+        copyGroupId = copySet.id;
+        return true;
+      }
+      return false;
+    }, 'whole recurring split set duplicated');
+    expect(copyGroupId).toBeTruthy();
+    await expect(page.locator(
+      `#budgetTable .recurring-rule-card[data-split-group-id="${copyGroupId}"]`
+    )).toHaveCount(1);
+
+    await sourceCard.locator('button[title="End recurring series"]').click();
+    await expect(page.locator('.confirm-dialog-message')).toContainText(
+      'Past actuals, skipped items, and captured baselines will be preserved'
+    );
+    await confirmDialog(page);
+
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.occurrenceKey ===
+          'tx:1011|date:2026-01-15|role:principal'
+      );
+      const sourceSet = scenario.splitTransactionSets.find(
+        (set) => set.id === 'loan-payment'
+      );
+      const sourceRules = scenario.transactions.filter(
+        (rule) => rule.transactionGroupId === 'loan-payment'
+      );
+      const copySet = scenario.splitTransactionSets.find(
+        (set) => set.id === copyGroupId
+      );
+      return actual?.status === 'actual' &&
+        Number(actual.actualAmount) === 805 &&
+        Number(actual.baselineAmount) === 800 &&
+        actual.actualDate === '2026-01-16' &&
+        actual.sourceTransactionId === 1011 &&
+        sourceSet?.activeTo === '2026-08-14' &&
+        sourceSet?.recurrence?.endDate === '2026-08-14' &&
+        sourceRules.length === 3 &&
+        sourceRules.every(
+          (rule) => rule.activeTo === '2026-08-14' &&
+            rule.recurrence?.endDate === '2026-08-14'
+        ) &&
+        copySet?.activeTo === null &&
+        Number(copySet?.totalAmount) === 1000 &&
+        copySet?.components?.length === 3;
+    }, 'split series ended while actual history and independent copy remained');
+  });
+});
+
+test.describe('recurring rule lifecycle actions', () => {
+  test('duplicates an independent rule and ends only the copy', async ({ page }) => {
+    await gotoFTrack(page);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+
+    const sourceCard = page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary'
+    });
+    await sourceCard.locator('button[title="Duplicate recurring rule"]').click();
+    await waitForScenario(page, (scenario) => scenario.transactions.some(
+      (rule) => rule.description === 'Monthly salary copy' &&
+        !rule.transactionGroupId &&
+        !rule.seriesRootId &&
+        !rule.supersedesTransactionId
+    ), 'independent recurring rule copy persisted');
+
+    const copyCard = page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary copy'
+    });
+    await expect(copyCard).toHaveCount(1);
+    await copyCard.locator('button[title="End recurring series"]').click();
+    await confirmDialog(page);
+
+    await waitForScenario(page, (scenario) => {
+      const source = scenario.transactions.find((rule) => Number(rule.id) === 1001);
+      const copy = scenario.transactions.find(
+        (rule) => rule.description === 'Monthly salary copy'
+      );
+      return !source?.activeTo &&
+        !source?.recurrence?.endDate &&
+        Boolean(copy?.activeTo) &&
+        copy.activeTo === copy.recurrence?.endDate;
+    }, 'only the duplicated recurring rule was ended');
+  });
+
+  test('ends the series and preserves protected future history as a one-time record', async ({ page }) => {
+    const appData = loadSmokeData();
+    appData.scenarios[0].transactionOccurrences.push({
+      id: 2999,
+      sourceTransactionId: 1001,
+      occurrenceKey: 'tx:1001|date:2099-09-25|role:none',
+      scheduledDate: '2099-09-25',
+      plannedDate: null,
+      actualDate: '2099-09-25',
+      baselineAmount: 3000,
+      plannedAmount: 3000,
+      actualAmount: 3000,
+      status: 'actual',
+      origin: 'generated',
+      isOverride: true,
+      primaryAccountId: 1,
+      secondaryAccountId: 4,
+      transactionTypeId: 1,
+      description: 'Protected future salary',
+      tags: ['income'],
+      transactionGroupId: null,
+      transactionGroupRole: null,
+      transactionGroupAccountGroupId: null,
+      capitalAmount: null,
+      interestAmount: null,
+      recurrence: {
+        recurrenceType: 4,
+        startDate: '2026-01-25',
+        endDate: null,
+        interval: 1,
+        dayOfMonth: 25
+      },
+      recurrenceDescription: '',
+      periodicChange: null,
+      actualSnapshotVersion: 1,
+      baselinePrimaryAccountId: 1,
+      baselineSecondaryAccountId: 4,
+      baselineTransactionTypeId: 1,
+      baselineSnapshotVersion: 1,
+      createdAt: null,
+      updatedAt: null
+    });
+    await gotoFTrack(page, appData);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+
+    const salaryCard = page.locator('#budgetTable .recurring-rule-card', {
+      hasText: 'Monthly salary'
+    });
+    await salaryCard.locator('button[title="End recurring series"]').click();
+    await confirmDialog(page);
+    await expect(page.locator('.notify-toast-success')).toContainText(
+      '1 protected record remained as one-time history'
+    );
+
+    await waitForScenario(page, (scenario) => {
+      const source = scenario.transactions.find(
+        (rule) => Number(rule.id) === 1001
+      );
+      const protectedActual = scenario.transactionOccurrences.find(
+        (occurrence) =>
+          occurrence.occurrenceKey === 'occurrence:2999'
+      );
+      return Boolean(source?.activeTo) &&
+        source.activeTo === source.recurrence?.endDate &&
+        protectedActual?.sourceTransactionId == null &&
+        protectedActual?.status === 'actual' &&
+        Number(protectedActual.actualAmount) === 3000;
+    }, 'protected future occurrence was detached before ending the series');
+  });
+});
+
+test.describe('one-time linked plan items', () => {
+  test('keeps a linked one-time occurrence occurrence-scoped', async ({ page }) => {
+    const appData = loadSmokeData();
+    appData.scenarios[0].transactions.push({
+      id: 1010,
+      primaryAccountId: 1,
+      secondaryAccountId: 5,
+      transactionTypeId: 2,
+      amount: 80,
+      effectiveDate: '2026-01-18',
+      description: 'Annual filing fee',
+      recurrence: {
+        recurrenceType: 1,
+        startDate: '2026-01-18',
+        endDate: null,
+        interval: 1
+      },
+      periodicChange: null,
+      tags: ['annual']
+    });
+
+    await gotoFTrack(page, appData);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    const card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Annual filing fee'
+    });
+    await card.locator('button[title="Edit item"]').click();
+    const form = card.locator('form');
+    await expect(editorField(form, 'Repeat').locator('button')).toBeEnabled();
+    await expect(editorField(form, 'Repeat').locator('button'))
+      .toHaveAttribute('title', 'Choose a repeat pattern to create future occurrences.');
+    await expect(editorField(form, 'Apply change to')).toHaveCount(0);
+    await editorField(form, 'Current plan').locator('input').fill('95');
+    await editorField(form, 'Description').locator('input').fill('Annual filing fee adjusted');
+    await form.getByRole('button', { name: 'Save' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const source = scenario.transactions.find((transaction) => Number(transaction.id) === 1010);
+      const override = scenario.transactionOccurrences.find(
+        (occurrence) => Number(occurrence.sourceTransactionId) === 1010
+      );
+      return Number(source?.amount) === 80 &&
+        source?.description === 'Annual filing fee' &&
+        Number(override?.plannedAmount) === 95 &&
+        override?.description === 'Annual filing fee adjusted';
+    }, 'one-time linked edit persisted as an occurrence override');
+  });
+});
+
+test.describe('period what-if snapshots', () => {
+  test('opens the displayed secondary account from a transaction card', async ({ page }) => {
+    await gotoFTrack(page, loadSmokeData());
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await groceryCard.getByRole('button', {
+      name: 'View transactions for Groceries Expense'
+    }).click();
+
+    await expect(page.locator('#plan-account-inline')).toHaveValue('5');
+    await expect(page.locator('#plan-account-inline-dialog-trigger'))
+      .toContainText('Groceries Expense');
+    await expect.poll(async () => {
+      const workspaces = await readPlanActualsWorkspaces(page);
+      return Number(workspaces?.['201']?.accountId || 0);
+    }).toBe(5);
+  });
+
+  test('keeps snapshot edits, skips, and additions isolated from Base', async ({ page }) => {
+    await gotoFTrack(page, loadSmokeData());
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+
+    await page.getByRole('button', { name: 'Create what-if snapshot' }).click();
+    await page.getByPlaceholder('Snapshot name').fill('Lower spending');
+    await page.locator('.modal-text-input #modalSave').click();
+    await expect(page.locator('#plan-variant-inline')).toHaveValue(/period-variant-/);
+
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await groceryCard.getByRole('button', { name: 'Edit item in this what-if' }).click();
+    const form = groceryCard.locator('form');
+    await editorField(form, 'Current plan').locator('input').fill('300');
+    await form.getByRole('button', { name: 'Save' }).click();
+
+    await page.locator('#budgetSection .plan-actuals-item', { hasText: 'Monthly salary' })
+      .getByRole('button', { name: 'Skip in this what-if' })
+      .click();
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Monthly salary'
+    }).locator('.plan-actuals-status')).toContainText('skipped');
+
+    const addForm = await openNewItemEditor(page);
+    await fillNewItem(addForm, {
+      date: '2026-01-20',
+      description: 'What-if only purchase',
+      amount: 50
+    });
+    await addForm.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const variant = scenario?.planning?.periodVariants?.[0];
+      return variant?.name === 'Lower spending' &&
+        variant.occurrences.some((item) => (
+          item.description === 'Groceries budget' && Number(item.plannedAmount) === 300
+        )) &&
+        variant.occurrences.some((item) => item.description === 'What-if only purchase') &&
+        variant.occurrences.some((item) => (
+          item.description === 'Monthly salary' && item.status === 'skipped'
+        ));
+    }, 'what-if snapshot changes persisted');
+
+    await page.locator('#plan-variant-inline').selectOption('');
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'What-if only purchase'
+    })).toHaveCount(0);
+    const baseGrocery = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await expect(baseGrocery).toContainText('R 450,00');
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Monthly salary'
+    }).getByRole('button', { name: 'Skip this occurrence' })).toBeVisible();
+  });
+});

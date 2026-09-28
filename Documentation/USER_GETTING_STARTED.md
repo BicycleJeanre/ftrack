@@ -1,61 +1,149 @@
 # Getting Started
 
-## 1.0 Getting Started
+## 1.0 Build Your First Plan
 
-A budget is your financial roadmap. It helps you plan income and expenses so you can forecast cash flow and compare “baseline vs what-if” versions side-by-side.
+FTrack combines transaction planning, budget tracking, actuals, and
+projections. Recurring rules create dated occurrences automatically, so there
+is no separate transaction-to-budget generation step.
 
-## 1.1 Key Concepts (fast)
+Use the in-app documentation in either of two ways:
 
-- **Scenario**: a version of your data (accounts, planned transactions, optional budgets, last projections).
-- **Workflow**: a Forecast UI preset (left navigation) that shows the cards you need (Budget, Summary, Generate Plan, etc.).
-- **Projection window**: Start/End/Period Type on the scenario row. Projections generate over this window.
+- Open **Workflow Guide: Plan, Track, and Project** when you know the outcome
+  you want and need to choose the right workflow.
+- Open **Interface Guide: Controls, Tables, and Editing** when you are already
+  on a screen and need to understand its controls or actions.
 
-## 1.2 Step-by-Step: Build Your First Forecast
+## 1.1 Key Concepts
 
-1. **Go to Forecast**.
-2. **Pick a workflow** (left nav):
-   - **Budget** for plan vs actual and budget tooling
-   - **General** for lightweight planning with summary totals
-3. **Add a scenario**: Click **+ Add New** and name it (for example, “Baseline 2026”).
-4. **Set the projection window** on the scenario row:
-   - **Start**, **End**, and **Period Type** (Month is typical).
-5. **Add your accounts**: Checking, Savings, Credit Card, etc. Enter starting balances.
-3. **Add your income**: Create a Planned Transaction for your paycheck. Set it to recur weekly or monthly depending on your pay schedule.
-4. **Add your expenses**: Add Planned Transactions for recurring expenses like rent, utilities, groceries, and subscriptions. Use recurrence for monthly or weekly bills.
-5. **Configure recurrence**: For repeating payments, set them to recur on the correct day each week or month.
-6. **Run projections**: Click **Generate Projections** to calculate balances over your projection window.
-7. **Review and adjust**: Look at the projection. If your balance goes negative, adjust your spending or add more income until it looks sustainable.
-8. **Save your plan**: Your budget is automatically saved. You can now track it and compare it to actual spending.
+- **Scenario**: an independent version of your accounts, transaction rules,
+  occurrences, baselines, and projections.
+- **Workflow**: a Forecast UI preset. It changes which cards are visible, not
+  the scenario data.
+- **Rule**: a one-time or recurring expected money movement.
+- **Occurrence**: one dated instance of a rule, or a manual planned/actual
+  item.
+- **Baseline**: the frozen plan used for later variance comparisons.
+- **Projection window**: the Start, End, and Period Type stored on the
+  scenario. It controls the calculation horizon.
 
-## 1.3 Pro Tips For Beginners
+## 1.2 Step by Step
 
-- **Start simple**: Do not worry about every small expense. Focus on the big items first such as rent, paycheck, major bills.
-- **Keep one baseline**: Always have one scenario that matches reality. Use it to compare what-if scenarios against.
-- **Recurrence is your friend**: Most expenses are monthly or weekly. Use recurrence so you do not have to enter each payment manually.
-- **Log actuals regularly**: Once a week, mark transactions as actual to see how your real spending compares to your plan.
-- **Adjust as needed**: Your budget is not set in stone. Update it when your situation changes such as raise, new expense.
+1. Go to **Forecast** and select **General** in the left navigation.
+2. Create a scenario with **+ Add New**, or select an existing scenario.
+3. Set the scenario's projection **Start**, **End**, and **Period Type**.
+   Month is a useful starting point.
+4. Add the accounts used by your money movements, including opening balances.
+5. Open **Plan & Actuals → Recurring** and add the rules that normally repeat:
+   paychecks, rent, utilities, groceries, subscriptions, transfers, and other
+   expected movements.
+6. Open **Plan & Actuals → Period**. FTrack resolves the rules into dated
+   occurrences automatically.
+7. Add one-time items or exceptions directly in Period. When editing a linked
+   recurring item, choose:
+   - **This occurrence only** for a one-off change.
+   - **This and future** for a new amount or schedule going forward.
+   - **Entire series** for the current and future segments of the series.
+8. Open **History** and close the exact period when it should become protected
+   history. The manager defaults to Month. Marking Actual captures only that
+   item's baseline and does not close the period.
+9. Record reality:
+   - tick **Actual** for something that happened;
+   - edit the actual amount or date when it differs;
+   - use **Skip this occurrence** for something that will not happen;
+   - restore a skipped item or permanently delete a non-actual one-time item
+     directly from its card; or
+   - use **Add item** to record an unexpected actual.
+10. Review **Projections**. Plan and actual changes mark projections stale and
+    trigger an automatic refresh. Use **Refresh projections now** if you do not
+    want to wait.
 
-## 1.4 Quick Start Overview
+FTrack remembers the last Plan & Actuals tab, period, account, grouping, and
+Recurring filters for each scenario, so a reload returns to the same workspace.
 
-1. Open Forecast to select or create a scenario.
-2. Review Accounts and update opening balances.
-3. Add Planned Transactions for income and recurring expenses.
-4. Generate Projections to see future balances.
-5. Log Actual Transactions to keep forecasts accurate.
+## 1.3 Reading Money Movements
 
-## 1.5 Troubleshooting
+- **Money In** flows from the secondary/source account into the
+  primary/receiving account.
+- **Money Out** flows from the primary/source account to the
+  secondary/receiving account.
 
-### 1.5.1 I can’t see Budget / Generate Plan
+In Period, the description appears on a separate line below the movement so
+income and expense items are easier to tell apart.
 
-Workflows control which cards appear.
+## 1.4 A Simple First-Month Routine
 
-- Choose **Budget** to see the Budget card (and actuals tooling).
-- Choose **Goal-Based** or **Advanced Goal Solver** to see Generate Plan.
+At the start of the period:
 
-### 1.5.2 Projections are blank
+1. Review the dated occurrences.
+2. Add known one-time costs.
+3. Freeze the baseline.
 
-Generate projections for the selected scenario, and confirm the scenario row has Start/End/Period Type set.
+During the period:
 
-### 1.5.3 Import fails
+1. Mark linked items actual as they happen.
+2. Record unexpected actuals.
+3. Skip cancelled items.
 
-Import requires a current FTrack export (schemaVersion 43). If you have an older export, migrate it using the standalone migration tool (`QC/migrate-app-data-to-schema43.js`) before importing.
+At the end of the period:
+
+1. Compare Baseline, Current plan, Actual, and variance.
+2. Turn a manual cost that is likely to repeat into a rule with
+   **Repeat going forward**.
+3. Use **This and future** to adjust an existing recurring rule based on what
+   you learned.
+4. Confirm the Projections header returns to **Current**.
+
+## 1.5 Choosing Another Workflow
+
+- **General**: accounts, Plan & Actuals, projections, and summary totals.
+- **Funds**: pooled-fund and ownership analysis plus Plan & Actuals.
+- **Debt Repayment**: payoff timelines, interest, variable-rate schedules, and
+  Plan & Actuals.
+- **Goal Workshop**: Simple and Advanced Generate Plan modes plus Plan &
+  Actuals.
+
+Every primary workflow supports period baselines, actuals, skips, and variance
+tracking through the same Plan & Actuals card. General includes the summary
+view that previously distinguished Budget; select **Period** whenever you want
+to create or track a budget.
+
+## 1.6 Troubleshooting
+
+### 1.6.1 Plan & Actuals Is Not Visible
+
+Select any primary workflow: **General**, **Funds**, **Debt Repayment**, or
+**Goal Workshop**. Detail shortcuts intentionally isolate one
+surface.
+
+### 1.6.2 Generate Plan Is Not Visible
+
+Select **Goal Workshop**, then choose Simple or Advanced mode in the Generate
+Plan card.
+
+### 1.6.3 Period Is Empty
+
+Confirm the scenario is selected, its accounts exist, and at least one rule or
+manual item overlaps the selected period. Check the View and Period controls.
+
+### 1.6.4 Projections Are Blank or Stale
+
+Confirm the scenario has a valid projection Start, End, and Period Type. Wait
+for automatic refresh or click **Refresh projections now**.
+
+### 1.6.5 Import Fails
+
+Current exports use schemaVersion 44. Import opens an in-app Data Upgrade
+Review before anything is replaced. Check its Validation, What Changed, and
+Warnings and Recovery sections. You can download both the complete change
+report and the upgraded JSON. Import remains disabled for malformed data,
+validation failures, or future schema versions.
+
+Select **Data Check > Current Browser Data** to run the same review against the
+raw JSON already stored in this browser. Older browser data is also intercepted
+at startup and remains unchanged until you approve the upgrade.
+
+Legacy Budget data is not discarded when its navigation preset is retired.
+Data Check converts stored budget rows into current plan occurrences, routes a
+saved Budget workflow preference to General, validates the result, and lists
+every ambiguous converted item for review. Use **Confirm Manual**, **Remove**,
+or **Link to Recurrence** before importing or applying the upgraded data.

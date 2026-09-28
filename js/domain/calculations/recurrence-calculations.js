@@ -129,14 +129,34 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       }
       break;
 
-    case 2: // Daily
-      const interval = recurrence.interval || 1;
-      let currentDate = new Date(effectiveStart);
+    case 2: { // Daily
+      const dailyInterval = Math.max(1, Number(recurrence.interval || 1) || 1);
+      let currentDate = new Date(startDate);
+
+      if (currentDate < effectiveStart) {
+        const startDay = Date.UTC(
+          startDate.getFullYear(),
+          startDate.getMonth(),
+          startDate.getDate()
+        );
+        const effectiveStartDay = Date.UTC(
+          effectiveStart.getFullYear(),
+          effectiveStart.getMonth(),
+          effectiveStart.getDate()
+        );
+        const daysSinceStart = Math.floor(
+          (effectiveStartDay - startDay) / (1000 * 60 * 60 * 24)
+        );
+        const intervalsToSkip = Math.ceil(daysSinceStart / dailyInterval);
+        currentDate.setDate(currentDate.getDate() + (intervalsToSkip * dailyInterval));
+      }
+
       while (currentDate <= effectiveEnd) {
         dates.push(new Date(currentDate));
-        currentDate.setDate(currentDate.getDate() + interval);
+        currentDate.setDate(currentDate.getDate() + dailyInterval);
       }
       break;
+    }
 
     case 3: { // Weekly
       const weekInterval = recurrence.interval || 1;
@@ -185,8 +205,9 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
     }
 
     case 4: { // Monthly - Day of Month
+      const monthInterval = Math.max(1, Number(recurrence.interval || 1) || 1);
       const dayOfMonth = recurrence.dayOfMonth || 1;
-      let monthDate = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), 1);
+      let monthDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
       
       while (monthDate <= effectiveEnd) {
         // Handle day of month (1-31, or -1 for last day)
@@ -202,12 +223,13 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
           dates.push(occurrenceDate);
         }
         
-        monthDate.setMonth(monthDate.getMonth() + 1);
+        monthDate.setMonth(monthDate.getMonth() + monthInterval);
       }
       break;
     }
 
     case 5: { // Monthly - Week of Month
+      const monthWeekInterval = Math.max(1, Number(recurrence.interval || 1) || 1);
       const weekOfMonthId = typeof recurrence.weekOfMonth === 'number'
         ? recurrence.weekOfMonth
         : recurrence.weekOfMonth?.id;
@@ -218,14 +240,14 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       const dayOfWeekInMonth = rawDayOfWeekInMonth === 7
         ? 0
         : (rawDayOfWeekInMonth || 1);
-      let monthWeekDate = new Date(effectiveStart.getFullYear(), effectiveStart.getMonth(), 1);
+      let monthWeekDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
       
       while (monthWeekDate <= effectiveEnd) {
         const nthDay = getNthWeekdayOfMonth(monthWeekDate, dayOfWeekInMonth, weekOfMonth);
         if (nthDay && nthDay >= effectiveStart && nthDay <= effectiveEnd) {
           dates.push(nthDay);
         }
-        monthWeekDate.setMonth(monthWeekDate.getMonth() + 1);
+        monthWeekDate.setMonth(monthWeekDate.getMonth() + monthWeekInterval);
       }
       break;
     }
@@ -270,7 +292,8 @@ export function generateRecurrenceDates(recurrence, projectionStart, projectionE
       break;
     }
 
-    case 11: // Custom Dates
+    case 8:  // Custom Dates (schema/lookup canonical id)
+    case 11: // Custom Dates (legacy id kept for backward compatibility)
       if (recurrence.customDates) {
         const customDateStrings = recurrence.customDates.split(',').map(value => value.trim()).filter(Boolean);
         customDateStrings.forEach(dateStr => {

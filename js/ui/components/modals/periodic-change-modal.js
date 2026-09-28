@@ -23,6 +23,7 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
     const dayOfMonth = currentValue?.dayOfMonth || null;
     const dayOfWeek = currentValue?.dayOfWeek || null;
     const weekOfMonth = currentValue?.weekOfMonth || null;
+    const postingDayOfMonth = currentValue?.postingDayOfMonth || null;
     const customCompoundingFrequency = currentValue?.customCompounding?.frequency || 12; // Default to 12 times
     const customCompoundingPeriod = currentValue?.customCompounding?.period || 1; // Default to per year
     const nominalPeriodId = currentValue?.ratePeriod || 1; // Default to Annual
@@ -126,6 +127,12 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
             <div class="modal-periodic-hint">How often should the nominal rate compound?</div>
         </div>
 
+        <div class="modal-periodic-form-group" id="postingDayOfMonthGroup" style="display: none;">
+            <label class="modal-periodic-label">Interest Posting Day:</label>
+            <input type="number" id="postingDayOfMonth" class="modal-periodic-input" value="${postingDayOfMonth || ''}" min="1" max="31" step="1" placeholder="e.g., 25">
+            <div class="modal-periodic-hint">Posts the monthly interest on this day. Days 29–31 use month-end when needed. Leave empty for period-end accrual.</div>
+        </div>
+
         <div class="modal-periodic-form-group">
             <label class="modal-periodic-label">Value:</label>
             <input type="number" id="value" class="modal-periodic-input" value="${value}" step="0.01">
@@ -167,6 +174,7 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
     const customCompoundingPeriodGroup = modal.querySelector('#customCompoundingPeriodGroup');
     const nominalPeriodGroup = modal.querySelector('#nominalPeriodGroup');
     const nominalCompoundingPeriodGroup = modal.querySelector('#nominalCompoundingPeriodGroup');
+    const postingDayOfMonthGroup = modal.querySelector('#postingDayOfMonthGroup');
     const examplesList = modal.querySelector('#examplesList');
     const frequencySelect = modal.querySelector('#frequency');
     
@@ -183,6 +191,7 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
             frequencyGroup.style.display = 'block';
             customCompoundingGroup.style.display = 'none';
             customCompoundingPeriodGroup.style.display = 'none';
+            postingDayOfMonthGroup.style.display = 'none';
             
             // Show/hide scheduling fields based on frequency
             if (freqId === 3) { // Monthly
@@ -220,6 +229,7 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
             dayOfMonthGroup.style.display = 'none';
             dayOfWeekGroup.style.display = 'none';
             weekOfMonthGroup.style.display = 'none';
+            postingDayOfMonthGroup.style.display = 'block';
             nominalPeriodGroup.style.display = 'none';
             nominalCompoundingPeriodGroup.style.display = 'none';
             
@@ -281,6 +291,11 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
         const changeModeId = parseInt(modal.querySelector('#changeMode').value);
         const changeTypeId = parseInt(modal.querySelector('#changeType').value);
         const valueInput = parseFloat(modal.querySelector('#value').value);
+        const postingDayField = modal.querySelector('#postingDayOfMonth');
+        if (changeModeId === 1 && postingDayField.value && !postingDayField.checkValidity()) {
+            postingDayField.reportValidity();
+            return;
+        }
 
         const periodicChange = {
             value: valueInput,
@@ -320,6 +335,13 @@ export async function openPeriodicChangeModal(currentValue, onSave) {
         if (changeModeId === 1 && changeTypeId === 8) {
             periodicChange.ratePeriod = parseInt(modal.querySelector('#nominalPeriod').value);
             periodicChange.frequency = parseInt(modal.querySelector('#nominalCompoundingPeriod').value);
+        }
+
+        if (changeModeId === 1) {
+            const postingDayInput = modal.querySelector('#postingDayOfMonth').value;
+            if (postingDayInput) {
+                periodicChange.postingDayOfMonth = parseInt(postingDayInput);
+            }
         }
 
         onSave(periodicChange);

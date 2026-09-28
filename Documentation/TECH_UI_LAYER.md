@@ -27,7 +27,8 @@ const grid = GridFactory.createGrid('#elementId', options);
 ```
 
 ### 2.2 Main View Controller (`js/ui/controllers/forecast-controller.js`)
-This is the heart of the "Forecast" page. It orchestrates the interaction between five main sections.
+This is the heart of the Forecast page. It orchestrates workflow routing,
+selection, and refresh behavior across the visible sections.
 
 #### A. Scenario Grid
 - **Type**: Single Select.
@@ -37,38 +38,55 @@ This is the heart of the "Forecast" page. It orchestrates the interaction betwee
 #### B. Account Grid
 - **Type**: Single Select.
 - **Behavior**: Filters the view to a specific account.
-- **Selection Event**: Triggers reload of Transaction, Budget, and Projection grids filtered by `accountId`.
+- **Selection Event**: Triggers reload of the unified Plan & Actuals surface
+  and Projections filtered by `accountId`.
 
-#### C. Transaction Grid
-- **Type**: Multi-row, Editable.
-- **Behavior**: Displays transactions matching the Active Scenario AND Active Account.
-- **Features**:
-  - Cell Editing: Calls `TransactionManager.saveAll()` via application layer.
-  - Status tracking: Planned vs Actual transactions.
-  - Recurrence configuration via modal.
-  - New Transaction Defaults: Uses the active account filter as the primary account (fallback: first account) and sets `effectiveDate` to the selected period start or scenario start date.
+#### C. Plan & Actuals
+- **Type**: The authoritative financial-activity component in every main
+  workflow, with Period and Recurring modes and summary/detail presentations.
+- **Period mode**:
+  - Calls `resolveScenarioOccurrences()` for the selected period; it does not materialize generated rows.
+  - Shows baseline, current plan, actual, variance, status, direction-aware movement, repeat information, and description for each occurrence.
+  - Uses the shared account-selector scope control to filter Account choices by account type or account-group membership without changing financial data.
+  - Routes writes through `OccurrenceManager`: occurrence-only edits, this-and-future splits, entire-series changes, actuals, skips, restores, reschedules, manual occurrences, recurring promotion, and baseline management.
+  - Opens `baseline-period-manager-modal.js` from the consolidated toolbar to list closed period markers plus individual captured baselines, close one explicit range, reopen a period, clear individual baselines, or clear all baseline history.
+  - Uses `calculateResolvedOccurrenceTotals()` for comparison totals.
+- **Recurring mode**:
+  - Uses the recurring-rule renderer in `transactions-grid.js` inside Plan &
+    Actuals; there is no separate user-facing Transactions card.
+  - Shows all planned rule segments by default, without period/status expansion.
+  - Reuses the same account type/group list scope and persists it independently from the Period selection.
+  - Displays recurrence, periodic adjustment, active dates, next occurrence, tags, and split metadata.
+  - Requires **This and future** or **Entire series** scope. Non-split changes use the scoped occurrence commands; split changes use `OccurrenceManager.updateSplitSeries()` so every role is revised atomically from the same boundary.
+  - Supports whole-rule and whole-split-set duplication.
+  - Uses `OccurrenceManager.endSeries()` instead of destructive rule deletion. The command ends every affected rule and split component before the next unresolved occurrence. Protected future actual/skipped/baseline records are detached from the ended rule and retained as independent one-time history, while unresolved future plans are removed.
+  - New recurring-rule and recurring split-set creation use the transaction application service; a split set and all component rules persist atomically.
+- **Summary presentation**: Uses compact cards. General, Funds, Debt
+  Repayment, and Goal Workshop default to Recurring; Period is the budget and
+  actual-tracking view in the same component.
+- **Detail presentation**:
+  - **Plan Rules (Detail)** defaults to a Tabulator of recurring rule
+    segments with safe scoped editing and expandable rule metadata.
+  - **Plan & Actuals (Detail)** defaults to a Tabulator of resolved Period
+    occurrences with Date, Status, Money Movement, Description, Repeat,
+    Baseline, Current Plan, Actual, forecast/variance values, and Actions.
+  - Switching the detail component between Period and Recurring switches
+    between these two genuine table presentations.
+- **Workflow routing**: `workflow-registry.js` supplies the component surface,
+  presentation, and default view through each workflow's `activity` contract.
+- **State**: The period type persists in `uiState.viewPeriodTypeIds.planActuals`.
 
-#### D. Budget Grid
-- **Type**: Multi-row, Editable.
-- **Behavior**: Displays budget occurrences (snapshot of projections) with actual tracking.
-- **Features**:
-  - **Creation**: "Save as Budget" button in Projections section creates budget from current projections.
-  - **Editing**: Budget occurrences can be edited (amount, date, description, accounts).
-  - **Actuals Tracking**: Each occurrence can have plannedAmount and actualAmount.
-  - **Projection Source**: "Project from Budget" button generates new projections using budget.
-  - Cell Editing: Calls `BudgetManager.saveAll()` via application layer.
-
-#### E. Projection Grid
+#### D. Projection Grid
 - **Type**: Read-only display.
 - **Behavior**: Shows calculated financial projections by period.
 - **Features**:
-  - **Generation Sources**:
-    - "Generate Projections": Uses transactions as source (regenerate from original data).
-    - "Project from Budget": Uses budget occurrences as source (continue from budget).
-  - **Save as Budget**: Creates editable budget snapshot from projections.
+  - **Generation Input**: Always uses canonical resolved occurrences: actuals, current plan, future rule occurrences, manual entries, and skips.
+  - **Freshness**: Shows Current, Stale · refreshing, or Pending from projection freshness metadata.
+  - SchemaVersion 44 exposes no projection-source selector; all generation
+    uses the canonical resolved occurrence plan.
   - **Toolbar**: Account filter, period view controls, and inline totals (Income, Expenses, Net).
 
-#### F. Summary Cards
+#### E. Summary Cards
 - **Type**: Read-only summary cards.
 - **Behavior**: A scenario-gated summary section shown near the top of the Forecast view.
 
@@ -99,7 +117,7 @@ Funds scenario summary cards.
 - **Scope Selector**: All, Asset, Liability, Equity, Income, Expense.
 - **Equity Detail**: Investor breakdown with shares, ownership percent, and implied value.
 
-#### G. Generate Plan
+#### F. Generate Plan
 
 - **Type**: Scenario-gated configuration section.
 - **Behavior**: Renders a Goal-Based planner for account goals, or an Advanced Goal Solver planner for multi-goal planning with constraints.
@@ -115,71 +133,81 @@ Scenarios and Accounts enforce single selection behavior.
 ### 3.2 Dynamic Re-rendering
 1. User selects a Scenario.
 2. `forecast-controller.js` captures `rowSelectionChanged`.
-3. All grids (Accounts, Transactions, Budget, Projections) reload with scenario data.
+3. All visible surfaces (Accounts, Plan & Actuals, Projections, summaries, or
+   Generate Plan) reload with scenario data.
 4. User selects an Account.
-5. Transaction, Budget, and Projection grids filter to show only that account's data.
+5. The active surface applies its account-perspective filter without changing canonical movement direction.
 
-### 3.3 Budget Workflow
-1. **Create Budget**: User generates projections from transactions, then clicks "Save as Budget".
-2. **Edit Budget**: Budget grid allows editing amounts, dates, descriptions, and tracking actuals.
-3. **Project from Budget**: User clicks "Project from Budget" to generate new projections using budget as source.
-4. **Regenerate from Source**: User clicks "Generate Projections" to bypass budget and use original transactions.
+### 3.3 Unified Plan & Actuals Routing
 
-This pattern allows iterative planning: save projection → edit budget → reproject → refine budget.
+Every main workflow uses the same financial-activity component:
 
-### 3.4 Budget Creation from Projections
-Budget creation converts forward-looking projections into an editable baseline for tracking and refinement.
+| Workflow | Presentation | Default view |
+|---|---|---|
+| General | Summary | Recurring |
+| Funds | Summary | Recurring |
+| Debt Repayment | Summary | Recurring |
+| Goal Workshop | Summary | Recurring |
+| Plan Rules (Detail) | Detail | Recurring |
+| Plan & Actuals (Detail) | Detail | Period |
 
-**Process**:
-1. User generates projections using "Generate Projections" (sources from transactions)
-2. Projection grid displays calculated values for each period
-3. "Save as Budget" button creates budget occurrences, copying:
-   - Period dates (startDate/endDate)
-   - Projected amounts as plannedAmount
-   - Account associations (primaryAccountId/secondaryAccountId)
-   - Transaction types (transactionTypeId)
-   - Descriptions
+The default does not remove the other subview. Both Period and Recurring
+remain available from the unified component.
 
-**Technical Implementation**:
-- Budget occurrences are independent records (not linked to source transactions)
-- Each occurrence gets unique ID for individual tracking
-- Creation happens via `BudgetManager.createFromProjections()`
-- Budget data persists in scenario's `budgets` array
+Account selection is standardized through
+`components/widgets/account-selector-filter.js`. Each account `<select>` keeps
+its normal value and change contract as an accessible storage control, while a
+shared dialog trigger provides search, explicit side-by-side Account Type and
+Account Group filters, and final selection without an intermediate close. The
+two filters are mutually exclusive because the workspace persists one account
+scope at a time. Account-group assignment selectors use the same searchable
+dialog pattern; transaction display grouping remains an independent control.
+The shared picker is used by Plan & Actuals, transaction and line-item editors,
+projections, account summaries, and both Goal Workshop modes.
 
-**Use Case**: User wants to establish a monthly spending plan based on projected expenses, then track actual spending against it.
+Legacy workflow ID `budget` and legacy scenario type 1 resolve to General.
+This compatibility alias is sanitized by Data Check so old files keep all
+financial data while their saved navigation preference is updated.
 
-### 3.5 Budget vs. Actual Tracking
-Each budget occurrence supports dual-amount tracking to compare planned vs. actual financial events.
+1. **Define Rules**: Recurring mode edits canonical transaction rules and rule segments.
+2. **Resolve a Period**: Period mode queries the live occurrence timeline for the selected range.
+3. **Adjust or Realize**: The user applies occurrence-only changes, future/series changes, actuals, skips, restores, duplicates, or manual additions.
+4. **Refresh**: Every manager write dispatches `forecast:planChanged`. The controller reloads the active scenario and Plan & Actuals immediately, then debounces projection regeneration by 500 ms.
 
-**Data Structure**:
-- `plannedAmount`: Original budgeted amount (set when budget is created)
-- `actualAmount`: Real amount spent/received (edited by user as events occur)
-- `variance`: Calculated as `actualAmount - plannedAmount`
+### 3.4 Occurrence Command Boundaries
 
-**Workflow**:
-1. Budget created with plannedAmount from projections
-2. As real transactions occur, user updates actualAmount fields
-3. Grid displays both values for comparison
-4. Variance indicators show over/under budget status
+- Occurrence-only fields use `plannedAmount`, `plannedDate`, accounts, type, and description.
+- Series commands use rule fields; the UI maps `plannedAmount` to `amount` and omits `plannedDate`.
+- A this-and-future edit may return a replacement `occurrenceKey`; follow-up actual/skip commands use that returned key. The scoped series command atomically updates the replacement rule and all unresolved stored overrides, without a second occurrence-only save; baseline snapshot fields and actual history are not rewritten.
+- Actual rows call `markActual()` directly. Skipped rows may retain plan edits and use `{status: 'planned'}` to restore.
+- Repeat changes on linked rules force this-and-future scope. Existing manual occurrences use `promoteOccurrenceToRecurring()`. New planned recurring items use the atomic `createRecurringRule()` command, anchored to the editor Date, so an intermediate manual occurrence is never persisted.
+- Marking Actual does not pass display-period state into `markActual()`; the command captures only the selected occurrence's comparison baseline.
 
-**Period Filtering**:
-- Budget grid filters by selected period (Month/Quarter/Year)
-- Only occurrences within period date range display
-- Totals toolbar shows aggregated planned vs. actual for visible period
+### 3.5 Baseline and Comparison Tracking
 
-**Technical Implementation**:
-- Budget filtering uses `BudgetManager.getByPeriod()`
-- Grid columns use `createMoneyColumn()` for consistent formatting
-- Totals calculated via `calculateCategoryTotals()` utility
+Canonical occurrence fields are:
 
-**Use Case**: User budgets $500/month for groceries (plannedAmount), then tracks actual grocery spending each month (actualAmount) to identify overspending trends.
+- `baselineAmount`: captured comparison amount.
+- `plannedAmount`: latest expected amount.
+- `actualAmount`: realized amount.
+- `scheduledDate`: immutable occurrence identity date.
+- `plannedDate`: optional occurrence-only reschedule.
+- `actualDate`: realized date.
 
-### 2.3 Home Page Hero (`index.html`)
+`markActual()` captures only the selected occurrence baseline. Manual unplanned actuals use zero baseline and current plan. Explicit period closure captures all baselines in the chosen range. Period totals are derived from resolved occurrences and expose baseline net, current net, actual net, commitments, forecast net, variances, and unplanned actuals.
+
+### 3.6 Projection Freshness
+
+`forecast:planChanged` carries the current scenario ID. The controller maintains one debounce timer per scenario, ignores changes for inactive scenarios, reloads the latest scenario before generation, and reloads Plan & Actuals and Projections after completion. Projection generation has one canonical resolved-occurrence source; the controller does not pass a selectable `source`.
+
+## 4.0 Home Page
+
+### 4.1 Home Page Hero (`index.html`)
 The home hero uses a layered background to keep the CTA readable while adding visual depth.
 - **Background Asset**: `assets/home-hero-bg.svg`
 - **Styling**: `styles/app.css` applies a gradient overlay plus SVG background on `.home-hero`.
 
-### 2.4 Home Page Background (`index.html`)
+### 4.2 Home Page Background (`index.html`)
 The full home page uses a separate SVG background for the overall layout.
 - **Background Asset**: `assets/home-page-bg.svg`
 - **Styling**: `styles/app.css` applies a gradient overlay plus SVG background on `.home-page`.

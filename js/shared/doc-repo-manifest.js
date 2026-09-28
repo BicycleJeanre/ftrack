@@ -85,7 +85,7 @@ async function loadAndRenderDoc(item, contentEl) {
   contentEl.innerHTML = '<p>Loading...</p>';
 
   try {
-    const url = `../${item.file}`;
+    const url = new URL(`../${item.file}`, window.location.href);
     const res = await fetch(url, { cache: 'no-cache' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -96,7 +96,7 @@ async function loadAndRenderDoc(item, contentEl) {
       markdown = notebookJsonToMarkdown(raw);
     }
 
-    contentEl.innerHTML = renderMarkdownToHtml(markdown);
+    contentEl.innerHTML = renderMarkdownToHtml(markdown, { baseUrl: url.href });
   } catch (err) {
     contentEl.innerHTML = '<p>Failed to load document.</p>';
   }
@@ -126,16 +126,32 @@ function notebookJsonToMarkdown(rawJson) {
   }
 }
 
-function renderMarkdownToHtml(markdown) {
+function renderMarkdownToHtml(markdown, options = {}) {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const out = [];
+  const baseUrl = options.baseUrl || window.location.href;
 
   let inCode = false;
   let codeLines = [];
   let listMode = null; // 'ul' | 'ol'
+  let listItemLines = [];
+  let paragraphLines = [];
+
+  const flushParagraph = () => {
+    if (!paragraphLines.length) return;
+    out.push(`<p class="section-text">${renderInline(paragraphLines.join(' '))}</p>`);
+    paragraphLines = [];
+  };
+
+  const flushListItem = () => {
+    if (!listItemLines.length) return;
+    out.push(`<li>${renderInline(listItemLines.join(' '))}</li>`);
+    listItemLines = [];
+  };
 
   const flushList = () => {
     if (!listMode) return;
+    flushListItem();
     out.push(`</${listMode}>`);
     listMode = null;
   };
@@ -150,9 +166,10 @@ function renderMarkdownToHtml(markdown) {
     if (line.trim().startsWith('```')) {
       if (inCode) {
         inCode = false;
-        flushList();
         flushCode();
       } else {
+        flushParagraph();
+        flushList();
         inCode = true;
       }
       continue;
@@ -163,8 +180,29 @@ function renderMarkdownToHtml(markdown) {
       continue;
     }
 
+    const image = line.match(/^\s*!\[([^\]]*)\]\((\S+?)(?:\s+"([^"]*)")?\)\s*$/);
+    if (image) {
+      flushParagraph();
+      flushList();
+      const src = resolveDocAssetUrl(image[2], baseUrl);
+      if (src) {
+        const alt = escapeAttribute(image[1]);
+        const caption = image[3] ? escapeHtml(image[3]) : '';
+        out.push(
+          '<figure class="doc-guide-figure">' +
+          `<a class="doc-guide-image-link" href="${escapeAttribute(src)}" target="_blank" rel="noopener noreferrer">` +
+          `<img class="doc-guide-image" src="${escapeAttribute(src)}" alt="${alt}" loading="lazy" decoding="async">` +
+          '</a>' +
+          (caption ? `<figcaption>${caption}</figcaption>` : '') +
+          '</figure>'
+        );
+      }
+      continue;
+    }
+
     const h = line.match(/^(#{1,4})\s+(.+)$/);
     if (h) {
+      flushParagraph();
       flushList();
       const level = h[1].length;
 
@@ -183,42 +221,63 @@ function renderMarkdownToHtml(markdown) {
 
     const ol = line.match(/^\s*\d+\.\s+(.+)$/);
     if (ol) {
+      flushParagraph();
       if (listMode && listMode !== 'ol') flushList();
       if (!listMode) {
         listMode = 'ol';
         out.push('<ol>');
+      } else {
+        flushListItem();
       }
-      out.push(`<li>${renderInline(ol[1])}</li>`);
+      listItemLines = [ol[1]];
       continue;
     }
 
     const ul = line.match(/^\s*[-*]\s+(.+)$/);
     if (ul) {
+      flushParagraph();
       if (listMode && listMode !== 'ul') flushList();
       if (!listMode) {
         listMode = 'ul';
         out.push('<ul>');
+      } else {
+        flushListItem();
       }
-      out.push(`<li>${renderInline(ul[1])}</li>`);
+      listItemLines = [ul[1]];
       continue;
     }
 
     if (!line.trim()) {
+      flushParagraph();
       flushList();
       continue;
     }
 
-    flushList();
-    out.push(`<p class="section-text">${renderInline(line)}</p>`);
+    if (listMode) {
+      listItemLines.push(line.trim());
+    } else {
+      paragraphLines.push(line.trim());
+    }
   }
 
   if (inCode) {
-    flushList();
     flushCode();
   }
 
+  flushParagraph();
   flushList();
   return out.join('\n');
+}
+
+function resolveDocAssetUrl(raw, baseUrl) {
+  try {
+    const url = new URL(String(raw).trim(), baseUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    if (url.origin !== window.location.origin) return '';
+    return url.href;
+  } catch {
+    return '';
+  }
 }
 
 function renderInline(text) {

@@ -7,8 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-28
+
 ### Changed
 
+- Added an in-app Data Upgrade Review for uploaded JSON and raw browser data.
+  - Upgrades are prepared and validated in memory before stored data changes.
+  - Every added, changed, and removed field is grouped with its reason.
+  - Complete change reports and upgraded JSON can be downloaded before apply.
+  - Validation failures and future schema versions cannot be applied.
+  - Legacy browser data is intercepted at startup and remains unchanged until
+    the user approves the reviewed upgrade.
+  - Validation failures caused by lossless legacy numeric strings or
+    deterministically recoverable required fields now offer a Preview Safe
+    Repairs action, with exact changes shown before apply.
+  - Legacy imports can reconstruct missing currency from one unambiguous app
+    currency, empty descriptions from transaction account names, and Yearly
+    month/day fields from the saved recurrence start date.
+  - Historical migration notes are separated from active validation failures,
+    while the complete recovery audit remains available in the change report.
+  - Valid browser data can now deterministically relink migrated manual
+    occurrences to proven recurring rules and scheduled dates. Notes that cannot
+    be resolved without guessing remain visible and retained.
+  - Added paged review for retained converted-to-manual transactions. Each can
+    be confirmed as manual, removed, or explicitly linked to a recurring rule
+    and generated date, with validation and a change preview before apply.
+  - Applied recovery decisions close the active note, retain a durable
+    resolution history, and mark projections stale when financial plan content
+    changes.
+- Completed the schemaVersion 44 unified **Plan & Actuals** workflow.
+  - Budget is now a live Period view over resolved plan occurrences rather
+    than a separately generated dataset.
+  - Recurring Plan Rules and dated planned/actual occurrences share one
+    component in Budget, General, Funds, Debt Repayment, and Goal Workshop.
+  - Projections always consume actuals plus the latest remaining resolved plan;
+    the transaction-versus-budget source choice and Budget generation step are
+    removed.
+  - Plan Rules (Detail) and Plan & Actuals (Detail) now render genuine,
+    lifecycle-managed tables rather than reusing summary cards.
+  - Baseline, current plan, actual, forecast contribution, and variance remain
+    directly comparable, including unplanned actuals and history-safe series
+    changes.
+  - Cross-workflow refreshes are coalesced and serialized with scenario and
+    workflow navigation.
+- Introduced the schemaVersion 43 resolved-plan compatibility layer for the unified Budget, Transactions, Actuals, and Projections workflow.
+  - Projections now combine actuals, latest planned occurrences, manual occurrences, recurring rules, and skips through one canonical occurrence resolver.
+  - The legacy projection source setting remains readable but no longer changes calculation results.
+  - Newly generated Budget snapshots distinguish untouched generated rows from true occurrence overrides, so resolved projections are not pinned by stale copies.
+  - Legacy actual transactions replace matching planned occurrences; regeneration preserves explicit overrides and skipped entries.
+  - Projection date-policy values are calendar-validated before storage or migration.
+  - Funds contribution, redemption, and ownership calculations now use the same resolved occurrences as projections.
+  - Optional as-of and open-commitment history boundaries persist with projection configuration.
+  - Capital and interest buckets reconcile to edited occurrence amounts.
+  - QC now surfaces resolver diagnostics and includes the Advanced Goal Solver projection workflow.
 - Consolidated Goal-Based and Advanced Goal Solver into a single **Goal Workshop** workflow with Simple and Advanced mode toggle.
   - Mode is persisted per scenario via `scenario.planning.goalWorkshopMode`; auto-detected from existing AGS goals for migrated scenarios.
   - Existing scenario data is fully backward-compatible; no migration script required.

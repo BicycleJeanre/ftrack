@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FTrack - Forecast Page Dashboard Layout</title>
+    <title>Historical FTrack Forecast Layout Preview</title>
     <style>
         :root {
             --sidebar-width: clamp(180px, 18vw, 280px);
@@ -20,6 +20,22 @@
             background: #1a1a1a;
             color: #e0e0e0;
             overflow: hidden;
+        }
+
+        .historical-preview-notice {
+            position: fixed;
+            right: 12px;
+            bottom: 12px;
+            z-index: 10000;
+            max-width: 420px;
+            padding: 10px 12px;
+            border: 1px solid #b7791f;
+            border-radius: 8px;
+            background: #2d2414;
+            color: #fbd38d;
+            font-size: 12px;
+            line-height: 1.4;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
         }
         
         .app-container {
@@ -1710,6 +1726,11 @@
     </style>
 </head>
 <body>
+    <div class="historical-preview-notice">
+        Historical layout reference only. The current application uses one
+        unified Plan &amp; Actuals surface; it does not expose separate
+        Transactions and Budget activity cards.
+    </div>
     <div class="app-container">
         <!-- Sidebar backdrop (narrow screens) -->
         <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>

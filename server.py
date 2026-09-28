@@ -6,16 +6,16 @@ Usage: python3 server.py [port]
 """
 
 import http.server
-import socketserver
 import sys
-from pathlib import Path
+from urllib.parse import urlsplit
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         # Add cache control headers based on file type
-        if self.path.endswith(('.js', '.css', '.json')):
+        request_path = urlsplit(self.path).path
+        if request_path.endswith(('.js', '.css', '.json')):
             # Disable caching for code and config files
             self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
             self.send_header('Pragma', 'no-cache')
@@ -30,8 +30,12 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         # Standard logging
         super().log_message(format, *args)
 
+class ThreadingNoCacheServer(http.server.ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
 if __name__ == '__main__':
-    with socketserver.TCPServer(("", PORT), NoCacheHandler) as httpd:
+    with ThreadingNoCacheServer(("", PORT), NoCacheHandler) as httpd:
         print(f"Server running at http://localhost:{PORT}/")
         print(f"Cache disabled for: .js, .css, .json files")
         print("Press Ctrl+C to stop")

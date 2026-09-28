@@ -5,17 +5,32 @@
  */
 
 import {
-    assertSchemaVersion43,
+    assertCurrentSchemaVersion,
     createDefaultAppData,
     sanitizeAppDataForWrite
 } from '../../shared/app-data-utils.js';
-import { migrateAppData } from '../../shared/migration-utils.js';
-import { notifySuccess } from '../../shared/notifications.js';
 
 // Web storage key
-const STORAGE_KEY = 'ftrack:app-data';
+export const STORAGE_KEY = 'ftrack:app-data';
 
 let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
+const commitListeners = new Set();
+
+function dispatchCommit(source) {
+    const commit = { source, committedAt: new Date().toISOString() };
+    commitListeners.forEach((listener) => {
+        try {
+            listener(commit);
+        } catch (_) {
+            // Persistence must remain successful even if a background observer fails.
+        }
+    });
+}
+
+export function subscribeToCommits(listener) {
+    commitListeners.add(listener);
+    return () => commitListeners.delete(listener);
+}
 
 /**
  * Read the entire app data from localStorage
@@ -30,18 +45,14 @@ export async function read() {
         }
 
         parsed = JSON.parse(dataString);
-        assertSchemaVersion43(parsed);
+        assertCurrentSchemaVersion(parsed);
         return sanitizeAppDataForWrite(parsed);
     } catch (err) {
         if (err && err.name === 'SchemaVersionError' && parsed) {
-            try {
-                const migrated = migrateAppData(parsed);
-                await write(migrated);
-                notifySuccess('Your data has been automatically updated to the latest format.');
-                return migrated;
-            } catch (_migrationErr) {
-                throw err;
-            }
+            // Legacy browser data must be reviewed through the in-app upgrade
+            // center. Never replace the raw cache before the user has seen the
+            // change and validation report.
+            throw err;
         }
         return createDefaultAppData();
     }
@@ -52,11 +63,12 @@ export async function read() {
  * @param {Object} data - The complete data object to write
  * @returns {Promise<void>}
  */
-export async function write(data) {
+export async function write(data, options = {}) {
     try {
-        assertSchemaVersion43(data);
+        assertCurrentSchemaVersion(data);
         const sanitized = sanitizeAppDataForWrite(data);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+        dispatchCommit(options.source || 'local');
     } catch (err) {
         if (err.name === 'QuotaExceededError') {
             throw new Error('Storage quota exceeded. Please export and clear old data.');
@@ -118,13 +130,15 @@ export async function update(path, value) {
  */
 export async function transaction(modifyFn) {
     // Ensure transactions happen sequentially to avoid race conditions when generating new IDs
-    transactionQueue = transactionQueue.then(async () => {
+    const operation = transactionQueue.catch(() => undefined).then(async () => {
         const data = await read();
         const modified = await modifyFn(data);
         await write(modified);
         return modified;
     });
-    return transactionQueue;
+
+    transactionQueue = operation.catch(() => undefined);
+    return operation;
 }
 
 /**
@@ -133,5 +147,6 @@ export async function transaction(modifyFn) {
  */
 export async function clear() {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('ftrack:plan-actuals-workspaces:v1');
+    dispatchCommit('local');
 }
-

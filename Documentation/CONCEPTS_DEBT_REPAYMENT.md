@@ -18,13 +18,14 @@
 
 2.2.2 Variable-rate debt uses an account periodic change schedule.
 
-2.3 Payments are modeled as transactions.
+2.3 Payments are modeled as Plan Rules and dated occurrences.
 
-2.3.1 Minimum payment is a recurring planned transaction.
+2.3.1 Minimum payment is a recurring plan rule.
 
-2.3.2 Extra principal payments are separate transactions.
+2.3.2 Extra principal payments are separate recurring rules or one-time
+occurrences.
 
-2.3.3 Fees can be modeled as additional expense transactions.
+2.3.3 Fees can be modeled as additional expense rules or occurrences.
 
 ## 3.0 Fixed Rate Vs Variable Rate
 
@@ -56,7 +57,9 @@
 
 5.1.3 Payoff date per debt.
 
-5.2 Budget and actual tracking are not the focus of this workflow.
+5.2 The same Plan & Actuals card is available here as in every main workflow.
+Use Recurring to maintain payment rules and Period to adjust payments, record
+actuals, and compare baseline, current plan, actual, and variance.
 
 ## 6.0 Related Documents
 

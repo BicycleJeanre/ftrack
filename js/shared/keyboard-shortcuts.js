@@ -18,27 +18,6 @@ class KeyboardShortcuts {
      */
     initialize() {
         // Register default shortcuts
-        this.register('ctrl+n', 'Add New Row', () => {
-            const event = new CustomEvent('shortcut:addRow');
-            document.dispatchEvent(event);
-        });
-
-        this.register('delete', 'Delete Selected Rows', () => {
-            const event = new CustomEvent('shortcut:deleteRow');
-            document.dispatchEvent(event);
-        });
-
-        this.register('ctrl+s', 'Save Changes', (e) => {
-            e.preventDefault();
-            const event = new CustomEvent('shortcut:save');
-            document.dispatchEvent(event);
-        });
-
-        this.register('ctrl+g', 'Generate Projections', () => {
-            const event = new CustomEvent('shortcut:generateProjections');
-            document.dispatchEvent(event);
-        });
-
         this.register('ctrl+1', 'Focus Scenarios', () => {
             this.focusSection('scenarios');
         });
@@ -47,8 +26,8 @@ class KeyboardShortcuts {
             this.focusSection('accounts');
         });
 
-        this.register('ctrl+3', 'Focus Transactions', () => {
-            this.focusSection('transactions');
+        this.register('ctrl+3', 'Focus Plan & Actuals', () => {
+            this.focusSection('planActuals');
         });
 
         this.register('ctrl+4', 'Focus Projections', () => {
@@ -102,8 +81,8 @@ class KeyboardShortcuts {
             activeElement.isContentEditable
         );
 
-        // Allow certain shortcuts even in inputs
-        const alwaysAllowedKeys = ['ctrl+s', 'ctrl+g', '?'];
+        // Shortcut help remains available while typing.
+        const alwaysAllowedKeys = ['?'];
         const keyCombo = this.getKeyCombo(e);
         
         if (isInput && !alwaysAllowedKeys.includes(keyCombo)) {
@@ -123,12 +102,21 @@ class KeyboardShortcuts {
      */
     getKeyCombo(e) {
         const parts = [];
+        const isQuestionMarkKey = (
+            e.key === '?' ||
+            (e.shiftKey && (e.key === '/' || e.code === 'Slash'))
+        );
         
         if (e.ctrlKey || e.metaKey) parts.push('ctrl');
         if (e.altKey) parts.push('alt');
-        if (e.shiftKey) parts.push('shift');
+        // Most keyboard layouts require Shift+/ to produce "?". Treat the
+        // resulting printable question-mark key as the registered "?" help
+        // shortcut instead of an unreachable "shift+?" or "shift+/"
+        // combination. Playwright and some keyboard layouts report "/" plus
+        // code "Slash" even though Shift is held.
+        if (e.shiftKey && !isQuestionMarkKey) parts.push('shift');
         
-        const key = e.key.toLowerCase();
+        const key = isQuestionMarkKey ? '?' : e.key.toLowerCase();
         if (key !== 'control' && key !== 'alt' && key !== 'shift' && key !== 'meta') {
             parts.push(key);
         }
@@ -142,10 +130,10 @@ class KeyboardShortcuts {
      */
     focusSection(section) {
         const sectionMap = {
-            'scenarios': 'scenariosTable',
+            'scenarios': 'scenario-selector',
             'accounts': 'accountsTable',
-            'transactions': 'transactionsTable',
-            'projections': 'projectionsTable'
+            'planActuals': 'budgetTable',
+            'projections': 'projectionsContent'
         };
 
         const elementId = sectionMap[section];
