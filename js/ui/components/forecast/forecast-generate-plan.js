@@ -49,10 +49,16 @@ function normalizeDateRange({ startDate, endDate }) {
 }
 
 function getScenarioPlanningWindow(scenario, key) {
+  const scenarioTimeframe = scenario?.timeframe || {};
   const projectionConfig = scenario?.projection?.config || {};
   const fallback = normalizeDateRange({
-    startDate: projectionConfig.startDate || formatDateOnly(new Date()),
-    endDate: projectionConfig.endDate || projectionConfig.startDate || formatDateOnly(new Date())
+    startDate: scenarioTimeframe.startDate || projectionConfig.startDate || formatDateOnly(new Date()),
+    endDate:
+      scenarioTimeframe.endDate ||
+      projectionConfig.endDate ||
+      scenarioTimeframe.startDate ||
+      projectionConfig.startDate ||
+      formatDateOnly(new Date())
   });
 
   const planning = scenario?.planning && typeof scenario.planning === 'object' ? scenario.planning : {};

@@ -11,7 +11,7 @@ import { createDefaultAppData } from '../../js/shared/app-data-utils.js';
 test('cloud snapshot round-trips validated Unicode data across chunks', async () => {
   const data = createDefaultAppData();
   data.migrationReport = {
-    toSchemaVersion: 44,
+    toSchemaVersion: 45,
     migratedAt: '2026-09-16T10:00:00.000Z',
     summary: { note: 'Household 🌍 – Johannesburg' },
     scenarios: []

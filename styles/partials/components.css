@@ -2510,3 +2510,99 @@ input[type="checkbox"] {
 .app-tooltip--visible {
   opacity: 1;
 }
+.scenario-timeframe-summary {
+  color: var(--accent-primary);
+  font-size: 0.72rem;
+}
+
+.projection-chart-host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-height: none;
+  overflow: hidden;
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+.projection-chart-heading {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.projection-chart-frame {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.projection-chart {
+  display: block;
+  width: max(100%, 900px);
+  min-height: 320px;
+}
+
+.projection-chart-gridline {
+  stroke: var(--border-secondary);
+  stroke-width: 1;
+}
+
+.projection-chart-zero-line {
+  stroke: var(--text-secondary);
+  stroke-width: 1.5;
+}
+
+.projection-chart-axis-label {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.projection-chart-line {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.projection-chart-point {
+  fill: var(--bg-primary);
+  stroke: var(--accent-primary);
+  stroke-width: 2;
+}
+
+.projection-chart-bar-in {
+  fill: var(--color-positive);
+}
+
+.projection-chart-bar-out {
+  fill: var(--color-negative);
+}
+
+.projection-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.projection-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.projection-chart-key {
+  display: inline-block;
+  width: 16px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.projection-chart-key--balance { background: var(--accent-primary); }
+.projection-chart-key--in { background: var(--color-positive); }
+.projection-chart-key--out { background: var(--color-negative); }

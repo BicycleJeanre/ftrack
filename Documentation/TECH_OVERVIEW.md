@@ -101,7 +101,7 @@ solver outputs.
 ## 5.0 Data Migration Strategy
 
 FTrack uses a versioned storage schema (`schemaVersion`). This build targets
-**schemaVersion 44**.
+**schemaVersion 45**.
 
 ### 5.1 Runtime rule
 

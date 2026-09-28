@@ -132,7 +132,7 @@ for automatic refresh or click **Refresh projections now**.
 
 ### 1.6.5 Import Fails
 
-Current exports use schemaVersion 44. Import opens an in-app Data Upgrade
+Current exports use schemaVersion 45. Import opens an in-app Data Upgrade
 Review before anything is replaced. Check its Validation, What Changed, and
 Warnings and Recovery sections. You can download both the complete change
 report and the upgraded JSON. Import remains disabled for malformed data,

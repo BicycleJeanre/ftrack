@@ -1,10 +1,10 @@
 // app-data-utils.js
-// Shared helpers for persisting schemaVersion 44 app data.
+// Shared helpers for persisting schemaVersion 45 app data.
 
 import { DEFAULT_WORKFLOW_ID, getWorkflowById } from './workflow-registry.js';
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
 
-export const CURRENT_SCHEMA_VERSION = 44;
+export const CURRENT_SCHEMA_VERSION = 45;
 export const DEFAULT_PERIOD_TYPE_ID = 3; // Month
 const VALID_OCCURRENCE_STATUSES = new Set(['planned', 'actual', 'skipped']);
 const VALID_OCCURRENCE_ORIGINS = new Set(['generated', 'manual', 'migrated']);
@@ -314,6 +314,12 @@ export function normalizeProjectionConfig(rawConfig) {
       ? { openCommitmentStartDate }
       : {})
   };
+}
+
+export function getScenarioTimeframe(scenario) {
+  return normalizeProjectionConfig(
+    scenario?.timeframe || scenario?.projection?.config || null
+  );
 }
 
 function optionalId(value) {
@@ -634,7 +640,16 @@ export function normalizeScenario(rawScenario) {
     ? base.baselinePeriods.map(normalizeBaselinePeriod)
     : [];
 
-  const projectionConfig = normalizeProjectionConfig(base.projection?.config);
+  const timeframe = normalizeProjectionConfig(
+    base.timeframe || base.projection?.config
+  );
+  const projectionMetadata = normalizeProjectionConfig(base.projection?.config);
+  const projectionConfig = {
+    ...projectionMetadata,
+    startDate: timeframe.startDate,
+    endDate: timeframe.endDate,
+    periodTypeId: timeframe.periodTypeId
+  };
   const rows = Array.isArray(base.projection?.rows) ? base.projection.rows : [];
   const generatedAt =
     typeof base.projection?.generatedAt === 'string'
@@ -672,8 +687,7 @@ export function normalizeScenario(rawScenario) {
   };
   const defaultWindow = projectionConfig || getDefaultProjectionWindowDates();
 
-  // Planning windows: defaults to projection window, but can be overridden per goal solver
-  // These do NOT affect projection generation; projections always use scenario.projection.config
+  // Planning windows default to the scenario timeframe, but can be overridden per goal solver.
   // Planning windows are only used by Generate Plan and Advanced Goal Solver for their respective horizons
   const periodVariants = Array.isArray(planning.periodVariants)
     ? planning.periodVariants.flatMap((rawVariant) => {
@@ -723,6 +737,7 @@ export function normalizeScenario(rawScenario) {
     transactions,
     transactionOccurrences,
     baselinePeriods,
+    timeframe,
     projection,
     planning: nextPlanning
   };
@@ -751,6 +766,7 @@ export function sanitizeScenarioForWrite(rawScenario) {
     transactions: scenario.transactions || [],
     transactionOccurrences: scenario.transactionOccurrences || [],
     baselinePeriods: scenario.baselinePeriods || [],
+    timeframe: scenario.timeframe,
     ...(scenario.projection !== undefined ? { projection: scenario.projection } : {}),
     ...(scenario.planning ? { planning: scenario.planning } : {})
   };

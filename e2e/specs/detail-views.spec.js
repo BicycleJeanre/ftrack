@@ -26,13 +26,21 @@ test.describe('detail workflow reachability', () => {
     await expect(page.locator('.filter-modal')).toContainText('Filter Accounts');
     await closeFilterModal(page);
 
-    await selectWorkflow(page, 'Plan Rules (Detail)');
+    await selectWorkflow(page, 'Plan & Actuals (Detail)');
     await expect(page.locator('#budgetSection')).toBeVisible();
     await expect(page.locator('#transactionsSection')).toBeHidden();
     await expect(page.locator('#accountsSection')).toBeHidden();
+    await expect(page.locator('#budgetSection').getByRole('tab', { name: 'Period', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#budgetTable .plan-actuals-detail-grid.grid-detail.tabulator'))
+      .toBeVisible();
+    await expect(page.locator('#budgetSection .plan-actuals-toolbar')).toBeVisible();
+
+    await page.locator('#budgetSection').getByRole('tab', { name: 'Recurring', exact: true }).click();
     await expect(page.locator('#budgetSection').getByRole('tab', { name: 'Recurring', exact: true }))
       .toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('#budgetSection .plan-actuals-toolbar')).toBeVisible();
+    await expect(page.locator('#budgetTable .recurring-rules-detail-grid.grid-detail.tabulator'))
+      .toBeVisible();
     await expect(page.locator('#budgetSection #tx-grouping-select-summary option')).toHaveText([
       'None',
       'Movement',
@@ -45,17 +53,34 @@ test.describe('detail workflow reachability', () => {
     await expect(page.locator('#budgetSection #tx-split-group-filter-summary option').first())
       .toHaveText('All Recurring Splits');
 
-    await selectWorkflow(page, 'Plan & Actuals (Detail)');
-    await expect(page.locator('#budgetSection')).toBeVisible();
-    await expect(page.locator('#transactionsSection')).toBeHidden();
-    await expect(page.locator('#budgetSection').getByRole('tab', { name: 'Period', exact: true }))
-      .toHaveAttribute('aria-selected', 'true');
+    await page.locator('#budgetSection').getByRole('tab', { name: 'Period', exact: true }).click();
     await expect(page.locator('#budgetTable .plan-actuals-detail-grid.grid-detail.tabulator'))
       .toBeVisible();
 
     await selectWorkflow(page, 'Projections (Detail)');
     await expect(page.locator('#projectionsSection')).toBeVisible();
     await expect(page.locator('#budgetSection')).toBeHidden();
+  });
+
+  test('projection detail switches between table, balance trend, and cash flow views', async ({ page }) => {
+    await selectWorkflow(page, 'Projections (Detail)');
+    await page.locator(
+      '#projectionsSection button.card-inline-action[title="Refresh projections now"]'
+    ).click();
+    await expect(page.locator('#projectionsGrid.tabulator')).toBeVisible();
+
+    const display = page.locator('#projections-display-select-inline');
+    await display.selectOption('balance');
+    await expect(page.locator('#projectionsGrid .projection-chart')).toBeVisible();
+    await expect(page.locator('#projectionsGrid .projection-chart-line')).toBeVisible();
+
+    await page.locator('#projections-display-select-inline').selectOption('cashflow');
+    await expect(page.locator('#projectionsGrid .projection-chart')).toBeVisible();
+    await expect(page.locator('#projectionsGrid .projection-chart-bar-in').first()).toBeVisible();
+    await expect(page.locator('#projectionsGrid .projection-chart-bar-out').first()).toBeVisible();
+
+    await page.locator('#projections-display-select-inline').selectOption('table');
+    await expect(page.locator('#projectionsGrid.tabulator')).toBeVisible();
   });
 
   test('Plan Rules detail renders a real recurring-rules table with safe edit actions', async ({ page }) => {
@@ -296,7 +321,7 @@ test.describe('detail workflow reachability', () => {
         window.localStorage.getItem('ftrack:app-data') || '{}'
       );
       return appData?.uiState?.lastWorkflowId || null;
-    })).toBe('budget-detail');
+    })).toBe('plan-actuals-detail');
 
     await page.evaluate(() => window.__ftrackNavigationBarrier.release());
 
@@ -389,7 +414,7 @@ test.describe('detail workflow reachability', () => {
       };
     })).toEqual({
       scenarioId: sourceScenarioId,
-      workflowId: 'budget-detail'
+      workflowId: 'plan-actuals-detail'
     });
 
     await page.evaluate(() => window.__ftrackManualRefreshBarrier.release());

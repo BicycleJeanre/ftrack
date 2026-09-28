@@ -383,7 +383,7 @@ function validateTransaction(tx, index, scenario) {
     }
 
     if (Object.prototype.hasOwnProperty.call(tx, 'status')) {
-        issues.push(issue(`${label}.status`, `Legacy status is not allowed on schemaVersion 44 rules`));
+        issues.push(issue(`${label}.status`, `Legacy status is not allowed on current-schema rules`));
     }
     if (
         tx.activeFrom !== null &&
@@ -671,6 +671,23 @@ function validateProjection(projection) {
     return issues;
 }
 
+function validateScenarioTimeframe(timeframe) {
+    const issues = [];
+    if (!timeframe || typeof timeframe !== 'object') {
+        issues.push(issue('timeframe', `Missing scenario timeframe`));
+        return issues;
+    }
+    if (!isValidDate(timeframe.startDate) || !isValidDate(timeframe.endDate)) {
+        issues.push(issue('timeframe', `startDate and endDate must be valid dates`));
+    } else if (timeframe.startDate > timeframe.endDate) {
+        issues.push(issue('timeframe', `startDate must be on or before endDate`));
+    }
+    if (!VALID_PROJECTION_PERIODS.includes(Number(timeframe.periodTypeId))) {
+        issues.push(issue('timeframe.periodTypeId', `Must be 1–5`));
+    }
+    return issues;
+}
+
 // ---------------------------------------------------------------------------
 // Scenario validator
 // ---------------------------------------------------------------------------
@@ -689,10 +706,10 @@ function validateScenario(scenario) {
         issues.push(issue('version', `Must be a positive integer`));
     }
     if (Object.prototype.hasOwnProperty.call(scenario, 'budgets')) {
-        issues.push(issue('budgets', `Legacy budgets are not allowed in schemaVersion 44`));
+        issues.push(issue('budgets', `Legacy budgets are not allowed in schemaVersion 45`));
     }
     if (Object.prototype.hasOwnProperty.call(scenario, 'budgetWindow')) {
-        issues.push(issue('budgetWindow', `Legacy budgetWindow is not allowed in schemaVersion 44`));
+        issues.push(issue('budgetWindow', `Legacy budgetWindow is not allowed in schemaVersion 45`));
     }
     if (
         scenario.advancedGoalSettings?.allocationStrategy !== undefined &&
@@ -852,7 +869,22 @@ function validateScenario(scenario) {
         });
     }
 
+    issues.push(...validateScenarioTimeframe(scenario.timeframe));
     issues.push(...validateProjection(scenario.projection));
+
+    if (
+        scenario?.timeframe && scenario?.projection?.config &&
+        (
+            scenario.timeframe.startDate !== scenario.projection.config.startDate ||
+            scenario.timeframe.endDate !== scenario.projection.config.endDate ||
+            Number(scenario.timeframe.periodTypeId) !== Number(scenario.projection.config.periodTypeId)
+        )
+    ) {
+        issues.push(issue(
+            'projection.config',
+            `Projection window must match the scenario timeframe`
+        ));
+    }
 
     return issues;
 }

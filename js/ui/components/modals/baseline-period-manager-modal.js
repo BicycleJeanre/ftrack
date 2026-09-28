@@ -199,7 +199,7 @@ export async function openBaselinePeriodManager({
     const period = selectedPeriod();
     if (!period) {
       freezeButton.disabled = true;
-      selectionNote.textContent = 'No period is available in the scenario projection window.';
+      selectionNote.textContent = 'No period is available in the scenario timeframe.';
       return;
     }
     const candidate = {

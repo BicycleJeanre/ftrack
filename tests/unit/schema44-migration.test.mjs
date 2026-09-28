@@ -122,11 +122,16 @@ function legacyApp(overrides = {}) {
   };
 }
 
-test('schema 43 migrates to the exact schema 44 planning collections', () => {
+test('schema 43 migrates to the current planning collections and scenario timeframe', () => {
   const migrated = migrateAppData(legacyApp(), { now: MIGRATED_AT });
   const scenario = migrated.scenarios[0];
 
   assert.equal(migrated.schemaVersion, CURRENT_SCHEMA_VERSION);
+  assert.deepEqual(scenario.timeframe, {
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    periodTypeId: 3
+  });
   assert.equal(Object.hasOwn(scenario, 'budgets'), false);
   assert.equal(Object.hasOwn(scenario, 'budgetWindow'), false);
   assert.deepEqual(scenario.baselinePeriods, []);
@@ -517,7 +522,7 @@ test('orphaned, ambiguous, invalid, and duplicate rows remain recoverable in mig
   assert.equal(selectedDuplicate.actualAmount, 120);
 });
 
-test('schema 44 sanitation retains migration reports and clean-schema metadata', () => {
+test('current schema sanitation retains migration reports and clean-schema metadata', () => {
   const migrated = migrateAppData(legacyApp(), { now: MIGRATED_AT });
   migrated.scenarios[0].baselinePeriods.push({
     periodTypeId: 3,
@@ -536,12 +541,33 @@ test('schema 44 sanitation retains migration reports and clean-schema metadata',
     roundTripped.scenarios[0].transactions[0].promotedFromOccurrenceKey,
     'occurrence:55'
   );
-  assert.equal(roundTripped.migrationReport.toSchemaVersion, 44);
+  assert.equal(roundTripped.migrationReport.toSchemaVersion, CURRENT_SCHEMA_VERSION);
+});
+
+test('schema 44 upgrades its projection horizon into the scenario timeframe', () => {
+  const schema44 = migrateAppData(legacyApp(), { now: MIGRATED_AT });
+  schema44.schemaVersion = 44;
+  delete schema44.scenarios[0].timeframe;
+  schema44.migrationReport.toSchemaVersion = 44;
+
+  const upgraded = migrateAppData(schema44, { now: '2026-09-28T10:00:00.000Z' });
+  const scenario = upgraded.scenarios[0];
+
+  assert.equal(upgraded.schemaVersion, CURRENT_SCHEMA_VERSION);
+  assert.deepEqual(scenario.timeframe, {
+    startDate: scenario.projection.config.startDate,
+    endDate: scenario.projection.config.endDate,
+    periodTypeId: scenario.projection.config.periodTypeId
+  });
+  assert.equal(upgraded.migrationReport.fromSchemaVersion, 43);
+  assert.equal(upgraded.migrationReport.toSchemaVersion, CURRENT_SCHEMA_VERSION);
+  assert.equal(upgraded.migrationReport.schema45UpgradedAt, '2026-09-28T10:00:00.000Z');
+  assert.equal(validateAppData(upgraded).isValid, true);
 });
 
 test('future schema versions are never downgraded', () => {
   assert.throws(
-    () => migrateAppData({ schemaVersion: 45, scenarios: [], uiState: {} }),
-    /Cannot migrate future schemaVersion 45/
+    () => migrateAppData({ schemaVersion: 46, scenarios: [], uiState: {} }),
+    /Cannot migrate future schemaVersion 46/
   );
 });

@@ -97,7 +97,7 @@ added later without moving existing data.
 {
   format: 'ftrack-snapshot-v1',
   activeRevision: 'revision-id',
-  schemaVersion: 44,
+  schemaVersion: 45,
   chunkCount: 3,
   byteLength: 1234567,
   sha256: 'hex-digest',
@@ -111,7 +111,7 @@ added later without moving existing data.
 ```js
 {
   format: 'ftrack-snapshot-v1',
-  schemaVersion: 44,
+  schemaVersion: 45,
   chunkCount: 3,
   byteLength: 1234567,
   sha256: 'hex-digest',

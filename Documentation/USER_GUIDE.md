@@ -190,27 +190,25 @@ Every main workflow can switch between Recurring rule entry and Period
 baseline, actual, skip, and variance tracking. Budgeting now lives in General's
 Period view instead of a duplicate Budget workflow.
 
-Detail shortcuts use the same component:
-
-- **Plan Rules (Detail)** opens a full recurring-rules table.
-- **Plan & Actuals (Detail)** opens a full resolved-occurrence Period table.
-
-You can switch between Period and Recurring in either detail layout. Detail
-layouts are tables with expanded columns and row actions, not enlarged copies
-of the summary cards.
+**Plan & Actuals (Detail)** is the single detail shortcut. Use its
+**Period / Recurring** selector to switch between the full resolved-occurrence
+table and the recurring-rules table. Both are expanded tables with row actions,
+not enlarged copies of the summary cards. Saved legacy Plan Rules and Budget
+detail workspaces open this combined detail view automatically.
 
 ### 2.9 Three Different Time Controls
 
 Do not confuse these settings:
 
-1. **Projection window**: scenario Start, End, and Period Type; controls
-   calculation scope.
+1. **Scenario timeframe**: scenario Start, End, and Period Type; controls the
+   shared planning and projection horizon.
 2. **Plan & Actuals View and Period**: controls which occurrence period is on
    screen.
 3. **Projections View By and Period filter**: groups or filters displayed
    projection results without changing the engine's Period Type.
 
-Goal Workshop also has a separate Generate Plan planning window.
+Goal Workshop can still use a narrower Generate Plan planning window inside
+the scenario timeframe.
 
 ---
 
@@ -664,7 +662,7 @@ causes are duplicate occurrence keys, invalid dates, or missing account
 references.
 
 If imported data behaves unexpectedly, review the migration report retained
-with schemaVersion 44 app data. Legacy rows that cannot be converted cleanly
+with schemaVersion 45 app data. Legacy rows that cannot be converted cleanly
 are retained there for recovery rather than silently discarded.
 
 Data Check upgrades legacy Budget rows into plan occurrences and updates a

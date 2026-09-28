@@ -27,10 +27,12 @@ store or display a transactions-versus-budget source choice.
 
 1. Ensure your accounts, transaction rules, and dated Plan & Actuals items are
    set up correctly.
-2. Set the scenario **projection window** (Start, End, Period Type) in the scenario list at the top of Forecast.
+2. Set the **scenario timeframe** (Start, End, Period Type) in the scenario list at the top of Forecast.
 3. Allow automatic refresh to complete, or click **Refresh projections now**
    for an immediate calculation.
-4. Review the projected balances for each account over the projection window.
+4. Review projected balances over the scenario timeframe. Use Table for exact
+   rows, Balance trend for the combined line, or Cash flow for money-in versus
+   money-out bars.
 5. Identify any accounts that go negative or reach critical levels.
 6. Adjust Plan Rules or dated occurrences as needed to improve the forecast.
 

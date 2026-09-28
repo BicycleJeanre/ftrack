@@ -63,11 +63,11 @@ Period Type.
 
 ### 4.4 Goal Workshop Planning Window
 
-Goal Workshop Simple and Advanced modes share the Generate Plan card but use
-an explicit planning window that can differ from the projection window.
+Goal Workshop Simple and Advanced modes share the Generate Plan card but can
+use an explicit planning window that is narrower than the scenario timeframe.
 
 If projections should validate an applied plan through its goal date, extend
-the scenario projection End date to the same horizon.
+the scenario timeframe End date to the same horizon.
 
 ## 5.0 Workflow Overview
 

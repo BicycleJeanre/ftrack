@@ -74,7 +74,7 @@ occurrences remain. This lets a plan be re-solved as real results arrive.
 
 4.1 Goal dates must fall within the relevant planning window (Generate Plan / Solver).
 
-4.1.1 If you want projections to validate results to the goal date, the scenario projection End date must also cover that date.
+4.1.1 If you want projections to validate results to the goal date, the scenario timeframe End date must also cover that date.
 
 4.2 Starting balances, existing Plan Rules, actual results, and account interest
 assumptions matter. The advanced workshop calculates remaining work from a

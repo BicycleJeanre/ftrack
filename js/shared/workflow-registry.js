@@ -132,28 +132,7 @@ export const WORKFLOWS = [
     supportsPeriodicChangeSchedule: false
   },
   {
-    id: 'transactions-detail',
-    name: 'Plan Rules (Detail)',
-    activity: {
-      surface: 'planActuals',
-      presentation: 'detail',
-      defaultView: 'recurring'
-    },
-    visibleCards: ['scenarioPicker', 'planActuals'],
-    showAccounts: false,
-    showPlannedTransactions: false,
-    showActualTransactions: false,
-    showBudget: true,
-    showPlanActuals: true,
-    showProjections: false,
-    showGeneratePlan: false,
-    showSummaryCards: false,
-    summaryMode: null,
-    budgetMode: 'detail',
-    supportsPeriodicChangeSchedule: false
-  },
-  {
-    id: 'budget-detail',
+    id: 'plan-actuals-detail',
     name: 'Plan & Actuals (Detail)',
     activity: {
       surface: 'planActuals',
@@ -193,6 +172,7 @@ export const WORKFLOWS = [
 
 export function getWorkflowById(id) {
   if (id === 'budget') id = 'general';
+  if (id === 'transactions-detail' || id === 'budget-detail') id = 'plan-actuals-detail';
   if (!id) return WORKFLOWS.find((w) => w.id === DEFAULT_WORKFLOW_ID) || WORKFLOWS[0] || null;
   return WORKFLOWS.find((w) => w.id === id) || WORKFLOWS.find((w) => w.id === DEFAULT_WORKFLOW_ID) || WORKFLOWS[0] || null;
 }

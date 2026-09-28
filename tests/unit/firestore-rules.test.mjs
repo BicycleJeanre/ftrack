@@ -27,7 +27,7 @@ test('Firestore rules isolate FTrack workspaces by authenticated owner', {
     const validManifest = {
       format: 'ftrack-snapshot-v1',
       activeRevision: 'revision-0001',
-      schemaVersion: 44,
+      schemaVersion: 45,
       chunkCount: 1,
       byteLength: 2,
       sha256: 'a'.repeat(64),

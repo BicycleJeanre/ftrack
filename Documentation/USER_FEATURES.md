@@ -12,7 +12,7 @@
 
 1.1 Create, edit, select, delete, and duplicate financial scenarios.
 
-1.2 Store a scenario name, description, projection window, version, and
+1.2 Store a scenario name, description, shared timeframe, version, and
 lineage.
 
 1.3 Duplicate a scenario to create an independent what-if version while
@@ -171,15 +171,11 @@ other rule metadata stable when later rule edits occur.
 - Actual versus current plan
 - Unplanned actuals
 
-4.21 Use **Plan Rules (Detail)** for a genuine recurring rule-segment table
-with expanded metadata and safe scoped row actions.
-
-4.22 Use **Plan & Actuals (Detail)** for a genuine resolved-occurrence table
-with dates, statuses, movement and description columns, repeat information,
-Baseline, Current Plan, Actual, forecast contribution, variances, and actions.
-
-4.23 Switch Period/Recurring inside either detail layout to use the
-corresponding table without returning to summary cards.
+4.21 Use **Plan & Actuals (Detail)** as the single detailed planning surface.
+Its **Recurring** selector shows the recurring rule-segment table with expanded
+metadata and safe scoped row actions; **Period** shows resolved occurrences
+with dates, statuses, movement, description, Baseline, Current Plan, Actual,
+forecast contribution, variances, and actions.
 
 ## 5.0 Projections
 
@@ -205,10 +201,15 @@ projection-policy change.
 5.9 Show **Current**, **Stale · refreshing**, **Stale**, or **Pending** state in
 the card header.
 
-5.10 Change display grouping with View By without changing the scenario's
+5.10 Set the shared scenario timeframe from the scenario card or Projections.
+The same Start, End, and Period Type define the planning and projection horizon.
+
+5.11 Switch Projections between Table, Balance trend, and Cash flow views.
+
+5.12 Change display grouping with View By without changing the scenario's
 projection-engine Period Type.
 
-5.11 Filter projections by period, account, account group, or display grouping.
+5.13 Filter projections by period, account, account group, or display grouping.
 
 ## 6.0 Goal Workshop
 
@@ -221,7 +222,7 @@ Goal Date.
 
 6.4 Solve, review, and apply generated transaction rules.
 
-6.5 Validate an applied plan with the scenario projection window.
+6.5 Validate an applied plan with the scenario timeframe.
 
 ## 7.0 Funds and Debt Repayment
 
@@ -241,7 +242,7 @@ rules.
 
 8.2 Export and import complete app data.
 
-8.3 Write schemaVersion 44.
+8.3 Write schemaVersion 45.
 
 8.4 Migrate supported legacy storage and imports through the shared migrator.
 
@@ -275,7 +276,7 @@ individual guides.
 ## 10.0 Recommended First Budget
 
 1. Select **General**, then open **Plan & Actuals → Recurring**.
-2. Create or select a scenario and set its projection window.
+2. Create or select a scenario and set its timeframe.
 3. Add accounts and opening balances.
 4. Create expected repeating movements in **Plan & Actuals → Recurring**.
 5. Review the automatically resolved dated items in **Period**.

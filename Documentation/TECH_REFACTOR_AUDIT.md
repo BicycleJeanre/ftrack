@@ -4,7 +4,7 @@
 **Purpose**: Code review validating implementation against TECH_IMPLEMENTATION_PLAN.md, TECH_REFACTOR_WORKFLOWS.md, and TECH_DATA_SCHEMA.md
 
 > **Historical snapshot:** This report records the schemaVersion 43 refactor at
-> the date above. The current application uses schemaVersion 44 and the unified
+> the date above. The current application uses schemaVersion 45 and the unified
 > Plan & Actuals workflow documented in
 > [TECH_ARCHITECTURE.md](TECH_ARCHITECTURE.md) and
 > [TECH_DATA_SCHEMA.md](TECH_DATA_SCHEMA.md). Several files and findings below
@@ -174,7 +174,7 @@ TECH_REFACTOR_WORKFLOWS.md (8.0.2):
 
 **Context**:  
 TECH_QC_METHOD.md (5.0) explicitly states:
-> For schemaVersion 44 datasets, workflow suites select scenarios by `scenarioIds` from `QC/mappings/use-case-to-scenario-type.json` **(legacy filename retained)**.
+> For current-schema datasets, workflow suites select scenarios by `scenarioIds` from `QC/mappings/use-case-to-scenario-type.json` **(legacy filename retained)**.
 
 **Note**: This is not a bug; the legacy filename was intentionally preserved for backwards compatibility.
 
@@ -195,11 +195,11 @@ TECH_QC_METHOD.md (5.0) explicitly states:
 | `scenario.projection.rows` storage | ✅ | [js/app/services/data-service.js](../js/app/services/data-service.js#L655) |
 | `scenario.planning.generatePlan` | ✅ | [js/ui/components/forecast/forecast-generate-plan.js](../js/ui/components/forecast/forecast-generate-plan.js#L47) |
 | `scenario.planning.advancedGoalSolver` | ✅ | [js/domain/utils/advanced-goal-solver.js](../js/domain/utils/advanced-goal-solver.js#L191) |
-| Legacy `scenario.budgetWindow` removed | ✅ | [js/app/services/validation-service.js](../js/app/services/validation-service.js) rejects it in schemaVersion 44 |
+| Legacy `scenario.budgetWindow` removed | ✅ | [js/app/services/validation-service.js](../js/app/services/validation-service.js) rejects it in schemaVersion 45 |
 | `uiState.lastWorkflowId` persisted | ✅ | [js/shared/app-data-utils.js](../js/shared/app-data-utils.js) |
 | `uiState.lastScenarioVersion` persisted | ✅ | [js/ui/controllers/forecast-controller.js](../js/ui/controllers/forecast-controller.js#L216) |
 | `uiState.viewPeriodTypeIds` per-card | ✅ | [js/ui/controllers/forecast-controller.js](../js/ui/controllers/forecast-controller.js#L781) |
-| schemaVersion = 44 enforced | ✅ | [js/shared/app-data-utils.js](../js/shared/app-data-utils.js) |
+| schemaVersion = 45 enforced | ✅ | [js/shared/app-data-utils.js](../js/shared/app-data-utils.js) |
 
 ### 4.2 Projection Engine Compliance
 

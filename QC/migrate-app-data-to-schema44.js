@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Standalone migration utility for converting FTrack exports to schemaVersion 44.
+ * Legacy-named standalone utility for converting FTrack exports to the current schema.
  * All migration semantics live in js/shared/migration-utils.js so runtime,
  * imports, tests, and this CLI use exactly the same implementation.
  */

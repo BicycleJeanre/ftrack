@@ -11,6 +11,7 @@ import { openRecurrenceModal } from '../components/modals/recurrence-modal.js';
 import { openPeriodicChangeModal } from '../components/modals/periodic-change-modal.js?v=20260901-strategy-matrix-35';
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
+import { openTimeframeModal } from '../components/modals/timeframe-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
 import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
 import '../../shared/keyboard-shortcuts.js';
@@ -20,15 +21,16 @@ import { notifyError, notifySuccess, confirmDialog } from '../../shared/notifica
 import { initTooltips } from '../../shared/tooltips.js';
 import {
   getScenarioProjectionRows,
+  getScenarioTimeframe,
   mapPeriodTypeNameToId,
   normalizeUiState
-} from '../../shared/app-data-utils.js?v=20260831-manager-cache-32';
+} from '../../shared/app-data-utils.js?v=20260928-scenario-timeframe-charts-55';
 import {
   DEFAULT_WORKFLOW_ID,
   WORKFLOWS,
   getWorkflowActivity,
   getWorkflowById
-} from '../../shared/workflow-registry.js';
+} from '../../shared/workflow-registry.js?v=20260928-scenario-timeframe-charts-55';
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
@@ -46,7 +48,7 @@ import {
   populateAccountSelect
 } from '../components/widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
-import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=20260901-account-group-filter-42';
+import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=20260928-scenario-timeframe-charts-55';
 import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
   loadAccountsGrid as loadAccountsGridCore
@@ -54,14 +56,14 @@ import {
 import {
   loadMasterTransactionsGrid as loadMasterTransactionsGridCore,
   teardownRecurringRulesDetailGrid
-} from '../components/grids/transactions-grid.js?v=20260901-click-off-details-43';
+} from '../components/grids/transactions-grid.js?v=20260928-scenario-timeframe-charts-55';
 import {
   loadPlanActualsGrid as loadPlanActualsGridCore,
   teardownPlanActualsGrid as teardownPlanActualsGridCore
 } from '../components/grids/plan-actuals-grid.js?v=20260927-secondary-account-shortcut-54';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
-} from '../components/forecast/forecast-projections-section.js?v=20260901-account-group-filter-42';
+} from '../components/forecast/forecast-projections-section.js?v=20260928-scenario-timeframe-charts-55';
 
 const logger = createLogger('ForecastController');
 
@@ -85,7 +87,7 @@ import {
   createAccount,
   getScenarioPeriods
 } from '../../app/services/data-service.js';
-import { generateProjections } from '../../domain/calculations/projection-engine.js?v=20260901-strategy-matrix-35';
+import { generateProjections } from '../../domain/calculations/projection-engine.js?v=20260928-scenario-timeframe-charts-55';
 import { initializeCloudSync } from '../../app/services/cloud-sync-coordinator.js';
 
 let currentScenario = null;
@@ -571,7 +573,7 @@ async function clearCurrentScenario() {
 }
 
 function requestStaleProjectionRefresh(scenario) {
-  const config = scenario?.projection?.config || {};
+  const config = getScenarioTimeframe(scenario);
   const isStale = scenario?.projection?.stale === true ||
     Boolean(scenario?.projection?.staleAt);
   if (!isStale || !config.startDate || !config.endDate) return;
@@ -938,13 +940,58 @@ async function buildScenarioGrid(container) {
         descEl.className = 'grid-summary-meta';
         descEl.textContent = scenario.description || '';
 
+        const timeframe = getScenarioTimeframe(scenario);
+        const periodTypeLabel = ({ 1: 'Daily', 2: 'Weekly', 3: 'Monthly', 4: 'Quarterly', 5: 'Yearly' })[
+          Number(timeframe.periodTypeId)
+        ] || 'Monthly';
+        const timeframeEl = document.createElement('div');
+        timeframeEl.className = 'grid-summary-meta scenario-timeframe-summary';
+        timeframeEl.textContent = `${timeframe.startDate} → ${timeframe.endDate} · ${periodTypeLabel}`;
+
         content.appendChild(nameEl);
         if (descEl.textContent) {
           content.appendChild(descEl);
         }
+        content.appendChild(timeframeEl);
 
         const actions = document.createElement('div');
         actions.className = 'grid-summary-actions';
+
+        const timeframeBtn = document.createElement('button');
+        timeframeBtn.className = 'icon-btn scenarios-list-timeframe';
+        timeframeBtn.title = 'Set scenario timeframe';
+        timeframeBtn.setAttribute('aria-label', 'Set scenario timeframe');
+        timeframeBtn.textContent = '⊞';
+        timeframeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openTimeframeModal({
+            title: `Set Scenario Timeframe · ${scenario.name || 'Untitled'}`,
+            showPeriodType: true,
+            defaultPeriodTypeId: timeframe.periodTypeId || 3,
+            defaultStartDate: timeframe.startDate,
+            defaultEndDate: timeframe.endDate,
+            confirmTitle: 'Save scenario timeframe',
+            onConfirm: async ({ startDate, endDate, periodTypeId }) => {
+              try {
+                timeframeBtn.disabled = true;
+                await generateProjections(scenario.id, { startDate, endDate, periodTypeId });
+                const refreshed = await getScenario(scenario.id);
+                if (Number(currentScenario?.id) === Number(scenario.id)) {
+                  currentScenario = refreshed;
+                  transactionsPeriods = [];
+                  budgetPeriods = [];
+                  projectionPeriods = [];
+                }
+                await buildScenarioGrid(container);
+                notifySuccess('Scenario timeframe updated.');
+              } catch (err) {
+                notifyError('Failed to update scenario timeframe: ' + (err?.message || 'Unknown error'));
+              } finally {
+                if (timeframeBtn.isConnected) timeframeBtn.disabled = false;
+              }
+            }
+          });
+        });
 
         const dupBtn = document.createElement('button');
         dupBtn.className = 'icon-btn scenarios-list-dup';
@@ -976,6 +1023,7 @@ async function buildScenarioGrid(container) {
           }
         });
 
+        actions.appendChild(timeframeBtn);
         actions.appendChild(dupBtn);
         actions.appendChild(delBtn);
 
@@ -3002,7 +3050,7 @@ async function init() {
   document.addEventListener('forecast:planChanged', (event) => {
     const scenarioId = Number(event?.detail?.scenarioId || currentScenario?.id || 0);
     if (!scenarioId || Number(currentScenario?.id || 0) !== scenarioId) return;
-    const currentConfig = currentScenario?.projection?.config || {};
+    const currentConfig = getScenarioTimeframe(currentScenario);
     if (currentConfig.startDate && currentConfig.endDate) {
       document.documentElement.dataset.projectionRefreshingScenarioId = String(scenarioId);
     }
@@ -3025,13 +3073,14 @@ async function init() {
 
       try {
         const latest = await getScenario(scenarioId);
+        const timeframe = getScenarioTimeframe(latest);
         const config = latest?.projection?.config || {};
-        if (!config.startDate || !config.endDate) return;
+        if (!timeframe.startDate || !timeframe.endDate) return;
 
         await generateProjections(scenarioId, {
-          startDate: config.startDate,
-          endDate: config.endDate,
-          periodTypeId: config.periodTypeId,
+          startDate: timeframe.startDate,
+          endDate: timeframe.endDate,
+          periodTypeId: timeframe.periodTypeId,
           asOfDate: config.asOfDate ?? null,
           openCommitmentStartDate: config.openCommitmentStartDate ?? null
         });

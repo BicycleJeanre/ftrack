@@ -151,7 +151,7 @@ also mark saved projections stale so they are refreshed from the revised plan.
 7.1.1 Review the Validation section for malformed JSON, missing collections,
 invalid references, or other current-schema violations.
 
-7.1.2 Current exports use schemaVersion 44.
+7.1.2 Current exports use schemaVersion 45.
 
 7.1.3 Older exports are upgraded in memory. Review What Changed, Warnings and
 Recovery, and the downloadable change report before applying the result.

@@ -165,26 +165,22 @@ goals, priorities, constraints, or trade-offs must be solved together.
 Detail shortcuts isolate one surface and use full tables instead of the
 summary-card layout.
 
-### 8.1 Plan Rules (Detail)
+### 8.1 Plan & Actuals (Detail)
 
-Use this table to inspect recurring rule segments, account directions,
-amounts, repeat settings, active dates, adjustments, and actions across many
-rules.
-
-![Plan Rules Detail table](assets/user-guides/plan-rules-detail.jpg "Plan Rules Detail is the table view of recurring rule segments.")
-
-### 8.2 Plan & Actuals (Detail)
-
-Use this table to audit resolved occurrences. It shows dates, status,
-movement, description, baseline, current plan, actual, forecast contribution,
-variance, and row actions.
+Use the **Recurring** selector to inspect recurring rule segments, account
+directions, amounts, repeat settings, active dates, adjustments, and actions.
+Use **Period** to audit resolved occurrences with dates, status, movement,
+description, baseline, current plan, actual, forecast contribution, variance,
+and row actions.
 
 ![Plan and Actuals Detail table](assets/user-guides/plan-actuals-detail.jpg "Plan & Actuals Detail is a real occurrence table, not the summary card view.")
 
-### 8.3 Projections (Detail)
+### 8.2 Projections (Detail)
 
-Use this table for account-by-period balances and the income, expense, capital,
-interest, and net-change components behind the projection.
+Use **Table** for account-by-period balances and the income, expense, capital,
+interest, and net-change components. Use **Balance trend** for the total
+projected balance line, or **Cash flow** to compare projected money in and out
+by date.
 
 ![Projections Detail table and totals](assets/user-guides/projections-detail.jpg "Projections Detail exposes the period and account rows behind the forward-looking totals.")
 

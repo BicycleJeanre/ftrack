@@ -245,7 +245,7 @@ function isRecurringTransactionRule(rule) {
 
 function getNextUnresolvedRuleOccurrence({ rule, scenario }) {
   const today = formatDateOnly(new Date());
-  const projectionStart = scenario?.projection?.config?.startDate || today;
+  const projectionStart = scenario?.timeframe?.startDate || scenario?.projection?.config?.startDate || today;
   const searchStart = projectionStart > today ? projectionStart : today;
   const rootId = Number(rule?.seriesRootId || rule?.id);
   const lineage = (scenario?.transactions || [])
@@ -293,7 +293,7 @@ function buildNextUnresolvedRuleOccurrenceLookup(scenario) {
   if (!scenario) return () => null;
 
   const today = formatDateOnly(new Date());
-  const projectionStart = scenario?.projection?.config?.startDate || today;
+  const projectionStart = scenario?.timeframe?.startDate || scenario?.projection?.config?.startDate || today;
   const searchStart = projectionStart > today ? projectionStart : today;
   const fallbackEnd = parseDateOnly(searchStart);
   fallbackEnd.setFullYear(fallbackEnd.getFullYear() + 20);
@@ -1116,7 +1116,7 @@ function renderTransactionsSummaryList({
           scenario.id,
           {
             ...payload,
-            openDate: scenario?.projection?.config?.startDate || formatDateOnly(new Date())
+            openDate: scenario?.timeframe?.startDate || scenario?.projection?.config?.startDate || formatDateOnly(new Date())
           },
           { notify: false }
         );
@@ -3867,7 +3867,7 @@ export async function loadMasterTransactionsGrid({
             const selectedPeriod = findPeriodById(periods, actualPeriod);
             const defaultEffectiveDate = selectedPeriod
               ? formatDateOnly(selectedPeriod.startDate)
-              : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+              : (currentScenario?.timeframe?.startDate || currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
             const defaultDayOfMonth = parseDateOnly(defaultEffectiveDate)?.getDate() || 1;
 
             const createdDraft = await createTransaction(currentScenario.id, {
@@ -3948,7 +3948,7 @@ export async function loadMasterTransactionsGrid({
             const selectedPeriod = findPeriodById(periods, actualPeriod);
             const defaultEffectiveDate = selectedPeriod
               ? formatDateOnly(selectedPeriod.startDate)
-              : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+              : (currentScenario?.timeframe?.startDate || currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
             const defaultDayOfMonth = parseDateOnly(defaultEffectiveDate)?.getDate() || 1;
 
             const splitGroupId = createTransactionGroupId();
@@ -4277,7 +4277,7 @@ export async function loadMasterTransactionsGrid({
             ? Number(canonicalPrimary)
             : (accountIds[0] || null);
           const defaultEffectiveDate = canonicalTx?.effectiveDate || rowData?.effectiveDate
-            || (scenarioForEdit?.projection?.config?.startDate || formatDateOnly(new Date()));
+            || (scenarioForEdit?.timeframe?.startDate || scenarioForEdit?.projection?.config?.startDate || formatDateOnly(new Date()));
           let principalTx = await findPrincipalTransaction({
             scenarioId: scenarioForEdit.id,
             transactionGroupId
@@ -4611,7 +4611,7 @@ export async function loadMasterTransactionsGrid({
               const selectedPeriod = findPeriodById(localPeriods, actualPeriod);
               const defaultEffectiveDate = selectedPeriod
                 ? formatDateOnly(selectedPeriod.startDate)
-                : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+                : (currentScenario?.timeframe?.startDate || currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
               await createTransaction(currentScenario.id, {
                 primaryAccountId: defaultAccountId,
                 secondaryAccountId: null,
@@ -4655,7 +4655,7 @@ export async function loadMasterTransactionsGrid({
               const selectedPeriod = findPeriodById(localPeriods, actualPeriod);
               const defaultEffectiveDate = selectedPeriod
                 ? formatDateOnly(selectedPeriod.startDate)
-                : (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+                : (currentScenario?.timeframe?.startDate || currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
 
               const splitGroupId = createTransactionGroupId();
               const createdDraft = await createTransaction(currentScenario.id, {
@@ -4937,7 +4937,7 @@ export async function loadMasterTransactionsGrid({
           ? Number(canonicalPrimary)
           : (accountIds[0] || null);
         const defaultEffectiveDate = canonicalTx?.effectiveDate || txRow?.effectiveDate
-          || (currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
+          || (currentScenario?.timeframe?.startDate || currentScenario?.projection?.config?.startDate || formatDateOnly(new Date()));
         let principalTx = await findPrincipalTransaction({
           scenarioId: currentScenario.id,
           transactionGroupId

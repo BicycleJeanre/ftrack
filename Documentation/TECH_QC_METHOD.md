@@ -49,7 +49,7 @@ Each workflow suite file should do only these steps:
 
 3.3.1 Selection Rule
 
-- For schemaVersion 44 datasets, workflow suites select scenarios by
+- For current-schema datasets, workflow suites select scenarios by
   `scenarioIds` from `QC/mappings/use-case-to-scenario-type.json` (legacy
   filename retained).
 - Legacy QC datasets may still include `scenario.type` and can be selected by scenario type id mapping.

@@ -131,16 +131,11 @@ per scenario. These filters narrow the accounts available for selection;
 **Group By** separately organizes displayed items by status, movement, or
 repeat pattern.
 
-6.4 Use a detail shortcut when a table is more useful than summary cards:
-
-- **Plan Rules (Detail)** opens the unified component in Recurring and renders
-  a full rule-segment table with safe scoped actions.
-- **Plan & Actuals (Detail)** opens it in Period and renders a full
-  resolved-occurrence table with dates, statuses, movements, descriptions,
-  comparison amounts, forecast contribution, variances, and actions.
-
-Both detail shortcuts keep the Period/Recurring switch. Changing the view
-changes the table rather than rendering the summary card layout again.
+6.4 Use **Plan & Actuals (Detail)** when a table is more useful than summary
+cards. Its **Recurring** selector renders a full rule-segment table with safe
+scoped actions. **Period** renders a full resolved-occurrence table with dates,
+statuses, movements, descriptions, comparison amounts, forecast contribution,
+variances, and actions.
 
 ## 7.0 Troubleshooting
 

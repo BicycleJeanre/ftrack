@@ -5,7 +5,7 @@ import { createGrid, createDateColumn, createTextColumn, createMoneyColumn } fro
 import { parseDateOnly, formatDateOnly } from '../../../shared/date-utils.js';
 import { notifyError } from '../../../shared/notifications.js';
 import { GridStateManager } from '../grids/grid-state.js';
-import { getScenarioProjectionRows } from '../../../shared/app-data-utils.js';
+import { getScenarioProjectionRows, getScenarioTimeframe } from '../../../shared/app-data-utils.js';
 import { openTimeframeModal } from '../modals/timeframe-modal.js';
 import { createFilterModal } from '../modals/filter-modal.js';
 import { formatCurrency, formatMoneyDisplay, numValueClass } from '../../../shared/format-utils.js';
@@ -23,6 +23,185 @@ import { generateProjections } from '../../../domain/calculations/projection-eng
 
 const projectionsGridState = new GridStateManager('projections');
 let lastProjectionsTable = null;
+let projectionsDisplayMode = 'table';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function createSvgElement(name, attributes = {}) {
+  const element = document.createElementNS(SVG_NS, name);
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+  return element;
+}
+
+function aggregateProjectionRowsByDate(rows = []) {
+  const byDate = new Map();
+  rows.forEach((row) => {
+    const date = typeof row?.date === 'string' ? row.date : formatDateOnly(new Date(row?.date));
+    if (!date) return;
+    const current = byDate.get(date) || { date, balance: 0, income: 0, expenses: 0 };
+    current.balance += Number(row?.balance || 0);
+    current.income += Number(row?.income || 0);
+    current.expenses += Math.abs(Number(row?.expenses || 0));
+    byDate.set(date, current);
+  });
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function filterProjectionRowsForChart({ rows = [], state, scenario }) {
+  let filtered = [...rows];
+  const accountFilter = state?.getProjectionAccountFilterId?.();
+  if (accountFilter) {
+    const label = String(accountFilter);
+    if (label.startsWith('group:')) {
+      const groupIds = getGroupAccountIds(
+        scenario?.accountGroups || [],
+        Number(label.split(':')[1] || 0)
+      );
+      filtered = filtered.filter((row) => groupIds.has(Number(row?.accountId)));
+    } else {
+      filtered = filtered.filter((row) => Number(row?.accountId) === Number(accountFilter));
+    }
+  }
+
+  const selectedPeriodId = state?.getProjectionPeriod?.();
+  const selectedPeriod = (state?.getProjectionPeriods?.() || [])
+    .find((period) => period?.id === selectedPeriodId);
+  if (selectedPeriod?.startDate && selectedPeriod?.endDate) {
+    filtered = filtered.filter((row) => {
+      const date = typeof row?.date === 'string' ? row.date : formatDateOnly(new Date(row?.date));
+      return date >= selectedPeriod.startDate && date <= selectedPeriod.endDate;
+    });
+  }
+  return filtered;
+}
+
+function appendSvgText(svg, text, x, y, className, anchor = 'start') {
+  const label = createSvgElement('text', { x, y, class: className, 'text-anchor': anchor });
+  label.textContent = text;
+  svg.appendChild(label);
+  return label;
+}
+
+function renderProjectionChart({ container, rows = [], mode = 'balance' }) {
+  container.innerHTML = '';
+  container.className = 'grid-container projections-grid projection-chart-host';
+  const points = aggregateProjectionRowsByDate(rows);
+  if (!points.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-message';
+    empty.textContent = 'No projection data is available for this chart.';
+    container.appendChild(empty);
+    return;
+  }
+
+  const heading = document.createElement('div');
+  heading.className = 'projection-chart-heading';
+  heading.textContent = mode === 'cashflow' ? 'Projected money in and money out' : 'Projected balance trend';
+  container.appendChild(heading);
+
+  const frame = document.createElement('div');
+  frame.className = 'projection-chart-frame';
+  const width = Math.max(900, mode === 'cashflow' ? points.length * 56 : 900);
+  const height = 360;
+  const plot = { left: 76, top: 24, right: width - 24, bottom: height - 52 };
+  const svg = createSvgElement('svg', {
+    viewBox: `0 0 ${width} ${height}`,
+    role: 'img',
+    'aria-label': heading.textContent
+  });
+  svg.classList.add('projection-chart');
+
+  const values = mode === 'cashflow'
+    ? points.flatMap((point) => [point.income, point.expenses, 0])
+    : points.flatMap((point) => [point.balance, 0]);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const span = Math.max(1, maxValue - minValue);
+  const yFor = (value) => plot.bottom - ((value - minValue) / span) * (plot.bottom - plot.top);
+
+  for (let tick = 0; tick <= 4; tick += 1) {
+    const ratio = tick / 4;
+    const value = maxValue - span * ratio;
+    const y = plot.top + (plot.bottom - plot.top) * ratio;
+    svg.appendChild(createSvgElement('line', {
+      x1: plot.left,
+      y1: y,
+      x2: plot.right,
+      y2: y,
+      class: 'projection-chart-gridline'
+    }));
+    appendSvgText(svg, formatCurrency(value), plot.left - 10, y + 4, 'projection-chart-axis-label', 'end');
+  }
+
+  const zeroY = yFor(0);
+  svg.appendChild(createSvgElement('line', {
+    x1: plot.left,
+    y1: zeroY,
+    x2: plot.right,
+    y2: zeroY,
+    class: 'projection-chart-zero-line'
+  }));
+
+  if (mode === 'cashflow') {
+    const slot = (plot.right - plot.left) / Math.max(1, points.length);
+    const barWidth = Math.max(5, Math.min(18, slot * 0.3));
+    points.forEach((point, index) => {
+      const center = plot.left + slot * (index + 0.5);
+      [
+        { value: point.income, x: center - barWidth - 1, className: 'projection-chart-bar-in', label: 'Money in' },
+        { value: point.expenses, x: center + 1, className: 'projection-chart-bar-out', label: 'Money out' }
+      ].forEach((bar) => {
+        const y = yFor(bar.value);
+        const rect = createSvgElement('rect', {
+          x: bar.x,
+          y,
+          width: barWidth,
+          height: Math.max(1, zeroY - y),
+          class: bar.className
+        });
+        const title = createSvgElement('title');
+        title.textContent = `${point.date} · ${bar.label}: ${formatCurrency(bar.value)}`;
+        rect.appendChild(title);
+        svg.appendChild(rect);
+      });
+      if (points.length <= 18 || index % Math.ceil(points.length / 12) === 0) {
+        appendSvgText(svg, point.date, center, height - 25, 'projection-chart-axis-label', 'middle');
+      }
+    });
+  } else {
+    const xFor = (index) => plot.left + ((plot.right - plot.left) * index) / Math.max(1, points.length - 1);
+    const polyline = createSvgElement('polyline', {
+      points: points.map((point, index) => `${xFor(index)},${yFor(point.balance)}`).join(' '),
+      class: 'projection-chart-line'
+    });
+    svg.appendChild(polyline);
+    points.forEach((point, index) => {
+      const circle = createSvgElement('circle', {
+        cx: xFor(index),
+        cy: yFor(point.balance),
+        r: 4,
+        class: 'projection-chart-point'
+      });
+      const title = createSvgElement('title');
+      title.textContent = `${point.date} · Balance: ${formatCurrency(point.balance)}`;
+      circle.appendChild(title);
+      svg.appendChild(circle);
+      if (points.length <= 18 || index % Math.ceil(points.length / 12) === 0) {
+        appendSvgText(svg, point.date, xFor(index), height - 25, 'projection-chart-axis-label', 'middle');
+      }
+    });
+  }
+
+  frame.appendChild(svg);
+  container.appendChild(frame);
+
+  const legend = document.createElement('div');
+  legend.className = 'projection-chart-legend';
+  legend.innerHTML = mode === 'cashflow'
+    ? '<span><i class="projection-chart-key projection-chart-key--in"></i>Money in</span><span><i class="projection-chart-key projection-chart-key--out"></i>Money out</span>'
+    : '<span><i class="projection-chart-key projection-chart-key--balance"></i>Total projected balance</span>';
+  container.appendChild(legend);
+}
 
 function createHeaderFilterItem(labelText, control, className = '') {
   const item = document.createElement('div');
@@ -426,7 +605,7 @@ async function runProjectionHeaderAction({
 
     scenarioState?.set?.(refreshed);
     // The controller owns the wider Plan & Actuals + Projections refresh when
-    // the projection window changed. Standalone consumers still receive the
+    // the scenario timeframe changed. Standalone consumers still receive the
     // component-local reload fallback.
     if (
       !periodWindowChanged ||
@@ -478,7 +657,7 @@ async function buildProjectionsHeaderControls({
         reload,
         reason: 'manual projection refresh',
         operation: ({ scenario, scenarioId }) => {
-          const projConfig = scenario?.projection?.config || {};
+          const projConfig = getScenarioTimeframe(scenario);
           return generateProjections(scenarioId, {
             startDate: projConfig.startDate,
             endDate: projConfig.endDate,
@@ -498,18 +677,19 @@ async function buildProjectionsHeaderControls({
 
   const setPeriodBtn = document.createElement('button');
   setPeriodBtn.className = 'icon-btn';
-  setPeriodBtn.title = 'Set projection period';
+  setPeriodBtn.title = 'Set scenario timeframe';
   setPeriodBtn.textContent = '⊞';
   setPeriodBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const scenario = scenarioState?.get?.();
-    const projConfig = scenario?.projection?.config || {};
+    const projConfig = getScenarioTimeframe(scenario);
     openTimeframeModal({
-      title: 'Set Projection Period',
+      title: 'Set Scenario Timeframe',
       showPeriodType: true,
       defaultPeriodTypeId: projConfig.periodTypeId || 3,
       defaultStartDate: projConfig.startDate || null,
       defaultEndDate: projConfig.endDate || null,
+      confirmTitle: 'Save scenario timeframe',
       onConfirm: async ({ startDate, endDate, periodTypeId }) => {
         try {
           setPeriodBtn.disabled = true;
@@ -518,7 +698,7 @@ async function buildProjectionsHeaderControls({
             getWorkflowConfig,
             callbacks,
             reload,
-            reason: 'set projection period',
+            reason: 'set scenario timeframe',
             periodWindowChanged: true,
             operation: ({ scenarioId }) => generateProjections(scenarioId, {
               startDate,
@@ -527,7 +707,7 @@ async function buildProjectionsHeaderControls({
             })
           });
         } catch (err) {
-          notifyError('Failed to set projection period: ' + (err?.message || String(err)));
+          notifyError('Failed to set scenario timeframe: ' + (err?.message || String(err)));
         } finally {
           if (setPeriodBtn.isConnected) setPeriodBtn.disabled = false;
         }
@@ -642,6 +822,25 @@ async function buildProjectionsHeaderControls({
     } else {
       await reload();
     }
+  });
+
+  const displaySelect = document.createElement('select');
+  displaySelect.id = 'projections-display-select';
+  displaySelect.className = 'input-select';
+  [
+    { value: 'table', label: 'Table' },
+    { value: 'balance', label: 'Balance trend' },
+    { value: 'cashflow', label: 'Cash flow' }
+  ].forEach(({ value, label }) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    displaySelect.appendChild(option);
+  });
+  displaySelect.value = projectionsDisplayMode;
+  displaySelect.addEventListener('change', async () => {
+    projectionsDisplayMode = displaySelect.value || 'table';
+    await reload();
   });
 
   // View By filter
@@ -778,6 +977,10 @@ async function buildProjectionsHeaderControls({
   inlineGroupSelect.id = 'projections-grouping-select-inline';
   inlineGroupSelect.value = groupSelect.value;
 
+  const inlineDisplaySelect = displaySelect.cloneNode(true);
+  inlineDisplaySelect.id = 'projections-display-select-inline';
+  inlineDisplaySelect.value = displaySelect.value;
+
   const inlineFilters = document.createElement('div');
   inlineFilters.className = 'card-inline-filters projections-inline-filters';
   inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccountSelect, 'filter-account'));
@@ -785,6 +988,7 @@ async function buildProjectionsHeaderControls({
   inlineFilters.appendChild(createHeaderFilterItem('Period', inlinePeriodSelect, 'filter-period'));
   inlineFilters.appendChild(createHeaderFilterItem('', inlinePeriodNav, 'filter-period-nav'));
   inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroupSelect, 'filter-group'));
+  inlineFilters.appendChild(createHeaderFilterItem('Display', inlineDisplaySelect, 'filter-display'));
 
   const inlineRegenBtn = document.createElement('button');
   inlineRegenBtn.className = 'icon-btn card-inline-action';
@@ -793,7 +997,7 @@ async function buildProjectionsHeaderControls({
 
   const inlineSetPeriodBtn = document.createElement('button');
   inlineSetPeriodBtn.className = 'icon-btn card-inline-action';
-  inlineSetPeriodBtn.title = 'Set projection period';
+  inlineSetPeriodBtn.title = 'Set scenario timeframe';
   inlineSetPeriodBtn.textContent = '⊞';
 
   const freshness = document.createElement('span');
@@ -828,6 +1032,7 @@ async function buildProjectionsHeaderControls({
       { id: 'period-type', label: 'Period Type:', control: viewSelect },
       { id: 'period', label: 'Period:', control: periodSelect, suffix: periodNav },
       { id: 'group-by', label: 'Group By:', control: groupSelect },
+      { id: 'display', label: 'Display:', control: displaySelect },
       { id: 'actions', label: 'Actions:', control: modalActions }
     ]
   });
@@ -868,6 +1073,11 @@ async function buildProjectionsHeaderControls({
   inlineGroupSelect.addEventListener('change', async () => {
     groupSelect.value = inlineGroupSelect.value;
     groupSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  inlineDisplaySelect.addEventListener('change', async () => {
+    displaySelect.value = inlineDisplaySelect.value;
+    displaySelect.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
   inlineRegenBtn.addEventListener('click', (e) => { e.stopPropagation(); regenBtn.click(); });
@@ -1018,6 +1228,29 @@ export async function loadProjectionsGrid({
       state,
       accountMap
     });
+
+    if (projectionsDisplayMode !== 'table') {
+      try {
+        await lastProjectionsTable?.destroy?.();
+      } catch (_) {
+        // Ignore cleanup failures when switching presentation.
+      }
+      lastProjectionsTable = null;
+      const chartRows = filterProjectionRowsForChart({
+        rows: tableData,
+        state,
+        scenario: currentScenario
+      });
+      callbacks?.updateProjectionTotals?.(totalsContainer, chartRows);
+      renderProjectionChart({
+        container: projectionsGridContainer,
+        rows: chartRows,
+        mode: projectionsDisplayMode
+      });
+      return;
+    }
+
+    projectionsGridContainer.className = 'grid-container projections-grid grid-detail';
 
     try {
       await lastProjectionsTable?.destroy?.();
@@ -1267,6 +1500,23 @@ export async function loadProjectionsSection({
     }
 
     const groupByField = state?.getGroupBy?.() || '';
+
+    if (projectionsDisplayMode !== 'table') {
+      try {
+        await lastProjectionsTable?.destroy?.();
+      } catch (_) {
+        // Ignore cleanup failures when switching presentation.
+      }
+      lastProjectionsTable = null;
+      renderProjectionChart({
+        container: projectionsGridContainer,
+        rows: groupedRows,
+        mode: projectionsDisplayMode
+      });
+      return;
+    }
+
+    projectionsGridContainer.className = 'grid-container projections-grid';
 
     renderProjectionsSummaryList({
       container: projectionsGridContainer,

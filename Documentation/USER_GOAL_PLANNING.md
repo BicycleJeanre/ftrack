@@ -32,7 +32,7 @@
 
 3.3 Ensure the goal date is within the Generate Plan planning window.
 
-3.3.1 If you want projections to validate the goal date, also extend the scenario projection End date to cover the goal date.
+3.3.1 If you want projections to validate the goal date, also extend the scenario timeframe End date to cover the goal date.
 
 ## 4.0 Use Generate Plan In Simple Mode
 

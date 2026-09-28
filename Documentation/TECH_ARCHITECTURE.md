@@ -199,7 +199,7 @@ Stored stale rows are not treated as current results.
 
 Important modules:
 
-- `app-data-utils.js`: schemaVersion 44 defaults, normalization, snapshot
+- `app-data-utils.js`: schemaVersion 45 defaults, normalization, snapshot
   materialization, and ID allocation.
 - `migration-utils.js`: browser-safe legacy-to-schema44 migration and recovery
   reports.
@@ -226,7 +226,7 @@ planning                       Goal Workshop configuration
 ```
 
 The legacy `budgets[]`, `budgetWindow`, transaction-status actuals, and
-`projection.config.source` are not valid schemaVersion 44 state.
+`projection.config.source` are not valid schemaVersion 45 state.
 
 ### 3.1 Rules and Rule Segments
 

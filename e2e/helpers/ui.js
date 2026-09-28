@@ -6,8 +6,8 @@ const WORKFLOW_IDS_BY_NAME = {
   'Debt Repayment': 'debt-repayment',
   'Goal Workshop': 'goal-workshop',
   'Accounts (Detail)': 'accounts-detail',
-  'Plan Rules (Detail)': 'transactions-detail',
-  'Plan & Actuals (Detail)': 'budget-detail',
+  'Plan Rules (Detail)': 'plan-actuals-detail',
+  'Plan & Actuals (Detail)': 'plan-actuals-detail',
   'Projections (Detail)': 'projections-detail'
 };
 
@@ -37,7 +37,8 @@ async function openSidebar(page) {
 
 async function selectWorkflow(page, name) {
   await openSidebar(page);
-  const workflow = page.getByRole('button', { name, exact: true });
+  const navigationName = name === 'Plan Rules (Detail)' ? 'Plan & Actuals (Detail)' : name;
+  const workflow = page.getByRole('button', { name: navigationName, exact: true });
   await expect(workflow).toHaveCount(1);
   await workflow.click();
   await expect(workflow).toHaveClass(/active/);
@@ -50,6 +51,12 @@ async function selectWorkflow(page, name) {
         return data?.uiState?.lastWorkflowId || null;
       });
     }, { message: `${name} workflow persisted` }).toBe(workflowId);
+  }
+
+  if (name === 'Plan Rules (Detail)') {
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+  } else if (name === 'Plan & Actuals (Detail)') {
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
   }
 
   const readySelector = WORKFLOW_READY_SELECTORS[name];

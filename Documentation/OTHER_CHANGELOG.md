@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Combined Plan Rules (Detail) and Plan & Actuals (Detail) into one
+  **Plan & Actuals (Detail)** workflow with the existing Period/Recurring
+  selector. Legacy saved workflow IDs are redirected to the combined view.
+- Promoted Start, End, and Period Type to a schemaVersion 45
+  `scenario.timeframe`, with automatic migration from schemaVersion 44
+  projection configuration.
+- Added Projections display modes for the existing table, a total projected
+  balance line chart, and money-in versus money-out bars.
+
 ## [1.0.0] - 2026-09-28
 
 ### Changed

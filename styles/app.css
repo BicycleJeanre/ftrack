@@ -12,7 +12,7 @@
 @import url('./partials/base.css');
 
 /* 2. Component Styles - Buttons, Inputs, Badges, Modals */
-@import url('./partials/components.css?v=20260901-account-group-filter-42');
+@import url('./partials/components.css?v=20260928-scenario-timeframe-charts-55');
 
 /* 3. Layout Styles - Header, Sidebar, Grids, Main Layouts */
 @import url('./partials/layout.css?v=20260927-secondary-account-shortcut-54');

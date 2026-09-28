@@ -1,5 +1,5 @@
 // resolve-scenario-occurrences.js
-// Canonical query for schemaVersion 44 planning rules and stored transaction
+// Canonical query for current-schema planning rules and stored transaction
 // occurrences. This module is pure: it never mutates scenario data.
 
 import { calculatePeriodicChange } from '../calculations/calculation-engine.js';
@@ -766,7 +766,7 @@ function suppressPlansReplacedByLineageActuals(occurrences, sourceTransactionsBy
 }
 
 /**
- * Resolve schemaVersion 44 rule definitions and stored occurrence rows into one
+ * Resolve current-schema rule definitions and stored occurrence rows into one
  * canonical occurrence timeline.
  */
 export function resolveScenarioOccurrences({

@@ -19,7 +19,7 @@ export function expandTransactions(transactions, startDate, endDate, accounts = 
     // Ignore transactions that are not linked to a primary account
     if (!tx.primaryAccountId) return;
 
-    // schemaVersion 44 stores rules without a status field; rules are planned
+    // Current-schema rules omit status; resolved occurrences carry status.
     // by definition. Legacy actual records are still understood during migration.
     const statusName =
       (typeof tx.status === 'object' ? tx.status.name : tx.status) || 'planned';

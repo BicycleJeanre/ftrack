@@ -280,9 +280,10 @@ function coercePeriodTypeId(value) {
 
 function getProjectionConfig({ scenario, options = {} }) {
   const config = scenario?.projection?.config || {};
-  const startDate = options.startDate || config.startDate || null;
-  const endDate = options.endDate || config.endDate || null;
-  const periodTypeIdRaw = options.periodTypeId ?? config.periodTypeId ?? 3;
+  const timeframe = scenario?.timeframe || config;
+  const startDate = options.startDate || timeframe.startDate || null;
+  const endDate = options.endDate || timeframe.endDate || null;
+  const periodTypeIdRaw = options.periodTypeId ?? timeframe.periodTypeId ?? 3;
   const periodTypeId = coercePeriodTypeId(periodTypeIdRaw) || 3;
   const asOfDate = options.asOfDate ?? config.asOfDate ?? null;
   const openCommitmentStartDate =
@@ -305,7 +306,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
   const startDate = parseDateOnly(projectionConfig.startDate);
   const endDate = parseDateOnly(projectionConfig.endDate);
   if (!startDate || !endDate) {
-    throw new Error('Scenario projection config missing startDate or endDate');
+    throw new Error('Scenario timeframe is missing startDate or endDate');
   }
 
   const { occurrences: resolvedOccurrences } = resolveScenarioOccurrences({

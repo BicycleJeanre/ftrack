@@ -250,6 +250,11 @@ export async function saveProjectionBundle(scenarioId, bundle) {
     appData.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
       ...scenario,
       id: scenarioId,
+      timeframe: {
+        startDate: nextProjection.config.startDate,
+        endDate: nextProjection.config.endDate,
+        periodTypeId: nextProjection.config.periodTypeId
+      },
       projection: nextProjection
     });
     saved = true;
@@ -299,7 +304,7 @@ export async function getTransactionOccurrences(scenarioId) {
  * @param {string} customPeriodType - Optional period type override (Day, Week, Month, Quarter, Year)
  * @returns {Promise<Array>} - Array of period objects
  */
-export async function getScenarioPeriods(scenarioId, customPeriodType = null, windowType = 'projection') {
+export async function getScenarioPeriods(scenarioId, customPeriodType = null, windowType = 'scenario') {
   const PERIOD_ID_TO_NAME = {
     1: 'Day',
     2: 'Week',
@@ -318,11 +323,11 @@ export async function getScenarioPeriods(scenarioId, customPeriodType = null, wi
     windowConfig = scenario?.planning?.generatePlan;
     if (!windowConfig) {
       // Fall back to projection if planning window not set
-      windowConfig = scenario?.projection?.config;
+      windowConfig = scenario?.timeframe || scenario?.projection?.config;
     }
   } else {
-    // Default: projection window
-    windowConfig = scenario?.projection?.config;
+    // The scenario timeframe is the shared horizon for planning and projections.
+    windowConfig = scenario?.timeframe || scenario?.projection?.config;
   }
 
   if (!windowConfig) {

@@ -558,9 +558,10 @@ function mergeFloorConstraints({ goals, constraints }) {
 }
 
 function getAdvancedGoalSolverWindow(scenario) {
+  const scenarioTimeframe = scenario?.timeframe || {};
   const projectionConfig = scenario?.projection?.config || {};
-  const fallbackStart = projectionConfig.startDate || formatDateOnly(new Date());
-  const fallbackEnd = projectionConfig.endDate || fallbackStart;
+  const fallbackStart = scenarioTimeframe.startDate || projectionConfig.startDate || formatDateOnly(new Date());
+  const fallbackEnd = scenarioTimeframe.endDate || projectionConfig.endDate || fallbackStart;
 
   const planning = scenario?.planning && typeof scenario.planning === 'object' ? scenario.planning : {};
   const raw = planning?.advancedGoalSolver && typeof planning.advancedGoalSolver === 'object' ? planning.advancedGoalSolver : {};
@@ -620,7 +621,7 @@ export function buildGoalRequirements({ scenario, goals, baselineProjectionsByAc
     const startDate = goal.startDate || scenarioStart;
     const endDate = goal.endDate || scenarioEnd;
 
-    // Goals must be solvable within the scenario projection window.
+    // Goals must be solvable within the selected planning horizon.
     // If goal dates fall outside the scenario range, projections cannot validate the goal correctly.
     if (toDateKey(startDate) < scenarioStartKey) {
       issues.push(

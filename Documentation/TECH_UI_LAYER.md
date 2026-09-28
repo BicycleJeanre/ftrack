@@ -64,14 +64,11 @@ selection, and refresh behavior across the visible sections.
 - **Summary presentation**: Uses compact cards. General, Funds, Debt
   Repayment, and Goal Workshop default to Recurring; Period is the budget and
   actual-tracking view in the same component.
-- **Detail presentation**:
-  - **Plan Rules (Detail)** defaults to a Tabulator of recurring rule
-    segments with safe scoped editing and expandable rule metadata.
-  - **Plan & Actuals (Detail)** defaults to a Tabulator of resolved Period
-    occurrences with Date, Status, Money Movement, Description, Repeat,
-    Baseline, Current Plan, Actual, forecast/variance values, and Actions.
-  - Switching the detail component between Period and Recurring switches
-    between these two genuine table presentations.
+- **Detail presentation**: **Plan & Actuals (Detail)** is the single detail
+  route. Period renders resolved occurrences with Date, Status, Money
+  Movement, Description, Repeat, Baseline, Current Plan, Actual,
+  forecast/variance values, and Actions. Recurring renders rule segments with
+  safe scoped editing and expandable metadata.
 - **Workflow routing**: `workflow-registry.js` supplies the component surface,
   presentation, and default view through each workflow's `activity` contract.
 - **State**: The period type persists in `uiState.viewPeriodTypeIds.planActuals`.
@@ -148,8 +145,7 @@ Every main workflow uses the same financial-activity component:
 | Funds | Summary | Recurring |
 | Debt Repayment | Summary | Recurring |
 | Goal Workshop | Summary | Recurring |
-| Plan Rules (Detail) | Detail | Recurring |
-| Plan & Actuals (Detail) | Detail | Period |
+| Plan & Actuals (Detail) | Detail | Period (Recurring selectable) |
 
 The default does not remove the other subview. Both Period and Recurring
 remain available from the unified component.

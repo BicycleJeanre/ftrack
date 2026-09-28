@@ -58,14 +58,15 @@ function buildResolvedFlowOccurrences({
   asOfDate = null
 }) {
   const projectionConfig = scenario?.projection?.config || {};
+  const scenarioTimeframe = scenario?.timeframe || projectionConfig;
   const explicitAsOfDate =
     asOfDate instanceof Date ? asOfDate : toDateOrNull(asOfDate);
   const start =
-    toDateOrNull(projectionConfig.startDate) ||
+    toDateOrNull(scenarioTimeframe.startDate) ||
     new Date(1970, 0, 1);
   const end =
     explicitAsOfDate ||
-    toDateOrNull(projectionConfig.endDate) ||
+    toDateOrNull(scenarioTimeframe.endDate) ||
     new Date();
   if (end < start) return [];
 

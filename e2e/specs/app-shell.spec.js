@@ -16,8 +16,11 @@ test.describe('app shell and workflow navigation', () => {
     await expect(page.locator('#workflowNav')).toContainText('Funds');
     await expect(page.locator('#workflowNav')).toContainText('Debt Repayment');
     await expect(page.locator('#workflowNav')).toContainText('Goal Workshop');
-    await expect(page.locator('#workflowNav')).toContainText('Plan Rules (Detail)');
-    await expect(page.locator('#workflowNav')).toContainText('Plan & Actuals (Detail)');
+    await expect(page.locator('#workflowNav')).not.toContainText('Plan Rules (Detail)');
+    await expect(page.locator('#workflowNav').getByRole('button', {
+      name: 'Plan & Actuals (Detail)',
+      exact: true
+    })).toHaveCount(1);
   });
 
   test('switches workflow cards according to the frontend registry', async ({ page }) => {
@@ -63,6 +66,44 @@ test.describe('app shell and workflow navigation', () => {
     await newScenario.locator('button[title="Delete Scenario"]').click();
     await confirmDialog(page);
     await waitForScenarioCount(page, before);
+  });
+
+  test('edits the shared scenario timeframe from the scenario card', async ({ page }) => {
+    await openSidebar(page);
+    const scenario = (await readAppData(page)).scenarios[0];
+    const card = page.locator(`.scenario-list-item[data-scenario-id="${scenario.id}"]`);
+
+    await card.locator('button[title="Set scenario timeframe"]').click();
+    await page.locator('#timeframe-start-date').fill('2026-02-01');
+    await page.locator('#timeframe-end-date').fill('2026-10-31');
+    await page.locator('#timeframe-period-type').selectOption('4');
+    await page.locator('button[title="Save scenario timeframe"]').click();
+
+    await expect.poll(async () => {
+      const data = await readAppData(page);
+      const saved = data.scenarios.find((entry) => Number(entry.id) === Number(scenario.id));
+      return {
+        timeframe: saved?.timeframe,
+        projectionWindow: saved?.projection?.config && {
+          startDate: saved.projection.config.startDate,
+          endDate: saved.projection.config.endDate,
+          periodTypeId: saved.projection.config.periodTypeId
+        }
+      };
+    }).toEqual({
+      timeframe: {
+        startDate: '2026-02-01',
+        endDate: '2026-10-31',
+        periodTypeId: 4
+      },
+      projectionWindow: {
+        startDate: '2026-02-01',
+        endDate: '2026-10-31',
+        periodTypeId: 4
+      }
+    });
+    await expect(card.locator('.scenario-timeframe-summary'))
+      .toContainText('2026-02-01 → 2026-10-31 · Quarterly');
   });
 
   test('clears every financial surface after deleting the sole scenario', async ({ page }) => {

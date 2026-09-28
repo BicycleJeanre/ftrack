@@ -33,11 +33,11 @@ type UiState = {
 1.1.2 Schema Versioning
 
 - `schemaVersion` is incremented for breaking storage changes.
-- The unified rule/occurrence workflow uses `schemaVersion = 44`.
+- The scenario-timeframe workflow uses `schemaVersion = 45`.
 - Data Check normalizes the retired `budget` workflow preference to `general`.
   Legacy budget rows still migrate into occurrences and ambiguous source links
   remain available in the recovery-review queue.
-- Schema 44 migration reports are stored at the app-data root so automatic and
+- Migration reports are stored at the app-data root so automatic and
   imported migrations remain inspectable and recoverable.
 
 1.1.3 Period Views Are Not Projections
@@ -51,7 +51,7 @@ type UiState = {
 ```typescript
 type MigrationReport = {
   fromSchemaVersion: number | null,
-  toSchemaVersion: 44,
+  toSchemaVersion: 45,
   migratedAt: string,
   summary: {
     scenarioCount: number,
@@ -95,7 +95,7 @@ read-only preflight before import:
 1. Parse the selected JSON source.
 2. Reject non-object data, a missing `scenarios` array, malformed JSON, and
    future schema versions.
-3. Migrate older schemas or sanitize schema 44 data in memory.
+3. Migrate older schemas or sanitize schema 45 data in memory.
 4. Validate the exact prepared object with the application validation service.
 5. When validation fails, compute an optional safe-repair proposal from a copy.
    Repairs include lossless numeric-string normalization in supported financial
@@ -178,8 +178,9 @@ scenarios.
 | `transactions` | Transaction[] | No | Can be empty |
 | `transactionOccurrences` | TransactionOccurrence[] | Yes | Stored overrides, actuals, skips, manual items, and frozen baselines |
 | `baselinePeriods` | BaselinePeriod[] | Yes | Periods whose occurrence baselines have been frozen |
+| `timeframe` | ScenarioTimeframe | Yes | Shared Start, End, and Period Type for the scenario planning horizon |
 | `projection` | ProjectionBundle \| null | No | Stored projection config and last generated results |
-| `planning` | ScenarioPlanning \| null | No | Planning windows used by goal tooling; independent of projection config |
+| `planning` | ScenarioPlanning \| null | No | Optional narrower planning windows used by goal tooling |
 
 ### 2.3 ScenarioLineage
 
@@ -208,7 +209,17 @@ type AccountGroup = {
 
 ### 2.4 ProjectionBundle
 
-Projection settings are stored under `scenario.projection.config` (not on the scenario root).
+The shared planning horizon is stored at `scenario.timeframe`. Projection
+configuration mirrors those three horizon fields for compatibility and adds
+projection-only date-policy settings.
+
+```typescript
+type ScenarioTimeframe = {
+  startDate: string,
+  endDate: string,
+  periodTypeId: number
+}
+```
 
 ```typescript
 type ProjectionBundle = {
@@ -239,7 +250,7 @@ type ProjectionConfig = {
 - Skipped occurrences are excluded.
 - Manual occurrences are included.
 - There is one resolved-plan projection source. `projection.config.source` is
-  not valid in schemaVersion 44.
+  not valid in schemaVersion 45.
 - When `asOfDate` is supplied, unresolved items before that date are flagged overdue and forecast at the as-of date.
 - `openCommitmentStartDate` can explicitly widen rule expansion before the projection start so older unresolved commitments are carried into the current window.
 
@@ -273,11 +284,12 @@ occurrences as `baselineAmount`.
 
 ## 2.5 ScenarioPlanning
 
-Goal tooling uses explicit planning windows that can differ from the projection window.
+Goal tooling uses explicit planning windows that can be narrower than the
+scenario timeframe.
 
 2.5.1 Rules
 
-- Planning windows default to the projection window (`scenario.projection.config.startDate/endDate`) when missing.
+- Planning windows default to `scenario.timeframe` when missing.
 - Goal Workshop Simple mode uses `scenario.planning.generatePlan` as the planning horizon.
 - Goal Workshop Advanced mode uses `scenario.planning.advancedGoalSolver` as the solver horizon.
 - `scenario.planning.goalWorkshopMode` stores the active mode (`'simple'` or `'advanced'`); defaults to auto-detect if absent.

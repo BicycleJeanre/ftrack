@@ -28,6 +28,7 @@ function getDefaultDates() {
  * @param {number} options.defaultPeriodTypeId - Default period type (1-5)
  * @param {string} options.defaultStartDate - Initial start date (YYYY-MM-DD format); uses default if not provided
  * @param {string} options.defaultEndDate - Initial end date (YYYY-MM-DD format); uses default if not provided
+ * @param {string} options.confirmTitle - Accessible label for the confirm action
  * @param {Function} options.onConfirm - Callback with {startDate, endDate, periodTypeId}
  */
 export function openTimeframeModal({
@@ -36,6 +37,7 @@ export function openTimeframeModal({
   defaultPeriodTypeId = 3, // Month
   defaultStartDate = null,
   defaultEndDate = null,
+  confirmTitle = 'Generate',
   onConfirm
 } = {}) {
   const { modal, close } = createModal({ contentClass: 'modal-timeframe' });
@@ -74,7 +76,7 @@ export function openTimeframeModal({
       <button id="timeframe-cancel-btn" class="icon-btn" title="Cancel">
         ✕
       </button>
-      <button id="timeframe-confirm-btn" class="icon-btn icon-btn--primary" title="Generate">
+      <button id="timeframe-confirm-btn" class="icon-btn icon-btn--primary" title="${escapeHtml(confirmTitle)}">
         ✓
       </button>
     </div>

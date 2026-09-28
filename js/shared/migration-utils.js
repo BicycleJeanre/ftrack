@@ -1,4 +1,4 @@
-// Browser-safe migration helpers for upgrading legacy app data to schemaVersion 44.
+// Browser-safe migration helpers for upgrading legacy app data to schemaVersion 45.
 // Runtime callers persist the returned app data, including its recovery-oriented
 // migrationReport. This module has no Node.js dependencies.
 
@@ -788,7 +788,7 @@ function migrateScenario({ legacyScenario, scenarioIndex, report, migratedAt }) 
 }
 
 /**
- * Migrate app data to schemaVersion 44.
+ * Migrate app data to schemaVersion 45.
  *
  * The return value remains AppData for compatibility with existing callers.
  * Migration diagnostics and raw recovery records are stored at
@@ -809,6 +809,49 @@ export function migrateAppData(legacy, { now = new Date().toISOString() } = {}) 
     throw new Error(
       `Cannot migrate future schemaVersion ${legacy.schemaVersion} to ${CURRENT_SCHEMA_VERSION}.`
     );
+  }
+
+  if (Number(legacy?.schemaVersion) === 44) {
+    const migratedAt = typeof now === 'string' && now ? now : new Date().toISOString();
+    const migrated = sanitizeAppDataForWrite({
+      ...legacy,
+      schemaVersion: CURRENT_SCHEMA_VERSION
+    });
+    const existingReport =
+      legacy?.migrationReport && typeof legacy.migrationReport === 'object'
+        ? clonePlain(legacy.migrationReport)
+        : null;
+    migrated.migrationReport = existingReport
+      ? {
+          ...existingReport,
+          toSchemaVersion: CURRENT_SCHEMA_VERSION,
+          schema45UpgradedAt: migratedAt
+        }
+      : {
+          fromSchemaVersion: 44,
+          toSchemaVersion: CURRENT_SCHEMA_VERSION,
+          migratedAt,
+          summary: {
+            scenarioCount: migrated.scenarios.length,
+            rulesRetained: migrated.scenarios.reduce(
+              (sum, scenario) => sum + (scenario.transactions?.length || 0),
+              0
+            ),
+            legacyBudgetRows: 0,
+            occurrencesCreated: 0,
+            actualTransactionsConverted: 0,
+            projectionRowsCleared: 0,
+            warningCount: 0,
+            recoveryRecordCount: 0
+          },
+          scenarios: migrated.scenarios.map((scenario) => ({
+            scenarioId: scenario.id,
+            scenarioName: scenario.name,
+            summary: {},
+            issues: []
+          }))
+        };
+    return sanitizeAppDataForWrite(migrated);
   }
 
   const fromSchemaVersion =

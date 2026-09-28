@@ -36,16 +36,13 @@ test('legacy Budget workflow references route to General without exposing duplic
   assert.equal(getWorkflowById('budget')?.id, 'general');
 });
 
-test('both planning detail routes use the unified detail presentation', () => {
-  const planRules = getWorkflowById('transactions-detail');
-  const planActuals = getWorkflowById('budget-detail');
+test('planning detail routes resolve to one selector-driven detail workflow', () => {
+  const planActuals = getWorkflowById('plan-actuals-detail');
 
-  assert.equal(planRules.name, 'Plan Rules (Detail)');
-  assert.deepEqual(getWorkflowActivity(planRules), {
-    surface: 'planActuals',
-    presentation: 'detail',
-    defaultView: 'recurring'
-  });
+  assert.equal(WORKFLOWS.some((workflow) => workflow.id === 'transactions-detail'), false);
+  assert.equal(WORKFLOWS.some((workflow) => workflow.id === 'budget-detail'), false);
+  assert.equal(getWorkflowById('transactions-detail')?.id, 'plan-actuals-detail');
+  assert.equal(getWorkflowById('budget-detail')?.id, 'plan-actuals-detail');
   assert.deepEqual(getWorkflowActivity(planActuals), {
     surface: 'planActuals',
     presentation: 'detail',
