@@ -44,6 +44,9 @@ const TransactionManager = await import('../../js/app/managers/transaction-manag
 const { resolveScenarioOccurrences } = await import(
   '../../js/domain/queries/resolve-scenario-occurrences.js'
 );
+const { validateAppData } = await import(
+  '../../js/app/services/validation-service.js'
+);
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -272,27 +275,93 @@ test('updateOccurrenceOnly can restore a skipped occurrence without losing its b
   assert.equal(resolved.isIncludedInForecast, true);
 });
 
-test('markActual automatically freezes the period before storing actual amount and date', async () => {
+test('deleteOccurrencePermanently removes a skipped manual transaction', async () => {
+  const created = await OccurrenceManager.createManualOccurrence(1, {
+    scheduledDate: '2026-02-10',
+    plannedAmount: 45,
+    status: 'planned',
+    primaryAccountId: 1,
+    secondaryAccountId: 2,
+    transactionTypeId: 2,
+    description: 'Temporary fee'
+  });
+  const key = created.occurrence.occurrenceKey;
+
+  await OccurrenceManager.markSkipped(1, key);
+  await OccurrenceManager.deleteOccurrencePermanently(1, key);
+
+  const current = await scenario();
+  assert.equal(
+    current.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === key
+    ),
+    false
+  );
+  assert.equal(
+    resolveWindow(current, '2026-02-01', '2026-02-28').some(
+      (occurrence) => occurrence.occurrenceKey === key
+    ),
+    false
+  );
+});
+
+test('deleteOccurrencePermanently protects actual and recurring transactions', async () => {
+  const recurringKey = 'tx:10|date:2026-02-15|role:none';
+  await assert.rejects(
+    OccurrenceManager.deleteOccurrencePermanently(1, recurringKey),
+    (error) => error?.code === 'recurring-delete-scope-required'
+  );
+
+  const created = await OccurrenceManager.createManualOccurrence(1, {
+    scheduledDate: '2026-02-12',
+    actualAmount: 55,
+    status: 'actual',
+    primaryAccountId: 1,
+    secondaryAccountId: 2,
+    transactionTypeId: 2,
+    description: 'Protected actual'
+  });
+  await assert.rejects(
+    OccurrenceManager.deleteOccurrencePermanently(
+      1,
+      created.occurrence.occurrenceKey
+    ),
+    (error) => error?.code === 'actual-history-protected'
+  );
+});
+
+test('endSeries can discard a skipped boundary while preserving earlier history', async () => {
   const key = 'tx:10|date:2026-02-15|role:none';
-  await OccurrenceManager.markActual(1, key, {
-    actualAmount: 120,
-    actualDate: '2026-02-17',
-    period: {
-      periodTypeId: 3,
-      startDate: '2026-02-01',
-      endDate: '2026-02-28'
-    }
+  await OccurrenceManager.markSkipped(1, key);
+
+  const result = await OccurrenceManager.endSeries(1, key, {
+    discardSkippedBoundary: true
   });
 
   const current = await scenario();
-  assert.deepEqual(
-    current.baselinePeriods.map(({ periodTypeId, startDate, endDate }) => ({
-      periodTypeId,
-      startDate,
-      endDate
-    })),
-    [{ periodTypeId: 3, startDate: '2026-02-01', endDate: '2026-02-28' }]
+  assert.equal(
+    current.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === key
+    ),
+    false
   );
+  assert.equal(result.preservedHistory.length, 0);
+  assert.deepEqual(
+    resolveWindow(current, '2026-01-01', '2026-04-30')
+      .map((occurrence) => occurrence.scheduledDate),
+    ['2026-01-15']
+  );
+});
+
+test('markActual captures only the occurrence baseline without closing the period', async () => {
+  const key = 'tx:10|date:2026-02-15|role:none';
+  await OccurrenceManager.markActual(1, key, {
+    actualAmount: 120,
+    actualDate: '2026-02-17'
+  });
+
+  const current = await scenario();
+  assert.equal(current.baselinePeriods.length, 0);
   const stored = current.transactionOccurrences.find(
     (occurrence) => occurrence.occurrenceKey === key
   );
@@ -301,11 +370,126 @@ test('markActual automatically freezes the period before storing actual amount a
   assert.equal(stored.actualAmount, 120);
   assert.equal(stored.actualDate, '2026-02-17');
   assert.equal(stored.status, 'actual');
+  assert.equal(stored.baselineSnapshotVersion, 1);
 
   const [resolved] = resolveWindow(current, '2026-02-01', '2026-02-28');
   assert.equal(resolved.status, 'actual');
+  assert.equal(resolved.baselinePeriodClosed, false);
   assert.equal(resolved.forecastAmount, 120);
   assert.equal(resolved.effectiveDate, '2026-02-17');
+});
+
+test('actual occurrences can edit movement details and then be restored to planned', async () => {
+  const key = 'tx:10|date:2026-02-15|role:none';
+  await OccurrenceManager.markActual(1, key, {
+    actualAmount: 120,
+    actualDate: '2026-02-17'
+  });
+  await OccurrenceManager.updateActualOccurrence(1, key, {
+    primaryAccountId: 3,
+    secondaryAccountId: 1,
+    transactionTypeId: 1,
+    plannedAmount: 110,
+    actualAmount: 125,
+    actualDate: '2026-02-18',
+    description: 'Edited actual'
+  });
+
+  let current = await scenario();
+  let stored = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === key
+  );
+  assert.equal(stored.status, 'actual');
+  assert.equal(stored.primaryAccountId, 3);
+  assert.equal(stored.secondaryAccountId, 1);
+  assert.equal(stored.transactionTypeId, 1);
+  assert.equal(stored.plannedAmount, 110);
+  assert.equal(stored.actualAmount, 125);
+  assert.equal(stored.actualDate, '2026-02-18');
+  assert.equal(stored.description, 'Edited actual');
+  assert.equal(stored.baselinePrimaryAccountId, 1);
+  assert.equal(stored.baselineSecondaryAccountId, 2);
+  assert.equal(stored.baselineTransactionTypeId, 2);
+
+  await OccurrenceManager.restoreActualToPlanned(1, key, {
+    plannedAmount: 130
+  });
+  current = await scenario();
+  stored = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === key
+  );
+  assert.equal(stored.status, 'planned');
+  assert.equal(stored.plannedAmount, 130);
+  assert.equal(stored.actualAmount, null);
+  assert.equal(stored.actualDate, null);
+  assert.equal(stored.actualSnapshotVersion, null);
+  assert.equal(stored.baselineAmount, null);
+  assert.equal(stored.baselineSnapshotVersion, null);
+});
+
+test('restoring an unplanned manual actual uses its actual amount as the new plan', async () => {
+  const created = await OccurrenceManager.createManualOccurrence(1, {
+    scheduledDate: '2026-02-12',
+    actualDate: '2026-02-12',
+    actualAmount: 55,
+    status: 'actual',
+    primaryAccountId: 1,
+    secondaryAccountId: 2,
+    transactionTypeId: 2,
+    description: 'Unexpected repair'
+  });
+  await OccurrenceManager.restoreActualToPlanned(
+    1,
+    created.occurrence.occurrenceKey
+  );
+
+  const current = await scenario();
+  const stored = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === created.occurrence.occurrenceKey
+  );
+  assert.equal(stored.status, 'planned');
+  assert.equal(stored.plannedAmount, 55);
+  assert.equal(stored.actualAmount, null);
+  assert.equal(stored.baselineAmount, null);
+  assert.equal(stored.baselineSnapshotVersion, null);
+});
+
+test('repeat edits from an actual occurrence revise only the future recurring segment', async () => {
+  const key = 'tx:10|date:2026-01-15|role:none';
+  await OccurrenceManager.markActual(1, key, {
+    actualAmount: 105,
+    actualDate: '2026-01-16'
+  });
+  await OccurrenceManager.updateRecurringRuleAfterActual(1, key, {
+    amount: 130,
+    primaryAccountId: 3,
+    secondaryAccountId: 1,
+    transactionTypeId: 1,
+    recurrence: {
+      recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+      startDate: '2026-01-15',
+      endDate: '2026-04-30',
+      interval: 1,
+      dayOfMonth: 20
+    }
+  });
+
+  const current = await scenario();
+  const actual = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === key
+  );
+  const futureRule = current.transactions.find(
+    (transaction) => Number(transaction.supersedesTransactionId) === 10
+  );
+  assert.equal(actual.status, 'actual');
+  assert.equal(actual.actualAmount, 105);
+  assert.equal(current.transactions.find((transaction) => transaction.id === 10).activeTo, '2026-02-14');
+  assert.equal(futureRule.activeFrom, '2026-02-15');
+  assert.equal(futureRule.amount, 130);
+  assert.equal(futureRule.primaryAccountId, 3);
+  assert.equal(futureRule.secondaryAccountId, 1);
+  assert.equal(futureRule.transactionTypeId, 1);
+  assert.equal(futureRule.recurrence.dayOfMonth, 20);
 });
 
 test('markActual snapshots nullable movement and rule metadata before direct rule edits', async () => {
@@ -322,12 +506,7 @@ test('markActual snapshots nullable movement and rule metadata before direct rul
   const key = 'tx:10|date:2026-01-15|role:none';
   await OccurrenceManager.markActual(1, key, {
     actualAmount: 105,
-    actualDate: '2026-01-16',
-    period: {
-      periodTypeId: 3,
-      startDate: '2026-01-01',
-      endDate: '2026-01-31'
-    }
+    actualDate: '2026-01-16'
   });
 
   const current = await scenario();
@@ -389,8 +568,194 @@ test('freezePeriodBaseline is idempotent and lets later rule changes inherit cur
   await TransactionManager.saveAll(1, current.transactions);
   current = await scenario();
   const [resolved] = resolveWindow(current, '2026-02-01', '2026-02-28');
+  assert.equal(resolved.baselinePeriodClosed, true);
   assert.equal(resolved.baselineAmount, 100);
   assert.equal(resolved.plannedAmount, 140);
+});
+
+test('unfreezePeriodBaseline removes generated snapshots and returns the period to a live baseline', async () => {
+  const period = {
+    periodTypeId: 3,
+    startDate: '2026-02-01',
+    endDate: '2026-02-28'
+  };
+  await OccurrenceManager.freezePeriodBaseline(1, period);
+  await OccurrenceManager.unfreezePeriodBaseline(1, period);
+
+  const current = await scenario();
+  assert.equal(current.baselinePeriods.length, 0);
+  assert.equal(current.transactionOccurrences.length, 0);
+
+  const [resolved] = resolveWindow(current, period.startDate, period.endDate);
+  assert.equal(resolved.baselineState, 'derived');
+  assert.equal(resolved.baselineSnapshotVersion, null);
+  assert.equal(resolved.baselineAmount, resolved.plannedAmount);
+});
+
+test('reopening a period preserves actual history while clearing its closed comparison', async () => {
+  const period = {
+    periodTypeId: 3,
+    startDate: '2026-02-01',
+    endDate: '2026-02-28'
+  };
+  const key = 'tx:10|date:2026-02-15|role:none';
+  await OccurrenceManager.freezePeriodBaseline(1, period);
+  await OccurrenceManager.markActual(1, key, {
+    actualAmount: 120,
+    actualDate: '2026-02-17'
+  });
+  await OccurrenceManager.unfreezePeriodBaseline(1, period);
+
+  const current = await scenario();
+  const stored = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === key
+  );
+  assert.equal(current.baselinePeriods.length, 0);
+  assert.equal(stored.status, 'actual');
+  assert.equal(stored.actualAmount, 120);
+  assert.equal(stored.actualDate, '2026-02-17');
+  assert.equal(stored.baselineAmount, null);
+  assert.equal(stored.baselineSnapshotVersion, null);
+});
+
+test('unfreezePeriodBaseline keeps snapshots covered by another frozen period', async () => {
+  const year = {
+    periodTypeId: 5,
+    startDate: '2026-01-01',
+    endDate: '2026-12-31'
+  };
+  const february = {
+    periodTypeId: 3,
+    startDate: '2026-02-01',
+    endDate: '2026-02-28'
+  };
+  await OccurrenceManager.freezePeriodBaseline(1, year);
+  await OccurrenceManager.freezePeriodBaseline(1, february);
+  await OccurrenceManager.unfreezePeriodBaseline(1, february);
+
+  let current = await scenario();
+  assert.equal(current.baselinePeriods.length, 1);
+  assert.equal(current.baselinePeriods[0].periodTypeId, 5);
+  assert.equal(current.transactionOccurrences.some(
+    (occurrence) => occurrence.scheduledDate === '2026-02-15' && occurrence.baselineAmount === 100
+  ), true);
+
+  await OccurrenceManager.unfreezePeriodBaseline(1, year);
+  current = await scenario();
+  assert.equal(current.baselinePeriods.length, 0);
+  assert.equal(current.transactionOccurrences.length, 0);
+});
+
+test('unfreezeAllPeriodBaselines clears every marker and preserves actual history', async () => {
+  const january = {
+    periodTypeId: 3,
+    startDate: '2026-01-01',
+    endDate: '2026-01-31'
+  };
+  const february = {
+    periodTypeId: 3,
+    startDate: '2026-02-01',
+    endDate: '2026-02-28'
+  };
+  await OccurrenceManager.freezePeriodBaseline(1, january);
+  await OccurrenceManager.freezePeriodBaseline(1, february);
+  await OccurrenceManager.markActual(
+    1,
+    'tx:10|date:2026-02-15|role:none',
+    { actualAmount: 125, actualDate: '2026-02-16' }
+  );
+
+  const result = await OccurrenceManager.unfreezeAllPeriodBaselines(1);
+  const current = await scenario();
+  const storedActual = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === 'tx:10|date:2026-02-15|role:none'
+  );
+  assert.equal(result.baselinePeriods.length, 2);
+  assert.equal(current.baselinePeriods.length, 0);
+  assert.equal(current.transactionOccurrences.some(
+    (occurrence) => occurrence.scheduledDate === '2026-01-15'
+  ), false);
+  assert.equal(storedActual.status, 'actual');
+  assert.equal(storedActual.actualAmount, 125);
+  assert.equal(storedActual.baselineAmount, null);
+  assert.equal(storedActual.baselineSnapshotVersion, null);
+});
+
+test('orphaned baseline snapshots remain manageable without period markers', async () => {
+  const plannedKey = 'tx:10|date:2026-02-15|role:none';
+  const actualKey = 'tx:10|date:2026-03-15|role:none';
+  await seed(baseData({
+    scenario: {
+      baselinePeriods: [],
+      transactionOccurrences: [
+        {
+          id: 20,
+          sourceTransactionId: 10,
+          occurrenceKey: plannedKey,
+          scheduledDate: '2026-02-15',
+          plannedDate: null,
+          actualDate: null,
+          baselineAmount: 100,
+          plannedAmount: 100,
+          actualAmount: null,
+          status: 'planned',
+          origin: 'generated',
+          isOverride: false,
+          baselinePrimaryAccountId: 1,
+          baselineSecondaryAccountId: 2,
+          baselineTransactionTypeId: 2,
+          baselineSnapshotVersion: 1
+        },
+        {
+          id: 21,
+          sourceTransactionId: 10,
+          occurrenceKey: actualKey,
+          scheduledDate: '2026-03-15',
+          plannedDate: null,
+          actualDate: '2026-03-16',
+          baselineAmount: 100,
+          plannedAmount: 100,
+          actualAmount: 105,
+          status: 'actual',
+          origin: 'generated',
+          isOverride: true,
+          actualSnapshotVersion: 1,
+          primaryAccountId: 1,
+          secondaryAccountId: 2,
+          transactionTypeId: 2,
+          baselinePrimaryAccountId: 1,
+          baselineSecondaryAccountId: 2,
+          baselineTransactionTypeId: 2,
+          baselineSnapshotVersion: 1
+        }
+      ]
+    }
+  }));
+
+  const clearedPlanned = await OccurrenceManager.clearOrphanedBaselineSnapshots(
+    1,
+    [plannedKey]
+  );
+  let current = await scenario();
+  assert.deepEqual(clearedPlanned.affectedOccurrenceKeys, [plannedKey]);
+  assert.equal(current.transactionOccurrences.some(
+    (occurrence) => occurrence.occurrenceKey === plannedKey
+  ), false);
+  assert.equal(current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === actualKey
+  ).baselineAmount, 100);
+
+  const clearedAll = await OccurrenceManager.unfreezeAllPeriodBaselines(1);
+  current = await scenario();
+  const actual = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === actualKey
+  );
+  assert.deepEqual(clearedAll.baselinePeriods, []);
+  assert.deepEqual(clearedAll.affectedOccurrenceKeys, [actualKey]);
+  assert.equal(actual.status, 'actual');
+  assert.equal(actual.actualAmount, 105);
+  assert.equal(actual.baselineAmount, null);
+  assert.equal(actual.baselineSnapshotVersion, null);
 });
 
 test('frozen baseline movement remains immutable when the current series direction changes', async () => {
@@ -440,12 +805,7 @@ test('createManualOccurrence creates planned and unplanned-actual rows with stab
     primaryAccountId: 1,
     secondaryAccountId: 2,
     transactionTypeId: 2,
-    description: 'Unexpected repair',
-    baselinePeriod: {
-      periodTypeId: 3,
-      startDate: '2026-02-01',
-      endDate: '2026-02-28'
-    }
+    description: 'Unexpected repair'
   });
 
   const current = await scenario();
@@ -457,9 +817,97 @@ test('createManualOccurrence creates planned and unplanned-actual rows with stab
   assert.equal(actual.plannedAmount, 0);
   assert.equal(actual.actualAmount, 55);
   assert.equal(actual.status, 'actual');
+  assert.equal(current.baselinePeriods.length, 0);
   const resolvedActual = resolveWindow(current, '2026-02-01', '2026-02-28')
     .find((occurrence) => occurrence.occurrenceKey === actual.occurrenceKey);
   assert.equal(resolvedActual.isUnplannedActual, true);
+});
+
+test('transaction line items calculate planned and actual occurrence totals', async () => {
+  const created = await OccurrenceManager.createManualOccurrence(1, {
+    scheduledDate: '2026-02-10',
+    plannedAmount: 999,
+    status: 'planned',
+    primaryAccountId: 1,
+    secondaryAccountId: 2,
+    transactionTypeId: 2,
+    description: 'Itemized shop spend',
+    lineItems: [
+      { id: 'purchase-1', date: '2026-02-03', description: 'First visit', amount: 20 },
+      { id: 'purchase-2', date: '2026-02-10', description: 'Second visit', amount: 35 }
+    ]
+  });
+
+  let current = await scenario();
+  let stored = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === created.occurrence.occurrenceKey
+  );
+  assert.equal(stored.plannedAmount, 55);
+  assert.equal(stored.lineItems.length, 2);
+
+  await OccurrenceManager.markActual(1, stored.occurrenceKey, {
+    actualAmount: 999,
+    actualDate: '2026-02-10',
+    lineItems: [
+      ...stored.lineItems,
+      { id: 'purchase-3', date: '2026-02-10', description: 'Third visit', amount: 10 }
+    ],
+    period: {
+      periodTypeId: 3,
+      startDate: '2026-02-01',
+      endDate: '2026-02-28'
+    }
+  });
+
+  current = await scenario();
+  stored = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === created.occurrence.occurrenceKey
+  );
+  assert.equal(stored.plannedAmount, 55);
+  assert.equal(stored.actualAmount, 65);
+  assert.equal(stored.lineItems.length, 3);
+});
+
+test('createRecurringRule saves one rule anchored to the edited transaction date', async () => {
+  const result = await OccurrenceManager.createRecurringRule(1, {
+    scheduledDate: '2026-01-15',
+    plannedAmount: 75,
+    primaryAccountId: 1,
+    secondaryAccountId: 2,
+    transactionTypeId: 2,
+    description: 'Atomic recurring cost',
+    recurrence: {
+      recurrenceType: { id: 4, name: 'Monthly - Day of Month' },
+      startDate: '2026-01-01',
+      endDate: '2026-03-31',
+      interval: 1,
+      dayOfMonth: 1
+    }
+  });
+
+  const current = await scenario();
+  const rule = current.transactions.find(
+    (transaction) => Number(transaction.id) === Number(result.transactionId)
+  );
+  assert.ok(rule);
+  assert.equal(rule.effectiveDate, '2026-01-15');
+  assert.equal(rule.activeFrom, '2026-01-15');
+  assert.equal(rule.recurrence.startDate, '2026-01-15');
+  assert.equal(rule.recurrence.dayOfMonth, 15);
+  assert.equal(rule.promotedFromOccurrenceKey, null);
+  assert.equal(
+    current.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Atomic recurring cost'
+    ),
+    false
+  );
+
+  const resolved = resolveWindow(current, '2026-01-01', '2026-03-31')
+    .filter((occurrence) => occurrence.description === 'Atomic recurring cost');
+  assert.deepEqual(
+    resolved.map((occurrence) => occurrence.scheduledDate),
+    ['2026-01-15', '2026-02-15', '2026-03-15']
+  );
 });
 
 test('promoteOccurrenceToRecurring preserves the manual occurrence and starts on the next recurrence date', async () => {
@@ -521,6 +969,11 @@ test('promoteOccurrenceToRecurring preserves the manual occurrence and starts on
 });
 
 test('rules introduced after a period freeze keep a zero baseline inside that period', async () => {
+  await OccurrenceManager.freezePeriodBaseline(1, {
+    periodTypeId: 3,
+    startDate: '2026-01-01',
+    endDate: '2026-01-31'
+  });
   const created = await OccurrenceManager.createManualOccurrence(1, {
     scheduledDate: '2026-01-05',
     actualDate: '2026-01-05',
@@ -658,15 +1111,87 @@ test('updateThisAndFuture segments the rule, preserves past actuals, and retarge
     futureOverride.occurrenceKey,
     `tx:${newRule.id}|date:2026-03-15|role:none`
   );
-  assert.equal(futureOverride.plannedAmount, 115);
+  assert.equal(futureOverride.plannedAmount, 150);
 
   const amounts = resolveWindow(current, '2026-01-01', '2026-03-31')
     .map((occurrence) => [occurrence.status, occurrence.plannedAmount, occurrence.actualAmount]);
   assert.deepEqual(amounts, [
     ['actual', 100, 105],
     ['planned', 150, null],
-    ['planned', 115, null]
+    ['planned', 150, null]
   ]);
+});
+
+test('this-and-future updates current plan while preserving captured future baselines', async () => {
+  await seed(baseData({
+    scenario: {
+      transactionOccurrences: [{
+        id: 2,
+        sourceTransactionId: 10,
+        occurrenceKey: 'tx:10|date:2026-03-15|role:none',
+        scheduledDate: '2026-03-15',
+        plannedDate: null,
+        actualDate: null,
+        baselineAmount: 100,
+        baselinePrimaryAccountId: 1,
+        baselineSecondaryAccountId: 2,
+        baselineTransactionTypeId: 2,
+        baselineSnapshotVersion: 1,
+        plannedAmount: 100,
+        actualAmount: null,
+        status: 'planned',
+        origin: 'generated',
+        isOverride: true
+      }]
+    }
+  }));
+
+  await OccurrenceManager.updateThisAndFuture(
+    1,
+    'tx:10|date:2026-02-15|role:none',
+    { amount: 150 }
+  );
+
+  const current = await scenario();
+  const march = resolveWindow(current, '2026-03-01', '2026-03-31')[0];
+  assert.equal(march.baselineAmount, 100);
+  assert.equal(march.plannedAmount, 150);
+  assert.equal(march.forecastAmount, 150);
+});
+
+test('this-and-future updates stored overrides when editing the first series occurrence', async () => {
+  await seed(baseData({
+    scenario: {
+      transactionOccurrences: [{
+        id: 2,
+        sourceTransactionId: 10,
+        occurrenceKey: 'tx:10|date:2026-03-15|role:none',
+        scheduledDate: '2026-03-15',
+        plannedDate: null,
+        actualDate: null,
+        baselineAmount: 100,
+        baselineSnapshotVersion: 1,
+        plannedAmount: 100,
+        actualAmount: null,
+        status: 'planned',
+        origin: 'generated',
+        isOverride: true
+      }]
+    }
+  }));
+
+  await OccurrenceManager.updateThisAndFuture(
+    1,
+    'tx:10|date:2026-01-15|role:none',
+    { amount: 160 }
+  );
+
+  const current = await scenario();
+  assert.equal(current.transactions.length, 1);
+  assert.equal(current.transactions[0].amount, 160);
+  const march = resolveWindow(current, '2026-03-01', '2026-03-31')[0];
+  assert.equal(march.baselineAmount, 100);
+  assert.equal(march.plannedAmount, 160);
 });
 
 test('updateEntireSeries protects past rules and changes current and future unresolved segments', async () => {
@@ -783,12 +1308,7 @@ test('updateSplitSeries atomically segments all roles and preserves past actual 
     'tx:10|date:2026-01-15|role:principal',
     {
       actualAmount: 82,
-      actualDate: '2026-01-16',
-      period: {
-        periodTypeId: 3,
-        startDate: '2026-01-01',
-        endDate: '2026-01-31'
-      }
+      actualDate: '2026-01-16'
     }
   );
   dispatchedEvents.length = 0;
@@ -1014,12 +1534,7 @@ test('endSeries truncates a recurring rule before the boundary and preserves pas
     'tx:10|date:2026-01-15|role:none',
     {
       actualAmount: 105,
-      actualDate: '2026-01-16',
-      period: {
-        periodTypeId: 3,
-        startDate: '2026-01-01',
-        endDate: '2026-01-31'
-      }
+      actualDate: '2026-01-16'
     }
   );
   await OccurrenceManager.updateOccurrenceOnly(
@@ -1089,12 +1604,7 @@ test('endSeries truncates every split role and split-set component atomically', 
     'tx:10|date:2026-01-15|role:principal',
     {
       actualAmount: 82,
-      actualDate: '2026-01-16',
-      period: {
-        periodTypeId: 3,
-        startDate: '2026-01-01',
-        endDate: '2026-01-31'
-      }
+      actualDate: '2026-01-16'
     }
   );
   dispatchedEvents.length = 0;
@@ -1145,12 +1655,7 @@ test('endSeries removes later split segments while retaining the bounded histori
     'tx:10|date:2026-01-15|role:principal',
     {
       actualAmount: 82,
-      actualDate: '2026-01-16',
-      period: {
-        periodTypeId: 3,
-        startDate: '2026-01-01',
-        endDate: '2026-01-31'
-      }
+      actualDate: '2026-01-16'
     }
   );
   const segmented = await OccurrenceManager.updateThisAndFuture(
@@ -1208,7 +1713,7 @@ test('endSeries removes later split segments while retaining the bounded histori
   assert.equal(dispatchedEvents.length, 1);
 });
 
-test('endSeries rejects a boundary before protected future history without partial writes', async () => {
+test('endSeries preserves protected future actual history as a manual occurrence', async () => {
   await seed(baseData({
     scenario: {
       transactionOccurrences: [{
@@ -1228,23 +1733,94 @@ test('endSeries rejects a boundary before protected future history without parti
       }]
     }
   }));
-  const before = await scenario();
   dispatchedEvents.length = 0;
 
-  await assert.rejects(
-    () => OccurrenceManager.endSeries(
-      1,
-      'tx:10|date:2026-02-15|role:none'
-    ),
-    (error) => (
-      error?.code === 'series-history-conflict' &&
-      error?.details?.occurrenceKeys?.[0] ===
-        'tx:10|date:2026-04-15|role:none'
-    )
+  const result = await OccurrenceManager.endSeries(
+    1,
+    'tx:10|date:2026-02-15|role:none'
   );
 
-  assert.deepEqual(await scenario(), before);
-  assert.equal(dispatchedEvents.length, 0);
+  const current = await scenario();
+  const preserved = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === 'occurrence:1'
+  );
+  assert.deepEqual(result.preservedHistory, [{
+    previousOccurrenceKey: 'tx:10|date:2026-04-15|role:none',
+    occurrenceKey: 'occurrence:1',
+    scheduledDate: '2026-04-15',
+    status: 'actual'
+  }]);
+  assert.equal(current.transactions[0].activeTo, '2026-02-14');
+  assert.equal(current.transactions[0].recurrence.endDate, '2026-02-14');
+  assert.equal(preserved.sourceTransactionId, null);
+  assert.equal(preserved.status, 'actual');
+  assert.equal(preserved.actualAmount, 107);
+  assert.equal(preserved.baselineAmount, 100);
+  assert.ok(preserved.tags.includes('series-history-preserved'));
+  assert.equal(
+    current.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey ===
+        'tx:10|date:2026-04-15|role:none'
+    ),
+    false
+  );
+  const validation = validateAppData(await DataStore.read());
+  const occurrenceIssues = validation.scenarios.flatMap(
+    (entry) => entry.issues.filter((issue) => issue.path.startsWith('transactionOccurrences'))
+  );
+  assert.deepEqual(occurrenceIssues, []);
+  assert.equal(dispatchedEvents.length, 1);
+});
+
+test('endSeries preserves a future baseline snapshot without leaving a future plan', async () => {
+  await seed(baseData({
+    scenario: {
+      transactionOccurrences: [{
+        id: 2,
+        sourceTransactionId: 10,
+        occurrenceKey: 'tx:10|date:2026-04-15|role:none',
+        scheduledDate: '2026-04-15',
+        plannedDate: null,
+        actualDate: null,
+        baselineAmount: 100,
+        plannedAmount: 125,
+        actualAmount: null,
+        status: 'planned',
+        origin: 'generated',
+        isOverride: true,
+        baselinePrimaryAccountId: 1,
+        baselineSecondaryAccountId: 2,
+        baselineTransactionTypeId: 2,
+        baselineSnapshotVersion: 1
+      }]
+    }
+  }));
+
+  const result = await OccurrenceManager.endSeries(
+    1,
+    'tx:10|date:2026-02-15|role:none'
+  );
+
+  const current = await scenario();
+  const preserved = current.transactionOccurrences.find(
+    (occurrence) => occurrence.occurrenceKey === 'occurrence:2'
+  );
+  assert.equal(result.preservedHistory[0].status, 'skipped');
+  assert.equal(preserved.sourceTransactionId, null);
+  assert.equal(preserved.status, 'skipped');
+  assert.equal(preserved.plannedAmount, 125);
+  assert.equal(preserved.baselineAmount, 100);
+  assert.deepEqual(
+    resolveWindow(current, '2026-02-01', '2026-04-30').map(
+      (occurrence) => [occurrence.scheduledDate, occurrence.status]
+    ),
+    [['2026-04-15', 'skipped']]
+  );
+  const validation = validateAppData(await DataStore.read());
+  const occurrenceIssues = validation.scenarios.flatMap(
+    (entry) => entry.issues.filter((issue) => issue.path.startsWith('transactionOccurrences'))
+  );
+  assert.deepEqual(occurrenceIssues, []);
 });
 
 test('series commands reject a boundary that would rewrite actual history', async () => {

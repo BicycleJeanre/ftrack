@@ -134,16 +134,16 @@ preserving exceptions and history.
 
 ### 2.5 Baseline, Current Plan, and Actual
 
-- **Baseline** is the plan frozen for comparison.
+- **Baseline** is the plan captured for comparison.
 - **Current plan** is the latest plan after adjustments.
 - **Actual** is what happened, including its realized amount and date.
 
-At first, an unfrozen baseline follows the current plan. Click
-**Freeze baseline** when the selected period is ready for tracking. If you
-record an actual first, FTrack freezes that period automatically before saving
-the actual.
+At first, a live baseline follows the current plan. Marking an item Actual
+captures only that item's comparison baseline. Open **History** when a complete
+period should become protected history. The manager defaults to Month and lets
+you close or reopen exact date ranges without depending on the display view.
 
-Later rule or occurrence edits change Current plan, not the frozen Baseline.
+Later rule or occurrence edits change Current plan, not the captured Baseline.
 This lets you answer both:
 
 - “How did reality compare with the plan we started with?”
@@ -285,6 +285,27 @@ Each item shows:
 - Variance.
 
 Use View, Period, and previous/next controls to navigate.
+Select the secondary-account name at the top of a transaction card to switch
+the Account filter directly to that account. The same shortcut is available on
+the Money Movement value in the Plan & Actuals detail table.
+
+### 3.5.1 Try a Period What-If
+
+Use **＋ What-if** to copy the currently selected period into a named planning
+snapshot. The **Snapshot** selector switches between **Base** and the what-if
+snapshots saved for that exact period.
+
+Inside a what-if snapshot you can:
+
+- change planned amounts, dates, accounts, movement, descriptions, and line items;
+- skip or restore an item;
+- add, duplicate, or remove items; and
+- see totals recalculate from the snapshot values.
+
+These changes do not alter Base, recurring rules, projections, or actual
+history. Actual rows are included for comparison and remain read-only. Select
+**Base** to return to the live plan. Use **⌫ What-if** to remove only the
+selected snapshot.
 
 ### 3.6 Add One-Time Items
 
@@ -304,6 +325,8 @@ When editing an occurrence linked to a recurring rule:
 
 - **This occurrence only** changes only that dated item.
 - **This and future** starts a new rule segment from the selected occurrence.
+  The revised amount and other current-plan fields replace stale values on all
+  unresolved future occurrences, while captured baselines remain unchanged.
 - **Entire series** changes the current and future segments in the logical
   series.
 
@@ -326,11 +349,14 @@ change.
 Recurring also lets you duplicate a normal rule or a whole split set. Use
 **End recurring series** to stop the rule before its next unresolved
 occurrence. FTrack retains prior actuals, skips, and frozen baselines and
-refuses to end a series across protected future history.
+retains protected future actuals, skips, and baseline snapshots as independent
+one-time history. Only unresolved future plans are removed.
 
-From a Period card, **Remove this occurrence** affects only that date.
-**Delete this and future occurrences** ends the linked rule from the selected
-date forward after confirmation.
+From a Period card, **Skip this occurrence** excludes only that date and can be
+reversed with **Restore to planned**. **Delete transaction permanently** removes
+a non-actual one-time transaction after confirmation. **Delete this and future
+occurrences** ends a linked recurring rule from the selected date forward,
+including when the selected occurrence is already skipped.
 
 For a grouped cost such as Running Costs, select **Create recurring
 transaction with line items**. Choose the paying account once, then use **Add
@@ -347,12 +373,22 @@ grouped recurring transaction.
 Repeat going forward is especially useful when an “unexpected” cost from one
 period turns out to be a new regular cost.
 
+For a brand-new planned recurring transaction, choose its Date and Repeat
+pattern before clicking **Add item**. FTrack saves one recurring rule, using
+the selected Date as both the first occurrence and the schedule anchor.
+
 ### 3.9 Freeze the Baseline
 
-When the selected period's plan is ready, click **Freeze baseline**.
+When a period is complete, open **History**, choose the period type and period,
+and click **Close selected period**.
 
-Freeze before tracking if you want a deliberate approval point. If you forget,
-marking the first actual freezes the period automatically.
+Marking an item Actual captures only that item's baseline. The rest of the
+period remains live and editable until you explicitly close it.
+
+Cards distinguish **Live**, **Baseline captured**, and **Closed**. The History
+manager lists item-level captures under **Individual baselines**. Clear a
+month's captured baselines independently or use **Clear all baseline history**;
+actual and skipped transaction history remains intact.
 
 After freeze:
 
@@ -366,7 +402,8 @@ For an expected item:
 
 1. tick **Actual**;
 2. edit the item if its actual amount or date differs; or
-3. use **Remove this occurrence** if it will not happen.
+3. use **Skip this occurrence** if it will not happen, then restore or
+   permanently delete it from the card when appropriate.
 
 For an unexpected item:
 

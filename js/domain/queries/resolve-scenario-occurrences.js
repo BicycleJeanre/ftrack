@@ -254,6 +254,7 @@ function buildGeneratedOccurrences({ scenario, startDate, endDate, lookupData })
       recurrence: clonePlain(transaction?.recurrence || null),
       recurrenceDescription: transaction?.recurrenceDescription || '',
       periodicChange: clonePlain(transaction?.periodicChange || null),
+      lineItems: clonePlain(transaction?.lineItems || []),
       scheduledDate,
       plannedDate: null,
       actualDate: null,
@@ -540,6 +541,13 @@ function buildStoredOccurrence({
         ? (base?.periodicChange ?? null)
         : (storedOccurrence?.periodicChange ?? base?.periodicChange ?? null)
     ),
+    lineItems: clonePlain(
+      usesActualSnapshot
+        ? (storedOccurrence?.lineItems ?? [])
+        : inheritsGeneratedPlan
+        ? (base?.lineItems ?? [])
+        : (storedOccurrence?.lineItems ?? base?.lineItems ?? [])
+    ),
     scheduledDate,
     plannedDate,
     actualDate,
@@ -647,6 +655,7 @@ function buildBaseFromSourceTransaction(sourceTransaction, scheduledDate, occurr
     recurrence: clonePlain(sourceTransaction?.recurrence || null),
     recurrenceDescription: sourceTransaction?.recurrenceDescription || '',
     periodicChange: clonePlain(sourceTransaction?.periodicChange || null),
+    lineItems: clonePlain(sourceTransaction?.lineItems || []),
     scheduledDate,
     plannedDate: null,
     actualDate: null,
@@ -701,6 +710,7 @@ function buildLegacyActualOccurrence(transaction, { asOfDate, accounts }) {
     recurrence: null,
     recurrenceDescription: '',
     periodicChange: null,
+    lineItems: clonePlain(transaction?.lineItems || []),
     scheduledDate,
     plannedDate: null,
     actualDate,
@@ -1114,6 +1124,13 @@ export function resolveScenarioOccurrences({
         (date) => date >= normalizedStartDate && date <= normalizedEndDate
       );
     })
+    .map((occurrence) => ({
+      ...occurrence,
+      baselinePeriodClosed: isDateInFrozenBaselinePeriod(
+        scenario,
+        occurrence?.scheduledDate
+      )
+    }))
     .sort((a, b) => {
       const dateDifference = String(a?.effectiveDate || '').localeCompare(String(b?.effectiveDate || ''));
       if (dateDifference) return dateDifference;

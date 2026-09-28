@@ -164,12 +164,7 @@ test('transaction deletion rejects historical rows and cascades unfrozen plan ov
     'tx:10|date:2026-01-15|role:none',
     {
       actualAmount: 27,
-      actualDate: '2026-01-15',
-      period: {
-        periodTypeId: 3,
-        startDate: '2026-01-01',
-        endDate: '2026-01-31'
-      }
+      actualDate: '2026-01-15'
     }
   );
   let current = (await DataStore.read()).scenarios[0];

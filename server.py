@@ -7,13 +7,15 @@ Usage: python3 server.py [port]
 
 import http.server
 import sys
+from urllib.parse import urlsplit
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         # Add cache control headers based on file type
-        if self.path.endswith(('.js', '.css', '.json')):
+        request_path = urlsplit(self.path).path
+        if request_path.endswith(('.js', '.css', '.json')):
             # Disable caching for code and config files
             self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
             self.send_header('Pragma', 'no-cache')

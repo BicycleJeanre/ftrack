@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const {
+  STORAGE_KEY,
   loadSmokeData,
   gotoFTrack,
   readPlanActualsWorkspaces,
@@ -74,6 +75,24 @@ async function selectPlanPeriod(page, label) {
   expect(value, `Plan period option containing "${label}"`).toBeTruthy();
   await select.selectOption(value);
   await expect(select).toHaveValue(value);
+}
+
+async function chooseAccountFromDialog(page, selectId, {
+  scope = '',
+  accountName
+}) {
+  await page.locator(`#${selectId}-dialog-trigger`).click();
+  const dialog = page.locator('.selection-dialog');
+  await expect(dialog).toBeVisible();
+  if (scope) {
+    const scopeSelector = scope.startsWith('group:')
+      ? '.selection-dialog-group-filter'
+      : '.selection-dialog-type-filter';
+    await dialog.locator(scopeSelector).selectOption(scope);
+    await expect(dialog).toBeVisible();
+  }
+  await dialog.getByRole('option', { name: new RegExp(`^${accountName}`) }).click();
+  await expect(dialog).toBeHidden();
 }
 
 async function expectPlanTotal(page, label, value) {
@@ -285,6 +304,18 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(totals).toContainText('Actual vs Baseline');
     await expect(totals).toContainText('Actual vs Current');
     await expect(totals).toContainText('Unplanned Actuals');
+    await expect(totals.locator('.totals-group')).toHaveCount(3);
+    await expect(totals.locator('.totals-group-title')).toHaveText([
+      'Baseline',
+      'Current Outlook',
+      'Performance & Exceptions'
+    ]);
+    await expect(totals.locator('.totals-group-baseline .summary-card-row .label'))
+      .toHaveText(['Baseline Net']);
+    await expect(totals.locator('.totals-group-current-outlook .summary-card-row .label'))
+      .toHaveText(['Current Plan Net', 'Actual Net', 'Open Commitments', 'Forecast Net']);
+    await expect(totals.locator('.totals-group-performance .summary-card-row .label'))
+      .toHaveText(['Actual vs Baseline', 'Actual vs Current', 'Unplanned Actuals']);
 
     const periodTab = page.getByRole('tab', { name: 'Period', exact: true });
     const recurringTab = page.getByRole('tab', { name: 'Recurring', exact: true });
@@ -312,6 +343,20 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(planSection).toContainText('Groceries budget');
   });
 
+  test('stacks grouped totals without horizontal overflow on narrow screens', async ({ page }) => {
+    await page.setViewportSize({ width: 700, height: 900 });
+    const totals = page.locator('#budgetSection .plan-actuals-totals');
+    await expect(totals.locator('.totals-group')).toHaveCount(3);
+    await expect.poll(async () => totals.locator('.plan-actuals-total-groups').evaluate(
+      (element) => element.scrollWidth <= element.clientWidth
+    )).toBe(true);
+
+    const groupPositions = await totals.locator('.totals-group').evaluateAll(
+      (groups) => groups.map((group) => Math.round(group.getBoundingClientRect().left))
+    );
+    expect(new Set(groupPositions).size).toBe(1);
+  });
+
   test('restores the last Plan and Actuals workspace after a full reload', async ({ page }) => {
     const scenarioId = (await currentScenario(page)).id;
     const periodSelect = page.locator('#plan-period-inline');
@@ -320,12 +365,19 @@ test.describe('unified Plan & Actuals workflow', () => {
       return options.at(-1).value;
     });
     await periodSelect.selectOption(savedPeriodId);
-    await page.locator('#plan-account-inline').selectOption('1');
+    await chooseAccountFromDialog(page, 'plan-account-inline', {
+      scope: 'type:1',
+      accountName: 'Checking'
+    });
     await page.locator('#plan-status-inline').selectOption('planned');
+    await page.locator('#plan-history-inline').selectOption('live');
     await page.locator('#plan-group-inline').selectOption('movement');
 
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
-    await page.locator('#tx-account-filter-select').selectOption('1');
+    await chooseAccountFromDialog(page, 'tx-account-filter-select', {
+      scope: 'type:1',
+      accountName: 'Checking'
+    });
     await page.locator('#tx-grouping-select-summary').selectOption('secondaryAccountName');
 
     await expect.poll(async () => {
@@ -336,9 +388,12 @@ test.describe('unified Plan & Actuals workflow', () => {
       periodTypeId: 3,
       periodId: savedPeriodId,
       accountId: 1,
+      accountScope: 'type:1',
       statusFilter: 'planned',
+      historyFilter: 'live',
       groupBy: 'movement',
       recurringAccountId: 1,
+      recurringAccountScope: 'type:1',
       recurringGroupBy: 'secondaryAccountName'
     });
 
@@ -347,6 +402,7 @@ test.describe('unified Plan & Actuals workflow', () => {
 
     await expect(page.getByRole('tab', { name: 'Recurring', exact: true }))
       .toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#tx-account-filter-select')).toHaveAttribute('data-account-scope', 'type:1');
     await expect(page.locator('#tx-account-filter-select')).toHaveValue('1');
     await expect(page.locator('#tx-grouping-select-summary'))
       .toHaveValue('secondaryAccountName');
@@ -354,9 +410,247 @@ test.describe('unified Plan & Actuals workflow', () => {
     await page.getByRole('tab', { name: 'Period', exact: true }).click();
     await expect(page.locator('#plan-period-type-inline')).toHaveValue('Month');
     await expect(page.locator('#plan-period-inline')).toHaveValue(savedPeriodId);
+    await expect(page.locator('#plan-account-inline')).toHaveAttribute('data-account-scope', 'type:1');
     await expect(page.locator('#plan-account-inline')).toHaveValue('1');
     await expect(page.locator('#plan-status-inline')).toHaveValue('planned');
+    await expect(page.locator('#plan-history-inline')).toHaveValue('live');
     await expect(page.locator('#plan-group-inline')).toHaveValue('movement');
+  });
+
+  test('filters Period and Recurring account selectors by account type', async ({ page }) => {
+    const periodAccount = page.locator('#plan-account-inline');
+    await page.locator('#plan-account-inline-dialog-trigger').click();
+    let dialog = page.locator('.selection-dialog');
+    await dialog.locator('.selection-dialog-type-filter').selectOption('type:1');
+    await expect(dialog.locator('.selection-dialog-group-filter')).toBeVisible();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('option', { name: /^Checking/ })).toBeVisible();
+    await expect(dialog.getByRole('option', { name: /^Credit Card/ })).toHaveCount(0);
+    await dialog.getByRole('option', { name: /^Checking/ }).click();
+    await expect(periodAccount).toHaveAttribute('data-account-scope', 'type:1');
+    await expect(periodAccount.locator('option[value="1"]')).toHaveText('Checking');
+    await expect(periodAccount.locator('option[value="2"]')).toHaveText('Savings Goal');
+    await expect(periodAccount.locator('option[value="3"]')).toHaveCount(0);
+
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const recurringAccount = page.locator('#tx-account-filter-select');
+    await page.locator('#tx-account-filter-select-dialog-trigger').click();
+    dialog = page.locator('.selection-dialog');
+    await dialog.locator('.selection-dialog-type-filter').selectOption('type:5');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('option', { name: /^Groceries Expense/ })).toBeVisible();
+    await dialog.getByRole('option', { name: /^Groceries Expense/ }).click();
+    await expect(recurringAccount).toHaveAttribute('data-account-scope', 'type:5');
+    await expect(recurringAccount.locator('option[value="5"]')).toHaveText('Groceries Expense');
+    await expect(recurringAccount.locator('option[value="1"]')).toHaveCount(0);
+    await expect(recurringAccount).toHaveValue('5');
+  });
+
+  test('shows and filters closed period history on cards', async ({ page }) => {
+    const cards = page.locator('#budgetSection .plan-actuals-item');
+    await expect(cards.first()).toBeVisible();
+    await expect(cards.locator('.plan-actuals-history-badge.is-live').first())
+      .toHaveText('Live');
+
+    await page.getByRole('button', { name: 'Manage period history' }).click();
+    const manager = page.locator('.baseline-period-manager-modal');
+    await expect(manager).toBeVisible();
+    await expect(manager.locator('#baseline-manager-period-type')).toHaveValue('3');
+    await manager.getByRole('button', { name: 'Close selected period' }).click();
+    await expect(manager.locator('.baseline-period-manager-row')).toHaveCount(1);
+    await manager.locator('#baseline-manager-close').click();
+    await expect(cards.locator('.plan-actuals-history-badge.is-closed').first())
+      .toHaveText('Closed');
+
+    await page.locator('#plan-history-inline').selectOption('closed');
+    await expect(cards.first()).toHaveAttribute('data-baseline-history', 'closed');
+    await expect(page.locator(
+      '#budgetSection .plan-actuals-item[data-baseline-history="live"]'
+    )).toHaveCount(0);
+
+    await page.locator('#plan-history-inline').selectOption('');
+    await page.getByRole('button', { name: 'Manage period history' }).click();
+    await page.locator('.baseline-period-manager-modal')
+      .getByRole('button', { name: /^Reopen Month / })
+      .click();
+    await confirmDialog(page);
+    await page.locator('.baseline-period-manager-modal #baseline-manager-close').click();
+    await expect(cards.locator('.plan-actuals-history-badge.is-live').first())
+      .toHaveText('Live');
+    await expect(page.locator('#budgetSection')
+      .getByRole('button', { name: 'Manage period history' }))
+      .toBeVisible();
+  });
+
+  test('surfaces and clears stored baseline snapshots that have no period marker', async ({ page }) => {
+    const appData = loadSmokeData();
+    const scenario = appData.scenarios[0];
+    scenario.baselinePeriods = [];
+    Object.assign(scenario.transactionOccurrences[0], {
+      baselineAmount: 450,
+      plannedAmount: 450,
+      isOverride: false,
+      baselinePrimaryAccountId: 1,
+      baselineSecondaryAccountId: 5,
+      baselineTransactionTypeId: 2,
+      baselineSnapshotVersion: 1,
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    });
+    await page.addInitScript(({ key, data }) => {
+      window.localStorage.setItem(key, JSON.stringify(data));
+    }, { key: STORAGE_KEY, data: appData });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page, appData.scenarios.length);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    await waitForScenario(page, (current) => current.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey ===
+        'tx:1002|date:2026-01-10|role:none' &&
+        Number(occurrence.baselineSnapshotVersion) === 1 &&
+        Number(occurrence.baselineAmount) === 450
+    ), 'unlinked transaction baseline loaded');
+
+    const groceryCard = page.locator(
+      '#budgetSection .plan-actuals-item[data-occurrence-key="tx:1002|date:2026-01-10|role:none"]'
+    );
+    await expect(groceryCard.locator('.plan-actuals-history-badge.is-captured'))
+      .toHaveText('Baseline captured');
+
+    await page.getByRole('button', { name: 'Manage period history' }).click();
+    const manager = page.locator('.baseline-period-manager-modal');
+    await expect(manager.locator('#baseline-manager-count'))
+      .toHaveText('0 closed periods · 1 individual baseline');
+    const orphanRow = manager.locator('.baseline-period-manager-row.is-unlinked');
+    await expect(orphanRow).toContainText('January 2026');
+    await orphanRow.getByRole('button', { name: 'Clear stored baselines January 2026' }).click();
+    await confirmDialog(page);
+
+    await waitForScenario(page, (current) => (
+      !current.transactionOccurrences.some(
+        (occurrence) => occurrence.occurrenceKey ===
+          'tx:1002|date:2026-01-10|role:none'
+      )
+    ), 'unlinked transaction baseline cleared');
+    await expect(manager.locator('.baseline-period-manager-empty')).toBeVisible();
+    await manager.locator('#baseline-manager-close').click();
+    await expect(groceryCard.locator('.plan-actuals-history-badge.is-live'))
+      .toHaveText('Live');
+  });
+
+  test('manages an annual closed marker and can clear all baseline history', async ({ page }) => {
+    await page.getByRole('button', { name: 'Manage period history' }).click();
+    const manager = page.locator('.baseline-period-manager-modal');
+    await manager.locator('#baseline-manager-period-type').selectOption('5');
+    await expect(manager.locator('#baseline-manager-period')).toHaveValue('2026');
+    await manager.getByRole('button', { name: 'Close selected period' }).click();
+
+    await waitForScenario(page, (scenario) => (
+      scenario.baselinePeriods.length === 1 &&
+      Number(scenario.baselinePeriods[0].periodTypeId) === 5
+    ), 'annual baseline marker frozen');
+    await expect(manager.locator('.baseline-period-manager-row')).toContainText('Year');
+
+    await manager.getByRole('button', { name: 'Clear all baseline history' }).click();
+    await confirmDialog(page);
+    await waitForScenario(page, (scenario) => scenario.baselinePeriods.length === 0, 'all period baselines unfrozen');
+    await expect(manager.locator('.baseline-period-manager-empty')).toBeVisible();
+  });
+
+  test('records an item baseline without closing a period even from the Year display', async ({ page }) => {
+    await page.locator('#plan-period-type-inline').selectOption('Year');
+    await expect(page.locator('#plan-period-inline')).toHaveValue('2026');
+
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    const occurrenceKey = await groceryCard.getAttribute('data-occurrence-key');
+    await groceryCard.locator('.plan-actuals-completion input[type="checkbox"]').check();
+
+    await waitForScenario(page, (scenario) => (
+      scenario.transactionOccurrences.some((occurrence) => (
+        occurrence.occurrenceKey === occurrenceKey &&
+        occurrence.status === 'actual' &&
+        Number(occurrence.baselineSnapshotVersion) === 1
+      )) &&
+      scenario.baselinePeriods.length === 0
+    ), 'actual captured only the item baseline');
+  });
+
+  test('opens a Period card by clicking its content and closes it when clicking off the item', async ({ page }) => {
+    const card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await card.locator('.plan-actuals-description').click();
+    await expect(card.locator('form.plan-actuals-editor')).toBeVisible();
+    await page.locator('#budgetSection .plan-actuals-totals').click();
+    await expect(card.locator('form.plan-actuals-editor')).toHaveCount(0);
+  });
+
+  test('closes an expanded Recurring card when clicking off the item', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    const card = page.locator('#budgetTable .recurring-rule-card').first();
+    await card.locator('.grid-summary-content').click();
+    await expect(card.locator('.grid-summary-form')).toBeVisible();
+    await page.locator('#budgetTable #transactionsContent .total-metric').first().click();
+    await expect(card.locator('.grid-summary-form')).toBeHidden();
+  });
+
+  test('creates a non-recurring itemized actual from the standard Period editor', async ({ page }) => {
+    await expect(page.locator(
+      '#budgetSection button[title="Add transaction with line items"]'
+    )).toHaveCount(0);
+    const form = await openNewItemEditor(page);
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(0);
+    await expect(form.locator('.plan-actuals-add-line-item')).toHaveText('+ Add line item');
+    await form.locator('.plan-actuals-add-line-item').click();
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(1);
+    await editorField(form, 'Secondary account').locator('select').selectOption('5');
+    await editorField(form, 'Status').locator('select').selectOption('actual');
+    await editorField(form, 'Description').locator('input').fill('Itemized shop transaction');
+    await form.locator('.plan-actuals-line-item-description').fill('First line item');
+    await form.locator('.plan-actuals-line-item-amount').fill('25');
+    await form.locator('.plan-actuals-add-line-item').click();
+    await form.locator('.plan-actuals-line-item-description').nth(1).fill('Second line item');
+    await form.locator('.plan-actuals-line-item-amount').nth(1).fill('35');
+    await expect(editorField(form, 'Actual amount').locator('input')).toHaveValue('60.00');
+    await form.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Itemized shop transaction' &&
+        occurrence.status === 'actual' &&
+        occurrence.actualAmount === 60 &&
+        occurrence.lineItems?.length === 2
+    ), 'itemized transaction total persisted');
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Itemized shop transaction'
+    }).locator('.plan-actuals-line-item-summary')).toContainText('2 line items');
+  });
+
+  test('adds a line item to an existing transaction and increases its total', async ({ page }) => {
+    const card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await card.locator('button[title="Edit item"]').click();
+    const form = card.locator('form.plan-actuals-editor');
+    await expect(form).toBeVisible();
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(0);
+
+    await form.locator('.plan-actuals-add-line-item').click();
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(2);
+    await expect(form.locator('.plan-actuals-line-item-amount').first()).toHaveValue('450');
+    await form.locator('.plan-actuals-line-item-description').nth(1).fill('Additional shop line item');
+    await form.locator('.plan-actuals-line-item-amount').nth(1).fill('50');
+    await expect(editorField(form, 'Current plan').locator('input')).toHaveValue('500.00');
+    await form.getByRole('button', { name: 'Save' }).click();
+
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.occurrenceKey === 'tx:1002|date:2026-01-10|role:none' &&
+        occurrence.plannedAmount === 500 &&
+        occurrence.lineItems?.length === 2
+    ), 'existing transaction line item increased the total');
+    await expect(card.locator('.plan-actuals-line-item-summary')).toContainText('2 line items');
+    await expect(card.locator('.plan-actuals-metric', { hasText: 'Current' }).locator('.value'))
+      .toHaveText('R 500,00');
   });
 
   test('renders descriptions immediately below direction-aware money movements', async ({ page }) => {
@@ -394,6 +688,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       'plan-actuals-schedule-row',
       'grid-summary-flow plan-actuals-movement',
       'grid-summary-description plan-actuals-description',
+      'plan-actuals-line-item-summary',
       'plan-actuals-comparison'
     ]);
 
@@ -453,6 +748,22 @@ test.describe('unified Plan & Actuals workflow', () => {
         '.tabulator-cell[tabulator-field="movement"] .plan-actuals-detail-movement'
       )
     ).toContainText(/Money In: Checking.*→.*Groceries Expense/);
+  });
+
+  test('uses the filtered account as the primary account for new transactions', async ({ page }) => {
+    const accountFilter = page.locator('#budgetSection #plan-account-inline');
+    await accountFilter.selectOption('2');
+
+    let form = await openNewItemEditor(page);
+    await expect(editorField(form, 'Primary account').locator('select')).toHaveValue('2');
+    await form.getByRole('button', { name: 'Cancel' }).click();
+
+    await selectWorkflow(page, 'Plan & Actuals (Detail)');
+    const detailAccountFilter = page.locator('#budgetSection #plan-account-inline');
+    await detailAccountFilter.selectOption('5');
+
+    form = await openNewItemEditor(page);
+    await expect(editorField(form, 'Primary account').locator('select')).toHaveValue('5');
   });
 
   test('shows signed totals beside Period and Recurring group headers', async ({ page }) => {
@@ -541,10 +852,13 @@ test.describe('unified Plan & Actuals workflow', () => {
       hasText: 'Credit card payment'
     });
     const creditKey = await creditCard.getAttribute('data-occurrence-key');
-    await creditCard.getByRole('button', { name: 'Remove this occurrence' }).click();
+    await creditCard.getByRole('button', { name: 'Skip this occurrence' }).click();
     await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
       (occurrence) => occurrence.occurrenceKey === creditKey && occurrence.status === 'skipped'
     ), 'single occurrence removed from its period');
+    await expect(page.locator(
+      `#budgetSection .plan-actuals-item[data-occurrence-key="${creditKey}"]`
+    ).getByRole('button', { name: 'Restore to planned' })).toBeVisible();
 
     const groceries = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Groceries budget'
@@ -594,7 +908,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       actualAmount: 275
     });
     await actualForm.getByRole('button', { name: 'Add item' }).click();
-    await waitForCollectionCount(page, 'transactionOccurrences', before + 4);
+    await waitForCollectionCount(page, 'transactionOccurrences', before + 2);
     await waitForScenario(page, (scenario) => {
       const actual = scenario.transactionOccurrences.find(
         (occurrence) => occurrence.description === 'Unplanned repair'
@@ -603,10 +917,100 @@ test.describe('unified Plan & Actuals workflow', () => {
         Number(actual.actualAmount) === 275 &&
         Number(actual.baselineAmount) === 0 &&
         actual.actualDate === '2026-01-22' &&
-        scenario.baselinePeriods.some(
-          (period) => period.startDate === '2026-01-01' && period.endDate === '2026-01-31'
-        );
-    }, 'manual actual and frozen period baseline persisted');
+        scenario.baselinePeriods.length === 0;
+    }, 'manual actual persisted without closing the period');
+
+    const actualCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Unplanned repair'
+    });
+    await actualCard.locator('.plan-actuals-description').click();
+    let editForm = actualCard.locator('form.plan-actuals-editor');
+    await expect(editorField(editForm, 'Primary account').locator('select')).toBeEnabled();
+    await expect(editorField(editForm, 'Secondary account').locator('select')).toBeEnabled();
+    await expect(editorField(editForm, 'Movement').locator('select')).toBeEnabled();
+    await expect(editorField(editForm, 'Repeat').locator('button')).toBeEnabled();
+    await expect(editorField(editForm, 'Status').locator('select'))
+      .toContainText('Planned (undo actual)');
+
+    await editorField(editForm, 'Primary account').locator('select').selectOption('2');
+    await editorField(editForm, 'Secondary account').locator('select').selectOption('4');
+    await editorField(editForm, 'Movement').locator('select').selectOption('1');
+    await editorField(editForm, 'Repeat').locator('button').click();
+    const recurrenceModal = page.locator('.modal-recurrence');
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await recurrenceModal.locator('#startDate').fill('2026-01-22');
+    await recurrenceModal.locator('#dayOfMonth').fill('22');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+    await editForm.getByRole('button', { name: 'Save' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const actual = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Unplanned repair'
+      );
+      const futureRule = scenario.transactions.find(
+        (transaction) => transaction.promotedFromOccurrenceKey === actual?.occurrenceKey
+      );
+      return actual?.status === 'actual' &&
+        Number(actual.primaryAccountId) === 2 &&
+        Number(actual.secondaryAccountId) === 4 &&
+        Number(actual.transactionTypeId) === 1 &&
+        Number(futureRule?.recurrence?.dayOfMonth) === 22;
+    }, 'actual movement and repeat edits persisted');
+
+    const actualCheckbox = actualCard.locator(
+      '.plan-actuals-completion input[type="checkbox"]'
+    );
+    await expect(actualCheckbox).toBeChecked();
+    await expect(actualCheckbox).toBeEnabled();
+    await actualCheckbox.uncheck();
+    await waitForScenario(page, (scenario) => {
+      const restored = scenario.transactionOccurrences.find(
+        (occurrence) => occurrence.description === 'Unplanned repair'
+      );
+      return restored?.status === 'planned' &&
+        Number(restored.plannedAmount) === 275 &&
+        restored.actualAmount === null &&
+        restored.actualDate === null;
+    }, 'actual transaction restored to planned');
+    await expect(actualCheckbox).not.toBeChecked();
+  });
+
+  test('permanently deletes a skipped one-time transaction', async ({ page }) => {
+    const form = await openNewItemEditor(page);
+    await fillNewItem(form, {
+      date: '2026-01-20',
+      description: 'Delete this one-time transaction',
+      amount: 125
+    });
+    await form.getByRole('button', { name: 'Add item' }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Delete this one-time transaction'
+    ), 'manual transaction created');
+
+    let card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Delete this one-time transaction'
+    });
+    await card.getByRole('button', { name: 'Skip this occurrence' }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Delete this one-time transaction' &&
+        occurrence.status === 'skipped'
+    ), 'manual transaction skipped');
+
+    card = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Delete this one-time transaction'
+    });
+    await expect(card.getByRole('button', { name: 'Restore to planned' })).toBeVisible();
+    await card.getByRole('button', { name: 'Delete transaction permanently' }).click();
+    await expect(page.locator('.confirm-dialog-message')).toContainText(
+      'Permanently delete this transaction'
+    );
+    await confirmDialog(page);
+
+    await waitForScenario(page, (scenario) => !scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Delete this one-time transaction'
+    ), 'manual transaction permanently deleted');
+    await expect(card).toHaveCount(0);
   });
 
   test('creates primary and secondary accounts inline without losing the item draft', async ({ page }) => {
@@ -649,6 +1053,45 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Inline account purchase'
     })).toBeVisible();
+  });
+
+  test('creates a planned recurring transaction once on the edited date', async ({ page }) => {
+    const before = await currentScenario(page);
+    const form = await openNewItemEditor(page);
+    await fillNewItem(form, {
+      date: '2026-01-15',
+      description: 'Atomic recurring plan',
+      amount: 140
+    });
+    await editorField(form, 'Repeat').locator('button').click();
+    const recurrenceModal = page.locator('.modal-recurrence');
+    await expect(recurrenceModal.locator('#startDate')).toHaveValue('2026-01-15');
+    await recurrenceModal.locator('#recurrenceType').selectOption('4');
+    await expect(recurrenceModal.locator('#dayOfMonth')).toHaveValue('15');
+    await recurrenceModal.locator('#endDate').fill('2026-04-30');
+    await recurrenceModal.locator('button[title="Save"]').click();
+    await form.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const rule = scenario.transactions.find(
+        (transaction) => transaction.description === 'Atomic recurring plan'
+      );
+      return scenario.transactions.length === before.transactions.length + 1 &&
+        rule?.effectiveDate === '2026-01-15' &&
+        rule?.recurrence?.startDate === '2026-01-15' &&
+        Number(rule?.recurrence?.dayOfMonth) === 15 &&
+        !scenario.transactionOccurrences.some(
+          (occurrence) => occurrence.description === 'Atomic recurring plan'
+        );
+    }, 'planned recurring transaction saved atomically');
+
+    const cards = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Atomic recurring plan'
+    });
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('2026-01-15');
+    await expect(cards.first().locator('.plan-actuals-repeat'))
+      .toHaveText('Every month on day 15 until 2026-04-30');
   });
 
   test('shows recurring schedules for actuals created or promoted as recurring', async ({ page }) => {
@@ -778,7 +1221,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       has: page.locator('.label', { hasText: /^Actual$/ })
     });
     await expect(groceryCompletion).toBeChecked();
-    await expect(groceryCompletion).toBeDisabled();
+    await expect(groceryCompletion).toBeEnabled();
     await expect(groceryCard.locator('.plan-actuals-heading-row .plan-actuals-completion'))
       .toHaveText('actual');
     await expect(groceryCard).toHaveClass(/money-out/);
@@ -797,7 +1240,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       hasText: 'Credit card payment'
     });
     const paymentKey = await paymentCard.getAttribute('data-occurrence-key');
-    await paymentCard.locator('button[title="Remove this occurrence"]').click();
+    await paymentCard.locator('button[title="Skip this occurrence"]').click();
     await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
       (occurrence) => occurrence.occurrenceKey === paymentKey && occurrence.status === 'skipped'
     ), 'occurrence marked skipped');
@@ -805,6 +1248,17 @@ test.describe('unified Plan & Actuals workflow', () => {
     const skippedCard = page.locator(
       `#budgetSection .plan-actuals-item[data-occurrence-key="${paymentKey}"]`
     );
+    await expect(skippedCard).toHaveClass(/status-skipped/);
+    await expect.poll(async () => Number(await skippedCard
+      .locator(':scope > .grid-summary-content')
+      .evaluate((element) => getComputedStyle(element).opacity)))
+      .toBeLessThan(0.6);
+    await expectPlanTotal(page, 'Baseline Net', 'R 2 300,00');
+    await expectPlanTotal(page, 'Current Plan Net', 'R 2 550,00');
+    await expectPlanTotal(page, 'Actual Net', '-R 450,00');
+    await expectPlanTotal(page, 'Open Commitments', 'R 3 000,00');
+    await expectPlanTotal(page, 'Forecast Net', 'R 2 550,00');
+    await expectPlanTotal(page, 'Actual vs Current', '-R 3 000,00');
     await skippedCard.getByRole('button', { name: 'Edit item' }).click();
     const restoreForm = skippedCard.locator('form');
     await expect(editorField(restoreForm, 'Repeat').locator('button')).toBeDisabled();
@@ -955,6 +1409,9 @@ test.describe('unified Plan & Actuals workflow', () => {
     const seriesCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Groceries from February'
     });
+    await expect(
+      seriesCard.locator('.plan-actuals-metric', { hasText: 'Current' }).locator('.value')
+    ).toHaveText('R 500,00');
     await seriesCard.locator('button[title="Edit item"]').click();
     form = seriesCard.locator('form');
     await editorField(form, 'Current plan').locator('input').fill('525');
@@ -1202,7 +1659,7 @@ test.describe('recurring split rule editing', () => {
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     const createSplitButton = page.locator(
-      '#budgetSection button[title="Create recurring transaction with line items"]'
+      '#budgetSection button[title="Create recurring account allocation"]'
     );
     await expect(createSplitButton).toBeVisible();
     await createSplitButton.click();
@@ -1313,7 +1770,7 @@ test.describe('recurring split rule editing', () => {
     await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
 
     await page.locator(
-      '#budgetSection button[title="Create recurring transaction with line items"]'
+      '#budgetSection button[title="Create recurring account allocation"]'
     ).click();
     const draftCard = page.locator(
       '#budgetTable .recurring-rule-card[data-split-role="principal"]'
@@ -1576,7 +2033,7 @@ test.describe('recurring split rule editing', () => {
 
     await sourceCard.locator('button[title="End recurring series"]').click();
     await expect(page.locator('.confirm-dialog-message')).toContainText(
-      'Past actuals, skipped items, and frozen baselines will be preserved'
+      'Past actuals, skipped items, and captured baselines will be preserved'
     );
     await confirmDialog(page);
 
@@ -1649,7 +2106,7 @@ test.describe('recurring rule lifecycle actions', () => {
     }, 'only the duplicated recurring rule was ended');
   });
 
-  test('shows protected-history feedback and leaves the recurring series unchanged', async ({ page }) => {
+  test('ends the series and preserves protected future history as a one-time record', async ({ page }) => {
     const appData = loadSmokeData();
     appData.scenarios[0].transactionOccurrences.push({
       id: 2999,
@@ -1700,8 +2157,8 @@ test.describe('recurring rule lifecycle actions', () => {
     });
     await salaryCard.locator('button[title="End recurring series"]').click();
     await confirmDialog(page);
-    await expect(page.locator('.notify-toast-error')).toContainText(
-      'cannot end before actual, skipped, or frozen occurrence history'
+    await expect(page.locator('.notify-toast-success')).toContainText(
+      '1 protected record remained as one-time history'
     );
 
     await waitForScenario(page, (scenario) => {
@@ -1710,14 +2167,14 @@ test.describe('recurring rule lifecycle actions', () => {
       );
       const protectedActual = scenario.transactionOccurrences.find(
         (occurrence) =>
-          occurrence.occurrenceKey ===
-            'tx:1001|date:2099-09-25|role:none'
+          occurrence.occurrenceKey === 'occurrence:2999'
       );
-      return !source?.activeTo &&
-        !source?.recurrence?.endDate &&
+      return Boolean(source?.activeTo) &&
+        source.activeTo === source.recurrence?.endDate &&
+        protectedActual?.sourceTransactionId == null &&
         protectedActual?.status === 'actual' &&
         Number(protectedActual.actualAmount) === 3000;
-    }, 'protected future occurrence prevented any series mutation');
+    }, 'protected future occurrence was detached before ending the series');
   });
 });
 
@@ -1750,7 +2207,9 @@ test.describe('one-time linked plan items', () => {
     });
     await card.locator('button[title="Edit item"]').click();
     const form = card.locator('form');
-    await expect(editorField(form, 'Repeat').locator('button')).toBeDisabled();
+    await expect(editorField(form, 'Repeat').locator('button')).toBeEnabled();
+    await expect(editorField(form, 'Repeat').locator('button'))
+      .toHaveAttribute('title', 'Choose a repeat pattern to create future occurrences.');
     await expect(editorField(form, 'Apply change to')).toHaveCount(0);
     await editorField(form, 'Current plan').locator('input').fill('95');
     await editorField(form, 'Description').locator('input').fill('Annual filing fee adjusted');
@@ -1766,5 +2225,86 @@ test.describe('one-time linked plan items', () => {
         Number(override?.plannedAmount) === 95 &&
         override?.description === 'Annual filing fee adjusted';
     }, 'one-time linked edit persisted as an occurrence override');
+  });
+});
+
+test.describe('period what-if snapshots', () => {
+  test('opens the displayed secondary account from a transaction card', async ({ page }) => {
+    await gotoFTrack(page, loadSmokeData());
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await groceryCard.getByRole('button', {
+      name: 'View transactions for Groceries Expense'
+    }).click();
+
+    await expect(page.locator('#plan-account-inline')).toHaveValue('5');
+    await expect(page.locator('#plan-account-inline-dialog-trigger'))
+      .toContainText('Groceries Expense');
+    await expect.poll(async () => {
+      const workspaces = await readPlanActualsWorkspaces(page);
+      return Number(workspaces?.['201']?.accountId || 0);
+    }).toBe(5);
+  });
+
+  test('keeps snapshot edits, skips, and additions isolated from Base', async ({ page }) => {
+    await gotoFTrack(page, loadSmokeData());
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+
+    await page.getByRole('button', { name: 'Create what-if snapshot' }).click();
+    await page.getByPlaceholder('Snapshot name').fill('Lower spending');
+    await page.locator('.modal-text-input #modalSave').click();
+    await expect(page.locator('#plan-variant-inline')).toHaveValue(/period-variant-/);
+
+    const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await groceryCard.getByRole('button', { name: 'Edit item in this what-if' }).click();
+    const form = groceryCard.locator('form');
+    await editorField(form, 'Current plan').locator('input').fill('300');
+    await form.getByRole('button', { name: 'Save' }).click();
+
+    await page.locator('#budgetSection .plan-actuals-item', { hasText: 'Monthly salary' })
+      .getByRole('button', { name: 'Skip in this what-if' })
+      .click();
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Monthly salary'
+    }).locator('.plan-actuals-status')).toContainText('skipped');
+
+    const addForm = await openNewItemEditor(page);
+    await fillNewItem(addForm, {
+      date: '2026-01-20',
+      description: 'What-if only purchase',
+      amount: 50
+    });
+    await addForm.getByRole('button', { name: 'Add item' }).click();
+
+    await waitForScenario(page, (scenario) => {
+      const variant = scenario?.planning?.periodVariants?.[0];
+      return variant?.name === 'Lower spending' &&
+        variant.occurrences.some((item) => (
+          item.description === 'Groceries budget' && Number(item.plannedAmount) === 300
+        )) &&
+        variant.occurrences.some((item) => item.description === 'What-if only purchase') &&
+        variant.occurrences.some((item) => (
+          item.description === 'Monthly salary' && item.status === 'skipped'
+        ));
+    }, 'what-if snapshot changes persisted');
+
+    await page.locator('#plan-variant-inline').selectOption('');
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'What-if only purchase'
+    })).toHaveCount(0);
+    const baseGrocery = page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Groceries budget'
+    });
+    await expect(baseGrocery).toContainText('R 450,00');
+    await expect(page.locator('#budgetSection .plan-actuals-item', {
+      hasText: 'Monthly salary'
+    }).getByRole('button', { name: 'Skip this occurrence' })).toBeVisible();
   });
 });

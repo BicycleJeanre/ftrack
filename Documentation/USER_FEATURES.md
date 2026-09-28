@@ -149,12 +149,12 @@ date.
 4.15 Record unexpected actuals with zero baseline/current plan and include
 them in Unplanned Actuals.
 
-4.16 Freeze a period baseline explicitly.
+4.16 Close a period baseline explicitly.
 
-4.17 Freeze the baseline automatically when the first actual is recorded in
-an unfrozen period.
+4.17 Capture an item's baseline when it is marked Actual without closing the
+period, regardless of the active display granularity.
 
-4.18 Keep frozen baseline amounts and movement perspective stable when later
+4.18 Keep captured baseline amounts and movement perspective stable when later
 rule edits change the current plan.
 
 4.19 Keep actual amounts, dates, accounts, direction, description, tags, and

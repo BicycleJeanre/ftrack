@@ -66,13 +66,16 @@ When an existing recurring cost changes, edit the occurrence and choose:
 - **This and future** when the new amount or schedule starts here.
 - **Entire series** when the current and future series should use the change.
 
-### 3.3 Freeze, Track, and Compare
+### 3.3 Capture, Track, and Compare
 
-1. Click **Freeze baseline** when the selected period represents the plan you
-   intended to follow. The first actual also freezes an unfrozen period.
+1. Open **History** and close the exact period that represents completed
+   history. The manager defaults to Month. Marking Actual captures only the
+   selected item's baseline and does not close the whole period.
 2. Tick **Actual** when a planned item happens.
 3. Edit the actual amount or date when reality differs from the plan.
-4. Use **Remove this occurrence** when a planned item will not happen.
+4. Use **Skip this occurrence** when a planned item will not happen. Restore it
+   from the card if plans change, or permanently delete a non-actual one-time
+   transaction.
 5. Add an Actual item when something unexpected happens.
 6. Review the comparison totals and individual variances.
 
@@ -143,11 +146,14 @@ Goal Workshop is for planning backward from a desired result.
 1. Add constraints such as the funding account and allowed date or amount
    limits.
 2. Add one or more goals and set their priority.
-3. Click **Solve**.
-4. Review the proposed solution.
-5. Apply the solution only when it represents the intended plan.
-6. Review the generated rules in Plan & Actuals → Recurring.
-7. Use Period to track those generated rules against actual results.
+3. In Settings, choose **Balanced monthly** for parallel progress or **Cascade
+   by priority** to roll freed cashflow into the next goal.
+4. Click **Solve Plan**.
+5. Review goal readiness, monthly capacity, dated rule phases, account movement,
+   and any shortfalls.
+6. Apply the solution only when it represents the intended plan.
+7. Review the generated rules in Plan & Actuals → Recurring.
+8. Use Period to track those generated rules against actual results.
 
 ![Goal Workshop constraints, goals, and solution areas](assets/user-guides/goal-workshop.jpg "Goal Workshop creates plan rules; the generated result is tracked through the same Recurring and Period views.")
 

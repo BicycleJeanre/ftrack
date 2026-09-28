@@ -771,6 +771,9 @@ function migrateScenario({ legacyScenario, scenarioIndex, report, migratedAt }) 
         startDate: projection.config.startDate,
         endDate: projection.config.endDate
       },
+      periodVariants: Array.isArray(planning.periodVariants)
+        ? planning.periodVariants
+        : [],
       ...(planning.goalWorkshopMode === 'simple' || planning.goalWorkshopMode === 'advanced'
         ? { goalWorkshopMode: planning.goalWorkshopMode }
         : {})

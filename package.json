@@ -1,12 +1,16 @@
 {
   "name": "ftrack",
-  "version": "0.90",
+  "version": "1.0.0",
   "main": "main.js",
   "scripts": {
+    "cloud:build": "node scripts/build-firebase-client.mjs",
+    "cloud:test:rules": "npx --yes firebase-tools@14.15.2 emulators:exec --project demo-ftrack --only firestore \"node --test tests/unit/firestore-rules.test.mjs\"",
+    "prestart": "npm run cloud:build",
     "start": "electron .",
+    "predev": "npm run cloud:build",
     "dev": "electron . --inspect=9229 --remote-debugging-port=9222",
     "docs:manifest": "node scripts/generate-docs-manifest.mjs",
-    "prebuild": "npm run docs:manifest",
+    "prebuild": "npm run docs:manifest && npm run cloud:build",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
@@ -92,12 +96,15 @@
     }
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@playwright/test": "^1.60.0",
     "electron": "^37.2.1",
-    "electron-builder": "^26.4.0"
+    "electron-builder": "^26.4.0",
+    "esbuild": "^0.25.9"
   },
   "dependencies": {
     "financejs": "^4.1.0",
+    "firebase": "^12.19.0",
     "javascript-lp-solver": "^0.4.24",
     "tabulator-tables": "^6.3.1"
   }

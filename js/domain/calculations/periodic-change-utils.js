@@ -36,7 +36,8 @@ export function expandPeriodicChangeForCalculation(pc, lookupData) {
   const expanded = {
     value: pc.value,
     changeMode: mode,
-    changeType: type
+    changeType: type,
+    ...(pc.postingDayOfMonth ? { postingDayOfMonth: pc.postingDayOfMonth } : {})
   };
 
   // Rate period is used for nominal-period-aware change types.
@@ -102,6 +103,11 @@ export async function getPeriodicChangeDescription(pc) {
   const modeName = mode?.name;
   const typeName = type?.name;
   const freqName = freq?.name?.toLowerCase();
+  const postingDay = Number(pc.postingDayOfMonth);
+  const postingSuffix = Number.isInteger(postingDay) && postingDay >= 1 && postingDay <= 31
+    ? `, posted on day ${postingDay}`
+    : '';
+  const describeRate = (text) => `${text}${postingSuffix}`;
   
   if (modeName === 'Fixed Amount') {
     const frequencyText = freqName || 'per period';
@@ -131,7 +137,7 @@ export async function getPeriodicChangeDescription(pc) {
   if (type?.id === 8) {
     const nominalName = nominalRatePeriod?.name?.toLowerCase() || 'annual';
     const compName = freq?.name?.toLowerCase() || 'monthly';
-    return `${value}% nominal ${nominalName}, compounded ${compName}`;
+    return describeRate(`${value}% nominal ${nominalName}, compounded ${compName}`);
   }
 
   // Handle custom compounding
@@ -157,33 +163,33 @@ export async function getPeriodicChangeDescription(pc) {
       compDesc = 'monthly/quarter';
     }
     
-    return `${value}% compounded ${compDesc}`;
+    return describeRate(`${value}% compounded ${compDesc}`);
   }
   
   if (typeName?.includes('Monthly')) {
-    return `${value}% annual, compounded monthly`;
+    return describeRate(`${value}% annual, compounded monthly`);
   }
   if (typeName?.includes('Daily')) {
-    return `${value}% annual, compounded daily`;
+    return describeRate(`${value}% annual, compounded daily`);
   }
   if (typeName?.includes('Quarterly')) {
-    return `${value}% annual, compounded quarterly`;
+    return describeRate(`${value}% annual, compounded quarterly`);
   }
   if (typeName?.includes('Compounded Annually')) {
-    return `${value}% annual, compounded annually`;
+    return describeRate(`${value}% annual, compounded annually`);
   }
   if (typeName?.includes('Semi-Annually')) {
-    return `${value}% annual, compounded semi-annually`;
+    return describeRate(`${value}% annual, compounded semi-annually`);
   }
   if (typeName?.includes('Continuous')) {
-    return `${value}% continuous`;
+    return describeRate(`${value}% continuous`);
   }
   if (typeName?.includes('Effective')) {
-    return `${value}% effective annual`;
+    return describeRate(`${value}% effective annual`);
   }
   if (typeName?.includes('Simple Interest') || typeName?.includes('No Compounding')) {
-    return `${value}% simple interest`;
+    return describeRate(`${value}% simple interest`);
   }
   
-  return `${value}% annual`;
+  return describeRate(`${value}% annual`);
 }

@@ -8,7 +8,7 @@ import * as ScenarioManager from '../../app/managers/scenario-manager.js';
 import * as AccountManager from '../../app/managers/account-manager.js';
 import * as TransactionManager from '../../app/managers/transaction-manager.js';
 import { openRecurrenceModal } from '../components/modals/recurrence-modal.js';
-import { openPeriodicChangeModal } from '../components/modals/periodic-change-modal.js';
+import { openPeriodicChangeModal } from '../components/modals/periodic-change-modal.js?v=20260901-strategy-matrix-35';
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
@@ -22,7 +22,7 @@ import {
   getScenarioProjectionRows,
   mapPeriodTypeNameToId,
   normalizeUiState
-} from '../../shared/app-data-utils.js?v=20260831-workspace-state-20';
+} from '../../shared/app-data-utils.js?v=20260831-manager-cache-32';
 import {
   DEFAULT_WORKFLOW_ID,
   WORKFLOWS,
@@ -41,8 +41,12 @@ import {
   getFilteredProjections as getFilteredProjectionsCore,
   updateProjectionTotals as updateProjectionTotalsCore
 } from '../components/forecast/forecast-projections.js';
+import {
+  filterAccountsByScope,
+  populateAccountSelect
+} from '../components/widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
-import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js';
+import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=20260901-account-group-filter-42';
 import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
   loadAccountsGrid as loadAccountsGridCore
@@ -50,14 +54,14 @@ import {
 import {
   loadMasterTransactionsGrid as loadMasterTransactionsGridCore,
   teardownRecurringRulesDetailGrid
-} from '../components/grids/transactions-grid.js?v=20260831-line-items-series-27';
+} from '../components/grids/transactions-grid.js?v=20260901-click-off-details-43';
 import {
   loadPlanActualsGrid as loadPlanActualsGridCore,
   teardownPlanActualsGrid as teardownPlanActualsGridCore
-} from '../components/grids/plan-actuals-grid.js?v=20260831-line-items-series-27';
+} from '../components/grids/plan-actuals-grid.js?v=20260927-secondary-account-shortcut-54';
 import {
   loadProjectionsSection as loadProjectionsSectionCore
-} from '../components/forecast/forecast-projections-section.js';
+} from '../components/forecast/forecast-projections-section.js?v=20260901-account-group-filter-42';
 
 const logger = createLogger('ForecastController');
 
@@ -81,14 +85,17 @@ import {
   createAccount,
   getScenarioPeriods
 } from '../../app/services/data-service.js';
-import { generateProjections } from '../../domain/calculations/projection-engine.js';
+import { generateProjections } from '../../domain/calculations/projection-engine.js?v=20260901-strategy-matrix-35';
+import { initializeCloudSync } from '../../app/services/cloud-sync-coordinator.js';
 
 let currentScenario = null;
 let uiState = null;
 const PLAN_ACTUALS_WORKSPACE_STORAGE_KEY = 'ftrack:plan-actuals-workspaces:v1';
 let currentWorkflowId = DEFAULT_WORKFLOW_ID;
 let transactionsAccountFilterId = null; // Track account filter for transactions view (independent of budget/projections)
+let transactionsAccountScope = ''; // Optional account type/group used to shorten recurring account lists
 let budgetAccountFilterId = null; // Track account filter for budget view (independent of transactions/projections)
+let budgetAccountScope = ''; // Optional account type/group used to shorten Period account lists
 let projectionsAccountFilterId = null; // Track account filter for projections view (independent of transactions/budget)
 let actualPeriod = null; // Selected period for actual transactions
 let actualPeriodType = 'Month'; // Selected period type for transactions view
@@ -107,6 +114,7 @@ let transactionsAllPeriodsExpanded = false; // When period is All, show expanded
 
 // Budget context - additional filter state
 let budgetStatusFilter = ''; // '' = All, 'planned', 'actual'
+let budgetHistoryFilter = ''; // '' = All, 'closed', 'captured', 'live'
 let budgetGroupBy = ''; // '' = None, 'transactionTypeName', 'statusName', 'secondaryAccountName'
 
 // Projections context - additional filter state
@@ -132,7 +140,7 @@ let masterBudgetTable = null; // Store budget table instance for filtering
 let fundSummaryTable = null; // Store fund summary table instance to reduce jumping
 let generalSummaryTable = null; // Store general summary table instance to reduce jumping
 let summaryCardsAccountTypeFilter = 'All';
-let generalSummaryScope = 'All';
+let generalSummaryScope = '';
 let generalSummaryAccountId = 0;
 
 const PERIOD_TYPE_ID_TO_NAME = {
@@ -150,6 +158,8 @@ function createTransactionsStateInterface() {
   return {
     getAccountFilterId: () => transactionsAccountFilterId,
     setAccountFilterId: (id) => { transactionsAccountFilterId = id; },
+    getAccountScope: () => transactionsAccountScope,
+    setAccountScope: (scope) => { transactionsAccountScope = scope || ''; },
     getStatusFilter: () => transactionsStatusFilter,
     setStatusFilter: (status) => { transactionsStatusFilter = status; },
     getPeriodType: () => actualPeriodType,
@@ -169,8 +179,12 @@ function createBudgetStateInterface() {
   return {
     getAccountFilterId: () => budgetAccountFilterId,
     setAccountFilterId: (id) => { budgetAccountFilterId = id; },
+    getAccountScope: () => budgetAccountScope,
+    setAccountScope: (scope) => { budgetAccountScope = scope || ''; },
     getStatusFilter: () => budgetStatusFilter,
     setStatusFilter: (status) => { budgetStatusFilter = status; },
+    getHistoryFilter: () => budgetHistoryFilter,
+    setHistoryFilter: (history) => { budgetHistoryFilter = history; },
     getPeriodType: () => budgetPeriodType,
     setPeriodType: (type) => { budgetPeriodType = type; },
     getPeriod: () => budgetPeriod,
@@ -395,9 +409,12 @@ function restorePlanActualsWorkspace(scenario) {
   budgetPeriodType = PERIOD_TYPE_ID_TO_NAME[Number(workspace.periodTypeId) || 3] || 'Month';
   budgetPeriod = workspace.periodId || null;
   budgetAccountFilterId = validAccount(workspace.accountId);
+  budgetAccountScope = workspace.accountScope || '';
   budgetStatusFilter = workspace.statusFilter || '';
+  budgetHistoryFilter = workspace.historyFilter || '';
   budgetGroupBy = workspace.groupBy || '';
   transactionsAccountFilterId = validAccount(workspace.recurringAccountId);
+  transactionsAccountScope = workspace.recurringAccountScope || '';
   transactionsGroupBy = workspace.recurringGroupBy || '';
 }
 
@@ -473,13 +490,16 @@ async function setCurrentScenarioById(scenarioId) {
     // Reset all filter state across contexts
     // Transactions context
     transactionsAccountFilterId = null;
+    transactionsAccountScope = '';
     transactionsStatusFilter = '';
     actualPeriod = null;
     transactionsGroupBy = '';
     transactionsAllPeriodsExpanded = false;
     // Budget context
     budgetAccountFilterId = null;
+    budgetAccountScope = '';
     budgetStatusFilter = '';
+    budgetHistoryFilter = '';
     budgetPeriod = null;
     budgetGroupBy = '';
     // Projections context
@@ -511,12 +531,15 @@ async function setCurrentScenarioById(scenarioId) {
 
 function resetScenarioScopedCaches() {
   transactionsAccountFilterId = null;
+  transactionsAccountScope = '';
   transactionsStatusFilter = '';
   actualPeriod = null;
   transactionsGroupBy = '';
   transactionsAllPeriodsExpanded = false;
   budgetAccountFilterId = null;
+  budgetAccountScope = '';
   budgetStatusFilter = '';
+  budgetHistoryFilter = '';
   budgetPeriod = null;
   budgetGroupBy = '';
   projectionsAccountFilterId = null;
@@ -526,7 +549,7 @@ function resetScenarioScopedCaches() {
   budgetPeriods = [];
   projectionPeriods = [];
   summaryCardsAccountTypeFilter = 'All';
-  generalSummaryScope = 'All';
+  generalSummaryScope = '';
   generalSummaryAccountId = 0;
   fundSummaryScope = 'All';
 }
@@ -1173,6 +1196,15 @@ async function loadMasterTransactionsGrid(
           patchPlanActualsWorkspace({ recurringAccountId: nextId });
         }
       },
+      getTransactionsAccountScope: () => transactionsAccountScope,
+      setTransactionsAccountScope: (nextScope) => {
+        transactionsAccountScope = nextScope || '';
+        if (rulesOnly) {
+          patchPlanActualsWorkspace({
+            recurringAccountScope: transactionsAccountScope
+          });
+        }
+      },
       getActualPeriod: () => rulesOnly ? null : actualPeriod,
       setActualPeriod: (nextPeriod) => {
         if (!rulesOnly) actualPeriod = nextPeriod;
@@ -1480,10 +1512,20 @@ async function loadBudgetGrid(container) {
         budgetAccountFilterId = nextId;
         patchPlanActualsWorkspace({ accountId: nextId });
       },
+      getBudgetAccountScope: () => budgetAccountScope,
+      setBudgetAccountScope: (nextScope) => {
+        budgetAccountScope = nextScope || '';
+        patchPlanActualsWorkspace({ accountScope: budgetAccountScope });
+      },
       getBudgetStatusFilter: () => budgetStatusFilter,
       setBudgetStatusFilter: (nextStatus) => {
         budgetStatusFilter = nextStatus;
         patchPlanActualsWorkspace({ statusFilter: nextStatus || '' });
+      },
+      getBudgetHistoryFilter: () => budgetHistoryFilter,
+      setBudgetHistoryFilter: (nextHistory) => {
+        budgetHistoryFilter = nextHistory;
+        patchPlanActualsWorkspace({ historyFilter: nextHistory || '' });
       },
       getBudgetPeriod: () => budgetPeriod,
       setBudgetPeriod: (nextPeriod) => {
@@ -1513,6 +1555,18 @@ async function loadBudgetGrid(container) {
       setGroupBy: (nextField) => {
         budgetGroupBy = nextField;
         patchPlanActualsWorkspace({ groupBy: nextField || '' });
+      },
+      getSelectedVariant: (periodKey) => (
+        getPlanActualsWorkspace()?.selectedVariantByPeriod?.[periodKey] || ''
+      ),
+      setSelectedVariant: (periodKey, variantId) => {
+        const workspace = getPlanActualsWorkspace();
+        const selectedVariantByPeriod = {
+          ...(workspace.selectedVariantByPeriod || {})
+        };
+        if (variantId) selectedVariantByPeriod[periodKey] = String(variantId);
+        else delete selectedVariantByPeriod[periodKey];
+        patchPlanActualsWorkspace({ selectedVariantByPeriod });
       }
     },
     presentation,
@@ -1886,7 +1940,6 @@ async function loadFundsSummaryCards(container, options = {}) {
     return found ? Number(found.id) : 0;
   };
 
-  const scopeOptions = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense'];
   const projectionsIndex = buildProjectionsIndex(getScenarioProjectionRows(currentScenario));
   const scrollSnapshot = getPageScrollSnapshot();
 
@@ -2147,36 +2200,16 @@ async function loadGeneralSummaryCards(container, options = {}) {
     return Number.isFinite(id) ? id : 0;
   };
   const getAccountTypeName = (account) => accountTypeNameById.get(getAccountTypeId(account)) || '';
-  const scopeTypeId = (scopeName) => {
-    if (!scopeName || scopeName === 'All') return 0;
-    const found = (lookupData?.accountTypes || []).find((t) => t.name === scopeName);
-    return found ? Number(found.id) : 0;
-  };
-
-  // Only render the two static filters (account type and account) and the summary cards grid.
+  // The account menu owns its type/group list filter so the interaction is
+  // consistent with every other account picker in the application.
   container.innerHTML = '';
 
   let toolbar = container.querySelector(':scope > .summary-cards-toolbar');
   if (!options.simple) {
     // Create filter controls
-    const typeSelect = document.createElement('select');
-    typeSelect.id = 'general-summary-type-filter';
-    typeSelect.className = 'input-select control-select';
-    scopeOptions.forEach((option) => {
-      const opt = document.createElement('option');
-      opt.value = option;
-      opt.textContent = option;
-      typeSelect.appendChild(opt);
-    });
-
     const accountSelect = document.createElement('select');
     accountSelect.id = 'general-summary-account';
     accountSelect.className = 'input-select control-select';
-
-    typeSelect.addEventListener('change', async () => {
-      generalSummaryScope = typeSelect.value;
-      await loadGeneralSummaryCards(container, options);
-    });
 
     accountSelect.addEventListener('change', async () => {
       generalSummaryAccountId = Number(accountSelect.value) || 0;
@@ -2196,7 +2229,6 @@ async function loadGeneralSummaryCards(container, options = {}) {
       title: 'Filter Summary',
       trigger: filterButton,
       items: [
-        { id: 'account-type', label: 'Account Type:', control: typeSelect },
         { id: 'account', label: 'Account:', control: accountSelect }
       ]
     });
@@ -2208,19 +2240,20 @@ async function loadGeneralSummaryCards(container, options = {}) {
     container.appendChild(toolbar);
 
     // Populate filter values
-    typeSelect.value = scopeOptions.includes(generalSummaryScope) ? generalSummaryScope : 'All';
-
     const selectedId = Number(generalSummaryAccountId) || 0;
-    const opts = ['<option value="0">All</option>']
-      .concat(
-        accounts
-          .slice()
-          .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
-          .map((a) => `<option value="${Number(a.id)}">${String(a.name || 'Unnamed')}</option>`)
-      )
-      .join('');
-    accountSelect.innerHTML = opts;
-    accountSelect.value = String(selectedId);
+    populateAccountSelect(accountSelect, {
+      accounts,
+      accountGroups: currentScenario.accountGroups || [],
+      scope: generalSummaryScope,
+      selectedValue: selectedId ? String(selectedId) : '0',
+      includeAll: false,
+      emptyLabel: 'All Accounts',
+      emptyValue: '0',
+      preserveCurrentOutsideScope: false,
+      onScopeChange: (nextScope) => {
+        generalSummaryScope = nextScope;
+      }
+    });
     generalSummaryAccountId = Number(accountSelect.value) || 0;
   }
 
@@ -2228,10 +2261,11 @@ async function loadGeneralSummaryCards(container, options = {}) {
   // Clear any previous empty messages.
   container.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());
 
-  const selectedScopeTypeId = scopeTypeId(generalSummaryScope);
-  let filteredAccounts = generalSummaryScope === 'All'
-    ? accounts
-    : accounts.filter((a) => getAccountTypeId(a) === selectedScopeTypeId);
+  let filteredAccounts = filterAccountsByScope(
+    accounts,
+    currentScenario.accountGroups || [],
+    generalSummaryScope
+  );
 
   if (Number(generalSummaryAccountId) > 0) {
     filteredAccounts = filteredAccounts.filter((a) => Number(a.id) === Number(generalSummaryAccountId));
@@ -2287,7 +2321,7 @@ async function loadGeneralSummaryCards(container, options = {}) {
   const orderedGroupKeys = (() => {
     const preferredOrder = ['Liability', 'Asset', 'Equity', 'Income', 'Expense'];
     const remaining = Object.keys(groupedAccounts).filter(key => !preferredOrder.includes(key)).sort();
-    if (generalSummaryScope !== 'All') {
+    if (generalSummaryScope) {
       return Object.keys(groupedAccounts);
     }
     return [...preferredOrder.filter(key => groupedAccounts[key]), ...remaining];
@@ -2499,7 +2533,7 @@ async function loadSummaryCards(container, options = {}) {
 
   // Always default to summary card grid view on load
   if (typeof window !== 'undefined') {
-    if (typeof generalSummaryScope !== 'string' || !generalSummaryScope) generalSummaryScope = 'All';
+    if (typeof generalSummaryScope !== 'string') generalSummaryScope = '';
     if (typeof generalSummaryAccountId !== 'number') generalSummaryAccountId = 0;
   }
 
@@ -2907,6 +2941,8 @@ async function init() {
       patchUiState({ accordionStates: { ...current, [id]: isOpen } });
     }
   });
+  document.addEventListener('ftrack:cloudDataApplied', () => window.location.reload(), { once: true });
+  await initializeCloudSync();
   renderWorkflowNav(containers.workflowNav);
   document.addEventListener('forecast:accountsUpdated', () => {
     const workflowConfig = getWorkflowConfig();

@@ -6,6 +6,8 @@ import { downloadAppData } from '../../../app/services/export-service.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
 import { openDataUpgradeModal } from '../modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
 import { getTheme, setTheme } from '../../../config.js';
+import { getCloudSyncState, subscribeCloudSync } from '../../../app/services/cloud-sync-coordinator.js';
+import { openCloudAccountModal } from '../modals/cloud-account-modal.js';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
 const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;
@@ -64,6 +66,23 @@ function buildTopbarActions() {
     setTheme(nextTheme);
     applyTheme(themeBtn);
   });
+
+  const cloudBtn = document.createElement('button');
+  cloudBtn.type = 'button';
+  cloudBtn.className = 'icon-btn cloud-status-button';
+  cloudBtn.title = 'Account and cloud save';
+  cloudBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    openCloudAccountModal();
+  });
+  const renderCloudState = (state = getCloudSyncState()) => {
+    cloudBtn.dataset.state = state.phase;
+    cloudBtn.classList.toggle('cloud-status-button--attention', ['conflict', 'error'].includes(state.phase));
+    cloudBtn.textContent = `☁ ${state.label}${state.configured && state.pending && state.phase !== 'saving' ? ' •' : ''}`;
+    cloudBtn.setAttribute('aria-label', `Account and cloud save: ${state.label}`);
+  };
+  renderCloudState();
+  subscribeCloudSync(renderCloudState);
 
   const exportBtn = document.createElement('button');
   exportBtn.type = 'button';
@@ -127,6 +146,7 @@ function buildTopbarActions() {
   });
 
   actions.appendChild(themeBtn);
+  actions.appendChild(cloudBtn);
   actions.appendChild(exportBtn);
   actions.appendChild(importBtn);
   actions.appendChild(validateBtn);

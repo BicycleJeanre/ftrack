@@ -47,16 +47,19 @@ selection, and refresh behavior across the visible sections.
 - **Period mode**:
   - Calls `resolveScenarioOccurrences()` for the selected period; it does not materialize generated rows.
   - Shows baseline, current plan, actual, variance, status, direction-aware movement, repeat information, and description for each occurrence.
-  - Routes writes through `OccurrenceManager`: occurrence-only edits, this-and-future splits, entire-series changes, actuals, skips, restores, reschedules, manual occurrences, recurring promotion, and baseline freeze.
+  - Uses the shared account-selector scope control to filter Account choices by account type or account-group membership without changing financial data.
+  - Routes writes through `OccurrenceManager`: occurrence-only edits, this-and-future splits, entire-series changes, actuals, skips, restores, reschedules, manual occurrences, recurring promotion, and baseline management.
+  - Opens `baseline-period-manager-modal.js` from the consolidated toolbar to list closed period markers plus individual captured baselines, close one explicit range, reopen a period, clear individual baselines, or clear all baseline history.
   - Uses `calculateResolvedOccurrenceTotals()` for comparison totals.
 - **Recurring mode**:
   - Uses the recurring-rule renderer in `transactions-grid.js` inside Plan &
     Actuals; there is no separate user-facing Transactions card.
   - Shows all planned rule segments by default, without period/status expansion.
+  - Reuses the same account type/group list scope and persists it independently from the Period selection.
   - Displays recurrence, periodic adjustment, active dates, next occurrence, tags, and split metadata.
   - Requires **This and future** or **Entire series** scope. Non-split changes use the scoped occurrence commands; split changes use `OccurrenceManager.updateSplitSeries()` so every role is revised atomically from the same boundary.
   - Supports whole-rule and whole-split-set duplication.
-  - Uses `OccurrenceManager.endSeries()` instead of destructive rule deletion. The command ends every affected rule and split component before the next unresolved occurrence, preserves prior actual/skipped/frozen evidence, and refuses to cross protected future history.
+  - Uses `OccurrenceManager.endSeries()` instead of destructive rule deletion. The command ends every affected rule and split component before the next unresolved occurrence. Protected future actual/skipped/baseline records are detached from the ended rule and retained as independent one-time history, while unresolved future plans are removed.
   - New recurring-rule and recurring split-set creation use the transaction application service; a split set and all component rules persist atomically.
 - **Summary presentation**: Uses compact cards. General, Funds, Debt
   Repayment, and Goal Workshop default to Recurring; Period is the budget and
@@ -151,6 +154,17 @@ Every main workflow uses the same financial-activity component:
 The default does not remove the other subview. Both Period and Recurring
 remain available from the unified component.
 
+Account selection is standardized through
+`components/widgets/account-selector-filter.js`. Each account `<select>` keeps
+its normal value and change contract as an accessible storage control, while a
+shared dialog trigger provides search, explicit side-by-side Account Type and
+Account Group filters, and final selection without an intermediate close. The
+two filters are mutually exclusive because the workspace persists one account
+scope at a time. Account-group assignment selectors use the same searchable
+dialog pattern; transaction display grouping remains an independent control.
+The shared picker is used by Plan & Actuals, transaction and line-item editors,
+projections, account summaries, and both Goal Workshop modes.
+
 Legacy workflow ID `budget` and legacy scenario type 1 resolve to General.
 This compatibility alias is sanitized by Data Check so old files keep all
 financial data while their saved navigation preference is updated.
@@ -164,23 +178,23 @@ financial data while their saved navigation preference is updated.
 
 - Occurrence-only fields use `plannedAmount`, `plannedDate`, accounts, type, and description.
 - Series commands use rule fields; the UI maps `plannedAmount` to `amount` and omits `plannedDate`.
-- A this-and-future edit may return a replacement `occurrenceKey`; follow-up actual/skip commands use that returned key.
+- A this-and-future edit may return a replacement `occurrenceKey`; follow-up actual/skip commands use that returned key. The scoped series command atomically updates the replacement rule and all unresolved stored overrides, without a second occurrence-only save; baseline snapshot fields and actual history are not rewritten.
 - Actual rows call `markActual()` directly. Skipped rows may retain plan edits and use `{status: 'planned'}` to restore.
-- Repeat changes on linked rules force this-and-future scope. Manual occurrences use `promoteOccurrenceToRecurring()`.
-- When the selected period does not contain an overdue occurrence's immutable `scheduledDate`, the UI omits the selected period from `markActual()` so the command freezes the scheduled calendar month.
+- Repeat changes on linked rules force this-and-future scope. Existing manual occurrences use `promoteOccurrenceToRecurring()`. New planned recurring items use the atomic `createRecurringRule()` command, anchored to the editor Date, so an intermediate manual occurrence is never persisted.
+- Marking Actual does not pass display-period state into `markActual()`; the command captures only the selected occurrence's comparison baseline.
 
 ### 3.5 Baseline and Comparison Tracking
 
 Canonical occurrence fields are:
 
-- `baselineAmount`: frozen comparison amount.
+- `baselineAmount`: captured comparison amount.
 - `plannedAmount`: latest expected amount.
 - `actualAmount`: realized amount.
 - `scheduledDate`: immutable occurrence identity date.
 - `plannedDate`: optional occurrence-only reschedule.
 - `actualDate`: realized date.
 
-`markActual()` freezes the containing baseline period if required. Manual unplanned actuals use zero baseline and current plan. Period totals are derived from resolved occurrences and expose baseline net, current net, actual net, commitments, forecast net, variances, and unplanned actuals.
+`markActual()` captures only the selected occurrence baseline. Manual unplanned actuals use zero baseline and current plan. Explicit period closure captures all baselines in the chosen range. Period totals are derived from resolved occurrences and expose baseline net, current net, actual net, commitments, forecast net, variances, and unplanned actuals.
 
 ### 3.6 Projection Freshness
 

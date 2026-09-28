@@ -84,7 +84,9 @@ occurrence only when dated state must survive, including:
 Choose scope deliberately when changing a linked recurring occurrence:
 
 - **This occurrence only** changes the selected dated item.
-- **This and future** starts a new rule segment at the selected occurrence.
+- **This and future** starts a new rule segment at the selected occurrence and
+  applies the revised current-plan values to every unresolved occurrence from
+  that point forward. Captured baselines and prior actuals remain unchanged.
 - **Entire series** changes the current and future segments in the logical
   series.
 
@@ -94,36 +96,57 @@ Past actuals remain protected from later rule edits.
 In Recurring, duplication copies either one rule or the whole split set.
 **End recurring series** bounds the logical series before its next unresolved
 occurrence. It is history-safe: protected actual, skipped, and frozen evidence
-is retained rather than destructively deleting the rule lineage.
+is retained rather than destructively deleting the rule lineage. If protected
+evidence exists after the end boundary, it becomes independent one-time history
+so the recurring sequence can still end safely.
 
 The same controls are available directly on Period cards. **Remove this
 occurrence** skips only the selected date. **Delete this and future
 occurrences** ends the linked recurring sequence from that date forward.
 
-Use **Create recurring transaction with line items** when one intent contains
-several destination values. Each line keeps the normal primary/secondary
-account movement, amount, and description, while FTrack stores and displays
-the lines as one grouped transaction rule. Additional line items can be added
-or removed together and applied safely to this-and-future or the current
-series.
+Use the normal **+ Add item** action in Period, or edit any existing Period
+transaction, when several line items belong to the same primary/secondary
+account movement.
+Each line item has its own date, description, and amount, and the parent
+transaction total is calculated from those line items. This works for
+planned and actual transactions and does not require recurrence.
+
+Use **Create recurring account allocation** when one recurring intent needs
+separate destination accounts. Account allocation is distinct from line-item
+detail: allocation creates multiple account movements, while line items roll
+up inside one movement.
 
 Use **Duplicate item** to make a one-time planned copy. Use
 **Repeat going forward** to turn a manual item into a recurring rule without
 removing the original occurrence.
 
+When a repeat pattern is chosen while adding a new planned item, FTrack creates
+one recurring rule in a single save. The transaction date becomes the first
+occurrence and anchors the recurring schedule; no separate manual copy is
+created.
+
 ## 1.5 Baseline, Current Plan, and Actual
 
 Each Period item can be compared across three values:
 
-- **Baseline**: the plan frozen for comparison.
+- **Baseline**: the plan captured for comparison.
 - **Current plan**: the latest planned amount after adjustments.
 - **Actual**: the realized amount and date.
 
-Click **Freeze baseline** when you want to lock the selected period before
-tracking begins. If you do not freeze it explicitly, marking the first actual
-in the period freezes it automatically.
+Open **History** to manage closed periods independently of the current
+transaction view. The manager defaults to Month, shows every closed date
+range, also surfaces baselines captured for individual transactions, and
+supports individual or complete clearing. Marking an item Actual captures only
+that item's baseline; it does not close the month or prevent other plan edits.
 
-Once frozen, later plan changes affect Current plan but not Baseline. This
+Actual status is reversible when an entry was completed or categorized by
+mistake. Unticking Actual restores the occurrence to planned without deleting
+the transaction. Editing an actual can correct its
+accounts, movement, amount, description, and line items; a repeat change starts
+with future occurrences and does not rewrite earlier history.
+
+Once captured, later plan changes affect Current plan but not Baseline. Closing
+a period captures every item in it as historical comparison data. This
 makes the variance meaningful even when you improve the plan during the
 period.
 
@@ -133,7 +156,8 @@ For a planned occurrence:
 
 1. Tick **Actual** when it happens.
 2. Edit the item if the actual amount or date differs.
-3. Use **Remove this occurrence** if it will not happen.
+3. Use **Skip this occurrence** if it will not happen. Restore it from the card
+   if plans change, or permanently delete a non-actual one-time transaction.
 
 For an unexpected movement, click **Add item** and create it as Actual. A
 manual actual has a zero baseline and zero current plan, so it is counted as an
@@ -145,7 +169,7 @@ added as a second movement.
 ## 1.7 A Useful Review Rhythm
 
 - Review the upcoming Period at the start of each time period.
-- Freeze the baseline when the plan is ready.
+- Use **History** to close a period when it should become protected history.
 - Record actuals and exceptions during the period.
 - At period end, compare Baseline, Current plan, Actual, and the variance
   totals.

@@ -6,8 +6,9 @@
 satisfy one or more account goals by specific dates, while respecting optional
 constraints.
 
-1.2 It uses the scenario’s current accounts, starting balances, and projection
-engine to validate that the suggested Plan Rules actually achieve the goals.
+1.2 It uses the scenario’s current Plan Rules, retained actual results, account
+balances, and projection engine to validate that the suggested Plan Rules
+actually achieve the goals.
 
 ## 2.0 Definitions
 
@@ -15,7 +16,7 @@ engine to validate that the suggested Plan Rules actually achieve the goals.
 
 2.1.1 **Account**: the scenario account a goal or constraint applies to.
 
-2.1.2 **Amount**: meaning depends on the selected type (see 2.2 and 2.3). It is never “the account balance” unless a field explicitly says so.
+2.1.2 **Amount**: meaning depends on the selected type (see 2.3 and 2.4). It is never “the account balance” unless a field explicitly says so.
 
 2.1.3 **Start Date / End Date**:
 
@@ -27,66 +28,103 @@ engine to validate that the suggested Plan Rules actually achieve the goals.
 
 2.1.4 **Priority**: lower numbers are solved first. If two goals conflict, priority decides which goal is favoured.
 
-### 2.2 Goal Fields and Goal Types
+### 2.2 Allocation Strategies
 
-2.2.1 **Goal Type: Reach balance target** (`reach_balance_by_date`)
+2.2.1 **Balanced Monthly** creates a steady monthly rule for every goal. Use it
+when several goals should progress at the same time.
 
-2.2.1.1 **Target Amount**: the minimum balance you want the account to reach by End Date.
+2.2.2 **Priority Cascade** reserves every goal's contractual monthly minimum,
+then directs remaining capacity by the goals' Priority numbers and deadlines.
+When a goal is funded, unused capacity rolls to the next priority immediately.
 
-2.2.2 **Goal Type: Increase by delta** (`increase_by_delta`)
+2.2.3 **Debt Snowball** reserves contractual minimums, then targets the debt
+with the smallest remaining balance. Goal priority and deadline break ties.
 
-2.2.2.1 **Delta Amount**: the minimum increase in balance between Start Date and End Date.
+2.2.4 **Debt Avalanche** reserves contractual minimums, then targets the debt
+account with the highest percentage rate. Goal priority and deadline break
+ties. Configure the account's percentage periodic change so the solver has the
+rate it needs.
 
-2.2.3 **Goal Type: Pay down to target** (`pay_down_by_date`)
+2.2.5 Set **Max outflow per month** when you want an explicit monthly allocation
+budget for Priority Cascade, Debt Snowball, or Debt Avalanche.
+If no cap is set, the workshop derives capacity from the monthly requirements
+of the configured goals and identifies that capacity as derived in the review.
 
-2.2.3.1 **Target Amount**: the maximum balance you want the account to be at or below by End Date.
+2.2.6 The three cascade strategies can create more than one Plan Rule for a goal because each change
+in allocation becomes a dated phase. This is intentional: the phases make the
+cashflow handoff between goals explicit and auditable.
 
-2.2.3.2 This is typically used for debt payoff (target 0).
+### 2.3 Goal Fields and Goal Types
 
-2.2.4 **Goal Type: Maintain floor** (`maintain_floor`)
+2.3.1 **Goal Type: Reach balance target** (`reach_balance_by_date`)
 
-2.2.4.1 **Floor Amount**: the minimum balance the account must not go below at any point in the projection.
+2.3.1.1 **Target Amount**: the minimum balance you want the account to reach by End Date.
 
-### 2.3 Constraint Fields and Constraint Types
+2.3.2 **Goal Type: Increase by delta** (`increase_by_delta`)
 
-2.3.1 **Constraint Type: Funding account** (`fundingAccount`)
+2.3.2.1 **Delta Amount**: the minimum increase in balance between Start Date and End Date.
 
-2.3.1.1 **Account**: the “source of funds” account used for solver-generated outflows/transfers.
+2.3.3 **Goal Type: Pay down to target** (`pay_down_by_date`)
 
-2.3.1.2 **Amount**: not used. Leave blank.
+2.3.3.1 **Target Amount**: the maximum balance you want the account to be at or below by End Date.
 
-2.3.2 **Constraint Type: Max outflow per month** (`maxOutflow`)
+2.3.3.2 This is typically used for debt payoff (target 0).
 
-2.3.2.1 **Amount**: a monthly cap on total solver-generated outflow.
+2.3.4 **Goal Type: Maintain floor** (`maintain_floor`)
 
-2.3.2.2 This is a per-month limit, not a one-time total.
+2.3.4.1 **Floor Amount**: the minimum balance the account must not go below at any point in the projection.
 
-2.3.3 **Constraint Type: Locked account** (`lockedAccount`)
+2.3.5 **Contractual Minimum / Month** applies to every goal except Maintain
+Floor. Cascade reserves it before extra capacity; Balanced monthly treats it as
+the minimum steady rule amount. Leave it blank when no contractual minimum
+exists.
 
-2.3.3.1 **Account**: the solver is not allowed to move this account.
+### 2.4 Constraint Fields and Constraint Types
 
-2.3.3.2 **Amount**: not used. Leave blank.
+2.4.1 **Constraint Type: Funding account** (`fundingAccount`)
 
-2.3.4 **Constraint Type: Account movement cap** (`accountCap`)
+2.4.1.1 **Account**: the “source of funds” account used for solver-generated outflows/transfers.
 
-2.3.4.1 **Account**: the account being capped.
+2.4.1.2 **Amount**: not used. Leave blank.
 
-2.3.4.2 **Amount**: a per-month movement cap for that account, applied to
+2.4.2 **Constraint Type: Max outflow per month** (`maxOutflow`)
+
+2.4.2.1 **Amount**: a monthly cap on total solver-generated outflow.
+
+2.4.2.2 This is a per-month limit, not a one-time total.
+
+2.4.3 **Constraint Type: Locked account** (`lockedAccount`)
+
+2.4.3.1 **Account**: the solver is not allowed to move this account.
+
+2.4.3.2 **Amount**: not used. Leave blank.
+
+2.4.4 **Constraint Type: Account movement cap** (`accountCap`)
+
+2.4.4.1 **Account**: the account being capped.
+
+2.4.4.2 **Amount**: a per-month movement cap for that account, applied to
 solver-generated Plan Rules.
 
-2.3.5 **Constraint Type: Min balance floor** (`minBalanceFloor`)
+2.4.5 **Constraint Type: Min balance floor** (`minBalanceFloor`)
 
-2.3.5.1 **Account**: the account being protected.
+2.4.5.1 **Account**: the account being protected.
 
-2.3.5.2 **Amount**: the minimum allowed absolute balance during the projection.
+2.4.5.2 **Amount**: the minimum allowed absolute balance during the projection.
 
-### 2.4 Actions
+### 2.5 Actions
 
-2.4.1 **Solve**: calculates suggested monthly transaction rules and validates
-them using projections.
+2.5.1 **Solve**: calculates suggested monthly transaction rules and validates
+them using projections. Running Solve again is a re-solve: earlier generated
+Goal Workshop rules are excluded, while their completed actual occurrences are
+retained in the new starting point.
 
-2.4.2 **Apply**: writes the suggested Plan Rules into the scenario and removes
+2.5.2 **Apply**: writes the suggested Plan Rules into the scenario and removes
 any prior solver-generated rules.
+
+2.5.3 The solution review shows goal-level readiness, rule count, monthly
+capacity, proposed account movement, dates, solver notes, and shortfalls. Apply
+remains unavailable until every configured goal and constraint validates.
 
 ## 3.0 Use Cases
 
@@ -147,6 +185,14 @@ create the transaction rules.
 
 3.4.3 Solve. The solver should satisfy Priority 1 first when limited by funding/floors/caps.
 
+3.4.4 Select **Priority Cascade** in the Strategy row when payments freed by
+completing Priority 1 must automatically move into Priority 2. Review the dated
+phases before Apply.
+
+3.4.5 For several debts, enter each contractual minimum, then select **Debt
+Snowball** or **Debt Avalanche** in the Strategy row. Max outflow is the total
+monthly debt budget; the amount above the minimums is the extra payoff capacity.
+
 ### 3.5 Keep one account unchanged while solving everything else
 
 3.5.1 Constraints:
@@ -159,12 +205,22 @@ create the transaction rules.
 
 ## 4.0 Notes and Limitations
 
-4.1 Starting balances matter. The solver starts from each account’s `startingBalance` in the scenario.
+4.1 Starting balances still matter, but the advanced solver first projects the
+current plan and retained actuals. It calculates the remaining work from that
+baseline rather than always restarting from `startingBalance`.
 
 4.2 Amount fields are type-specific. If a row is Funding account or Locked account, Amount is intentionally unused.
 
 4.3 The solver validates by running projections with the suggested Plan Rules
 included.
+
+4.4 Account periodic changes and rate schedules are evaluated by the projection
+engine during validation. **Interest Posting Day** is configured on an account's
+percentage periodic change, not on a Goal row. When supplied, monthly interest
+posts on that day after same-day transactions; days 29–31 clamp to month-end.
+
+4.5 Apply replaces older rules tagged as Goal Workshop-generated. It does not
+remove or rewrite manually created Plan Rules.
 
 ## 5.0 Related Documents
 

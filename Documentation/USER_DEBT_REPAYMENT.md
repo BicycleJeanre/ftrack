@@ -55,6 +55,10 @@ mode for that.
 
 4.3.3 If you have a variable rate, use the rate schedule editor to set date ranges.
 
+4.3.4 Set **Interest Posting Day** when the lender posts interest on a specific
+day each month. Days 29–31 automatically use month-end in shorter months. Leave
+it blank to retain period-end accrual.
+
 4.4 Notes.
 
 4.4.1 A schedule entry overrides the base periodic change for its date range.
@@ -70,6 +74,10 @@ the liability balance.
 
 5.3 Add extra payments as separate rules or one-time Period items so you can
 adjust them independently.
+
+5.3.1 For an automated multi-debt strategy, use Goal Workshop Advanced mode:
+enter each contractual minimum, set the total Max outflow per month, and choose
+Snowball or Avalanche for the extra capacity.
 
 5.4 Use realistic start dates so the projection timeline matches expected payments.
 

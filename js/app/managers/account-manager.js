@@ -241,7 +241,7 @@ export async function remove(scenarioId, accountId) {
         if (protectedOccurrences.length) {
             const error = new Error(
                 `Account ${accountIdNum} cannot be removed because recorded actual, ` +
-                'skipped, or frozen baseline history depends on it.'
+                'skipped, or captured baseline history depends on it.'
             );
             error.code = 'account-history-protected';
             error.details = {

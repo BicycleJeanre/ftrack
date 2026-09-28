@@ -14,6 +14,23 @@ import {
 export const STORAGE_KEY = 'ftrack:app-data';
 
 let transactionQueue = Promise.resolve(); // serialize transactions (read-modify-write) to avoid races
+const commitListeners = new Set();
+
+function dispatchCommit(source) {
+    const commit = { source, committedAt: new Date().toISOString() };
+    commitListeners.forEach((listener) => {
+        try {
+            listener(commit);
+        } catch (_) {
+            // Persistence must remain successful even if a background observer fails.
+        }
+    });
+}
+
+export function subscribeToCommits(listener) {
+    commitListeners.add(listener);
+    return () => commitListeners.delete(listener);
+}
 
 /**
  * Read the entire app data from localStorage
@@ -46,11 +63,12 @@ export async function read() {
  * @param {Object} data - The complete data object to write
  * @returns {Promise<void>}
  */
-export async function write(data) {
+export async function write(data, options = {}) {
     try {
         assertCurrentSchemaVersion(data);
         const sanitized = sanitizeAppDataForWrite(data);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+        dispatchCommit(options.source || 'local');
     } catch (err) {
         if (err.name === 'QuotaExceededError') {
             throw new Error('Storage quota exceeded. Please export and clear old data.');
@@ -130,4 +148,5 @@ export async function transaction(modifyFn) {
 export async function clear() {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem('ftrack:plan-actuals-workspaces:v1');
+    dispatchCommit('local');
 }

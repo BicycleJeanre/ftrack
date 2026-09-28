@@ -84,8 +84,10 @@ test('resolved occurrence totals compare baseline, current plan, actuals, commit
       baselineAmount: 25,
       plannedAmount: 25,
       actualAmount: null,
-      status: 'skipped',
-      isIncludedInForecast: false
+      status: { name: 'skipped' },
+      // Status remains authoritative even if imported data carries a stale
+      // forecast-inclusion flag.
+      isIncludedInForecast: true
     }
   ]);
 

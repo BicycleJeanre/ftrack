@@ -14,8 +14,8 @@ import {
   createMoneyColumn,
   createDateColumn
 } from './grid-factory.js';
-import { openAccountGroupModal } from '../modals/account-group-modal.js';
-import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
+import { openAccountGroupModal } from '../modals/account-group-modal.js?v=20260901-account-group-filter-42';
+import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js?v=20260901-strategy-matrix-35';
 import { openPeriodicChangeScheduleModal } from '../modals/periodic-change-schedule-modal.js';
 import { openTagEditorModal } from '../modals/tag-editor-modal.js';
 import { createFilterModal } from '../modals/filter-modal.js';
@@ -24,6 +24,10 @@ import { buildAccountGroupIndex, resolveDescendantGroupIds } from '../../../doma
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 import { GridStateManager } from './grid-state.js';
 import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
+import {
+  enhanceAccountGroupSelect,
+  syncSelectionDialog
+} from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
 const accountsGridState = new GridStateManager('accounts');
 let lastAccountsTable = null;
@@ -213,6 +217,10 @@ function createAccountGroupAssignmentField({
     selectEl.appendChild(opt);
   });
   selectEl.value = selectedGroupId ? String(selectedGroupId) : '';
+  selectEl.setAttribute('aria-label', 'Primary Account Group');
+  enhanceAccountGroupSelect(selectEl, {
+    title: 'Choose primary account group'
+  });
 
   const quickCreateBtn = document.createElement('button');
   quickCreateBtn.type = 'button';
@@ -1360,6 +1368,7 @@ export async function loadAccountsGrid({
         controlsToSync.forEach((control) => {
           if (control && control.value !== String(value ?? '')) {
             control.value = String(value ?? '');
+            syncSelectionDialog(control);
           }
         });
       };
@@ -1380,6 +1389,16 @@ export async function loadAccountsGrid({
         });
       });
       syncControls([groupBySelect, modalGroupBySelect], activeGroupBy);
+      enhanceAccountGroupSelect(groupBySelect, {
+        title: 'Group accounts by',
+        subtitle: 'Choose how account cards are grouped.',
+        searchPlaceholder: 'Search grouping options'
+      });
+      enhanceAccountGroupSelect(modalGroupBySelect, {
+        title: 'Group accounts by',
+        subtitle: 'Choose how account cards are grouped.',
+        searchPlaceholder: 'Search grouping options'
+      });
 
       const typeFilterSelect = createSelect('account-type-filter-select');
       const modalTypeFilterSelect = createSelect('account-modal-type-filter-select');

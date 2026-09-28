@@ -43,6 +43,9 @@ globalThis.requestAnimationFrame = (fn) => fn();
 
 const { generateRecurrenceDates } = await import('../../js/domain/calculations/recurrence-calculations.js');
 const { getRecurrenceDescription } = await import('../../js/domain/calculations/recurrence-utils.js');
+const { filterAccountsByScope } = await import(
+  '../../js/ui/components/widgets/account-selector-filter.js'
+);
 const { calculatePeriodicChange } = await import('../../js/domain/calculations/financial-calculations.js');
 const DataStore = await import('../../js/app/services/storage-service.js');
 const DataService = await import('../../js/app/services/data-service.js');
@@ -213,9 +216,12 @@ test('ui state normalizes per-scenario Plan and Actuals workspace selections', (
         periodTypeId: 4,
         periodId: '2026-Q2',
         accountId: '3',
+        accountScope: 'group:8',
         statusFilter: 'actual',
+        historyFilter: 'frozen',
         groupBy: 'movement',
         recurringAccountId: 4,
+        recurringAccountScope: 'type:4',
         recurringGroupBy: 'secondaryAccountName',
         recurringSplitGroupId: 'loan-payment',
         recurringSplitRole: 'interest',
@@ -234,15 +240,42 @@ test('ui state normalizes per-scenario Plan and Actuals workspace selections', (
       periodTypeId: 4,
       periodId: '2026-Q2',
       accountId: 3,
+      accountScope: 'group:8',
       statusFilter: 'actual',
+      historyFilter: 'closed',
       groupBy: 'movement',
       recurringAccountId: 4,
+      recurringAccountScope: 'type:4',
       recurringGroupBy: 'secondaryAccountName',
       recurringSplitGroupId: 'loan-payment',
       recurringSplitRole: 'interest',
       recurringSplitAccountGroupId: 8
     }
   });
+});
+
+test('account selector scopes filter by account type or account group', () => {
+  const accounts = [
+    { id: 1, name: 'Checking', type: { id: 1, name: 'Asset' } },
+    { id: 2, name: 'Credit Card', type: { id: 2, name: 'Liability' } },
+    { id: 3, name: 'Groceries', type: { id: 5, name: 'Expense' } }
+  ];
+  const groups = [
+    { id: 8, name: 'Daily money', accountIds: [1, 3] }
+  ];
+
+  assert.deepEqual(
+    filterAccountsByScope(accounts, groups, 'type:1').map((account) => account.id),
+    [1]
+  );
+  assert.deepEqual(
+    filterAccountsByScope(accounts, groups, 'group:8').map((account) => account.id),
+    [1, 3]
+  );
+  assert.deepEqual(
+    filterAccountsByScope(accounts, groups, '').map((account) => account.id),
+    [1, 2, 3]
+  );
 });
 
 test('periodic change math covers fixed amount, nominal compounding, and custom compounding', () => {

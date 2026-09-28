@@ -287,14 +287,63 @@ Goal tooling uses explicit planning windows that can differ from the projection 
 type ScenarioPlanning = {
   generatePlan: PlanningWindow,
   advancedGoalSolver: PlanningWindow,
-  goalWorkshopMode?: 'simple' | 'advanced'
+  goalWorkshopMode?: 'simple' | 'advanced',
+  periodVariants?: PeriodVariant[]
 }
 
 type PlanningWindow = {
   startDate: string,
   endDate: string
 }
+
+type PeriodVariant = {
+  id: string,
+  name: string,
+  periodType: 'Day' | 'Week' | 'Month' | 'Quarter' | 'Year',
+  periodId: string,
+  startDate: string,
+  endDate: string,
+  createdAt: string | null,
+  updatedAt: string | null,
+  occurrences: TransactionOccurrence[]
+}
 ```
+
+Period variants are isolated, period-scoped what-if snapshots. Their occurrence
+copies may be edited, skipped, added, duplicated, or deleted without mutating
+`scenario.transactions`, `scenario.transactionOccurrences`, baseline history,
+or projection freshness. Copied actual occurrences are immutable comparison
+history. Snapshot selection is a UI preference keyed by scenario and period.
+
+### 2.5.2 AdvancedGoalSettings
+
+```typescript
+type AdvancedGoalSettings = {
+  strategy?: 'balanced' | 'priority-cascade' | 'snowball' | 'avalanche',
+  allocationStrategy?: 'parallel' | 'cascade',
+  payoffOrder?: 'priority' | 'snowball' | 'avalanche',
+  goals: AdvancedGoal[],
+  constraints: AdvancedGoalConstraints
+}
+```
+
+- `strategy` is the canonical four-option user choice: `balanced`,
+  `priority-cascade`, `snowball`, or `avalanche`.
+- Missing `strategy` is derived from the legacy `allocationStrategy` and
+  `payoffOrder` fields for compatibility. Newly saved settings retain those
+  legacy fields as a compatible representation of the selected strategy.
+- `balanced` creates steady monthly allocations.
+- The three other strategies create month-by-month cascade allocations and may generate
+  multiple dated transaction-rule phases for a single goal.
+- Debt Snowball orders extra capacity by smallest remaining debt; Debt
+  Avalanche orders it by highest account percentage rate. Priority and deadline
+  are tie-breakers. Contractual minimums are reserved before either order.
+- Solver-generated rules are tagged with `adv-goal-generated`, the goal type,
+  the stable goal ID, and (for cascade results) the phase number.
+- `AdvancedGoal.minimumMonthlyAmount` is an optional non-negative contractual
+  minimum. It is ignored for `maintain_floor` goals.
+- Re-solving excludes prior `adv-goal-generated` rules from the baseline but
+  retains actual occurrence snapshots linked to those rules.
 
 ---
 
@@ -474,6 +523,11 @@ A transaction occurrence is persisted only when dated state must survive rule
 expansion: an override, actual, skip, manual entry, or frozen baseline. Generated
 future occurrences remain derivable from transaction rules.
 
+Ending a recurring series removes its unresolved future plans. Any future
+stored actual, skipped, or baseline evidence is converted to a source-less
+manual occurrence with the stable `occurrence:<id>` key, preserving comparison
+and audit history without keeping the recurrence alive.
+
 ### 4.5.1 Structure
 
 ```typescript
@@ -636,7 +690,8 @@ Defines automatic adjustments to transaction amounts or account balances over ti
   customCompounding?: {
     period: number,                         // Period ID (1=Annual, 2=Monthly, 3=Quarterly, 4=Daily)
     frequency: number                       // Compounding frequency per period
-  }
+  },
+  postingDayOfMonth?: number                // 1-31 for monthly percentage posting; 29-31 clamp to month-end
 }
 ```
 
@@ -650,6 +705,7 @@ Defines automatic adjustments to transaction amounts or account balances over ti
 | `period` | number | No (required if Fixed Amount) | Period ID (1–5): 1=Daily, 2=Weekly, 3=Monthly, 4=Quarterly, 5=Yearly |
 | `ratePeriod` | number | No | Rate period ID: 1=Annual, 2=Monthly, 3=Quarterly, 4=Daily |
 | `customCompounding` | Object | No (for Custom type only) | Period ID and compounding frequency |
+| `postingDayOfMonth` | number | No | Percentage changes only. Post monthly interest on day 1–31 after same-day cash movements; shorter months clamp to month-end. If absent, the existing period-end accrual behavior applies. |
 
 ### 6.3 Change Types Reference
 

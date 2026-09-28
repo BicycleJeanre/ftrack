@@ -4,7 +4,7 @@
 import { createGrid, refreshGridData, createTextColumn, createMoneyColumn, createDeleteColumn, createDuplicateColumn, createListEditor, formatMoneyDisplay } from './grid-factory.js';
 import { attachGridHandlers } from './grid-handlers.js';
 import { openRecurrenceModal } from '../modals/recurrence-modal.js';
-import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js';
+import { openPeriodicChangeModal } from '../modals/periodic-change-modal.js?v=20260901-strategy-matrix-35';
 import { openTextInputModal } from '../modals/text-input-modal.js';
 import { openQuickAccountModal } from '../modals/quick-account-modal.js';
 import { createFilterModal } from '../modals/filter-modal.js';
@@ -20,7 +20,7 @@ import {
   createTransactionGroupId
 } from '../../../domain/calculations/loan-allocation-utils.js';
 import { calculateCapitalInterestTotals } from '../../transforms/data-aggregators.js';
-import { notifyError, confirmDialog } from '../../../shared/notifications.js';
+import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
 import { normalizeCanonicalTransaction, mapEditToCanonical } from '../../transforms/transaction-row-transformer.js';
 import { findPeriodById, findPeriodIndexById, toPeriodId } from '../../../shared/period-window-utils.js';
 import {
@@ -34,8 +34,16 @@ import { GridStateManager } from './grid-state.js';
 import * as DataService from '../../../app/services/data-service.js';
 import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
 import { renderMoneyTotals } from '../widgets/toolbar-totals.js';
+import {
+  enhanceAccountGroupSelect,
+  populateAccountSelect
+} from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
+import {
+  cleanupItemDetailDismissal,
+  installItemDetailDismissal
+} from '../widgets/item-detail-dismissal.js?v=20260901-click-off-details-43';
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
-import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js';
+import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js?v=20260926-delete-transaction-48';
 import * as AccountManager from '../../../app/managers/account-manager.js';
 
 const {
@@ -925,6 +933,7 @@ function renderTransactionsSummaryList({
   prebuiltDisplayRows = null,
   onEditSplitSet = null
 }) {
+  cleanupItemDetailDismissal(container);
   container.innerHTML = '';
   const refreshAfterMutation = async () => {
     // Recurring-rule managers dispatch forecast:planChanged after persistence.
@@ -1084,23 +1093,15 @@ function renderTransactionsSummaryList({
   const buildAccountSelect = (selectedId, includeNone = false, defaultTypeId = 1) => {
     const sel = document.createElement('select');
     sel.className = 'grid-summary-input';
-    if (includeNone) {
-      const noneOpt = document.createElement('option');
-      noneOpt.value = '';
-      noneOpt.textContent = '— None —';
-      sel.appendChild(noneOpt);
-    }
-    visibleAccounts.forEach((a) => {
-      const opt = document.createElement('option');
-      opt.value = String(a.id);
-      opt.textContent = a.name;
-      sel.appendChild(opt);
+    populateAccountSelect(sel, {
+      accounts: visibleAccounts,
+      accountGroups: scenario?.accountGroups || [],
+      selectedId: selectedId || '',
+      includeAll: false,
+      ...(includeNone ? { emptyLabel: '— None —' } : {}),
+      extraOptions: [{ value: '__add_account__', label: '＋ Add new account…' }],
+      actionValues: ['__add_account__']
     });
-    const addOpt = document.createElement('option');
-    addOpt.value = '__add_account__';
-    addOpt.textContent = '＋ Add new account…';
-    sel.appendChild(addOpt);
-    sel.value = selectedId ? String(selectedId) : '';
     let previousValue = sel.value;
     sel.addEventListener('change', async () => {
       if (sel.value !== '__add_account__') {
@@ -2068,6 +2069,7 @@ function renderTransactionsSummaryList({
       actions.style.display = 'flex';
       updateHeaderView();
     };
+    card.addEventListener('ftrack:close-item-details', exitEdit);
 
     if (isRecurringLogicalRow) {
       updateEditorAccountLabels(editableTypeId);
@@ -2901,7 +2903,7 @@ function renderTransactionsSummaryList({
         if (!await confirmDialog(
           discardDraft
             ? 'Discard this unsaved recurring split draft?'
-            : 'End this recurring series before its next planned occurrence? Past actuals, skipped items, and frozen baselines will be preserved.'
+            : 'End this recurring series before its next planned occurrence? Past actuals, skipped items, and captured baselines will be preserved.'
         )) return;
         try {
           if (discardDraft) {
@@ -2923,11 +2925,17 @@ function renderTransactionsSummaryList({
             notifyError('This rule has no unresolved future occurrence at which to end the series.');
             return;
           }
-          await OccurrenceManager.endSeries(
+          const result = await OccurrenceManager.endSeries(
             scenario,
             nextOccurrence.occurrenceKey
           );
           await refreshAfterMutation();
+          const preservedCount = result?.preservedHistory?.length || 0;
+          notifySuccess(
+            preservedCount
+              ? `Recurring series ended. ${preservedCount} protected record${preservedCount === 1 ? '' : 's'} remained as one-time history.`
+              : 'Recurring series ended.'
+          );
         } catch (error) {
           notifyError(error?.message || 'The recurring series could not be ended.');
         }
@@ -2954,6 +2962,16 @@ function renderTransactionsSummaryList({
       }
       transactionsGridState.state.pendingSummaryEditTransactionId = null;
       transactionsGridState.state.pendingSummarySplitInline = false;
+    }
+  });
+
+  installItemDetailDismissal({
+    root: container,
+    detailsSelector: '.grid-summary-card > .grid-summary-form',
+    ownerSelector: '.grid-summary-card',
+    isOpen: (form) => form.style.display === 'grid',
+    onDismiss: (_form, card) => {
+      card?.dispatchEvent(new CustomEvent('ftrack:close-item-details'));
     }
   });
 }
@@ -3475,6 +3493,7 @@ export async function loadMasterTransactionsGrid({
     ? (rulesDetailMode ? 'rules-detail' : 'rules')
     : (effectiveTransactionsMode === 'detail' ? 'detail' : 'summary');
   const accountFilterStateKey = `accountFilter:${transactionsModeKey}`;
+  const accountScopeStateKey = `accountScope:${transactionsModeKey}`;
   const groupByStateKey = `groupBy:${transactionsModeKey}`;
   const splitGroupFilterStateKey = `splitGroupFilter:${transactionsModeKey}`;
   const splitRoleFilterStateKey = `splitRoleFilter:${transactionsModeKey}`;
@@ -3546,30 +3565,28 @@ export async function loadMasterTransactionsGrid({
         const accountFilterSelect = document.createElement('select');
         accountFilterSelect.id = 'tx-account-filter-select';
         accountFilterSelect.className = 'input-select';
-        if (rulesOnly) {
-          const allAccounts = document.createElement('option');
-          allAccounts.value = '';
-          allAccounts.textContent = 'All Accounts';
-          accountFilterSelect.appendChild(allAccounts);
-        }
-        (currentScenario.accounts || [])
-          .filter((a) => a.name !== 'Select Account')
-          .forEach((account) => {
-            const opt = document.createElement('option');
-            opt.value = String(account.id);
-            opt.textContent = account.name;
-            accountFilterSelect.appendChild(opt);
-          });
-        const firstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
+        const storedAccountScope = rulesOnly
+          ? (state?.getTransactionsAccountScope?.() || '')
+          : String(dropdownState[accountScopeStateKey] || '');
         const storedSummaryAccount = rulesOnly
           ? state?.getTransactionsAccountFilterId?.()
           : dropdownState[accountFilterStateKey];
-        const defaultSummaryAccount = rulesOnly
-          ? (storedSummaryAccount || '')
-          : (storedSummaryAccount || (firstAccountId ? String(firstAccountId) : ''));
-        if (defaultSummaryAccount) {
-          accountFilterSelect.value = defaultSummaryAccount;
-          transactionsGridState.state.dropdowns[accountFilterStateKey] = defaultSummaryAccount;
+        const selectedSummaryAccount = populateAccountSelect(accountFilterSelect, {
+          accounts: currentScenario.accounts || [],
+          accountGroups: currentScenario.accountGroups || [],
+          scope: storedAccountScope,
+          selectedId: storedSummaryAccount || null,
+          includeAll: rulesOnly,
+          preserveCurrentOutsideScope: false,
+          onScopeChange: (nextScope) => {
+            transactionsGridState.state.dropdowns[accountScopeStateKey] = nextScope;
+            if (rulesOnly) state?.setTransactionsAccountScope?.(nextScope);
+          }
+        });
+        transactionsGridState.state.dropdowns[accountScopeStateKey] = storedAccountScope;
+        transactionsGridState.state.dropdowns[accountFilterStateKey] = accountFilterSelect.value;
+        if (rulesOnly && storedSummaryAccount && !selectedSummaryAccount) {
+          state?.setTransactionsAccountFilterId?.(null);
         }
         accountFilterSelect.addEventListener('change', (e) => {
           transactionsGridState.state.dropdowns[accountFilterStateKey] = e.target.value;
@@ -3753,6 +3770,9 @@ export async function loadMasterTransactionsGrid({
           splitAccountGroupSelectSummary.appendChild(opt);
         });
         splitAccountGroupSelectSummary.value = String(dropdownState[splitAccountGroupFilterStateKey] || '');
+        enhanceAccountGroupSelect(splitAccountGroupSelectSummary, {
+          title: 'Filter by split account group'
+        });
         splitAccountGroupSelectSummary.addEventListener('change', () => {
           transactionsGridState.state.dropdowns[splitAccountGroupFilterStateKey] = splitAccountGroupSelectSummary.value;
           if (rulesOnly) {
@@ -3772,11 +3792,12 @@ export async function loadMasterTransactionsGrid({
         addButton.textContent = '+';
 
         const splitButton = document.createElement('button');
-        splitButton.className = 'icon-btn card-inline-action';
+        splitButton.className = 'btn btn-secondary card-inline-action plan-actuals-line-items-action';
         splitButton.title = rulesOnly
-          ? 'Create recurring transaction with line items'
-          : 'Create transaction with line items';
-        splitButton.textContent = '⇄';
+          ? 'Create recurring account allocation'
+          : 'Create account allocation';
+        splitButton.textContent = '+ Allocation';
+        splitButton.setAttribute('aria-label', splitButton.title);
 
         const refreshButton = document.createElement('button');
         refreshButton.className = 'icon-btn card-inline-action';
@@ -4309,23 +4330,30 @@ export async function loadMasterTransactionsGrid({
           const accountFilterSelect = document.createElement('select');
           accountFilterSelect.id = 'tx-account-filter-select';
           accountFilterSelect.className = 'input-select';
-          (currentScenario.accounts || [])
-            .filter((a) => a.name !== 'Select Account')
-            .forEach((account) => {
-              const opt = document.createElement('option');
-              opt.value = String(account.id);
-              opt.textContent = account.name;
-              accountFilterSelect.appendChild(opt);
-            });
+          const storedDetailScope = rulesOnly
+            ? (state?.getTransactionsAccountScope?.() || '')
+            : String(dropdownState[accountScopeStateKey] || '');
           const storedDetailAccount = rulesOnly
             ? state?.getTransactionsAccountFilterId?.()
             : dropdownState[accountFilterStateKey];
-          const detailFirstAccountId = (currentScenario.accounts || []).find((a) => a.name !== 'Select Account')?.id;
-          const defaultDetailAccount = storedDetailAccount || (detailFirstAccountId ? String(detailFirstAccountId) : '');
-          if (defaultDetailAccount) {
-            accountFilterSelect.value = defaultDetailAccount;
-            state?.setTransactionsAccountFilterId?.(Number(defaultDetailAccount));
-            transactionsGridState.state.dropdowns[accountFilterStateKey] = defaultDetailAccount;
+          const selectedDetailAccount = populateAccountSelect(accountFilterSelect, {
+            accounts: currentScenario.accounts || [],
+            accountGroups: currentScenario.accountGroups || [],
+            scope: storedDetailScope,
+            selectedId: storedDetailAccount || null,
+            includeAll: rulesOnly,
+            preserveCurrentOutsideScope: false,
+            onScopeChange: (nextScope) => {
+              transactionsGridState.state.dropdowns[accountScopeStateKey] = nextScope;
+              if (rulesOnly) state?.setTransactionsAccountScope?.(nextScope);
+            }
+          });
+          transactionsGridState.state.dropdowns[accountScopeStateKey] = storedDetailScope;
+          transactionsGridState.state.dropdowns[accountFilterStateKey] = accountFilterSelect.value;
+          if (rulesOnly && storedDetailAccount && !selectedDetailAccount) {
+            state?.setTransactionsAccountFilterId?.(null);
+          } else if (!rulesOnly && selectedDetailAccount) {
+            state?.setTransactionsAccountFilterId?.(selectedDetailAccount);
           }
           accountFilterSelect.addEventListener('change', (e) => {
             const nextId = e.target.value ? Number(e.target.value) : null;
@@ -4497,6 +4525,9 @@ export async function loadMasterTransactionsGrid({
             splitAccountGroupSelect.appendChild(opt);
           });
           splitAccountGroupSelect.value = String(dropdownState[splitAccountGroupFilterStateKey] || '');
+          enhanceAccountGroupSelect(splitAccountGroupSelect, {
+            title: 'Filter by split account group'
+          });
           splitAccountGroupSelect.addEventListener('change', () => {
             transactionsGridState.state.dropdowns[splitAccountGroupFilterStateKey] = splitAccountGroupSelect.value;
             if (rulesOnly) {
@@ -4524,9 +4555,10 @@ export async function loadMasterTransactionsGrid({
           addButton.textContent = '+';
 
           const splitButton = document.createElement('button');
-          splitButton.className = 'icon-btn';
+          splitButton.className = 'btn btn-secondary plan-actuals-line-items-action';
           splitButton.title = 'Create Split Payment Set';
-          splitButton.textContent = '⇄';
+          splitButton.textContent = '+ Allocation';
+          splitButton.setAttribute('aria-label', 'Create account allocation');
 
           const refreshButton = document.createElement('button');
           refreshButton.className = 'icon-btn';

@@ -122,7 +122,7 @@ test.describe('detail workflow reachability', () => {
     await selectWorkflow(page, 'Plan Rules (Detail)');
 
     await page.locator(
-      '#budgetSection button[title="Create recurring transaction with line items"]'
+      '#budgetSection button[title="Create recurring account allocation"]'
     ).click();
 
     const openCard = page.locator(

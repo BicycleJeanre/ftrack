@@ -47,7 +47,7 @@ function reconcileRemovedRuleOccurrences(scenario, nextTransactions) {
         )].sort((left, right) => left - right);
         const error = new Error(
             `Cannot remove transaction rule${sourceIds.length === 1 ? '' : 's'} ` +
-            `${sourceIds.join(', ')} because recorded actual, skipped, or frozen baseline history depends on it.`
+            `${sourceIds.join(', ')} because recorded actual, skipped, or captured baseline history depends on it.`
         );
         error.code = 'rule-history-protected';
         error.details = {
@@ -93,7 +93,21 @@ function normalizeCanonicalTransactionRecord(txn = {}, id) {
     const transactionGroupRole = txn.transactionGroupRole ?? null;
     const transactionGroupAccountGroupId = Number(txn.transactionGroupAccountGroupId || 0) || null;
     const status = normalizeStatus(txn);
-    const rawAmount = txn.amount || 0;
+    const lineItems = Array.isArray(txn.lineItems)
+        ? txn.lineItems.flatMap((item, index) => {
+            const amount = Math.abs(Number(item?.amount || 0));
+            if (!Number.isFinite(amount) || amount <= 0) return [];
+            return [{
+                id: String(item?.id || `line-${index + 1}`).trim(),
+                date: item?.date || txn.effectiveDate || txn.plannedDate || null,
+                description: String(item?.description || '').trim(),
+                amount
+            }];
+        })
+        : [];
+    const rawAmount = lineItems.length
+        ? lineItems.reduce((sum, item) => sum + item.amount, 0)
+        : (txn.amount || 0);
     const normalizedAmount = Math.abs(rawAmount);
 
     return {
@@ -111,6 +125,7 @@ function normalizeCanonicalTransactionRecord(txn = {}, id) {
         periodicChange: txn.periodicChange || null,
         status,
         tags: txn.tags || [],
+        ...(lineItems.length ? { lineItems } : {}),
         seriesRootId: txn.seriesRootId ?? null,
         supersedesTransactionId: txn.supersedesTransactionId ?? null,
         activeFrom: txn.activeFrom ?? txn.recurrence?.startDate ?? txn.effectiveDate ?? null,

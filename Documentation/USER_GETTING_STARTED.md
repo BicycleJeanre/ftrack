@@ -43,12 +43,15 @@ Use the in-app documentation in either of two ways:
    - **This occurrence only** for a one-off change.
    - **This and future** for a new amount or schedule going forward.
    - **Entire series** for the current and future segments of the series.
-8. Click **Freeze baseline** when the selected period's plan is ready. The
-   first actual in an unfrozen period also freezes it automatically.
+8. Open **History** and close the exact period when it should become protected
+   history. The manager defaults to Month. Marking Actual captures only that
+   item's baseline and does not close the period.
 9. Record reality:
    - tick **Actual** for something that happened;
    - edit the actual amount or date when it differs;
-   - use **Remove this occurrence** for something that will not happen; or
+   - use **Skip this occurrence** for something that will not happen;
+   - restore a skipped item or permanently delete a non-actual one-time item
+     directly from its card; or
    - use **Add item** to record an unexpected actual.
 10. Review **Projections**. Plan and actual changes mark projections stale and
     trigger an automatic refresh. Use **Refresh projections now** if you do not

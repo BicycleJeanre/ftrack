@@ -17,8 +17,9 @@ import * as ScenarioManager from '../../../app/managers/scenario-manager.js';
 import { getScenario } from '../../../app/services/data-service.js';
 import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
-import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.js';
+import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.js?v=20260901-strategy-matrix-35';
 import { createModal } from '../modals/modal-factory.js';
+import { populateAccountSelect } from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
 function resolveGoalWorkshopMode(scenario) {
   const persisted = scenario?.planning?.goalWorkshopMode;
@@ -100,10 +101,60 @@ function escapeHtml(str) {
     .replaceAll("'", '&#39;');
 }
 
+const ADVANCED_SOLVER_STRATEGIES = [
+  {
+    value: 'balanced',
+    label: 'Balanced Monthly',
+    description: 'Progress every goal with steady monthly allocations.'
+  },
+  {
+    value: 'priority-cascade',
+    label: 'Priority Cascade',
+    description: 'Finish lower-numbered priorities first, then roll capacity forward.'
+  },
+  {
+    value: 'snowball',
+    label: 'Debt Snowball',
+    description: 'After minimums, target the smallest remaining balance first.'
+  },
+  {
+    value: 'avalanche',
+    label: 'Debt Avalanche',
+    description: 'After minimums, target the highest-interest account first.'
+  }
+];
+
+function resolveAdvancedSolverStrategy(settings) {
+  const explicit = String(settings?.strategy || '');
+  if (ADVANCED_SOLVER_STRATEGIES.some((strategy) => strategy.value === explicit)) {
+    return explicit;
+  }
+  if (settings?.allocationStrategy !== 'cascade') return 'balanced';
+  if (settings?.payoffOrder === 'snowball') return 'snowball';
+  if (settings?.payoffOrder === 'avalanche') return 'avalanche';
+  return 'priority-cascade';
+}
+
+function getAdvancedSolverStrategyFields(strategy) {
+  if (strategy === 'balanced') {
+    return { strategy: 'balanced', allocationStrategy: 'parallel', payoffOrder: 'priority' };
+  }
+  if (strategy === 'snowball') {
+    return { strategy: 'snowball', allocationStrategy: 'cascade', payoffOrder: 'snowball' };
+  }
+  if (strategy === 'avalanche') {
+    return { strategy: 'avalanche', allocationStrategy: 'cascade', payoffOrder: 'avalanche' };
+  }
+  return { strategy: 'priority-cascade', allocationStrategy: 'cascade', payoffOrder: 'priority' };
+}
+
 function getDefaultAdvancedGoalSettings(scenario) {
   const accounts = scenario?.accounts || [];
   const defaultFunding = accounts.find((a) => a.type === 1)?.id || null;
   return {
+    strategy: 'balanced',
+    allocationStrategy: 'parallel',
+    payoffOrder: 'priority',
     goals: [],
     constraints: {
       fundingAccountId: defaultFunding,
@@ -273,6 +324,13 @@ async function loadAdvancedGoalSolverSection({
   container.innerHTML = '';
 
   const planningWindow = getScenarioPlanningWindow(scenario, 'advancedGoalSolver');
+  const storedSettings = scenario.advancedGoalSettings || getDefaultAdvancedGoalSettings(scenario);
+  const solverStrategy = resolveAdvancedSolverStrategy(storedSettings);
+  const strategyFields = getAdvancedSolverStrategyFields(solverStrategy);
+  const allocationStrategy = strategyFields.allocationStrategy;
+  const payoffOrder = strategyFields.payoffOrder;
+  const selectedStrategy = ADVANCED_SOLVER_STRATEGIES.find((strategy) => strategy.value === solverStrategy)
+    || ADVANCED_SOLVER_STRATEGIES[0];
 
   // --- Header with settings modal trigger ---
   const solverHeader = document.createElement('div');
@@ -284,6 +342,10 @@ async function loadAdvancedGoalSolverSection({
   headerLabel.className = 'dash-panel-label';
   headerLabel.textContent = 'Goal Workshop';
   headerLeft.appendChild(headerLabel);
+  const strategyBadge = document.createElement('span');
+  strategyBadge.className = 'goal-workshop-strategy-badge';
+  strategyBadge.textContent = selectedStrategy.label;
+  headerLeft.appendChild(strategyBadge);
 
   const headerIconActions = document.createElement('div');
   headerIconActions.className = 'header-icon-actions';
@@ -291,6 +353,7 @@ async function loadAdvancedGoalSolverSection({
   settingsBtn.className = 'icon-btn';
   settingsBtn.type = 'button';
   settingsBtn.title = 'Settings';
+  settingsBtn.setAttribute('aria-label', 'Goal Workshop settings');
   settingsBtn.textContent = '⚙';
   headerIconActions.appendChild(settingsBtn);
 
@@ -378,7 +441,74 @@ async function loadAdvancedGoalSolverSection({
     return;
   }
 
-  const settings = scenario.advancedGoalSettings || getDefaultAdvancedGoalSettings(scenario);
+  const strategyPanel = document.createElement('section');
+  strategyPanel.className = 'dash-panel forecast-card goal-workshop-strategy-panel';
+  strategyPanel.setAttribute('aria-label', 'Goal allocation strategy');
+
+  const strategyHeader = document.createElement('div');
+  strategyHeader.className = 'dash-panel-header card-header';
+  const strategyHeaderLabel = document.createElement('span');
+  strategyHeaderLabel.className = 'dash-panel-label';
+  strategyHeaderLabel.textContent = 'Strategy';
+  strategyHeader.appendChild(strategyHeaderLabel);
+  strategyPanel.appendChild(strategyHeader);
+
+  const strategyOptions = document.createElement('div');
+  strategyOptions.className = 'goal-workshop-strategy-options';
+  strategyOptions.setAttribute('role', 'radiogroup');
+  strategyOptions.setAttribute('aria-label', 'Allocation strategy');
+
+  ADVANCED_SOLVER_STRATEGIES.forEach((strategy) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = `goal-workshop-strategy-option${strategy.value === solverStrategy ? ' is-active' : ''}`;
+    option.dataset.solverStrategy = strategy.value;
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', strategy.value === solverStrategy ? 'true' : 'false');
+
+    const optionLabel = document.createElement('strong');
+    optionLabel.textContent = strategy.label;
+    const optionDescription = document.createElement('span');
+    optionDescription.textContent = strategy.description;
+    option.appendChild(optionLabel);
+    option.appendChild(optionDescription);
+
+    option.addEventListener('click', async () => {
+      if (strategy.value === solverStrategy) return;
+      strategyOptions.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+      try {
+        const nextSettings = {
+          ...storedSettings,
+          ...getAdvancedSolverStrategyFields(strategy.value),
+          goals: goalsRows,
+          constraints: {
+            ...constraints,
+            ...buildConstraintsObjectFromRows(constraintsRows)
+          }
+        };
+        await persistAdvancedSettings({ scenarioId: scenario.id, nextSettings, scenarioState });
+        await loadGeneratePlanSection({
+          container,
+          scenarioState,
+          workflowId,
+          loadMasterTransactionsGrid,
+          loadProjectionsSection,
+          isRenderCurrent,
+          logger
+        });
+      } catch (err) {
+        strategyOptions.querySelectorAll('button').forEach((button) => { button.disabled = false; });
+        notifyError('Failed to save solver strategy: ' + (err?.message || String(err)));
+      }
+    });
+
+    strategyOptions.appendChild(option);
+  });
+
+  strategyPanel.appendChild(strategyOptions);
+  container.appendChild(strategyPanel);
+
+  const settings = storedSettings;
   const goals = Array.isArray(settings.goals) ? settings.goals : [];
   const constraints = settings.constraints || {};
 
@@ -439,7 +569,7 @@ async function loadAdvancedGoalSolverSection({
       }
     });
 
-    return { panel, header, body, grid, addBtn };
+    return { panel, header, body, grid, addBtn, label };
   };
 
   const constraintsInfo = createSolverPanel('adv-constraints-panel', 'Constraints', 'Add Constraint (start with Funding Account)');
@@ -463,13 +593,13 @@ async function loadAdvancedGoalSolverSection({
   const solutionHeaderActions = solutionInfo.header.querySelector('.header-icon-actions');
   solutionHeaderActions.innerHTML = '';
   const solveBtn = document.createElement('button');
-  solveBtn.className = 'icon-btn';
+  solveBtn.className = 'btn btn--secondary goal-workshop-action';
   solveBtn.title = 'Solve — calculate suggested plan rules';
-  solveBtn.textContent = '▶';
+  solveBtn.textContent = 'Solve Plan';
   const applyBtn = document.createElement('button');
-  applyBtn.className = 'icon-btn';
+  applyBtn.className = 'btn btn--primary goal-workshop-action';
   applyBtn.title = 'Apply — add plan rules to this scenario';
-  applyBtn.textContent = '✓';
+  applyBtn.textContent = 'Apply Plan';
   applyBtn.disabled = true;
   solutionHeaderActions.appendChild(solveBtn);
   solutionHeaderActions.appendChild(applyBtn);
@@ -479,7 +609,7 @@ async function loadAdvancedGoalSolverSection({
   const solutionEl = document.createElement('div');
   solutionEl.id = 'adv-goal-solution';
   solutionEl.className = 'text-muted';
-  solutionEl.textContent = 'Configure goals and click Solve.';
+  solutionEl.textContent = `${selectedStrategy.description} Configure goals and constraints, then solve and review the proposed rules.`;
   solutionBody.appendChild(solutionTotalsEl);
   solutionBody.appendChild(solutionEl);
 
@@ -504,6 +634,7 @@ async function loadAdvancedGoalSolverSection({
       targetAmount: toNumOrNull(row.targetAmount),
       deltaAmount: toNumOrNull(row.deltaAmount),
       floorAmount: toNumOrNull(row.floorAmount),
+      minimumMonthlyAmount: toNumOrNull(row.minimumMonthlyAmount),
       startDate: row.startDate || null,
       endDate: row.endDate || null
     };
@@ -629,15 +760,13 @@ async function loadAdvancedGoalSolverSection({
 
     const accountSelect = document.createElement('select');
     accountSelect.className = 'grid-summary-input';
-    const cNoneOpt = document.createElement('option');
-    cNoneOpt.value = ''; cNoneOpt.textContent = '— None —';
-    accountSelect.appendChild(cNoneOpt);
-    accounts.forEach((a) => {
-      const opt = document.createElement('option');
-      opt.value = String(Number(a.id)); opt.textContent = a.name;
-      accountSelect.appendChild(opt);
+    populateAccountSelect(accountSelect, {
+      accounts,
+      accountGroups: scenario.accountGroups || [],
+      selectedId: row.accountId,
+      includeAll: false,
+      emptyLabel: '— None —'
     });
-    accountSelect.value = row.accountId != null ? String(Number(row.accountId)) : '';
 
     const amountInput = document.createElement('input');
     amountInput.type = 'number'; amountInput.className = 'grid-summary-input';
@@ -706,6 +835,7 @@ async function loadAdvancedGoalSolverSection({
   };
 
   const renderConstraintCards = () => {
+    constraintsInfo.label.textContent = `Constraints · ${constraintsRows.length}`;
     constraintsGridEl.innerHTML = '';
     const list = document.createElement('div');
     list.className = 'grid-summary-list';
@@ -736,7 +866,13 @@ async function loadAdvancedGoalSolverSection({
     const typeLabel = goalTypeOptions.find((o) => o.value === row.type)?.label || row.type;
     const accountName = row.accountId ? accounts.find((a) => Number(a.id) === row.accountId)?.name || `Account ${row.accountId}` : '—';
     const targetDisplay = (row.targetAmount != null || row.deltaAmount != null || row.floorAmount != null) ? formatCurrency(row.targetAmount || row.deltaAmount || row.floorAmount) : '—';
-    summaryText.textContent = `P${row.priority} • ${typeLabel} • ${accountName} • ${targetDisplay}`;
+    const dueDisplay = row.type === 'minimize_payment'
+      ? 'Through plan window'
+      : (row.endDate || 'No due date');
+    const minimumDisplay = row.minimumMonthlyAmount != null
+      ? ` • Min ${formatCurrency(row.minimumMonthlyAmount)}/mo`
+      : '';
+    summaryText.textContent = `P${row.priority} • ${accountName} • ${typeLabel} • ${targetDisplay}${minimumDisplay} • ${dueDisplay}`;
     summaryEl.appendChild(summaryText);
     const chevron = document.createElement('span');
     chevron.className = 'grid-summary-card-chevron';
@@ -760,15 +896,13 @@ async function loadAdvancedGoalSolverSection({
 
     const accountSelect = document.createElement('select');
     accountSelect.className = 'grid-summary-input';
-    const gNoneOpt = document.createElement('option');
-    gNoneOpt.value = ''; gNoneOpt.textContent = '— Account —';
-    accountSelect.appendChild(gNoneOpt);
-    accounts.forEach((a) => {
-      const opt = document.createElement('option');
-      opt.value = String(Number(a.id)); opt.textContent = a.name;
-      accountSelect.appendChild(opt);
+    populateAccountSelect(accountSelect, {
+      accounts,
+      accountGroups: scenario.accountGroups || [],
+      selectedId: row.accountId,
+      includeAll: false,
+      emptyLabel: '— Account —'
     });
-    accountSelect.value = row.accountId != null ? String(Number(row.accountId)) : '';
 
     const typeSelect = document.createElement('select');
     typeSelect.className = 'grid-summary-input';
@@ -794,6 +928,11 @@ async function loadAdvancedGoalSolverSection({
     floorInput.step = '0.01'; floorInput.placeholder = '0.00';
     floorInput.value = row.floorAmount != null ? String(row.floorAmount) : '';
 
+    const minimumMonthlyInput = document.createElement('input');
+    minimumMonthlyInput.type = 'number'; minimumMonthlyInput.className = 'grid-summary-input';
+    minimumMonthlyInput.min = '0'; minimumMonthlyInput.step = '0.01'; minimumMonthlyInput.placeholder = '0.00';
+    minimumMonthlyInput.value = row.minimumMonthlyAmount != null ? String(row.minimumMonthlyAmount) : '';
+
     const startDateInput = document.createElement('input');
     startDateInput.type = 'date'; startDateInput.className = 'grid-summary-input';
     startDateInput.value = row.startDate || '';
@@ -807,6 +946,10 @@ async function loadAdvancedGoalSolverSection({
       f.className = 'grid-summary-field' + (full ? ' form-field--full' : '');
       const lbl = document.createElement('label');
       lbl.className = 'grid-summary-label'; lbl.textContent = label;
+      if (!el.id) {
+        el.id = `adv-goal-${idx}-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+      }
+      lbl.htmlFor = el.id;
       f.appendChild(lbl); f.appendChild(el); return f;
     };
 
@@ -819,6 +962,8 @@ async function loadAdvancedGoalSolverSection({
     form.appendChild(targetField);
     form.appendChild(deltaField);
     form.appendChild(floorField);
+    const minimumMonthlyField = makeGField('Contractual Minimum / Month', minimumMonthlyInput, true);
+    form.appendChild(minimumMonthlyField);
     form.appendChild(makeGField('Start', startDateInput));
     const endDateFieldEl = makeGField('End', endDateInput);
     form.appendChild(endDateFieldEl);
@@ -830,6 +975,7 @@ async function loadAdvancedGoalSolverSection({
       targetField.style.display = (t === 'reach_balance_by_date' || t === 'pay_down_by_date' || t === 'minimize_payment') ? '' : 'none';
       deltaField.style.display = t === 'increase_by_delta' ? '' : 'none';
       floorField.style.display = t === 'maintain_floor' ? '' : 'none';
+      minimumMonthlyField.style.display = t === 'maintain_floor' ? 'none' : '';
       if (endDateInput.parentElement) {
         endDateInput.parentElement.style.display = (t === 'minimize_payment') ? 'none' : '';
       }
@@ -845,15 +991,16 @@ async function loadAdvancedGoalSolverSection({
         targetAmount: toNumOrNull(targetInput.value),
         deltaAmount: toNumOrNull(deltaInput.value),
         floorAmount: toNumOrNull(floorInput.value),
+        minimumMonthlyAmount: toNumOrNull(minimumMonthlyInput.value),
         startDate: startDateInput.value || null,
         endDate: endDateInput.value || null
       });
       lastSolve = null; applyBtn.disabled = true; schedulePersist();
     };
     typeSelect.addEventListener('change', () => { updateGAmountVisibility(); updateGoalRow(); });
-    [priorityInput, accountSelect, targetInput, deltaInput, floorInput, startDateInput, endDateInput]
+    [priorityInput, accountSelect, targetInput, deltaInput, floorInput, minimumMonthlyInput, startDateInput, endDateInput]
       .forEach((el) => el.addEventListener('change', updateGoalRow));
-    [priorityInput, targetInput, deltaInput, floorInput]
+    [priorityInput, targetInput, deltaInput, floorInput, minimumMonthlyInput]
       .forEach((el) => el.addEventListener('input', updateGoalRow));
 
     const actions = document.createElement('div');
@@ -882,6 +1029,7 @@ async function loadAdvancedGoalSolverSection({
   };
 
   const renderGoalCards = () => {
+    goalsInfo.label.textContent = `Goals · ${goalsRows.length}`;
     goalsGridEl.innerHTML = '';
     const list = document.createElement('div');
     list.className = 'grid-summary-list';
@@ -901,6 +1049,9 @@ async function loadAdvancedGoalSolverSection({
   const persistNow = async () => {
     const nextConstraints = buildConstraintsObjectFromRows(constraintsRows);
     const nextSettings = {
+      strategy: solverStrategy,
+      allocationStrategy,
+      payoffOrder,
       goals: goalsRows,
       constraints: { ...constraints, ...nextConstraints }
     };
@@ -917,6 +1068,7 @@ async function loadAdvancedGoalSolverSection({
       targetAmount: null,
       deltaAmount: null,
       floorAmount: null,
+      minimumMonthlyAmount: null,
       startDate: planningWindow?.startDate || null,
       endDate: planningWindow?.endDate || null
     }));
@@ -926,9 +1078,11 @@ async function loadAdvancedGoalSolverSection({
 
   addConstraintBtn.addEventListener('click', async (e) => {
     e.preventDefault();
+    const hasFundingAccount = constraintsRows.some((row) => row.type === 'fundingAccount');
+    const hasMonthlyCapacity = constraintsRows.some((row) => row.type === 'maxOutflow');
     constraintsRows.push(normalizeConstraintRow({
       id: makeId(),
-      type: 'lockedAccount',
+      type: !hasFundingAccount ? 'fundingAccount' : (!hasMonthlyCapacity ? 'maxOutflow' : 'lockedAccount'),
       accountId: null,
       amount: null
     }));
@@ -938,10 +1092,16 @@ async function loadAdvancedGoalSolverSection({
 
   solveBtn.addEventListener('click', async (e) => {
     e.preventDefault();
+    solveBtn.disabled = true;
+    solveBtn.textContent = 'Solving…';
+    applyBtn.disabled = true;
     try {
       const latest = await persistAdvancedSettings({
         scenarioId: scenario.id,
         nextSettings: {
+          strategy: solverStrategy,
+          allocationStrategy,
+          payoffOrder,
           goals: goalsRows,
           constraints: {
             ...constraints,
@@ -956,55 +1116,101 @@ async function loadAdvancedGoalSolverSection({
 
       const txCount = result.suggestedTransactions?.length || 0;
       const feasible = result.isFeasible;
-
-      // Visual indicator: green when feasible, red when not
-      const indicatorColor = feasible ? 'var(--color-success)' : 'var(--color-danger)';
-      const shouldShowFeasibleText = !feasible; // Only show text when NOT feasible
+      const strategyLabel = ADVANCED_SOLVER_STRATEGIES.find((strategy) =>
+        strategy.value === (result.strategy || solverStrategy)
+      )?.label || selectedStrategy.label;
+      const goalResults = Array.isArray(result.goalResults) ? result.goalResults : [];
+      const readyGoals = goalResults.filter((goal) => goal.status === 'ready').length;
+      solutionInfo.label.textContent = `Solution · ${feasible ? 'Ready' : 'Review'}`;
+      const capacityText = result.effectiveMonthlyCapacity != null
+        ? formatCurrency(result.effectiveMonthlyCapacity)
+        : 'No cap';
       solutionTotalsEl.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-          <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
-            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-secondary);">Suggested Plan Rules</div>
-            <div style="font-size:18px;font-weight:600;color:var(--text-primary);">${txCount}</div>
+        <div class="goal-solution-status ${feasible ? 'is-ready' : 'needs-attention'}">
+          <div>
+            <div class="goal-solution-status-title">${feasible ? (txCount > 0 ? 'Plan ready to apply' : 'Goals already satisfied') : 'Plan needs attention'}</div>
+            <div class="goal-solution-status-copy">${escapeHtml(strategyLabel)}</div>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:32px;height:32px;border-radius:4px;background:${indicatorColor};"></div>
-            ${shouldShowFeasibleText ? `<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-secondary);">Not feasible</div>` : ''}
-          </div>
+          <div class="goal-solution-status-mark">${feasible ? '✓' : '!'}</div>
+        </div>
+        <div class="goal-solution-metrics">
+          <div><span>Goals ready</span><strong>${readyGoals}/${goalResults.length}</strong></div>
+          <div><span>Suggested Plan Rules</span><strong>${txCount}</strong></div>
+          <div><span>Monthly capacity</span><strong>${escapeHtml(capacityText)}</strong></div>
+          <div><span>Capacity source</span><strong>${result.capacityWasDerived ? 'Derived' : 'Constraint'}</strong></div>
+          <div><span>Contractual minimums</span><strong>${escapeHtml(formatCurrency(result.minimumMonthlyTotal || 0))}</strong></div>
+          <div><span>Starting point</span><strong>${result.rebasedFromActuals ? 'Current plan + actuals' : 'Starting balances'}</strong></div>
         </div>
       `;
 
-      // Helper to extract period/recurrence display
-      const getPeriodDisplay = (tx) => {
-        if (tx.recurrence?.recurrenceType?.name) {
-          const name = tx.recurrence.recurrenceType.name;
-          // Extract common terms: "Monthly", "Weekly", "Quarterly", "Yearly", etc.
-          if (name.includes('Monthly')) return 'Monthly';
-          if (name.includes('Weekly')) return 'Weekly';
-          if (name.includes('Quarterly')) return 'Quarterly';
-          if (name.includes('Yearly') || name.includes('Annual')) return 'Yearly';
-          if (name.includes('Daily')) return 'Daily';
-          return name.split(' ')[0]; // Fallback: first word
-        }
-        // If no recurrence, show the effective date
-        return tx.effectiveDate || '—';
-      };
+      const accountNameById = (accountId) =>
+        accounts.find((account) => Number(account.id) === Number(accountId))?.name || `Account ${accountId}`;
 
-      // Simple transaction list
+      const review = document.createElement('div');
+      review.className = 'goal-solution-review';
+
+      if (goalResults.length > 0) {
+        const goalsReview = document.createElement('div');
+        goalsReview.className = 'goal-solution-goals';
+        goalsReview.innerHTML = '<div class="goal-solution-section-title">Goal outcomes</div>';
+        goalResults.forEach((goal) => {
+          const goalRow = document.createElement('div');
+          goalRow.className = `goal-solution-goal ${goal.status === 'ready' ? 'is-ready' : 'needs-attention'}`;
+          goalRow.innerHTML = `
+            <div>
+              <strong>P${escapeHtml(goal.priority)} · ${escapeHtml(goal.accountName)}</strong>
+              <span>${escapeHtml(goal.startDate || '—')} → ${escapeHtml(goal.endDate || '—')} · baseline ${escapeHtml(formatCurrency(goal.baselineEndBalance || 0))} · ${goal.ruleCount} rule${goal.ruleCount === 1 ? '' : 's'}</span>
+            </div>
+            <span class="goal-solution-goal-state">${goal.status === 'ready' ? 'Ready' : `Short ${escapeHtml(formatCurrency(goal.shortfall || 0))}`}</span>
+          `;
+          goalsReview.appendChild(goalRow);
+        });
+        review.appendChild(goalsReview);
+      }
+
+      const notes = [
+        ...(result.issues || []).map((message) => ({ kind: 'issue', message })),
+        ...(result.warnings || []).map((message) => ({ kind: 'warning', message })),
+        ...(result.explanation || []).filter((message) => message && !String(message).startsWith('-')).map((message) => ({ kind: 'info', message }))
+      ];
+      if (notes.length > 0) {
+        const noteList = document.createElement('div');
+        noteList.className = 'goal-solution-notes';
+        noteList.innerHTML = '<div class="goal-solution-section-title">Solver notes</div>';
+        notes.forEach(({ kind, message }) => {
+          const note = document.createElement('div');
+          note.className = `goal-solution-note ${kind}`;
+          note.textContent = message;
+          noteList.appendChild(note);
+        });
+        review.appendChild(noteList);
+      }
+
       const txList = document.createElement('div');
-      txList.className = 'grid-summary-list';
+      txList.className = 'goal-solution-rules';
+      const txTitle = document.createElement('div');
+      txTitle.className = 'goal-solution-section-title';
+      txTitle.textContent = 'Proposed plan rules';
+      txList.appendChild(txTitle);
+
       if (txCount > 0) {
         result.suggestedTransactions.forEach((tx) => {
           const card = document.createElement('div');
-          card.className = 'grid-summary-card';
-          card.style.cssText = 'margin-bottom:8px;padding:8px;';
-          const period = getPeriodDisplay(tx);
-          const desc = (tx.description || 'Generated plan rule').substring(0, 40);
-          const amount = formatCurrency(tx.amount);
+          card.className = 'goal-solution-rule';
+          const fromName = tx.secondaryAccountId ? accountNameById(tx.secondaryAccountId) : 'External funding';
+          const toName = accountNameById(tx.primaryAccountId);
+          const schedule = tx.recurrence
+            ? `Monthly · ${tx.recurrence.startDate || tx.effectiveDate} → ${tx.recurrence.endDate || 'No end'}`
+            : `One time · ${tx.effectiveDate || '—'}`;
           card.innerHTML = `
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px;">
-              <div><strong>Period:</strong> ${escapeHtml(period)}</div>
-              <div><strong>Desc:</strong> ${escapeHtml(desc)}</div>
-              <div style="text-align:right;"><strong>Amount:</strong> ${escapeHtml(amount)}</div>
+            <div class="goal-solution-rule-main">
+              <strong>${escapeHtml(toName)}</strong>
+              <span>${escapeHtml(fromName)} → ${escapeHtml(toName)}</span>
+              <span>${escapeHtml(tx.description || 'Generated plan rule')}</span>
+            </div>
+            <div class="goal-solution-rule-value">
+              <strong>${escapeHtml(formatCurrency(tx.amount))}</strong>
+              <span>${escapeHtml(schedule)}</span>
             </div>
           `;
           txList.appendChild(card);
@@ -1012,11 +1218,12 @@ async function loadAdvancedGoalSolverSection({
       } else {
         const empty = document.createElement('div');
         empty.className = 'scenarios-list-placeholder';
-        empty.textContent = 'No plan rules generated.';
+        empty.textContent = 'No plan rules can be generated with the current inputs.';
         txList.appendChild(empty);
       }
+      review.appendChild(txList);
       solutionEl.innerHTML = '';
-      solutionEl.appendChild(txList);
+      solutionEl.appendChild(review);
       solutionEl.className = '';
 
       applyBtn.disabled = !feasible || txCount === 0;
@@ -1030,6 +1237,9 @@ async function loadAdvancedGoalSolverSection({
         <div class="text-muted" style="margin-top:4px;">Check DevTools Console for more details.</div>
       `;
       notifyError('Failed to solve goals: ' + message);
+    } finally {
+      solveBtn.disabled = false;
+      solveBtn.textContent = 'Solve Plan';
     }
   });
 
@@ -1282,6 +1492,22 @@ export async function loadGeneratePlanSection({
   const summaryEl = document.getElementById('goal-summary');
   const generateBtnEl = document.getElementById('goal-generate-btn');
   const resetBtnEl = document.getElementById('goal-reset-btn');
+
+  populateAccountSelect(accountSelect, {
+    accounts: displayAccounts,
+    accountGroups: currentScenario.accountGroups || [],
+    includeAll: false,
+    emptyLabel: '-- Choose an account --',
+    getAccountLabel: (account) => (
+      `${account.name} (Goal: ${formatMoneyDisplay(account.goalAmount)} by ${account.goalDate})`
+    )
+  });
+  populateAccountSelect(incomeAccountSelect, {
+    accounts: selectableAccounts,
+    accountGroups: currentScenario.accountGroups || [],
+    includeAll: false,
+    emptyLabel: '-- Choose an account --'
+  });
 
   // Recalculate display whenever inputs change
   async function updateSummary() {

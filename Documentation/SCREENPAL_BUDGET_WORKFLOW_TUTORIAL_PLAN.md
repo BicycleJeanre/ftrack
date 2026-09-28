@@ -81,11 +81,12 @@ Use these as recording guardrails.
 
 ### 3.4 Baseline and Actuals
 
-- **Freeze baseline** locks the comparison plan for the selected period.
-- The first actual freezes an unfrozen period automatically.
+- **History** opens the manager that closes or reopens exact comparison periods.
+- Marking Actual captures that item's baseline; period closure is explicit.
 - The **Actual** checkbox can use the planned amount/date; edit the item when
   either differs.
-- **Remove this occurrence** excludes the item from projections.
+- **Skip this occurrence** excludes the item from projections without deleting
+  it.
 - A manual Actual is treated as unplanned, with zero baseline and current
   plan.
 
@@ -303,18 +304,18 @@ Pause after saving each rule so its repeat description is readable.
 
 **Callout**: `One unusual week does not rewrite the recurring rule.`
 
-### Scene 7 — Freeze the Baseline
+### Scene 7 — Close the Period
 
 **Duration**: 30–40 seconds
 
 **Actions**:
 
-1. Click **Freeze baseline**.
+1. Open **History** and click **Close selected period**.
 2. Point to the baseline values.
 
 **Narration point**:
 
-> Freezing creates the comparison point for this period. Later plan changes
+> Closing creates the comparison point for this period. Later plan changes
 > can move Current plan without rewriting the original baseline.
 
 ### Scene 8 — Record a Linked Actual
@@ -390,7 +391,8 @@ Pause after saving each rule so its repeat description is readable.
 
 **Actions**:
 
-1. Hover or briefly identify **Remove this occurrence**.
+1. Hover or briefly identify **Skip this occurrence**, **Restore to planned**,
+   and **Delete transaction permanently**.
 2. Identify **Duplicate item**.
 3. Do not save either action in the master dataset unless a separate retake is
    available.

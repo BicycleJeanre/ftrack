@@ -6,19 +6,27 @@ import { generatePeriods } from '../../../domain/calculations/period-utils.js';
 import {
   getRecurrenceDescription
 } from '../../../domain/calculations/recurrence-utils.js?v=20260831-recurrence-labels-16';
-import { getDefaultProjectionWindowDates, mapPeriodTypeNameToId } from '../../../shared/app-data-utils.js';
+import { getDefaultProjectionWindowDates } from '../../../shared/app-data-utils.js';
 import { formatDateOnly } from '../../../shared/date-utils.js';
 import { formatCurrency, numValueClass } from '../../../shared/format-utils.js';
 import { findPeriodById, findPeriodIndexById } from '../../../shared/period-window-utils.js';
 import { transformTransactionToRows } from '../../transforms/transaction-row-transformer.js';
-import { calculateResolvedOccurrenceTotals } from '../../transforms/data-aggregators.js';
-import { renderTotalsCard } from '../widgets/totals-card.js';
-import { openRecurrenceModal } from '../modals/recurrence-modal.js';
+import { calculateResolvedOccurrenceTotals } from '../../transforms/data-aggregators.js?v=20260927-skipped-totals-49';
+import { renderTotalsCard } from '../widgets/totals-card.js?v=20260927-grouped-totals-51';
+import { populateAccountSelect } from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
+import {
+  cleanupItemDetailDismissal,
+  installItemDetailDismissal
+} from '../widgets/item-detail-dismissal.js?v=20260901-click-off-details-43';
+import { openRecurrenceModal } from '../modals/recurrence-modal.js?v=20260926-future-plan-47';
 import { openQuickAccountModal } from '../modals/quick-account-modal.js';
+import { openBaselinePeriodManager } from '../modals/baseline-period-manager-modal.js?v=20260926-period-history-44';
+import { openTextInputModal } from '../modals/text-input-modal.js';
 import { createGrid, refreshGridData } from './grid-factory.js';
 import { confirmDialog, notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { getScenarioPeriods } from '../../../app/services/data-service.js';
-import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js';
+import * as OccurrenceManager from '../../../app/managers/occurrence-manager.js?v=20260926-delete-transaction-48';
+import * as PeriodVariantManager from '../../../app/managers/period-variant-manager.js?v=20260927-period-what-if-53';
 import * as AccountManager from '../../../app/managers/account-manager.js';
 
 const viewByContextScenario = new Map();
@@ -93,6 +101,7 @@ export function teardownPlanActualsGrid({
     // Keep the parent activity teardown deterministic if a child cleanup fails.
   }
   if (container) {
+    cleanupItemDetailDismissal(container);
     container.innerHTML = '';
   }
 }
@@ -102,7 +111,10 @@ function hasValue(value) {
 }
 
 function statusName(occurrence) {
-  return String(occurrence?.displayStatus || occurrence?.status || 'planned').trim().toLowerCase();
+  const rawStatus = typeof occurrence?.status === 'object'
+    ? occurrence?.status?.name
+    : occurrence?.status;
+  return String(occurrence?.displayStatus || rawStatus || 'planned').trim().toLowerCase();
 }
 
 function selectedPeriodRange(state) {
@@ -190,7 +202,7 @@ function buildDisplayRows({ occurrences, accounts, accountFilterId }) {
         Number(accountFilterId);
     if (!baselineIncludesAccount || !transformedRows.length) return [];
 
-    // Keep rows that belonged to the selected account in the frozen baseline
+    // Keep rows that belonged to the selected account in the captured baseline
     // even if the current plan moved them to a different account. The
     // comparison occurrence zeroes the current contribution for that account,
     // so visible rows and totals remain consistent.
@@ -332,62 +344,79 @@ function renderComparisonTotals(target, occurrences) {
   const money = (value) => formatCurrency(value || 0);
   renderTotalsCard(target, {
     title: 'PLAN & ACTUALS',
-    items: [
+    columnsClass: 'plan-actuals-total-groups',
+    groups: [
       {
-        label: 'Baseline Net',
-        valueHtml: money(totals.baselineNet),
-        valueClass: numValueClass(totals.baselineNet),
-        calc: 'Baseline Income − Baseline Expenses.',
-        shows: 'The frozen or original period plan.'
+        key: 'baseline',
+        title: 'Baseline',
+        items: [{
+          label: 'Baseline Net',
+          valueHtml: money(totals.baselineNet),
+          valueClass: numValueClass(totals.baselineNet),
+          calc: 'Baseline Income − Baseline Expenses.',
+          shows: 'The captured or original period plan.'
+        }]
       },
       {
-        label: 'Current Plan Net',
-        valueHtml: money(totals.currentPlannedNet),
-        valueClass: numValueClass(totals.currentPlannedNet),
-        calc: 'Current Planned Income − Current Planned Expenses.',
-        shows: 'The latest adjusted period plan.'
+        key: 'current-outlook',
+        title: 'Current Outlook',
+        items: [
+          {
+            label: 'Current Plan Net',
+            valueHtml: money(totals.currentPlannedNet),
+            valueClass: numValueClass(totals.currentPlannedNet),
+            calc: 'Current Planned Income − Current Planned Expenses.',
+            shows: 'The latest adjusted period plan.'
+          },
+          {
+            label: 'Actual Net',
+            valueHtml: money(totals.actualNet),
+            valueClass: numValueClass(totals.actualNet),
+            calc: 'Actual Income − Actual Expenses.',
+            shows: 'What has happened in this period.'
+          },
+          {
+            label: 'Open Commitments',
+            valueHtml: money(totals.remainingCommitments),
+            valueClass: numValueClass(totals.remainingCommitments),
+            calc: 'Signed unresolved planned occurrences.',
+            shows: 'The remaining period plan.'
+          },
+          {
+            label: 'Forecast Net',
+            valueHtml: money(totals.forecastNet),
+            valueClass: numValueClass(totals.forecastNet),
+            calc: 'Actual Net + Open Commitments.',
+            shows: 'Expected result if the remaining plan happens.'
+          }
+        ]
       },
       {
-        label: 'Actual Net',
-        valueHtml: money(totals.actualNet),
-        valueClass: numValueClass(totals.actualNet),
-        calc: 'Actual Income − Actual Expenses.',
-        shows: 'What has happened in this period.'
-      },
-      {
-        label: 'Open Commitments',
-        valueHtml: money(totals.remainingCommitments),
-        valueClass: numValueClass(totals.remainingCommitments),
-        calc: 'Signed unresolved planned occurrences.',
-        shows: 'The remaining period plan.'
-      },
-      {
-        label: 'Forecast Net',
-        valueHtml: money(totals.forecastNet),
-        valueClass: numValueClass(totals.forecastNet),
-        calc: 'Actual Net + Open Commitments.',
-        shows: 'Expected result if the remaining plan happens.'
-      },
-      {
-        label: 'Actual vs Baseline',
-        valueHtml: money(totals.actualVsBaselineVariance),
-        valueClass: numValueClass(totals.actualVsBaselineVariance),
-        calc: 'Actual Net − Baseline Net.',
-        shows: 'Variance from the original period plan.'
-      },
-      {
-        label: 'Actual vs Current',
-        valueHtml: money(totals.actualVsCurrentPlanVariance),
-        valueClass: numValueClass(totals.actualVsCurrentPlanVariance),
-        calc: 'Actual Net − Current Plan Net.',
-        shows: 'Variance from the latest plan.'
-      },
-      {
-        label: 'Unplanned Actuals',
-        valueHtml: money(totals.unbudgetedActuals),
-        valueClass: numValueClass(totals.unbudgetedActuals),
-        calc: 'Actual occurrences with a zero baseline.',
-        shows: 'Net surprises in this period.'
+        key: 'performance',
+        title: 'Performance & Exceptions',
+        items: [
+          {
+            label: 'Actual vs Baseline',
+            valueHtml: money(totals.actualVsBaselineVariance),
+            valueClass: numValueClass(totals.actualVsBaselineVariance),
+            calc: 'Actual Net − Baseline Net.',
+            shows: 'Variance from the original period plan.'
+          },
+          {
+            label: 'Actual vs Current',
+            valueHtml: money(totals.actualVsCurrentPlanVariance),
+            valueClass: numValueClass(totals.actualVsCurrentPlanVariance),
+            calc: 'Actual Net − Current Plan Net.',
+            shows: 'Variance from the latest plan.'
+          },
+          {
+            label: 'Unplanned Actuals',
+            valueHtml: money(totals.unbudgetedActuals),
+            valueClass: numValueClass(totals.unbudgetedActuals),
+            calc: 'Actual occurrences with a zero baseline.',
+            shows: 'Net surprises in this period.'
+          }
+        ]
       }
     ]
   });
@@ -477,21 +506,6 @@ function movementDimensions(row) {
     : currentMovementDimensions(row);
 }
 
-function periodPayload(state) {
-  const { startDate, endDate } = selectedPeriodRange(state);
-  return {
-    periodTypeId: mapPeriodTypeNameToId(state?.getBudgetPeriodType?.() || 'Month') || 3,
-    startDate,
-    endDate
-  };
-}
-
-function baselinePeriodForDate(state, date) {
-  const period = periodPayload(state);
-  if (!date || !period.startDate || !period.endDate) return null;
-  return date >= period.startDate && date <= period.endDate ? period : null;
-}
-
 async function runAction(button, action) {
   if (!button || button.disabled) return;
   const previous = button.textContent;
@@ -517,6 +531,39 @@ function recurrenceLabel(occurrence) {
   return occurrence?.recurrenceDescription || 'One time';
 }
 
+function hasCapturedBaseline(occurrence) {
+  return (
+    Number(occurrence?.baselineSnapshotVersion) === 1 ||
+    occurrence?.baselineState === 'stored' ||
+    occurrence?.baselineState === 'frozen-new'
+  );
+}
+
+function baselineHistoryState(occurrence) {
+  if (occurrence?.baselinePeriodClosed) return 'closed';
+  return hasCapturedBaseline(occurrence) ? 'captured' : 'live';
+}
+
+function buildBaselineHistoryBadge(occurrence) {
+  const historyState = baselineHistoryState(occurrence);
+  const labels = {
+    closed: 'Closed',
+    captured: 'Baseline captured',
+    live: 'Live'
+  };
+  const titles = {
+    closed: 'This occurrence belongs to a closed period. Its period baseline is protected history.',
+    captured: 'This occurrence has its own comparison baseline. The rest of the period remains live and editable.',
+    live: 'This occurrence has no captured baseline. Its baseline follows the current plan.'
+  };
+  const badge = document.createElement('span');
+  badge.className = `plan-actuals-history-badge is-${historyState}`;
+  badge.textContent = labels[historyState];
+  badge.title = titles[historyState];
+  badge.setAttribute('aria-label', badge.title);
+  return badge;
+}
+
 function recurrenceTypeId(recurrence) {
   const raw = recurrence?.recurrenceType ?? recurrence?.recurrenceTypeId;
   return Number(typeof raw === 'object' ? raw?.id : raw);
@@ -533,6 +580,7 @@ function normalizeRecurringPattern(recurrence) {
 
 function buildAccountSelect(
   accounts,
+  accountGroups,
   selectedId,
   {
     includeNone = false,
@@ -542,25 +590,17 @@ function buildAccountSelect(
 ) {
   const select = document.createElement('select');
   select.className = 'grid-summary-input';
-  if (includeNone) {
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = '— None —';
-    select.appendChild(option);
-  }
-  (accounts || []).forEach((account) => {
-    const option = document.createElement('option');
-    option.value = String(account.id);
-    option.textContent = account.name || String(account.id);
-    select.appendChild(option);
+  populateAccountSelect(select, {
+    accounts,
+    accountGroups,
+    selectedId: hasValue(selectedId) ? selectedId : '',
+    includeAll: false,
+    ...(includeNone ? { emptyLabel: '— None —' } : {}),
+    extraOptions: typeof onQuickAdd === 'function'
+      ? [{ value: ADD_ACCOUNT_OPTION, label: '＋ Add new account…' }]
+      : [],
+    actionValues: [ADD_ACCOUNT_OPTION]
   });
-  if (typeof onQuickAdd === 'function') {
-    const addOption = document.createElement('option');
-    addOption.value = ADD_ACCOUNT_OPTION;
-    addOption.textContent = '＋ Add new account…';
-    select.appendChild(addOption);
-  }
-  select.value = hasValue(selectedId) ? String(selectedId) : '';
   let previousValue = select.value;
   select.addEventListener('change', async () => {
     if (select.value !== ADD_ACCOUNT_OPTION) {
@@ -582,6 +622,7 @@ function buildAccountSelect(
     select.insertBefore(option, select.querySelector(`option[value="${ADD_ACCOUNT_OPTION}"]`));
     select.value = draft.value;
     previousValue = draft.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
   });
   return select;
 }
@@ -590,7 +631,9 @@ function buildOccurrenceEditor({
   scenarioId,
   occurrence = null,
   accounts,
+  accountGroups = [],
   state,
+  variantId = '',
   onCancel,
   onSaved
 }) {
@@ -598,14 +641,19 @@ function buildOccurrenceEditor({
   form.className = 'plan-actuals-editor grid-summary-form';
 
   const isNew = !occurrence;
+  const isVariant = Boolean(variantId);
   const existingStatus = String(occurrence?.status || 'planned');
   const hasPromotedSource = Boolean(occurrence?.promotedTransactionId);
   const hasLinkedSource = Boolean(occurrence?.sourceTransactionId) || hasPromotedSource;
   const hasRecurringSource = hasLinkedSource && isRecurringPattern(occurrence?.recurrence);
   const canEditLinkedSeries = Boolean(occurrence?.sourceTransactionId) &&
     hasRecurringSource && existingStatus === 'planned';
-  const { period, startDate } = selectedPeriodRange(state);
-  const defaultPrimaryId = accounts?.[0]?.id ?? null;
+  const { startDate } = selectedPeriodRange(state);
+  const filteredAccountId = Number(state?.getBudgetAccountFilterId?.() || 0);
+  const filteredPrimaryAccount = (accounts || []).find(
+    (account) => Number(account?.id) === filteredAccountId
+  );
+  const defaultPrimaryId = filteredPrimaryAccount?.id ?? accounts?.[0]?.id ?? null;
   const defaultDate = occurrence?.effectiveDate || occurrence?.scheduledDate || startDate || formatDateOnly(new Date());
   let selectedRecurrence = normalizeRecurringPattern(occurrence?.recurrence);
   let recurrenceTouched = false;
@@ -626,6 +674,7 @@ function buildOccurrenceEditor({
   typeSelect.className = 'grid-summary-input';
   const primarySelect = buildAccountSelect(
     accounts,
+    accountGroups,
     occurrence?.primaryAccountId ?? defaultPrimaryId,
     {
       onQuickAdd: registerAccountDraft,
@@ -634,6 +683,7 @@ function buildOccurrenceEditor({
   );
   const secondarySelect = buildAccountSelect(
     accounts,
+    accountGroups,
     occurrence?.secondaryAccountId,
     {
       includeNone: true,
@@ -693,13 +743,23 @@ function buildOccurrenceEditor({
   plannedInput.className = 'grid-summary-input';
   plannedInput.value = hasValue(occurrence?.plannedAmount) ? Math.abs(Number(occurrence.plannedAmount)) : '';
 
-  const statusOptions = isNew
+  const statusOptions = isVariant
+    ? existingStatus === 'actual'
+      ? [{ value: 'actual', label: 'Actual (read-only history)' }]
+      : [
+          { value: 'planned', label: 'Planned' },
+          { value: 'skipped', label: 'Skipped' }
+        ]
+    : isNew
     ? [
         { value: 'planned', label: 'Planned' },
         { value: 'actual', label: 'Actual' }
       ]
     : existingStatus === 'actual'
-      ? [{ value: 'actual', label: 'Actual' }]
+      ? [
+          { value: 'actual', label: 'Actual' },
+          { value: 'planned', label: 'Planned (undo actual)' }
+        ]
       : existingStatus === 'skipped'
         ? [
             { value: 'skipped', label: 'Skipped' },
@@ -733,7 +793,17 @@ function buildOccurrenceEditor({
   recurrenceButton.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    openRecurrenceModal(selectedRecurrence, async (nextRecurrence) => {
+    const recurrenceDraft = isNew && (dateInput.value || defaultDate)
+      ? OccurrenceManager.anchorRecurrenceToDate(
+        selectedRecurrence || {
+          recurrenceType: { id: 1, name: 'One Time' },
+          interval: 1,
+          endDate: null
+        },
+        dateInput.value || defaultDate
+      )
+      : selectedRecurrence;
+    openRecurrenceModal(recurrenceDraft, async (nextRecurrence) => {
       const normalizedRecurrence = normalizeRecurringPattern(nextRecurrence);
       if (hasRecurringSource && !normalizedRecurrence) {
         notifyError(
@@ -751,6 +821,10 @@ function buildOccurrenceEditor({
       await updateRecurrenceButton();
     });
   });
+  if (isVariant) {
+    recurrenceButton.disabled = true;
+    recurrenceButton.title = 'A what-if snapshot changes only this period; recurring rules stay in Base.';
+  }
 
   const scopeSelect = createSelect('', [
     { value: 'occurrence', label: 'This occurrence only' },
@@ -760,34 +834,21 @@ function buildOccurrenceEditor({
   scopeSelect.className = 'grid-summary-input';
   scopeSelect.disabled = !canEditLinkedSeries;
 
-  if (hasPromotedSource) {
-    recurrenceButton.disabled = true;
+  if (hasPromotedSource || (existingStatus === 'actual' && hasRecurringSource)) {
     recurrenceButton.title =
-      'This item started a recurring rule. Edit future recurrence in the Recurring view.';
-  } else if (hasLinkedSource && !canEditLinkedSeries && existingStatus !== 'actual') {
+      'Repeat changes from an actual item apply to future occurrences.';
+  } else if (hasLinkedSource && !hasRecurringSource && existingStatus !== 'skipped') {
+    recurrenceButton.title = 'Choose a repeat pattern to create future occurrences.';
+  } else if (hasLinkedSource && !canEditLinkedSeries) {
     recurrenceButton.disabled = true;
     recurrenceButton.title = hasRecurringSource
       ? 'Restore this occurrence to planned before changing its recurring series.'
       : 'This item is linked to a one-time rule; edit this occurrence only.';
   }
 
-  if (existingStatus === 'actual') {
-    [
-      primarySelect,
-      secondarySelect,
-      typeSelect,
-      plannedInput,
-      recurrenceButton,
-      descriptionInput,
-      scopeSelect
-    ].forEach((control) => {
-      control.disabled = true;
-    });
-  }
-
   scopeSelect.addEventListener('change', () => {
     const occurrenceOnly = scopeSelect.value === 'occurrence';
-    dateInput.disabled = existingStatus === 'actual' ? false : !occurrenceOnly;
+    dateInput.disabled = !occurrenceOnly;
     if (!occurrenceOnly) dateInput.value = defaultDate || '';
   });
 
@@ -811,7 +872,154 @@ function buildOccurrenceEditor({
   addField('Actual amount', actualInput);
   addField('Repeat', recurrenceButton);
   addField('Description', descriptionInput, true);
-  if (canEditLinkedSeries) addField('Apply change to', scopeSelect, true);
+  if (canEditLinkedSeries && !isVariant) addField('Apply change to', scopeSelect, true);
+
+  const lineItemsField = document.createElement('section');
+  lineItemsField.className = 'plan-actuals-line-items form-field--full';
+  const lineItemsHeader = document.createElement('div');
+  lineItemsHeader.className = 'plan-actuals-line-items-header';
+  const lineItemsHeading = document.createElement('div');
+  const lineItemsTitle = document.createElement('strong');
+  lineItemsTitle.textContent = 'Transaction line items';
+  const lineItemsHint = document.createElement('span');
+  lineItemsHint.className = 'text-secondary';
+  lineItemsHint.textContent = 'Add each line item here. The transaction total is calculated automatically.';
+  lineItemsHeading.appendChild(lineItemsTitle);
+  lineItemsHeading.appendChild(lineItemsHint);
+  const addLineItemButton = document.createElement('button');
+  addLineItemButton.type = 'button';
+  addLineItemButton.className = 'btn btn-secondary plan-actuals-add-line-item';
+  addLineItemButton.textContent = '+ Add line item';
+  const lineItemsBody = document.createElement('div');
+  lineItemsBody.className = 'plan-actuals-line-items-body';
+  const lineItemsFooter = document.createElement('div');
+  lineItemsFooter.className = 'plan-actuals-line-items-footer';
+  const lineItemsCount = document.createElement('span');
+  lineItemsCount.className = 'text-secondary';
+  const lineItemsTotal = document.createElement('strong');
+  lineItemsFooter.appendChild(lineItemsCount);
+  lineItemsFooter.appendChild(lineItemsTotal);
+  lineItemsHeader.appendChild(lineItemsHeading);
+  lineItemsHeader.appendChild(addLineItemButton);
+  lineItemsField.appendChild(lineItemsHeader);
+  lineItemsField.appendChild(lineItemsBody);
+  lineItemsField.appendChild(lineItemsFooter);
+  form.appendChild(lineItemsField);
+
+  const lineItemRows = [];
+  let nextLineItemId = 1;
+  const collectLineItems = () => lineItemRows.flatMap((line) => {
+    const amount = Math.abs(Number(line.amount.value || 0));
+    if (!Number.isFinite(amount) || amount <= 0) return [];
+    return [{
+      id: line.id,
+      date: line.date.value || dateInput.value || defaultDate,
+      description: line.description.value.trim(),
+      amount
+    }];
+  });
+  const refreshLineItemTotal = () => {
+    const items = collectLineItems();
+    const total = items.reduce((sum, item) => sum + item.amount, 0);
+    lineItemsCount.textContent = `${items.length} line item${items.length === 1 ? '' : 's'}`;
+    lineItemsTotal.textContent = formatCurrency(total);
+    const hasRows = lineItemRows.length > 0;
+    const target = statusSelect.value === 'actual' ? actualInput : plannedInput;
+    plannedInput.readOnly = hasRows && statusSelect.value !== 'actual';
+    actualInput.readOnly = hasRows && statusSelect.value === 'actual';
+    plannedInput.classList.toggle(
+      'grid-summary-input--readonly',
+      plannedInput.readOnly
+    );
+    actualInput.classList.toggle(
+      'grid-summary-input--readonly',
+      actualInput.readOnly
+    );
+    if (hasRows) target.value = total.toFixed(2);
+  };
+  const addLineItem = (item = {}) => {
+    const row = document.createElement('div');
+    row.className = 'plan-actuals-line-item';
+    const id = String(item.id || `line-${Date.now()}-${nextLineItemId++}`);
+    const lineDate = document.createElement('input');
+    lineDate.type = 'date';
+    lineDate.className = 'grid-summary-input plan-actuals-line-item-date';
+    lineDate.value = item.date || dateInput.value || defaultDate || '';
+    lineDate.setAttribute('aria-label', 'Line item date');
+    const lineDescription = document.createElement('input');
+    lineDescription.type = 'text';
+    lineDescription.className = 'grid-summary-input plan-actuals-line-item-description';
+    lineDescription.value = String(item.description || '');
+    lineDescription.placeholder = 'Line item description';
+    lineDescription.setAttribute('aria-label', 'Line item description');
+    const lineAmount = document.createElement('input');
+    lineAmount.type = 'number';
+    lineAmount.min = '0';
+    lineAmount.step = '0.01';
+    lineAmount.className = 'grid-summary-input plan-actuals-line-item-amount';
+    lineAmount.value = Number(item.amount || 0) > 0 ? String(Math.abs(Number(item.amount))) : '';
+    lineAmount.placeholder = 'Amount';
+    lineAmount.setAttribute('aria-label', 'Line item amount');
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'icon-btn plan-actuals-remove-line-item';
+    remove.title = 'Remove line item';
+    remove.setAttribute('aria-label', 'Remove line item');
+    remove.textContent = '×';
+    const line = {
+      row,
+      id,
+      date: lineDate,
+      description: lineDescription,
+      amount: lineAmount
+    };
+    lineItemRows.push(line);
+    row.appendChild(lineDate);
+    row.appendChild(lineDescription);
+    row.appendChild(lineAmount);
+    row.appendChild(remove);
+    lineItemsBody.appendChild(row);
+    [lineDate, lineDescription, lineAmount].forEach((input) => {
+      input.addEventListener('input', refreshLineItemTotal);
+      input.addEventListener('change', refreshLineItemTotal);
+    });
+    remove.addEventListener('click', () => {
+      const index = lineItemRows.indexOf(line);
+      if (index >= 0) lineItemRows.splice(index, 1);
+      row.remove();
+      refreshLineItemTotal();
+    });
+    refreshLineItemTotal();
+    return line;
+  };
+  (Array.isArray(occurrence?.lineItems) ? occurrence.lineItems : []).forEach(addLineItem);
+  addLineItemButton.addEventListener('click', () => {
+    if (!lineItemRows.length && occurrence) {
+      const existingAmount = existingStatus === 'actual'
+        ? Math.abs(Number(occurrence.actualAmount || 0))
+        : Math.abs(Number(occurrence.plannedAmount || 0));
+      if (existingAmount > 0) {
+        addLineItem({
+          date: occurrence.actualDate || occurrence.effectiveDate || defaultDate,
+          description: occurrence.description || 'Existing amount',
+          amount: existingAmount
+        });
+      }
+    }
+    const line = addLineItem({ date: dateInput.value || defaultDate });
+    line.description.focus();
+  });
+  statusSelect.addEventListener('change', () => {
+    if (
+      existingStatus === 'actual' &&
+      statusSelect.value === 'planned' &&
+      Math.abs(Number(plannedInput.value || 0)) === 0
+    ) {
+      plannedInput.value = String(Math.abs(Number(actualInput.value || 0)));
+    }
+    refreshLineItemTotal();
+  });
+  refreshLineItemTotal();
 
   const actions = document.createElement('div');
   actions.className = 'grid-summary-form-actions';
@@ -833,9 +1041,21 @@ function buildOccurrenceEditor({
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const plannedAmount = Math.abs(Number(plannedInput.value || 0));
-    const actualAmount = Math.abs(Number(actualInput.value || plannedAmount || 0));
     const selectedStatus = statusSelect.value || 'planned';
+    const lineItems = collectLineItems();
+    const itemizedTotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const plannedAmount = lineItems.length && selectedStatus !== 'actual'
+      ? itemizedTotal
+      : Math.abs(Number(plannedInput.value || 0));
+    const actualAmount = lineItems.length && selectedStatus === 'actual'
+      ? itemizedTotal
+      : Math.abs(Number(actualInput.value || plannedAmount || 0));
+    const recurrenceForSave = isNew && isRecurringPattern(selectedRecurrence)
+      ? OccurrenceManager.anchorRecurrenceToDate(
+        selectedRecurrence,
+        dateInput.value || defaultDate
+      )
+      : selectedRecurrence;
 
     await runAction(saveButton, async () => {
       const occurrenceUpdates = {
@@ -844,14 +1064,18 @@ function buildOccurrenceEditor({
         transactionTypeId: Number(typeSelect.value || 2),
         plannedDate: dateInput.value || null,
         plannedAmount,
-        description: descriptionInput.value.trim()
+        description: descriptionInput.value.trim(),
+        lineItems
       };
       const ruleUpdates = {
         primaryAccountId: occurrenceUpdates.primaryAccountId,
         secondaryAccountId: occurrenceUpdates.secondaryAccountId,
         transactionTypeId: occurrenceUpdates.transactionTypeId,
-        amount: plannedAmount,
-        description: occurrenceUpdates.description
+        amount: existingStatus === 'actual' && plannedAmount === 0
+          ? actualAmount
+          : plannedAmount,
+        description: occurrenceUpdates.description,
+        lineItems
       };
       if (recurrenceTouched) ruleUpdates.recurrence = selectedRecurrence;
       const promotionRuleUpdates = {
@@ -860,33 +1084,89 @@ function buildOccurrenceEditor({
       };
       delete promotionRuleUpdates.recurrence;
 
+      if (isVariant) {
+        const result = isNew
+          ? await PeriodVariantManager.createOccurrence(scenarioId, variantId, {
+              ...occurrenceUpdates,
+              scheduledDate: dateInput.value || defaultDate,
+              plannedAmount,
+              status: selectedStatus
+            })
+          : await PeriodVariantManager.updateOccurrence(
+              scenarioId,
+              variantId,
+              occurrence.occurrenceKey,
+              {
+                ...occurrenceUpdates,
+                status: selectedStatus,
+                plannedAmount
+              }
+            );
+        pendingEditor = null;
+        onSaved?.(result?.scenario);
+        return;
+      }
+
       if (isNew) {
         const scheduledDate = dateInput.value || defaultDate;
-        const created = await OccurrenceManager.createManualOccurrence(scenarioId, {
-          ...occurrenceUpdates,
-          scheduledDate,
-          status: selectedStatus,
-          plannedAmount: selectedStatus === 'actual' ? 0 : plannedAmount,
-          actualAmount: selectedStatus === 'actual' ? actualAmount : null,
-          actualDate: selectedStatus === 'actual' ? scheduledDate : null,
-          baselinePeriod: baselinePeriodForDate(state, scheduledDate)
-        });
-        if (isRecurringPattern(selectedRecurrence) && created?.occurrence?.occurrenceKey) {
-          await OccurrenceManager.promoteOccurrenceToRecurring(
-            scenarioId,
-            created.occurrence.occurrenceKey,
-            {
-              recurrence: selectedRecurrence,
-              ruleUpdates: promotionRuleUpdates
-            }
-          );
+        if (selectedStatus === 'planned' && isRecurringPattern(recurrenceForSave)) {
+          await OccurrenceManager.createRecurringRule(scenarioId, {
+            ...occurrenceUpdates,
+            scheduledDate,
+            plannedAmount,
+            recurrence: recurrenceForSave
+          });
+        } else {
+          const created = await OccurrenceManager.createManualOccurrence(scenarioId, {
+            ...occurrenceUpdates,
+            scheduledDate,
+            status: selectedStatus,
+            plannedAmount: selectedStatus === 'actual' ? 0 : plannedAmount,
+            actualAmount: selectedStatus === 'actual' ? actualAmount : null,
+            actualDate: selectedStatus === 'actual' ? scheduledDate : null
+          });
+          if (isRecurringPattern(recurrenceForSave) && created?.occurrence?.occurrenceKey) {
+            await OccurrenceManager.promoteOccurrenceToRecurring(
+              scenarioId,
+              created.occurrence.occurrenceKey,
+              {
+                recurrence: recurrenceForSave,
+                ruleUpdates: promotionRuleUpdates
+              }
+            );
+          }
         }
       } else {
         const key = occurrence.occurrenceKey;
         const scope = scopeSelect.value;
         let actionKey = key;
 
-        if (existingStatus !== 'actual') {
+        if (existingStatus === 'actual') {
+          if (
+            recurrenceTouched &&
+            isRecurringPattern(selectedRecurrence) &&
+            (hasRecurringSource || hasPromotedSource)
+          ) {
+            await OccurrenceManager.updateRecurringRuleAfterActual(
+              scenarioId,
+              key,
+              ruleUpdates
+            );
+          }
+          if (selectedStatus === 'actual') {
+            await OccurrenceManager.updateActualOccurrence(scenarioId, key, {
+              ...occurrenceUpdates,
+              actualAmount,
+              actualDate: dateInput.value || occurrence.actualDate || occurrence.scheduledDate
+            });
+          } else {
+            await OccurrenceManager.restoreActualToPlanned(
+              scenarioId,
+              key,
+              occurrenceUpdates
+            );
+          }
+        } else {
           let updated;
           if (scope === 'future') {
             updated = await OccurrenceManager.updateThisAndFuture(scenarioId, key, ruleUpdates);
@@ -900,31 +1180,31 @@ function buildOccurrenceEditor({
             );
           }
           actionKey = updated?.occurrenceKey || key;
-        }
-
-        if (selectedStatus === 'actual') {
-          await OccurrenceManager.markActual(scenarioId, actionKey, {
-            actualAmount,
-            actualDate: dateInput.value || occurrence.actualDate || occurrence.scheduledDate,
-            period: baselinePeriodForDate(state, occurrence.scheduledDate)
-          });
-        } else if (selectedStatus === 'skipped') {
-          if (existingStatus !== 'skipped') {
-            await OccurrenceManager.markSkipped(scenarioId, actionKey);
+          if (selectedStatus === 'actual') {
+            await OccurrenceManager.markActual(scenarioId, actionKey, {
+              actualAmount,
+              actualDate: dateInput.value || occurrence.actualDate || occurrence.scheduledDate,
+              lineItems
+            });
+          } else if (selectedStatus === 'skipped') {
+            if (existingStatus !== 'skipped') {
+              await OccurrenceManager.markSkipped(scenarioId, actionKey);
+            }
+          } else if (existingStatus !== 'planned') {
+            await OccurrenceManager.updateOccurrenceOnly(
+              scenarioId,
+              actionKey,
+              { status: 'planned' }
+            );
           }
-        } else if (existingStatus !== 'planned') {
-          await OccurrenceManager.updateOccurrenceOnly(
-            scenarioId,
-            actionKey,
-            { status: 'planned' }
-          );
         }
 
         if (
           recurrenceTouched &&
           isRecurringPattern(selectedRecurrence) &&
           selectedStatus !== 'skipped' &&
-          !occurrence.sourceTransactionId
+          !hasRecurringSource &&
+          !hasPromotedSource
         ) {
           await OccurrenceManager.promoteOccurrenceToRecurring(scenarioId, actionKey, {
             recurrence: selectedRecurrence,
@@ -955,7 +1235,7 @@ function actionButton({ title, text, onClick, className = '' }) {
   return button;
 }
 
-function buildCompletionControl({ occurrence, scenarioId, state }) {
+function buildCompletionControl({ occurrence, scenarioId, state, variantId = '', onChanged }) {
   const status = statusName(occurrence);
   const isActual = status === 'actual';
   const isSkipped = status === 'skipped';
@@ -967,14 +1247,18 @@ function buildCompletionControl({ occurrence, scenarioId, state }) {
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
   checkbox.checked = isActual;
-  checkbox.disabled = isActual || isSkipped;
+  checkbox.disabled = Boolean(variantId) || isSkipped;
   checkbox.setAttribute(
     'aria-label',
-    isActual ? 'Actual / completed' : `Mark ${occurrence.description || 'item'} as actual`
+    isActual
+      ? `Restore ${occurrence.description || 'item'} to planned`
+      : `Mark ${occurrence.description || 'item'} as actual`
   );
-  checkbox.title = isSkipped
+  checkbox.title = variantId
+    ? 'Actual status is live history and cannot be changed inside a what-if snapshot'
+    : isSkipped
     ? 'Skipped items cannot be marked actual'
-    : (isActual ? 'Actual / completed' : 'Mark as actual / completed');
+    : (isActual ? 'Untick to restore as planned' : 'Mark as actual / completed');
 
   const text = document.createElement('span');
   text.textContent = status.replaceAll('-', ' ');
@@ -983,21 +1267,27 @@ function buildCompletionControl({ occurrence, scenarioId, state }) {
   label.addEventListener('mousedown', (event) => event.stopPropagation());
   checkbox.addEventListener('change', async (event) => {
     event.stopPropagation();
-    if (!checkbox.checked || checkbox.disabled) return;
+    if (checkbox.disabled) return;
     checkbox.disabled = true;
     label.classList.add('is-saving');
     try {
-      await OccurrenceManager.markActual(
-        scenarioId,
-        occurrence.occurrenceKey,
-        {
-          actualAmount: occurrence.plannedAmount,
-          actualDate: occurrence.effectiveDate || occurrence.scheduledDate,
-          period: baselinePeriodForDate(state, occurrence.scheduledDate)
-        }
-      );
+      if (checkbox.checked) {
+        await OccurrenceManager.markActual(
+          scenarioId,
+          occurrence.occurrenceKey,
+          {
+            actualAmount: occurrence.plannedAmount,
+            actualDate: occurrence.effectiveDate || occurrence.scheduledDate
+          }
+        );
+      } else {
+        await OccurrenceManager.restoreActualToPlanned(
+          scenarioId,
+          occurrence.occurrenceKey
+        );
+      }
     } catch (error) {
-      checkbox.checked = false;
+      checkbox.checked = isActual;
       checkbox.disabled = false;
       label.classList.remove('is-saving');
       notifyError(error?.message || String(error));
@@ -1013,39 +1303,144 @@ function buildOccurrenceActions({
   occurrence,
   scenarioId,
   state,
+  variantId = '',
+  onChanged,
   onEdit,
   className = ''
 }) {
   const actions = document.createElement('div');
   actions.className =
     `grid-summary-actions plan-actuals-actions${className ? ` ${className}` : ''}`;
+  const isRecurringOccurrence = Boolean(
+    occurrence.sourceTransactionId && isRecurringPattern(occurrence.recurrence)
+  );
+
+  if (variantId) {
+    if (occurrence.status !== 'actual') {
+      actions.appendChild(actionButton({
+        title: occurrence.status === 'skipped'
+          ? 'Restore in this what-if'
+          : 'Skip in this what-if',
+        text: occurrence.status === 'skipped' ? '↩' : '⊘',
+        onClick: (button) => runAction(button, async () => {
+          const result = await PeriodVariantManager.updateOccurrence(
+            scenarioId,
+            variantId,
+            occurrence.occurrenceKey,
+            { status: occurrence.status === 'skipped' ? 'planned' : 'skipped' }
+          );
+          await onChanged?.(result?.scenario);
+        })
+      }));
+      actions.appendChild(actionButton({
+        title: 'Delete from this what-if',
+        text: '⌫',
+        onClick: async (button) => {
+          const confirmed = await confirmDialog(
+            'Delete this item from the selected what-if snapshot? Base will not change.'
+          );
+          if (!confirmed) return;
+          await runAction(button, async () => {
+            const result = await PeriodVariantManager.deleteOccurrence(
+              scenarioId,
+              variantId,
+              occurrence.occurrenceKey
+            );
+            await onChanged?.(result?.scenario);
+          });
+        }
+      }));
+      actions.appendChild(actionButton({
+        title: 'Edit item in this what-if',
+        text: '✎',
+        onClick: () => onEdit(occurrence)
+      }));
+    }
+    actions.appendChild(actionButton({
+      title: 'Duplicate in this what-if',
+      text: '⧉',
+      onClick: (button) => runAction(button, async () => {
+        const result = await PeriodVariantManager.duplicateOccurrence(
+          scenarioId,
+          variantId,
+          occurrence.occurrenceKey
+        );
+        await onChanged?.(result?.scenario);
+      })
+    }));
+    return actions;
+  }
 
   if (occurrence.status !== 'skipped' && occurrence.status !== 'actual') {
     actions.appendChild(actionButton({
-      title: 'Remove this occurrence',
+      title: 'Skip this occurrence',
       text: '⊘',
       onClick: (button) => runAction(button, async () => {
         await OccurrenceManager.markSkipped(scenarioId, occurrence.occurrenceKey);
-        notifySuccess('This occurrence was removed from the current period.');
+        notifySuccess('This occurrence was skipped. You can restore it from the card.');
+      })
+    }));
+  }
+  if (occurrence.status === 'skipped') {
+    actions.appendChild(actionButton({
+      title: 'Restore to planned',
+      text: '↩',
+      onClick: (button) => runAction(button, async () => {
+        await OccurrenceManager.updateOccurrenceOnly(
+          scenarioId,
+          occurrence.occurrenceKey,
+          { status: 'planned' }
+        );
+        notifySuccess('This occurrence was restored to planned.');
       })
     }));
   }
   if (
-    occurrence.status === 'planned' &&
-    occurrence.sourceTransactionId &&
-    isRecurringPattern(occurrence.recurrence)
+    (occurrence.status === 'planned' || occurrence.status === 'skipped') &&
+    isRecurringOccurrence
   ) {
     actions.appendChild(actionButton({
       title: 'Delete this and future occurrences',
       text: '⨉',
       onClick: async (button) => {
         const confirmed = await confirmDialog(
-          'Delete this occurrence and the remaining recurring sequence? Past actuals, removed occurrences, and frozen baselines will be preserved.'
+          'Delete this occurrence and the remaining recurring sequence? Past actuals, removed occurrences, and captured baselines will be preserved.'
         );
         if (!confirmed) return;
         await runAction(button, async () => {
-          await OccurrenceManager.endSeries(scenarioId, occurrence.occurrenceKey);
-          notifySuccess('This and future occurrences were removed.');
+          const result = await OccurrenceManager.endSeries(
+            scenarioId,
+            occurrence.occurrenceKey,
+            { discardSkippedBoundary: occurrence.status === 'skipped' }
+          );
+          const preservedCount = result?.preservedHistory?.length || 0;
+          notifySuccess(
+            preservedCount
+              ? `This and future planned occurrences were removed. ${preservedCount} protected record${preservedCount === 1 ? '' : 's'} remained as one-time history.`
+              : 'This and future occurrences were removed.'
+          );
+        });
+      }
+    }));
+  }
+  if (
+    occurrence.status !== 'actual' &&
+    !isRecurringOccurrence
+  ) {
+    actions.appendChild(actionButton({
+      title: 'Delete transaction permanently',
+      text: '⌫',
+      onClick: async (button) => {
+        const confirmed = await confirmDialog(
+          'Permanently delete this transaction? This cannot be undone.'
+        );
+        if (!confirmed) return;
+        await runAction(button, async () => {
+          await OccurrenceManager.deleteOccurrencePermanently(
+            scenarioId,
+            occurrence.occurrenceKey
+          );
+          notifySuccess('Transaction deleted permanently.');
         });
       }
     }));
@@ -1109,6 +1504,9 @@ function renderOccurrenceCards({
   accounts,
   scenarioId,
   state,
+  variantId = '',
+  onChanged,
+  onNavigateAccount,
   groupBy,
   onEdit
 }) {
@@ -1137,7 +1535,7 @@ function renderOccurrenceCards({
     const occurrence = row?._canonicalOccurrence || row;
     const comparison = row?._comparisonOccurrence || occurrence;
     const typeId = movementDimensions(row).transactionTypeId;
-    const status = String(occurrence?.status || 'planned').trim().toLowerCase();
+    const status = statusName(occurrence);
     if (status === 'actual' && hasValue(comparison?.actualAmount)) {
       return signedAmount(comparison.actualAmount, typeId);
     }
@@ -1190,20 +1588,65 @@ function renderOccurrenceCards({
     card.className =
       `grid-summary-card plan-actuals-item ${movementClass} status-${statusName(occurrence)}`;
     card.dataset.occurrenceKey = occurrence.occurrenceKey;
+    card.dataset.baselineHistory = baselineHistoryState(
+      row._comparisonOccurrence || occurrence
+    );
+    card.classList.add('is-openable');
+    card.tabIndex = 0;
+    card.setAttribute(
+      'aria-label',
+      `Open ${occurrence.description || 'transaction'} details`
+    );
+    const openFromCard = (event) => {
+      if (event.target.closest(
+        'button, input, select, textarea, a, label, form, .plan-actuals-editor-wrap'
+      )) return;
+      onEdit?.(occurrence);
+    };
+    card.addEventListener('click', openFromCard);
+    card.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if (event.target !== card) return;
+      event.preventDefault();
+      onEdit?.(occurrence);
+    });
 
     const content = document.createElement('div');
     content.className = 'grid-summary-content';
 
-    const counterparty = document.createElement('div');
+    const counterparty = document.createElement(
+      displayMovement.secondaryAccountId ? 'button' : 'div'
+    );
+    if (displayMovement.secondaryAccountId) counterparty.type = 'button';
     counterparty.className = 'grid-summary-title plan-actuals-counterparty';
     counterparty.textContent = displayMovement.secondaryAccountId
       ? accountName(accounts, displayMovement.secondaryAccountId)
       : 'External';
+    if (displayMovement.secondaryAccountId) {
+      const destinationName = accountName(accounts, displayMovement.secondaryAccountId);
+      counterparty.classList.add('plan-actuals-account-shortcut');
+      counterparty.title = `View transactions for ${destinationName}`;
+      counterparty.setAttribute('aria-label', `View transactions for ${destinationName}`);
+      counterparty.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await onNavigateAccount?.(displayMovement.secondaryAccountId);
+      });
+    }
 
     const heading = document.createElement('div');
     heading.className = 'plan-actuals-heading-row';
-    const status = buildCompletionControl({ occurrence, scenarioId, state });
+    const status = buildCompletionControl({
+      occurrence,
+      scenarioId,
+      state,
+      variantId,
+      onChanged
+    });
     heading.appendChild(counterparty);
+    heading.appendChild(buildBaselineHistoryBadge(
+      row._comparisonOccurrence || occurrence
+    ));
     heading.appendChild(status);
 
     const schedule = document.createElement('div');
@@ -1228,6 +1671,15 @@ function renderOccurrenceCards({
     const description = document.createElement('div');
     description.className = 'grid-summary-description plan-actuals-description';
     description.textContent = occurrence.description || 'Untitled item';
+
+    const lineItems = Array.isArray(occurrence.lineItems) ? occurrence.lineItems : [];
+    const lineItemSummary = document.createElement('div');
+    lineItemSummary.className = 'plan-actuals-line-item-summary';
+    lineItemSummary.textContent = lineItems.length
+      ? `${lineItems.length} line item${lineItems.length === 1 ? '' : 's'} · ${formatCurrency(
+          lineItems.reduce((sum, item) => sum + Math.abs(Number(item?.amount || 0)), 0)
+        )}`
+      : 'No line items';
 
     const comparison = document.createElement('div');
     comparison.className = 'plan-actuals-comparison';
@@ -1265,6 +1717,8 @@ function renderOccurrenceCards({
       occurrence,
       scenarioId,
       state,
+      variantId,
+      onChanged,
       onEdit
     });
     schedule.appendChild(actions);
@@ -1273,6 +1727,7 @@ function renderOccurrenceCards({
     content.appendChild(schedule);
     content.appendChild(movement);
     content.appendChild(description);
+    content.appendChild(lineItemSummary);
     content.appendChild(comparison);
 
     card.appendChild(content);
@@ -1293,7 +1748,7 @@ function buildPlanActualsDetailRows(rows, accounts) {
     const comparison = row?._comparisonOccurrence || occurrence;
     const currentTypeId = Number(comparison?.transactionTypeId);
     const baselineTypeId = Number(comparison?.baselineTransactionTypeId);
-    const canonicalStatus = String(occurrence?.status || 'planned').trim().toLowerCase();
+    const canonicalStatus = statusName(occurrence);
     const baseline = signedAmount(comparison?.baselineAmount, baselineTypeId);
     const currentPlan = canonicalStatus === 'skipped'
       ? 0
@@ -1309,8 +1764,9 @@ function buildPlanActualsDetailRows(rows, accounts) {
           : 0
       );
 
+    const currentDimensions = currentMovementDimensions(row);
     const currentMovement = movementTextFromDimensions(
-      currentMovementDimensions(row),
+      currentDimensions,
       accounts
     );
     const baselineMovement = movementTextFromDimensions(
@@ -1332,11 +1788,17 @@ function buildPlanActualsDetailRows(rows, accounts) {
       date: occurrence.effectiveDate || occurrence.scheduledDate || '',
       statusLabel: statusName(occurrence).replaceAll('-', ' '),
       statusGroup: statusName(occurrence),
+      baselineHistory: baselineHistoryState(comparison),
       movement: currentMovementLabel,
+      navigationAccountId: currentDimensions.secondaryAccountId || null,
+      navigationAccountName: currentDimensions.secondaryAccountId
+        ? accountName(accounts, currentDimensions.secondaryAccountId)
+        : '',
       baselineMovement: showBaselineMovement ? baselineMovementLabel : '',
       movementGroup:
         movementTypeLabel(currentTypeId || baselineTypeId),
       description: occurrence.description || '',
+      lineItemCount: Array.isArray(occurrence.lineItems) ? occurrence.lineItems.length : 0,
       repeat: recurrenceLabel(occurrence),
       repeatGroup: recurrenceLabel(occurrence),
       baseline,
@@ -1373,7 +1835,9 @@ function detailStatusFormatter(cell) {
     return buildCompletionControl({
       occurrence,
       scenarioId: runtime.scenarioId,
-      state: runtime.state
+      state: runtime.state,
+      variantId: runtime.variantId,
+      onChanged: runtime.onChanged
     });
   }
   const span = document.createElement('span');
@@ -1386,8 +1850,21 @@ function detailMovementFormatter(cell) {
   const data = cell.getRow().getData();
   const wrapper = document.createElement('div');
   wrapper.className = 'plan-actuals-detail-movement';
-  const current = document.createElement('div');
+  const runtime = planActualsDetailRuntime;
+  const current = document.createElement(data.navigationAccountId ? 'button' : 'div');
+  if (data.navigationAccountId) current.type = 'button';
   current.textContent = data.movement || '—';
+  if (data.navigationAccountId) {
+    const destinationName = data.navigationAccountName || 'secondary account';
+    current.className = 'plan-actuals-detail-account-shortcut';
+    current.title = `View transactions for ${destinationName}`;
+    current.setAttribute('aria-label', `View transactions for ${destinationName}`);
+    current.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await runtime?.onNavigateAccount?.(data.navigationAccountId);
+    });
+  }
   wrapper.appendChild(current);
   if (data.baselineMovement) {
     const baseline = document.createElement('div');
@@ -1429,6 +1906,25 @@ function createPlanActualsDetailColumns() {
       formatter: detailStatusFormatter
     },
     {
+      title: 'Baseline History',
+      field: 'baselineHistory',
+      width: 135,
+      minWidth: 120,
+      headerSort: true,
+      headerFilter: 'list',
+      headerFilterParams: {
+        values: {
+          '': 'All',
+          closed: 'Closed',
+          captured: 'Baseline captured',
+          live: 'Live'
+        }
+      },
+      formatter: (cell) => buildBaselineHistoryBadge(
+        cell.getRow().getData()?._comparisonOccurrence
+      )
+    },
+    {
       title: 'Money Movement',
       field: 'movement',
       width: 255,
@@ -1441,6 +1937,15 @@ function createPlanActualsDetailColumns() {
       width: 210,
       minWidth: 170
     }),
+    {
+      title: 'Items',
+      field: 'lineItemCount',
+      width: 82,
+      minWidth: 72,
+      hozAlign: 'right',
+      headerHozAlign: 'right',
+      headerSort: true
+    },
     textColumn('Repeat', 'repeat', {
       width: 160,
       minWidth: 135
@@ -1465,7 +1970,7 @@ function createPlanActualsDetailColumns() {
     moneyColumn('Variance vs Baseline', 'varianceVsBaseline', {
       width: 165,
       minWidth: 145,
-      headerTooltip: 'Forecast contribution minus the frozen baseline.'
+      headerTooltip: 'Forecast contribution minus the captured baseline.'
     }),
     moneyColumn('Variance vs Current', 'varianceVsCurrent', {
       width: 160,
@@ -1486,6 +1991,8 @@ function createPlanActualsDetailColumns() {
           occurrence,
           scenarioId: runtime.scenarioId,
           state: runtime.state,
+          variantId: runtime.variantId,
+          onChanged: runtime.onChanged,
           onEdit: runtime.onEdit,
           className: 'plan-actuals-detail-actions'
         });
@@ -1516,7 +2023,10 @@ function openPlanActualsDetailEditor({
   scenarioId,
   occurrence = null,
   accounts,
+  accountGroups = [],
   state,
+  variantId = '',
+  onChanged,
   isNew = false
 }) {
   if (!editorHost) return;
@@ -1532,14 +2042,17 @@ function openPlanActualsDetailEditor({
     scenarioId,
     occurrence,
     accounts,
+    accountGroups,
     state,
+    variantId,
     onCancel: () => {
       pendingEditor = null;
       closeEditor();
     },
-    onSaved: () => {
+    onSaved: async (nextScenario) => {
       pendingEditor = null;
       closeEditor();
+      if (nextScenario) await onChanged?.(nextScenario);
     }
   }));
   editorHost.appendChild(editorWrap);
@@ -1553,6 +2066,9 @@ async function renderOccurrenceDetailTable({
   diagnostics,
   scenario,
   state,
+  variantId = '',
+  onChanged,
+  onNavigateAccount,
   isRenderCurrent
 }) {
   if (!isRenderCurrent()) return;
@@ -1599,7 +2115,9 @@ async function renderOccurrenceDetailTable({
     endDate: detailEndDate || '',
     accountId: Number(state?.getBudgetAccountFilterId?.() || 0),
     statusFilter: state?.getBudgetStatusFilter?.() || '',
-    groupBy: state?.getGroupBy?.() || ''
+    historyFilter: state?.getBudgetHistoryFilter?.() || '',
+    groupBy: state?.getGroupBy?.() || '',
+    variantId
   });
   const detailContextChanged =
     planActualsDetailContextKey !== null &&
@@ -1629,11 +2147,17 @@ async function renderOccurrenceDetailTable({
     scenarioId: scenario.id,
     occurrence,
     accounts: scenario.accounts || [],
-    state
+    accountGroups: scenario.accountGroups || [],
+    state,
+    variantId,
+    onChanged
   });
   planActualsDetailRuntime = {
     scenarioId: scenario.id,
     state,
+    variantId,
+    onChanged,
+    onNavigateAccount,
     totals,
     onEdit: openEditor
   };
@@ -1650,6 +2174,9 @@ async function renderOccurrenceDetailTable({
     planActualsDetailRuntime = {
       scenarioId: scenario.id,
       state,
+      variantId,
+      onChanged,
+      onNavigateAccount,
       totals,
       onEdit: openEditor
     };
@@ -1715,10 +2242,22 @@ async function renderOccurrenceDetailTable({
       editorHost,
       scenarioId: scenario.id,
       accounts: scenario.accounts || [],
+      accountGroups: scenario.accountGroups || [],
       state,
+      variantId,
+      onChanged,
       isNew: true
     });
   }
+
+  installItemDetailDismissal({
+    root: container,
+    detailsSelector: '.plan-actuals-editor-wrap, .plan-actuals-new-item',
+    onDismiss: (editor) => {
+      pendingEditor = null;
+      editor.remove();
+    }
+  });
 }
 
 async function renderPeriodView({
@@ -1733,6 +2272,7 @@ async function renderPeriodView({
   if (!isRenderCurrent()) return;
   const scenario = scenarioState?.get?.();
   if (!scenario) return;
+  cleanupItemDetailDismissal(container);
 
   const periodType = state?.getBudgetPeriodType?.() || 'Month';
   let periods = state?.getBudgetPeriods?.() || [];
@@ -1748,7 +2288,7 @@ async function renderPeriodView({
     selectedId = periods[0].id;
     state?.setBudgetPeriod?.(selectedId);
   }
-  const { period, startDate, endDate } = selectedPeriodRange(state);
+  const { startDate, endDate } = selectedPeriodRange(state);
   const resolved = startDate && endDate
     ? resolveScenarioOccurrences({
         scenario,
@@ -1758,6 +2298,38 @@ async function renderPeriodView({
         openCommitmentStartDate: scenario?.projection?.config?.openCommitmentStartDate ?? null
       })
     : { occurrences: [], diagnostics: [] };
+  const periodKey = `${periodType}|${startDate || ''}|${endDate || ''}`;
+  const periodVariants = (scenario?.planning?.periodVariants || []).filter(
+    (variant) => (
+      String(variant?.periodType || '') === String(periodType) &&
+      variant?.startDate === startDate &&
+      variant?.endDate === endDate
+    )
+  );
+  let selectedVariantId = String(state?.getSelectedVariant?.(periodKey) || '');
+  let activeVariant = periodVariants.find(
+    (variant) => String(variant?.id) === selectedVariantId
+  ) || null;
+  if (selectedVariantId && !activeVariant) {
+    selectedVariantId = '';
+    state?.setSelectedVariant?.(periodKey, '');
+  }
+  const viewResolved = activeVariant
+    ? { occurrences: activeVariant.occurrences || [], diagnostics: [] }
+    : resolved;
+  const applyVariantScenario = async (nextScenario) => {
+    if (nextScenario) scenarioState?.set?.(nextScenario);
+    pendingEditor = null;
+    await reload();
+  };
+  const navigateToAccount = async (accountId) => {
+    const numericId = Number(accountId || 0);
+    if (!numericId) return;
+    state?.setBudgetAccountScope?.('');
+    state?.setBudgetAccountFilterId?.(numericId);
+    pendingEditor = null;
+    await reload();
+  };
 
   const card = container.closest('.forecast-card');
   const header = card?.querySelector(':scope > .card-header');
@@ -1765,13 +2337,6 @@ async function renderPeriodView({
   header?.classList.add('card-header--filters-inline');
   if (controls) {
     controls.innerHTML = '';
-    const accountOptions = [
-      { value: '', label: 'All Accounts' },
-      ...(scenario.accounts || []).map((account) => ({
-        value: account.id,
-        label: account.name || String(account.id)
-      }))
-    ];
     const periodOptions = periods.map((item) => ({
       value: item.id,
       label: item.label || String(item.id)
@@ -1787,18 +2352,59 @@ async function renderPeriodView({
       { value: 'planned', label: 'Planned' },
       { value: 'actual', label: 'Actual' }
     ];
+    const historyOptions = [
+      { value: '', label: 'All' },
+      { value: 'closed', label: 'Closed' },
+      { value: 'captured', label: 'Baseline captured' },
+      { value: 'live', label: 'Live' }
+    ];
     const periodTypeOptions = ['Day', 'Week', 'Month', 'Quarter', 'Year']
       .map((value) => ({ value, label: value }));
 
     const inlinePeriodType = createSelect('plan-period-type-inline', periodTypeOptions, periodType);
     const inlinePeriod = createSelect('plan-period-inline', periodOptions, selectedId);
-    const inlineAccount = createSelect('plan-account-inline', accountOptions, state?.getBudgetAccountFilterId?.() || '');
+    const accountScope = state?.getBudgetAccountScope?.() || '';
+    const inlineAccount = createSelect('plan-account-inline', [], '');
+    const selectedAccountId = populateAccountSelect(inlineAccount, {
+      accounts: scenario.accounts || [],
+      accountGroups: scenario.accountGroups || [],
+      scope: accountScope,
+      selectedId: state?.getBudgetAccountFilterId?.() || null,
+      includeAll: true,
+      preserveCurrentOutsideScope: false,
+      onScopeChange: (nextScope) => {
+        state?.setBudgetAccountScope?.(nextScope);
+      }
+    });
+    if (
+      state?.getBudgetAccountFilterId?.() &&
+      !selectedAccountId
+    ) {
+      state?.setBudgetAccountFilterId?.(null);
+    }
     const inlineStatus = createSelect(
       'plan-status-inline',
       statusOptions,
       state?.getBudgetStatusFilter?.() || ''
     );
+    const inlineHistory = createSelect(
+      'plan-history-inline',
+      historyOptions,
+      state?.getBudgetHistoryFilter?.() || ''
+    );
     const inlineGroup = createSelect('plan-group-inline', groupOptions, state?.getGroupBy?.() || '');
+    const inlineVariant = createSelect(
+      'plan-variant-inline',
+      [
+        { value: '', label: 'Base' },
+        ...periodVariants.map((variant) => ({
+          value: variant.id,
+          label: variant.name
+        }))
+      ],
+      selectedVariantId
+    );
+    inlineVariant.setAttribute('aria-label', 'What-if snapshot');
     inlinePeriod.setAttribute('aria-label', 'Period');
 
     const setPeriodType = async (value) => {
@@ -1828,12 +2434,23 @@ async function renderPeriodView({
       await reload();
     };
     inlineStatus.addEventListener('change', () => setStatus(inlineStatus.value));
+    const setHistory = async (value) => {
+      inlineHistory.value = String(value ?? '');
+      state?.setBudgetHistoryFilter?.(value || '');
+      await reload();
+    };
+    inlineHistory.addEventListener('change', () => setHistory(inlineHistory.value));
     const setGroup = async (value) => {
       inlineGroup.value = String(value ?? '');
       state?.setGroupBy?.(value || '');
       await reload();
     };
     inlineGroup.addEventListener('change', () => setGroup(inlineGroup.value));
+    inlineVariant.addEventListener('change', async () => {
+      state?.setSelectedVariant?.(periodKey, inlineVariant.value || '');
+      pendingEditor = null;
+      await reload();
+    });
 
     const movePeriod = async (offset) => {
       const index = findPeriodIndexById(periods, state?.getBudgetPeriod?.());
@@ -1869,7 +2486,10 @@ async function renderPeriodView({
     };
 
     const addItem = () => {
-      pendingEditor = { scenarioId: scenario.id, occurrence: null };
+      pendingEditor = {
+        scenarioId: scenario.id,
+        occurrence: null
+      };
       reload();
     };
     const addInline = document.createElement('button');
@@ -1882,24 +2502,81 @@ async function renderPeriodView({
       event.stopPropagation();
       addItem();
     });
-    const freeze = async (button) => runAction(button, async () => {
-      if (!startDate || !endDate) return;
-      await OccurrenceManager.freezePeriodBaseline(scenario.id, {
-        ...periodPayload(state),
-        startDate,
-        endDate
-      });
-      notifySuccess(`Baseline frozen for ${period?.label || 'the selected period'}.`);
-    });
-    const freezeInline = document.createElement('button');
-    freezeInline.type = 'button';
-    freezeInline.className = 'icon-btn card-inline-action';
-    freezeInline.title = 'Freeze baseline';
-    freezeInline.textContent = '❄';
-    freezeInline.addEventListener('click', (event) => {
+    const baselineManagerInline = document.createElement('button');
+    baselineManagerInline.type = 'button';
+    baselineManagerInline.className = 'icon-btn card-inline-action plan-actuals-baseline-manager-action';
+    baselineManagerInline.title = 'Manage period history';
+    baselineManagerInline.setAttribute('aria-label', 'Manage period history');
+    baselineManagerInline.textContent = '◷ History';
+    baselineManagerInline.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
-      freeze(freezeInline);
+      const today = formatDateOnly(new Date());
+      const selectedDate = today >= startDate && today <= endDate ? today : startDate;
+      await openBaselinePeriodManager({
+        scenario,
+        selectedDate,
+        onChanged: async (nextScenario) => {
+          scenarioState?.set?.(nextScenario);
+          await reload();
+        }
+      });
+    });
+    const addVariantInline = document.createElement('button');
+    addVariantInline.type = 'button';
+    addVariantInline.className = 'icon-btn card-inline-action';
+    addVariantInline.title = 'Create a what-if snapshot from this period';
+    addVariantInline.setAttribute('aria-label', 'Create what-if snapshot');
+    addVariantInline.textContent = '＋ What-if';
+    addVariantInline.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openTextInputModal(
+        'Create what-if snapshot',
+        `What-if ${periodVariants.length + 1}`,
+        'Snapshot name',
+        async (name) => {
+          try {
+            const result = await PeriodVariantManager.create(scenario.id, {
+              name,
+              periodType,
+              periodId: selectedId,
+              startDate,
+              endDate,
+              occurrences: resolved.occurrences
+            });
+            state?.setSelectedVariant?.(periodKey, result.variant.id);
+            notifySuccess(`What-if snapshot “${result.variant.name}” created.`);
+            await applyVariantScenario(result.scenario);
+          } catch (error) {
+            notifyError(error?.message || String(error));
+          }
+        }
+      );
+    });
+    const deleteVariantInline = document.createElement('button');
+    deleteVariantInline.type = 'button';
+    deleteVariantInline.className = 'icon-btn card-inline-action';
+    deleteVariantInline.title = 'Delete selected what-if snapshot';
+    deleteVariantInline.setAttribute('aria-label', 'Delete selected what-if snapshot');
+    deleteVariantInline.textContent = '⌫ What-if';
+    deleteVariantInline.hidden = !activeVariant;
+    deleteVariantInline.addEventListener('click', async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!activeVariant) return;
+      const confirmed = await confirmDialog(
+        `Delete the what-if snapshot “${activeVariant.name}”? Base will not change.`
+      );
+      if (!confirmed) return;
+      try {
+        const result = await PeriodVariantManager.remove(scenario.id, activeVariant.id);
+        state?.setSelectedVariant?.(periodKey, '');
+        notifySuccess('What-if snapshot deleted.');
+        await applyVariantScenario(result.scenario);
+      } catch (error) {
+        notifyError(error?.message || String(error));
+      }
     });
     const inlineFilters = document.createElement('div');
     inlineFilters.className = 'card-inline-filters plan-actuals-inline-filters plan-actuals-toolbar';
@@ -1909,12 +2586,16 @@ async function renderPeriodView({
     inlineFilters.appendChild(createHeaderFilterItem('Period', buildNav(inlinePeriod), 'filter-period'));
     inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccount, 'filter-account'));
     inlineFilters.appendChild(createHeaderFilterItem('Status', inlineStatus, 'filter-status'));
+    inlineFilters.appendChild(createHeaderFilterItem('History', inlineHistory, 'filter-history'));
     inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroup, 'filter-group'));
+    inlineFilters.appendChild(createHeaderFilterItem('Snapshot', inlineVariant, 'filter-variant'));
     const actions = document.createElement('div');
     actions.className = 'plan-actuals-toolbar-actions';
     actions.setAttribute('aria-label', 'Period actions');
     actions.appendChild(addInline);
-    actions.appendChild(freezeInline);
+    actions.appendChild(addVariantInline);
+    if (activeVariant) actions.appendChild(deleteVariantInline);
+    else actions.appendChild(baselineManagerInline);
     inlineFilters.appendChild(actions);
 
     controls.appendChild(inlineFilters);
@@ -1922,9 +2603,16 @@ async function renderPeriodView({
 
   const accountFilterId = state?.getBudgetAccountFilterId?.();
   const statusFilter = String(state?.getBudgetStatusFilter?.() || '');
-  const visibleOccurrences = statusFilter
-    ? resolved.occurrences.filter((occurrence) => occurrence?.status === statusFilter)
-    : resolved.occurrences;
+  const statusOccurrences = statusFilter
+    ? viewResolved.occurrences.filter((occurrence) => occurrence?.status === statusFilter)
+    : viewResolved.occurrences;
+  const savedHistoryFilter = String(state?.getBudgetHistoryFilter?.() || '');
+  const historyFilter = savedHistoryFilter === 'frozen' ? 'closed' : savedHistoryFilter;
+  const visibleOccurrences = historyFilter
+    ? statusOccurrences.filter(
+        (occurrence) => baselineHistoryState(occurrence) === historyFilter
+      )
+    : statusOccurrences;
   const displayOccurrences = attachPromotedRecurrence(
     visibleOccurrences,
     scenario.transactions || []
@@ -1944,9 +2632,12 @@ async function renderPeriodView({
       container,
       rows,
       totalsOccurrences,
-      diagnostics: resolved.diagnostics || [],
+      diagnostics: viewResolved.diagnostics || [],
       scenario,
       state,
+      variantId: selectedVariantId,
+      onChanged: applyVariantScenario,
+      onNavigateAccount: navigateToAccount,
       isRenderCurrent
     });
     return;
@@ -1959,11 +2650,11 @@ async function renderPeriodView({
   totals.id = 'budgetContent';
   container.appendChild(totals);
 
-  if (resolved.diagnostics?.length) {
+  if (viewResolved.diagnostics?.length) {
     const diagnostics = document.createElement('div');
     diagnostics.className = 'plan-actuals-diagnostics';
-    diagnostics.textContent = `${resolved.diagnostics.length} planning item${resolved.diagnostics.length === 1 ? '' : 's'} need review.`;
-    diagnostics.title = resolved.diagnostics.map((item) => item.message || item.code).join('\n');
+    diagnostics.textContent = `${viewResolved.diagnostics.length} planning item${viewResolved.diagnostics.length === 1 ? '' : 's'} need review.`;
+    diagnostics.title = viewResolved.diagnostics.map((item) => item.message || item.code).join('\n');
     container.appendChild(diagnostics);
   }
 
@@ -1979,6 +2670,9 @@ async function renderPeriodView({
     accounts: scenario.accounts || [],
     scenarioId: scenario.id,
     state,
+    variantId: selectedVariantId,
+    onChanged: applyVariantScenario,
+    onNavigateAccount: navigateToAccount,
     groupBy: state?.getGroupBy?.() || '',
     onEdit: (occurrence) => {
       const existing = grid.querySelector('.plan-actuals-editor-wrap');
@@ -1991,9 +2685,14 @@ async function renderPeriodView({
         scenarioId: scenario.id,
         occurrence,
         accounts: scenario.accounts || [],
+        accountGroups: scenario.accountGroups || [],
         state,
+        variantId: selectedVariantId,
         onCancel: () => editorWrap.remove(),
-        onSaved: () => editorWrap.remove()
+        onSaved: async (nextScenario) => {
+          editorWrap.remove();
+          if (nextScenario) await applyVariantScenario(nextScenario);
+        }
       }));
       card.appendChild(editorWrap);
     }
@@ -2005,17 +2704,30 @@ async function renderPeriodView({
     editorWrap.appendChild(buildOccurrenceEditor({
       scenarioId: scenario.id,
       accounts: scenario.accounts || [],
+      accountGroups: scenario.accountGroups || [],
       state,
+      variantId: selectedVariantId,
       onCancel: () => {
         pendingEditor = null;
         reload();
       },
-      onSaved: () => {
+      onSaved: async (nextScenario) => {
         pendingEditor = null;
+        if (nextScenario) await applyVariantScenario(nextScenario);
       }
     }));
     grid.insertBefore(editorWrap, grid.firstChild);
   }
+
+  installItemDetailDismissal({
+    root: container,
+    detailsSelector: '.plan-actuals-editor-wrap, .plan-actuals-new-item',
+    ownerSelector: '.plan-actuals-item',
+    onDismiss: (editor) => {
+      pendingEditor = null;
+      editor.remove();
+    }
+  });
 }
 
 export async function loadPlanActualsGrid({

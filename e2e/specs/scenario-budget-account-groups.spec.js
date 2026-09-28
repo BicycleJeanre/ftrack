@@ -94,9 +94,31 @@ test.describe('scenario, plan and actuals, and account group functional flows', 
     await closeFilterModal(page);
 
     await openSectionFilters(page, '#accountsSection');
-    await page.locator('#account-grouping-select').selectOption('accountGroupLabel');
+    await page.locator('#account-modal-grouping-select-dialog-trigger').click();
+    const groupingDialog = page.locator('.selection-dialog');
+    await groupingDialog.locator('.selection-dialog-search').fill('Account Group');
+    await expect(groupingDialog).toBeVisible();
+    await groupingDialog.getByRole('option', { name: 'Account Group', exact: true }).click();
     await closeFilterModal(page);
 
     await expect(page.locator('#accountsSection')).toContainText('Operating Group');
+
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    const savedGroup = (await currentScenario(page)).accountGroups.find(
+      (group) => group.name === 'Operating Group'
+    );
+    const accountPicker = page.locator('#plan-account-inline');
+    await page.locator('#plan-account-inline-dialog-trigger').click();
+    const accountDialog = page.locator('.selection-dialog');
+    await accountDialog.locator('.selection-dialog-group-filter')
+      .selectOption(`group:${savedGroup.id}`);
+    await expect(accountDialog).toBeVisible();
+    await accountDialog.getByRole('option', { name: /^Checking/ }).click();
+    await expect(accountPicker).toHaveAttribute(
+      'data-account-scope',
+      `group:${savedGroup.id}`
+    );
+    await expect(accountPicker.locator('option[value="1"]')).toHaveText('Checking');
+    await expect(accountPicker.locator('option[value="2"]')).toHaveCount(0);
   });
 });

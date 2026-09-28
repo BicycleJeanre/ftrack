@@ -143,6 +143,7 @@ export function normalizeUiState(raw) {
   const periodViews = new Set(['period', 'recurring']);
   const periodGroups = new Set(['', 'status', 'movement', 'repeat']);
   const periodStatuses = new Set(['', 'planned', 'actual']);
+  const periodHistoryFilters = new Set(['', 'closed', 'captured', 'live']);
   const recurringGroups = new Set([
     '',
     'transactionTypeName',
@@ -161,6 +162,10 @@ export function normalizeUiState(raw) {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : null;
   };
+  const cleanAccountScope = (value) => {
+    const scope = String(value || '');
+    return /^(type|group):[1-9]\d*$/.test(scope) ? scope : '';
+  };
   const planActualsWorkspaceByScenario = Object.fromEntries(
     Object.entries(rawWorkspaces)
       .filter(([scenarioId, workspace]) => (
@@ -171,6 +176,10 @@ export function normalizeUiState(raw) {
         const periodTypeId = Number(workspace.periodTypeId);
         const periodGroup = String(workspace.groupBy || '');
         const periodStatus = String(workspace.statusFilter || '');
+        const rawPeriodHistoryFilter = String(workspace.historyFilter || '');
+        const periodHistoryFilter = rawPeriodHistoryFilter === 'frozen'
+          ? 'closed'
+          : rawPeriodHistoryFilter;
         const recurringGroup = String(workspace.recurringGroupBy || '');
         const rawViews = workspace.viewByContext && typeof workspace.viewByContext === 'object'
           ? workspace.viewByContext
@@ -193,15 +202,42 @@ export function normalizeUiState(raw) {
               : DEFAULT_PERIOD_TYPE_ID,
           periodId: cleanOptionalString(workspace.periodId),
           accountId: cleanOptionalId(workspace.accountId),
+          accountScope: cleanAccountScope(workspace.accountScope),
           statusFilter: periodStatuses.has(periodStatus) ? periodStatus : '',
+          historyFilter: periodHistoryFilters.has(periodHistoryFilter)
+            ? periodHistoryFilter
+            : '',
           groupBy: periodGroups.has(periodGroup) ? periodGroup : '',
           recurringAccountId: cleanOptionalId(workspace.recurringAccountId),
+          recurringAccountScope: cleanAccountScope(
+            workspace.recurringAccountScope
+          ),
           recurringGroupBy: recurringGroups.has(recurringGroup) ? recurringGroup : '',
           recurringSplitGroupId: cleanOptionalString(workspace.recurringSplitGroupId),
           recurringSplitRole: cleanOptionalString(workspace.recurringSplitRole),
           recurringSplitAccountGroupId: cleanOptionalId(
             workspace.recurringSplitAccountGroupId
-          )
+          ),
+          ...(() => {
+            const selectedVariantByPeriod =
+              workspace.selectedVariantByPeriod &&
+              typeof workspace.selectedVariantByPeriod === 'object'
+                ? Object.fromEntries(
+                    Object.entries(workspace.selectedVariantByPeriod)
+                      .filter(([periodKey, variantId]) => (
+                        periodKey && periodKey.length <= 220 &&
+                        variantId && String(variantId).length <= 220
+                      ))
+                      .map(([periodKey, variantId]) => [
+                        String(periodKey),
+                        String(variantId)
+                      ])
+                  )
+                : {};
+            return Object.keys(selectedVariantByPeriod).length
+              ? { selectedVariantByPeriod }
+              : {};
+          })()
         }];
       })
   );
@@ -297,9 +333,31 @@ function optionalText(value) {
   return String(value);
 }
 
+function normalizeTransactionLineItems(rawItems, fallbackDate = null) {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems.flatMap((rawItem, index) => {
+    if (!rawItem || typeof rawItem !== 'object') return [];
+    const amount = Number(rawItem.amount);
+    if (!Number.isFinite(amount) || Math.abs(amount) <= 0) return [];
+    const date = normalizeDateOnlyString(rawItem.date) || fallbackDate || null;
+    return [{
+      id: String(rawItem.id || `line-${index + 1}`).trim() || `line-${index + 1}`,
+      date,
+      description: String(rawItem.description || '').trim(),
+      amount: Math.abs(amount)
+    }];
+  });
+}
+
 export function normalizeTransactionRule(rawTransaction) {
   const transaction = rawTransaction && typeof rawTransaction === 'object' ? rawTransaction : {};
   const transactionTypeId = Number(transaction.transactionTypeId) === 1 ? 1 : 2;
+
+  const lineItems = normalizeTransactionLineItems(
+    transaction.lineItems,
+    normalizeDateOnlyString(transaction.effectiveDate)
+  );
+  const itemizedAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
 
   return {
     id: Number(transaction.id) || 0,
@@ -309,7 +367,9 @@ export function normalizeTransactionRule(rawTransaction) {
     primaryAccountId: optionalId(transaction.primaryAccountId),
     secondaryAccountId: optionalId(transaction.secondaryAccountId),
     transactionTypeId,
-    amount: Math.abs(Number(transaction.amount) || 0),
+    amount: lineItems.length
+      ? itemizedAmount
+      : Math.abs(Number(transaction.amount) || 0),
     description: String(transaction.description || ''),
     recurrence: transaction.recurrence && typeof transaction.recurrence === 'object'
       ? transaction.recurrence
@@ -326,6 +386,7 @@ export function normalizeTransactionRule(rawTransaction) {
     capitalAmount: optionalAmount(transaction.capitalAmount),
     interestAmount: optionalAmount(transaction.interestAmount),
     tags: Array.isArray(transaction.tags) ? [...transaction.tags] : [],
+    ...(lineItems.length ? { lineItems } : {}),
     createdAt: optionalText(transaction.createdAt),
     updatedAt: optionalText(transaction.updatedAt)
   };
@@ -336,11 +397,21 @@ export function normalizeTransactionOccurrence(rawOccurrence) {
   const rawStatus = String(occurrence.status || '').trim().toLowerCase();
   const rawOrigin = String(occurrence.origin || '').trim().toLowerCase();
 
+  const scheduledDate = normalizeDateOnlyString(occurrence.scheduledDate);
+  const lineItems = normalizeTransactionLineItems(
+    occurrence.lineItems,
+    scheduledDate
+  );
+  const itemizedAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
+  const normalizedStatus = VALID_OCCURRENCE_STATUSES.has(rawStatus)
+    ? rawStatus
+    : 'planned';
+
   return {
     id: Number(occurrence.id) || 0,
     sourceTransactionId: optionalId(occurrence.sourceTransactionId),
     occurrenceKey: String(occurrence.occurrenceKey || '').trim(),
-    scheduledDate: normalizeDateOnlyString(occurrence.scheduledDate),
+    scheduledDate,
     plannedDate: normalizeDateOnlyString(occurrence.plannedDate),
     actualDate: normalizeDateOnlyString(occurrence.actualDate),
     baselineAmount: optionalAmount(occurrence.baselineAmount),
@@ -352,9 +423,15 @@ export function normalizeTransactionOccurrence(rawOccurrence) {
         : (Number(occurrence.baselineTransactionTypeId) === 2 ? 2 : null),
     baselineSnapshotVersion:
       Number(occurrence.baselineSnapshotVersion) === 1 ? 1 : null,
-    plannedAmount: optionalAmount(occurrence.plannedAmount),
-    actualAmount: optionalAmount(occurrence.actualAmount),
-    status: VALID_OCCURRENCE_STATUSES.has(rawStatus) ? rawStatus : 'planned',
+    plannedAmount:
+      lineItems.length && normalizedStatus !== 'actual'
+        ? itemizedAmount
+        : optionalAmount(occurrence.plannedAmount),
+    actualAmount:
+      lineItems.length && normalizedStatus === 'actual'
+        ? itemizedAmount
+        : optionalAmount(occurrence.actualAmount),
+    status: normalizedStatus,
     origin: VALID_OCCURRENCE_ORIGINS.has(rawOrigin) ? rawOrigin : 'manual',
     actualSnapshotVersion:
       Number(occurrence.actualSnapshotVersion) === 1 ? 1 : null,
@@ -384,6 +461,7 @@ export function normalizeTransactionOccurrence(rawOccurrence) {
       occurrence.periodicChange && typeof occurrence.periodicChange === 'object'
         ? occurrence.periodicChange
         : null,
+    ...(lineItems.length ? { lineItems } : {}),
     createdAt: optionalText(occurrence.createdAt),
     updatedAt: optionalText(occurrence.updatedAt)
   };
@@ -429,6 +507,11 @@ function materializeOccurrenceSnapshots(occurrence, transactions) {
         next.periodicChange !== null && next.periodicChange !== undefined
           ? next.periodicChange
           : (source?.periodicChange ?? null),
+      lineItems: Array.isArray(next.lineItems)
+        ? next.lineItems.map((item) => ({ ...item }))
+        : (Array.isArray(source?.lineItems)
+          ? source.lineItems.map((item) => ({ ...item }))
+          : []),
       actualSnapshotVersion: 1
     };
   }
@@ -592,9 +675,35 @@ export function normalizeScenario(rawScenario) {
   // Planning windows: defaults to projection window, but can be overridden per goal solver
   // These do NOT affect projection generation; projections always use scenario.projection.config
   // Planning windows are only used by Generate Plan and Advanced Goal Solver for their respective horizons
+  const periodVariants = Array.isArray(planning.periodVariants)
+    ? planning.periodVariants.flatMap((rawVariant) => {
+        if (!rawVariant || typeof rawVariant !== 'object') return [];
+        const id = String(rawVariant.id || '').trim();
+        const name = String(rawVariant.name || '').trim();
+        const startDate = normalizeDateOnlyString(rawVariant.startDate);
+        const endDate = normalizeDateOnlyString(rawVariant.endDate);
+        if (!id || !name || !startDate || !endDate) return [];
+        return [{
+          id,
+          name,
+          periodType: String(rawVariant.periodType || 'Month'),
+          periodId: String(rawVariant.periodId || ''),
+          startDate,
+          endDate,
+          createdAt: optionalText(rawVariant.createdAt),
+          updatedAt: optionalText(rawVariant.updatedAt),
+          occurrences: Array.isArray(rawVariant.occurrences)
+            ? rawVariant.occurrences
+              .filter((item) => item && typeof item === 'object' && item.occurrenceKey)
+              .map((item) => ({ ...item }))
+            : []
+        }];
+      })
+    : [];
   const nextPlanning = {
     generatePlan: cleanWindow(planning.generatePlan, defaultWindow),
     advancedGoalSolver: cleanWindow(planning.advancedGoalSolver, defaultWindow),
+    periodVariants,
     ...(planning.goalWorkshopMode === 'simple' || planning.goalWorkshopMode === 'advanced'
       ? { goalWorkshopMode: planning.goalWorkshopMode }
       : {})

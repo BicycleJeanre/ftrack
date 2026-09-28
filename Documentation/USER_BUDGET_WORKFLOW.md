@@ -33,19 +33,24 @@ their specialized views are useful.
 component set, grouping metadata, recurrence, and linked account-group/rate
 details together as a new future segment or an entire-series revision.
 
-Use **Create recurring transaction with line items** for one grouped intent
-with several destination accounts. **Add line** captures each destination,
-amount, and description without reopening or duplicating the parent rule.
+Use **Create recurring account allocation** for one recurring intent with
+several destination accounts. Allocation components remain separate account
+movements that share one recurring rule group.
 
 3.1.2 Use **Duplicate recurring rule** to copy a normal rule or its entire
 split set. Use **End recurring series** to stop it before the next unresolved
 occurrence. Ending a series keeps prior actuals, skips, and frozen baselines;
-it will not cross protected future history.
+protected future actuals, skips, and baseline snapshots remain as independent
+one-time history while unresolved future plans are removed.
 
 Period cards expose the same distinction directly: remove only the selected
 occurrence, or delete the linked recurrence from that occurrence forward.
 
-3.2 In **Period**, click **Add item** to enter a one-time planned or actual movement.
+3.2 In **Period**, click **Add item** to enter a one-time planned or actual
+movement. Use the normal **+ Add item** action, or edit any existing Period
+item, to record individual line items inside that transaction. **+ Add line item** captures a
+date, description, and amount; the transaction total is the sum of its line
+items. Recurrence is optional and independent from itemization.
 
 3.3 Each Period item shows:
 
@@ -70,11 +75,26 @@ occurrence, or delete the linked recurrence from that occurrence forward.
 
 ## 4.0 Track Actuals
 
-4.1 Tick **Actual** for a planned item, or edit it and choose Actual to enter a different amount or date.
+4.1 Tick **Actual** for a planned item, or edit it and choose Actual to enter a
+different amount or date. Actual items remain editable: primary account,
+secondary account, movement, description, amount, line items, and Repeat can
+be corrected. Repeat changes made from an actual apply only to future
+occurrences.
 
-4.2 The first actual in a period freezes that period's baseline automatically. You can also click **Freeze baseline** before actuals are entered.
+4.1.1 Untick an Actual item, or choose **Planned (undo actual)** in its editor,
+to restore it to planned. This clears its actual amount and actual date while
+keeping the transaction and its current details.
 
-4.3 Click **Remove this occurrence** when a planned event will not happen. Edit a removed item and choose **Restore to planned** if it becomes active again.
+4.2 Marking Actual captures that item's comparison baseline without closing the month.
+Open **History** to close an exact period, inspect annual or overlapping legacy
+markers, review individually captured baselines, reopen one period, clear an
+individual baseline group, or clear all baseline history.
+
+4.3 Click **Skip this occurrence** when a planned event will not happen. Use
+**Restore to planned** directly on the skipped card if it becomes active again.
+Use **Delete transaction permanently** only when a one-time transaction should
+be removed completely. For recurring items, use **Delete this and future
+occurrences**.
 
 4.4 Add a manual Actual when an unexpected cost or income was not in the plan. Its baseline and current plan are zero, so it appears as an unplanned actual.
 
@@ -104,7 +124,12 @@ occurrence, or delete the linked recurrence from that occurrence forward.
 
 6.2 Use Period and the previous/next controls to move through the scenario window.
 
-6.3 Account filters show the selected account's perspective. Group By can organize items by status, movement, or repeat pattern.
+6.3 Open **Account** to launch the account dialog. Use the separate **Account
+Type** or **Account Group** filter, optionally search, and then choose the
+account without reopening the control. The filter and account are remembered
+per scenario. These filters narrow the accounts available for selection;
+**Group By** separately organizes displayed items by status, movement, or
+repeat pattern.
 
 6.4 Use a detail shortcut when a table is more useful than summary cards:
 

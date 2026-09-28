@@ -23,10 +23,15 @@ function toTooltip({ calc = '', uses = '', shows = '' } = {}) {
   return lines.join('\n');
 }
 
-export function renderTotalsCard(targetEl, { title = 'TOTALS', items = [], columnsClass = 'budget-totals-rows' } = {}) {
+export function renderTotalsCard(targetEl, {
+  title = 'TOTALS',
+  items = [],
+  groups = [],
+  columnsClass = 'budget-totals-rows'
+} = {}) {
   if (!targetEl) return;
 
-  const metricHtml = (Array.isArray(items) ? items : []).map((item) => {
+  const renderMetrics = (metricItems) => (Array.isArray(metricItems) ? metricItems : []).map((item) => {
     const label = item?.label ?? '';
     const valueHtml = item?.valueHtml ?? '';
     const valueClass = item?.valueClass ? ` ${item.valueClass}` : '';
@@ -48,10 +53,26 @@ export function renderTotalsCard(targetEl, { title = 'TOTALS', items = [], colum
     `;
   }).join('');
 
+  const normalizedGroups = Array.isArray(groups) ? groups : [];
+  const contentHtml = normalizedGroups.length
+    ? normalizedGroups.map((group) => {
+      const groupKey = String(group?.key || group?.title || 'totals')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '-');
+      return `
+        <section class="totals-group totals-group-${escapeAttr(groupKey)}">
+          <div class="totals-group-title">${escapeHtml(group?.title || '')}</div>
+          <div class="budget-totals-rows">${renderMetrics(group?.items)}</div>
+        </section>
+      `;
+    }).join('')
+    : renderMetrics(items);
+
   targetEl.innerHTML = `
     <div class="summary-card overall-total">
       <div class="summary-card-title">${escapeHtml(title)}</div>
-      <div class="${escapeHtml(columnsClass)}">${metricHtml}</div>
+      <div class="${escapeHtml(columnsClass)}">${contentHtml}</div>
     </div>
   `;
 }

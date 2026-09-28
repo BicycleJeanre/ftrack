@@ -44,7 +44,7 @@ test.describe('documented workflow smoke coverage', () => {
       exact: true
     })).toHaveCount(0);
     await expect(page.locator('#budgetSection button[title="Add item"]')).toBeVisible();
-    await expect(page.locator('#budgetSection button[title="Freeze baseline"]')).toBeVisible();
+    await expect(page.locator('#budgetSection button[title="Manage period history"]')).toBeVisible();
 
     await openSectionFilters(page, '#projectionsSection');
     await expect(page.locator('.filter-modal')).toContainText('Filter Projections');

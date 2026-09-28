@@ -1,6 +1,6 @@
 // advanced-goal-solver.js
 
-import { calculateContributionAmount, calculateMonthsBetweenDates } from '../calculations/goal-calculations.js';
+import { calculateMonthsBetweenDates } from '../calculations/goal-calculations.js';
 import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
 
 let projectionEngineModulePromise = null;
@@ -148,33 +148,370 @@ function buildMonthlyRecurrence({ startDate, endDate }) {
   };
 }
 
+function startOfMonth(dateStr) {
+  const date = parseDateOnly(dateStr);
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonthsClamped(dateStr, monthsToAdd, preferredDay = null) {
+  const date = parseDateOnly(dateStr);
+  const day = preferredDay || date.getDate();
+  const monthStart = new Date(date.getFullYear(), date.getMonth() + monthsToAdd, 1);
+  const lastDay = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+  return formatDateOnly(new Date(monthStart.getFullYear(), monthStart.getMonth(), Math.min(day, lastDay)));
+}
+
+function monthKey(dateStr) {
+  return String(dateStr || '').slice(0, 7);
+}
+
+function isNextMonth(previousDate, nextDate) {
+  return monthKey(addMonthsClamped(previousDate, 1)) === monthKey(nextDate);
+}
+
+function normalizeAllocationStrategy(value) {
+  return value === 'cascade' ? 'cascade' : 'parallel';
+}
+
+function normalizePayoffOrder(value) {
+  if (value === 'snowball' || value === 'avalanche') return value;
+  return 'priority';
+}
+
+function resolveSolverStrategy(settings) {
+  const explicit = String(settings?.strategy || '');
+  if (['balanced', 'priority-cascade', 'snowball', 'avalanche'].includes(explicit)) {
+    return explicit;
+  }
+  if (normalizeAllocationStrategy(settings?.allocationStrategy) === 'parallel') return 'balanced';
+  if (settings?.payoffOrder === 'snowball') return 'snowball';
+  if (settings?.payoffOrder === 'avalanche') return 'avalanche';
+  return 'priority-cascade';
+}
+
+function getStrategyFields(strategy) {
+  if (strategy === 'balanced') return { allocationStrategy: 'parallel', payoffOrder: 'priority' };
+  if (strategy === 'snowball') return { allocationStrategy: 'cascade', payoffOrder: 'snowball' };
+  if (strategy === 'avalanche') return { allocationStrategy: 'cascade', payoffOrder: 'avalanche' };
+  return { allocationStrategy: 'cascade', payoffOrder: 'priority' };
+}
+
+function getPeriodicChangeRatePercent(account) {
+  const periodicChange = account?.periodicChange;
+  const changeModeId = typeof periodicChange?.changeMode === 'object'
+    ? periodicChange.changeMode?.id
+    : periodicChange?.changeMode;
+  if (changeModeId !== 1) return 0;
+  return Math.abs(asNumber(periodicChange?.value, 0));
+}
+
+function getStoredOccurrenceStatus(occurrence) {
+  if (typeof occurrence?.status === 'string') return occurrence.status.toLowerCase();
+  if (typeof occurrence?.status?.name === 'string') return occurrence.status.name.toLowerCase();
+  return '';
+}
+
+function isGoalGeneratedTransaction(transaction) {
+  return Array.isArray(transaction?.tags) && transaction.tags.includes('adv-goal-generated');
+}
+
+/**
+ * Remove the previous Goal Workshop plan rules before calculating a replacement.
+ * Retain realized actual occurrences from those rules so a re-solve starts from
+ * what really happened, not from the superseded planned schedule.
+ */
+function buildRebaseScenario(scenario) {
+  const generatedIds = new Set(
+    (scenario?.transactions || [])
+      .filter(isGoalGeneratedTransaction)
+      .map((transaction) => Number(transaction?.id || 0))
+      .filter(Boolean)
+  );
+
+  return {
+    ...scenario,
+    transactions: (scenario?.transactions || []).filter((transaction) => !isGoalGeneratedTransaction(transaction)),
+    transactionOccurrences: (scenario?.transactionOccurrences || []).filter((occurrence) => {
+      const sourceId = Number(occurrence?.sourceTransactionId || 0);
+      return !generatedIds.has(sourceId) || getStoredOccurrenceStatus(occurrence) === 'actual';
+    })
+  };
+}
+
+function buildGoalTransaction({ requirement, fundingAccountId, amount, startDate, endDate = null, recurring = false, phase = 1 }) {
+  const goal = requirement.goal;
+  const isPaydown = goal.type === 'pay_down_by_date';
+  const action = isPaydown
+    ? 'Pay down'
+    : goal.type === 'increase_by_delta'
+      ? 'Increase'
+      : 'Reach';
+  const recurrence = recurring ? buildMonthlyRecurrence({ startDate, endDate }) : null;
+
+  return {
+    id: 0,
+    primaryAccountId: goal.accountId,
+    secondaryAccountId: fundingAccountId || null,
+    transactionTypeId: 1,
+    amount: Math.abs(amount),
+    effectiveDate: startDate,
+    description: `Advanced Goal: ${action} ${requirement.account.name}`,
+    recurrence,
+    periodicChange: null,
+    tags: [
+      'adv-goal-generated',
+      `adv-goal-${goal.type}`,
+      `adv-goal-id:${goal.id}`,
+      `adv-goal-phase:${phase}`
+    ]
+  };
+}
+
+/**
+ * Build a month-by-month cascade allocation. Contractual minimums are reserved
+ * first, then the selected strategy controls where extra capacity goes:
+ * manual priority, smallest remaining balance, or highest interest rate.
+ * Capacity left after a goal is funded rolls forward immediately.
+ *
+ * Exported for deterministic regression tests; callers normally use
+ * solveAdvancedGoals().
+ */
+export function buildCascadeAllocationPlan({ requirements = [], constraints = {}, payoffOrder = 'priority' } = {}) {
+  const normalizedPayoffOrder = normalizePayoffOrder(payoffOrder);
+  const priorityOrdered = [...requirements].sort((a, b) => {
+    const priorityDiff = asNumber(a?.goal?.priority, 999) - asNumber(b?.goal?.priority, 999);
+    if (priorityDiff !== 0) return priorityDiff;
+    const dateDiff = toDateKey(a.endDate) - toDateKey(b.endDate);
+    if (dateDiff !== 0) return dateDiff;
+    return String(a?.goal?.id || '').localeCompare(String(b?.goal?.id || ''));
+  });
+
+  const configuredCapacity = constraints?.maxOutflowPerMonth != null
+    ? Math.max(0, asNumber(constraints.maxOutflowPerMonth, 0))
+    : null;
+  const derivedCapacity = priorityOrdered.reduce(
+    (sum, requirement) => sum + Math.max(
+      0,
+      asNumber(requirement.requiredMonthly, 0),
+      asNumber(requirement.goal?.minimumMonthlyAmount, 0)
+    ),
+    0
+  );
+  const monthlyCapacity = configuredCapacity ?? derivedCapacity;
+  const capacityWasDerived = configuredCapacity == null;
+  const lockedAccountIds = new Set((constraints?.lockedAccountIds || []).map(Number));
+  const accountCaps = constraints?.maxMovementByAccountId || {};
+
+  const workByGoalId = new Map();
+  for (const requirement of priorityOrdered) {
+    const months = Math.max(1, asNumber(requirement.monthsToGoal, 1));
+    workByGoalId.set(
+      String(requirement.goal.id),
+      Math.max(0, asNumber(requirement.totalRequiredMovement, asNumber(requirement.requiredMonthly, 0) * months))
+    );
+  }
+
+  const allocations = [];
+  let minimumCapacityShortfall = 0;
+  const addAllocation = ({ requirement, date, amount }) => {
+    if (amount <= 0.005) return;
+    const goalId = String(requirement.goal.id);
+    const existing = allocations.find((allocation) => allocation.goalId === goalId && allocation.date === date);
+    if (existing) {
+      existing.amount += amount;
+      return;
+    }
+    allocations.push({
+      goalId,
+      accountId: Number(requirement.goal.accountId),
+      date,
+      amount,
+      requirement
+    });
+  };
+
+  if (priorityOrdered.length > 0 && monthlyCapacity > 0) {
+    const firstMonth = priorityOrdered.reduce(
+      (earliest, requirement) => toDateKey(requirement.startDate) < toDateKey(earliest) ? requirement.startDate : earliest,
+      priorityOrdered[0].startDate
+    );
+    const lastMonth = priorityOrdered.reduce(
+      (latest, requirement) => toDateKey(requirement.endDate) > toDateKey(latest) ? requirement.endDate : latest,
+      priorityOrdered[0].endDate
+    );
+    let cursor = startOfMonth(firstMonth);
+    const finalMonth = startOfMonth(lastMonth);
+
+    while (cursor <= finalMonth) {
+      const cursorKey = formatDateOnly(cursor);
+      let remainingCapacity = monthlyCapacity;
+      const movementByAccountId = new Map();
+      const eligible = priorityOrdered.filter((requirement) => {
+        const goalId = String(requirement.goal.id);
+        const accountId = Number(requirement.goal.accountId);
+        return (workByGoalId.get(goalId) || 0) > 0.005 &&
+          !lockedAccountIds.has(accountId) &&
+          monthKey(cursorKey) >= monthKey(requirement.startDate) &&
+          monthKey(cursorKey) <= monthKey(requirement.endDate);
+      });
+
+      const allocationDateFor = (requirement) => {
+        const preferredDay = parseDateOnly(requirement.startDate).getDate();
+        let allocationDate = addMonthsClamped(cursorKey, 0, preferredDay);
+        if (monthKey(allocationDate) === monthKey(requirement.startDate) && toDateKey(allocationDate) < toDateKey(requirement.startDate)) {
+          allocationDate = requirement.startDate;
+        }
+        if (monthKey(allocationDate) === monthKey(requirement.endDate) && toDateKey(allocationDate) > toDateKey(requirement.endDate)) {
+          allocationDate = requirement.endDate;
+        }
+        return allocationDate;
+      };
+
+      const allocateToRequirement = (requirement, requestedAmount) => {
+        if (remainingCapacity <= 0.005 || requestedAmount <= 0.005) return 0;
+        const goalId = String(requirement.goal.id);
+        const accountId = Number(requirement.goal.accountId);
+        const remainingWork = workByGoalId.get(goalId) || 0;
+        const rawAccountCap = accountCaps[String(accountId)];
+        const accountCap = rawAccountCap == null
+          ? Number.POSITIVE_INFINITY
+          : Math.max(0, asNumber(rawAccountCap, 0));
+        const usedForAccount = movementByAccountId.get(accountId) || 0;
+        const availableForAccount = Math.max(0, accountCap - usedForAccount);
+        const amount = Math.min(remainingWork, remainingCapacity, availableForAccount, requestedAmount);
+        if (amount <= 0.005) return 0;
+
+        addAllocation({ requirement, date: allocationDateFor(requirement), amount });
+        workByGoalId.set(goalId, Math.max(0, remainingWork - amount));
+        movementByAccountId.set(accountId, usedForAccount + amount);
+        remainingCapacity -= amount;
+        return amount;
+      };
+
+      // Contractual minimums consume capacity first. Only the remainder is
+      // available to the selected payoff ordering.
+      for (const requirement of eligible) {
+        const minimum = Math.max(0, asNumber(requirement.goal?.minimumMonthlyAmount, 0));
+        if (minimum <= 0.005) continue;
+        const workBefore = workByGoalId.get(String(requirement.goal.id)) || 0;
+        const expectedMinimum = Math.min(minimum, workBefore);
+        const allocated = allocateToRequirement(requirement, expectedMinimum);
+        minimumCapacityShortfall += Math.max(0, expectedMinimum - allocated);
+      }
+
+      const extraOrdered = [...eligible].sort((a, b) => {
+        if (normalizedPayoffOrder === 'snowball') {
+          const debtTypeDiff = Number(b?.goal?.type === 'pay_down_by_date') - Number(a?.goal?.type === 'pay_down_by_date');
+          if (debtTypeDiff !== 0) return debtTypeDiff;
+          const balanceDiff = (workByGoalId.get(String(a.goal.id)) || 0) - (workByGoalId.get(String(b.goal.id)) || 0);
+          if (Math.abs(balanceDiff) > 0.005) return balanceDiff;
+        } else if (normalizedPayoffOrder === 'avalanche') {
+          const debtTypeDiff = Number(b?.goal?.type === 'pay_down_by_date') - Number(a?.goal?.type === 'pay_down_by_date');
+          if (debtTypeDiff !== 0) return debtTypeDiff;
+          const rateDiff = asNumber(b.accountRatePercent, 0) - asNumber(a.accountRatePercent, 0);
+          if (Math.abs(rateDiff) > 1e-9) return rateDiff;
+        }
+        const priorityDiff = asNumber(a?.goal?.priority, 999) - asNumber(b?.goal?.priority, 999);
+        if (priorityDiff !== 0) return priorityDiff;
+        const dateDiff = toDateKey(a.endDate) - toDateKey(b.endDate);
+        if (dateDiff !== 0) return dateDiff;
+        return String(a?.goal?.id || '').localeCompare(String(b?.goal?.id || ''));
+      });
+
+      for (const requirement of extraOrdered) {
+        if (remainingCapacity <= 0.005) break;
+        allocateToRequirement(requirement, remainingCapacity);
+      }
+
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
+  }
+
+  const unfulfilled = priorityOrdered
+    .map((requirement) => ({
+      goalId: String(requirement.goal.id),
+      accountId: Number(requirement.goal.accountId),
+      accountName: requirement.account?.name || `Account ${requirement.goal.accountId}`,
+      shortfall: Math.max(0, workByGoalId.get(String(requirement.goal.id)) || 0)
+    }))
+    .filter((item) => item.shortfall > 0.005);
+
+  return {
+    allocations,
+    unfulfilled,
+    monthlyCapacity,
+    capacityWasDerived,
+    payoffOrder: normalizedPayoffOrder,
+    minimumMonthlyTotal: priorityOrdered.reduce(
+      (sum, requirement) => sum + Math.max(0, asNumber(requirement.goal?.minimumMonthlyAmount, 0)),
+      0
+    ),
+    minimumCapacityShortfall
+  };
+}
+
+function buildCascadeSuggestedTransactions({ requirements, constraints, payoffOrder = 'priority' }) {
+  const plan = buildCascadeAllocationPlan({ requirements, constraints, payoffOrder });
+  const fundingAccountId = constraints?.fundingAccountId != null
+    ? Number(constraints.fundingAccountId)
+    : null;
+  const transactions = [];
+
+  for (const requirement of requirements) {
+    const goalAllocations = plan.allocations
+      .filter((allocation) => allocation.goalId === String(requirement.goal.id))
+      .sort((a, b) => toDateKey(a.date) - toDateKey(b.date));
+    if (goalAllocations.length === 0) continue;
+
+    const phases = [];
+    for (const allocation of goalAllocations) {
+      const current = phases[phases.length - 1];
+      if (
+        current &&
+        Math.abs(current.amount - allocation.amount) <= 0.005 &&
+        isNextMonth(current.endDate, allocation.date)
+      ) {
+        current.endDate = allocation.date;
+        current.count += 1;
+      } else {
+        phases.push({
+          startDate: allocation.date,
+          endDate: allocation.date,
+          amount: allocation.amount,
+          count: 1
+        });
+      }
+    }
+
+    phases.forEach((phase, index) => {
+      transactions.push(buildGoalTransaction({
+        requirement,
+        fundingAccountId,
+        amount: phase.amount,
+        startDate: phase.startDate,
+        endDate: phase.endDate,
+        recurring: phase.count > 1,
+        phase: index + 1
+      }));
+    });
+  }
+
+  return { transactions, ...plan };
+}
+
 // Calculate one-off adjustment to ensure goal is reached
 function calculateOneOffAdjustment({ requirement, recurringAmount, monthlyCount }) {
   if (!requirement || !requirement.goal) return 0;
-  
-  const goal = requirement.goal;
-  const startingBalance = requirement.startingBalance || 0;
-  
-  let targetAmount = 0;
-  
-  if (goal.type === 'reach_balance_by_date' && goal.targetAmount != null) {
-    targetAmount = goal.targetAmount;
-  } else if (goal.type === 'increase_by_delta' && goal.deltaAmount != null) {
-    targetAmount = startingBalance + goal.deltaAmount;
-  } else if (goal.type === 'pay_down_by_date') {
-    targetAmount = goal.targetAmount != null ? goal.targetAmount : 0;
-      const result = lp.Solve(model);
-  } else {
-    return 0;
-  }
 
   // Calculate total from recurring transactions
   const recurringTotal = recurringAmount * monthlyCount;
-  
-  // Calculate required movement
-  const requiredTravel = goal.type === 'pay_down_by_date' 
-    ? Math.abs(startingBalance - targetAmount)
-    : (targetAmount - startingBalance);
+  const requiredTravel = Math.max(
+    0,
+    asNumber(
+      requirement.totalRequiredMovement,
+      asNumber(requirement.requiredMonthly, 0) * Math.max(1, asNumber(requirement.monthsToGoal, monthlyCount))
+    )
+  );
   
   // Calculate shortfall
   const shortfall = Math.max(0, requiredTravel - recurringTotal);
@@ -191,6 +528,9 @@ function normalizeGoal(goal) {
     targetAmount: goal?.targetAmount != null ? asNumber(goal.targetAmount, null) : null,
     deltaAmount: goal?.deltaAmount != null ? asNumber(goal.deltaAmount, null) : null,
     floorAmount: goal?.floorAmount != null ? asNumber(goal.floorAmount, null) : null,
+    minimumMonthlyAmount: goal?.minimumMonthlyAmount != null
+      ? Math.max(0, asNumber(goal.minimumMonthlyAmount, 0))
+      : null,
     startDate: goal?.startDate || null,
     endDate: goal?.endDate || null
   };
@@ -254,7 +594,7 @@ function getSolverProjectionOptions(scenario) {
   };
 }
 
-function buildGoalRequirements({ scenario, goals }) {
+export function buildGoalRequirements({ scenario, goals, baselineProjectionsByAccountId = new Map() }) {
   const accounts = scenario?.accounts || [];
   const solverWindow = getAdvancedGoalSolverWindow(scenario);
   const scenarioStart = solverWindow.startDate;
@@ -301,30 +641,41 @@ function buildGoalRequirements({ scenario, goals }) {
       continue;
     }
 
-    const startingBalance = getStartingBalance(account);
-    const annualRate = account.periodicChange?.rateValue || 0;
+    const accountStartingBalance = getStartingBalance(account);
+    const baselineRecords = baselineProjectionsByAccountId.get(Number(goal.accountId)) || [];
+    const baselineStartBalance = getBalanceBefore(
+      baselineRecords,
+      startDate,
+      accountStartingBalance
+    );
+    const baselineEndBalance = getBalanceAtOrBefore(
+      baselineRecords,
+      endDate,
+      accountStartingBalance
+    );
 
-    let requiredMonthly = 0;
+    let totalRequiredMovement = 0;
 
     if (goal.type === 'reach_balance_by_date') {
       if (goal.targetAmount == null) {
         issues.push(`Reach-balance goal missing target amount for account: ${account.name}`);
         continue;
       }
-      requiredMonthly = calculateContributionAmount(startingBalance, goal.targetAmount, monthsToGoal, annualRate);
+      totalRequiredMovement = Math.max(0, goal.targetAmount - baselineEndBalance);
     } else if (goal.type === 'increase_by_delta') {
       if (goal.deltaAmount == null) {
         issues.push(`Increase-by-delta goal missing delta amount for account: ${account.name}`);
         continue;
       }
-      const target = startingBalance + goal.deltaAmount;
-      requiredMonthly = calculateContributionAmount(startingBalance, target, monthsToGoal, annualRate);
+      const target = baselineStartBalance + goal.deltaAmount;
+      totalRequiredMovement = Math.max(0, target - baselineEndBalance);
     } else if (goal.type === 'pay_down_by_date') {
       const target = goal.targetAmount != null ? goal.targetAmount : 0;
       // Accounts are often modeled with negative balances for liabilities.
       // "Pay down" means move the balance toward the target from whichever side it's on.
-      const toMove = Math.max(0, startingBalance < target ? target - startingBalance : startingBalance - target);
-      requiredMonthly = toMove / monthsToGoal;
+      totalRequiredMovement = baselineStartBalance < target
+        ? Math.max(0, target - baselineEndBalance)
+        : Math.max(0, baselineEndBalance - target);
     } else if (goal.type === 'minimize_payment') {
       if (goal.targetAmount == null) {
         issues.push(`Minimize-payment goal missing target amount for account: ${account.name}`);
@@ -337,7 +688,13 @@ function buildGoalRequirements({ scenario, goals }) {
         issues.push(`Goal cannot be solved: scenario must extend past start date for account: ${account.name}`);
         continue;
       }
-      requiredMonthly = calculateContributionAmount(startingBalance, goal.targetAmount, forcedMonthsToGoal, annualRate);
+      const forcedBaselineEndBalance = getBalanceAtOrBefore(
+        baselineRecords,
+        forcedEndDate,
+        accountStartingBalance
+      );
+      totalRequiredMovement = Math.max(0, goal.targetAmount - forcedBaselineEndBalance);
+      const requiredMonthly = totalRequiredMovement / forcedMonthsToGoal;
       // Update monthsToGoal and endDate for this requirement
       const req = {
         goal,
@@ -346,7 +703,11 @@ function buildGoalRequirements({ scenario, goals }) {
         endDate: forcedEndDate,
         monthsToGoal: forcedMonthsToGoal,
         requiredMonthly,
-        startingBalance
+        totalRequiredMovement,
+        startingBalance: baselineStartBalance,
+        baselineStartBalance,
+        baselineEndBalance: forcedBaselineEndBalance,
+        accountRatePercent: getPeriodicChangeRatePercent(account)
       };
       requirements.push(req);
       continue;  // Skip the default push below
@@ -355,10 +716,12 @@ function buildGoalRequirements({ scenario, goals }) {
       continue;
     }
 
-    if (!Number.isFinite(requiredMonthly) || requiredMonthly < 0) {
+    let requiredMonthly = totalRequiredMovement / monthsToGoal;
+    if (!Number.isFinite(requiredMonthly)) {
       issues.push(`Failed to compute a required monthly amount for: ${account.name}`);
       continue;
     }
+    requiredMonthly = Math.max(0, requiredMonthly);
 
     requirements.push({
       goal,
@@ -367,7 +730,11 @@ function buildGoalRequirements({ scenario, goals }) {
       endDate,
       monthsToGoal,
       requiredMonthly,
-      startingBalance
+      totalRequiredMovement,
+      startingBalance: baselineStartBalance,
+      baselineStartBalance,
+      baselineEndBalance,
+      accountRatePercent: getPeriodicChangeRatePercent(account)
     });
   }
 
@@ -400,7 +767,12 @@ function solveWithLp({ lp, requirements, constraints, lockedAccountIds, effectiv
 
     // Min requirement constraint
     const minKey = `${varName}_min`;
-    model.constraints[minKey] = { min: Math.max(0, req.requiredMonthly) };
+    const contractualMinimum = asNumber(req.totalRequiredMovement, 0) > 0.005
+      ? asNumber(req.goal?.minimumMonthlyAmount, 0)
+      : 0;
+    model.constraints[minKey] = {
+      min: Math.max(0, asNumber(req.requiredMonthly, 0), contractualMinimum)
+    };
 
     // Optional max constraint
     const maxKey = `${varName}_max`;
@@ -477,7 +849,6 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
         description: `Advanced Goal: Pay down ${req.account.name}`,
         recurrence,
         periodicChange: null,
-        status: { name: 'planned' },
         tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`]
       });
 
@@ -498,7 +869,6 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
           description: `Advanced Goal: Pay down adjustment ${req.account.name}`,
           recurrence: null,
           periodicChange: null,
-          status: { name: 'planned' },
           tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`, 'adjustment']
         });
       }
@@ -520,7 +890,6 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
           : `Advanced Goal: Reach ${req.account.name}`,
       recurrence,
       periodicChange: null,
-      status: { name: 'planned' },
       tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`]
     });
 
@@ -544,7 +913,6 @@ function buildSuggestedTransactions({ scenario, requirements, amountsByGoalId, c
             : `Advanced Goal: Reach adjustment ${req.account.name}`,
         recurrence: null,
         periodicChange: null,
-        status: { name: 'planned' },
         tags: ['adv-goal-generated', `adv-goal-${req.goal.type}`, `adv-goal-id:${req.goal.id}`, 'adjustment']
       });
     }
@@ -573,6 +941,16 @@ function getBalanceAtOrBefore(records, dateStr, startingBalanceFallback = 0) {
   let last = null;
   for (const r of records || []) {
     if (toDateKey(r.date) <= targetKey) last = r;
+    else break;
+  }
+  return last ? asNumber(last.balance, startingBalanceFallback) : startingBalanceFallback;
+}
+
+function getBalanceBefore(records, dateStr, startingBalanceFallback = 0) {
+  const targetKey = toDateKey(dateStr);
+  let last = null;
+  for (const record of records || []) {
+    if (toDateKey(record.date) < targetKey) last = record;
     else break;
   }
   return last ? asNumber(last.balance, startingBalanceFallback) : startingBalanceFallback;
@@ -614,7 +992,6 @@ function evaluateGoals({ scenario, goals, requirements, projectionsByAccountId, 
           failures.push({ goalId: goal.id, type: goal.type, shortfall: endBal - target });
         }
       }
-      const result = lp.Solve(model);
     } else if (goal.type === 'increase_by_delta') {
       if (goal.deltaAmount == null) continue;
       const delta = endBal - startBal;
@@ -662,7 +1039,16 @@ function scaleAmounts(amountsByGoalId, scale) {
   return next;
 }
 
-async function findFloorSafeScale({ scenario, requirements, amountsByGoalId, constraints, floorsByAccountId, projectionOptions = null }) {
+async function findFloorSafeScale({
+  scenario,
+  requirements,
+  amountsByGoalId,
+  constraints,
+  floorsByAccountId,
+  projectionOptions = null,
+  allocationStrategy = 'parallel',
+  payoffOrder = 'priority'
+}) {
   let lo = 0;
   let hi = 1;
   let best = 0;
@@ -672,7 +1058,16 @@ async function findFloorSafeScale({ scenario, requirements, amountsByGoalId, con
   for (let i = 0; i < 10; i++) {
     const mid = (lo + hi) / 2;
     const scaled = scaleAmounts(amountsByGoalId, mid);
-    const txs = buildSuggestedTransactions({ scenario, requirements, amountsByGoalId: scaled, constraints });
+    const txs = allocationStrategy === 'cascade'
+      ? buildCascadeSuggestedTransactions({ requirements: requirements.map((requirement) => ({
+          ...requirement,
+          requiredMonthly: asNumber(requirement.requiredMonthly, 0) * mid,
+          totalRequiredMovement: asNumber(
+            requirement.totalRequiredMovement,
+            asNumber(requirement.requiredMonthly, 0) * Math.max(1, asNumber(requirement.monthsToGoal, 1))
+          ) * mid
+        })), constraints, payoffOrder }).transactions
+      : buildSuggestedTransactions({ scenario, requirements, amountsByGoalId: scaled, constraints });
     const scenarioForCheck = { ...scenario, transactions: [...(scenario.transactions || []), ...txs] };
     const projections = await generateProjectionsForScenarioSafe(scenarioForCheck, options);
     const idx = indexProjectionsByAccountId(projections);
@@ -690,8 +1085,11 @@ async function findFloorSafeScale({ scenario, requirements, amountsByGoalId, con
 
 export async function solveAdvancedGoals({ scenario, settings }) {
   try {
-    const lp = await getLpSolver();
+    const strategy = resolveSolverStrategy(settings);
+    const { allocationStrategy, payoffOrder } = getStrategyFields(strategy);
+    const lp = allocationStrategy === 'parallel' ? await getLpSolver() : null;
     const projectionOptions = getSolverProjectionOptions(scenario);
+    const rebaseScenario = buildRebaseScenario(scenario);
 
     const goals = sortGoals((settings?.goals || []).map(normalizeGoal));
     const constraints = settings?.constraints || {};
@@ -708,16 +1106,15 @@ export async function solveAdvancedGoals({ scenario, settings }) {
 
     let floorsByAccountId = mergeFloorConstraints({ goals, constraints });
 
-    // Funding account is treated as an infinite source for solving/validation.
-    // That means we ignore any min-balance floor on the funding account.
-    if (fundingAccountId != null && floorsByAccountId[String(fundingAccountId)] != null) {
-      warnings.push('Funding account min-balance floor is ignored (funding treated as infinite).');
-      delete floorsByAccountId[String(fundingAccountId)];
-    }
-
     let effectiveMaxOutflowPerMonth = constraints.maxOutflowPerMonth != null ? asNumber(constraints.maxOutflowPerMonth, null) : null;
 
-    const { requirements, issues: requirementIssues } = buildGoalRequirements({ scenario, goals });
+    const baselineProjections = await generateProjectionsForScenarioSafe(rebaseScenario, projectionOptions);
+    const baselineProjectionsByAccountId = indexProjectionsByAccountId(baselineProjections);
+    const { requirements, issues: requirementIssues } = buildGoalRequirements({
+      scenario: rebaseScenario,
+      goals,
+      baselineProjectionsByAccountId
+    });
     issues.push(...requirementIssues);
 
     if (issues.length > 0) {
@@ -726,68 +1123,88 @@ export async function solveAdvancedGoals({ scenario, settings }) {
         explanation: ['Issues:', ...issues.map((i) => `- ${i}`)],
         warnings,
         issues,
-        isFeasible: false
+        isFeasible: false,
+        strategy,
+        allocationStrategy,
+        payoffOrder
       };
     }
 
     const priorities = Array.from(new Set(requirements.map((r) => r.goal.priority))).sort((a, b) => a - b);
-    let selectedRequirements = requirements;
+    let selectedRequirements = requirements.map((requirement) => ({ ...requirement }));
     let bestSolution = null;
     let bestIncludedPriority = null;
 
-    // Try to satisfy goals in priority order, stopping at first infeasible tier.
-    for (const p of priorities) {
-      const tierReqs = requirements.filter((r) => r.goal.priority <= p);
-      const { result, variables } = solveWithLp({
-        lp,
-        requirements: tierReqs,
-        constraints,
-        lockedAccountIds,
-        effectiveMaxOutflowPerMonth
-      });
+    const amountsByGoalId = {};
+    if (allocationStrategy === 'parallel') {
+      // Try to satisfy goals in priority order, stopping at first infeasible tier.
+      for (const p of priorities) {
+        const tierReqs = requirements.filter((r) => r.goal.priority <= p);
+        const { result, variables } = solveWithLp({
+          lp,
+          requirements: tierReqs,
+          constraints,
+          lockedAccountIds,
+          effectiveMaxOutflowPerMonth
+        });
 
-      if (!result || result.feasible === false) {
-        break;
+        if (!result || result.feasible === false) break;
+
+        bestSolution = { result, variables, tierReqs };
+        bestIncludedPriority = p;
       }
 
-      bestSolution = { result, variables, tierReqs };
-      bestIncludedPriority = p;
-    }
+      if (!bestSolution) {
+        return {
+          suggestedTransactions: [],
+          explanation: [
+            'Issues:',
+            '- No feasible solution found for Priority 1 goals with the given constraints.',
+            '',
+            'What to check next:',
+            '- Increase Max Outflow Per Month (or remove it)',
+            '- Unlock accounts that need to move',
+            '- Extend goal dates to reduce required monthly movement'
+          ],
+          warnings,
+          issues: ['No feasible solution found for Priority 1 goals with the given constraints.'],
+          isFeasible: false,
+          isComplete: false,
+          strategy,
+          allocationStrategy,
+          payoffOrder
+        };
+      }
 
-    if (!bestSolution) {
-      return {
-        suggestedTransactions: [],
-        explanation: [
-          'Issues:',
-          '- No feasible solution found for Priority 1 goals with the given constraints.',
-          '',
-          'What to check next:',
-          '- Increase Max Outflow Per Month (or remove it)',
-          '- Unlock accounts that need to move',
-          '- Extend goal dates to reduce required monthly movement'
-        ],
-        warnings,
-        issues: ['No feasible solution found for Priority 1 goals with the given constraints.'],
-        isFeasible: false
-      };
-    }
-
-    selectedRequirements = bestSolution.tierReqs;
-
-    const amountsByGoalId = {};
-    for (const req of selectedRequirements) {
-      const varName = `g_${String(req.goal.id).replaceAll('-', '_')}`;
-      const val = asNumber(bestSolution.result[varName], 0);
-      amountsByGoalId[req.goal.id] = Math.max(0, val);
+      selectedRequirements = bestSolution.tierReqs.map((requirement) => ({ ...requirement }));
+      for (const req of selectedRequirements) {
+        const varName = `g_${String(req.goal.id).replaceAll('-', '_')}`;
+        const val = asNumber(bestSolution.result[varName], 0);
+        amountsByGoalId[req.goal.id] = Math.max(0, val);
+      }
+    } else {
+      bestIncludedPriority = priorities.length > 0 ? Math.max(...priorities) : null;
+      selectedRequirements.forEach((requirement) => {
+        amountsByGoalId[requirement.goal.id] = Math.max(0, asNumber(requirement.requiredMonthly, 0));
+      });
     }
 
     // Projection-based validation and refinement loop.
     let refinedAmounts = { ...amountsByGoalId };
     let validationFailures = [];
+    let cascadePlan = null;
 
     for (let iter = 0; iter < 5; iter++) {
-      const txs = buildSuggestedTransactions({ scenario, requirements: selectedRequirements, amountsByGoalId: refinedAmounts, constraints });
-      const scenarioForCheck = { ...scenario, transactions: [...(scenario.transactions || []), ...txs] };
+      cascadePlan = allocationStrategy === 'cascade'
+        ? buildCascadeSuggestedTransactions({ requirements: selectedRequirements, constraints, payoffOrder })
+        : null;
+      const txs = cascadePlan
+        ? cascadePlan.transactions
+        : buildSuggestedTransactions({ scenario: rebaseScenario, requirements: selectedRequirements, amountsByGoalId: refinedAmounts, constraints });
+      const scenarioForCheck = {
+        ...rebaseScenario,
+        transactions: [...(rebaseScenario.transactions || []), ...txs]
+      };
       const projections = await generateProjectionsForScenarioSafe(scenarioForCheck, projectionOptions);
       const idx = indexProjectionsByAccountId(projections);
 
@@ -806,14 +1223,27 @@ export async function solveAdvancedGoals({ scenario, settings }) {
       const floorFailures = validationFailures.filter((f) => f.type === 'floor' || f.type === 'maintain_floor');
       if (floorFailures.length > 0) {
         const scale = await findFloorSafeScale({
-          scenario,
+          scenario: rebaseScenario,
           requirements: selectedRequirements,
           amountsByGoalId: refinedAmounts,
           constraints,
           floorsByAccountId,
-          projectionOptions
+          projectionOptions,
+          allocationStrategy,
+          payoffOrder
         });
-        refinedAmounts = scaleAmounts(refinedAmounts, scale);
+        if (allocationStrategy === 'cascade') {
+          selectedRequirements = selectedRequirements.map((requirement) => ({
+            ...requirement,
+            requiredMonthly: asNumber(requirement.requiredMonthly, 0) * scale,
+            totalRequiredMovement: asNumber(
+              requirement.totalRequiredMovement,
+              asNumber(requirement.requiredMonthly, 0) * Math.max(1, asNumber(requirement.monthsToGoal, 1))
+            ) * scale
+          }));
+        } else {
+          refinedAmounts = scaleAmounts(refinedAmounts, scale);
+        }
         warnings.push('Min-balance floors required scaling down suggested contributions.');
         continue;
       }
@@ -826,36 +1256,76 @@ export async function solveAdvancedGoals({ scenario, settings }) {
         if (!req) continue;
         const bump = Math.max(0, asNumber(failure.shortfall, 0)) / Math.max(1, req.monthsToGoal);
         req.requiredMonthly = Math.max(req.requiredMonthly, asNumber(refinedAmounts[req.goal.id], 0) + bump);
+        req.totalRequiredMovement = req.requiredMonthly * Math.max(1, asNumber(req.monthsToGoal, 1));
       }
 
-      const { result } = solveWithLp({
-        lp,
-        requirements: updatedReqs,
-        constraints,
-        lockedAccountIds,
-        effectiveMaxOutflowPerMonth
-      });
-      if (!result || result.feasible === false) {
-        warnings.push('Solver became infeasible after projection-based refinement.');
-        break;
-      }
+      if (allocationStrategy === 'cascade') {
+        selectedRequirements = updatedReqs;
+      } else {
+        const { result } = solveWithLp({
+          lp,
+          requirements: updatedReqs,
+          constraints,
+          lockedAccountIds,
+          effectiveMaxOutflowPerMonth
+        });
+        if (!result || result.feasible === false) {
+          warnings.push('Solver became infeasible after projection-based refinement.');
+          break;
+        }
 
-      for (const req of updatedReqs) {
-        const varName = `g_${String(req.goal.id).replaceAll('-', '_')}`;
-        refinedAmounts[req.goal.id] = Math.max(0, asNumber(result[varName], 0));
+        for (const req of updatedReqs) {
+          const varName = `g_${String(req.goal.id).replaceAll('-', '_')}`;
+          refinedAmounts[req.goal.id] = Math.max(0, asNumber(result[varName], 0));
+        }
       }
     }
 
-    const suggestedTransactions = buildSuggestedTransactions({
-      scenario,
-      requirements: selectedRequirements,
-      amountsByGoalId: refinedAmounts,
-      constraints
-    });
+    cascadePlan = allocationStrategy === 'cascade'
+      ? buildCascadeSuggestedTransactions({ requirements: selectedRequirements, constraints, payoffOrder })
+      : null;
+    const suggestedTransactions = cascadePlan
+      ? cascadePlan.transactions
+      : buildSuggestedTransactions({
+          scenario: rebaseScenario,
+          requirements: selectedRequirements,
+          amountsByGoalId: refinedAmounts,
+          constraints
+        });
+
+    if (cascadePlan?.unfulfilled?.length) {
+      for (const item of cascadePlan.unfulfilled) {
+        if (!validationFailures.some((failure) => String(failure.goalId) === item.goalId)) {
+          validationFailures.push({
+            goalId: item.goalId,
+            type: 'capacity',
+            shortfall: item.shortfall
+          });
+        }
+      }
+    }
 
     const explanation = [];
+    const strategyLabel = strategy === 'avalanche'
+      ? 'Debt Avalanche — highest interest first'
+      : strategy === 'snowball'
+        ? 'Debt Snowball — smallest remaining balance first'
+        : strategy === 'priority-cascade'
+          ? 'Priority Cascade — manual goal priority'
+          : 'Balanced Monthly — steady allocations across goals';
+    explanation.push(`Allocation strategy: ${strategyLabel}`);
+    explanation.push('Requirements were recalculated from the current plan and retained actual results; previous Goal Workshop rules were excluded.');
     explanation.push(`Solved priorities up to: ${bestIncludedPriority}`);
-    if (effectiveMaxOutflowPerMonth != null) explanation.push(`Effective max outflow per month: ${effectiveMaxOutflowPerMonth}`);
+    const displayedCapacity = cascadePlan?.monthlyCapacity ?? effectiveMaxOutflowPerMonth;
+    if (displayedCapacity != null) {
+      explanation.push(`Effective max outflow per month: ${displayedCapacity}${cascadePlan?.capacityWasDerived ? ' (derived from goal requirements)' : ''}`);
+    }
+    if (cascadePlan?.minimumMonthlyTotal > 0) {
+      explanation.push(`Contractual minimums reserved first each month: ${cascadePlan.minimumMonthlyTotal.toFixed(2)}`);
+    }
+    if (cascadePlan?.minimumCapacityShortfall > 0.005) {
+      warnings.push('Monthly capacity or account caps are too low to fund every contractual minimum.');
+    }
     if (Object.keys(constraints.maxMovementByAccountId || {}).length > 0) explanation.push('Applied per-account movement caps.');
     if (Object.keys(floorsByAccountId || {}).length > 0) explanation.push('Validated min-balance floors against projections.');
     if (validationFailures.length > 0) {
@@ -870,13 +1340,54 @@ export async function solveAdvancedGoals({ scenario, settings }) {
     } else {
       explanation.push('All configured goals and constraints validated against projections.');
     }
+    explanation.push('Applying this solution replaces earlier Goal Workshop-generated plan rules; manually created rules are left unchanged.');
+
+    const allGoalsIncluded = selectedRequirements.length === requirements.length;
+    const isComplete = allGoalsIncluded && validationFailures.length === 0;
+    const requirementsByGoalId = new Map(
+      selectedRequirements.map((requirement) => [String(requirement.goal.id), requirement])
+    );
+    const solverWindow = getAdvancedGoalSolverWindow(scenario);
+    const goalResults = goals.map((goal) => {
+      const requirement = requirementsByGoalId.get(String(goal.id));
+      const account = getAccountById(scenario?.accounts || [], goal.accountId);
+      const goalTransactions = suggestedTransactions.filter((transaction) =>
+        transaction.tags?.includes(`adv-goal-id:${goal.id}`)
+      );
+      const failure = validationFailures.find((item) => String(item.goalId) === String(goal.id));
+      return {
+        goalId: goal.id,
+        priority: goal.priority,
+        accountId: goal.accountId,
+        accountName: account?.name || `Account ${goal.accountId}`,
+        type: goal.type,
+        startDate: requirement?.startDate || goal.startDate || solverWindow.startDate,
+        endDate: requirement?.endDate || goal.endDate || solverWindow.endDate,
+        baselineStartBalance: requirement?.baselineStartBalance ?? null,
+        baselineEndBalance: requirement?.baselineEndBalance ?? null,
+        minimumMonthlyAmount: goal.minimumMonthlyAmount ?? null,
+        ruleCount: goalTransactions.length,
+        status: failure ? 'needs-attention' : 'ready',
+        shortfall: failure ? asNumber(failure.shortfall, 0) : 0
+      };
+    });
 
     return {
       suggestedTransactions,
       explanation,
       warnings,
       issues: [],
-      isFeasible: suggestedTransactions.length > 0 && validationFailures.length === 0
+      isFeasible: isComplete,
+      isComplete,
+      strategy,
+      allocationStrategy,
+      payoffOrder,
+      rebasedFromActuals: true,
+      effectiveMonthlyCapacity: displayedCapacity,
+      capacityWasDerived: Boolean(cascadePlan?.capacityWasDerived),
+      minimumMonthlyTotal: cascadePlan?.minimumMonthlyTotal || 0,
+      goalResults,
+      validationFailures
     };
   } catch (err) {
     const hints = [];

@@ -50,6 +50,7 @@ test.describe('Goal Workshop browser functionality', () => {
     await expect(page.locator('#adv-constraints-panel .grid-summary-card')).toHaveCount(beforeLocked + 2);
     const newConstraint = page.locator('#adv-constraints-panel .grid-summary-card').last();
     await newConstraint.locator('.grid-summary-card-summary').click();
+    await newConstraint.locator('select').first().selectOption('lockedAccount');
     await newConstraint.locator('select').nth(1).selectOption('3');
     await waitForScenario(page, (scenario) =>
       scenario.advancedGoalSettings.constraints.lockedAccountIds.length === beforeLocked + 1,
@@ -92,14 +93,132 @@ test.describe('Goal Workshop browser functionality', () => {
     });
 
     await expect(page.locator('#adv-goal-solution'))
-      .toHaveText('Configure goals and click Solve.');
+      .toContainText('Configure goals and constraints');
     await waitForScenario(page, (scenario) => scenario.transactions.some(
       (transaction) => transaction.description === 'Goal refresh regression rule'
     ), 'plan rule persisted before Generate Plan refreshed');
   });
 
+  test('offers and persists all four solver strategies', async ({ page }) => {
+    const options = page.locator('#generatePlanSection .goal-workshop-strategy-option');
+    await expect(options).toHaveCount(4);
+
+    const strategies = [
+      { value: 'priority-cascade', label: 'Priority Cascade', allocation: 'cascade', payoff: 'priority' },
+      { value: 'snowball', label: 'Debt Snowball', allocation: 'cascade', payoff: 'snowball' },
+      { value: 'avalanche', label: 'Debt Avalanche', allocation: 'cascade', payoff: 'avalanche' },
+      { value: 'balanced', label: 'Balanced Monthly', allocation: 'parallel', payoff: 'priority' }
+    ];
+
+    for (const strategy of strategies) {
+      await page.locator(`button[data-solver-strategy="${strategy.value}"]`).click();
+      await waitForScenario(page, (scenario) =>
+        scenario.advancedGoalSettings.strategy === strategy.value &&
+        scenario.advancedGoalSettings.allocationStrategy === strategy.allocation &&
+        scenario.advancedGoalSettings.payoffOrder === strategy.payoff,
+        `${strategy.label} saved`);
+      await expect(page.locator(`button[data-solver-strategy="${strategy.value}"]`))
+        .toHaveAttribute('aria-checked', 'true');
+      await expect(page.locator('#generatePlanSection .goal-workshop-strategy-badge'))
+        .toHaveText(strategy.label);
+    }
+  });
+
+  test('persists avalanche strategy and a contractual goal minimum', async ({ page }) => {
+    await page.locator('button[data-solver-strategy="avalanche"]').click();
+    await waitForScenario(page, (scenario) =>
+      scenario.advancedGoalSettings.strategy === 'avalanche' &&
+      scenario.advancedGoalSettings.allocationStrategy === 'cascade' &&
+      scenario.advancedGoalSettings.payoffOrder === 'avalanche',
+      'avalanche strategy saved');
+
+    await expect(page.locator('#generatePlanSection .goal-workshop-strategy-badge'))
+      .toHaveText('Debt Avalanche');
+
+    const goalCard = page.locator('#adv-goals-panel .grid-summary-card').first();
+    await goalCard.locator('.grid-summary-card-summary').click();
+    await goalCard.getByLabel('Contractual Minimum / Month').fill('125');
+    await goalCard.getByLabel('Contractual Minimum / Month').blur();
+
+    await waitForScenario(page, (scenario) =>
+      Number(scenario.advancedGoalSettings.goals[0].minimumMonthlyAmount) === 125,
+      'contractual minimum saved');
+  });
+
+  test('solves a pay-down snowball and creates phased schema-valid rules', async ({ page }) => {
+    await page.evaluate(async () => {
+      const ScenarioManager = await import('/js/app/managers/scenario-manager.js');
+      const data = JSON.parse(window.localStorage.getItem('ftrack:app-data') || '{}');
+      const scenarioId = Number(data?.uiState?.lastScenarioId || data?.scenarios?.[0]?.id || 0);
+      const scenario = data.scenarios.find((item) => Number(item.id) === scenarioId);
+      await ScenarioManager.update(scenarioId, {
+        transactions: scenario.transactions.filter((transaction) => transaction.id !== 1003),
+        advancedGoalSettings: {
+          strategy: 'snowball',
+          allocationStrategy: 'cascade',
+          payoffOrder: 'snowball',
+          constraints: {
+            fundingAccountId: 1,
+            maxOutflowPerMonth: 200,
+            lockedAccountIds: [],
+            maxMovementByAccountId: {},
+            minBalanceFloorsByAccountId: {}
+          },
+          goals: [
+            {
+              id: 'pay-card',
+              priority: 1,
+              type: 'pay_down_by_date',
+              accountId: 3,
+              targetAmount: 0,
+              startDate: '2026-01-01',
+              endDate: '2026-12-31'
+            },
+            {
+              id: 'grow-savings',
+              priority: 2,
+              type: 'reach_balance_by_date',
+              accountId: 2,
+              targetAmount: 700,
+              startDate: '2026-01-01',
+              endDate: '2026-12-31'
+            }
+          ]
+        }
+      });
+      window.location.reload();
+    });
+
+    await selectWorkflow(page, 'Goal Workshop');
+    await page.locator('#generatePlanSection button[title="Solve — calculate suggested plan rules"]').click();
+
+    await expect(page.locator('#adv-goal-solution-totals')).toContainText('Plan ready to apply');
+    await expect(page.locator('#adv-goal-solution')).toContainText('Credit Card');
+    await expect(page.locator('#adv-goal-solution')).toContainText('Savings Goal');
+
+    const applyButton = page.locator('#generatePlanSection button[title="Apply — add plan rules to this scenario"]');
+    await expect(applyButton).toBeEnabled();
+    await applyButton.click();
+
+    await waitForScenario(page, (scenario) => {
+      const generated = scenario.transactions.filter((transaction) =>
+        transaction.tags?.includes('adv-goal-generated')
+      );
+      return generated.length >= 2 && generated.every((transaction) =>
+        !Object.prototype.hasOwnProperty.call(transaction, 'status')
+      );
+    }, 'schema-valid phased cascade rules applied');
+
+    const validation = await page.evaluate(async () => {
+      const { validateAppData } = await import('/js/app/services/validation-service.js');
+      const data = JSON.parse(window.localStorage.getItem('ftrack:app-data') || '{}');
+      return validateAppData(data);
+    });
+    expect(validation.isValid).toBe(true);
+  });
+
   test('refreshes simple Generate Plan after an account goal input changes', async ({ page }) => {
-    await page.locator('#generatePlanSection button[title="Settings"]').click();
+    await page.getByRole('button', { name: 'Goal Workshop settings' }).click();
     await page.locator('.modal-dialog .mode-btn[data-mode="simple"]').click();
 
     const goalOption = page.locator('#goal-account-select option[value="2"]');

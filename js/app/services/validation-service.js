@@ -104,6 +104,15 @@ function validatePeriodicChange(pc, basePath) {
         }
     }
 
+    if (pc.postingDayOfMonth !== null && pc.postingDayOfMonth !== undefined) {
+        const postingDay = Number(pc.postingDayOfMonth);
+        if (modeId !== 1) {
+            issues.push(issue(`${basePath}.postingDayOfMonth`, `Only percentage changes can use an interest posting day`));
+        } else if (!Number.isInteger(postingDay) || postingDay < 1 || postingDay > 31) {
+            issues.push(issue(`${basePath}.postingDayOfMonth`, `Must be an integer from 1 to 31`));
+        }
+    }
+
     return issues;
 }
 
@@ -265,6 +274,53 @@ function validateAccount(acc, index) {
 // Transaction validator
 // ---------------------------------------------------------------------------
 
+function validateLineItems(lineItems, label, expectedTotal = null) {
+    const issues = [];
+    if (lineItems === undefined || lineItems === null) return issues;
+    if (!Array.isArray(lineItems)) {
+        return [issue(label, 'Must be an array')];
+    }
+    const seenIds = new Set();
+    let total = 0;
+    lineItems.forEach((item, index) => {
+        const itemLabel = `${label}[${index}]`;
+        if (!item || typeof item !== 'object') {
+            issues.push(issue(itemLabel, 'Must be an object'));
+            return;
+        }
+        const id = String(item.id || '').trim();
+        if (!id) {
+            issues.push(issue(`${itemLabel}.id`, 'Missing stable line-item id'));
+        } else if (seenIds.has(id)) {
+            issues.push(issue(`${itemLabel}.id`, `Duplicate line-item id "${id}"`));
+        }
+        seenIds.add(id);
+        if (!isValidDate(item.date)) {
+            issues.push(issue(`${itemLabel}.date`, 'Missing or invalid YYYY-MM-DD date'));
+        }
+        if (typeof item.description !== 'string') {
+            issues.push(issue(`${itemLabel}.description`, 'Must be a string'));
+        }
+        const amount = Number(item.amount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            issues.push(issue(`${itemLabel}.amount`, 'Must be a positive number'));
+        } else {
+            total += amount;
+        }
+    });
+    if (
+        lineItems.length &&
+        Number.isFinite(Number(expectedTotal)) &&
+        Math.abs(total - Number(expectedTotal)) > 0.005
+    ) {
+        issues.push(issue(
+            label,
+            `Line items total ${total.toFixed(2)} must equal transaction total ${Number(expectedTotal).toFixed(2)}`
+        ));
+    }
+    return issues;
+}
+
 function validateTransaction(tx, index, scenario) {
     const issues = [];
     const label = `transaction[${index}] (id=${tx.id}, "${tx.description}")`;
@@ -310,6 +366,8 @@ function validateTransaction(tx, index, scenario) {
     if (typeof tx.description !== 'string' || !tx.description.trim()) {
         issues.push(issue(`${label}.description`, `Missing or empty description`));
     }
+
+    issues.push(...validateLineItems(tx.lineItems, `${label}.lineItems`, tx.amount));
 
     if (tx.recurrence !== null && tx.recurrence !== undefined) {
         issues.push(...validateRecurrence(tx.recurrence, `${label}.recurrence`));
@@ -520,6 +578,16 @@ function validateOccurrence(occurrence, index, scenario) {
         }
     }
 
+
+    const occurrenceTotal = occurrence?.status === 'actual'
+        ? occurrence?.actualAmount
+        : occurrence?.plannedAmount;
+    issues.push(...validateLineItems(
+        occurrence?.lineItems,
+        `${label}.lineItems`,
+        occurrenceTotal
+    ));
+
     return issues;
 }
 
@@ -625,6 +693,91 @@ function validateScenario(scenario) {
     }
     if (Object.prototype.hasOwnProperty.call(scenario, 'budgetWindow')) {
         issues.push(issue('budgetWindow', `Legacy budgetWindow is not allowed in schemaVersion 44`));
+    }
+    if (
+        scenario.advancedGoalSettings?.allocationStrategy !== undefined &&
+        !['parallel', 'cascade'].includes(scenario.advancedGoalSettings.allocationStrategy)
+    ) {
+        issues.push(issue(
+            'advancedGoalSettings.allocationStrategy',
+            `Must be "parallel" or "cascade"`
+        ));
+    }
+    if (
+        scenario.advancedGoalSettings?.strategy !== undefined &&
+        !['balanced', 'priority-cascade', 'snowball', 'avalanche'].includes(scenario.advancedGoalSettings.strategy)
+    ) {
+        issues.push(issue(
+            'advancedGoalSettings.strategy',
+            `Must be "balanced", "priority-cascade", "snowball", or "avalanche"`
+        ));
+    }
+    if (
+        scenario.advancedGoalSettings?.payoffOrder !== undefined &&
+        !['priority', 'snowball', 'avalanche'].includes(scenario.advancedGoalSettings.payoffOrder)
+    ) {
+        issues.push(issue(
+            'advancedGoalSettings.payoffOrder',
+            `Must be "priority", "snowball", or "avalanche"`
+        ));
+    }
+
+    const periodVariants = scenario?.planning?.periodVariants;
+    if (periodVariants !== undefined) {
+        if (!Array.isArray(periodVariants)) {
+            issues.push(issue('planning.periodVariants', `Must be an array`));
+        } else {
+            const variantIds = periodVariants.map((variant) => variant?.id);
+            const duplicateVariantIds = variantIds.filter(
+                (id, index) => id && variantIds.indexOf(id) !== index
+            );
+            if (duplicateVariantIds.length) {
+                issues.push(issue(
+                    'planning.periodVariants',
+                    `Duplicate snapshot IDs: ${[...new Set(duplicateVariantIds)].join(', ')}`
+                ));
+            }
+            periodVariants.forEach((variant, variantIndex) => {
+                const path = `planning.periodVariants[${variantIndex}]`;
+                if (!variant?.id || typeof variant.id !== 'string') {
+                    issues.push(issue(`${path}.id`, `Must be a non-empty string`));
+                }
+                if (!variant?.name || typeof variant.name !== 'string') {
+                    issues.push(issue(`${path}.name`, `Must be a non-empty string`));
+                }
+                if (!isValidDate(variant?.startDate) || !isValidDate(variant?.endDate)) {
+                    issues.push(issue(path, `Snapshot startDate and endDate must be valid dates`));
+                } else if (variant.startDate > variant.endDate) {
+                    issues.push(issue(path, `Snapshot startDate must be on or before endDate`));
+                }
+                if (!Array.isArray(variant?.occurrences)) {
+                    issues.push(issue(`${path}.occurrences`, `Must be an array`));
+                    return;
+                }
+                const occurrenceKeys = variant.occurrences.map((item) => item?.occurrenceKey);
+                const duplicateKeys = occurrenceKeys.filter(
+                    (key, index) => key && occurrenceKeys.indexOf(key) !== index
+                );
+                if (duplicateKeys.length) {
+                    issues.push(issue(
+                        `${path}.occurrences`,
+                        `Duplicate occurrence keys: ${[...new Set(duplicateKeys)].join(', ')}`
+                    ));
+                }
+                variant.occurrences.forEach((occurrence, occurrenceIndex) => {
+                    const occurrencePath = `${path}.occurrences[${occurrenceIndex}]`;
+                    if (!occurrence?.occurrenceKey) {
+                        issues.push(issue(`${occurrencePath}.occurrenceKey`, `Must be present`));
+                    }
+                    if (!VALID_OCCURRENCE_STATUSES.includes(String(occurrence?.status || ''))) {
+                        issues.push(issue(`${occurrencePath}.status`, `Must be planned, actual, or skipped`));
+                    }
+                    if (!isValidDate(occurrence?.effectiveDate || occurrence?.scheduledDate)) {
+                        issues.push(issue(`${occurrencePath}.scheduledDate`, `Must be a valid date`));
+                    }
+                });
+            });
+        }
     }
 
     // Accounts

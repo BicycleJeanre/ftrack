@@ -25,6 +25,7 @@ const OCCURRENCE_PLAN_FIELDS = new Set([
   'secondaryAccountId',
   'transactionTypeId',
   'description',
+  'lineItems',
   'tags',
   'transactionGroupId',
   'transactionGroupRole',
@@ -40,6 +41,7 @@ const RULE_CHANGE_FIELDS = new Set([
   'secondaryAccountId',
   'transactionTypeId',
   'description',
+  'lineItems',
   'tags',
   'periodicChange',
   'recurrence'
@@ -82,6 +84,7 @@ function snapshotOccurrenceMetadata(occurrence) {
     recurrence: clonePlain(occurrence?.recurrence ?? null),
     recurrenceDescription: occurrence?.recurrenceDescription ?? '',
     periodicChange: clonePlain(occurrence?.periodicChange ?? null),
+    lineItems: clonePlain(occurrence?.lineItems ?? []),
     actualSnapshotVersion: 1
   };
 }
@@ -147,6 +150,57 @@ function absoluteAmount(value, field, { nullable = false } = {}) {
     );
   }
   return Math.abs(number);
+}
+
+function normalizeLineItems(rawItems, fallbackDate = null) {
+  if (rawItems === null || rawItems === undefined) return [];
+  if (!Array.isArray(rawItems)) {
+    throw new OccurrenceCommandError(
+      'invalid-line-items',
+      'lineItems must be an array.'
+    );
+  }
+  const seenIds = new Set();
+  return rawItems.map((rawItem, index) => {
+    if (!rawItem || typeof rawItem !== 'object') {
+      throw new OccurrenceCommandError(
+        'invalid-line-item',
+        `lineItems[${index}] must be an object.`
+      );
+    }
+    const id = String(rawItem.id || `line-${index + 1}`).trim();
+    if (!id || seenIds.has(id)) {
+      throw new OccurrenceCommandError(
+        'invalid-line-item-id',
+        `lineItems[${index}].id must be unique.`
+      );
+    }
+    seenIds.add(id);
+    const amount = absoluteAmount(rawItem.amount, `lineItems[${index}].amount`);
+    if (amount <= 0) {
+      throw new OccurrenceCommandError(
+        'invalid-line-item-amount',
+        `lineItems[${index}].amount must be greater than zero.`
+      );
+    }
+    return {
+      id,
+      date: normalizeDate(
+        rawItem.date || fallbackDate,
+        `lineItems[${index}].date`,
+        { nullable: true }
+      ),
+      description: String(rawItem.description || '').trim(),
+      amount
+    };
+  });
+}
+
+function lineItemsTotal(lineItems = []) {
+  return lineItems.reduce(
+    (sum, item) => sum + Math.abs(Number(item?.amount || 0)),
+    0
+  );
 }
 
 function positiveId(value, field, { nullable = false } = {}) {
@@ -306,6 +360,7 @@ function fallbackOccurrenceFromStored(scenario, storedOccurrence) {
     recurrence: clonePlain(storedOrSource('recurrence')),
     recurrenceDescription: storedOrSource('recurrenceDescription', ''),
     periodicChange: clonePlain(storedOrSource('periodicChange')),
+    lineItems: clonePlain(storedOrSource('lineItems', [])),
     scheduledDate,
     plannedDate: storedOccurrence?.plannedDate ?? null,
     actualDate: storedOccurrence?.actualDate ?? null,
@@ -677,6 +732,12 @@ function normalizeOccurrencePlanPatch(updates = {}) {
     patch.description =
       updates.description === null ? null : String(updates.description || '').trim();
   }
+  if (hasOwn(updates, 'lineItems')) {
+    patch.lineItems = normalizeLineItems(updates.lineItems);
+    if (patch.lineItems.length) {
+      patch.plannedAmount = lineItemsTotal(patch.lineItems);
+    }
+  }
   if (hasOwn(updates, 'tags')) {
     if (updates.tags !== null && !Array.isArray(updates.tags)) {
       throw new OccurrenceCommandError('invalid-tags', 'tags must be an array or null.');
@@ -759,6 +820,10 @@ function normalizeRuleUpdates(updates = {}) {
   }
   if (hasOwn(patch, 'description')) {
     patch.description = String(patch.description || '').trim();
+  }
+  if (hasOwn(patch, 'lineItems')) {
+    patch.lineItems = normalizeLineItems(patch.lineItems);
+    if (patch.lineItems.length) patch.amount = lineItemsTotal(patch.lineItems);
   }
   if (hasOwn(patch, 'tags')) {
     if (!Array.isArray(patch.tags)) {
@@ -872,6 +937,36 @@ function recurrenceTypeId(recurrence) {
   return Number(typeof raw === 'object' ? raw?.id : raw);
 }
 
+export function anchorRecurrenceToDate(recurrence, dateKey) {
+  const anchoredDate = normalizeDate(dateKey, 'scheduledDate');
+  const parsed = parseDateOnly(anchoredDate);
+  const anchored = {
+    ...clonePlain(recurrence),
+    startDate: anchoredDate
+  };
+  const typeId = recurrenceTypeId(anchored);
+
+  if (typeId === 3) anchored.dayOfWeek = parsed.getDay();
+  if (typeId === 4) anchored.dayOfMonth = parsed.getDate();
+  if (typeId === 5) {
+    anchored.weekOfMonth = Math.min(5, Math.ceil(parsed.getDate() / 7));
+    anchored.dayOfWeekInMonth = parsed.getDay() || 7;
+  }
+  if (typeId === 6) {
+    const quarterStart = new Date(
+      parsed.getFullYear(),
+      Math.floor(parsed.getMonth() / 3) * 3,
+      1
+    );
+    anchored.dayOfQuarter = Math.floor((parsed - quarterStart) / 86400000) + 1;
+  }
+  if (typeId === 7) {
+    anchored.month = parsed.getMonth() + 1;
+    anchored.dayOfYear = parsed.getDate();
+  }
+  return anchored;
+}
+
 function isRecurringRule(rule) {
   const typeId = recurrenceTypeId(rule?.recurrence);
   return Boolean(typeId && typeId !== 1);
@@ -902,6 +997,24 @@ function applyRulePatch(rule, rawUpdates, timestamp, { startDate = null, endDate
   if (endDate !== undefined) next.activeTo = endDate;
   next.updatedAt = timestamp;
   return next;
+}
+
+function occurrencePatchForRuleChanges(rulePatch = {}) {
+  const patch = {};
+  if (hasOwn(rulePatch, 'amount')) patch.plannedAmount = rulePatch.amount;
+  for (const field of [
+    'primaryAccountId',
+    'secondaryAccountId',
+    'transactionTypeId',
+    'description',
+    'tags',
+    'periodicChange',
+    'recurrence',
+    'lineItems'
+  ]) {
+    if (hasOwn(rulePatch, field)) patch[field] = clonePlain(rulePatch[field]);
+  }
+  return patch;
 }
 
 function makeUniqueGroupId(scenario, oldGroupId, seedId) {
@@ -967,6 +1080,7 @@ function splitSeriesAtOccurrence(
   const sourceRole = normalizeRole(sourceRule.transactionGroupRole);
 
   if (sourceStart >= boundary) {
+    const rulePatchesBySourceId = new Map();
     groupRules.forEach((rule) => {
       const index = scenario.transactions.findIndex(
         (candidate) => Number(candidate.id) === Number(rule.id)
@@ -977,6 +1091,7 @@ function splitSeriesAtOccurrence(
       const rolePatch = roleMatches
         ? updates
         : (hasOwn(updates, 'recurrence') ? { recurrence: updates.recurrence } : {});
+      rulePatchesBySourceId.set(Number(rule.id), rolePatch);
       scenario.transactions[index] = applyRulePatch(
         rule,
         rolePatch,
@@ -987,6 +1102,25 @@ function splitSeriesAtOccurrence(
         }
       );
     });
+    scenario.transactionOccurrences = scenario.transactionOccurrences.map(
+      (storedOccurrence) => {
+        const rulePatch = rulePatchesBySourceId.get(
+          Number(storedOccurrence?.sourceTransactionId)
+        );
+        if (
+          !rulePatch ||
+          storedOccurrence?.scheduledDate < boundary ||
+          statusName(storedOccurrence) === 'actual'
+        ) {
+          return storedOccurrence;
+        }
+        return {
+          ...storedOccurrence,
+          ...occurrencePatchForRuleChanges(rulePatch),
+          updatedAt: timestamp
+        };
+      }
+    );
     return {
       occurrenceKey: occurrence.occurrenceKey,
       createdTransactionIds: [],
@@ -999,6 +1133,7 @@ function splitSeriesAtOccurrence(
   let nextTransactionId = allocateNextId(scenario.transactions);
   const rootId = Number(sourceRule.seriesRootId || sourceRule.id);
   const newSourceIdsByOldId = new Map();
+  const rulePatchesByOldId = new Map();
   const createdRules = [];
   const newGroupId = sourceGroupId
     ? makeUniqueGroupId(scenario, sourceGroupId, nextTransactionId)
@@ -1029,6 +1164,7 @@ function splitSeriesAtOccurrence(
     const rolePatch = roleMatches
       ? updates
       : (hasOwn(updates, 'recurrence') ? { recurrence: updates.recurrence } : {});
+    rulePatchesByOldId.set(Number(rule.id), rolePatch);
     let nextRule = applyRulePatch(
       {
         ...clonePlain(rule),
@@ -1171,8 +1307,12 @@ function splitSeriesAtOccurrence(
       return storedOccurrence;
     }
     const nextRole = normalizeRole(storedOccurrence?.transactionGroupRole);
+    const rulePatch = rulePatchesByOldId.get(
+      Number(storedOccurrence?.sourceTransactionId)
+    ) || {};
     return {
       ...storedOccurrence,
+      ...occurrencePatchForRuleChanges(rulePatch),
       sourceTransactionId: newSourceId,
       occurrenceKey: createLinkedOccurrenceKey(
         newSourceId,
@@ -1678,6 +1818,96 @@ function hasProtectedOccurrenceEvidence(occurrence) {
   );
 }
 
+function preservedHistoryAmount(...values) {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue;
+    const amount = Number(value);
+    if (Number.isFinite(amount) && amount >= 0) return Math.abs(amount);
+  }
+  return 0;
+}
+
+function convertSeriesHistoryToManual(occurrence, sourceRule, timestamp) {
+  const id = positiveId(occurrence?.id, 'occurrence.id');
+  const originalStatus = statusName(occurrence);
+  const hasBaseline = (
+    occurrence?.baselineAmount !== null &&
+    occurrence?.baselineAmount !== undefined
+  );
+  const status = originalStatus === 'planned' && hasBaseline
+    ? 'skipped'
+    : originalStatus;
+  const plannedAmount = preservedHistoryAmount(
+    occurrence?.plannedAmount,
+    occurrence?.baselineAmount,
+    sourceRule?.amount
+  );
+  const primaryAccountId = occurrence?.primaryAccountId ??
+    occurrence?.baselinePrimaryAccountId ??
+    sourceRule?.primaryAccountId ?? null;
+  const secondaryAccountId = occurrence?.secondaryAccountId ??
+    occurrence?.baselineSecondaryAccountId ??
+    sourceRule?.secondaryAccountId ?? null;
+  const transactionTypeId = Number(
+    occurrence?.transactionTypeId ??
+    occurrence?.baselineTransactionTypeId ??
+    sourceRule?.transactionTypeId
+  ) === 1 ? 1 : 2;
+  const tags = Array.from(new Set([
+    ...(Array.isArray(occurrence?.tags)
+      ? occurrence.tags
+      : (Array.isArray(sourceRule?.tags) ? sourceRule.tags : [])),
+    'series-history-preserved'
+  ]));
+
+  return {
+    ...clonePlain(occurrence),
+    id,
+    sourceTransactionId: null,
+    occurrenceKey: `occurrence:${id}`,
+    plannedAmount,
+    actualAmount: status === 'actual'
+      ? preservedHistoryAmount(occurrence?.actualAmount, plannedAmount)
+      : null,
+    actualDate: status === 'actual'
+      ? (occurrence?.actualDate || occurrence?.scheduledDate)
+      : null,
+    status,
+    origin: 'manual',
+    actualSnapshotVersion: status === 'actual' ? 1 : null,
+    primaryAccountId,
+    secondaryAccountId,
+    transactionTypeId,
+    description: occurrence?.description ?? sourceRule?.description ?? '',
+    tags,
+    transactionGroupId: null,
+    transactionGroupRole: null,
+    transactionGroupAccountGroupId: null,
+    recurrence: null,
+    recurrenceDescription: '',
+    periodicChange: null,
+    lineItems: Array.isArray(occurrence?.lineItems)
+      ? clonePlain(occurrence.lineItems)
+      : [],
+    baselineAmount: hasBaseline
+      ? preservedHistoryAmount(occurrence.baselineAmount)
+      : null,
+    baselinePrimaryAccountId: hasBaseline
+      ? (occurrence?.baselinePrimaryAccountId ?? primaryAccountId)
+      : null,
+    baselineSecondaryAccountId: hasBaseline
+      ? (occurrence?.baselineSecondaryAccountId ?? secondaryAccountId)
+      : null,
+    baselineTransactionTypeId: hasBaseline
+      ? (Number(occurrence?.baselineTransactionTypeId ?? transactionTypeId) === 1 ? 1 : 2)
+      : null,
+    baselineSnapshotVersion: hasBaseline ? 1 : null,
+    isOverride: true,
+    createdAt: occurrence?.createdAt || timestamp,
+    updatedAt: timestamp
+  };
+}
+
 function collectSplitGroupLineageIds(scenario, sourceGroupId) {
   const normalizedSourceGroupId = String(sourceGroupId || '').trim();
   if (!normalizedSourceGroupId) return new Set();
@@ -1822,6 +2052,171 @@ export async function updateOccurrenceOnly(
   );
 }
 
+export async function updateActualOccurrence(
+  scenarioId,
+  occurrenceKey,
+  updates = {}
+) {
+  return runCommand(
+    scenarioId,
+    'Actual occurrence changed',
+    (scenario, timestamp) => {
+      const { occurrence } = resolveOccurrenceOrThrow(scenario, occurrenceKey);
+      if (statusName(occurrence) !== 'actual') {
+        throw new OccurrenceCommandError(
+          'actual-occurrence-required',
+          'Only an actual occurrence can be changed through updateActualOccurrence.'
+        );
+      }
+
+      const planUpdates = { ...clonePlain(updates) };
+      delete planUpdates.actualAmount;
+      delete planUpdates.actualDate;
+      delete planUpdates.status;
+      const patch = normalizeOccurrencePlanPatch(planUpdates);
+      if (hasOwn(planUpdates, 'plannedAmount')) {
+        patch.plannedAmount = absoluteAmount(
+          planUpdates.plannedAmount,
+          'plannedAmount'
+        );
+      }
+      const lineItems = hasOwn(patch, 'lineItems')
+        ? patch.lineItems
+        : clonePlain(occurrence.lineItems || []);
+      patch.actualAmount = lineItems.length
+        ? lineItemsTotal(lineItems)
+        : hasOwn(updates, 'actualAmount')
+          ? absoluteAmount(updates.actualAmount, 'actualAmount')
+          : absoluteAmount(occurrence.actualAmount, 'actualAmount');
+      patch.actualDate = hasOwn(updates, 'actualDate')
+        ? normalizeDate(updates.actualDate, 'actualDate')
+        : normalizeDate(
+          occurrence.actualDate || occurrence.effectiveDate || occurrence.scheduledDate,
+          'actualDate'
+        );
+      patch.status = 'actual';
+      patch.actualSnapshotVersion = 1;
+      patch.isOverride = true;
+      upsertOccurrence(scenario, occurrence, patch, timestamp, { isOverride: true });
+      return { occurrenceKey };
+    }
+  );
+}
+
+export async function restoreActualToPlanned(
+  scenarioId,
+  occurrenceKey,
+  updates = {}
+) {
+  return runCommand(
+    scenarioId,
+    'Actual occurrence restored to planned',
+    (scenario, timestamp) => {
+      const { occurrence } = resolveOccurrenceOrThrow(scenario, occurrenceKey);
+      if (statusName(occurrence) !== 'actual') {
+        throw new OccurrenceCommandError(
+          'actual-occurrence-required',
+          'Only an actual occurrence can be restored to planned.'
+        );
+      }
+
+      const patch = normalizeOccurrencePlanPatch({
+        ...clonePlain(updates),
+        status: 'planned'
+      });
+      const requestedPlan = Number(patch.plannedAmount || 0);
+      const existingPlan = Math.abs(Number(occurrence.plannedAmount || 0));
+      const actualAmount = Math.abs(Number(occurrence.actualAmount || 0));
+      if (requestedPlan <= 0) {
+        patch.plannedAmount = existingPlan > 0 ? existingPlan : actualAmount;
+      }
+      patch.actualAmount = null;
+      patch.actualDate = null;
+      patch.actualSnapshotVersion = null;
+      if (!markerContainsDate(scenario, occurrence.scheduledDate)) {
+        patch.baselineAmount = null;
+        patch.baselinePrimaryAccountId = null;
+        patch.baselineSecondaryAccountId = null;
+        patch.baselineTransactionTypeId = null;
+        patch.baselineSnapshotVersion = null;
+      }
+      patch.status = 'planned';
+      patch.isOverride = true;
+      upsertOccurrence(scenario, occurrence, patch, timestamp, { isOverride: true });
+      return { occurrenceKey };
+    }
+  );
+}
+
+export async function updateRecurringRuleAfterActual(
+  scenarioId,
+  occurrenceKey,
+  updates = {}
+) {
+  return runCommand(
+    scenarioId,
+    'Future recurring rule changed after actual occurrence',
+    (scenario, timestamp) => {
+      const { occurrence } = resolveOccurrenceOrThrow(scenario, occurrenceKey);
+      if (statusName(occurrence) !== 'actual') {
+        throw new OccurrenceCommandError(
+          'actual-occurrence-required',
+          'Future repeat changes from this command require an actual occurrence.'
+        );
+      }
+
+      const linkedRule = (scenario.transactions || []).find(
+        (transaction) => Number(transaction?.id) === Number(occurrence.sourceTransactionId)
+      ) || null;
+      const promotedRule = (scenario.transactions || []).find(
+        (transaction) =>
+          String(transaction?.promotedFromOccurrenceKey || '') === String(occurrenceKey)
+      ) || null;
+      const sourceRule = promotedRule || linkedRule;
+      if (!sourceRule || !isRecurringRule(sourceRule)) {
+        throw new OccurrenceCommandError(
+          'recurring-rule-required',
+          'No future recurring rule is linked to this actual occurrence.'
+        );
+      }
+
+      const boundary = promotedRule
+        ? normalizeDate(ruleStartDate(sourceRule), 'rule startDate')
+        : nextRecurrenceDate(sourceRule.recurrence, occurrence.scheduledDate);
+      if (!boundary) {
+        throw new OccurrenceCommandError(
+          'future-recurrence-required',
+          'No future occurrence is available for the repeat change.'
+        );
+      }
+      const role = normalizeRole(sourceRule.transactionGroupRole);
+      const plannedOccurrence = {
+        ...clonePlain(occurrence),
+        sourceTransactionId: sourceRule.id,
+        occurrenceKey: createLinkedOccurrenceKey(sourceRule.id, boundary, role),
+        scheduledDate: boundary,
+        plannedDate: null,
+        actualDate: null,
+        actualAmount: null,
+        status: 'planned',
+        transactionGroupId: sourceRule.transactionGroupId ?? null,
+        transactionGroupRole: role || null
+      };
+      const result = splitSeriesAtOccurrence(
+        scenario,
+        plannedOccurrence,
+        updates,
+        timestamp
+      );
+      return {
+        occurrenceKey,
+        affectedOccurrenceKeys: [occurrenceKey, result.occurrenceKey],
+        createdTransactionIds: result.createdTransactionIds
+      };
+    }
+  );
+}
+
 export async function updateThisAndFuture(
   scenarioId,
   occurrenceKey,
@@ -1884,7 +2279,11 @@ export async function updateEntireSeries(
   );
 }
 
-export async function endSeries(scenarioId, occurrenceKey) {
+export async function endSeries(
+  scenarioId,
+  occurrenceKey,
+  { discardSkippedBoundary = false } = {}
+) {
   return runCommand(
     scenarioId,
     'Recurring series ended',
@@ -1899,7 +2298,10 @@ export async function endSeries(scenarioId, occurrenceKey) {
           'End Series requires an occurrence generated by a recurring rule.'
         );
       }
-      if (occurrence.status !== 'planned') {
+      const canDiscardSkippedBoundary = (
+        discardSkippedBoundary && occurrence.status === 'skipped'
+      );
+      if (occurrence.status !== 'planned' && !canDiscardSkippedBoundary) {
         throw new OccurrenceCommandError(
           'actual-history-protected',
           'End Series must start from an unresolved planned occurrence.'
@@ -1931,21 +2333,19 @@ export async function endSeries(scenarioId, occurrenceKey) {
         (storedOccurrence) => (
           affectedSourceIds.has(Number(storedOccurrence?.sourceTransactionId)) &&
           storedOccurrence?.scheduledDate >= boundary &&
+          !(
+            canDiscardSkippedBoundary &&
+            storedOccurrence?.occurrenceKey === occurrenceKey
+          ) &&
           hasProtectedOccurrenceEvidence(storedOccurrence)
         )
       );
-      if (protectedFuture.length) {
-        throw new OccurrenceCommandError(
-          'series-history-conflict',
-          'The series cannot end before actual, skipped, or frozen occurrence history.',
-          {
-            boundary,
-            occurrenceKeys: protectedFuture.map(
-              (storedOccurrence) => storedOccurrence?.occurrenceKey
-            )
-          }
-        );
-      }
+      const protectedOccurrenceKeys = new Set(
+        protectedFuture.map((storedOccurrence) => storedOccurrence?.occurrenceKey)
+      );
+      const sourceRuleById = new Map(
+        affectedRules.map((rule) => [Number(rule?.id), rule])
+      );
 
       const removedTransactionIds = [];
       scenario.transactions = (scenario.transactions || []).flatMap((rule) => {
@@ -1975,17 +2375,32 @@ export async function endSeries(scenarioId, occurrenceKey) {
       }
 
       const removedOccurrenceKeys = [];
+      const preservedHistory = [];
       scenario.transactionOccurrences = (
         scenario.transactionOccurrences || []
-      ).filter((storedOccurrence) => {
+      ).flatMap((storedOccurrence) => {
         const remove = (
           affectedSourceIds.has(Number(storedOccurrence?.sourceTransactionId)) &&
           storedOccurrence?.scheduledDate >= boundary
         );
-        if (remove) {
-          removedOccurrenceKeys.push(storedOccurrence?.occurrenceKey);
+        if (!remove) return [storedOccurrence];
+
+        if (protectedOccurrenceKeys.has(storedOccurrence?.occurrenceKey)) {
+          const preserved = convertSeriesHistoryToManual(
+            storedOccurrence,
+            sourceRuleById.get(Number(storedOccurrence?.sourceTransactionId)) || sourceRule,
+            timestamp
+          );
+          preservedHistory.push({
+            previousOccurrenceKey: storedOccurrence?.occurrenceKey,
+            occurrenceKey: preserved.occurrenceKey,
+            scheduledDate: preserved.scheduledDate,
+            status: preserved.status
+          });
+          return [preserved];
         }
-        return !remove;
+        removedOccurrenceKeys.push(storedOccurrence?.occurrenceKey);
+        return [];
       });
 
       return {
@@ -1996,7 +2411,92 @@ export async function endSeries(scenarioId, occurrenceKey) {
         affectedTransactionGroupIds: [...affectedGroupIds],
         removedTransactionIds,
         removedTransactionGroupIds,
-        removedOccurrenceKeys
+        removedOccurrenceKeys,
+        preservedHistory
+      };
+    }
+  );
+}
+
+export async function deleteOccurrencePermanently(scenarioId, occurrenceKey) {
+  return runCommand(
+    scenarioId,
+    'Transaction deleted permanently',
+    (scenario) => {
+      const { occurrence } = resolveOccurrenceOrThrow(scenario, occurrenceKey);
+      if (occurrence.status === 'actual') {
+        throw new OccurrenceCommandError(
+          'actual-history-protected',
+          'Undo Actual before permanently deleting this transaction.'
+        );
+      }
+      if (markerContainsDate(scenario, occurrence.scheduledDate)) {
+        throw new OccurrenceCommandError(
+          'baseline-history-protected',
+          'This transaction belongs to frozen history. Unfreeze its period before deleting it.'
+        );
+      }
+
+      const sourceRule = (scenario.transactions || []).find(
+        (rule) => Number(rule?.id) === Number(occurrence?.sourceTransactionId)
+      ) || null;
+      if (sourceRule && isRecurringRule(sourceRule)) {
+        throw new OccurrenceCommandError(
+          'recurring-delete-scope-required',
+          'Use Delete this and future occurrences for a recurring transaction.'
+        );
+      }
+
+      if (!sourceRule) {
+        scenario.transactionOccurrences = (scenario.transactionOccurrences || [])
+          .filter((candidate) => candidate?.occurrenceKey !== occurrenceKey);
+        return {
+          occurrenceKey,
+          removedOccurrenceKeys: [occurrenceKey],
+          removedTransactionIds: []
+        };
+      }
+
+      const sourceGroupId = String(sourceRule?.transactionGroupId || '').trim();
+      const affectedRules = sourceGroupId
+        ? (scenario.transactions || []).filter(
+          (rule) => String(rule?.transactionGroupId || '').trim() === sourceGroupId
+        )
+        : [sourceRule];
+      const affectedSourceIds = new Set(
+        affectedRules.map((rule) => Number(rule?.id))
+      );
+      const protectedActual = (scenario.transactionOccurrences || []).find(
+        (candidate) => (
+          affectedSourceIds.has(Number(candidate?.sourceTransactionId)) &&
+          statusName(candidate) === 'actual'
+        )
+      );
+      if (protectedActual) {
+        throw new OccurrenceCommandError(
+          'actual-history-protected',
+          'Undo Actual before permanently deleting this transaction.'
+        );
+      }
+
+      const removedOccurrenceKeys = (scenario.transactionOccurrences || [])
+        .filter((candidate) => affectedSourceIds.has(Number(candidate?.sourceTransactionId)))
+        .map((candidate) => candidate?.occurrenceKey)
+        .filter(Boolean);
+      scenario.transactionOccurrences = (scenario.transactionOccurrences || [])
+        .filter((candidate) => !affectedSourceIds.has(Number(candidate?.sourceTransactionId)));
+      scenario.transactions = (scenario.transactions || [])
+        .filter((rule) => !affectedSourceIds.has(Number(rule?.id)));
+      if (sourceGroupId) {
+        scenario.splitTransactionSets = (scenario.splitTransactionSets || [])
+          .filter((set) => String(set?.id || '').trim() !== sourceGroupId);
+      }
+
+      return {
+        occurrenceKey,
+        removedOccurrenceKeys,
+        removedTransactionIds: [...affectedSourceIds],
+        removedTransactionGroupIds: sourceGroupId ? [sourceGroupId] : []
       };
     }
   );
@@ -2174,7 +2674,7 @@ export async function markActual(
   {
     actualAmount,
     actualDate,
-    period = null
+    lineItems = null
   } = {}
 ) {
   return runCommand(
@@ -2188,42 +2688,38 @@ export async function markActual(
           'A skipped occurrence must be restored before it can be marked actual.'
         );
       }
-      const baselinePeriod = normalizePeriod(
-        period || findBaselinePeriodContainingDate(scenario, target.scheduledDate),
-        target.scheduledDate
-      );
-      if (!isDateInPeriod(target.scheduledDate, baselinePeriod)) {
-        throw new OccurrenceCommandError(
-          'invalid-period',
-          'The baseline period must contain the occurrence scheduled date.'
-        );
-      }
-      freezePeriodInScenario(scenario, baselinePeriod, timestamp);
-      target = resolveOccurrenceOrThrow(scenario, occurrenceKey).occurrence;
+      const resolvedLineItems = lineItems === null
+        ? clonePlain(target.lineItems || [])
+        : normalizeLineItems(lineItems, actualDate || target.scheduledDate);
 
       const resolvedActualAmount =
-        actualAmount === null || actualAmount === undefined || actualAmount === ''
+        resolvedLineItems.length
+          ? lineItemsTotal(resolvedLineItems)
+          : actualAmount === null || actualAmount === undefined || actualAmount === ''
           ? absoluteAmount(target.plannedAmount, 'plannedAmount')
           : absoluteAmount(actualAmount, 'actualAmount');
       const resolvedActualDate = actualDate
         ? normalizeDate(actualDate, 'actualDate')
         : (target.plannedDate || target.scheduledDate);
-      const baselineAmount =
-        markerContainsDate(scenario, target.scheduledDate) &&
-        target.baselineState !== 'stored'
+      const hasCapturedBaseline =
+        Number(target.baselineSnapshotVersion) === 1 ||
+        target.baselineState === 'stored';
+      const baselineAmount = hasCapturedBaseline
+        ? absoluteAmount(target.baselineAmount, 'baselineAmount')
+        : target.isUnplannedActual
           ? 0
-          : target.baselineAmount === null || target.baselineAmount === undefined
-          ? absoluteAmount(target.plannedAmount, 'plannedAmount')
-          : absoluteAmount(target.baselineAmount, 'baselineAmount');
+          : absoluteAmount(target.plannedAmount, 'plannedAmount');
 
       upsertOccurrence(
         scenario,
         target,
         {
           ...snapshotOccurrenceMetadata(target),
+          ...snapshotBaselineMetadata(target),
           plannedAmount: absoluteAmount(target.plannedAmount, 'plannedAmount'),
           baselineAmount,
           actualAmount: resolvedActualAmount,
+          lineItems: resolvedLineItems,
           actualDate: resolvedActualDate,
           status: 'actual',
           isOverride: true
@@ -2231,7 +2727,7 @@ export async function markActual(
         timestamp,
         { isOverride: true }
       );
-      return { occurrenceKey, baselinePeriod };
+      return { occurrenceKey, baselineCaptured: true };
     }
   );
 }
@@ -2308,22 +2804,18 @@ export async function createManualOccurrence(scenarioId, payload = {}) {
       const movement = validateMovement(scenario, payload);
       const id = allocateNextId(scenario.transactionOccurrences);
       const occurrenceKey = `occurrence:${id}`;
+      const lineItems = normalizeLineItems(payload.lineItems, scheduledDate);
+      const itemizedAmount = lineItems.length ? lineItemsTotal(lineItems) : null;
       let baselineAmount = null;
       let plannedAmount;
       let actualAmount = null;
       let actualDate = null;
 
       if (status === 'actual') {
-        const baselinePeriod = normalizePeriod(
-          payload.baselinePeriod ||
-            findBaselinePeriodContainingDate(scenario, scheduledDate),
-          scheduledDate
-        );
-        freezePeriodInScenario(scenario, baselinePeriod, timestamp);
         plannedAmount = 0;
         baselineAmount = 0;
         actualAmount = absoluteAmount(
-          payload.actualAmount ?? payload.amount ?? payload.plannedAmount,
+          itemizedAmount ?? payload.actualAmount ?? payload.amount ?? payload.plannedAmount,
           'actualAmount'
         );
         actualDate = normalizeDate(
@@ -2332,7 +2824,7 @@ export async function createManualOccurrence(scenarioId, payload = {}) {
         );
       } else {
         plannedAmount = absoluteAmount(
-          payload.plannedAmount ?? payload.amount,
+          itemizedAmount ?? payload.plannedAmount ?? payload.amount,
           'plannedAmount'
         );
         if (markerContainsDate(scenario, scheduledDate)) baselineAmount = 0;
@@ -2365,6 +2857,7 @@ export async function createManualOccurrence(scenarioId, payload = {}) {
         secondaryAccountId: movement.secondaryAccountId,
         transactionTypeId: movement.transactionTypeId,
         description: String(payload.description || '').trim(),
+        lineItems,
         tags: Array.isArray(payload.tags) ? [...payload.tags] : [],
         transactionGroupId: payload.transactionGroupId ?? null,
         transactionGroupRole:
@@ -2394,6 +2887,71 @@ export async function createManualOccurrence(scenarioId, payload = {}) {
   );
 }
 
+export async function createRecurringRule(scenarioId, payload = {}) {
+  return runCommand(
+    scenarioId,
+    'Recurring transaction created',
+    (scenario, timestamp) => {
+      const scheduledDate = normalizeDate(
+        payload.scheduledDate || payload.plannedDate || payload.date,
+        'scheduledDate'
+      );
+      if (!payload.recurrence || recurrenceTypeId(payload.recurrence) === 1) {
+        throw new OccurrenceCommandError(
+          'recurring-rule-required',
+          'Choose a recurring pattern before creating a recurring transaction.'
+        );
+      }
+      const recurrence = anchorRecurrenceToDate(payload.recurrence, scheduledDate);
+      if (
+        recurrence.endDate &&
+        normalizeDate(recurrence.endDate, 'recurrence.endDate') < scheduledDate
+      ) {
+        throw new OccurrenceCommandError(
+          'invalid-recurrence',
+          'The recurrence end date must be on or after the transaction date.'
+        );
+      }
+
+      const movement = validateMovement(scenario, payload);
+      const lineItems = normalizeLineItems(payload.lineItems, scheduledDate);
+      const amount = lineItems.length
+        ? lineItemsTotal(lineItems)
+        : absoluteAmount(payload.plannedAmount ?? payload.amount, 'plannedAmount');
+      const id = allocateNextId(scenario.transactions);
+      const rule = {
+        id,
+        seriesRootId: id,
+        supersedesTransactionId: null,
+        primaryAccountId: movement.primaryAccountId,
+        secondaryAccountId: movement.secondaryAccountId,
+        transactionTypeId: movement.transactionTypeId,
+        amount,
+        effectiveDate: scheduledDate,
+        activeFrom: scheduledDate,
+        activeTo: recurrence.endDate || null,
+        description: String(payload.description || '').trim(),
+        recurrence,
+        periodicChange: clonePlain(payload.periodicChange || null),
+        status: { name: 'planned', actualAmount: null, actualDate: null },
+        tags: Array.isArray(payload.tags) ? [...payload.tags] : [],
+        ...(lineItems.length ? { lineItems } : {}),
+        transactionGroupId: null,
+        transactionGroupRole: null,
+        transactionGroupAccountGroupId: null,
+        promotedFromOccurrenceKey: null,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      };
+      scenario.transactions.push(rule);
+      return {
+        transactionId: id,
+        occurrenceKey: createLinkedOccurrenceKey(id, scheduledDate, null)
+      };
+    }
+  );
+}
+
 export async function promoteOccurrenceToRecurring(
   scenarioId,
   occurrenceKey,
@@ -2408,11 +2966,13 @@ export async function promoteOccurrenceToRecurring(
     'Manual occurrence promoted to a recurring rule',
     (scenario, timestamp) => {
       const { occurrence } = resolveOccurrenceOrThrow(scenario, occurrenceKey);
-      if (occurrence.sourceTransactionId !== null &&
-          occurrence.sourceTransactionId !== undefined) {
+      const sourceTransaction = (scenario.transactions || []).find(
+        (transaction) => Number(transaction?.id) === Number(occurrence.sourceTransactionId)
+      ) || null;
+      if (sourceTransaction && isRecurringRule(sourceTransaction)) {
         throw new OccurrenceCommandError(
           'manual-occurrence-required',
-          'Only a manual occurrence can be promoted to a recurring rule.'
+          'An occurrence that already belongs to a recurring rule cannot be promoted again.'
         );
       }
       const existingPromotedRule = (scenario.transactions || []).find(
@@ -2537,6 +3097,145 @@ export async function freezePeriodBaseline(scenarioId, rawPeriod) {
         baselinePeriod: result.period,
         affectedOccurrenceKeys: result.affectedOccurrenceKeys
       };
+    }
+  );
+}
+
+function hasStoredBaselineSnapshot(occurrence) {
+  return (
+    Number(occurrence?.baselineSnapshotVersion) === 1 ||
+    (
+      occurrence?.baselineAmount !== null &&
+      occurrence?.baselineAmount !== undefined
+    )
+  );
+}
+
+function clearBaselineSnapshotsWhere(
+  scenario,
+  predicate,
+  timestamp
+) {
+  const affectedOccurrenceKeys = [];
+
+  scenario.transactionOccurrences = (
+    scenario.transactionOccurrences || []
+  ).flatMap((occurrence) => {
+    if (!hasStoredBaselineSnapshot(occurrence) || !predicate(occurrence)) {
+      return [occurrence];
+    }
+
+    affectedOccurrenceKeys.push(occurrence.occurrenceKey);
+    const status = statusName(occurrence);
+    const snapshotOnly = (
+      status === 'planned' &&
+      occurrence?.sourceTransactionId !== null &&
+      occurrence?.sourceTransactionId !== undefined &&
+      occurrence?.isOverride === false &&
+      Number(occurrence?.actualSnapshotVersion || 0) !== 1
+    );
+    if (snapshotOnly) return [];
+    return [{
+      ...occurrence,
+      baselineAmount: null,
+      baselinePrimaryAccountId: null,
+      baselineSecondaryAccountId: null,
+      baselineTransactionTypeId: null,
+      baselineSnapshotVersion: null,
+      updatedAt: timestamp
+    }];
+  });
+
+  return affectedOccurrenceKeys;
+}
+
+function clearBaselineSnapshotsForPeriods(
+  scenario,
+  rawPeriods,
+  timestamp
+) {
+  const periods = (Array.isArray(rawPeriods) ? rawPeriods : [])
+    .map((period) => normalizePeriod(period));
+  return clearBaselineSnapshotsWhere(scenario, (occurrence) => {
+    const belongsToRemovedPeriod = periods.some(
+      (period) => isDateInPeriod(occurrence?.scheduledDate, period)
+    );
+    if (!belongsToRemovedPeriod) return false;
+
+    // Overlapping markers can exist when, for example, a Year was frozen and
+    // a Month inside it was frozen separately. Do not clear the snapshot until
+    // every marker covering the occurrence has been removed.
+    if (findBaselinePeriodContainingDate(scenario, occurrence?.scheduledDate)) {
+      return false;
+    }
+    return true;
+  }, timestamp);
+}
+
+export async function unfreezePeriodBaseline(scenarioId, rawPeriod) {
+  return runCommand(
+    scenarioId,
+    'Period baseline unfrozen',
+    (scenario, timestamp) => {
+      const period = normalizePeriod(rawPeriod);
+      const identity = periodIdentity(period);
+      const markerIndex = scenario.baselinePeriods.findIndex(
+        (candidate) => periodIdentity(normalizePeriod(candidate)) === identity
+      );
+      if (markerIndex < 0) {
+        return { baselinePeriod: null, affectedOccurrenceKeys: [] };
+      }
+      scenario.baselinePeriods.splice(markerIndex, 1);
+      const affectedOccurrenceKeys = clearBaselineSnapshotsForPeriods(
+        scenario,
+        [period],
+        timestamp
+      );
+
+      return { baselinePeriod: period, affectedOccurrenceKeys };
+    }
+  );
+}
+
+export async function unfreezeAllPeriodBaselines(scenarioId) {
+  return runCommand(
+    scenarioId,
+    'All period baselines unfrozen',
+    (scenario, timestamp) => {
+      const periods = (scenario.baselinePeriods || []).map(
+        (period) => normalizePeriod(period)
+      );
+      scenario.baselinePeriods = [];
+      const affectedOccurrenceKeys = clearBaselineSnapshotsWhere(
+        scenario,
+        () => true,
+        timestamp
+      );
+      return { baselinePeriods: periods, affectedOccurrenceKeys };
+    }
+  );
+}
+
+export async function clearOrphanedBaselineSnapshots(
+  scenarioId,
+  occurrenceKeys = null
+) {
+  const requestedKeys = Array.isArray(occurrenceKeys)
+    ? new Set(occurrenceKeys.map((key) => String(key || '')))
+    : null;
+  return runCommand(
+    scenarioId,
+    'Unlinked baseline snapshots cleared',
+    (scenario, timestamp) => {
+      const affectedOccurrenceKeys = clearBaselineSnapshotsWhere(
+        scenario,
+        (occurrence) => (
+          (!requestedKeys || requestedKeys.has(String(occurrence?.occurrenceKey || ''))) &&
+          !findBaselinePeriodContainingDate(scenario, occurrence?.scheduledDate)
+        ),
+        timestamp
+      );
+      return { affectedOccurrenceKeys };
     }
   );
 }

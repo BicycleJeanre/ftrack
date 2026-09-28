@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-31T09:46:06.092Z",
+  "generatedAt": "2026-09-28T07:43:50.421Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -140,6 +140,13 @@
       "title": "Feedback Revision Plan: Account Group UX + Split Workflow v2",
       "category": "Technical",
       "file": "Documentation/TECH_IMPLEMENTATION_PLAN_FEEDBACK_ACCOUNT_GROUPS_SPLIT_WORKFLOW.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_FIREBASE_CLOUD_SYNC",
+      "title": "Firebase Cloud Save and Sign-In",
+      "category": "Technical",
+      "file": "Documentation/TECH_FIREBASE_CLOUD_SYNC.md",
       "kind": "md"
     },
     {

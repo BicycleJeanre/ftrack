@@ -238,8 +238,9 @@ create linked segments using:
 - `activeFrom` / `activeTo`; and
 - `promotedFromOccurrenceKey` where applicable.
 
-Past actual, skipped, or baseline history protects the source rule from
-destructive removal.
+Actual, skipped, or baseline history is never destructively removed. When a
+series ends before protected future evidence, those stored occurrences are
+detached from the source rule and retained as independent one-time history.
 
 ### 3.2 Stored Occurrences
 
@@ -313,8 +314,17 @@ does not emit a misleading refresh.
 6. marks projections stale; and
 7. commits all changes atomically.
 
-`markActual()` invokes the same freeze operation first when the occurrence's
-period is not already frozen.
+`markActual()` captures the selected occurrence's baseline and movement
+metadata without creating a period marker. Period closure remains an explicit
+`freezePeriodBaseline()` command and is independent of display granularity.
+
+`OccurrenceManager.unfreezePeriodBaseline()` removes one exact marker and
+clears snapshots only when no overlapping marker still covers the occurrence.
+`OccurrenceManager.unfreezeAllPeriodBaselines()` removes every marker in one
+atomic command and also clears stored snapshots that have no marker, while
+preserving actual and skipped occurrence history.
+`OccurrenceManager.clearOrphanedBaselineSnapshots()` clears a selected set of
+those unlinked snapshots without changing any still-marked period.
 
 ### 4.3 Projection Freshness
 

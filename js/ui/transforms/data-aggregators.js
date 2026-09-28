@@ -27,6 +27,14 @@ function clampMoney(value) {
     return Object.is(rounded, -0) ? 0 : rounded;
 }
 
+function normalizedStatus(row, fallback = 'planned') {
+    const raw = typeof row?.status === 'object'
+        ? row?.status?.name
+        : (row?.statusName || row?.status);
+    const status = String(raw || fallback).trim().toLowerCase();
+    return status || fallback;
+}
+
 function resolveCapitalInterestAmounts(row, opts = {}) {
     const amountField = opts.amountField || 'amount';
     const capitalField = opts.capitalField || 'capitalAmount';
@@ -216,8 +224,7 @@ export function calculateBudgetTotals(rows, opts = {}) {
         const planned = Number(row?.[plannedField] || 0);
         const actual = Number(row?.[actualField] || 0);
         const id = getRowTypeId(row, opts);
-        const rawStatus = typeof row?.status === 'object' ? row.status?.name : (row?.statusName || row?.status);
-        const status = String(rawStatus || 'planned').trim().toLowerCase();
+        const status = normalizedStatus(row);
         const isActual = status === 'actual';
         const isSkipped = status === 'skipped';
         
@@ -310,7 +317,7 @@ export function calculateResolvedOccurrenceTotals(occurrences = []) {
         const baselineAmount = Math.abs(Number(occurrence?.baselineAmount || 0));
         const plannedAmount = Math.abs(Number(occurrence?.plannedAmount || 0));
         const actualAmount = Math.abs(Number(occurrence?.actualAmount || 0));
-        const status = String(occurrence?.status || 'planned').trim().toLowerCase();
+        const status = normalizedStatus(occurrence);
 
         if (hasBaselineDirection && baselineTypeId === MONEY_IN_ID) {
             totals.baselineIncome += baselineAmount;

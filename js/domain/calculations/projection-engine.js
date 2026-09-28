@@ -36,6 +36,17 @@ function getId(value) {
   return typeof value === 'object' ? value?.id : value;
 }
 
+function getPostingDayOfMonth(periodicChange) {
+  if (getId(periodicChange?.changeMode) !== 1) return null;
+  const day = Number(periodicChange?.postingDayOfMonth);
+  return Number.isInteger(day) && day >= 1 && day <= 31 ? day : null;
+}
+
+function isMonthlyPostingDate(date, requestedDay) {
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  return date.getDate() === Math.min(requestedDay, lastDay);
+}
+
 function normalizePeriodicChangeScheduleEntries(scheduleEntries = []) {
   if (!Array.isArray(scheduleEntries)) return [];
 
@@ -391,19 +402,98 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
       occurrenceCursor += 1;
     }
 
+    const periodTransactionOccurrences = [];
     let periodOccurrenceIndex = occurrenceCursor;
     while (
       periodOccurrenceIndex < transactionOccurrences.length &&
       transactionOccurrences[periodOccurrenceIndex].dateKey <= periodEndKey
     ) {
-      applyOccurrenceToStates({
-        occurrence: transactionOccurrences[periodOccurrenceIndex],
-        accountStateById,
-        periodStatsByAccountId
-      });
+      periodTransactionOccurrences.push(transactionOccurrences[periodOccurrenceIndex]);
       periodOccurrenceIndex += 1;
     }
     occurrenceCursor = periodOccurrenceIndex;
+
+    // Percentage changes with an explicit posting day are applied as dated
+    // events. This keeps interest in chronological order with cash movements
+    // and clamps day 29-31 to the end of shorter months.
+    const exactPostingEvents = [];
+    (accounts || []).forEach((account) => {
+      const accountId = Number(account?.id || 0);
+      const accountState = accountStateById.get(accountId);
+      if (!accountId || !accountState) return;
+
+      for (let date = toDateOnly(periodStart); date <= periodEnd; date = addDays(date, 1)) {
+        const periodicChange = getScheduledPeriodicChangeForDate({
+          account,
+          normalizedScheduleEntries: accountState.normalizedScheduleEntries || [],
+          date
+        });
+        const postingDay = getPostingDayOfMonth(periodicChange);
+        if (!postingDay || !isMonthlyPostingDate(date, postingDay)) continue;
+        const expandedPeriodicChange = expandPeriodicChangeForCalculation(periodicChange, lookupData);
+        if (!expandedPeriodicChange) continue;
+        exactPostingEvents.push({
+          kind: 'periodic-posting',
+          date: toDateOnly(date),
+          dateKey: toDateKey(date),
+          account,
+          expandedPeriodicChange
+        });
+      }
+    });
+
+    const datedEvents = [
+      ...periodTransactionOccurrences.map((occurrence) => ({
+        kind: 'transaction',
+        dateKey: occurrence.dateKey,
+        occurrence
+      })),
+      ...exactPostingEvents
+    ].sort((a, b) => {
+      const dateDifference = a.dateKey - b.dateKey;
+      if (dateDifference) return dateDifference;
+      // Cash movements on the posting date affect that day's closing balance,
+      // so interest posts after the dated transactions.
+      return a.kind === b.kind ? 0 : (a.kind === 'transaction' ? -1 : 1);
+    });
+
+    datedEvents.forEach((event) => {
+      if (event.kind === 'transaction') {
+        applyOccurrenceToStates({
+          occurrence: event.occurrence,
+          accountStateById,
+          periodStatsByAccountId
+        });
+        return;
+      }
+
+      const accountId = Number(event.account?.id || 0);
+      const accountState = accountStateById.get(accountId);
+      if (!accountState) return;
+      const beforeBalance = Number(accountState.balance || 0);
+      const changeTypeId = getId(event.expandedPeriodicChange.changeType);
+      let delta = 0;
+      if (changeTypeId === 1) {
+        const rate = Number(event.expandedPeriodicChange.value || 0) / 100;
+        delta = accountState.simpleInterestState.principalBase * rate / 12;
+        accountState.simpleInterestState.elapsedYears += 1 / 12;
+      } else {
+        const afterBalance = calculatePeriodicChange(beforeBalance, event.expandedPeriodicChange, 1 / 12);
+        delta = afterBalance - beforeBalance;
+      }
+      if (!delta) return;
+
+      applyOccurrenceToStates({
+        occurrence: createDerivedPeriodicChangeOccurrence({
+          account: event.account,
+          delta,
+          date: event.date,
+          accountIdsSet
+        }),
+        accountStateById,
+        periodStatsByAccountId
+      });
+    });
 
     // Convert account periodic change deltas into derived posting occurrences.
     (accounts || []).forEach((account) => {
@@ -445,6 +535,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
             date: segmentStart
           });
           if (!pcForSegment) return;
+          if (getPostingDayOfMonth(pcForSegment)) return;
 
           const expandedPC = expandPeriodicChangeForCalculation(pcForSegment, lookupData);
           if (!expandedPC) return;
@@ -482,6 +573,7 @@ export async function generateProjectionsForScenario(scenario, options = {}, loo
           });
         });
       } else if (account.periodicChange) {
+        if (getPostingDayOfMonth(account.periodicChange)) return;
         const expandedPC = expandPeriodicChangeForCalculation(account.periodicChange, lookupData);
         if (!expandedPC) return;
 

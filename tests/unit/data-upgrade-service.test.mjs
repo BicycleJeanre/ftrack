@@ -208,6 +208,24 @@ test('data checker routes legacy Budget preferences to General without changing 
   )));
 });
 
+test('data checker reconciles itemized transaction totals from their line items', () => {
+  const source = analyzeAppDataUpgrade(legacyApp(), { now: MIGRATED_AT }).data;
+  const occurrence = source.scenarios[0].transactionOccurrences[0];
+  occurrence.plannedAmount = 999;
+  occurrence.lineItems = [
+    { id: 'shop-1', date: '2026-01-10', description: 'First purchase', amount: 20 },
+    { id: 'shop-2', date: '2026-01-15', description: 'Second purchase', amount: 35 }
+  ];
+
+  const result = analyzeAppDataUpgrade(source, { sourceKind: 'browser' });
+
+  assert.equal(result.isValid, true);
+  assert.equal(result.data.scenarios[0].transactionOccurrences[0].plannedAmount, 55);
+  assert.ok(result.changes.some((entry) => (
+    entry.path.endsWith('.plannedAmount') && entry.after === 55
+  )));
+});
+
 test('malformed JSON and future schemas return downloadable failure reports', () => {
   const malformed = analyzeAppDataUpgrade('{not json', {
     sourceLabel: 'broken.json'

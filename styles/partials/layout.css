@@ -504,9 +504,9 @@ body.dashboard-shell {
 /* ==================================== Forecast Dash Layout (Row Stack) ====================================*/
 
 #generatePlanSection {
-  flex: 4;
-  min-height: 320px;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
 }
 
 #generatePlanSection.collapsed {
@@ -519,7 +519,7 @@ body.dashboard-shell {
   flex: none;
   height: auto;
   overflow: visible;
-  padding-bottom: 24px;
+  padding-bottom: 0;
 }
 
 .dash-layout {
@@ -717,6 +717,18 @@ body.dashboard-shell {
     border-right: none;
   }
 
+  .solver-panels #adv-constraints-panel {
+    flex: 0.85;
+  }
+
+  .solver-panels #adv-goals-panel {
+    flex: 1.05;
+  }
+
+  .solver-panels #adv-solution-panel {
+    flex: 1.35;
+  }
+
   .solver-panels .dash-panel-chevron {
     display: none;
   }
@@ -724,6 +736,10 @@ body.dashboard-shell {
 
 /* Narrow screens: Stack vertically with accordion */
 @media (max-width: 1023px) {
+  .goal-workshop-strategy-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .solver-panels {
     display: flex;
     flex-direction: column;
@@ -768,6 +784,12 @@ body.dashboard-shell {
   .solver-panels .dash-panel-body {
     overflow-y: auto;
     min-height: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .goal-workshop-strategy-options {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1275,7 +1297,13 @@ body.dashboard-shell {
 
 .card-inline-filters .filter-account .input-select,
 .budget-inline-filters .budget-filter-account .input-select {
-  max-width: 170px;
+  max-width: 220px;
+}
+
+.card-inline-filters .filter-account .selection-dialog-control,
+.budget-inline-filters .budget-filter-account .selection-dialog-control {
+  width: 220px;
+  max-width: 220px;
 }
 
 .card-inline-filters .filter-group .input-select,
@@ -2781,6 +2809,78 @@ button.filter-modal-open {
   border-bottom: 1px solid var(--border-primary);
 }
 
+.plan-actuals-total-groups {
+  display: grid;
+  grid-template-columns: minmax(145px, 0.55fr) minmax(480px, 2fr) minmax(365px, 1.45fr);
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.plan-actuals-total-groups .totals-group {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.plan-actuals-total-groups .totals-group-baseline {
+  border-left: 3px solid var(--accent-primary);
+  background: var(--accent-subtle);
+}
+
+.plan-actuals-total-groups .totals-group-title {
+  margin-bottom: 5px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.plan-actuals-total-groups .budget-totals-rows {
+  gap: 4px 10px;
+}
+
+.plan-actuals-total-groups .totals-group-baseline .budget-totals-rows {
+  grid-template-columns: 1fr;
+}
+
+.plan-actuals-total-groups .totals-group-current-outlook .budget-totals-rows {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.plan-actuals-total-groups .totals-group-performance .budget-totals-rows {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1200px) {
+  .plan-actuals-total-groups {
+    grid-template-columns: minmax(145px, 0.55fr) minmax(0, 2fr);
+  }
+
+  .plan-actuals-total-groups .totals-group-performance {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .plan-actuals-total-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-actuals-total-groups .totals-group-performance {
+    grid-column: auto;
+  }
+
+  .plan-actuals-total-groups .totals-group-current-outlook .budget-totals-rows,
+  .plan-actuals-total-groups .totals-group-performance .budget-totals-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .plan-actuals-diagnostics {
   flex: 0 0 auto;
   padding: 6px var(--spacing-sm);
@@ -2816,6 +2916,27 @@ button.filter-modal-open {
   font-weight: 600;
   line-height: 1.3;
   white-space: normal;
+}
+
+.plan-actuals-detail-account-shortcut,
+.plan-actuals-account-shortcut {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan-actuals-detail-account-shortcut:hover,
+.plan-actuals-detail-account-shortcut:focus-visible,
+.plan-actuals-account-shortcut:hover,
+.plan-actuals-account-shortcut:focus-visible {
+  color: var(--accent-color);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .plan-actuals-detail-baseline-movement {
@@ -2866,6 +2987,20 @@ button.filter-modal-open {
   padding: 7px 9px;
 }
 
+.plan-actuals-grid .plan-actuals-item.is-openable {
+  cursor: pointer;
+}
+
+.plan-actuals-grid .plan-actuals-item.is-openable:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+}
+
+.plan-actuals-grid .plan-actuals-item.is-openable:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
 .plan-actuals-grid .plan-actuals-item.money-in,
 .budget-grid .recurring-rule-card.money-in {
   border-left-color: var(--color-positive);
@@ -2877,7 +3012,19 @@ button.filter-modal-open {
 }
 
 .plan-actuals-grid .plan-actuals-item.status-skipped {
-  opacity: 0.72;
+  border-color: var(--border-secondary);
+  background: color-mix(in srgb, var(--bg-secondary) 86%, #808080 14%);
+  box-shadow: none;
+}
+
+.plan-actuals-grid .plan-actuals-item.status-skipped > .grid-summary-content {
+  opacity: 0.48;
+  filter: grayscale(1) saturate(0);
+}
+
+.plan-actuals-grid .plan-actuals-item.status-skipped.is-openable:hover > .grid-summary-content,
+.plan-actuals-grid .plan-actuals-item.status-skipped.is-openable:focus-visible > .grid-summary-content {
+  opacity: 0.56;
 }
 
 .budget-grid .recurring-rule-card {
@@ -2912,7 +3059,8 @@ button.filter-modal-open {
 }
 
 .plan-actuals-status,
-.plan-actuals-repeat {
+.plan-actuals-repeat,
+.plan-actuals-history-badge {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border-secondary);
@@ -2924,6 +3072,39 @@ button.filter-modal-open {
   line-height: 1.25;
   text-transform: capitalize;
   white-space: nowrap;
+}
+
+.plan-actuals-history-badge {
+  flex: 0 0 auto;
+  text-transform: none;
+}
+
+.plan-actuals-history-badge.is-closed {
+  border-color: rgba(0, 212, 255, 0.35);
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--accent-primary);
+}
+
+.plan-actuals-history-badge.is-closed::before {
+  content: '\1f512';
+  margin-right: 3px;
+}
+
+.plan-actuals-history-badge.is-captured {
+  border-color: rgba(250, 204, 21, 0.38);
+  background: rgba(250, 204, 21, 0.1);
+  color: #facc15;
+}
+
+.plan-actuals-history-badge.is-captured::before {
+  content: '\25cf';
+  margin-right: 3px;
+}
+
+.plan-actuals-history-badge.is-live {
+  border-color: var(--border-secondary);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
 }
 
 .plan-actuals-status.status-actual {
@@ -2975,6 +3156,77 @@ button.filter-modal-open {
   font-size: 11px;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+.plan-actuals-line-item-summary {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.plan-actuals-line-items {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.plan-actuals-line-items-header,
+.plan-actuals-line-items-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.plan-actuals-line-items-header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.plan-actuals-line-items-header strong {
+  font-size: 11px;
+}
+
+.plan-actuals-line-items-header .text-secondary,
+.plan-actuals-line-items-footer {
+  font-size: 10px;
+}
+
+.plan-actuals-add-line-item {
+  min-height: 28px;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.plan-actuals-line-items-body {
+  display: grid;
+  gap: 7px;
+}
+
+.plan-actuals-line-item {
+  display: grid;
+  grid-template-columns: minmax(125px, 0.75fr) minmax(180px, 1.6fr) minmax(90px, 0.6fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.plan-actuals-remove-line-item {
+  color: var(--color-negative);
+}
+
+@media (max-width: 700px) {
+  .plan-actuals-line-item {
+    grid-template-columns: minmax(120px, 0.8fr) minmax(90px, 0.6fr) auto;
+  }
+
+  .plan-actuals-line-item-description {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 .plan-actuals-comparison {

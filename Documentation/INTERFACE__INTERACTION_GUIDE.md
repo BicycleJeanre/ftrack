@@ -69,22 +69,32 @@ On narrower screens, scroll the toolbar horizontally to reach every control.
 The app remembers the last Plan & Actuals workspace separately for each
 scenario. Returning to the app restores Period versus Recurring, the time view,
 selected period, account, grouping, and the Recurring filter selections.
+It also remembers the type or group filter chosen inside each Account dialog.
 
 ## 6.0 Period Controls
 
-![General Plan & Actuals Period controls and comparison cards](assets/user-guides/budget-period.jpg "The Period toolbar controls time, account perspective, grouping, creation, and baseline freezing.")
+![General Plan & Actuals Period controls and comparison cards](assets/user-guides/budget-period.jpg "The Period toolbar controls time, account perspective, grouping, creation, and access to frozen-period management.")
 
 The consolidated top toolbar keeps the frequent actions together:
 
 - **View** changes the time grain: Day, Week, Month, Quarter, or Year.
 - **Previous**, **Period**, and **Next** navigate the selected time grain.
-- **Account** limits results to one account perspective.
+- **Account** opens a searchable selection dialog with separate **Account
+  Type** and **Account Group** filters. Choosing either filter refreshes the
+  account results immediately without closing the dialog. These filters narrow
+  the account list; they are separate from **Group**, which only organizes the
+  transaction display. Choose an account to apply the perspective. If the
+  scenario has no configured account groups, the Account Group filter says so.
 - **Group** organizes items by Status, Movement, or Repeat.
 - **Add item** creates a one-time planned or actual movement.
-- **Freeze baseline** preserves the predicted budget for comparison.
+- **History** opens the period-history manager. It defaults to Month and
+  lists every closed Day, Week, Month, Quarter, or Year together with
+  individually captured transaction baselines. Close or reopen one exact
+  period, clear individual baselines, or use **Clear all baseline history**.
 
-Changing the time grain can change which Period choices are available. Account
-and Group change presentation only; they do not change the stored plan.
+Changing the time grain can change which Period choices are available, but it
+does not implicitly change the period selected inside the History manager.
+Account and Group change presentation only; they do not change the stored plan.
 When grouping is active, each grouping bar shows its signed forecast total next
 to the header. Actual items contribute their actual amount, open items contribute
 their current plan, and skipped items contribute zero.
@@ -99,6 +109,10 @@ Each summary card contains:
 - The description on a separate line under the movement.
 - Baseline, Current, Actual, and Variance amounts.
 - Row actions at the right.
+
+Select a Period item to open its inline details. Click anywhere outside that
+item to close the details and discard unsaved edits. Account, recurrence, and
+confirmation dialogs opened from the item do not close the underlying editor.
 
 For **Money In**, the movement reads source → receiving account. In the guide
 example, Salary Income → Checking means money enters Checking.
@@ -133,10 +147,15 @@ The available actions depend on the item's status and origin:
 
 - **Actual checkbox** records a planned item as completed using its planned
   amount and date. It remains checked once the item is actual.
-- **Remove this occurrence** excludes a planned occurrence that will not happen.
+- **Skip this occurrence** excludes a planned occurrence that will not happen.
+- **Restore to planned** reverses a skip directly from the card.
+- **Delete transaction permanently** removes a non-actual one-time transaction
+  after confirmation.
+- **Delete this and future occurrences** ends a recurring sequence from the
+  selected planned or skipped occurrence.
 - **Edit item** opens the occurrence editor.
 - **Duplicate item** creates a separate one-time planned copy.
-- **Restore to planned** becomes available when editing a skipped item.
+- **Restore to planned** also remains available in the skipped item's editor.
 - **Repeat going forward** can promote a manual item into a future recurring
   rule.
 
@@ -165,9 +184,13 @@ a rule that was consistently defined incorrectly.
 
 The Recurring toolbar includes:
 
-- **Account** to limit the rule list.
+- **Account** to limit the rule list. Its dialog keeps type/group filtering,
+  search, and final account selection together without adding another toolbar
+  control or closing after the first choice.
 - **Group** to organize the visible rules.
 - **Split**, **Role**, and **Account Group** to narrow linked split rules.
+- **Account Group** fields use the same searchable dialog pattern when groups
+  are selected or assigned elsewhere in the app.
 - **Add rule** to create a one-time or recurring rule.
 - **Split** to build or manage linked split components.
 - **Refresh** to reload the current rules.
@@ -180,6 +203,8 @@ next date, and tags. The repeat label shows the frequency and its optional end
 date; it does not repeat the stored start date. Its actions allow duplication
 or ending the series. Select a rule to edit its definition and choose the
 required scope.
+Click anywhere outside an expanded rule card to close its details. This does
+not save changes; use **Save** before clicking away when editing a rule.
 When rules are grouped, each grouping bar shows the signed total of the visible
 rules next to its header.
 

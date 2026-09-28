@@ -5,6 +5,10 @@ import { createModal } from './modal-factory.js';
 import { notifyError, confirmDialog } from '../../../shared/notifications.js';
 import * as DataService from '../../../app/services/data-service.js';
 import { buildAccountGroupIndex, resolveDescendantGroupIds, validateAccountGroups } from '../../../domain/utils/account-group-utils.js';
+import {
+  enhanceAccountGroupSelect,
+  syncSelectionDialog
+} from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
 function toPositiveId(value) {
   const id = Number(value);
@@ -139,6 +143,10 @@ export async function openAccountGroupModal({
   const membersEl = modal.querySelector('#account-group-members');
   const cancelBtn = modal.querySelector('#account-group-cancel');
   const saveBtn = modal.querySelector('#account-group-save');
+  enhanceAccountGroupSelect(parentSelect, {
+    title: 'Choose parent account group',
+    subtitle: 'Search the available account-group hierarchy.'
+  });
 
   const loadGroups = async () => {
     accountGroups = await DataService.getAccountGroups(scenarioId);
@@ -251,6 +259,7 @@ export async function openAccountGroupModal({
     nameInput.value = selectedGroup?.name || 'New Group';
     sortOrderInput.value = String(nextSortOrder);
     parentSelect.value = selectedGroup?.parentGroupId ? String(selectedGroup.parentGroupId) : '';
+    syncSelectionDialog(parentSelect);
     const memberInputs = renderMembers(selectedAccountIds);
 
     if (memberInputs.length > 0 && defaultAccountId && isNew) {

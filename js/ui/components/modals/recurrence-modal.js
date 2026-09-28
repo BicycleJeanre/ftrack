@@ -36,7 +36,8 @@ export function openRecurrenceModal(currentValue, onSave) {
     const startDate = currentValue?.startDate || formatDateOnly(new Date());
     const endDate = currentValue?.endDate || '';
     const interval = currentValue?.interval || 1;
-    const dayOfMonth = currentValue?.dayOfMonth || 1;
+    const startDayOfMonth = Number(String(startDate).slice(8, 10)) || 1;
+    const dayOfMonth = currentValue?.dayOfMonth || startDayOfMonth;
 
     modal.innerHTML = `
         <h2 class="modal-periodic-title">

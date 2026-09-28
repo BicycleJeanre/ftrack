@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validDigest(value) {
+      return value is string && value.matches('^[0-9a-f]{64}$');
+    }
+
+    function validSnapshotMetadata(data) {
+      return data.format == 'ftrack-snapshot-v1'
+        && data.schemaVersion == 44
+        && data.chunkCount is int
+        && data.chunkCount > 0
+        && data.chunkCount <= 1000
+        && data.byteLength is int
+        && data.byteLength >= 0
+        && data.byteLength <= 524288000
+        && validDigest(data.sha256)
+        && data.writerId is string
+        && data.writerId.size() >= 8
+        && data.writerId.size() <= 100;
+    }
+
+    match /users/{uid}/ftrackWorkspaces/{workspaceId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'format', 'activeRevision', 'schemaVersion', 'chunkCount',
+          'byteLength', 'sha256', 'updatedAt', 'writerId'
+        ])
+        && validSnapshotMetadata(request.resource.data)
+        && request.resource.data.activeRevision is string
+        && request.resource.data.activeRevision.size() >= 8
+        && request.resource.data.activeRevision.size() <= 100
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+
+      match /revisions/{revisionId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly([
+            'format', 'schemaVersion', 'chunkCount', 'byteLength', 'sha256',
+            'createdAt', 'writerId'
+          ])
+          && validSnapshotMetadata(request.resource.data)
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+
+        match /chunks/{chunkId} {
+          allow read: if isOwner(uid);
+          allow create: if isOwner(uid)
+            && request.resource.data.keys().hasOnly(['index', 'data'])
+            && request.resource.data.index is int
+            && request.resource.data.index >= 0
+            && request.resource.data.index < 1000
+            && request.resource.data.data is string
+            && request.resource.data.data.size() <= 800000;
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

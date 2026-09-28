@@ -12,9 +12,13 @@ import { formatCurrency, formatMoneyDisplay, numValueClass } from '../../../shar
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows } from '../../transforms/transaction-row-transformer.js';
 import { getGroupAccountIds } from '../../../domain/utils/account-group-utils.js';
+import {
+  populateAccountSelect,
+  syncSelectionDialog
+} from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
 import { getScenario, getScenarioPeriods } from '../../../app/services/data-service.js';
-import { generateProjections } from '../../../domain/calculations/projection-engine.js';
+import { generateProjections } from '../../../domain/calculations/projection-engine.js?v=20260901-strategy-matrix-35';
 
 
 const projectionsGridState = new GridStateManager('projections');
@@ -556,26 +560,36 @@ async function buildProjectionsHeaderControls({
   const accountSelect = document.createElement('select');
   accountSelect.id = 'projections-account-filter-select';
   accountSelect.className = 'input-select';
-  const accountAllOption = document.createElement('option');
-  accountAllOption.value = '0';
-  accountAllOption.textContent = 'All Accounts';
-  accountSelect.appendChild(accountAllOption);
-  (currentScenario.accounts || []).forEach((account) => {
-    const option = document.createElement('option');
-    option.value = String(account.id);
-    option.textContent = account.name || 'Unnamed';
-    accountSelect.appendChild(option);
-  });
-  (currentScenario.accountGroups || []).forEach((group) => {
-    const groupId = Number(group?.id || 0);
-    if (!groupId) return;
-    const option = document.createElement('option');
-    option.value = `group:${groupId}`;
-    option.textContent = `Group: ${group?.name || `#${groupId}`}`;
-    accountSelect.appendChild(option);
-  });
   const activeAccount = state?.getProjectionAccountFilterId?.();
-  accountSelect.value = activeAccount != null ? String(activeAccount) : '0';
+  let projectionAccountScope = '';
+  let inlineAccountSelect = null;
+  const accountGroupViewOptions = (currentScenario.accountGroups || [])
+    .map((group) => ({
+      value: `group:${Number(group?.id || 0)}`,
+      label: `View entire group: ${group?.name || `#${Number(group?.id || 0)}`}`
+    }))
+    .filter((option) => option.value !== 'group:0');
+  const populateProjectionAccountPicker = (select, selectedValue) => {
+    populateAccountSelect(select, {
+      accounts: currentScenario.accounts || [],
+      accountGroups: currentScenario.accountGroups || [],
+      scope: projectionAccountScope,
+      selectedValue,
+      includeAll: false,
+      emptyLabel: 'All Accounts',
+      emptyValue: '0',
+      extraOptions: accountGroupViewOptions,
+      onScopeChange: (nextScope, { selectedValue: nextValue }) => {
+        projectionAccountScope = nextScope;
+        const peer = select === accountSelect ? inlineAccountSelect : accountSelect;
+        if (peer) populateProjectionAccountPicker(peer, nextValue);
+      }
+    });
+  };
+  populateProjectionAccountPicker(
+    accountSelect,
+    activeAccount != null ? String(activeAccount) : '0'
+  );
   accountSelect.addEventListener('change', async () => {
     const selectedValue = accountSelect.value || '0';
     let nextScope = null;
@@ -730,9 +744,10 @@ async function buildProjectionsHeaderControls({
   filterButton.textContent = '⚙';
   filterButton.setAttribute('aria-label', 'Filters');
 
-  const inlineAccountSelect = accountSelect.cloneNode(true);
+  inlineAccountSelect = document.createElement('select');
+  inlineAccountSelect.className = accountSelect.className;
   inlineAccountSelect.id = 'projections-account-filter-select-inline';
-  inlineAccountSelect.value = accountSelect.value;
+  populateProjectionAccountPicker(inlineAccountSelect, accountSelect.value);
 
   const inlineViewSelect = viewSelect.cloneNode(true);
   inlineViewSelect.id = 'projections-viewby-select-inline';
@@ -824,12 +839,16 @@ async function buildProjectionsHeaderControls({
   controls.appendChild(inlineSetPeriodBtn);
   controls.appendChild(filterButton);
 
-  accountSelect.addEventListener('change', () => { inlineAccountSelect.value = accountSelect.value; });
+  accountSelect.addEventListener('change', () => {
+    inlineAccountSelect.value = accountSelect.value;
+    syncSelectionDialog(inlineAccountSelect);
+  });
   groupSelect.addEventListener('change', () => { inlineGroupSelect.value = groupSelect.value; });
   periodSelect.addEventListener('change', () => { inlinePeriodSelect.value = periodSelect.value; });
 
   inlineAccountSelect.addEventListener('change', async () => {
     accountSelect.value = inlineAccountSelect.value;
+    syncSelectionDialog(accountSelect);
     accountSelect.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
