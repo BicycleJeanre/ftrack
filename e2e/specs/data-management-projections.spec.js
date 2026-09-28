@@ -35,7 +35,7 @@ test.describe('data management and projection browser flows', () => {
     for await (const chunk of stream) chunks.push(chunk);
     const exported = JSON.parse(Buffer.concat(chunks).toString('utf8'));
 
-    expect(exported.schemaVersion).toBe(44);
+    expect(exported.schemaVersion).toBe(45);
     expect(exported.scenarios[0].name).toBe('E2E Frontend Smoke');
   });
 
@@ -96,7 +96,7 @@ test.describe('data management and projection browser flows', () => {
     };
     source.migrationReport = {
       fromSchemaVersion: 43,
-      toSchemaVersion: 44,
+      toSchemaVersion: 45,
       migratedAt: '2026-08-01T00:00:00.000Z',
       summary: { warningCount: 1, recoveryRecordCount: 1 },
       scenarios: [{
@@ -184,7 +184,7 @@ test.describe('data management and projection browser flows', () => {
     }));
     damaged.migrationReport = {
       fromSchemaVersion: 43,
-      toSchemaVersion: 44,
+      toSchemaVersion: 45,
       migratedAt: '2026-08-01T00:00:00.000Z',
       summary: { recoveryRecordCount: historicalIssues.length },
       scenarios: [{
@@ -242,7 +242,7 @@ test.describe('data management and projection browser flows', () => {
     })));
     source.migrationReport = {
       fromSchemaVersion: 43,
-      toSchemaVersion: 44,
+      toSchemaVersion: 45,
       migratedAt: '2026-08-01T00:00:00.000Z',
       summary: { warningCount: 3, recoveryRecordCount: 3 },
       scenarios: [{
@@ -336,7 +336,7 @@ test.describe('data management and projection browser flows', () => {
     const occurrenceCount = scenario.transactionOccurrences.length;
     source.migrationReport = {
       fromSchemaVersion: 43,
-      toSchemaVersion: 44,
+      toSchemaVersion: 45,
       migratedAt: '2026-08-01T00:00:00.000Z',
       summary: { recoveryRecordCount: historicalIssues.length },
       scenarios: [{
@@ -379,7 +379,7 @@ test.describe('data management and projection browser flows', () => {
 
     const review = page.locator('.data-upgrade-modal');
     await expect(review).toBeVisible();
-    await expect(review).toContainText('43 → 44');
+    await expect(review).toContainText('43 → 45');
     await expect(review).toContainText('Passed');
     await expect(review).toContainText('What Changed');
     await expect(review).toContainText('scenarios[0].budgets');
@@ -392,7 +392,7 @@ test.describe('data management and projection browser flows', () => {
     for await (const chunk of stream) chunks.push(chunk);
     const report = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     expect(report.fromSchemaVersion).toBe(43);
-    expect(report.toSchemaVersion).toBe(44);
+    expect(report.toSchemaVersion).toBe(45);
     expect(report.validationPassed).toBe(true);
     expect(report.changes.length).toBeGreaterThan(0);
 
@@ -401,7 +401,7 @@ test.describe('data management and projection browser flows', () => {
       timeout: 5000
     });
     const upgraded = await readAppData(page);
-    expect(upgraded.schemaVersion).toBe(44);
+    expect(upgraded.schemaVersion).toBe(45);
     expect(upgraded.scenarios[0].budgets).toBeUndefined();
     expect(upgraded.scenarios[0].transactionOccurrences).toHaveLength(1);
   });
@@ -443,7 +443,7 @@ test.describe('legacy browser cache upgrade review', () => {
     const review = page.locator('.data-upgrade-modal');
     await expect(review).toBeVisible();
     await expect(review).toContainText('Current browser data');
-    await expect(review).toContainText('43 → 44');
+    await expect(review).toContainText('43 → 45');
     await expect(review.getByRole('button', { name: 'Choose Another Source' })).toBeVisible();
 
     const beforeApply = await readAppData(page);
@@ -453,7 +453,7 @@ test.describe('legacy browser cache upgrade review', () => {
     await expect(page.locator('.app-container')).toBeVisible({ timeout: 5000 });
 
     const afterApply = await readAppData(page);
-    expect(afterApply.schemaVersion).toBe(44);
+    expect(afterApply.schemaVersion).toBe(45);
     expect(afterApply.scenarios[0].budgets).toBeUndefined();
     expect(afterApply.scenarios[0].transactionOccurrences).toHaveLength(1);
   });

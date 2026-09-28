@@ -1578,9 +1578,10 @@ test.describe('unified Plan & Actuals workflow', () => {
       .toHaveValue('Unsaved editor survives projection completion');
   });
 
-  test('Set projection period refreshes Plan and Projection period bounds together', async ({ page }) => {
+  test('Set scenario timeframe refreshes Plan and Projection period bounds together', async ({ page }) => {
+    const scenarioId = (await currentScenario(page)).id;
     await page.locator(
-      '#projectionsSection button.card-inline-action[title="Set projection period"]'
+      `.scenario-list-item[data-scenario-id="${scenarioId}"] button[title="Set scenario timeframe"]`
     ).click();
     await page.locator('#timeframe-start-date').fill('2026-03-01');
     await page.locator('#timeframe-end-date').fill('2026-04-30');
@@ -1588,8 +1589,9 @@ test.describe('unified Plan & Actuals workflow', () => {
     await page.locator('#timeframe-confirm-btn').click();
 
     await waitForScenario(page, (scenario) => (
-      scenario.projection?.config?.startDate === '2026-03-01' &&
-      scenario.projection?.config?.endDate === '2026-04-30' &&
+      scenario.timeframe?.startDate === '2026-03-01' &&
+      scenario.timeframe?.endDate === '2026-04-30' &&
+      Number(scenario.timeframe?.periodTypeId) === 3 &&
       (scenario.projection?.rows || []).length > 0 &&
       (scenario.projection?.rows || []).every(
         (row) => row.date >= '2026-03-01' && row.date <= '2026-04-30'

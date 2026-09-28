@@ -1383,6 +1383,40 @@ body.dashboard-shell {
   }
 }
 
+@media (min-width: 1001px) and (max-width: 1280px) {
+  #projectionsSection .card-header--filters-inline,
+  #projectionsSection .card-header--filters-inline .card-header-controls {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  #projectionsSection .card-header--filters-inline .card-header-controls {
+    gap: 3px;
+    margin-left: 6px;
+  }
+
+  #projectionsSection .card-inline-filters {
+    gap: 3px;
+  }
+
+  #projectionsSection .card-inline-filters .filter-account .selection-dialog-control {
+    width: 145px;
+    max-width: 145px;
+  }
+
+  #projectionsSection .card-inline-filters .input-select {
+    max-width: 105px;
+  }
+
+  #projectionsSection .card-inline-filters .filter-period .input-select {
+    max-width: 112px;
+  }
+
+  #projectionsSection .card-inline-filters .filter-group .input-select {
+    max-width: 100px;
+  }
+}
+
 .goal-workshop-header .icon-btn {
   font-size: 0.85em;
   min-width: unset;
