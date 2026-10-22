@@ -1,8 +1,8 @@
 # FTrack User Features
 
-**Version**: 3.2
+**Version**: 3.3
 
-**Last Updated**: August 29, 2026
+**Last Updated**: October 22, 2026
 
 **Purpose**: Current implemented user functionality
 
@@ -33,6 +33,10 @@ Projections. Plan Rules and Plan & Actuals use the same unified component with
 different default views.
 
 1.7 Use Goal Workshop Simple or Advanced mode from one Generate Plan card.
+
+1.8 Add scenario-level budget review reminders with an optional review date.
+Reminders stay pinned above Plan & Actuals across reloads and devices until
+they are edited or marked done.
 
 ## 2.0 Accounts
 

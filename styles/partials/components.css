@@ -736,6 +736,152 @@ input[type="checkbox"] {
   font-size: 0.74rem;
 }
 
+/* Scenario-level notes that stay visible during the next budget review. */
+.budget-review-reminders {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  margin: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning, #d99a00) 55%, var(--border-secondary));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning, #d99a00) 12%, var(--bg-secondary));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+}
+
+.budget-review-reminders[hidden] {
+  display: none;
+}
+
+.budget-review-reminders-heading,
+.budget-review-reminder,
+.budget-review-reminder-actions {
+  display: flex;
+  align-items: center;
+}
+
+.budget-review-reminders-heading {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.budget-review-reminders-heading span {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.budget-review-reminders-list {
+  display: grid;
+  gap: 6px;
+}
+
+.budget-review-reminder {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--warning, #d99a00) 28%, var(--border-secondary));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warning, #d99a00) 7%, var(--bg-elevated));
+}
+
+.budget-review-reminder.is-due {
+  border-color: color-mix(in srgb, var(--danger, #d33) 55%, var(--border-secondary));
+}
+
+.budget-review-reminder-content {
+  min-width: 0;
+}
+
+.budget-review-reminder-meta {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.budget-review-reminder.is-due .budget-review-reminder-meta {
+  color: var(--danger, #d33);
+}
+
+.budget-review-reminder-note {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.budget-review-reminder-actions {
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.budget-review-reminder-add {
+  white-space: nowrap;
+}
+
+.budget-review-reminder-done {
+  color: var(--success, #178447);
+}
+
+.budget-review-reminder-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.budget-review-reminder-modal-title {
+  margin: 0;
+}
+
+.budget-review-reminder-modal-description,
+.budget-review-reminder-modal-hint {
+  color: var(--text-secondary);
+}
+
+.budget-review-reminder-modal-description {
+  margin: 6px 0 16px;
+}
+
+.budget-review-reminder-modal-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.budget-review-reminder-modal-field textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.budget-review-reminder-modal-hint {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.budget-review-reminder-modal-error {
+  margin-bottom: 12px;
+  color: var(--danger, #d33);
+}
+
+.budget-review-reminder-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .budget-review-reminder {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .budget-review-reminder-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+}
+
 .baseline-period-manager-count,
 .baseline-period-manager-type {
   display: inline-flex;

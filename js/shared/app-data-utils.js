@@ -96,6 +96,38 @@ export function allocateNextId(collection) {
   return max + 1;
 }
 
+function normalizeReviewReminders(rawReminders) {
+  if (!Array.isArray(rawReminders)) return [];
+
+  const reminders = [];
+  const usedIds = new Set();
+  let nextId = allocateNextId(rawReminders);
+
+  rawReminders.forEach((rawReminder) => {
+    if (!rawReminder || typeof rawReminder !== 'object') return;
+    const note = String(rawReminder.note || '').trim().slice(0, 1000);
+    if (!note) return;
+
+    let id = Number(rawReminder.id);
+    if (!Number.isFinite(id) || id <= 0 || usedIds.has(id)) {
+      while (usedIds.has(nextId)) nextId += 1;
+      id = nextId;
+      nextId += 1;
+    }
+    usedIds.add(id);
+
+    reminders.push({
+      id,
+      note,
+      reviewDate: normalizeDateOnlyString(rawReminder.reviewDate),
+      createdAt: optionalText(rawReminder.createdAt),
+      updatedAt: optionalText(rawReminder.updatedAt)
+    });
+  });
+
+  return reminders;
+}
+
 export function createDefaultUiState(overrides = {}) {
   const safeWorkflowId = getWorkflowById(overrides.lastWorkflowId)?.id || DEFAULT_WORKFLOW_ID;
 
@@ -639,6 +671,7 @@ export function normalizeScenario(rawScenario) {
   const baselinePeriods = Array.isArray(base.baselinePeriods)
     ? base.baselinePeriods.map(normalizeBaselinePeriod)
     : [];
+  const reviewReminders = normalizeReviewReminders(base.reviewReminders);
 
   const timeframe = normalizeProjectionConfig(
     base.timeframe || base.projection?.config
@@ -737,6 +770,7 @@ export function normalizeScenario(rawScenario) {
     transactions,
     transactionOccurrences,
     baselinePeriods,
+    reviewReminders,
     timeframe,
     projection,
     planning: nextPlanning
@@ -766,6 +800,7 @@ export function sanitizeScenarioForWrite(rawScenario) {
     transactions: scenario.transactions || [],
     transactionOccurrences: scenario.transactionOccurrences || [],
     baselinePeriods: scenario.baselinePeriods || [],
+    reviewReminders: scenario.reviewReminders || [],
     timeframe: scenario.timeframe,
     ...(scenario.projection !== undefined ? { projection: scenario.projection } : {}),
     ...(scenario.planning ? { planning: scenario.planning } : {})

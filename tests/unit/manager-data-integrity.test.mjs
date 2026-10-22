@@ -252,6 +252,37 @@ test('scenario duplication preserves plan data and clears generated projection r
   assert.deepEqual(duplicate.transactionOccurrences, []);
 });
 
+test('budget review reminders persist, update, validate, and complete within a scenario', async () => {
+  await ScenarioManager.addReviewReminder(1, {
+    note: 'Include the annual insurance payment',
+    reviewDate: '2026-10-31'
+  });
+
+  let scenario = (await DataStore.read()).scenarios[0];
+  assert.equal(scenario.reviewReminders.length, 1);
+  assert.equal(scenario.reviewReminders[0].note, 'Include the annual insurance payment');
+  assert.equal(scenario.reviewReminders[0].reviewDate, '2026-10-31');
+  assert.equal(validateAppData(await DataStore.read()).isValid, true);
+
+  const reminderId = scenario.reviewReminders[0].id;
+  await ScenarioManager.updateReviewReminder(1, reminderId, {
+    note: 'Include insurance and the once-off registration payment',
+    reviewDate: null
+  });
+  scenario = (await DataStore.read()).scenarios[0];
+  assert.equal(scenario.reviewReminders[0].note, 'Include insurance and the once-off registration payment');
+  assert.equal(scenario.reviewReminders[0].reviewDate, null);
+
+  await assert.rejects(
+    () => ScenarioManager.addReviewReminder(1, { note: 'Invalid date', reviewDate: '2026-02-31' }),
+    /valid date/
+  );
+
+  await ScenarioManager.removeReviewReminder(1, reminderId);
+  scenario = (await DataStore.read()).scenarios[0];
+  assert.deepEqual(scenario.reviewReminders, []);
+});
+
 test('projection saves cannot overwrite a newer stale plan revision', async () => {
   const staleAt = '2026-02-01T00:00:00.000Z';
   await seed(baseAppData({

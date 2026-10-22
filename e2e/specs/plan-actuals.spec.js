@@ -343,6 +343,53 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(planSection).toContainText('Groceries budget');
   });
 
+  test('pins budget review reminders across reloads until they are marked done', async ({ page }) => {
+    await page.getByRole('button', { name: 'Add budget review reminder', exact: true }).click();
+    const modal = page.locator('.budget-review-reminder-modal');
+    await expect(modal).toBeVisible();
+    await modal.locator('#budget-review-reminder-note').fill(
+      'Include the annual insurance payment in the next budget review.'
+    );
+    await modal.locator('#budget-review-reminder-date').fill('2026-10-31');
+    await modal.getByRole('button', { name: 'Add Reminder', exact: true }).click();
+
+    const reminder = page.locator('.budget-review-reminder');
+    await expect(reminder).toContainText('Include the annual insurance payment');
+    await expect(reminder).toContainText('Oct 31, 2026');
+    await waitForScenario(page, (scenario) => (
+      scenario.reviewReminders?.length === 1 &&
+      scenario.reviewReminders[0].reviewDate === '2026-10-31'
+    ), 'budget review reminder persisted');
+
+    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Add budget review reminder', exact: true })).toBeVisible();
+    await expect(page.locator('.budget-review-reminder')).toContainText(
+      'Include the annual insurance payment'
+    );
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page);
+    await expect(page.locator('.budget-review-reminder')).toContainText(
+      'Include the annual insurance payment'
+    );
+
+    await page.getByRole('button', { name: 'Edit budget review reminder', exact: true }).click();
+    const editModal = page.locator('.budget-review-reminder-modal');
+    await editModal.locator('#budget-review-reminder-note').fill(
+      'Include insurance and the once-off registration payment.'
+    );
+    await editModal.locator('#budget-review-reminder-date').fill('');
+    await editModal.getByRole('button', { name: 'Save Reminder', exact: true }).click();
+    await expect(reminder).toContainText('Include insurance and the once-off registration payment.');
+    await expect(reminder).toContainText('Next budget review');
+
+    await page.getByRole('button', { name: 'Mark budget review reminder done', exact: true }).click();
+    await confirmDialog(page);
+    await expect(page.locator('.budget-review-reminder')).toHaveCount(0);
+    await expect(page.locator('#budgetReviewReminders')).toBeHidden();
+    await waitForScenario(page, (scenario) => scenario.reviewReminders?.length === 0, 'reminder completed');
+  });
+
   test('stacks grouped totals without horizontal overflow on narrow screens', async ({ page }) => {
     await page.setViewportSize({ width: 700, height: 900 });
     const totals = page.locator('#budgetSection .plan-actuals-totals');

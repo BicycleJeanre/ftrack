@@ -99,6 +99,7 @@ export async function create(scenarioData) {
             transactions: [],
             transactionOccurrences: [],
             baselinePeriods: [],
+            reviewReminders: [],
             projection: null,
             planning: null,
             ...scenarioData
@@ -152,6 +153,96 @@ export async function remove(scenarioId) {
         data.scenarios = data.scenarios.filter(s => s.id !== scenarioId);
         return data;
     });
+}
+
+function normalizeReminderInput({ note, reviewDate = null } = {}) {
+    const normalizedNote = String(note || '').trim();
+    if (!normalizedNote) {
+        throw new Error('Enter a reminder note.');
+    }
+    if (normalizedNote.length > 1000) {
+        throw new Error('Reminder notes cannot exceed 1000 characters.');
+    }
+
+    const normalizedDate = String(reviewDate || '').trim() || null;
+    if (normalizedDate) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalizedDate);
+        const parts = match ? match.slice(1).map(Number) : [];
+        const parsed = parts.length === 3
+            ? new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]))
+            : null;
+        if (
+            !parsed ||
+            parsed.getUTCFullYear() !== parts[0] ||
+            parsed.getUTCMonth() !== parts[1] - 1 ||
+            parsed.getUTCDate() !== parts[2]
+        ) {
+            throw new Error('Review date must be a valid date.');
+        }
+    }
+
+    return { note: normalizedNote, reviewDate: normalizedDate };
+}
+
+async function updateReviewReminders(scenarioId, mutateReminders) {
+    return DataStore.transaction(async (data) => {
+        if (!data || typeof data !== 'object' || !Array.isArray(data.scenarios)) {
+            throw new Error('No scenario data exists yet. Create a scenario first.');
+        }
+        const scenarioIndex = data.scenarios.findIndex((scenario) => Number(scenario.id) === Number(scenarioId));
+        if (scenarioIndex === -1) {
+            throw new Error(`Scenario ${scenarioId} not found`);
+        }
+
+        const scenario = data.scenarios[scenarioIndex];
+        const reminders = Array.isArray(scenario.reviewReminders) ? scenario.reviewReminders : [];
+        data.scenarios[scenarioIndex] = sanitizeScenarioForWrite({
+            ...scenario,
+            reviewReminders: mutateReminders(reminders)
+        });
+        return data;
+    });
+}
+
+export async function addReviewReminder(scenarioId, reminder) {
+    const normalized = normalizeReminderInput(reminder);
+    const now = new Date().toISOString();
+    return updateReviewReminders(scenarioId, (reminders) => ([
+        ...reminders,
+        {
+            id: allocateNextId(reminders),
+            ...normalized,
+            createdAt: now,
+            updatedAt: now
+        }
+    ]));
+}
+
+export async function updateReviewReminder(scenarioId, reminderId, reminder) {
+    const normalized = normalizeReminderInput(reminder);
+    let found = false;
+    const result = await updateReviewReminders(scenarioId, (reminders) => reminders.map((existing) => {
+        if (Number(existing.id) !== Number(reminderId)) return existing;
+        found = true;
+        return {
+            ...existing,
+            ...normalized,
+            updatedAt: new Date().toISOString()
+        };
+    }));
+    if (!found) throw new Error(`Budget review reminder ${reminderId} not found`);
+    return result;
+}
+
+export async function removeReviewReminder(scenarioId, reminderId) {
+    let found = false;
+    const result = await updateReviewReminders(scenarioId, (reminders) => reminders.filter((existing) => {
+        if (Number(existing.id) !== Number(reminderId)) return true;
+        found = true;
+        return false;
+    }));
+    if (!found) throw new Error(`Budget review reminder ${reminderId} not found`);
+    return result;
 }
 
 /**

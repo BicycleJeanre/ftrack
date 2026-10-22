@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added scenario-level budget review reminders. Notes can include an optional
+  review date, stay pinned above Plan & Actuals across reloads and cloud sync,
+  and can be edited or marked done.
+
 ## [1.0.1] - 2026-09-28
 
 ### Changed

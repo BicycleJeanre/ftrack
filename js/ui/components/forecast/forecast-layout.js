@@ -486,8 +486,13 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
   budgetHeader.appendChild(budgetControls);
   const budgetContent = document.createElement('div');
   budgetContent.className = 'section-content';
+  const budgetReviewReminders = document.createElement('div');
+  budgetReviewReminders.id = 'budgetReviewReminders';
+  budgetReviewReminders.className = 'budget-review-reminders';
+  budgetReviewReminders.hidden = true;
   const budgetTable = document.createElement('div');
   budgetTable.id = 'budgetTable';
+  budgetContent.appendChild(budgetReviewReminders);
   budgetContent.appendChild(budgetTable);
   budgetCard.appendChild(budgetHeader);
   budgetCard.appendChild(budgetContent);
@@ -552,6 +557,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
     summaryCardsContent,
     accountsTable,
     transactionsTable,
+    budgetReviewReminders,
     budgetTable,
     projectionsContent
   };

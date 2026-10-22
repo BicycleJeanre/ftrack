@@ -12,6 +12,7 @@ import { openPeriodicChangeModal } from '../components/modals/periodic-change-mo
 import { getPeriodicChangeDescription } from '../../domain/calculations/periodic-change-utils.js';
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import { openTimeframeModal } from '../components/modals/timeframe-modal.js';
+import { openBudgetReviewReminderModal } from '../components/modals/budget-review-reminder-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
 import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
 import '../../shared/keyboard-shortcuts.js';
@@ -64,6 +65,7 @@ import {
 import {
   loadProjectionsSection as loadProjectionsSectionCore
 } from '../components/forecast/forecast-projections-section.js?v=20260928-scenario-timeframe-charts-55';
+import { renderBudgetReviewReminders } from '../components/forecast/budget-review-reminders.js';
 
 const logger = createLogger('ForecastController');
 
@@ -1537,6 +1539,60 @@ async function reloadActiveFinancialActivity() {
   });
 }
 
+function renderActiveBudgetReviewReminders() {
+  const container = getEl('budgetReviewReminders');
+  const controls = getEl('budgetSection')?.querySelector('.card-header-controls');
+  if (!container || !controls) return;
+
+  if (!currentScenario) {
+    controls.querySelector('.budget-review-reminder-add')?.remove();
+    container.replaceChildren();
+    container.hidden = true;
+    return;
+  }
+
+  const refreshScenarioAndReminders = async () => {
+    const refreshed = await getScenario(currentScenario.id);
+    if (!refreshed || Number(refreshed.id) !== Number(currentScenario?.id)) return;
+    currentScenario = refreshed;
+    renderActiveBudgetReviewReminders();
+  };
+
+  const openReminderEditor = (reminder = null) => {
+    openBudgetReviewReminderModal({
+      reminder,
+      onSave: async (values) => {
+        if (reminder) {
+          await ScenarioManager.updateReviewReminder(currentScenario.id, reminder.id, values);
+          notifySuccess('Budget review reminder updated.');
+        } else {
+          await ScenarioManager.addReviewReminder(currentScenario.id, values);
+          notifySuccess('Budget review reminder pinned.');
+        }
+        await refreshScenarioAndReminders();
+      }
+    });
+  };
+
+  renderBudgetReviewReminders({
+    container,
+    controls,
+    reminders: currentScenario.reviewReminders || [],
+    onAdd: () => openReminderEditor(),
+    onEdit: (reminder) => openReminderEditor(reminder),
+    onComplete: async (reminder) => {
+      if (!await confirmDialog('Mark this budget review reminder done?')) return;
+      try {
+        await ScenarioManager.removeReviewReminder(currentScenario.id, reminder.id);
+        await refreshScenarioAndReminders();
+        notifySuccess('Budget review reminder completed.');
+      } catch (err) {
+        notifyError('Failed to complete reminder: ' + (err?.message || 'Unknown error'));
+      }
+    }
+  });
+}
+
 // Load budget grid
 async function loadBudgetGrid(container) {
   const isRenderCurrent = capturePlanningRenderAuthority();
@@ -1548,7 +1604,7 @@ async function loadBudgetGrid(container) {
     defaultView: activity.defaultView || 'period'
   };
 
-  return loadPlanActualsGridCore({
+  const result = await loadPlanActualsGridCore({
     container,
     scenarioState: {
       get: () => currentScenario,
@@ -1640,10 +1696,13 @@ async function loadBudgetGrid(container) {
             })
           : Promise.resolve()
       ),
+      renderReviewReminders: renderActiveBudgetReviewReminders,
       isRenderCurrent
     },
     logger
   });
+  if (isRenderCurrent()) renderActiveBudgetReviewReminders();
+  return result;
 }
 
 // Load debt summary cards (per-account + overall total)
@@ -2771,6 +2830,7 @@ function clearScenarioDataSurfaces(containers) {
     containers.summaryCardsContent,
     getEl('generatePlanContent')
   ].forEach(renderNoScenarioPlaceholder);
+  renderActiveBudgetReviewReminders();
 }
 
 // Load all data for current scenario
@@ -2778,6 +2838,7 @@ async function loadScenarioData() {
   const containers = {
     accountsTable: getEl('accountsTable'),
     transactionsTable: getEl('transactionsTable'),
+    budgetReviewReminders: getEl('budgetReviewReminders'),
     budgetTable: getEl('budgetTable'),
     projectionsContent: getEl('projectionsContent'),
     summaryCardsContent: getEl('summaryCardsContent')

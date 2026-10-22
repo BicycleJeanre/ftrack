@@ -159,6 +159,7 @@ scenarios.
   transactions?: Transaction[],
   transactionOccurrences: TransactionOccurrence[],
   baselinePeriods: BaselinePeriod[],
+  reviewReminders: BudgetReviewReminder[],
   projection?: ProjectionBundle | null,      // Projection config + last generated output
   planning?: ScenarioPlanning | null         // Planning windows for goal tooling (Generate Plan / Solver)
 }
@@ -178,6 +179,7 @@ scenarios.
 | `transactions` | Transaction[] | No | Can be empty |
 | `transactionOccurrences` | TransactionOccurrence[] | Yes | Stored overrides, actuals, skips, manual items, and frozen baselines |
 | `baselinePeriods` | BaselinePeriod[] | Yes | Periods whose occurrence baselines have been frozen |
+| `reviewReminders` | BudgetReviewReminder[] | Yes | Scenario-level notes pinned in Plan & Actuals until completed |
 | `timeframe` | ScenarioTimeframe | Yes | Shared Start, End, and Period Type for the scenario planning horizon |
 | `projection` | ProjectionBundle \| null | No | Stored projection config and last generated results |
 | `planning` | ScenarioPlanning \| null | No | Optional narrower planning windows used by goal tooling |
@@ -193,7 +195,23 @@ type ScenarioLineage = {
 }
 ```
 
-### 2.3.1 AccountGroup
+### 2.3.1 BudgetReviewReminder
+
+Budget review reminders are durable scenario data. They are included in JSON
+exports and cloud snapshots and remain visible above Plan & Actuals until the
+user marks them done.
+
+```typescript
+type BudgetReviewReminder = {
+  id: number,
+  note: string,                         // 1–1000 characters
+  reviewDate: string | null,            // Optional YYYY-MM-DD date
+  createdAt: string | null,             // ISO datetime
+  updatedAt: string | null              // ISO datetime
+}
+```
+
+### 2.3.2 AccountGroup
 
 Account groups are non-postable containers used for rollups and filtering.
 

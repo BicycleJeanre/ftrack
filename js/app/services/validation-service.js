@@ -739,6 +739,43 @@ function validateScenario(scenario) {
         ));
     }
 
+    if (scenario.reviewReminders !== undefined) {
+        if (!Array.isArray(scenario.reviewReminders)) {
+            issues.push(issue('reviewReminders', `Must be an array`));
+        } else {
+            const reminderIds = scenario.reviewReminders.map((reminder) => reminder?.id);
+            const duplicateReminderIds = reminderIds.filter(
+                (id, index) => id && reminderIds.indexOf(id) !== index
+            );
+            if (duplicateReminderIds.length) {
+                issues.push(issue(
+                    'reviewReminders',
+                    `Duplicate reminder IDs: ${[...new Set(duplicateReminderIds)].join(', ')}`
+                ));
+            }
+            scenario.reviewReminders.forEach((reminder, reminderIndex) => {
+                const path = `reviewReminders[${reminderIndex}]`;
+                if (!Number.isInteger(Number(reminder?.id)) || Number(reminder.id) < 1) {
+                    issues.push(issue(`${path}.id`, `Must be a positive integer`));
+                }
+                if (typeof reminder?.note !== 'string' || !reminder.note.trim()) {
+                    issues.push(issue(`${path}.note`, `Must be a non-empty string`));
+                } else if (reminder.note.length > 1000) {
+                    issues.push(issue(`${path}.note`, `Must not exceed 1000 characters`));
+                }
+                if (reminder?.reviewDate !== null && reminder?.reviewDate !== undefined && !isValidDate(reminder.reviewDate)) {
+                    issues.push(issue(`${path}.reviewDate`, `Must be a valid date or null`));
+                }
+                ['createdAt', 'updatedAt'].forEach((field) => {
+                    const value = reminder?.[field];
+                    if (value !== null && value !== undefined && (typeof value !== 'string' || Number.isNaN(Date.parse(value)))) {
+                        issues.push(issue(`${path}.${field}`, `Must be an ISO datetime or null`));
+                    }
+                });
+            });
+        }
+    }
+
     const periodVariants = scenario?.planning?.periodVariants;
     if (periodVariants !== undefined) {
         if (!Array.isArray(periodVariants)) {
