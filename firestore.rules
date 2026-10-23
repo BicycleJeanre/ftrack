@@ -12,7 +12,7 @@ service cloud.firestore {
 
     function validSnapshotMetadata(data) {
       return data.format == 'ftrack-snapshot-v1'
-        && data.schemaVersion == 44
+        && data.schemaVersion == 45
         && data.chunkCount is int
         && data.chunkCount > 0
         && data.chunkCount <= 1000

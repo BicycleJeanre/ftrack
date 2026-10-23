@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   review date, stay pinned above Plan & Actuals across reloads and cloud sync,
   and can be edited or marked done.
 
+### Fixed
+
+- Aligned the Firebase Firestore write rules with schemaVersion 45 so current
+  workspaces can sync, with regression coverage for future schema/rules drift.
+
 ## [1.0.1] - 2026-09-28
 
 ### Changed

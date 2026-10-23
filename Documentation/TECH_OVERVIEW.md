@@ -105,7 +105,7 @@ FTrack uses a versioned storage schema (`schemaVersion`). This build targets
 
 ### 5.1 Runtime rule
 
-- Runtime writes require `schemaVersion === 44`.
+- Runtime writes require `schemaVersion === 45`.
 - Uploaded JSON and raw browser storage pass through the in-app upgrade
   preflight before replacement.
 - The preflight parses, migrates or sanitizes, validates the exact prepared

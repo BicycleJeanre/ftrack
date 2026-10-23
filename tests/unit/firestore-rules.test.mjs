@@ -7,13 +7,23 @@ import {
   initializeTestEnvironment
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { CURRENT_SCHEMA_VERSION } from '../../js/shared/app-data-utils.js';
 
 const emulatorAvailable = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
+const rulesUrl = new URL('../../firestore.rules', import.meta.url);
+
+test('Firestore rules accept the current FTrack schema version', async () => {
+  const rules = await readFile(rulesUrl, 'utf8');
+  const schemaRule = rules.match(/data\.schemaVersion\s*==\s*(\d+)/);
+
+  assert.ok(schemaRule, 'Firestore rules must validate a schema version');
+  assert.equal(Number(schemaRule[1]), CURRENT_SCHEMA_VERSION);
+});
 
 test('Firestore rules isolate FTrack workspaces by authenticated owner', {
   skip: !emulatorAvailable
 }, async () => {
-  const rules = await readFile(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  const rules = await readFile(rulesUrl, 'utf8');
   const environment = await initializeTestEnvironment({
     projectId: `demo-ftrack-${Date.now()}`,
     firestore: { rules }
@@ -27,7 +37,7 @@ test('Firestore rules isolate FTrack workspaces by authenticated owner', {
     const validManifest = {
       format: 'ftrack-snapshot-v1',
       activeRevision: 'revision-0001',
-      schemaVersion: 45,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       chunkCount: 1,
       byteLength: 2,
       sha256: 'a'.repeat(64),
@@ -42,7 +52,7 @@ test('Firestore rules isolate FTrack workspaces by authenticated owner', {
     await assertFails(setDoc(doc(alice, 'users/bob/ftrackWorkspaces/default'), validManifest));
     await assertFails(setDoc(doc(alice, 'users/alice/ftrackWorkspaces/invalid'), {
       ...validManifest,
-      schemaVersion: 43
+      schemaVersion: CURRENT_SCHEMA_VERSION - 1
     }));
   } finally {
     await environment.cleanup();
