@@ -2267,7 +2267,6 @@ async function renderPeriodView({
   logger,
   reload,
   isRenderCurrent,
-  renderReviewReminders,
   presentationMode = 'summary'
 }) {
   if (!isRenderCurrent()) return;
@@ -2600,7 +2599,6 @@ async function renderPeriodView({
     inlineFilters.appendChild(actions);
 
     controls.appendChild(inlineFilters);
-    renderReviewReminders?.();
   }
 
   const accountFilterId = state?.getBudgetAccountFilterId?.();
@@ -2798,7 +2796,6 @@ export async function loadPlanActualsGrid({
       ...resolvedPresentation,
       presentationMode: resolvedPresentation.mode
     });
-    if (isRenderCurrent()) callbacks?.renderReviewReminders?.();
     return;
   }
 
@@ -2812,7 +2809,6 @@ export async function loadPlanActualsGrid({
       logger,
       reload,
       isRenderCurrent,
-      renderReviewReminders: callbacks?.renderReviewReminders,
       presentationMode: resolvedPresentation.mode
     });
   } catch (error) {

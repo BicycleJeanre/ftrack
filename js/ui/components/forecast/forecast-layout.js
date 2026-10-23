@@ -354,6 +354,29 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
   const dashLayout = document.createElement('div');
   dashLayout.className = 'dash-layout';
 
+  const dashboardReviewReminderSection = document.createElement('section');
+  dashboardReviewReminderSection.id = 'dashboardReviewReminderSection';
+  dashboardReviewReminderSection.className = 'dashboard-review-reminder-section';
+  const dashboardReviewReminderHeader = document.createElement('div');
+  dashboardReviewReminderHeader.className = 'dashboard-review-reminder-header';
+  const dashboardReviewReminderTitle = document.createElement('strong');
+  dashboardReviewReminderTitle.textContent = 'Review reminders';
+  const dashboardReviewReminderControls = document.createElement('div');
+  dashboardReviewReminderControls.className = 'dashboard-review-reminder-controls';
+  dashboardReviewReminderHeader.append(
+    dashboardReviewReminderTitle,
+    dashboardReviewReminderControls
+  );
+  const dashboardReviewReminders = document.createElement('div');
+  dashboardReviewReminders.id = 'dashboardReviewReminders';
+  dashboardReviewReminders.className = 'budget-review-reminders dashboard-review-reminders';
+  dashboardReviewReminders.hidden = true;
+  dashboardReviewReminderSection.append(
+    dashboardReviewReminderHeader,
+    dashboardReviewReminders
+  );
+  dashLayout.appendChild(dashboardReviewReminderSection);
+
   // SUMMARY ROW: Only the summary cards grid should be rendered here.
   const { row: summaryCardsSection, body: summaryCardsBody } = buildDashRow({
      id: 'summaryCardsSection',
@@ -486,13 +509,8 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
   budgetHeader.appendChild(budgetControls);
   const budgetContent = document.createElement('div');
   budgetContent.className = 'section-content';
-  const budgetReviewReminders = document.createElement('div');
-  budgetReviewReminders.id = 'budgetReviewReminders';
-  budgetReviewReminders.className = 'budget-review-reminders';
-  budgetReviewReminders.hidden = true;
   const budgetTable = document.createElement('div');
   budgetTable.id = 'budgetTable';
-  budgetContent.appendChild(budgetReviewReminders);
   budgetContent.appendChild(budgetTable);
   budgetCard.appendChild(budgetHeader);
   budgetCard.appendChild(budgetContent);
@@ -557,7 +575,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
     summaryCardsContent,
     accountsTable,
     transactionsTable,
-    budgetReviewReminders,
+    dashboardReviewReminders,
     budgetTable,
     projectionsContent
   };

@@ -1540,8 +1540,9 @@ async function reloadActiveFinancialActivity() {
 }
 
 function renderActiveBudgetReviewReminders() {
-  const container = getEl('budgetReviewReminders');
-  const controls = getEl('budgetSection')?.querySelector('.card-header-controls');
+  const container = getEl('dashboardReviewReminders');
+  const controls = getEl('dashboardReviewReminderSection')
+    ?.querySelector('.dashboard-review-reminder-controls');
   if (!container || !controls) return;
 
   if (!currentScenario) {
@@ -1564,10 +1565,10 @@ function renderActiveBudgetReviewReminders() {
       onSave: async (values) => {
         if (reminder) {
           await ScenarioManager.updateReviewReminder(currentScenario.id, reminder.id, values);
-          notifySuccess('Budget review reminder updated.');
+          notifySuccess('Review reminder updated.');
         } else {
           await ScenarioManager.addReviewReminder(currentScenario.id, values);
-          notifySuccess('Budget review reminder pinned.');
+          notifySuccess('Review reminder pinned.');
         }
         await refreshScenarioAndReminders();
       }
@@ -1581,11 +1582,11 @@ function renderActiveBudgetReviewReminders() {
     onAdd: () => openReminderEditor(),
     onEdit: (reminder) => openReminderEditor(reminder),
     onComplete: async (reminder) => {
-      if (!await confirmDialog('Mark this budget review reminder done?')) return;
+      if (!await confirmDialog('Mark this review reminder done?')) return;
       try {
         await ScenarioManager.removeReviewReminder(currentScenario.id, reminder.id);
         await refreshScenarioAndReminders();
-        notifySuccess('Budget review reminder completed.');
+        notifySuccess('Review reminder completed.');
       } catch (err) {
         notifyError('Failed to complete reminder: ' + (err?.message || 'Unknown error'));
       }
@@ -1696,12 +1697,10 @@ async function loadBudgetGrid(container) {
             })
           : Promise.resolve()
       ),
-      renderReviewReminders: renderActiveBudgetReviewReminders,
       isRenderCurrent
     },
     logger
   });
-  if (isRenderCurrent()) renderActiveBudgetReviewReminders();
   return result;
 }
 
@@ -2838,7 +2837,7 @@ async function loadScenarioData() {
   const containers = {
     accountsTable: getEl('accountsTable'),
     transactionsTable: getEl('transactionsTable'),
-    budgetReviewReminders: getEl('budgetReviewReminders'),
+    dashboardReviewReminders: getEl('dashboardReviewReminders'),
     budgetTable: getEl('budgetTable'),
     projectionsContent: getEl('projectionsContent'),
     summaryCardsContent: getEl('summaryCardsContent')
@@ -2919,6 +2918,8 @@ async function loadScenarioData() {
     clearScenarioDataSurfaces(containers);
     return;
   }
+
+  renderActiveBudgetReviewReminders();
 
   // Clear any stale placeholders without destroying stable grid containers.
   containers.accountsTable.querySelectorAll(':scope > .empty-message').forEach((el) => el.remove());

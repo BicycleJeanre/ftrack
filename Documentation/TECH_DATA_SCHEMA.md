@@ -179,7 +179,7 @@ scenarios.
 | `transactions` | Transaction[] | No | Can be empty |
 | `transactionOccurrences` | TransactionOccurrence[] | Yes | Stored overrides, actuals, skips, manual items, and frozen baselines |
 | `baselinePeriods` | BaselinePeriod[] | Yes | Periods whose occurrence baselines have been frozen |
-| `reviewReminders` | BudgetReviewReminder[] | Yes | Scenario-level notes pinned in Plan & Actuals until completed |
+| `reviewReminders` | BudgetReviewReminder[] | Yes | Scenario-level notes shown across dashboard workflows until completed |
 | `timeframe` | ScenarioTimeframe | Yes | Shared Start, End, and Period Type for the scenario planning horizon |
 | `projection` | ProjectionBundle \| null | No | Stored projection config and last generated results |
 | `planning` | ScenarioPlanning \| null | No | Optional narrower planning windows used by goal tooling |
@@ -198,8 +198,8 @@ type ScenarioLineage = {
 ### 2.3.1 BudgetReviewReminder
 
 Budget review reminders are durable scenario data. They are included in JSON
-exports and cloud snapshots and remain visible above Plan & Actuals until the
-user marks them done.
+exports and cloud snapshots and remain visible in the shared dashboard shell
+until the user marks them done.
 
 ```typescript
 type BudgetReviewReminder = {

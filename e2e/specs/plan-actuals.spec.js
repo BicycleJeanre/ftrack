@@ -343,8 +343,10 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(planSection).toContainText('Groceries budget');
   });
 
-  test('pins budget review reminders across reloads until they are marked done', async ({ page }) => {
-    await page.getByRole('button', { name: 'Add budget review reminder', exact: true }).click();
+  test('shows review reminders across dashboard workflows until they are marked done', async ({ page }) => {
+    const reminderSection = page.locator('#dashboardReviewReminderSection');
+    await expect(reminderSection).toBeVisible();
+    await reminderSection.getByRole('button', { name: 'Add review reminder', exact: true }).click();
     const modal = page.locator('.budget-review-reminder-modal');
     await expect(modal).toBeVisible();
     await modal.locator('#budget-review-reminder-note').fill(
@@ -361,8 +363,9 @@ test.describe('unified Plan & Actuals workflow', () => {
       scenario.reviewReminders[0].reviewDate === '2026-10-31'
     ), 'budget review reminder persisted');
 
-    await page.getByRole('tab', { name: 'Recurring', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Add budget review reminder', exact: true })).toBeVisible();
+    await selectWorkflow(page, 'Projections (Detail)');
+    await expect(page.locator('#budgetSection')).toBeHidden();
+    await expect(reminderSection.getByRole('button', { name: 'Add review reminder', exact: true })).toBeVisible();
     await expect(page.locator('.budget-review-reminder')).toContainText(
       'Include the annual insurance payment'
     );
@@ -373,7 +376,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       'Include the annual insurance payment'
     );
 
-    await page.getByRole('button', { name: 'Edit budget review reminder', exact: true }).click();
+    await page.getByRole('button', { name: 'Edit review reminder', exact: true }).click();
     const editModal = page.locator('.budget-review-reminder-modal');
     await editModal.locator('#budget-review-reminder-note').fill(
       'Include insurance and the once-off registration payment.'
@@ -383,10 +386,10 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(reminder).toContainText('Include insurance and the once-off registration payment.');
     await expect(reminder).toContainText('Next budget review');
 
-    await page.getByRole('button', { name: 'Mark budget review reminder done', exact: true }).click();
+    await page.getByRole('button', { name: 'Mark review reminder done', exact: true }).click();
     await confirmDialog(page);
     await expect(page.locator('.budget-review-reminder')).toHaveCount(0);
-    await expect(page.locator('#budgetReviewReminders')).toBeHidden();
+    await expect(page.locator('#dashboardReviewReminders')).toBeHidden();
     await waitForScenario(page, (scenario) => scenario.reviewReminders?.length === 0, 'reminder completed');
   });
 

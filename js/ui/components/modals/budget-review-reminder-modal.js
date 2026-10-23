@@ -1,5 +1,5 @@
 // budget-review-reminder-modal.js
-// Create or edit a scenario-level note that stays pinned in Plan & Actuals.
+// Create or edit a scenario-level note shown across dashboard workflows.
 
 import { createModal } from './modal-factory.js';
 
@@ -8,11 +8,11 @@ export function openBudgetReviewReminderModal({ reminder = null, onSave } = {}) 
 
   const title = document.createElement('h2');
   title.className = 'budget-review-reminder-modal-title';
-  title.textContent = reminder ? 'Edit Budget Review Reminder' : 'Add Budget Review Reminder';
+  title.textContent = reminder ? 'Edit Review Reminder' : 'Add Review Reminder';
 
   const description = document.createElement('p');
   description.className = 'budget-review-reminder-modal-description';
-  description.textContent = 'This note stays pinned above Plan & Actuals until you mark it done.';
+  description.textContent = 'This note stays visible across this scenario’s dashboards until you mark it done.';
 
   const noteLabel = document.createElement('label');
   noteLabel.className = 'budget-review-reminder-modal-field';

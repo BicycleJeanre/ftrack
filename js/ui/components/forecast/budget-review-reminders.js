@@ -1,5 +1,5 @@
 // budget-review-reminders.js
-// Pinned scenario reminders shown whenever Plan & Actuals is open.
+// Scenario reminders shown above every dashboard workflow.
 
 function localTodayKey(now = new Date()) {
   const year = now.getFullYear();
@@ -50,7 +50,7 @@ export function renderBudgetReviewReminders({
 
   const addButton = buildActionButton({
     label: activeReminders.length ? `🔔 ${activeReminders.length}` : '🔔 Add reminder',
-    title: 'Add budget review reminder',
+    title: 'Add review reminder',
     className: 'budget-review-reminder-add',
     onClick: onAdd
   });
@@ -64,7 +64,7 @@ export function renderBudgetReviewReminders({
   const heading = document.createElement('div');
   heading.className = 'budget-review-reminders-heading';
   const headingText = document.createElement('strong');
-  headingText.textContent = 'Budget review reminders';
+  headingText.textContent = 'Active reminders';
   const headingHint = document.createElement('span');
   headingHint.textContent = 'Pinned until marked done';
   heading.append(headingText, headingHint);
@@ -97,12 +97,12 @@ export function renderBudgetReviewReminders({
     actions.append(
       buildActionButton({
         label: 'Edit',
-        title: 'Edit budget review reminder',
+        title: 'Edit review reminder',
         onClick: () => onEdit?.(reminder)
       }),
       buildActionButton({
         label: '✓ Done',
-        title: 'Mark budget review reminder done',
+        title: 'Mark review reminder done',
         className: 'budget-review-reminder-done',
         onClick: () => onComplete?.(reminder)
       })

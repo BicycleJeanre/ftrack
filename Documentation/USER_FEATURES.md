@@ -34,9 +34,9 @@ different default views.
 
 1.7 Use Goal Workshop Simple or Advanced mode from one Generate Plan card.
 
-1.8 Add scenario-level budget review reminders with an optional review date.
-Reminders stay pinned above Plan & Actuals across reloads and devices until
-they are edited or marked done.
+1.8 Add scenario-level review reminders with an optional review date from the
+shared dashboard strip. Reminders remain available across every workflow,
+reload, and device until they are edited or marked done.
 
 ## 2.0 Accounts
 

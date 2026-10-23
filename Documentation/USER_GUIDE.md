@@ -508,14 +508,14 @@ configuration. Recording it Actual or Skipped removes that uncertainty.
 
 ### 5.4 Leave a Reminder for the Next Review
 
-Use **Add reminder** in the Plan & Actuals toolbar when a payment or budget
-consideration must not be forgotten.
+Use **Add reminder** in the **Review reminders** strip at the top of the
+dashboard when a payment or budget consideration must not be forgotten.
 
 1. Enter the payment or item to remember.
 2. Optionally select a review date. Leave it empty when the note applies to
    the next review regardless of date.
-3. Save the reminder. It stays pinned above Plan & Actuals after reload and is
-   included in exported and cloud-saved scenario data.
+3. Save the reminder. It stays visible above every dashboard workflow after
+   reload and is included in exported and cloud-saved scenario data.
 4. Edit it as the detail changes, or select **Done** once it has been handled.
 
 ---
