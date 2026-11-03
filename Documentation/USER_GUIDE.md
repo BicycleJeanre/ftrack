@@ -506,7 +506,39 @@ configuration. Recording it Actual or Skipped removes that uncertainty.
    periods.
 6. Move to the next period without rebuilding the budget.
 
-### 5.4 Leave a Reminder for the Next Review
+### 5.4 Statement Upload and Reconciliation
+
+Open **Statements** in the dashboard top bar. Select the FTrack account and
+upload the bank CSV export containing Posting Date, Transaction Date,
+Description, Original Description, Money In, Money Out, Fee and Balance.
+Select **Retain CSV for review** to save the source without changing actuals.
+The complete original CSV, all columns and rows, filename, import time and
+SHA-256 digest are retained within the scenario and included in JSON backups
+and cloud snapshots. This consumes browser storage; a quota failure is reported
+without partially saving the import. Sources are private financial data.
+
+Choose a retained source to revisit its full original table, download the
+original CSV, or download the reconciliation report. Suggestions compare
+account direction, amounts, posting dates and descriptions. Suggestions are
+not approvals: tick rows explicitly before **Apply approved rows**.
+
+- Match a planned item to record its actual amount and posting date without
+  changing the recurring rule or planned amount.
+- Link an existing actual only when its amount and date already agree.
+- Create an unplanned actual by choosing the secondary account.
+- Ignore a row to retain it as source evidence without affecting the budget,
+  or leave it unchecked to review later.
+
+Fees are separate CSV rows and must not be dropped or counted twice. Identical
+and overlapping imports are checked against previously reconciled source rows.
+One planned item cannot receive two rows in the same approval batch. Itemized,
+split and closed-period items require manual handling outside this first
+version. Transfers are not automatically paired across imported accounts;
+review existing actuals carefully before creating a second movement.
+All approved rows and their source links are saved in one atomic commit.
+There is no automatic import undo in this version; review before applying.
+
+### 5.5 Leave a Reminder for the Next Review
 
 Use **Add reminder** in the **Review reminders** strip at the top of the
 dashboard when a payment or budget consideration must not be forgotten.

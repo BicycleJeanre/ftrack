@@ -160,6 +160,7 @@ scenarios.
   transactionOccurrences: TransactionOccurrence[],
   baselinePeriods: BaselinePeriod[],
   reviewReminders: BudgetReviewReminder[],
+  statementImports?: StatementImport[],      // Original CSV evidence and source-row reconciliation decisions
   projection?: ProjectionBundle | null,      // Projection config + last generated output
   planning?: ScenarioPlanning | null         // Planning windows for goal tooling (Generate Plan / Solver)
 }
@@ -196,6 +197,17 @@ type ScenarioLineage = {
 ```
 
 ### 2.3.1 BudgetReviewReminder
+
+`statementImports` is an optional, additive scenario field. Each import stores
+`id` (UUID), `accountId`, `fileName`, `rawCsv` (original decoded text), `headers`,
+`rows` (all source strings in original order), `sha256` (UTF-8 source digest),
+`importedAt`, and `decisions` keyed by zero-based source-row index. Each decision
+contains `action` (`match`, `existing`, `create`, `ignore`), `occurrenceKey`
+(nullable), and `appliedAt`. Source rows must reproduce the raw CSV exactly.
+Normalization, JSON export/import, and cloud snapshots preserve this field.
+Balance validation blocks application, not source retention. Fingerprints
+exclude export row numbers and include bank account, both dates, original
+description, signed amounts and balance, plus multiplicity for identical rows.
 
 Budget review reminders are durable scenario data. They are included in JSON
 exports and cloud snapshots and remain visible in the shared dashboard shell

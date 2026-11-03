@@ -6,6 +6,7 @@
 
 import * as DataStore from './storage-service.js';
 import { CURRENT_SCHEMA_VERSION } from '../../shared/app-data-utils.js';
+import { parseStatement } from '../../shared/statement-utils.js';
 
 // Valid enum IDs from assets/lookup-data.json
 const VALID_ACCOUNT_TYPES      = [1, 2, 3, 4, 5];
@@ -737,6 +738,27 @@ function validateScenario(scenario) {
             'advancedGoalSettings.payoffOrder',
             `Must be "priority", "snowball", or "avalanche"`
         ));
+    }
+
+    if (scenario.statementImports !== undefined) {
+        if (!Array.isArray(scenario.statementImports)) issues.push(issue('statementImports', 'Must be an array'));
+        else {
+            const ids = new Set();
+            scenario.statementImports.forEach((batch,index) => {
+                const path = `statementImports[${index}]`;
+                try {
+                    if (typeof batch.id !== 'string' || !batch.id || ids.has(batch.id)) throw new Error('Import ID must be unique');
+                    ids.add(batch.id);
+                    if (!Number.isInteger(batch.accountId) || batch.accountId < 1 || typeof batch.fileName !== 'string' || !/^[0-9a-f]{64}$/.test(batch.sha256) || !Number.isFinite(Date.parse(batch.importedAt))) throw new Error('Invalid statement metadata');
+                    const parsed = parseStatement(batch.rawCsv);
+                    if (JSON.stringify(parsed.headers)!==JSON.stringify(batch.headers) || JSON.stringify(parsed.rows)!==JSON.stringify(batch.rows)) throw new Error('Retained rows must exactly match the original CSV');
+                    if (!batch.decisions || typeof batch.decisions !== 'object' || Array.isArray(batch.decisions)) throw new Error('Invalid review decisions');
+                    for (const [key,value] of Object.entries(batch.decisions)) {
+                        if (!/^\d+$/.test(key) || !parsed.entries[Number(key)] || !['match','existing','create','ignore'].includes(value?.action) || !Number.isFinite(Date.parse(value.appliedAt))) throw new Error('Invalid source-row decision');
+                    }
+                } catch(error) { issues.push(issue(path,error.message)); }
+            });
+        }
     }
 
     if (scenario.reviewReminders !== undefined) {

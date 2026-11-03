@@ -13,6 +13,7 @@ import { getPeriodicChangeDescription } from '../../domain/calculations/periodic
 import { openTextInputModal } from '../components/modals/text-input-modal.js';
 import { openTimeframeModal } from '../components/modals/timeframe-modal.js';
 import { openBudgetReviewReminderModal } from '../components/modals/budget-review-reminder-modal.js';
+import { openStatementReconciliationModal } from '../components/modals/statement-reconciliation-modal.js';
 import { createFilterModal } from '../components/modals/filter-modal.js';
 import { ensureLegacyBrowserDataReviewed } from '../components/modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
 import '../../shared/keyboard-shortcuts.js';
@@ -3053,6 +3054,13 @@ async function init() {
   });
   document.addEventListener('ftrack:cloudDataApplied', () => window.location.reload(), { once: true });
   await initializeCloudSync();
+  document.addEventListener('forecast:statements', () => {
+    if (!currentScenario) { notifyError('Select a scenario first.'); return; }
+    void openStatementReconciliationModal({ scenarioId: currentScenario.id, onApplied: async () => {
+      currentScenario = await getScenario(currentScenario.id);
+      await loadScenarioData();
+    } });
+  });
   renderWorkflowNav(containers.workflowNav);
   document.addEventListener('forecast:accountsUpdated', () => {
     const workflowConfig = getWorkflowConfig();

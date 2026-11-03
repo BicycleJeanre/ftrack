@@ -1,0 +1,48 @@
+const {test,expect}=require('@playwright/test');
+const {gotoFTrack,waitForAppReady,currentScenario}=require('../helpers/app-data');
+test('retains a full CSV and applies only reviewed rows, with source history after reload',async({page})=>{
+ await gotoFTrack(page);
+ await page.getByRole('button',{name:'Statements',exact:true}).click();
+ const modal=page.locator('.statement-reconciliation-modal');
+ await expect(modal).toBeVisible();
+ await modal.getByLabel('Statement primary account').selectOption('1');
+ const csv='Nr,Account,Posting Date,Transaction Date,Description,Original Description,Parent Category,Category,Money In,Money Out,Fee,Balance\r\n1,synthetic,2026-01-15,2026-01-15 12:00,Test purchase,Original shop,Expenses,Shopping,,-25.00,,975.00\r\n2,synthetic,2026-01-15,2026-01-15 12:00,Fee,Fee,Fees,Fees,,,-3.00,972.00';
+ await modal.getByLabel('Statement CSV').setInputFiles({name:'synthetic.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+ await modal.getByRole('button',{name:'Retain CSV for review',exact:true}).click();
+ await expect(modal).toContainText('2 monetary rows');
+ await modal.locator('summary').click();
+ await expect(modal).toContainText('Original shop');
+ await modal.getByLabel('Action source row 1',{exact:true}).selectOption('create');
+ await modal.getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');
+ await modal.getByLabel('Approve source row 1',{exact:true}).check();
+ await modal.getByRole('button',{name:'Apply approved rows',exact:true}).click();
+ await expect(modal).toContainText('Reviewed: create');
+ await expect(modal.getByLabel('Approve source row 2',{exact:true})).not.toBeChecked();
+ await page.screenshot({path:test.info().outputPath('statement-review.png')});
+ await modal.getByRole('button',{name:'Close',exact:true}).click();
+ await page.reload();await waitForAppReady(page);
+ await page.getByRole('button',{name:'Statements',exact:true}).click();
+ const retained=modal.getByLabel('Retained statements');
+ await retained.selectOption(await retained.locator('option').nth(1).getAttribute('value'));
+ await expect(modal).toContainText('Reviewed: create');
+ await modal.locator('summary').click();await expect(modal).toContainText('Original shop');
+});
+
+test('suggests a planned match but changes actuals only after explicit approval',async({page})=>{
+ await gotoFTrack(page);
+ const before=await currentScenario(page);
+ await page.getByRole('button',{name:'Statements',exact:true}).click();
+ const modal=page.locator('.statement-reconciliation-modal');
+ await modal.getByLabel('Statement primary account').selectOption('1');
+ const csv='Nr,Account,Posting Date,Transaction Date,Description,Original Description,Parent Category,Category,Money In,Money Out,Fee,Balance\n1,synthetic,2026-01-10,2026-01-10 12:00,Groceries budget,Groceries,Expenses,Shopping,,-450.00,,550.00';
+ await modal.getByLabel('Statement CSV').setInputFiles({name:'match.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+ await modal.getByRole('button',{name:'Retain CSV for review',exact:true}).click();
+ const action=modal.getByLabel('Action source row 1',{exact:true});
+ await expect(action).toHaveValue(/^match:/);
+ expect((await currentScenario(page)).transactionOccurrences).toEqual(before.transactionOccurrences);
+ await expect(modal.getByLabel('Approve source row 1',{exact:true})).not.toBeChecked();
+ await modal.getByLabel('Approve source row 1',{exact:true}).check();
+ await modal.getByRole('button',{name:'Apply approved rows',exact:true}).click();
+ await expect(modal).toContainText('Reviewed: match');
+ expect((await currentScenario(page)).transactionOccurrences.some(o=>o.status==='actual' && o.actualAmount===450 && o.actualDate==='2026-01-10')).toBe(true);
+});

@@ -146,6 +146,13 @@ function buildTopbarActions() {
   });
 
   actions.appendChild(themeBtn);
+  const statementsBtn = document.createElement('button');
+  statementsBtn.type = 'button';
+  statementsBtn.className = 'icon-btn';
+  statementsBtn.textContent = 'Statements';
+  statementsBtn.title = 'Upload and reconcile account statements';
+  statementsBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('forecast:statements')));
+  actions.appendChild(statementsBtn);
   actions.appendChild(cloudBtn);
   actions.appendChild(exportBtn);
   actions.appendChild(importBtn);

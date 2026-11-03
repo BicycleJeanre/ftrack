@@ -771,6 +771,7 @@ export function normalizeScenario(rawScenario) {
     transactionOccurrences,
     baselinePeriods,
     reviewReminders,
+    statementImports: Array.isArray(base.statementImports) ? JSON.parse(JSON.stringify(base.statementImports)) : [],
     timeframe,
     projection,
     planning: nextPlanning
@@ -801,6 +802,7 @@ export function sanitizeScenarioForWrite(rawScenario) {
     transactionOccurrences: scenario.transactionOccurrences || [],
     baselinePeriods: scenario.baselinePeriods || [],
     reviewReminders: scenario.reviewReminders || [],
+    statementImports: scenario.statementImports || [],
     timeframe: scenario.timeframe,
     ...(scenario.projection !== undefined ? { projection: scenario.projection } : {}),
     ...(scenario.planning ? { planning: scenario.planning } : {})

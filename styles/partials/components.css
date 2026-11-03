@@ -737,6 +737,17 @@ input[type="checkbox"] {
 }
 
 /* Scenario-level notes displayed in the shared dashboard shell. */
+.modal-content.statement-reconciliation-modal { width: min(1400px, 96vw); max-width: 1400px; max-height: 92vh; overflow: auto; }
+.statement-reconciliation-modal select { max-width: 100%; padding: 6px; }
+.statement-reconciliation-modal > div > select { max-width: 90%; }
+.statement-table-wrap { overflow: auto; max-height: 48vh; margin: 12px 0; }
+.statement-table-wrap table { border-collapse: collapse; width: 100%; font-size: .8rem; }
+.statement-table-wrap td, .statement-table-wrap th { border: 1px solid var(--border-primary); padding: 7px; text-align: left; min-width: 90px; }
+.statement-table-wrap th { position: sticky; top: 0; background: var(--bg-secondary); }
+.statement-table-wrap select { width: 300px; }
+.statement-error { color: var(--danger, #d33); }
+.statement-error[data-state="success"] { color: var(--success, #178447); }
+
 .dashboard-review-reminder-section {
   flex: 0 0 auto;
   overflow: hidden;

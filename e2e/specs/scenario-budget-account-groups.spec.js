@@ -37,7 +37,7 @@ test.describe('scenario, plan and actuals, and account group functional flows', 
     await expect(form).toBeVisible();
     await form.locator('input').nth(0).fill('E2E Scenario Edited');
     await form.locator('input').nth(1).fill('Edited in browser automation');
-    await page.locator('.topbar').click();
+    await page.locator('.page-title').click();
 
     await expect(page.locator('.scenario-list-item', { hasText: 'E2E Scenario Edited' })).toBeVisible();
     await waitForScenario(page, (scenario) => (

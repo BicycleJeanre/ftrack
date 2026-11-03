@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added dashboard CSV statement retention and reviewed reconciliation, with
+  original source tables/downloads, match suggestions, explicit approvals,
+  atomic actual updates, duplicate checks and downloadable decision reports.
+
 - Added scenario-level review reminders. Notes can include an optional review
   date, remain visible across dashboard workflows, reloads, and cloud sync,
   and can be edited or marked done.

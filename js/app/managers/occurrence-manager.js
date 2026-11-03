@@ -1,6 +1,8 @@
 // Atomic application commands for transaction occurrences and recurring series.
 
 import * as DataStore from '../services/storage-service.js';
+import { parseStatement, signedOccurrenceAmount } from '../../shared/statement-utils.js';
+import { appliedStatementFingerprints } from '../services/statement-service.js';
 import { allocateNextId } from '../../shared/app-data-utils.js';
 import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
 import { generateRecurrenceDates } from '../../domain/calculations/recurrence-calculations.js';
@@ -2730,6 +2732,60 @@ export async function markActual(
       return { occurrenceKey, baselineCaptured: true };
     }
   );
+}
+
+// One serialized commit: source-row decisions and occurrence updates succeed together.
+export async function applyStatementDecisions(scenarioId, importId, decisions) {
+  return runCommand(scenarioId, 'Statement reconciled', (scenario, timestamp) => {
+    const batch = scenario.statementImports?.find(b=>b.id===importId);
+    if (!batch) throw new Error('Statement import not found.');
+    if (!Array.isArray(decisions) || !decisions.length) throw new Error('Select rows to apply.');
+    const parsed = parseStatement(batch.rawCsv);
+    if (parsed.balanceIssues.length) throw new Error('Resolve statement balance errors before applying.');
+    const seen = appliedStatementFingerprints(scenario,batch.accountId);
+    const targets = new Set(); const indices = new Set(); const changes = [];
+    for (const decision of decisions) {
+      const entry = parsed.entries[decision.index];
+      if (!entry || !Number.isInteger(decision.index) || indices.has(decision.index)) throw new Error('Invalid or repeated source row.');
+      indices.add(decision.index);
+      if (batch.decisions[decision.index]) throw new Error('This row has already been reviewed.');
+      if (!['ignore','match','create','existing'].includes(decision.action)) throw new Error('Choose a reconciliation action.');
+      if (decision.action !== 'ignore' && (!entry.monetary || seen.has(entry.fingerprint))) throw new Error('This row is non-monetary or already reconciled from another import.');
+      let occurrenceKey = null;
+      let before = null;
+      if (decision.action === 'match' || decision.action === 'existing') {
+        if (targets.has(decision.occurrenceKey)) throw new Error('Two source rows cannot update the same occurrence.');
+        targets.add(decision.occurrenceKey);
+        const target = resolveOccurrenceOrThrow(scenario,decision.occurrenceKey).occurrence;
+        before = {status:target.status,plannedAmount:target.plannedAmount,actualAmount:target.actualAmount ?? null,actualDate:target.actualDate ?? null};
+        const signed = signedOccurrenceAmount(target,batch.accountId);
+        if (signed===null || Math.sign(signed)!==Math.sign(entry.amountCents)) throw new Error('The selected item has a different account or money direction.');
+        if (target.lineItems?.length || target.transactionGroupId || markerContainsDate(scenario,target.scheduledDate)) throw new Error('Itemized, split or closed-period items require manual review outside this importer.');
+        if (decision.action === 'existing') {
+          if (target.status !== 'actual' || signed!==entry.amountCents || target.actualDate!==entry.postingDate) throw new Error('Existing actual must have the same amount and posting date.');
+        } else {
+          if (target.status !== 'planned') throw new Error('The selected item is no longer planned. Refresh the review.');
+          const currentAmount = Number(target.plannedAmount);
+          if (decision.expectedAmount !== currentAmount) throw new Error('The plan changed since review. Refresh the statement.');
+          upsertOccurrence(scenario,target,{
+            ...snapshotOccurrenceMetadata(target),...snapshotBaselineMetadata(target),
+            baselineAmount:target.baselineAmount ?? currentAmount,plannedAmount:currentAmount,
+            actualAmount:Math.abs(entry.amountCents)/100,actualDate:entry.postingDate,status:'actual',isOverride:true
+          },timestamp,{isOverride:true});
+        }
+        occurrenceKey=target.occurrenceKey;
+      } else if (decision.action === 'create') {
+        const movement=validateMovement(scenario,{primaryAccountId:batch.accountId,secondaryAccountId:decision.secondaryAccountId,transactionTypeId:entry.amountCents>0?1:2});
+        if (markerContainsDate(scenario,entry.postingDate)) throw new Error('Reopen the closed period before creating an actual.');
+        const id=allocateNextId(scenario.transactionOccurrences); occurrenceKey=`occurrence:${id}`;
+        scenario.transactionOccurrences.push({id,occurrenceKey,sourceTransactionId:null,scheduledDate:entry.postingDate,plannedDate:null,actualDate:entry.postingDate,status:'actual',origin:'manual',...movement,description:entry.description,plannedAmount:0,baselineAmount:0,actualAmount:Math.abs(entry.amountCents)/100,lineItems:[],tags:[],isOverride:true,actualSnapshotVersion:1,baselineSnapshotVersion:1,baselinePrimaryAccountId:movement.primaryAccountId,baselineSecondaryAccountId:movement.secondaryAccountId,baselineTransactionTypeId:movement.transactionTypeId,createdAt:timestamp,updatedAt:timestamp});
+      }
+      batch.decisions[decision.index]={action:decision.action,occurrenceKey,appliedAt:timestamp,before,actualAmount:decision.action==='ignore'?null:Math.abs(entry.amountCents)/100,actualDate:decision.action==='ignore'?null:entry.postingDate};
+      if(decision.action!=='ignore') seen.add(entry.fingerprint);
+      changes.push({index:decision.index,action:decision.action,occurrenceKey});
+    }
+    return {changes};
+  });
 }
 
 export async function markSkipped(scenarioId, occurrenceKey) {

@@ -80,7 +80,7 @@ test.describe('deeper edit paths and error states', () => {
     await tagInput.fill('review');
     await tagInput.press('Enter');
     await expect(card.locator('.tag-badge', { hasText: 'review' })).toBeVisible();
-    await page.locator('.topbar').click();
+    await page.locator('.page-title').click();
 
     await waitForScenario(page, (scenario) => {
       const account = scenario.accounts.find((item) => Number(item.id) === 1);
@@ -89,7 +89,7 @@ test.describe('deeper edit paths and error states', () => {
 
     await card.click();
     await card.locator('.tag-badge', { hasText: 'review' }).locator('button[aria-label="Remove tag"]').click();
-    await page.locator('.topbar').click();
+    await page.locator('.page-title').click();
 
     await waitForScenario(page, (scenario) => {
       const account = scenario.accounts.find((item) => Number(item.id) === 1);
