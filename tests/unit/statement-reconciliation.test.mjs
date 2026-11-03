@@ -94,6 +94,27 @@ test('mapping generation requires unique account evidence and does not mutate th
  assert.equal(drafts[0].secondaryAccountId,2);
 });
 
+test('account-only mappings ignore legacy action differences and persist without an action',async()=>{
+ await store.write(seed());
+ const rule={accountId:1,field:'originalDescription',pattern:'Service',comparison:'exact',direction:'out',secondaryAccountId:2};
+ await saveStatementMapping(1,rule);
+ const scenario=(await store.read()).scenarios[0],saved=scenario.statementMappings[0];
+ assert.equal(Object.hasOwn(saved,'action'),false);
+ const entry=parseStatement(csv).entries[0];
+ const mapping=statementMappingFor(entry,[{...saved,action:'create'},{...saved,id:'legacy',action:'prefer-match'}],1,scenario.accounts);
+ assert.equal(mapping.conflict,false);
+ assert.equal(mapping.rule.secondaryAccountId,2);
+ assert.equal(validateAppData(await store.read()).isValid,true);
+});
+
+test('mapping drafts can use unique plan description evidence without amount/date matching',()=>{
+ const scenario=seed().scenarios[0];
+ scenario.transactions=[{primaryAccountId:1,secondaryAccountId:2,transactionTypeId:2,description:'Merchant ABC'}];
+ const entry={...parseStatement(csv).entries[0],description:'Card payment',originalDescription:'Merchant ABC reference 123'};
+ const drafts=generateStatementMappingDrafts([entry],scenario,1);
+ assert.equal(drafts.length,1);assert.equal(drafts[0].secondaryAccountId,2);assert.equal(Object.hasOwn(drafts[0],'action'),false);
+});
+
 test('account-mapped merchants can suggest a changed amount without guessing unrelated actuals',()=>{
  const entry={...parseStatement(csv).entries[0],description:'Unknown merchant',originalDescription:'Unknown merchant',amountCents:-12500};
  const occurrence=seed().scenarios[0].transactionOccurrences[0];

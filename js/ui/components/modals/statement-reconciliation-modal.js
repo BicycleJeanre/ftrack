@@ -4,7 +4,7 @@ import { retainStatement, appliedStatementFingerprints } from '../../../app/serv
 import { applyStatementDecisions } from '../../../app/managers/occurrence-manager.js';
 import { getScenario } from '../../../app/services/data-service.js';
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
-import { statementMappingFor,generateStatementMappingDrafts,counterpartyId,statementMappingLabel,MAPPING_FIELD_LABELS } from '../../../shared/statement-mapping-utils.js';
+import { statementMappingFor,generateStatementMappingDrafts,counterpartyId,statementMappingLabel } from '../../../shared/statement-mapping-utils.js';
 import { buildStatementMappingEditor } from '../widgets/statement-mapping-editor.js';
 import { buildStatementReviewGrid } from '../widgets/statement-review-grid.js';
 import { openStatementMatchPicker } from '../widgets/statement-match-picker.js';
@@ -69,7 +69,7 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
     }));});sourceWrap.append(sourceTable);source.append(sourceWrap);content.append(source);
     const start=new Date(parsed.startDate+'T12:00:00Z');start.setUTCDate(start.getUTCDate()-7);const end=new Date(parsed.endDate+'T12:00:00Z');end.setUTCDate(end.getUTCDate()+7);
     const {occurrences}=resolveScenarioOccurrences({scenario,startDate:start.toISOString().slice(0,10),endDate:end.toISOString().slice(0,10)});
-    const wrap=el('div','','statement-table-wrap');const table=el('table');const heading=el('tr');['Approve','Date','Description','Original description','Category','Parent category','Amount','Review / suggested match','Secondary account','Saved mapping rule'].forEach(h=>heading.append(el('th',h)));table.append(heading);
+    const wrap=el('div','','statement-table-wrap');const table=el('table');const heading=el('tr');['Approve','Date','Description','Original description','Category','Parent category','Amount','Actions','Secondary account','Saved mapping rule'].forEach(h=>heading.append(el('th',h)));table.append(heading);
     const pending=[],gridRows=[];
     windowEntries.filter(e=>!e.insufficientFunds).forEach(entry=>{
       const tr=el('tr');const check=el('input');check.type='checkbox';check.setAttribute('aria-label',`Approve source row ${entry.index+1}`);
@@ -77,10 +77,10 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
       const reviewed=batch.decisions?.[entry.index];const duplicate=entry.monetary && seen.has(entry.fingerprint);
       if(reviewed || duplicate || !entry.monetary){check.disabled=true;const status=reviewed ? `Reviewed: ${reviewed.action}` : duplicate ? 'Already reconciled in retained source' : 'Non-monetary source record';const reason=statementMappingLabel(statementMappingFor(entry,scenario.statementMappings,batch.accountId,scenario.accounts),scenario.accounts);tr.append(el('td',status),el('td'),el('td',reason));gridRows.push({entry,tr,check,status,reason,draft:{}});return;}
       const mapping=statementMappingFor(entry,scenario.statementMappings,batch.accountId,scenario.accounts);
-      const mappedPlan=Boolean(mapping.rule && mapping.rule.action==='prefer-match');
-      const suggestions=mappedPlan?suggestStatementMatches(entry,occurrences.filter(o=>counterpartyId(o,batch.accountId)===Number(mapping.rule.secondaryAccountId)),batch.accountId,{allowAmountDifference:true}):[];
+      const mappedPlan=Boolean(mapping.rule?.secondaryAccountId);
+      const suggestions=mappedPlan?suggestStatementMatches(entry,occurrences.filter(o=>counterpartyId(o,batch.accountId)===Number(mapping.rule.secondaryAccountId)),batch.accountId):[];
       const action=select([['','Choose action'],...suggestions.map(s=>[`${s.status==='actual'?'existing':'match'}:${s.occurrenceKey}`,s.description || '(no description)']),['create','Create new actual'],['ignore','Ignore']]);action.hidden=true;
-      const operation=select([['','Choose action'],['match','Match planned payment'],['existing','Link existing actual'],['create','Create new actual'],['ignore','Ignore']]);operation.setAttribute('aria-label',`Action source row ${entry.index+1}`);
+      const operation=select([['','Choose action'],['match','Add actual and close planned payment'],['existing','Link existing actual'],['create','Add new actual'],['ignore','Ignore']]);operation.setAttribute('aria-label',`Action source row ${entry.index+1}`);
       const secondary=select([['','Choose secondary account'],...scenario.accounts.filter(a=>Number(a.id)!==Number(batch.accountId)).map(a=>[String(a.id),a.name])]);secondary.setAttribute('aria-label',`Secondary account source row ${entry.index+1}`);
       const draftKey=`${batch.id}:${entry.index}`;
       if(!drafts.has(draftKey)){
@@ -88,9 +88,7 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
         if(mapping.rule){
           account=String(mapping.rule.secondaryAccountId || '');
           const mapped=suggestions.filter(s=>counterpartyId(occurrences.find(o=>o.occurrenceKey===s.occurrenceKey),batch.accountId)===Number(account));
-          if(mapping.rule.action==='ignore')chosen='ignore';
-          else if(mapping.rule.action==='create')chosen='create';
-          else if(mapped.length && (mapped.length===1 || mapped[0].score>mapped[1].score)) chosen=`${mapped[0].status==='actual'?'existing':'match'}:${mapped[0].occurrenceKey}`;
+          if(mapped.length && (mapped.length===1 || mapped[0].score>mapped[1].score)) chosen=`${mapped[0].status==='actual'?'existing':'match'}:${mapped[0].occurrenceKey}`;
           else if(!mapped.length)chosen='create';
         }
         drafts.set(draftKey,{action:chosen,secondary:account,reason,approved:false,manual:false});
@@ -108,14 +106,22 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
       };syncSecondary();
       action.addEventListener('change',()=>{operation.value=action.value.split(':')[0];syncSecondary();draft.action=action.value;draft.secondary=secondary.value;draft.manual=true;draft.approved=false;check.checked=false;});
       operation.addEventListener('change',()=>{const desired=operation.value;action.value=['create','ignore'].includes(desired)?desired:'';action.dispatchEvent(new Event('change'));operation.value=desired;syncSecondary();grid.draw();});
-      secondary.addEventListener('change',()=>{if(action.value.includes(':')){action.value='create';operation.value='create';matchInfo.textContent='Account changed: previous match cleared. Choose Match planned payment to link a different payment.';chooseMatch.hidden=true;}draft.action=action.value;draft.secondary=secondary.value;draft.manual=true;draft.approved=false;check.checked=false;});
-      const ruleSource=select(Object.entries(MAPPING_FIELD_LABELS));ruleSource.setAttribute('aria-label',`Mapping source field row ${entry.index+1}`);ruleSource.value=mapping.rule?.field || 'originalDescription';ruleCell.append(ruleSource);
-      ruleCell.append(button('Save as mapping',()=>{
-        if(!action.value || action.value!=='ignore'&&!secondary.value){error.textContent='Choose an action and secondary account first.';return;}
-        const existing=statementMappingFor(entry,scenario.statementMappings,batch.accountId,scenario.accounts).rule;
-        const sameField=existing?.field===ruleSource.value;
-        mappingEditor.edit({id:sameField?existing.id:undefined,accountId:batch.accountId,field:ruleSource.value,comparison:sameField?existing.comparison:'exact',pattern:sameField?existing.pattern:entry[ruleSource.value] || '',direction:entry.amountCents>0?'in':'out',action:action.value==='ignore'?'ignore':action.value==='create'?'create':'prefer-match',secondaryAccountId:secondary.value});mappingEditor.element.scrollIntoView({block:'nearest'});
-      }));
+      const saveMapping=button('Create mapping',()=>{
+        if(!secondary.value){error.textContent='Choose a secondary account first. Actions are independent of mapping rules.';return;}
+        const existing=mapping.rule;
+        const field=existing?.field || (entry.originalDescription?'originalDescription':'description');
+        mappingEditor.edit({id:existing?.id,accountId:batch.accountId,field,comparison:existing?.comparison || 'exact',pattern:existing?.pattern || entry[field] || '',direction:entry.amountCents>0?'in':'out',secondaryAccountId:secondary.value});mappingEditor.element.scrollIntoView({block:'nearest'});
+      });
+      const syncMapping=()=>{const changed=mapping.rule&&Number(secondary.value)!==Number(mapping.rule.secondaryAccountId);saveMapping.hidden=Boolean(mapping.rule&&!changed);saveMapping.textContent=changed?'Update mapping':'Create mapping';reason.textContent=draft.reason+(changed?' (account changed — not saved)':'');};
+      ruleCell.append(saveMapping);syncMapping();
+      secondary.addEventListener('change',()=>{
+        // Changing the account re-evaluates payment candidates, never writes a mapping implicitly.
+        const candidates=secondary.value?suggestStatementMatches(entry,occurrences.filter(o=>counterpartyId(o,batch.accountId)===Number(secondary.value)),batch.accountId):[];
+        const best=candidates[0];let value=secondary.value?'create':'';
+        if(best&&(candidates.length===1||best.score>candidates[1].score))value=`${best.status==='actual'?'existing':'match'}:${best.occurrenceKey}`;
+        if(value.includes(':')&&![...action.options].some(o=>o.value===value)){const option=el('option',best.description);option.value=value;action.append(option);}
+        action.value=value;action.dispatchEvent(new Event('change'));syncMapping();grid.draw();
+      });
       const actionCell=el('td');actionCell.append(operation,action,chooseMatch,matchInfo);const secondaryCell=el('td');secondaryCell.append(secondary);tr.append(actionCell,secondaryCell,ruleCell);
       gridRows.push({entry,tr,check,action,secondary,draft,get reason(){return draft.reason;},isReady(){
         if(parsed.balanceIssues.length)return false;
@@ -127,13 +133,15 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
       }});
       pending.push({entry,check,action,secondary});
     });
-    mappingEditor.element.append(button('Generate draft mappings',()=>{
+    const generateMappings=()=>{
       const examples=[];
       for(const old of batches.filter(b=>Number(b.accountId)===Number(batch.accountId))){const entries=parseStatement(old.rawCsv).entries;for(const [index,decision] of Object.entries(old.decisions || {})){const o=occurrences.find(o=>o.occurrenceKey===decision.occurrenceKey),entry=entries[index];if(o&&entry)examples.push({pattern:entry.originalDescription || entry.description,direction:entry.amountCents>0?'in':'out',secondaryAccountId:counterpartyId(o,batch.accountId)});}}
-      mappingEditor.showDrafts(generateStatementMappingDrafts(parsed.entries,scenario,batch.accountId,examples));
-    }));
+      return generateStatementMappingDrafts(parsed.entries,scenario,batch.accountId,examples);
+    };
+    const generated=generateMappings();if(generated.length)mappingEditor.showDrafts(generated);
+    mappingEditor.element.append(button('Generate draft mappings',()=>mappingEditor.showDrafts(generateMappings())));
     const grid=buildStatementReviewGrid({table,heading,rows:gridRows,state:gridState,onError:e=>{delete error.dataset.state;error.textContent=e.message;}});
-    wrap.append(table);content.append(el('h3','Review transactions'),el('p','Only saved description/category rules fill actions and accounts automatically. No saved mapping means no automatic mapping; choose manually or save a rule. Amount/date only help locate a payment within the mapped account. Sort or group rows before approving.'),grid.controls,wrap);
+    wrap.append(table);content.append(el('h3','Review transactions'),el('p','Saved description/category rules automatically fill secondary accounts only. Actions independently suggest adding an actual and closing a planned payment, linking an existing actual, or adding a new actual. Review before approving. Create a mapping for an unmapped row, or update it after changing its account.'),grid.controls,wrap);
     const apply=button('Apply approved rows',guard(async()=>{
       const decisions=pending.filter(p=>p.check.checked).map(p=>{
         const [action,...rest]=p.action.value.split(':');const occurrenceKey=rest.join(':');

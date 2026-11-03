@@ -14,12 +14,12 @@ export function normalizeStatementMapping(rule, accounts) {
     id:String(rule.id || ''), accountId:Number(rule.accountId),
     field:String(rule.field || 'originalDescription'), pattern:String(rule.pattern || '').trim(),
     comparison:String(rule.comparison || 'contains'), direction:String(rule.direction || 'out'),
-    action:String(rule.action || 'prefer-match'), secondaryAccountId:rule.action === 'ignore' ? null : Number(rule.secondaryAccountId)
+    ...(rule.action ? {action:String(rule.action)} : {}), secondaryAccountId:rule.action === 'ignore' ? null : Number(rule.secondaryAccountId)
   };
   if (!result.id || !accounts.some(a=>Number(a.id)===result.accountId)) throw new Error('Choose an existing primary account.');
   if (!MAPPING_FIELDS.includes(result.field) || !['exact','contains'].includes(result.comparison) || !['in','out'].includes(result.direction)) throw new Error('Invalid mapping condition.');
   if (!result.pattern || result.pattern.length>500) throw new Error('Enter a mapping pattern of 1–500 characters.');
-  if (!['prefer-match','create','ignore'].includes(result.action)) throw new Error('Invalid mapping action.');
+  if (result.action && !['prefer-match','create','ignore'].includes(result.action)) throw new Error('Invalid legacy mapping action.');
   if(result.action!=='ignore' && (result.secondaryAccountId===result.accountId || !accounts.some(a=>Number(a.id)===result.secondaryAccountId))) throw new Error('Choose a different, existing secondary account.');
   return result;
 }
@@ -32,7 +32,8 @@ export function statementMappingFor(entry, rules, accountId, accounts) {
     return pattern && (rule.comparison==='exact'?value===pattern:value.includes(pattern));
   });
   if(!matches.length) return {rule:null,conflict:false};
-  const signatures=new Set(matches.map(r=>JSON.stringify([r.action,r.secondaryAccountId])));
+  // Reconciliation actions are independent of account mapping (including legacy action hints).
+  const signatures=new Set(matches.map(r=>JSON.stringify([r.secondaryAccountId])));
   return {rule:signatures.size===1?matches[0]:null,conflict:signatures.size>1};
 }
 
@@ -51,9 +52,17 @@ export function generateStatementMappingDrafts(entries, scenario, accountId, pri
     const previousIds=[...new Set(previous.map(e=>Number(e.secondaryAccountId)))];
     const haystack=mappingText(entry.description+' '+entry.originalDescription+' '+entry.category+' '+entry.parentCategory);
     const named=scenario.accounts.filter(a=>Number(a.id)!==Number(accountId) && mappingText(a.name).length>=3 && haystack.includes(mappingText(a.name)));
-    const candidates=previousIds.length ? previousIds : named.map(a=>Number(a.id));
+    // Existing plan descriptions provide text evidence, never amount/date proximity.
+    const described=(scenario.transactions || []).filter(t=>{
+      const primary=Number(t.primaryAccountId)===Number(accountId),secondary=Number(t.secondaryAccountId)===Number(accountId);
+      if(!primary&&!secondary)return false;
+      const sign=(Number(t.transactionTypeId)===1?1:-1)*(primary?1:-1);
+      const text=mappingText(t.description);
+      return sign===Math.sign(entry.amountCents)&&text.length>=4&&/[a-z]/i.test(text)&&haystack.includes(text);
+    }).map(t=>counterpartyId(t,accountId));
+    const candidates=[...new Set(previousIds.length ? previousIds : [...named.map(a=>Number(a.id)),...described])].filter(id=>id!==Number(accountId)&&scenario.accounts.some(a=>Number(a.id)===id));
     if(candidates.length!==1) continue;
-    drafts.push({accountId:Number(accountId),field:'originalDescription',pattern,comparison:'exact',direction:entry.amountCents>0?'in':'out',action:'prefer-match',secondaryAccountId:candidates[0]});
+    drafts.push({accountId:Number(accountId),field:entry.originalDescription?'originalDescription':'description',pattern,comparison:'exact',direction:entry.amountCents>0?'in':'out',secondaryAccountId:candidates[0]});
   }
   return drafts;
 }

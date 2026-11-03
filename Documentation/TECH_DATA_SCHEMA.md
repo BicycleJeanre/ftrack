@@ -213,11 +213,15 @@ description, signed amounts and balance, plus multiplicity for identical rows.
 `statementMappings` is an optional additive array of rules with string `id`,
 `accountId`, `field` (`description`, `originalDescription`, `category`,
 `parentCategory`), `pattern` (1–500 characters), `comparison` (`exact`,
-`contains`), `direction` (`in`, `out`), `action` (`prefer-match`, `create`,
-`ignore`), and `secondaryAccountId` (null only for ignore). Accounts must exist
-and primary and secondary must differ. Matching is case-insensitive; conflicting
-matching rules do not select an action. Rules change suggestions only and never
-approve/apply rows. Rule generation produces unsaved drafts. Rules are preserved
+`contains`), `direction` (`in`, `out`), and `secondaryAccountId`. Accounts must exist
+and primary and secondary must differ. Legacy `action` hints remain readable for
+compatibility but do not control reconciliation actions. New rules contain no
+action. Matching is case-insensitive; rules mapping to different accounts conflict.
+Rules fill secondary accounts only and never approve/apply rows. Actions separately
+locate a payment within the chosen account or suggest adding a new actual.
+Rule generation automatically presents unsaved drafts based on unique account-name,
+plan-description, or previously reviewed text evidence, never amount/date guesses.
+Rules are preserved
 by normalization, export/import and cloud snapshots and checked by validation.
 
 Budget review reminders are durable scenario data. They are included in JSON

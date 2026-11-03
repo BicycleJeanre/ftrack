@@ -134,6 +134,19 @@ unchanged.
 the scenario, occurrence, decision, and resolution time. Link and remove choices
 also mark saved projections stale so they are refreshed from the revised plan.
 
+## 5.9 Statement Mapping and Actions
+
+Statement reconciliation mappings are account rules, not transaction actions.
+Saved description, original-description, category or parent-category rules fill
+the secondary account automatically. The grid shows the applied rule as text.
+Use Create mapping on an unmapped row; after changing a mapped secondary account,
+use Update mapping to review and save the change. Choose the source field in the
+mapping editor, not in the grid. Changing Actions does not alter saved rules.
+Actions separately allow adding an actual and closing its planned payment,
+linking an existing actual, adding a new actual, or ignoring a source row.
+Generated mapping drafts appear automatically where text evidence identifies a
+single account. Review and save them to activate; nothing is approved implicitly.
+
 ## 6.0 Clear Data
 
 6.1 Use the navbar button Clear Data.
