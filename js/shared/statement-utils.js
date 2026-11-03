@@ -53,7 +53,7 @@ export function parseStatement(rawCsv) {
     }
     const identity = JSON.stringify([r.Account,postingDate,r['Transaction Date'],r['Original Description'],incoming,outgoing,fee,balance]);
     const ordinal = (seen.get(identity) || 0) + 1; seen.set(identity,ordinal);
-    return { index, postingDate, description:r.Description, originalDescription:r['Original Description'], amountCents, balanceCents:balance, fingerprint:identity + ':' + ordinal, monetary:amountCents !== 0 };
+    return { index, postingDate, description:r.Description, originalDescription:r['Original Description'], category:r.Category, parentCategory:r['Parent Category'], amountCents, balanceCents:balance, fingerprint:identity + ':' + ordinal, monetary:amountCents !== 0 };
   });
   if (new Set(rows.map(r => r[headers.indexOf('Account')])).size !== 1) throw new Error('Import one bank account at a time.');
   return { headers, rows, entries, balanceIssues, sourceAccount:rows[0][headers.indexOf('Account')], startDate:entries.map(e=>e.postingDate).sort()[0], endDate:entries.map(e=>e.postingDate).sort().at(-1) };
@@ -66,7 +66,7 @@ export function signedOccurrenceAmount(occurrence, accountId) {
   return (primary ? sign : -sign) * Math.round(Number(occurrence.status === 'actual' ? occurrence.actualAmount : occurrence.plannedAmount) * 100);
 }
 
-export function suggestStatementMatches(entry, occurrences, accountId) {
+export function suggestStatementMatches(entry, occurrences, accountId, { allowAmountDifference = false } = {}) {
   if (!entry.monetary) return [];
   const words = s => new Set(String(s || '').toLowerCase().match(/[a-z0-9]{3,}/g) || []);
   const sourceWords = words(entry.description + ' ' + entry.originalDescription);
@@ -77,7 +77,8 @@ export function suggestStatementMatches(entry, occurrences, accountId) {
     if (days > 7) return [];
     const exact = signed === entry.amountCents;
     const overlap = [...words(o.description)].some(w => sourceWords.has(w));
-    if (!exact && !overlap) return [];
+    if (o.status === 'actual' && (!exact || days !== 0)) return [];
+    if (!exact && !overlap && !allowAmountDifference) return [];
     return [{ occurrenceKey:o.occurrenceKey, status:o.status, amount:signed / 100, date:o.actualDate || o.plannedDate || o.scheduledDate, description:o.description, score:(exact ? 60 : 0) + (overlap ? 25 : 0) + (days === 0 ? 15 : 7-days), reason:`${exact ? 'Same amount' : 'Different amount'}; ${days} day(s) apart${overlap ? '; description overlaps' : ''}` }];
   }).sort((a,b)=>b.score-a.score).slice(0,8);
 }

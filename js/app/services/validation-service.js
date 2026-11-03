@@ -7,6 +7,7 @@
 import * as DataStore from './storage-service.js';
 import { CURRENT_SCHEMA_VERSION } from '../../shared/app-data-utils.js';
 import { parseStatement } from '../../shared/statement-utils.js';
+import { normalizeStatementMapping } from '../../shared/statement-mapping-utils.js';
 
 // Valid enum IDs from assets/lookup-data.json
 const VALID_ACCOUNT_TYPES      = [1, 2, 3, 4, 5];
@@ -740,6 +741,19 @@ function validateScenario(scenario) {
         ));
     }
 
+    if (scenario.statementMappings !== undefined) {
+        if(!Array.isArray(scenario.statementMappings)) issues.push(issue('statementMappings','Must be an array'));
+        else {
+            const ids=new Set();
+            scenario.statementMappings.forEach((rule,index)=>{
+                try {
+                    normalizeStatementMapping(rule,scenario.accounts || []);
+                    if(ids.has(rule.id)) throw new Error('Duplicate mapping ID');
+                    ids.add(rule.id);
+                } catch(error) { issues.push(issue(`statementMappings[${index}]`,error.message)); }
+            });
+        }
+    }
     if (scenario.statementImports !== undefined) {
         if (!Array.isArray(scenario.statementImports)) issues.push(issue('statementImports', 'Must be an array'));
         else {

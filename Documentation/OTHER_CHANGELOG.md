@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added statement-grid sorting, grouping and bulk approval, plus editable,
+  scenario-level mapping rules, generated mapping drafts and Save as mapping
+  from reviewed row choices. Suggestions now populate linked secondary accounts.
+
 - Added dashboard CSV statement retention and reviewed reconciliation, with
   original source tables/downloads, match suggestions, explicit approvals,
   atomic actual updates, duplicate checks and downloadable decision reports.

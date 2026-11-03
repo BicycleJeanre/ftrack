@@ -9,6 +9,8 @@ globalThis.CustomEvent=class {constructor(type,options){this.type=type;this.deta
 globalThis.document={dispatchEvent(){}};
 const store=await import('../../js/app/services/storage-service.js');
 const {retainStatement}=await import('../../js/app/services/statement-service.js');
+const {saveStatementMapping,removeStatementMapping}=await import('../../js/app/services/statement-service.js');
+const {statementMappingFor,generateStatementMappingDrafts}=await import('../../js/shared/statement-mapping-utils.js');
 const {applyStatementDecisions}=await import('../../js/app/managers/occurrence-manager.js');
 const header=STATEMENT_HEADERS.join(',');
 const row=(nr,date,description,out,fee,balance)=>[nr,'bank-1',date,date+' 12:00',description,description,'Expenses','Services','',out,fee,balance].join(',');
@@ -60,4 +62,42 @@ test('source corruption is reported by the existing data validator',async()=>{
  await store.write(seed());await retainStatement(1,1,'test.csv',csv);
  const data=await store.read();data.scenarios[0].statementImports[0].rows[0][4]='changed';
  assert.equal(validateAppData(data).isValid,false);
+});
+
+test('mapping CRUD persists through cloud and checks scope, direction and conflicts',async()=>{
+ await store.write(seed());
+ const rule={accountId:1,field:'originalDescription',pattern:'service',comparison:'contains',direction:'out',action:'prefer-match',secondaryAccountId:2};
+ await saveStatementMapping(1,rule);
+ let scenario=(await store.read()).scenarios[0],entry=parseStatement(csv).entries[0];
+ const saved=scenario.statementMappings[0];
+ assert.equal(statementMappingFor(entry,scenario.statementMappings,1,scenario.accounts).rule.id,saved.id);
+ assert.equal(statementMappingFor({...entry,amountCents:10000},scenario.statementMappings,1,scenario.accounts).rule,null);
+ assert.equal(statementMappingFor(entry,scenario.statementMappings,2,scenario.accounts).rule,null);
+ await assert.rejects(()=>saveStatementMapping(1,rule),/already exists/);
+ await saveStatementMapping(1,{...saved,action:'create'});
+ scenario=(await store.read()).scenarios[0];assert.equal(scenario.statementMappings[0].action,'create');
+ const encoded=await encodeCloudSnapshot(await store.read());const decoded=await decodeCloudSnapshot(encoded,encoded.chunks);
+ assert.deepEqual(decoded.scenarios[0].statementMappings,scenario.statementMappings);
+ const conflict={...saved,id:'another',field:'description',action:'ignore',secondaryAccountId:null};
+ assert.equal(statementMappingFor(entry,[saved,conflict],1,scenario.accounts).conflict,true);
+ await assert.rejects(()=>saveStatementMapping(1,{...rule,pattern:'other',secondaryAccountId:1}),/different/);
+ await removeStatementMapping(1,saved.id);assert.deepEqual((await store.read()).scenarios[0].statementMappings,[]);
+});
+
+test('mapping generation requires unique account evidence and does not mutate the scenario',()=>{
+ const scenario=seed().scenarios[0];
+ const entries=[{...parseStatement(csv).entries[0],description:'Shop purchase',originalDescription:'Shop purchase'}];
+ assert.equal(generateStatementMappingDrafts(entries,scenario,1).length,1);
+ assert.equal(scenario.statementMappings,undefined);
+ assert.equal(generateStatementMappingDrafts(entries,{...scenario,accounts:[...scenario.accounts,{id:3,name:'Shop'}]},1).length,0);
+ const drafts=generateStatementMappingDrafts(parseStatement(csv).entries,scenario,1,[{pattern:'Service',direction:'out',secondaryAccountId:2}]);
+ assert.equal(drafts[0].secondaryAccountId,2);
+});
+
+test('account-mapped merchants can suggest a changed amount without guessing unrelated actuals',()=>{
+ const entry={...parseStatement(csv).entries[0],description:'Unknown merchant',originalDescription:'Unknown merchant',amountCents:-12500};
+ const occurrence=seed().scenarios[0].transactionOccurrences[0];
+ assert.equal(suggestStatementMatches(entry,[occurrence],1).length,0);
+ assert.equal(suggestStatementMatches(entry,[occurrence],1,{allowAmountDifference:true}).length,1);
+ assert.equal(suggestStatementMatches(entry,[{...occurrence,status:'actual',actualAmount:100,actualDate:entry.postingDate}],1,{allowAmountDifference:true}).length,0);
 });

@@ -1,5 +1,30 @@
 import * as DataStore from './storage-service.js';
 import { parseStatement } from '../../shared/statement-utils.js';
+import { normalizeStatementMapping } from '../../shared/statement-mapping-utils.js';
+
+export async function saveStatementMapping(scenarioId, rule) {
+  return DataStore.transaction(data=>{
+    const scenario=data.scenarios.find(s=>Number(s.id)===Number(scenarioId));
+    if(!scenario) throw new Error('Scenario not found.');
+    const rules=scenario.statementMappings ||= [];
+    if(rule.id && !rules.some(r=>r.id===rule.id)) throw new Error('This mapping was removed. Reload before saving.');
+    const normalized=normalizeStatementMapping({...rule,id:rule.id || crypto.randomUUID()},scenario.accounts);
+    const sameCondition=r=>Number(r.accountId)===normalized.accountId && r.field===normalized.field && r.comparison===normalized.comparison && r.direction===normalized.direction && r.pattern.toLowerCase().trim()===normalized.pattern.toLowerCase().trim();
+    if(rules.some(r=>r.id!==normalized.id && sameCondition(r))) throw new Error('A rule already exists for this condition. Edit that rule instead.');
+    const index=rules.findIndex(r=>r.id===normalized.id);
+    if(index<0) rules.push(normalized); else rules[index]=normalized;
+    return data;
+  });
+}
+
+export async function removeStatementMapping(scenarioId, id) {
+  return DataStore.transaction(data=>{
+    const scenario=data.scenarios.find(s=>Number(s.id)===Number(scenarioId));
+    if(!scenario) throw new Error('Scenario not found.');
+    scenario.statementMappings=(scenario.statementMappings || []).filter(r=>r.id!==id);
+    return data;
+  });
+}
 
 export async function retainStatement(scenarioId, accountId, fileName, rawCsv) {
   const parsed = parseStatement(rawCsv);

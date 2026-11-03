@@ -161,6 +161,7 @@ scenarios.
   baselinePeriods: BaselinePeriod[],
   reviewReminders: BudgetReviewReminder[],
   statementImports?: StatementImport[],      // Original CSV evidence and source-row reconciliation decisions
+  statementMappings?: StatementMapping[],    // User-reviewed matching rules, separate from immutable sources
   projection?: ProjectionBundle | null,      // Projection config + last generated output
   planning?: ScenarioPlanning | null         // Planning windows for goal tooling (Generate Plan / Solver)
 }
@@ -208,6 +209,16 @@ Normalization, JSON export/import, and cloud snapshots preserve this field.
 Balance validation blocks application, not source retention. Fingerprints
 exclude export row numbers and include bank account, both dates, original
 description, signed amounts and balance, plus multiplicity for identical rows.
+
+`statementMappings` is an optional additive array of rules with string `id`,
+`accountId`, `field` (`description`, `originalDescription`, `category`,
+`parentCategory`), `pattern` (1–500 characters), `comparison` (`exact`,
+`contains`), `direction` (`in`, `out`), `action` (`prefer-match`, `create`,
+`ignore`), and `secondaryAccountId` (null only for ignore). Accounts must exist
+and primary and secondary must differ. Matching is case-insensitive; conflicting
+matching rules do not select an action. Rules change suggestions only and never
+approve/apply rows. Rule generation produces unsaved drafts. Rules are preserved
+by normalization, export/import and cloud snapshots and checked by validation.
 
 Budget review reminders are durable scenario data. They are included in JSON
 exports and cloud snapshots and remain visible in the shared dashboard shell

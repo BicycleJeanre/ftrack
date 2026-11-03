@@ -538,6 +538,35 @@ review existing actuals carefully before creating a second movement.
 All approved rows and their source links are saved in one atomic commit.
 There is no automatic import undo in this version; review before applying.
 
+#### Sorting, Grouping and Mapping Rules
+
+Click a column header in the review grid or original source table to sort it;
+click again to reverse the order. This changes display order only, not the
+retained CSV or the source-row links. Row choices and approvals survive sorting
+and grouping. Group the review by description, bank category, secondary
+account, mapping rule, action or month. **Approve group** selects eligible rows
+in that group; **Approve all eligible rows** selects across the statement.
+Incomplete, protected and duplicate-target choices are not bulk-selected.
+Use **Apply approved rows** to commit the selected decisions together.
+
+Open **Mapping rules** to add, edit or remove scenario-level rules. Conditions
+include the FTrack primary account, money direction, a source field (description,
+original description, category or parent category), and an Equals or Contains
+text comparison. Choose a secondary account and an action: match a plan then
+create an actual if no candidate exists, always create an actual, or ignore.
+Rules are case-insensitive; conflicting actions/accounts remain unresolved.
+Tied candidate matches require review rather than a guessed match.
+
+After choosing a row's action and secondary account, **Save as mapping** opens
+a prefilled rule for you to review and save. When a matching rule already
+exists, this edits that rule. **Generate draft mappings** proposes exact-text
+rules from unique account-name/category matches, strong planned matches and
+previously reconciled rows. Drafts are inactive until individually reviewed
+and saved. Saving/removing rules refreshes automatic suggestions and clears
+their approvals; manual row choices remain intact. Rules persist through
+reloads, JSON backups and cloud sync. Removing an account also removes rules
+that reference it. Retained source records and previous decisions are unchanged.
+
 ### 5.5 Leave a Reminder for the Next Review
 
 Use **Add reminder** in the **Review reminders** strip at the top of the
