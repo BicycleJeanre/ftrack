@@ -36,7 +36,7 @@ export function counterpartyId(occurrence, accountId) {
 
 export function generateStatementMappingDrafts(entries, scenario, accountId, priorExamples=[]) {
   const drafts=[];const seen=new Set();
-  for(const entry of entries.filter(e=>e.monetary)) {
+  for(const entry of entries.filter(e=>e.monetary&&!e.insufficientFunds)) {
     const pattern=entry.originalDescription || entry.description;
     const signature=JSON.stringify([mappingText(pattern),Math.sign(entry.amountCents)]);
     if(seen.has(signature)) continue;seen.add(signature);

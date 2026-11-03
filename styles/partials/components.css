@@ -755,6 +755,13 @@ input[type="checkbox"] {
 .statement-group-row td { background: var(--bg-secondary); border-top: 2px solid var(--border-primary); }
 .statement-table-wrap th button { white-space: nowrap; }
 .statement-mappings { margin: 12px 0; padding: 8px; border: 1px solid var(--border-primary); border-radius: 6px; }
+.statement-insufficient-funds { color: var(--danger, #c82424); background: color-mix(in srgb, var(--danger, #c82424) 12%, var(--bg-secondary)); padding: 8px; }
+.statement-flagged { border: 1px solid var(--border-primary); padding: 8px; margin: 10px 0; }
+.statement-flagged.has-flags { border-color: var(--danger, #c82424); }
+.statement-reconciliation-modal [hidden] { display: none !important; }
+.statement-match-choice { display: block; width: 100%; text-align: left; margin: 8px 0; white-space: normal; }
+.modal-content.statement-match-picker { max-width: 800px; }
+.statement-match-info { font-size: .75rem; max-width: 320px; white-space: normal; }
 
 .dashboard-review-reminder-section {
   flex: 0 0 auto;

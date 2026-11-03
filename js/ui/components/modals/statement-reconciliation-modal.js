@@ -1,5 +1,5 @@
 import { createModal } from './modal-factory.js';
-import { parseStatement, suggestStatementMatches, signedOccurrenceAmount } from '../../../shared/statement-utils.js';
+import { parseStatement, suggestStatementMatches, signedOccurrenceAmount, defaultStatementWindow } from '../../../shared/statement-utils.js';
 import { retainStatement, appliedStatementFingerprints } from '../../../app/services/statement-service.js';
 import { applyStatementDecisions } from '../../../app/managers/occurrence-manager.js';
 import { getScenario } from '../../../app/services/data-service.js';
@@ -7,6 +7,7 @@ import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scen
 import { statementMappingFor,generateStatementMappingDrafts,counterpartyId } from '../../../shared/statement-mapping-utils.js';
 import { buildStatementMappingEditor } from '../widgets/statement-mapping-editor.js';
 import { buildStatementReviewGrid } from '../widgets/statement-review-grid.js';
+import { openStatementMatchPicker } from '../widgets/statement-match-picker.js';
 
 function el(tag,text='',className='') { const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;return node; }
 function button(text,action) { const node=el('button',text,'icon-btn');node.type='button';node.addEventListener('click',action);return node; }
@@ -15,7 +16,7 @@ function download(text,name,type) {const url=URL.createObjectURL(new Blob([text]
 
 export async function openStatementReconciliationModal({scenarioId,onApplied}={}) {
   const {modal,close}=createModal({contentClass:'statement-reconciliation-modal'});
-  let scenario,activeId=null;const drafts=new Map(),gridState={};const content=el('div');const error=el('p','','statement-error');error.setAttribute('role','alert');
+  let scenario,activeId=null,timeframe=defaultStatementWindow();const drafts=new Map(),gridState={};const content=el('div');const error=el('p','','statement-error');error.setAttribute('role','alert');
   modal.append(el('h2','Statement reconciliation'),el('p','Retain a CSV source, review suggestions, then apply only the rows you approve. No recurring rules are changed.'),error,content,button('Close',close));
   const guard=fn=>async()=>{error.textContent='';delete error.dataset.state;try {await fn();}catch(e){error.textContent=e.message;}};
   const refresh=async()=>{scenario=await getScenario(scenarioId);if(!scenario)throw new Error('Scenario no longer exists.');await render();};
@@ -36,12 +37,26 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
     const archive=select([['','Choose retained source'],...batches.map(b=>[b.id,`${b.fileName} — ${scenario.accounts.find(a=>Number(a.id)===Number(b.accountId))?.name || 'Missing account'} — ${b.importedAt.slice(0,10)}`])]);archive.value=activeId || '';archive.setAttribute('aria-label','Retained statements');archive.addEventListener('change',guard(async()=>{activeId=archive.value;await render();}));content.append(el('h3','Retained statements'),archive);
     const batch=batches.find(b=>b.id===activeId);if(!batch)return;
     const parsed=parseStatement(batch.rawCsv);const seen=appliedStatementFingerprints(scenario,batch.accountId);
+    const inWindow=entry=>!timeframe || entry.postingDate>=timeframe.startDate&&entry.postingDate<timeframe.endDate;
+    const windowEntries=parsed.entries.filter(inWindow);
+    const flagged=windowEntries.filter(e=>e.insufficientFunds);
+    const dates=el('div','','statement-review-controls');
+    const from=el('input');from.type='date';from.value=timeframe?.startDate || parsed.startDate;from.setAttribute('aria-label','Statement review from');
+    const to=el('input');to.type='date';to.value=timeframe?.endDate || parsed.endDate;to.setAttribute('aria-label','Statement review to (exclusive)');
+    dates.append(el('span','Time frame: from (inclusive)'),from,el('span','to (exclusive)'),to,button('Apply time frame',guard(async()=>{
+      if(!from.value || !to.value || from.value>=to.value)throw new Error('Choose a valid start date before the end date.');
+      timeframe={startDate:from.value,endDate:to.value};await render();
+    })),button('Show full statement',()=>{timeframe=null;void render();}),button('Current 25th-to-25th cycle',()=>{timeframe=defaultStatementWindow();void render();}));
+    content.append(dates,el('p',`${windowEntries.length} rows in the selected window. ${flagged.length} insufficient-funds entries excluded. Only visible approved rows can be applied. The original source remains complete.`));
+    const flags=el('details','','statement-flagged');flags.classList.toggle('has-flags',flagged.length>0);flags.open=flagged.length>0;flags.append(el('summary',`Flagged / excluded entries (${flagged.length})`));
+    flags.append(el('p','Failed insufficient-funds entries are not completed payments. They are excluded from the review and approval list, not deleted from the source. Any existing budget item stays planned. Charged fees remain separate reconcilable rows.'));
+    flagged.forEach(entry=>flags.append(el('p',`Source row ${entry.index+1} · ${entry.postingDate} · ${entry.description} · Insufficient funds — excluded`,'statement-insufficient-funds')));content.append(flags);
     content.append(el('p',`${parsed.entries.length} source rows; ${parsed.entries.filter(e=>e.monetary).length} monetary rows. ${parsed.balanceIssues.length ? 'Balance validation FAILED: applying is blocked.' : 'Running balance checks passed.'} Date range: ${parsed.startDate} to ${parsed.endDate}.`));
     content.append(button('Download original CSV',()=>download(batch.rawCsv,batch.fileName,'text/csv')),
-      button('Download reconciliation report',()=>download(JSON.stringify({fileName:batch.fileName,sha256:batch.sha256,accountId:batch.accountId,decisions:batch.decisions},null,2),'statement-reconciliation.json','application/json')));
+      button('Download reconciliation report',()=>download(JSON.stringify({fileName:batch.fileName,sha256:batch.sha256,accountId:batch.accountId,decisions:batch.decisions,flags:parsed.entries.filter(e=>e.insufficientFunds).map(e=>({index:e.index,reason:'insufficient-funds',excluded:true}))},null,2),'statement-reconciliation.json','application/json')));
     const source=el('details');source.append(el('summary','Full original source table (all columns and rows)'));
     const sourceWrap=el('div','','statement-table-wrap');const sourceTable=el('table');const head=el('tr');parsed.headers.forEach(h=>head.append(el('th',h)));sourceTable.append(head);
-    parsed.rows.forEach((r,index)=>{const tr=el('tr');tr.dataset.sourceIndex=String(index);r.forEach(v=>tr.append(el('td',v)));sourceTable.append(tr);});
+    parsed.rows.forEach((r,index)=>{const tr=el('tr');tr.dataset.sourceIndex=String(index);if(parsed.entries[index].insufficientFunds)tr.className='statement-insufficient-funds';r.forEach(v=>tr.append(el('td',v)));sourceTable.append(tr);});
     let sourceSort=-1,sourceDescending=false;
     [...head.children].forEach((th,column)=>{const title=th.textContent;th.textContent='';th.append(button(title,()=>{
       sourceDescending=sourceSort===column?!sourceDescending:false;sourceSort=column;
@@ -56,7 +71,7 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
     const {occurrences}=resolveScenarioOccurrences({scenario,startDate:start.toISOString().slice(0,10),endDate:end.toISOString().slice(0,10)});
     const wrap=el('div','','statement-table-wrap');const table=el('table');const heading=el('tr');['Approve','Date','Description','Category','Amount','Review / suggested match','Secondary account','Mapping rule'].forEach(h=>heading.append(el('th',h)));table.append(heading);
     const pending=[],gridRows=[];
-    parsed.entries.forEach(entry=>{
+    windowEntries.filter(e=>!e.insufficientFunds).forEach(entry=>{
       const tr=el('tr');const check=el('input');check.type='checkbox';check.setAttribute('aria-label',`Approve source row ${entry.index+1}`);
       const first=el('td');first.append(check);tr.append(first,el('td',entry.postingDate),el('td',entry.description),el('td',entry.category),el('td',(entry.amountCents/100).toFixed(2)));
       const reviewed=batch.decisions?.[entry.index];const duplicate=entry.monetary && seen.has(entry.fingerprint);
@@ -64,9 +79,8 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
       const mapping=statementMappingFor(entry,scenario.statementMappings,batch.accountId,scenario.accounts);
       const mappedPlan=Boolean(mapping.rule && mapping.rule.action==='prefer-match');
       const suggestions=suggestStatementMatches(entry,mappedPlan?occurrences.filter(o=>counterpartyId(o,batch.accountId)===Number(mapping.rule.secondaryAccountId)):occurrences,batch.accountId,{allowAmountDifference:mappedPlan});
-      const otherPlans=occurrences.filter(o=>o.status==='planned' && !o.lineItems?.length && !o.transactionGroupId && Math.sign(signedOccurrenceAmount(o,batch.accountId))===Math.sign(entry.amountCents) && !suggestions.some(s=>s.occurrenceKey===o.occurrenceKey));
-      const action=select([['','Choose action'],...suggestions.map(s=>[`${s.status==='actual'?'existing':'match'}:${s.occurrenceKey}`,`${s.status==='actual'?'Link existing actual':'Match planned'}: ${s.description || '(no description)'} | ${s.date} | ${s.amount.toFixed(2)} | ${s.reason}`]),['create','Create unplanned actual'],['ignore','Ignore (retain source only)']]);action.setAttribute('aria-label',`Action source row ${entry.index+1}`);
-      otherPlans.forEach(o=>{const option=el('option',`Other planned item: ${o.description || '(no description)'} | ${o.scheduledDate} | ${(signedOccurrenceAmount(o,batch.accountId)/100).toFixed(2)}`);option.value=`match:${o.occurrenceKey}`;action.append(option);});
+      const action=select([['','Choose action'],...suggestions.map(s=>[`${s.status==='actual'?'existing':'match'}:${s.occurrenceKey}`,s.description || '(no description)']),['create','Create new actual'],['ignore','Ignore']]);action.hidden=true;
+      const operation=select([['','Choose action'],['match','Match planned payment'],['existing','Link existing actual'],['create','Create new actual'],['ignore','Ignore']]);operation.setAttribute('aria-label',`Action source row ${entry.index+1}`);
       const secondary=select([['','Choose secondary account'],...scenario.accounts.filter(a=>Number(a.id)!==Number(batch.accountId)).map(a=>[String(a.id),a.name])]);secondary.setAttribute('aria-label',`Secondary account source row ${entry.index+1}`);
       const draftKey=`${batch.id}:${entry.index}`;
       if(!drafts.has(draftKey)){
@@ -85,17 +99,26 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
         }
         drafts.set(draftKey,{action:chosen,secondary:account,reason,approved:false,manual:false});
       }
-      const draft=drafts.get(draftKey);action.value=draft.action;secondary.value=draft.secondary;check.checked=draft.approved;
+      const draft=drafts.get(draftKey);action.value=draft.action;operation.value=draft.action.split(':')[0];secondary.value=draft.secondary;check.checked=draft.approved;
       const ruleCell=el('td');const reason=el('span',draft.reason);ruleCell.append(reason);
-      const syncSecondary=()=>{const key=action.value.slice(action.value.indexOf(':')+1);const match=action.value.includes(':')&&occurrences.find(o=>o.occurrenceKey===key);if(match)secondary.value=String(counterpartyId(match,batch.accountId));secondary.disabled=Boolean(match)||action.value==='ignore';};syncSecondary();
-      action.addEventListener('change',()=>{syncSecondary();draft.action=action.value;draft.secondary=secondary.value;draft.manual=true;draft.approved=false;check.checked=false;draft.reason='Manual choice';reason.textContent=draft.reason;});
-      secondary.addEventListener('change',()=>{draft.secondary=secondary.value;draft.manual=true;draft.approved=false;check.checked=false;draft.reason='Manual choice';reason.textContent=draft.reason;});
+      const matchInfo=el('p','','statement-match-info');
+      const chooseMatch=button('Choose payment',()=>openStatementMatchPicker({entry,occurrences,accountId:batch.accountId,secondaryAccountId:secondary.value,accounts:scenario.accounts,existing:operation.value==='existing',onChoose:o=>{
+        const value=`${operation.value==='existing'?'existing':'match'}:${o.occurrenceKey}`;
+        if(![...action.options].some(option=>option.value===value)){const option=el('option',o.description);option.value=value;action.append(option);}
+        action.value=value;action.dispatchEvent(new Event('change'));grid.draw();
+      }}));chooseMatch.setAttribute('aria-label',`Choose match source row ${entry.index+1}`);
+      const syncSecondary=()=>{const key=action.value.slice(action.value.indexOf(':')+1);const match=action.value.includes(':')&&occurrences.find(o=>o.occurrenceKey===key);if(match)secondary.value=String(counterpartyId(match,batch.accountId));secondary.disabled=false;
+        chooseMatch.hidden=!['match','existing'].includes(operation.value);matchInfo.textContent=match?`Linked to: ${match.description || '(no description)'} · ${match.actualDate || match.plannedDate || match.scheduledDate} · ${(signedOccurrenceAmount(match,batch.accountId)/100).toFixed(2)}. Bank actual: ${(entry.amountCents/100).toFixed(2)}`:operation.value==='match'||operation.value==='existing'?'No payment selected. Choose a payment to link.':'';
+      };syncSecondary();
+      action.addEventListener('change',()=>{operation.value=action.value.split(':')[0];syncSecondary();draft.action=action.value;draft.secondary=secondary.value;draft.manual=true;draft.approved=false;check.checked=false;draft.reason='Manual choice';reason.textContent=draft.reason;});
+      operation.addEventListener('change',()=>{const desired=operation.value;action.value=['create','ignore'].includes(desired)?desired:'';action.dispatchEvent(new Event('change'));operation.value=desired;syncSecondary();grid.draw();});
+      secondary.addEventListener('change',()=>{if(action.value.includes(':')){action.value='create';operation.value='create';matchInfo.textContent='Account changed: previous match cleared. Choose Match planned payment to link a different payment.';chooseMatch.hidden=true;}draft.action=action.value;draft.secondary=secondary.value;draft.manual=true;draft.approved=false;check.checked=false;draft.reason='Manual choice';reason.textContent=draft.reason;});
       ruleCell.append(button('Save as mapping',()=>{
         if(!action.value || action.value!=='ignore'&&!secondary.value){error.textContent='Choose an action and secondary account first.';return;}
         const existing=statementMappingFor(entry,scenario.statementMappings,batch.accountId,scenario.accounts).rule;
         mappingEditor.edit({id:existing?.id,accountId:batch.accountId,field:existing?.field || 'originalDescription',comparison:existing?.comparison || 'exact',pattern:existing?.pattern || entry.originalDescription || entry.description,direction:entry.amountCents>0?'in':'out',action:action.value==='ignore'?'ignore':action.value==='create'?'create':'prefer-match',secondaryAccountId:secondary.value});mappingEditor.element.scrollIntoView({block:'nearest'});
       }));
-      const actionCell=el('td');actionCell.append(action);const secondaryCell=el('td');secondaryCell.append(secondary);tr.append(actionCell,secondaryCell,ruleCell);
+      const actionCell=el('td');actionCell.append(operation,action,chooseMatch,matchInfo);const secondaryCell=el('td');secondaryCell.append(secondary);tr.append(actionCell,secondaryCell,ruleCell);
       gridRows.push({entry,tr,check,action,secondary,draft,get reason(){return draft.reason;},isReady(){
         if(parsed.balanceIssues.length)return false;
         const o=action.value.includes(':')&&occurrences.find(o=>o.occurrenceKey===action.value.slice(action.value.indexOf(':')+1));

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added 25th-to-25th statement review windows, a red excluded list for
+  insufficient-funds failures, and a separate searchable payment match picker.
+  Simplified row actions and allowed secondary-account changes to safely clear
+  previous links without modifying the linked transaction.
+
 - Added statement-grid sorting, grouping and bulk approval, plus editable,
   scenario-level mapping rules, generated mapping drafts and Save as mapping
   from reviewed row choices. Suggestions now populate linked secondary accounts.

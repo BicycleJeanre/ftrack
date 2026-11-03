@@ -2746,6 +2746,7 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
     const targets = new Set(); const indices = new Set(); const changes = [];
     for (const decision of decisions) {
       const entry = parsed.entries[decision.index];
+      if(entry?.insufficientFunds) throw new Error('Insufficient-funds entries are flagged and cannot be reconciled as payments.');
       if (!entry || !Number.isInteger(decision.index) || indices.has(decision.index)) throw new Error('Invalid or repeated source row.');
       indices.add(decision.index);
       if (batch.decisions[decision.index]) throw new Error('This row has already been reviewed.');

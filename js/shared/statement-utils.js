@@ -1,6 +1,12 @@
 // Local-only CSV extraction. Source strings are retained independently of normalized entries.
 export const STATEMENT_HEADERS = ['Nr', 'Account', 'Posting Date', 'Transaction Date', 'Description', 'Original Description', 'Parent Category', 'Category', 'Money In', 'Money Out', 'Fee', 'Balance'];
 
+export function defaultStatementWindow(now = new Date()) {
+  const month=now.getMonth()-(now.getDate()<25?1:0);
+  const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return {startDate:key(new Date(now.getFullYear(),month,25)),endDate:key(new Date(now.getFullYear(),month+1,25))};
+}
+
 export function parseCsv(text) {
   const rows = []; let row = [], cell = '', quoted = false;
   text = String(text).replace(/^\uFEFF/, '');
@@ -44,16 +50,18 @@ export function parseStatement(rawCsv) {
     const incoming = cents(r['Money In']), outgoing = cents(r['Money Out']), fee = cents(r.Fee);
     if (incoming < 0 || outgoing > 0 || fee > 0 || [incoming,outgoing,fee].filter(Boolean).length > 1) throw new Error(`Row ${index + 2}: expected one signed movement or fee per row.`);
     const amountCents = incoming + outgoing + fee;
+    const descriptionText=r.Description+' '+r['Original Description'];
+    const insufficientFunds = fee === 0 && !/\bfee\b|\bcharge\b/i.test(descriptionText+' '+r.Category) && /insufficient\s+funds|not\s+enough\s+funds/i.test(descriptionText);
     const balance = r.Balance === '' ? null : cents(r.Balance);
     if (!r.Account.trim()) throw new Error('CSV account is missing.');
-    if (amountCents && balance === null) throw new Error('Monetary rows require a running balance.');
+    if (amountCents && balance === null && !insufficientFunds) throw new Error('Monetary rows require a running balance.');
     if (balance !== null) {
-      if (previousBalance !== null && balance !== previousBalance + amountCents) balanceIssues.push(index);
+      if (previousBalance !== null && balance !== previousBalance + (insufficientFunds ? 0 : amountCents)) balanceIssues.push(index);
       previousBalance = balance;
     }
     const identity = JSON.stringify([r.Account,postingDate,r['Transaction Date'],r['Original Description'],incoming,outgoing,fee,balance]);
     const ordinal = (seen.get(identity) || 0) + 1; seen.set(identity,ordinal);
-    return { index, postingDate, description:r.Description, originalDescription:r['Original Description'], category:r.Category, parentCategory:r['Parent Category'], amountCents, balanceCents:balance, fingerprint:identity + ':' + ordinal, monetary:amountCents !== 0 };
+    return { index, postingDate, description:r.Description, originalDescription:r['Original Description'], category:r.Category, parentCategory:r['Parent Category'], amountCents, balanceCents:balance, fingerprint:identity + ':' + ordinal, monetary:amountCents !== 0, insufficientFunds };
   });
   if (new Set(rows.map(r => r[headers.indexOf('Account')])).size !== 1) throw new Error('Import one bank account at a time.');
   return { headers, rows, entries, balanceIssues, sourceAccount:rows[0][headers.indexOf('Account')], startDate:entries.map(e=>e.postingDate).sort()[0], endDate:entries.map(e=>e.postingDate).sort().at(-1) };
@@ -67,7 +75,7 @@ export function signedOccurrenceAmount(occurrence, accountId) {
 }
 
 export function suggestStatementMatches(entry, occurrences, accountId, { allowAmountDifference = false } = {}) {
-  if (!entry.monetary) return [];
+  if (!entry.monetary || entry.insufficientFunds) return [];
   const words = s => new Set(String(s || '').toLowerCase().match(/[a-z0-9]{3,}/g) || []);
   const sourceWords = words(entry.description + ' ' + entry.originalDescription);
   return occurrences.flatMap(o => {

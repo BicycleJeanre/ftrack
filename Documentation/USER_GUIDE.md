@@ -512,6 +512,29 @@ Open **Statements** in the dashboard top bar. Select the FTrack account and
 upload the bank CSV export containing Posting Date, Transaction Date,
 Description, Original Description, Money In, Money Out, Fee and Balance.
 Select **Retain CSV for review** to save the source without changing actuals.
+The review defaults to the current 25th-to-25th cycle: the start date is
+included and the end date is excluded. Change **From** and **To**, then select
+**Apply time frame**, or select **Show full statement**. Only visible approved
+rows are applied, even if you previously approved a row in another window.
+The full original source table and download always retain every source row.
+
+Insufficient-funds failures appear in a red **Flagged / excluded entries** list
+and are removed from the reconcilable transaction grid. Their flags are also
+included in the downloadable report and reconstructed from retained source
+data after reload. They cannot be marked as completed payments by the importer.
+Separately charged fees remain reconcilable. Existing budget items and actuals
+are not automatically deleted or marked skipped.
+
+The action menu contains only **Match planned payment**, **Link existing
+actual**, **Create new actual**, and **Ignore**. For a match/link, select
+**Choose payment** to open a searchable list of compatible existing FTrack
+transactions with their account, date and amount. Planned candidates are within
+seven days of the bank entry; existing actuals must agree exactly on date and
+amount. These are transactions to link to, not alternative action types.
+Secondary accounts remain editable. Changing the account on a linked row
+clears that link, clears approval, and switches to creating a new actual;
+choose Match planned payment again to select a different existing payment.
+
 The complete original CSV, all columns and rows, filename, import time and
 SHA-256 digest are retained within the scenario and included in JSON backups
 and cloud snapshots. This consumes browser storage; a quota failure is reported

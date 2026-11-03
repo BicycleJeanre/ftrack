@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCsv,parseStatement,suggestStatementMatches,STATEMENT_HEADERS } from '../../js/shared/statement-utils.js';
+import { parseCsv,parseStatement,suggestStatementMatches,STATEMENT_HEADERS,defaultStatementWindow } from '../../js/shared/statement-utils.js';
 import { createDefaultAppData } from '../../js/shared/app-data-utils.js';
 import { encodeCloudSnapshot,decodeCloudSnapshot } from '../../js/app/services/cloud-snapshot-codec.js';
 import { validateAppData } from '../../js/app/services/validation-service.js';
@@ -100,4 +100,19 @@ test('account-mapped merchants can suggest a changed amount without guessing unr
  assert.equal(suggestStatementMatches(entry,[occurrence],1).length,0);
  assert.equal(suggestStatementMatches(entry,[occurrence],1,{allowAmountDifference:true}).length,1);
  assert.equal(suggestStatementMatches(entry,[{...occurrence,status:'actual',actualAmount:100,actualDate:entry.postingDate}],1,{allowAmountDifference:true}).length,0);
+});
+
+test('25th cycles handle month and year boundaries',()=>{
+ assert.deepEqual(defaultStatementWindow(new Date(2026,10,3)),{startDate:'2026-10-25',endDate:'2026-11-25'});
+ assert.deepEqual(defaultStatementWindow(new Date(2026,10,25)),{startDate:'2026-11-25',endDate:'2026-12-25'});
+ assert.deepEqual(defaultStatementWindow(new Date(2026,0,1)),{startDate:'2025-12-25',endDate:'2026-01-25'});
+});
+
+test('insufficient funds are excluded but charged fees remain reconcilable',async()=>{
+ const source=header+'\n'+row(1,'2026-01-15','Service','-100.00','','900.00')+'\n'+row(2,'2026-01-16','Insufficient funds','-50.00','','900.00')+'\n'+row(3,'2026-01-16','Insufficient funds fee','','-3.00','897.00');
+ const parsed=parseStatement(source);assert.equal(parsed.entries[1].insufficientFunds,true);assert.equal(parsed.entries[2].insufficientFunds,false);assert.deepEqual(parsed.balanceIssues,[]);
+ assert.deepEqual(suggestStatementMatches(parsed.entries[1],seed().scenarios[0].transactionOccurrences,1),[]);
+ await store.write(seed());const id=await retainStatement(1,1,'failed.csv',source);
+ await assert.rejects(()=>applyStatementDecisions(1,id,[{index:1,action:'create',secondaryAccountId:2}]),/Insufficient-funds/);
+ assert.equal((await store.read()).scenarios[0].statementImports[0].rawCsv,source);
 });
