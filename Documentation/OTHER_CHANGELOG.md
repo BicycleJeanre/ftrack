@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Unified automatic statement mapping around saved source-text/category rules;
+  exposed original descriptions and parent categories for sorting, grouping
+  and row-to-rule creation. Unmapped rows no longer auto-fill on amount/date
+  similarity, and rule labels now show only actual saved conditions.
+
 - Added 25th-to-25th statement review windows, a red excluded list for
   insufficient-funds failures, and a separate searchable payment match picker.
   Simplified row actions and allowed secondary-account changes to safely clear

@@ -10,7 +10,7 @@ globalThis.document={dispatchEvent(){}};
 const store=await import('../../js/app/services/storage-service.js');
 const {retainStatement}=await import('../../js/app/services/statement-service.js');
 const {saveStatementMapping,removeStatementMapping}=await import('../../js/app/services/statement-service.js');
-const {statementMappingFor,generateStatementMappingDrafts}=await import('../../js/shared/statement-mapping-utils.js');
+const {statementMappingFor,generateStatementMappingDrafts,statementMappingLabel,MAPPING_FIELDS}=await import('../../js/shared/statement-mapping-utils.js');
 const {applyStatementDecisions}=await import('../../js/app/managers/occurrence-manager.js');
 const header=STATEMENT_HEADERS.join(',');
 const row=(nr,date,description,out,fee,balance)=>[nr,'bank-1',date,date+' 12:00',description,description,'Expenses','Services','',out,fee,balance].join(',');
@@ -115,4 +115,16 @@ test('insufficient funds are excluded but charged fees remain reconcilable',asyn
  await store.write(seed());const id=await retainStatement(1,1,'failed.csv',source);
  await assert.rejects(()=>applyStatementDecisions(1,id,[{index:1,action:'create',secondaryAccountId:2}]),/Insufficient-funds/);
  assert.equal((await store.read()).scenarios[0].statementImports[0].rawCsv,source);
+});
+
+test('all four source fields support stored mapping rules and labels never describe amount/date heuristics',()=>{
+ const entry=parseStatement(csv).entries[0],scenario=seed().scenarios[0];
+ for(const field of MAPPING_FIELDS){
+  const rule={id:'rule-'+field,accountId:1,field,pattern:entry[field],comparison:'exact',direction:'out',action:'create',secondaryAccountId:2};
+  const mapping=statementMappingFor(entry,[rule],1,scenario.accounts);
+  assert.equal(mapping.rule.id,rule.id);
+  assert.match(statementMappingLabel(mapping,scenario.accounts),/equals.*Shop/);
+  assert.doesNotMatch(statementMappingLabel(mapping,scenario.accounts),/amount|days apart/);
+ }
+ assert.equal(statementMappingLabel({rule:null,conflict:false},scenario.accounts),'No saved mapping');
 });

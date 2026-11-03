@@ -563,6 +563,20 @@ There is no automatic import undo in this version; review before applying.
 
 #### Sorting, Grouping and Mapping Rules
 
+There is one automatic mapping system: saved rules. The review grid shows
+Description, Original Description, Category and Parent Category, each sortable
+and available for grouping. **Saved mapping rule** displays the actual stored
+condition and target account (for example, Original description contains
+“Merchant” → Shop), or **No saved mapping**. An amount/date similarity is not a
+mapping rule. Without a saved rule, actions and secondary accounts stay blank
+until you choose them manually or save a rule. Manual choices do not create
+rules implicitly. Amount/date matching is used only after a saved rule has
+identified the secondary account, to locate an existing payment there.
+The separate payment picker remains available for explicit manual linking.
+Choose the row's **Mapping source field** before Save as mapping to prefill a
+rule from any of the four source fields. Generated drafts are proposals for
+these same stored rules; they do not take effect until saved.
+
 Click a column header in the review grid or original source table to sort it;
 click again to reverse the order. This changes display order only, not the
 retained CSV or the source-row links. Row choices and approvals survive sorting
@@ -583,7 +597,7 @@ Tied candidate matches require review rather than a guessed match.
 After choosing a row's action and secondary account, **Save as mapping** opens
 a prefilled rule for you to review and save. When a matching rule already
 exists, this edits that rule. **Generate draft mappings** proposes exact-text
-rules from unique account-name/category matches, strong planned matches and
+rules from unique account-name/category matches and
 previously reconciled rows. Drafts are inactive until individually reviewed
 and saved. Saving/removing rules refreshes automatic suggestions and clears
 their approvals; manual row choices remain intact. Rules persist through

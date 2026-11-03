@@ -1,6 +1,12 @@
 // Pure matching rules. No statement text is sent to an external service.
 export const mappingText = value => String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
 export const MAPPING_FIELDS = ['description','originalDescription','category','parentCategory'];
+export const MAPPING_FIELD_LABELS = {description:'Description',originalDescription:'Original description',category:'Category',parentCategory:'Parent category'};
+export function statementMappingLabel(mapping, accounts) {
+  if(mapping.conflict)return 'Conflicting saved mapping rules';
+  const rule=mapping.rule;if(!rule)return 'No saved mapping';
+  return `${MAPPING_FIELD_LABELS[rule.field]} ${rule.comparison==='exact'?'equals':'contains'} “${rule.pattern}” → ${rule.action==='ignore'?'Ignore':accounts.find(a=>Number(a.id)===Number(rule.secondaryAccountId))?.name || '(missing account)'}`;
+}
 
 export function normalizeStatementMapping(rule, accounts) {
   if(typeof rule.pattern!=='string' || rule.id && typeof rule.id!=='string') throw new Error('Mapping text and ID must be strings.');
@@ -43,7 +49,7 @@ export function generateStatementMappingDrafts(entries, scenario, accountId, pri
     if(statementMappingFor(entry,scenario.statementMappings,accountId,scenario.accounts).rule) continue;
     const previous=priorExamples.filter(e=>mappingText(e.pattern)===mappingText(pattern) && e.direction===(entry.amountCents>0?'in':'out'));
     const previousIds=[...new Set(previous.map(e=>Number(e.secondaryAccountId)))];
-    const haystack=mappingText(entry.description+' '+entry.originalDescription+' '+entry.category);
+    const haystack=mappingText(entry.description+' '+entry.originalDescription+' '+entry.category+' '+entry.parentCategory);
     const named=scenario.accounts.filter(a=>Number(a.id)!==Number(accountId) && mappingText(a.name).length>=3 && haystack.includes(mappingText(a.name)));
     const candidates=previousIds.length ? previousIds : named.map(a=>Number(a.id));
     if(candidates.length!==1) continue;

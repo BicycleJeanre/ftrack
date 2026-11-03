@@ -29,7 +29,7 @@ test('retains a full CSV and applies only reviewed rows, with source history aft
  await modal.locator('summary').filter({hasText:'Full original source table'}).click();await expect(modal).toContainText('Original shop');
 });
 
-test('suggests a planned match but changes actuals only after explicit approval',async({page})=>{
+test('unmapped rows never auto-match by amount/date and manual links do not imply saved rules',async({page})=>{
  await gotoFTrack(page);
  const before=await currentScenario(page);
  await page.getByRole('button',{name:'Statements',exact:true}).click();
@@ -39,7 +39,13 @@ test('suggests a planned match but changes actuals only after explicit approval'
  await modal.getByLabel('Statement CSV').setInputFiles({name:'match.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
  await modal.getByRole('button',{name:'Retain CSV for review',exact:true}).click();
  const action=modal.getByLabel('Action source row 1',{exact:true});
- await expect(action).toHaveValue('match');
+ await expect(action).toHaveValue('');
+ await expect(modal.getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('');
+ await expect(modal).toContainText('No saved mapping');
+ await action.selectOption('match');await modal.getByLabel('Choose match source row 1',{exact:true}).click();
+ await page.locator('.statement-match-picker').getByRole('button',{name:/Groceries budget/}).click();
+ await expect(modal).toContainText('No saved mapping');
+ expect((await currentScenario(page)).statementMappings).toEqual([]);
  expect((await currentScenario(page)).transactionOccurrences).toEqual(before.transactionOccurrences);
  await expect(modal.getByLabel('Approve source row 1',{exact:true})).not.toBeChecked();
  await modal.getByLabel('Approve source row 1',{exact:true}).check();
@@ -88,14 +94,14 @@ test('saves row mappings, groups mapped accounts, sorts without losing approvals
 test('generated mappings are inactive drafts until reviewed and saved',async({page})=>{
  await gotoFTrack(page);await page.getByRole('button',{name:'Statements',exact:true}).click();
  const modal=page.locator('.statement-reconciliation-modal');await modal.getByLabel('Statement primary account').selectOption('1');
- const csv='Nr,Account,Posting Date,Transaction Date,Description,Original Description,Parent Category,Category,Money In,Money Out,Fee,Balance\n1,synthetic,2026-01-10,2026-01-10 12:00,Groceries budget,Groceries,Expenses,Shopping,,-450.00,,550.00';
+ const csv='Nr,Account,Posting Date,Transaction Date,Description,Original Description,Parent Category,Category,Money In,Money Out,Fee,Balance\n1,synthetic,2026-01-10,2026-01-10 12:00,Groceries budget,Groceries Expense,Expenses,Shopping,,-450.00,,550.00';
  await modal.getByLabel('Statement CSV').setInputFiles({name:'draft.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
  await modal.getByRole('button',{name:'Retain CSV for review',exact:true}).click();
  await modal.locator('.statement-mappings summary').click();
  await modal.getByRole('button',{name:'Generate draft mappings',exact:true}).click();
  await expect(modal).toContainText('1 draft mapping(s)');
  expect((await currentScenario(page)).statementMappings).toEqual([]);
- await modal.getByRole('button',{name:'Review draft: Groceries',exact:true}).click();
+ await modal.getByRole('button',{name:'Review draft: Groceries Expense',exact:true}).click();
  await expect(modal.getByLabel('Mapping secondary account',{exact:true})).toHaveValue('5');
  await modal.getByRole('button',{name:'Save mapping',exact:true}).click();
  await expect(modal.locator('.statement-mappings summary')).toContainText('(1)');
@@ -115,7 +121,7 @@ test('conflicting mappings stay unresolved and bulk approval cannot reuse a plan
  await modal.getByLabel('Statement CSV').setInputFiles({name:'conflict.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
  await modal.getByRole('button',{name:'Retain CSV for review',exact:true}).click();
  await expect(modal.getByLabel('Action source row 1',{exact:true})).toHaveValue('');
- await expect(modal).toContainText('Conflicting mapping rules');
+ await expect(modal).toContainText('Conflicting saved mapping rules');
  const first=modal.getByLabel('Action source row 1',{exact:true});
  await first.selectOption('match');await modal.getByLabel('Choose match source row 1',{exact:true}).click();
  await page.locator('.statement-match-picker').getByRole('button',{name:/Groceries budget/}).click();
@@ -144,7 +150,8 @@ test('date windows exclude hidden approvals and failed payments while preserving
 });
 
 test('changing a matched secondary account clears the link and offers a separate payment picker',async({page})=>{
- await gotoFTrack(page);await page.getByRole('button',{name:'Statements',exact:true}).click();const modal=page.locator('.statement-reconciliation-modal');await modal.getByLabel('Statement primary account').selectOption('1');
+ const data=loadSmokeData();data.scenarios[0].statementMappings=[{id:'groceries-rule',accountId:1,field:'originalDescription',pattern:'Groceries',comparison:'exact',direction:'out',action:'prefer-match',secondaryAccountId:5}];
+ await gotoFTrack(page,data);await page.getByRole('button',{name:'Statements',exact:true}).click();const modal=page.locator('.statement-reconciliation-modal');await modal.getByLabel('Statement primary account').selectOption('1');
  const csv='Nr,Account,Posting Date,Transaction Date,Description,Original Description,Parent Category,Category,Money In,Money Out,Fee,Balance\n1,synthetic,2026-01-10,2026-01-10 12:00,Groceries budget,Groceries,Expenses,Shopping,,-450.00,,550.00';
  await modal.getByLabel('Statement CSV').setInputFiles({name:'secondary.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});await modal.getByRole('button',{name:'Retain CSV for review',exact:true}).click();
  const action=modal.getByLabel('Action source row 1',{exact:true}),secondary=modal.getByLabel('Secondary account source row 1',{exact:true});
@@ -154,4 +161,20 @@ test('changing a matched secondary account clears the link and offers a separate
  const picker=page.locator('.statement-match-picker');await expect(picker).toContainText('existing FTrack transactions');await picker.getByRole('button',{name:/Groceries budget/}).click();
  await expect(action).toHaveValue('match');await expect(modal).toContainText('Linked to: Groceries budget');
  expect((await currentScenario(page)).statementImports[0].decisions).toEqual({});
+});
+
+test('parent category is visible and can become the sole stored mapping for different descriptions',async({page})=>{
+ await gotoFTrack(page);await page.getByRole('button',{name:'Statements',exact:true}).click();const modal=page.locator('.statement-reconciliation-modal');await modal.getByLabel('Statement primary account').selectOption('1');
+ const csv='Nr,Account,Posting Date,Transaction Date,Description,Original Description,Parent Category,Category,Money In,Money Out,Fee,Balance\n1,synthetic,2026-01-15,2026-01-15 12:00,Readable shop,Original merchant A,Everyday living,Shopping,,-25.00,,975.00\n2,synthetic,2026-01-16,2026-01-16 12:00,Other shop,Original merchant B,Everyday living,Shopping,,-30.00,,945.00';
+ await modal.getByLabel('Statement CSV').setInputFiles({name:'fields.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});await modal.getByRole('button',{name:'Retain CSV for review',exact:true}).click();
+ await expect(modal.getByRole('columnheader',{name:'Original description',exact:true})).toBeVisible();await expect(modal.getByRole('columnheader',{name:'Parent category',exact:true})).toBeVisible();
+ const row=modal.getByLabel('Approve source row 1',{exact:true}).locator('..').locator('..');await expect(row).toContainText('Original merchant A');await expect(row).toContainText('Everyday living');
+ await modal.getByLabel('Action source row 1',{exact:true}).selectOption('create');await modal.getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await modal.getByLabel('Mapping source field row 1',{exact:true}).selectOption('parentCategory');
+ await row.getByRole('button',{name:'Save as mapping',exact:true}).click();await expect(modal.getByLabel('Mapping field',{exact:true})).toHaveValue('parentCategory');await expect(modal.getByLabel('Mapping text',{exact:true})).toHaveValue('Everyday living');await modal.getByRole('button',{name:'Save mapping',exact:true}).click();
+ await expect(modal.getByLabel('Action source row 2',{exact:true})).toHaveValue('create');await expect(modal.getByLabel('Secondary account source row 2',{exact:true})).toHaveValue('5');
+ await expect(row).toContainText('Parent category equals “Everyday living”');
+ await modal.getByLabel('Group statement rows by').selectOption('parentCategory');await expect(modal.locator('.statement-group-row')).toContainText('Everyday living');
+ await page.screenshot({path:test.info().outputPath('stored-mapping-fields.png')});
+ expect((await currentScenario(page)).statementMappings[0].field).toBe('parentCategory');
+ await modal.getByRole('button',{name:'Remove mapping',exact:true}).click();await expect(modal.getByLabel('Action source row 2',{exact:true})).toHaveValue('');await expect(row).toContainText('No saved mapping');
 });
