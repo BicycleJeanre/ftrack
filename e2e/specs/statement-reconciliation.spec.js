@@ -32,7 +32,25 @@ test('bulk mapping edit changes only selected rules and keeps their individual t
  await mappings.getByLabel('Select mapping Merchant A',{exact:true}).check();await mappings.getByLabel('Select mapping Merchant B',{exact:true}).check();await expect(mappings).toContainText('2 selected');
  await mappings.getByLabel('Bulk mapping secondary account',{exact:true}).selectOption('3');await mappings.getByLabel('Bulk mapping comparison',{exact:true}).selectOption('exact');await mappings.getByRole('button',{name:'Apply to selected mappings',exact:true}).click();
  await expect(mappings).toHaveAttribute('open','');await expect(mappings).toContainText('2 selected');await expect(mappings.getByLabel('Select mapping Merchant A',{exact:true})).toBeChecked();const rules=(await currentScenario(page)).statementMappings;expect(rules.map(r=>r.pattern)).toEqual(['Merchant A','Merchant B','Merchant C']);expect(rules.slice(0,2).every(r=>r.secondaryAccountId===3&&r.comparison==='exact')).toBe(true);expect(rules[2].secondaryAccountId).toBe(5);expect(rules[2].comparison).toBe('contains');
- await mappings.getByRole('button',{name:'Select all mappings',exact:true}).click();await expect(mappings).toContainText('3 selected');await mappings.getByRole('button',{name:'Clear mapping selection',exact:true}).click();await expect(mappings).toContainText('0 selected');
+ await mappings.getByRole('button',{name:'Select all visible mappings',exact:true}).click();await expect(mappings).toContainText('3 selected');await mappings.getByRole('button',{name:'Clear mapping selection',exact:true}).click();await expect(mappings).toContainText('0 selected');
+});
+
+test('mapping filters combine description and account, persist after saving, and limit bulk selection',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=[['Shop Alpha',5],['Shop Beta',3],['Salary',5],['Shop Gamma',5]].map(([pattern,secondaryAccountId],i)=>({id:`rule-${i}`,accountId:1,field:'description',pattern,comparison:'contains',direction:'out',secondaryAccountId}));
+ await open(page,data);const mappings=review(page).locator('.statement-mappings');await mappings.locator('summary').click();const rows=mappings.locator('.statement-mapping-grid .tabulator-row');await expect(rows).toHaveCount(4);
+ const search=mappings.getByLabel('Filter mappings by description',{exact:true}),account=mappings.getByLabel('Filter mappings by secondary account',{exact:true});await search.fill('SHOP');await expect(rows).toHaveCount(3);await account.selectOption('5');await expect(rows).toHaveCount(2);await expect(mappings).toContainText('2 of 4 shown');
+ await mappings.getByRole('button',{name:'Select all visible mappings',exact:true}).click();await expect(mappings).toContainText('2 selected');await mappings.getByLabel('Bulk mapping comparison',{exact:true}).selectOption('exact');await mappings.getByRole('button',{name:'Apply to selected mappings',exact:true}).click();
+ await expect(search).toHaveValue('SHOP');await expect(account).toHaveValue('5');await expect(rows).toHaveCount(2);const rules=(await currentScenario(page)).statementMappings;expect(rules.map(r=>r.comparison)).toEqual(['exact','contains','contains','exact']);
+ await rows.first().locator('[tabulator-field="pattern"]').click();const editor=mappings.getByLabel('Edit mapping Text',{exact:true});await editor.fill('Shop Alpha revised');await editor.press('Enter');await expect(rows.first()).toContainText('Shop Alpha revised');await expect(search).toHaveValue('SHOP');await expect(account).toHaveValue('5');
+ await search.fill('no match');await expect(mappings).toContainText('0 of 4 shown');await expect(mappings).toContainText('0 selected');await expect(mappings.locator('.statement-mapping-grid .tabulator-placeholder')).toBeVisible();
+ await mappings.getByRole('button',{name:'Clear mapping filters',exact:true}).click();await expect(rows).toHaveCount(4);await expect(search).toHaveValue('');await expect(account).toHaveValue('');
+});
+
+test('changing mapping filters drops hidden selections before bulk updates',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=['Merchant A','Merchant B'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'description',pattern,comparison:'contains',direction:'out',secondaryAccountId:5}));
+ await open(page,data);const mappings=review(page).locator('.statement-mappings');await mappings.locator('summary').click();await expect(mappings.getByLabel('Select mapping Merchant A',{exact:true})).toBeVisible();await mappings.getByRole('button',{name:'Select all visible mappings',exact:true}).click();await expect(mappings).toContainText('2 selected');
+ await mappings.getByLabel('Filter mappings by description',{exact:true}).fill('Merchant B');await expect(mappings).toContainText('1 selected');await mappings.getByLabel('Bulk mapping secondary account',{exact:true}).selectOption('3');await mappings.getByRole('button',{name:'Apply to selected mappings',exact:true}).click();
+ expect((await currentScenario(page)).statementMappings.map(r=>r.secondaryAccountId)).toEqual([5,3]);await expect(mappings).toHaveAttribute('open','');
 });
 
 test('mapping, review, source and native tables have row banding in light and dark themes',async({page})=>{

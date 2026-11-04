@@ -609,6 +609,10 @@ rules, select their checkboxes and choose the shared changes in the bulk toolbar
 **Apply to selected mappings** changes only those rules; **Keep current** preserves
 the field, and the individual matching text is never replaced by a bulk edit.
 The whole bulk edit must pass validation before any selected rule changes.
+Use the description/matching-text search and secondary-account filter together
+to find rules while cleaning up. Filters remain after saving. Select all visible
+mappings selects only the filtered results; hidden selections are cleared when
+filters change. Clear mapping filters restores the complete list.
 
 ### 5.5 Leave a Reminder for the Next Review
 

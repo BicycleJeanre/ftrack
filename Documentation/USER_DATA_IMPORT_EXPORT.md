@@ -165,6 +165,11 @@ account, source field, comparison and/or direction, then Apply to selected mappi
 Keep current leaves that field unchanged, and each rule retains its own text.
 Bulk validation is atomic: an invalid or duplicate result changes none of the
 selected rules. Mapping selections survive saves within the open dialog.
+Use Description / matching text for case-insensitive partial searches of rule
+text, and Secondary account to narrow to a destination account. Filters combine
+and remain set after edits. Clear mapping filters shows the full list again.
+Select all visible mappings and bulk changes affect only matching rows; changing
+filters drops hidden selections. The count shows selected and displayed totals.
 Select the primary account to see only its retained statements. Selecting a CSV
 retains it automatically for that account. Source/report downloads are in the top
 toolbar. Both original-source and review grids use the standard sortable grid;
