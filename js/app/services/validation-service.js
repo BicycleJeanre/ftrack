@@ -768,7 +768,7 @@ function validateScenario(scenario) {
                     if (JSON.stringify(parsed.headers)!==JSON.stringify(batch.headers) || JSON.stringify(parsed.rows)!==JSON.stringify(batch.rows)) throw new Error('Retained rows must exactly match the original CSV');
                     if (!batch.decisions || typeof batch.decisions !== 'object' || Array.isArray(batch.decisions)) throw new Error('Invalid review decisions');
                     for (const [key,value] of Object.entries(batch.decisions)) {
-                        if (!/^\d+$/.test(key) || !parsed.entries[Number(key)] || !['match','existing','create','ignore'].includes(value?.action) || !Number.isFinite(Date.parse(value.appliedAt))) throw new Error('Invalid source-row decision');
+                        if (!/^\d+$/.test(key) || !parsed.entries[Number(key)] || !['match','existing','create','ignore','line'].includes(value?.action) || !Number.isFinite(Date.parse(value.appliedAt))) throw new Error('Invalid source-row decision');
                     }
                 } catch(error) { issues.push(issue(path,error.message)); }
             });

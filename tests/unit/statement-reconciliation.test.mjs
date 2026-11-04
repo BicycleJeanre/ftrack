@@ -10,7 +10,7 @@ globalThis.document={dispatchEvent(){}};
 const store=await import('../../js/app/services/storage-service.js');
 const {retainStatement}=await import('../../js/app/services/statement-service.js');
 const {saveStatementMapping,removeStatementMapping}=await import('../../js/app/services/statement-service.js');
-const {statementMappingFor,generateStatementMappingDrafts,statementMappingLabel,MAPPING_FIELDS}=await import('../../js/shared/statement-mapping-utils.js');
+const {statementMappingFor,generateStatementMappingDrafts,statementMappingLabel,MAPPING_FIELDS,relevantMappingText}=await import('../../js/shared/statement-mapping-utils.js');
 const {applyStatementDecisions}=await import('../../js/app/managers/occurrence-manager.js');
 const header=STATEMENT_HEADERS.join(',');
 const row=(nr,date,description,out,fee,balance)=>[nr,'bank-1',date,date+' 12:00',description,description,'Expenses','Services','',out,fee,balance].join(',');
@@ -113,6 +113,36 @@ test('mapping drafts can use unique plan description evidence without amount/dat
  const entry={...parseStatement(csv).entries[0],description:'Card payment',originalDescription:'Merchant ABC reference 123'};
  const drafts=generateStatementMappingDrafts([entry],scenario,1);
  assert.equal(drafts.length,1);assert.equal(drafts[0].secondaryAccountId,2);assert.equal(Object.hasOwn(drafts[0],'action'),false);
+});
+
+test('description mappings ignore volatile references while preserving merchant identity',()=>{
+ const scenario=seed().scenarios[0];const rule={id:'r',accountId:1,secondaryAccountId:2,field:'originalDescription',comparison:'exact',direction:'out',pattern:'Card purchase Merchant ABC 2026/01/15 ref 123456'};
+ const entry={...parseStatement(csv).entries[0],originalDescription:'Card purchase Merchant ABC 2026/02/15 ref 987654'};
+ assert.equal(relevantMappingText(rule.pattern),'merchant abc');
+ assert.equal(statementMappingFor(entry,[rule],1,scenario.accounts).rule.id,'r');
+ assert.equal(statementMappingFor({...entry,originalDescription:'Different merchant ref 987654'},[rule],1,scenario.accounts).rule,null);
+ assert.equal(statementMappingFor(entry,[{...rule,pattern:'123456'}],1,scenario.accounts).rule,null);
+});
+
+test('statement line items preserve existing actuals, accumulate, validate and prevent double application',async()=>{
+ const data=seed();const target=data.scenarios[0].transactionOccurrences[0];target.status='actual';target.actualAmount=40;target.actualDate='2026-01-14';await store.write(data);
+ const id=await retainStatement(1,1,'lines.csv',csv);
+ await applyStatementDecisions(1,id,[{index:0,action:'line',occurrenceKey:'occurrence:1',expectedAmount:100,expectedActualAmount:40},{index:1,action:'line',occurrenceKey:'occurrence:1',expectedAmount:100,expectedActualAmount:40}]);
+ const updated=(await store.read()).scenarios[0].transactionOccurrences[0];assert.equal(updated.actualAmount,143);assert.equal(updated.plannedAmount,100);assert.equal(updated.lineItems.length,3);assert.equal(updated.lineItems[0].amount,40);assert.equal(validateAppData(await store.read()).isValid,true);
+ await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'line',occurrenceKey:'occurrence:1',expectedAmount:100,expectedActualAmount:143}]),/reviewed/);
+});
+
+test('future-plan adjustment records actual without changing previous history',async()=>{
+ const data=seed(),scenario=data.scenarios[0];
+ scenario.transactions=[{id:10,primaryAccountId:1,secondaryAccountId:2,transactionTypeId:2,amount:80,effectiveDate:'2026-01-15',description:'Service',recurrence:{recurrenceType:4,startDate:'2026-01-15',endDate:null,interval:1,dayOfMonth:15}}];
+ scenario.transactionOccurrences=[];await store.write(data);const id=await retainStatement(1,1,'future.csv',csv);
+ await applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'tx:10|date:2026-01-15|role:none',expectedAmount:80,updateFuture:true}]);
+ const after=(await store.read()).scenarios[0];const {resolveScenarioOccurrences}=await import('../../js/domain/queries/resolve-scenario-occurrences.js');
+ const {occurrences}=resolveScenarioOccurrences({scenario:after,startDate:'2026-01-01',endDate:'2026-03-31'});
+ assert.equal(occurrences.find(o=>o.scheduledDate==='2026-01-15').actualAmount,100);
+ assert.equal(occurrences.find(o=>o.scheduledDate==='2026-02-15').plannedAmount,100);
+ assert.equal(after.transactions.find(t=>t.id===10).amount,80);
+ assert.equal(after.statementImports[0].decisions[0].updateFuture,true);
 });
 
 test('account-mapped merchants can suggest a changed amount without guessing unrelated actuals',()=>{

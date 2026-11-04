@@ -139,13 +139,27 @@ also mark saved projections stale so they are refreshed from the revised plan.
 Statement reconciliation mappings are account rules, not transaction actions.
 Saved description, original-description, category or parent-category rules fill
 the secondary account automatically. The grid shows the applied rule as text.
-Use Create mapping on an unmapped row; after changing a mapped secondary account,
-use Update mapping to review and save the change. Choose the source field in the
+Use the save icon beside the secondary account to create or update a mapping;
+the view icon opens its existing rule. Choose the source field in the
 mapping editor, not in the grid. Changing Actions does not alter saved rules.
-Actions separately allow adding an actual and closing its planned payment,
-linking an existing actual, adding a new actual, or ignoring a source row.
+Description matching uses stable text, ignoring bank references, long numbers,
+dates and common payment prefixes. Category matches retain their normal exact
+or contains semantics. Conflicting account mappings remain unresolved.
+The default action adds an actual and closes a selected planned payment; it
+cannot be applied until a compatible target is selected. Add a line item
+accumulates the bank amount into a selected transaction (preserving a previous
+actual as a line item). Add actual and adjust future planned value additionally
+updates the linked recurring plan from the next occurrence, not earlier history.
+Already recorded links an existing actual without changing any values.
+No planned payment records a standalone actual without closing another payment.
 Generated mapping drafts appear automatically where text evidence identifies a
-single account. Review and save them to activate; nothing is approved implicitly.
+single account. The header distinguishes saved rules from unapplied proposals.
+Review and save individually or Save all proposed mappings to activate. Saving
+refreshes suggestions and clears approvals; nothing is approved implicitly.
+Select the primary account to see only its retained statements. Selecting a CSV
+retains it automatically for that account. Source/report downloads are in the top
+toolbar. Both original-source and review grids use the standard sortable grid;
+the review also supports grouping and bulk approval. The original CSV is unchanged.
 
 ## 6.0 Clear Data
 

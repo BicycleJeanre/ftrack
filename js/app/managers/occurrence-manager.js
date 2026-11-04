@@ -2750,11 +2750,27 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
       if (!entry || !Number.isInteger(decision.index) || indices.has(decision.index)) throw new Error('Invalid or repeated source row.');
       indices.add(decision.index);
       if (batch.decisions[decision.index]) throw new Error('This row has already been reviewed.');
-      if (!['ignore','match','create','existing'].includes(decision.action)) throw new Error('Choose a reconciliation action.');
+      if (!['ignore','match','create','existing','line'].includes(decision.action)) throw new Error('Choose a reconciliation action.');
       if (decision.action !== 'ignore' && (!entry.monetary || seen.has(entry.fingerprint))) throw new Error('This row is non-monetary or already reconciled from another import.');
       let occurrenceKey = null;
       let before = null;
-      if (decision.action === 'match' || decision.action === 'existing') {
+      if (decision.action === 'line') {
+        const target=resolveOccurrenceOrThrow(scenario,decision.occurrenceKey).occurrence;
+        const signed=signedOccurrenceAmount(target,batch.accountId);
+        if(signed===null||Math.sign(signed)!==Math.sign(entry.amountCents)||!['planned','actual'].includes(target.status))throw new Error('Choose a compatible transaction for this line item.');
+        if(target.transactionGroupId||markerContainsDate(scenario,target.scheduledDate))throw new Error('Split or closed-period transactions cannot receive statement line items.');
+        if(targets.has(target.occurrenceKey))throw new Error('A line-item target cannot also be closed or linked in the same review.');
+        before={status:target.status,plannedAmount:target.plannedAmount,actualAmount:target.actualAmount??null,actualDate:target.actualDate??null,lineItems:clonePlain(target.lineItems || [])};
+        if(!changes.some(c=>c.occurrenceKey===target.occurrenceKey)&&Number(decision.expectedActualAmount??0)!==Number(target.actualAmount??0))throw new Error('The actual changed since review. Refresh the statement.');
+        if(!changes.some(c=>c.occurrenceKey===target.occurrenceKey)&&decision.expectedAmount!==target.plannedAmount)throw new Error('The plan changed since review. Refresh the statement.');
+        const items=clonePlain(target.lineItems || []);
+        if(!items.length&&target.status==='actual'&&Number(target.actualAmount)>0)items.push({id:`prior:${target.occurrenceKey}`,date:target.actualDate,description:'Previously recorded actual',amount:Number(target.actualAmount)});
+        items.push({id:`statement:${batch.id}:${entry.index}`,date:entry.postingDate,description:entry.originalDescription || entry.description,amount:Math.abs(entry.amountCents)/100});
+        const normalized=normalizeLineItems(items,entry.postingDate);
+        upsertOccurrence(scenario,target,{...snapshotOccurrenceMetadata(target),...snapshotBaselineMetadata(target),lineItems:normalized,baselineAmount:target.baselineAmount??target.plannedAmount,plannedAmount:target.plannedAmount,actualAmount:lineItemsTotal(normalized),actualDate:entry.postingDate,status:'actual',isOverride:true},timestamp,{isOverride:true});
+        occurrenceKey=target.occurrenceKey;
+      } else if (decision.action === 'match' || decision.action === 'existing') {
+        if(changes.some(c=>c.action==='line'&&c.occurrenceKey===decision.occurrenceKey))throw new Error('A target already received a line item in this review.');
         if (targets.has(decision.occurrenceKey)) throw new Error('Two source rows cannot update the same occurrence.');
         targets.add(decision.occurrenceKey);
         const target = resolveOccurrenceOrThrow(scenario,decision.occurrenceKey).occurrence;
@@ -2773,6 +2789,13 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
             baselineAmount:target.baselineAmount ?? currentAmount,plannedAmount:currentAmount,
             actualAmount:Math.abs(entry.amountCents)/100,actualDate:entry.postingDate,status:'actual',isOverride:true
           },timestamp,{isOverride:true});
+          if(decision.updateFuture){
+            const rule=scenario.transactions.find(t=>Number(t.id)===Number(target.sourceTransactionId));
+            if(!rule||!isRecurringRule(rule))throw new Error('Updating future planned values requires a recurring payment.');
+            const boundary=nextRecurrenceDate(rule.recurrence,target.scheduledDate);
+            if(!boundary)throw new Error('No future recurrence is available.');
+            splitSeriesAtOccurrence(scenario,{...clonePlain(target),scheduledDate:boundary,occurrenceKey:createLinkedOccurrenceKey(rule.id,boundary,normalizeRole(rule.transactionGroupRole)),status:'planned',actualDate:null,actualAmount:null},{amount:Math.abs(entry.amountCents)/100},timestamp);
+          }
         }
         occurrenceKey=target.occurrenceKey;
       } else if (decision.action === 'create') {
@@ -2781,7 +2804,7 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
         const id=allocateNextId(scenario.transactionOccurrences); occurrenceKey=`occurrence:${id}`;
         scenario.transactionOccurrences.push({id,occurrenceKey,sourceTransactionId:null,scheduledDate:entry.postingDate,plannedDate:null,actualDate:entry.postingDate,status:'actual',origin:'manual',...movement,description:entry.description,plannedAmount:0,baselineAmount:0,actualAmount:Math.abs(entry.amountCents)/100,lineItems:[],tags:[],isOverride:true,actualSnapshotVersion:1,baselineSnapshotVersion:1,baselinePrimaryAccountId:movement.primaryAccountId,baselineSecondaryAccountId:movement.secondaryAccountId,baselineTransactionTypeId:movement.transactionTypeId,createdAt:timestamp,updatedAt:timestamp});
       }
-      batch.decisions[decision.index]={action:decision.action,occurrenceKey,appliedAt:timestamp,before,actualAmount:decision.action==='ignore'?null:Math.abs(entry.amountCents)/100,actualDate:decision.action==='ignore'?null:entry.postingDate};
+      batch.decisions[decision.index]={action:decision.action,occurrenceKey,appliedAt:timestamp,before,updateFuture:Boolean(decision.updateFuture),actualAmount:decision.action==='ignore'?null:Math.abs(entry.amountCents)/100,actualDate:decision.action==='ignore'?null:entry.postingDate};
       if(decision.action!=='ignore') seen.add(entry.fingerprint);
       changes.push({index:decision.index,action:decision.action,occurrenceKey});
     }

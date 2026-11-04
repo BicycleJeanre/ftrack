@@ -203,12 +203,17 @@ type ScenarioLineage = {
 `id` (UUID), `accountId`, `fileName`, `rawCsv` (original decoded text), `headers`,
 `rows` (all source strings in original order), `sha256` (UTF-8 source digest),
 `importedAt`, and `decisions` keyed by zero-based source-row index. Each decision
-contains `action` (`match`, `existing`, `create`, `ignore`), `occurrenceKey`
+contains `action` (`match`, `existing`, `create`, `ignore`, `line`), `occurrenceKey`
 (nullable), and `appliedAt`. Source rows must reproduce the raw CSV exactly.
 Normalization, JSON export/import, and cloud snapshots preserve this field.
 Balance validation blocks application, not source retention. Fingerprints
 exclude export row numbers and include bank account, both dates, original
 description, signed amounts and balance, plus multiplicity for identical rows.
+`line` appends the bank entry to occurrence line items; an existing non-itemized
+actual is retained as a previous-actual line before summation. A `match` decision
+can carry `updateFuture: true`; it records the actual and updates the next and
+future planned recurrence segment atomically. Neither operation edits source rows.
+The audit includes pre-change amounts, dates, and line items where applicable.
 
 `statementMappings` is an optional additive array of rules with string `id`,
 `accountId`, `field` (`description`, `originalDescription`, `category`,
@@ -216,7 +221,10 @@ description, signed amounts and balance, plus multiplicity for identical rows.
 `contains`), `direction` (`in`, `out`), and `secondaryAccountId`. Accounts must exist
 and primary and secondary must differ. Legacy `action` hints remain readable for
 compatibility but do not control reconciliation actions. New rules contain no
-action. Matching is case-insensitive; rules mapping to different accounts conflict.
+action. Matching is case-insensitive; description fields additionally normalize
+bank reference suffixes, long numeric tokens, dates and common payment prefixes.
+Empty normalized patterns never match. Category fields do not use this normalization.
+Rules mapping to different accounts conflict.
 Rules fill secondary accounts only and never approve/apply rows. Actions separately
 locate a payment within the chosen account or suggest adding a new actual.
 Rule generation automatically presents unsaved drafts based on unique account-name,

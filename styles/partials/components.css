@@ -737,14 +737,29 @@ input[type="checkbox"] {
 }
 
 /* Scenario-level notes displayed in the shared dashboard shell. */
-.modal-content.statement-reconciliation-modal { width: min(1400px, 96vw); max-width: 1400px; max-height: 92vh; overflow: auto; }
+.modal-content.statement-reconciliation-modal { width: 98vw; max-width: 98vw; max-height: 96vh; overflow: auto; box-sizing: border-box; }
 .statement-reconciliation-modal select { max-width: 100%; padding: 6px; }
 .statement-reconciliation-modal > div > select { max-width: 90%; }
 .statement-table-wrap { overflow: auto; max-height: 48vh; margin: 12px 0; }
 .statement-table-wrap table { border-collapse: collapse; width: 100%; font-size: .8rem; }
 .statement-table-wrap td, .statement-table-wrap th { border: 1px solid var(--border-primary); padding: 7px; text-align: left; min-width: 90px; }
 .statement-table-wrap th { position: sticky; top: 0; background: var(--bg-secondary); }
-.statement-table-wrap select { width: 300px; }
+.statement-table-wrap select { width: 100%; min-width: 0; }
+.statement-source-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; }
+.statement-source-selectors, .statement-source-imports { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+.statement-source-toolbar label { display: grid; gap: 5px; }
+.statement-source-imports { margin-left: auto; justify-content: flex-end; }
+.statement-source-imports input[type="file"] { width: 240px; }
+.statement-timeframe input[type="date"] { width: 150px; flex: 0 0 auto; }
+.statement-grid-cell { white-space: normal; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.statement-grid-cell > select { flex-basis: 100%; }
+.statement-grid-cell > span { flex-basis: 100%; font-size: .85em; color: var(--text-secondary); }
+.statement-review-grid .tabulator-cell { white-space: normal; }
+/* This grid scrolls inside its own holder; global page-level sticky offsets would cover its first row. */
+body .statement-review-grid.tabulator .tabulator-row.tabulator-group { position: relative !important; top: 0 !important; }
+.statement-review-grid .statement-group-row { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.statement-review-grid .negative { color: var(--accent-danger, #ef5350); }
+.statement-review-grid .positive { color: var(--accent-success, #4caf50); }
 .statement-error { color: var(--danger, #d33); }
 .statement-error[data-state="success"] { color: var(--success, #178447); }
 .statement-review-controls, .statement-mapping-rule { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0; }

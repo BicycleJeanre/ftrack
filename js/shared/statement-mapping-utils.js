@@ -1,5 +1,14 @@
 // Pure matching rules. No statement text is sent to an external service.
 export const mappingText = value => String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
+// Keep merchant identity, discard volatile bank references rather than fuzzy-match arbitrary words.
+export function relevantMappingText(value) {
+  return mappingText(value)
+    .replace(/\b(?:reference|ref|auth|authorization|trace|card no|card number)\s*[:#-]?\s*\S.*$/i,'')
+    .replace(/\b\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?\b/g,' ')
+    .replace(/\b\S*\d{3,}\S*\b/g,' ')
+    .replace(/^(?:card purchase|pos purchase|pos payment|card payment|purchase)\s*[:*-]?\s*/i,'')
+    .replace(/[^\p{L}\p{N}\s]/gu,' ').replace(/\s+/g,' ').trim();
+}
 export const MAPPING_FIELDS = ['description','originalDescription','category','parentCategory'];
 export const MAPPING_FIELD_LABELS = {description:'Description',originalDescription:'Original description',category:'Category',parentCategory:'Parent category'};
 export function statementMappingLabel(mapping, accounts) {
@@ -28,7 +37,9 @@ export function statementMappingFor(entry, rules, accountId, accounts) {
   const matches = (rules || []).filter(rule=>{
     if(Number(rule.accountId)!==Number(accountId) || rule.direction!==(entry.amountCents>0?'in':'out')) return false;
     if(rule.action!=='ignore' && !accounts.some(a=>Number(a.id)===Number(rule.secondaryAccountId))) return false;
-    const value=mappingText(entry[rule.field]), pattern=mappingText(rule.pattern);
+    const descriptive=['description','originalDescription'].includes(rule.field);
+    const clean=descriptive?relevantMappingText:mappingText;
+    const value=clean(entry[rule.field]), pattern=clean(rule.pattern);
     return pattern && (rule.comparison==='exact'?value===pattern:value.includes(pattern));
   });
   if(!matches.length) return {rule:null,conflict:false};
@@ -44,11 +55,12 @@ export function counterpartyId(occurrence, accountId) {
 export function generateStatementMappingDrafts(entries, scenario, accountId, priorExamples=[]) {
   const drafts=[];const seen=new Set();
   for(const entry of entries.filter(e=>e.monetary&&!e.insufficientFunds)) {
-    const pattern=entry.originalDescription || entry.description;
+    const pattern=relevantMappingText(entry.originalDescription || entry.description);
+    if(pattern.length<3)continue;
     const signature=JSON.stringify([mappingText(pattern),Math.sign(entry.amountCents)]);
     if(seen.has(signature)) continue;seen.add(signature);
     if(statementMappingFor(entry,scenario.statementMappings,accountId,scenario.accounts).rule) continue;
-    const previous=priorExamples.filter(e=>mappingText(e.pattern)===mappingText(pattern) && e.direction===(entry.amountCents>0?'in':'out'));
+    const previous=priorExamples.filter(e=>relevantMappingText(e.pattern)===pattern && e.direction===(entry.amountCents>0?'in':'out'));
     const previousIds=[...new Set(previous.map(e=>Number(e.secondaryAccountId)))];
     const haystack=mappingText(entry.description+' '+entry.originalDescription+' '+entry.category+' '+entry.parentCategory);
     const named=scenario.accounts.filter(a=>Number(a.id)!==Number(accountId) && mappingText(a.name).length>=3 && haystack.includes(mappingText(a.name)));
@@ -62,7 +74,7 @@ export function generateStatementMappingDrafts(entries, scenario, accountId, pri
     }).map(t=>counterpartyId(t,accountId));
     const candidates=[...new Set(previousIds.length ? previousIds : [...named.map(a=>Number(a.id)),...described])].filter(id=>id!==Number(accountId)&&scenario.accounts.some(a=>Number(a.id)===id));
     if(candidates.length!==1) continue;
-    drafts.push({accountId:Number(accountId),field:entry.originalDescription?'originalDescription':'description',pattern,comparison:'exact',direction:entry.amountCents>0?'in':'out',secondaryAccountId:candidates[0]});
+    drafts.push({accountId:Number(accountId),field:entry.originalDescription?'originalDescription':'description',pattern,comparison:'contains',direction:entry.amountCents>0?'in':'out',secondaryAccountId:candidates[0]});
   }
   return drafts;
 }
