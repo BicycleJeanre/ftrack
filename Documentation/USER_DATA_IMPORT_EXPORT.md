@@ -170,6 +170,15 @@ text, and Secondary account to narrow to a destination account. Filters combine
 and remain set after edits. Clear mapping filters shows the full list again.
 Select all visible mappings and bulk changes affect only matching rows; changing
 filters drops hidden selections. The count shows selected and displayed totals.
+Search is case-insensitive and retains contains matching. `*` matches zero or
+more characters; `%` matches exactly one character (not SQL's many-character
+percent wildcard). `**` matches a literal star and `%%` a literal percent.
+For example, `shop*payment` finds variable text between those words; `shop %`
+requires one character after the space. Doubled symbols are read left to right.
+This syntax applies only to the grid search, not to saved rule conditions.
+Use Remove selected mappings to delete selected visible rules after
+confirming the count. Cancel changes nothing. Removal is atomic, keeps the section
+open and filters set, and never deletes transactions or statement sources.
 Select the primary account to see only its retained statements. Selecting a CSV
 retains it automatically for that account. Source/report downloads are in the top
 toolbar. Both original-source and review grids use the standard sortable grid;

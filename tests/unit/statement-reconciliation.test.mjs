@@ -9,12 +9,22 @@ globalThis.CustomEvent=class {constructor(type,options){this.type=type;this.deta
 globalThis.document={dispatchEvent(){}};
 const store=await import('../../js/app/services/storage-service.js');
 const {retainStatement}=await import('../../js/app/services/statement-service.js');
-const {saveStatementMapping,removeStatementMapping,updateStatementMappings}=await import('../../js/app/services/statement-service.js');
-const {statementMappingFor,statementMappingLabel,MAPPING_FIELDS,relevantMappingText}=await import('../../js/shared/statement-mapping-utils.js');
+const {saveStatementMapping,removeStatementMapping,removeStatementMappings,updateStatementMappings}=await import('../../js/app/services/statement-service.js');
+const {statementMappingFor,statementMappingLabel,MAPPING_FIELDS,relevantMappingText,compileMappingSearch}=await import('../../js/shared/statement-mapping-utils.js');
 const {applyStatementDecisions}=await import('../../js/app/managers/occurrence-manager.js');
 const header=STATEMENT_HEADERS.join(',');
 const row=(nr,date,description,out,fee,balance)=>[nr,'bank-1',date,date+' 12:00',description,description,'Expenses','Services','',out,fee,balance].join(',');
 const csv=header+'\r\n'+row(1,'2026-01-15','Service','-100.00','','900.00')+'\r\n'+row(2,'2026-01-15','Fee','','-3.00','897.00');
+
+test('mapping search supports many/single wildcards and doubled literal escapes without changing contains semantics',()=>{
+ for(const [query,text,expected] of [
+   ['shop','My SHOP payment',true],['','anything',true],['a*b','ab',true],['a*b','prefix A long B suffix',true],['a*b','ac',false],
+   ['a%b','ab',false],['a%b','prefix Axb suffix',true],['a%b','axxb',false],['%','',false],['*','',true],
+   ['**','A*B',true],['**','AB',false],['%%','A%B',true],['%%','AB',false],['a**b','a*b',true],['a%%b','a%b',true],
+   ['***','*long',true],['%%%','%x',true],['%%%','%',false],['a%b','a😀b',true],['a%b','a b',true],['a.b','axb',false],['[x]','value [x]',true]
+ ])assert.equal(compileMappingSearch(query)(text),expected,JSON.stringify({query,text}));
+ assert.equal(compileMappingSearch('*a'.repeat(100)+'z')('a'.repeat(500)),false);
+});
 function seed() {
  const data=createDefaultAppData();data.scenarios=[{id:1,version:1,name:'Test',accounts:[{id:1,name:'Bank',type:1,currency:1,startingBalance:1000,openDate:'2026-01-01'},{id:2,name:'Shop',type:5,currency:1,startingBalance:0,openDate:'2026-01-01'}],transactions:[],transactionOccurrences:[{id:1,occurrenceKey:'occurrence:1',sourceTransactionId:null,origin:'manual',primaryAccountId:1,secondaryAccountId:2,transactionTypeId:2,scheduledDate:'2026-01-15',plannedAmount:100,baselineAmount:null,actualAmount:null,status:'planned',description:'Service',lineItems:[]}],baselinePeriods:[],reviewReminders:[]}];return data;
 }
@@ -110,6 +120,15 @@ test('bulk mapping edits are atomic, preserve individual patterns, and reject in
  await saveStatementMapping(1,{...base,pattern:'Merchant A',field:'category'});
  await assert.rejects(()=>updateStatementMappings(1,[ids[0]],{field:'category',comparison:'contains'}),/already exists/);
  rules=(await store.read()).scenarios[0].statementMappings;assert.equal(rules[0].field,'description');
+});
+
+test('bulk mapping removal is atomic and leaves transactions and unselected rules unchanged',async()=>{
+ await store.write(seed());const base={accountId:1,field:'description',comparison:'contains',direction:'out',secondaryAccountId:2};for(const pattern of ['Merchant A','Merchant B','Merchant C'])await saveStatementMapping(1,{...base,pattern});
+ const before=(await store.read()).scenarios[0],ids=before.statementMappings.map(r=>r.id);
+ await assert.rejects(()=>removeStatementMappings(1,[]),/Select/);await assert.rejects(()=>removeStatementMappings(1,[ids[0],ids[0]]),/Select/);
+ await assert.rejects(()=>removeStatementMappings(1,[ids[0],'missing']),/No mappings were changed/);assert.deepEqual((await store.read()).scenarios[0].statementMappings,before.statementMappings);
+ await removeStatementMappings(1,[ids[0],ids[2]]);const after=(await store.read()).scenarios[0];assert.deepEqual(after.statementMappings,[before.statementMappings[1]]);assert.deepEqual(after.transactionOccurrences,before.transactionOccurrences);
+ await removeStatementMappings(1,[ids[1]]);assert.deepEqual((await store.read()).scenarios[0].statementMappings,[]);
 });
 
 test('description mappings ignore volatile references while preserving merchant identity',()=>{

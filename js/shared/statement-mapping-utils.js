@@ -1,5 +1,38 @@
 // Pure matching rules. No statement text is sent to an external service.
 export const mappingText = value => String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
+
+// Search only: * = zero/many characters, % = one character; doubled symbols are literals.
+// Dynamic programming keeps repeated wildcard searches bounded (no regex backtracking).
+export function compileMappingSearch(query) {
+  const chars=Array.from(mappingText(query)),tokens=[];
+  for(let i=0;i<chars.length;i++){
+    const char=chars[i];
+    if(char==='*'||char==='%'){
+      if(chars[i+1]===char){tokens.push({type:'literal',value:char});i++;}
+      else tokens.push({type:char==='*'?'many':'one'});
+    }else tokens.push({type:'literal',value:char});
+  }
+  if(tokens.every(t=>t.type==='literal')){
+    const literal=tokens.map(t=>t.value).join('');
+    return value=>mappingText(value).includes(literal);
+  }
+  return value=>{
+    const text=Array.from(mappingText(value));
+    // Any position may begin a match, retaining the existing contains-search behavior.
+    let previous=new Uint8Array(text.length+1).fill(1);
+    for(const token of tokens){
+      const next=new Uint8Array(text.length+1);
+      if(token.type==='many'){
+        next[0]=previous[0];
+        for(let i=1;i<=text.length;i++)next[i]=previous[i]||next[i-1];
+      }else{
+        for(let i=1;i<=text.length;i++)next[i]=previous[i-1]&&(token.type==='one'||text[i-1]===token.value)?1:0;
+      }
+      previous=next;
+    }
+    return previous.some(Boolean);
+  };
+}
 // Keep merchant identity, discard volatile bank references rather than fuzzy-match arbitrary words.
 export function relevantMappingText(value) {
   return mappingText(value)

@@ -53,6 +53,26 @@ test('changing mapping filters drops hidden selections before bulk updates',asyn
  expect((await currentScenario(page)).statementMappings.map(r=>r.secondaryAccountId)).toEqual([5,3]);await expect(mappings).toHaveAttribute('open','');
 });
 
+test('search is case-insensitive with escaped literal wildcard characters and bulk removal confirms only visible selected mappings',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=['Merchant A first','Merchant A second','Merchant B'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'description',pattern,comparison:'contains',direction:'out',secondaryAccountId:5}));
+ await open(page,data);const before=await currentScenario(page),mappings=review(page).locator('.statement-mappings');await mappings.locator('summary').click();const search=mappings.getByLabel('Filter mappings by description',{exact:true}),remove=mappings.getByRole('button',{name:'Remove selected mappings',exact:true});
+ await expect(remove).toBeDisabled();for(const literal of ['**','%%']){await search.fill(literal);await expect(mappings).toContainText('0 of 3 shown');}
+ await search.fill('mErChAnT a');await expect(mappings).toContainText('2 of 3 shown');await mappings.getByRole('button',{name:'Select all visible mappings',exact:true}).click();await remove.click();
+ const confirm=page.locator('.confirm-dialog');await expect(confirm).toContainText('Remove 2 selected mappings?');await confirm.getByTitle('Cancel',{exact:true}).click();expect((await currentScenario(page)).statementMappings).toHaveLength(3);
+ await remove.click();await confirm.getByTitle('Confirm',{exact:true}).click();await expect(mappings.locator('summary')).toHaveText('Mapping rules — 1 saved');await expect(mappings).toHaveAttribute('open','');await expect(search).toHaveValue('mErChAnT a');await expect(mappings).toContainText('0 of 1 shown');await expect(remove).toBeDisabled();
+ const after=await currentScenario(page);expect(after.statementMappings.map(r=>r.pattern)).toEqual(['Merchant B']);expect(after.transactionOccurrences).toEqual(before.transactionOccurrences);
+ await mappings.getByRole('button',{name:'Clear mapping filters',exact:true}).click();await expect(mappings.getByLabel('Select mapping Merchant B',{exact:true})).toBeVisible();
+});
+
+test('wildcard mapping searches support star, single percent, escapes and combined account filters',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=['Shop ABC','Shop AC','Shop A long BC','Rate*Plan','Rate%Plan'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'description',pattern,comparison:'contains',direction:'out',secondaryAccountId:i===2?3:5}));
+ await open(page,data);const mappings=review(page).locator('.statement-mappings');await mappings.locator('summary').click();const search=mappings.getByLabel('Filter mappings by description',{exact:true}),account=mappings.getByLabel('Filter mappings by secondary account',{exact:true}),rows=mappings.locator('.statement-mapping-grid .tabulator-row');await expect(rows).toHaveCount(5);
+ await search.fill('sHoP a*bc');await expect(rows).toHaveCount(2);await account.selectOption('5');await expect(rows).toHaveCount(1);await expect(rows.first()).toContainText('Shop ABC');
+ await account.selectOption('');await search.fill('shop a%c');await expect(rows).toHaveCount(1);await expect(rows.first()).toContainText('Shop ABC');
+ await search.fill('**');await expect(rows).toHaveCount(1);await expect(rows.first()).toContainText('Rate*Plan');await search.fill('%%');await expect(rows).toHaveCount(1);await expect(rows.first()).toContainText('Rate%Plan');
+ await search.fill('*');await expect(rows).toHaveCount(5);await search.fill('shop ac');await expect(rows).toHaveCount(1);await expect(rows.first()).toContainText('Shop AC');
+});
+
 test('mapping, review, source and native tables have row banding in light and dark themes',async({page})=>{
  const data=loadSmokeData();data.scenarios[0].statementMappings=['Merchant A','Merchant B'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'originalDescription',pattern,comparison:'contains',direction:'out',secondaryAccountId:5}));
  await open(page,data);await upload(page,csv([purchase(1,'2026-01-15','First shop','Merchant A',25,975),purchase(2,'2026-01-16','Other shop','Merchant B',30,945)]));

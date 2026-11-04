@@ -613,6 +613,13 @@ Use the description/matching-text search and secondary-account filter together
 to find rules while cleaning up. Filters remain after saving. Select all visible
 mappings selects only the filtered results; hidden selections are cleared when
 filters change. Clear mapping filters restores the complete list.
+Search is case-insensitive: `*` matches zero or more characters and `%` exactly
+one character. Use `**` for a literal star and `%%` for a literal percent.
+Search still finds matching text anywhere within the rule, and saved mapping
+conditions do not acquire wildcard behavior. To remove
+multiple rules, select them and use Remove selected mappings, then confirm the
+count. Only selected visible rules are removed; transactions and CSV sources
+remain intact. Cancel leaves everything unchanged.
 
 ### 5.5 Leave a Reminder for the Next Review
 

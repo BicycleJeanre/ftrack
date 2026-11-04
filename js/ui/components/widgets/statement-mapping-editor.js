@@ -1,6 +1,7 @@
-import { saveStatementMapping, removeStatementMapping, updateStatementMappings } from '../../../app/services/statement-service.js';
+import { saveStatementMapping, removeStatementMapping, removeStatementMappings, updateStatementMappings } from '../../../app/services/statement-service.js';
+import { confirmDialog } from '../../../shared/notifications.js';
 import { createGrid } from '../grids/grid-factory.js';
-import { MAPPING_FIELD_LABELS, mappingText } from '../../../shared/statement-mapping-utils.js';
+import { MAPPING_FIELD_LABELS, compileMappingSearch } from '../../../shared/statement-mapping-utils.js';
 
 export function buildStatementMappingEditor({scenario,scenarioId,accountId,onChanged,onError,state={}}) {
   const node=(tag,text='')=>{const e=document.createElement(tag);e.textContent=text;return e;};
@@ -10,12 +11,16 @@ export function buildStatementMappingEditor({scenario,scenarioId,accountId,onCha
   const selected=new Set((state.selectedIds || []).filter(id=>saved.some(r=>r.id===id))),checks=new Map();
   const details=node('details');details.className='statement-mappings';details.append(node('summary',`Mapping rules — ${saved.length} saved`),node('p','Click a cell to edit. Enter or leaving the cell saves; Escape cancels. Saved rules fill secondary accounts only. Saving refreshes suggestions and clears review approvals.'));
   const bulk=node('div');bulk.className='statement-mapping-bulk';const count=node('span');
-  const syncSelection=()=>{state.selectedIds=[...selected];count.textContent=`${selected.size} selected · ${saved.filter(matches).length} of ${saved.length} shown`;};
+  let removeSelected=null;
+  const syncSelection=()=>{state.selectedIds=[...selected];count.textContent=`${selected.size} selected · ${saved.filter(matches).length} of ${saved.length} shown`;if(removeSelected)removeSelected.disabled=selected.size===0;};
   const accounts=scenario.accounts.map(a=>[String(a.id),a.name]);
   const filters=node('div');filters.className='statement-review-controls statement-mapping-filters';
   const descriptionFilter=node('input');descriptionFilter.type='search';descriptionFilter.placeholder='Find description / matching text';descriptionFilter.setAttribute('aria-label','Filter mappings by description');descriptionFilter.value=state.descriptionFilter || '';
+  descriptionFilter.maxLength=500;
+  descriptionFilter.title='Case-insensitive contains search: * = zero or more characters; % = exactly one. Use ** for a literal * and %% for a literal %.';
   const accountFilter=select('Filter mappings by secondary account',[['','All secondary accounts'],...accounts]);accountFilter.value=state.secondaryFilter || '';
-  function matches(rule){return (!descriptionFilter.value||mappingText(rule.pattern).includes(mappingText(descriptionFilter.value)))&&(!accountFilter.value||Number(rule.secondaryAccountId)===Number(accountFilter.value));}
+  let searchValue=null,searchMatch=null;
+  function matches(rule){if(searchValue!==descriptionFilter.value){searchValue=descriptionFilter.value;searchMatch=compileMappingSearch(searchValue);}return searchMatch(rule.pattern)&&(!accountFilter.value||Number(rule.secondaryAccountId)===Number(accountFilter.value));}
   function applyFilters(){
     state.descriptionFilter=descriptionFilter.value;state.secondaryFilter=accountFilter.value;
     for(const id of selected)if(!saved.some(r=>r.id===id&&matches(r))){selected.delete(id);const check=checks.get(id);if(check)check.checked=false;}
@@ -24,6 +29,7 @@ export function buildStatementMappingEditor({scenario,scenarioId,accountId,onCha
   for(const [label,input] of [['Description / matching text',descriptionFilter],['Secondary account',accountFilter]]){const l=node('label',label);l.append(input);filters.append(l);}
   filters.append(button('Clear mapping filters',()=>{descriptionFilter.value='';accountFilter.value='';applyFilters();}));
   details.append(filters);
+  filters.append(node('small','Search: * = any number of characters · % = one character · ** / %% = literal * / %. Case-insensitive.'));
   descriptionFilter.oninput=applyFilters;accountFilter.onchange=applyFilters;
   // Selections outside restored filters must not participate in a later bulk edit.
   for(const id of selected)if(!saved.some(r=>r.id===id&&matches(r)))selected.delete(id);syncSelection();
@@ -33,6 +39,12 @@ export function buildStatementMappingEditor({scenario,scenarioId,accountId,onCha
   bulk.append(button('Select all visible mappings',()=>setSelection(true)),button('Clear mapping selection',()=>setSelection(false)),count);
   for(const [,label,input] of bulkControls){const l=node('label',label);l.append(input);bulk.append(l);}
   bulk.append(button('Apply to selected mappings',async()=>{const changes={};for(const [key,,input] of bulkControls)if(input.value)changes[key]=input.value;const ids=saved.filter(r=>selected.has(r.id)&&matches(r)).map(r=>r.id);await updateStatementMappings(scenarioId,ids,changes);await onChanged({keepOpen:true});}));
+  removeSelected=button('Remove selected mappings',async()=>{
+    const ids=saved.filter(r=>selected.has(r.id)&&matches(r)).map(r=>r.id);
+    if(!ids.length)throw new Error('Select at least one mapping to remove.');
+    if(!await confirmDialog(`Remove ${ids.length} selected mapping${ids.length===1?'':'s'}? Only these saved rules will be removed. Transactions and statement sources will not be deleted.`))return;
+    await removeStatementMappings(scenarioId,ids);await onChanged({keepOpen:true});
+  });removeSelected.classList.add('icon-btn--danger');removeSelected.disabled=selected.size===0;bulk.append(removeSelected);
   if(saved.length)details.append(bulk);
   const holder=node('div');holder.className='statement-mapping-grid';details.append(holder);
   let grid=null,building=null,destroyed=false;

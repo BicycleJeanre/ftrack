@@ -26,6 +26,19 @@ export async function removeStatementMapping(scenarioId, id) {
   });
 }
 
+export async function removeStatementMappings(scenarioId, ids) {
+  if(!Array.isArray(ids)||!ids.length||ids.some(id=>typeof id!=='string'||!id)||new Set(ids).size!==ids.length)throw new Error('Select at least one mapping to remove.');
+  return DataStore.transaction(data=>{
+    const scenario=data.scenarios.find(s=>Number(s.id)===Number(scenarioId));
+    if(!scenario)throw new Error('Scenario not found.');
+    const rules=scenario.statementMappings || [];
+    if(ids.some(id=>!rules.some(rule=>rule.id===id)))throw new Error('A selected mapping was removed. Refresh before trying again. No mappings were changed.');
+    const selected=new Set(ids);
+    scenario.statementMappings=rules.filter(rule=>!selected.has(rule.id));
+    return data;
+  });
+}
+
 // A bulk edit is one validated transaction: never partially update the selected rules.
 export async function updateStatementMappings(scenarioId, ids, changes) {
   if(!Array.isArray(ids)||!ids.length||new Set(ids).size!==ids.length)throw new Error('Select at least one mapping.');
