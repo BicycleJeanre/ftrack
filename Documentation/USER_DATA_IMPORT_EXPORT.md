@@ -156,8 +156,10 @@ Only saved rules are listed and applied. Create and edit rules explicitly;
 there are no generated proposals. Removing a rule leaves the section open and
 does not recreate it. Saving refreshes suggestions and clears approvals;
 nothing is approved implicitly.
-Edit mapping opens its fields directly under that rule, not in the new-rule
-form. Save or Cancel there; saving also keeps the section open. Select multiple
+Saved mappings appear in a sortable grid. Click a cell to edit its text or choose
+a dropdown value. Enter or leaving the cell saves; Escape cancels without closing
+the dialog. Invalid values revert with an error. Saving keeps the section open.
+The separate new-rule form is only for creating new mappings. Select multiple
 saved rules with their checkboxes (or Select all mappings), choose bulk secondary
 account, source field, comparison and/or direction, then Apply to selected mappings.
 Keep current leaves that field unchanged, and each rule retains its own text.

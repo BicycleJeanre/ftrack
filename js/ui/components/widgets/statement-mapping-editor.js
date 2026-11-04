@@ -1,44 +1,67 @@
 import { saveStatementMapping, removeStatementMapping, updateStatementMappings } from '../../../app/services/statement-service.js';
-import { statementMappingLabel } from '../../../shared/statement-mapping-utils.js';
+import { createGrid } from '../grids/grid-factory.js';
+import { MAPPING_FIELD_LABELS } from '../../../shared/statement-mapping-utils.js';
 
 export function buildStatementMappingEditor({scenario,scenarioId,accountId,onChanged,onError,state={}}) {
   const node=(tag,text='')=>{const e=document.createElement(tag);e.textContent=text;return e;};
   const button=(text,fn)=>{const e=node('button',text);e.type='button';e.className='icon-btn';e.onclick=()=>Promise.resolve().then(fn).catch(onError);return e;};
   const select=(label,options)=>{const e=node('select');e.setAttribute('aria-label',label);for(const [value,text] of options){const o=node('option',text);o.value=value;e.append(o);}return e;};
   const saved=(scenario.statementMappings || []).filter(r=>!accountId||Number(r.accountId)===Number(accountId));
-  const details=node('details');details.className='statement-mappings';const summary=node('summary',`Mapping rules — ${saved.length} saved`);details.append(summary,node('p','Saved rules apply automatically to secondary accounts. Description matching ignores bank references, long numbers and dates. Saving refreshes review suggestions and clears approvals so you can review the new mapping. Actions remain separate.'));
-  const selected=new Set((state.selectedIds || []).filter(id=>saved.some(r=>r.id===id))),lines=new Map(),checks=[];
-  const bulk=node('div');bulk.className='statement-mapping-bulk';const count=node('span',`${selected.size} selected`);
+  const selected=new Set((state.selectedIds || []).filter(id=>saved.some(r=>r.id===id))),checks=new Map();
+  const details=node('details');details.className='statement-mappings';details.append(node('summary',`Mapping rules — ${saved.length} saved`),node('p','Click a cell to edit. Enter or leaving the cell saves; Escape cancels. Saved rules fill secondary accounts only. Saving refreshes suggestions and clears review approvals.'));
+  const bulk=node('div');bulk.className='statement-mapping-bulk';const count=node('span');
   const syncSelection=()=>{state.selectedIds=[...selected];count.textContent=`${selected.size} selected`;};syncSelection();
-  const secondaryOptions=[['','Keep current'],...scenario.accounts.filter(a=>Number(a.id)!==Number(accountId)).map(a=>[a.id,a.name])];
-  const bulkSecondary=select('Bulk mapping secondary account',secondaryOptions);
-  const bulkField=select('Bulk mapping field',[['','Keep current'],['originalDescription','Original description'],['description','Description'],['category','Category'],['parentCategory','Parent category']]);
-  const bulkComparison=select('Bulk mapping comparison',[['','Keep current'],['contains','Contains'],['exact','Equals']]);
-  const bulkDirection=select('Bulk mapping direction',[['','Keep current'],['out','Money out'],['in','Money in']]);
-  const setSelection=checked=>{for(const [id,check] of checks){check.checked=checked;if(checked)selected.add(id);else selected.delete(id);}syncSelection();};
+  const accounts=scenario.accounts.map(a=>[String(a.id),a.name]);
+  const fields=Object.entries(MAPPING_FIELD_LABELS),comparisons=[['contains','Contains'],['exact','Equals']],directions=[['out','Money out'],['in','Money in']];
+  const bulkControls=[['secondaryAccountId','Secondary account',select('Bulk mapping secondary account',[['','Keep current'],...accounts.filter(([id])=>Number(id)!==Number(accountId))])],['field','Field',select('Bulk mapping field',[['','Keep current'],...fields])],['comparison','Comparison',select('Bulk mapping comparison',[['','Keep current'],...comparisons])],['direction','Direction',select('Bulk mapping direction',[['','Keep current'],...directions])]];
+  const setSelection=checked=>{for(const rule of saved){if(checked)selected.add(rule.id);else selected.delete(rule.id);const check=checks.get(rule.id);if(check)check.checked=checked;}syncSelection();};
   bulk.append(button('Select all mappings',()=>setSelection(true)),button('Clear mapping selection',()=>setSelection(false)),count);
-  for(const [label,input] of [['Secondary account',bulkSecondary],['Field',bulkField],['Comparison',bulkComparison],['Direction',bulkDirection]]){const l=node('label',label);l.append(input);bulk.append(l);}
-  bulk.append(button('Apply to selected mappings',async()=>{const changes={};for(const [key,input] of [['secondaryAccountId',bulkSecondary],['field',bulkField],['comparison',bulkComparison],['direction',bulkDirection]])if(input.value)changes[key]=input.value;await updateStatementMappings(scenarioId,[...selected],changes);await onChanged({keepOpen:true});}));
+  for(const [,label,input] of bulkControls){const l=node('label',label);l.append(input);bulk.append(l);}
+  bulk.append(button('Apply to selected mappings',async()=>{const changes={};for(const [key,,input] of bulkControls)if(input.value)changes[key]=input.value;await updateStatementMappings(scenarioId,[...selected],changes);await onChanged({keepOpen:true});}));
   if(saved.length)details.append(bulk);
-  const list=node('div');details.append(list);
-  const editor=node('div');editor.className='statement-inline-mapping-editor';editor.hidden=true;
-  const formTitle=node('h4','New mapping rule (not saved)');editor.append(formTitle);
-  const form=node('form');form.className='statement-mapping-form';let editingId=null;
-  const primary=select('Mapping primary account',scenario.accounts.map(a=>[a.id,a.name]));primary.value=String(accountId || scenario.accounts[0]?.id);
-  const field=select('Mapping field',[['originalDescription','Original description'],['description','Description'],['category','Category'],['parentCategory','Parent category']]);
-  const comparison=select('Mapping comparison',[['contains','Contains'],['exact','Equals']]);
-  const pattern=node('input');pattern.maxLength=500;pattern.setAttribute('aria-label','Mapping text');
-  const direction=select('Mapping direction',[['out','Money out'],['in','Money in']]);
-  const secondary=select('Mapping secondary account',[['','Choose secondary account'],...scenario.accounts.map(a=>[a.id,a.name])]);
-  for(const [label,input] of [['Primary account',primary],['Field',field],['Comparison',comparison],['Text',pattern],['Direction',direction],['Secondary account',secondary]]){const l=node('label',label);l.append(input);form.append(l);}
-  const edit=(rule={})=>{editingId=rule.id || null;(lines.get(editingId)||details).append(editor);editor.hidden=false;formTitle.textContent=editingId?'Edit saved mapping rule':'New mapping rule (not saved)';primary.value=String(rule.accountId || accountId || scenario.accounts[0]?.id);field.value=rule.field || 'originalDescription';comparison.value=rule.comparison || 'contains';pattern.value=rule.pattern || '';direction.value=rule.direction || 'out';secondary.value=String(rule.secondaryAccountId || '');details.open=true;pattern.focus();editor.scrollIntoView({block:'nearest'});};
-  const save=button('Save mapping',async()=>{await saveStatementMapping(scenarioId,{id:editingId,accountId:primary.value,field:field.value,comparison:comparison.value,pattern:pattern.value,direction:direction.value,secondaryAccountId:secondary.value});await onChanged({keepOpen:true});});
-  form.onsubmit=e=>{e.preventDefault();save.click();};form.append(save,button('Cancel mapping edit',()=>{editor.hidden=true;}));
-  for(const rule of saved) {
-    const line=node('div');line.className='statement-mapping-rule';
-    const check=node('input');check.type='checkbox';check.checked=selected.has(rule.id);check.setAttribute('aria-label',`Select mapping ${rule.pattern}`);check.onchange=()=>{if(check.checked)selected.add(rule.id);else selected.delete(rule.id);syncSelection();};checks.push([rule.id,check]);lines.set(rule.id,line);
-    line.append(check,node('span',`${scenario.accounts.find(a=>Number(a.id)===Number(rule.accountId))?.name || 'Missing account'} · ${rule.direction==='out'?'Money out':'Money in'} · ${statementMappingLabel({rule,conflict:false},scenario.accounts)}`),button('Edit mapping',()=>edit(rule)),button('Remove mapping',async()=>{const keepOpen=details.open;await removeStatementMapping(scenarioId,rule.id);await onChanged({keepOpen});}));list.append(line);
+  const holder=node('div');holder.className='statement-mapping-grid';details.append(holder);
+  let grid=null,building=null,destroyed=false;
+  const safeText=cell=>node('span',cell.getValue()??'');
+  const editor=(label,options)=> (cell,onRendered,success,cancel)=>{
+    const input=options?select(`Edit mapping ${label}`,typeof options==='function'?options(cell):options):node('input');
+    input.setAttribute('aria-label',`Edit mapping ${label}`);if(!options)input.maxLength=500;
+    input.value=String(cell.getValue()??'');let done=false;
+    const commit=()=>{if(!done){done=true;success(input.value);}};
+    input.onchange=()=>{if(options)commit();};input.onblur=commit;
+    input.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();done=true;cancel();}else if(e.key==='Enter'){e.preventDefault();e.stopPropagation();commit();}};
+    onRendered(()=>{input.focus();if(!options)input.select();});return input;
+  };
+  const column=(title,field,options)=>({title,field,minWidth:120,headerSort:true,editor:editor(title,options),formatter:options?cell=>{const values=typeof options==='function'?options(cell):options;return node('span',values.find(([id])=>String(id)===String(cell.getValue()))?.[1] || '(missing account)');}:safeText});
+  async function ensureGrid(){
+    if(building)return building;
+    building=(async()=>{
+      grid=await createGrid(holder,{data:saved.map(r=>({...r})),editTriggerEvent:'click',responsiveLayout:false,layout:'fitColumns',height:saved.length>8?'42vh':undefined,rowHeight:42,placeholder:'No saved mappings',columns:[
+        {title:'Select',field:'selected',width:70,headerSort:false,formatter:cell=>{const r=cell.getData();const check=node('input');check.type='checkbox';check.checked=selected.has(r.id);check.setAttribute('aria-label',`Select mapping ${r.pattern}`);check.onclick=e=>e.stopPropagation();check.onchange=()=>{if(check.checked)selected.add(r.id);else selected.delete(r.id);syncSelection();};checks.set(r.id,check);return check;}},
+        column('Primary account','accountId',accounts),column('Field','field',fields),column('Comparison','comparison',comparisons),{...column('Text','pattern'),widthGrow:2},column('Direction','direction',directions),column('Secondary account','secondaryAccountId',cell=>accounts.filter(([id])=>Number(id)!==Number(cell.getData().accountId))),
+        {title:'Actions',field:'actions',width:80,headerSort:false,formatter:cell=>{const remove=button('×',async()=>{await removeStatementMapping(scenarioId,cell.getData().id);await onChanged({keepOpen:true});});remove.title='Remove mapping';remove.setAttribute('aria-label','Remove mapping');return remove;}}
+      ],cellEdited:async cell=>{
+        try{await updateStatementMappings(scenarioId,[cell.getData().id],{[cell.getField()]:cell.getValue()});await onChanged({keepOpen:true});}
+        catch(error){if(!destroyed)cell.restoreOldValue();onError(error);}
+      }});
+      if(destroyed){grid.destroy();return;}
+      await new Promise(resolve=>grid.on('tableBuilt',resolve));
+      if(state.sort?.length)grid.setSort(state.sort);
+      grid.on('dataSorted',sorters=>{state.sort=sorters.map(s=>({column:s.field,dir:s.dir}));});
+    })();return building;
   }
-  editor.append(form);details.append(editor,button('New mapping',()=>edit()));
-  return {element:details,edit};
+  details.ontoggle=()=>{if(details.open)ensureGrid().catch(onError);};
+  // The small form is only for creating a new mapping; existing rules edit in grid cells.
+  const form=node('form');form.className='statement-mapping-form';form.hidden=true;
+  const primary=select('Mapping primary account',accounts),field=select('Mapping field',fields),comparison=select('Mapping comparison',comparisons),direction=select('Mapping direction',directions),secondary=select('Mapping secondary account',[['','Choose secondary account'],...accounts]);
+  const pattern=node('input');pattern.maxLength=500;pattern.setAttribute('aria-label','Mapping text');
+  for(const [label,input] of [['Primary account',primary],['Field',field],['Comparison',comparison],['Text',pattern],['Direction',direction],['Secondary account',secondary]]){const l=node('label',label);l.append(input);form.append(l);}
+  const save=button('Save mapping',async()=>{await saveStatementMapping(scenarioId,{accountId:primary.value,field:field.value,comparison:comparison.value,pattern:pattern.value,direction:direction.value,secondaryAccountId:secondary.value});await onChanged({keepOpen:true});});
+  form.onsubmit=e=>{e.preventDefault();save.click();};form.append(save,button('Cancel mapping edit',()=>{form.hidden=true;}));
+  function edit(rule={}){
+    details.open=true;
+    if(rule.id){ensureGrid().then(()=>{if(destroyed)return;grid.scrollToRow(rule.id,'nearest',false).then(()=>grid.getRow(rule.id).getCell('pattern').edit());}).catch(onError);return;}
+    primary.value=String(rule.accountId||accountId||scenario.accounts[0]?.id);field.value=rule.field||'originalDescription';comparison.value=rule.comparison||'contains';pattern.value=rule.pattern||'';direction.value=rule.direction||'out';secondary.value=String(rule.secondaryAccountId||'');form.hidden=false;pattern.focus();form.scrollIntoView({block:'nearest'});
+  }
+  details.append(form,button('New mapping',()=>edit()));
+  return {element:details,edit,destroy(){destroyed=true;grid?.destroy();}};
 }

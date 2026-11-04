@@ -38,12 +38,13 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
     const batches=(scenario.statementImports || []).filter(b=>Number(b.accountId)===Number(primaryId));
     const mappingEditor=buildStatementMappingEditor({scenario,scenarioId,accountId:primaryId,state:mappingState,onError:e=>{delete error.dataset.state;error.textContent=e.message;},onChanged:async({keepOpen=true}={})=>{
       const scrollTop=modal.scrollTop;
+      error.textContent='';delete error.dataset.state;
       // Reapply newly saved rules even to rows previously edited manually; never keep stale approvals.
       drafts.clear();
       await refresh();
       content.querySelector('.statement-mappings').open=keepOpen;
       if(keepOpen)modal.scrollTop=scrollTop;
-    }});content.append(mappingEditor.element);
+    }});content.append(mappingEditor.element);grids.push(mappingEditor);
     if(!primaryId){content.append(el('p','Choose a primary account to view its statements or upload a CSV.'));return;}
     if(!batches.length){content.append(el('p','No statements retained for this account. Choose a CSV above to retain it automatically.'));return;}
     const archive=select([['','Choose retained source'],...batches.map(b=>[b.id,`${b.fileName} — ${b.importedAt.slice(0,10)}`])]);archive.value=activeId || '';archive.setAttribute('aria-label','Retained statements');archive.addEventListener('change',guard(async()=>{activeId=archive.value;await render();}));const archiveLabel=el('label','Retained statements');archiveLabel.append(archive);sources.append(archiveLabel);
@@ -67,7 +68,7 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
     imports.append(button('Download original CSV',()=>download(batch.rawCsv,batch.fileName,'text/csv')),
       button('Download reconciliation report',()=>download(JSON.stringify({fileName:batch.fileName,sha256:batch.sha256,accountId:batch.accountId,decisions:batch.decisions,flags:parsed.entries.filter(e=>e.insufficientFunds).map(e=>({index:e.index,reason:'insufficient-funds',excluded:true}))},null,2),'statement-reconciliation.json','application/json')));
     const source=el('details');source.append(el('summary','Full original source table (all columns and rows)'));
-    const sourceWrap=el('div','','statement-table-wrap');const sourceGrid=el('div');sourceWrap.append(sourceGrid);source.append(sourceWrap);content.append(source);
+    const sourceWrap=el('div','','statement-table-wrap');const sourceGrid=el('div','','statement-source-grid');sourceWrap.append(sourceGrid);source.append(sourceWrap);content.append(source);
     let originalGrid=null;source.ontoggle=async()=>{if(!source.open)return;if(originalGrid){originalGrid.redraw(true);return;}originalGrid=await createGrid(sourceGrid,{height:'35vh',responsiveLayout:false,data:parsed.rows.map((r,id)=>({id,...Object.fromEntries(r.map((v,i)=>[`c${i}`,v]))})),columns:parsed.headers.map((title,i)=>({title,field:`c${i}`,headerSort:true,minWidth:120,sorter:['Nr','Money In','Money Out','Fee','Balance'].includes(title)?'number':'string',formatter:cell=>{const node=el('span',cell.getValue());if(parsed.entries[cell.getData().id].insufficientFunds)node.className='statement-insufficient-funds';return node;}}))});grids.push(originalGrid);};
     const start=new Date(parsed.startDate+'T12:00:00Z');start.setUTCDate(start.getUTCDate()-7);const end=new Date(parsed.endDate+'T12:00:00Z');end.setUTCDate(end.getUTCDate()+7);
     const {occurrences}=resolveScenarioOccurrences({scenario,startDate:start.toISOString().slice(0,10),endDate:end.toISOString().slice(0,10)});

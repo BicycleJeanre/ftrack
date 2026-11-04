@@ -16,13 +16,14 @@ test('removing mappings keeps the section open through successive removals, incl
  for(const remaining of [1,0]){await mappings.getByRole('button',{name:'Remove mapping',exact:true}).first().click();await expect(mappings.locator('summary')).toContainText(`${remaining} saved`);await expect(mappings).toHaveAttribute('open','');expect((await currentScenario(page)).statementMappings).toHaveLength(remaining);}
 });
 
-test('saved rules edit inline, cancel without saving, and keep the mapping section open after save',async({page})=>{
+test('mapping grid cells edit on click, cancel, validate, and keep the section open after saving',async({page})=>{
  const data=loadSmokeData();data.scenarios[0].statementMappings=['Merchant A','Merchant B'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'description',pattern,comparison:'contains',direction:'out',secondaryAccountId:5}));
  await open(page,data);const mappings=review(page).locator('.statement-mappings');await mappings.locator('summary').click();
- const first=mappings.locator('.statement-mapping-rule').filter({hasText:'Merchant A'});await first.getByRole('button',{name:'Edit mapping',exact:true}).click();await expect(first.locator('.statement-inline-mapping-editor')).toBeVisible();
- await first.getByLabel('Mapping text',{exact:true}).fill('Discarded edit');await first.getByRole('button',{name:'Cancel mapping edit'}).click();expect((await currentScenario(page)).statementMappings[0].pattern).toBe('Merchant A');
- await first.getByRole('button',{name:'Edit mapping',exact:true}).click();await first.getByLabel('Mapping text',{exact:true}).fill('Merchant A revised');await page.screenshot({path:test.info().outputPath('inline-mapping-edit.png')});await first.getByRole('button',{name:'Save mapping',exact:true}).click();
- await expect(mappings).toHaveAttribute('open','');await expect(mappings.locator('.statement-mapping-rule').first()).toContainText('Merchant A revised');expect((await currentScenario(page)).statementMappings[1].pattern).toBe('Merchant B');
+ const first=mappings.locator('.tabulator-row').first();const text=first.locator('[tabulator-field="pattern"]');await expect(text).toHaveText('Merchant A');await text.click();await expect(text.getByLabel('Edit mapping Text')).toBeVisible();
+ await text.getByLabel('Edit mapping Text').fill('Discarded edit');await text.getByLabel('Edit mapping Text').press('Escape');expect((await currentScenario(page)).statementMappings[0].pattern).toBe('Merchant A');
+ await text.click();await text.getByLabel('Edit mapping Text').fill('');await text.getByLabel('Edit mapping Text').press('Enter');await expect(review(page).getByRole('alert')).toContainText('mapping pattern');await expect(text).toHaveText('Merchant A');
+ await text.click();await text.getByLabel('Edit mapping Text').fill('Merchant A revised');await text.getByLabel('Edit mapping Text').press('Enter');await expect(mappings).toHaveAttribute('open','');await expect(mappings.locator('.tabulator-row').first()).toContainText('Merchant A revised');expect((await currentScenario(page)).statementMappings[1].pattern).toBe('Merchant B');
+ const account=mappings.locator('.tabulator-row').first().locator('[tabulator-field="secondaryAccountId"]');await account.click();await account.getByLabel('Edit mapping Secondary account').selectOption('3');await expect(mappings.locator('.tabulator-row').first()).toContainText('Credit Card');expect((await currentScenario(page)).statementMappings[0].secondaryAccountId).toBe(3);await page.screenshot({path:test.info().outputPath('mapping-cell-grid.png')});
 });
 
 test('bulk mapping edit changes only selected rules and keeps their individual text',async({page})=>{
@@ -32,6 +33,21 @@ test('bulk mapping edit changes only selected rules and keeps their individual t
  await mappings.getByLabel('Bulk mapping secondary account',{exact:true}).selectOption('3');await mappings.getByLabel('Bulk mapping comparison',{exact:true}).selectOption('exact');await mappings.getByRole('button',{name:'Apply to selected mappings',exact:true}).click();
  await expect(mappings).toHaveAttribute('open','');await expect(mappings).toContainText('2 selected');await expect(mappings.getByLabel('Select mapping Merchant A',{exact:true})).toBeChecked();const rules=(await currentScenario(page)).statementMappings;expect(rules.map(r=>r.pattern)).toEqual(['Merchant A','Merchant B','Merchant C']);expect(rules.slice(0,2).every(r=>r.secondaryAccountId===3&&r.comparison==='exact')).toBe(true);expect(rules[2].secondaryAccountId).toBe(5);expect(rules[2].comparison).toBe('contains');
  await mappings.getByRole('button',{name:'Select all mappings',exact:true}).click();await expect(mappings).toContainText('3 selected');await mappings.getByRole('button',{name:'Clear mapping selection',exact:true}).click();await expect(mappings).toContainText('0 selected');
+});
+
+test('mapping, review, source and native tables have row banding in light and dark themes',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=['Merchant A','Merchant B'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'originalDescription',pattern,comparison:'contains',direction:'out',secondaryAccountId:5}));
+ await open(page,data);await upload(page,csv([purchase(1,'2026-01-15','First shop','Merchant A',25,975),purchase(2,'2026-01-16','Other shop','Merchant B',30,945)]));
+ await review(page).locator('.statement-mappings summary').click();await review(page).getByText('Full original source table (all columns and rows)',{exact:true}).click();await expect(review(page).locator('.statement-source-grid .tabulator-row')).toHaveCount(2);
+ await page.mouse.move(0,0);
+ for(const theme of ['light','dark']){
+   await page.evaluate(theme=>document.documentElement.setAttribute('data-theme',theme),theme);
+   for(const selector of ['.statement-mapping-grid','.statement-review-grid','.statement-source-grid']){
+     const colors=await review(page).locator(`${selector} .tabulator-row`).evaluateAll(rows=>rows.slice(0,2).map(row=>({color:getComputedStyle(row).backgroundColor,classes:row.className})));expect(colors[0].color,`${theme} ${selector}: ${JSON.stringify(colors)}`).not.toBe(colors[1].color);
+   }
+   const native=await page.evaluate(()=>{const table=document.createElement('table');table.innerHTML='<tbody><tr><td>First</td></tr><tr><td>Second</td></tr></tbody>';document.body.append(table);const colors=[...table.rows].map(r=>getComputedStyle(r).backgroundColor);table.remove();return colors;});expect(native[0]).not.toBe(native[1]);
+ }
+ await page.screenshot({path:test.info().outputPath('banded-grids-dark.png')});
 });
 
 test('account toolbar automatically retains source and scopes archive; dialog fills screen',async({page})=>{

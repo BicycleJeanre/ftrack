@@ -4,6 +4,19 @@
 
 /* ==================================== HTML Tables ====================================*/
 
+/* Shared banding follows displayed rows, including after sorting/filtering.
+   Semantic selection/history/error states remain visually stronger. */
+body .tabulator .tabulator-row.tabulator-row-even:not(.tabulator-group):not(.tabulator-calcs):not(.tabulator-selected):not(.custom-selected):not(.budget-row-frozen):not(.statement-insufficient-funds) {
+  background-color: color-mix(in srgb, var(--text-primary) 6%, var(--bg-secondary));
+}
+body .tabulator .tabulator-row.tabulator-row-odd:not(.tabulator-group):not(.tabulator-calcs):not(.tabulator-selected):not(.custom-selected):not(.budget-row-frozen):not(.statement-insufficient-funds) {
+  background-color: var(--bg-secondary);
+}
+body .tabulator .tabulator-row:not(.tabulator-group):not(.tabulator-calcs):not(.tabulator-selected):not(.custom-selected):not(.budget-row-frozen):not(.statement-insufficient-funds) > .tabulator-cell:not(.tabulator-editing) { background-color: inherit; }
+body .tabulator .tabulator-row.tabulator-row-even:not(.tabulator-group):not(.tabulator-calcs):not(.tabulator-selected):not(.custom-selected):not(.budget-row-frozen):hover,
+body .tabulator .tabulator-row.tabulator-row-odd:not(.tabulator-group):not(.tabulator-calcs):not(.tabulator-selected):not(.custom-selected):not(.budget-row-frozen):hover { background-color: var(--bg-tertiary); }
+table:not(.tabulator-table) > tbody > tr:nth-child(even):not(:has(th)):not(.selected):not(.statement-insufficient-funds) { background-color: color-mix(in srgb, var(--text-primary) 6%, var(--bg-secondary)); }
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -461,10 +474,6 @@ html body .tabulator .tabulator-row.tabulator-group {
 
 .tabulator .tabulator-footer .tabulator-calcs-holder .tabulator-row {
   background: var(--bg-elevated) !important;
-}
-
-.tabulator-row {
-  background-color: var(--bg-secondary) !important;
 }
 
 .tabulator {
