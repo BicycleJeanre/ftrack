@@ -152,10 +152,10 @@ actual as a line item). Add actual and adjust future planned value additionally
 updates the linked recurring plan from the next occurrence, not earlier history.
 Already recorded links an existing actual without changing any values.
 No planned payment records a standalone actual without closing another payment.
-Generated mapping drafts appear automatically where text evidence identifies a
-single account. The header distinguishes saved rules from unapplied proposals.
-Review and save individually or Save all proposed mappings to activate. Saving
-refreshes suggestions and clears approvals; nothing is approved implicitly.
+Only saved rules are listed and applied. Create and edit rules explicitly;
+there are no generated proposals. Removing a rule leaves the section open and
+does not recreate it. Saving refreshes suggestions and clears approvals;
+nothing is approved implicitly.
 Select the primary account to see only its retained statements. Selecting a CSV
 retains it automatically for that account. Source/report downloads are in the top
 toolbar. Both original-source and review grids use the standard sortable grid;

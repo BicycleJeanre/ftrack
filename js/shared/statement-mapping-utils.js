@@ -51,30 +51,3 @@ export function statementMappingFor(entry, rules, accountId, accounts) {
 export function counterpartyId(occurrence, accountId) {
   return Number(occurrence.primaryAccountId)===Number(accountId) ? Number(occurrence.secondaryAccountId) : Number(occurrence.primaryAccountId);
 }
-
-export function generateStatementMappingDrafts(entries, scenario, accountId, priorExamples=[]) {
-  const drafts=[];const seen=new Set();
-  for(const entry of entries.filter(e=>e.monetary&&!e.insufficientFunds)) {
-    const pattern=relevantMappingText(entry.originalDescription || entry.description);
-    if(pattern.length<3)continue;
-    const signature=JSON.stringify([mappingText(pattern),Math.sign(entry.amountCents)]);
-    if(seen.has(signature)) continue;seen.add(signature);
-    if(statementMappingFor(entry,scenario.statementMappings,accountId,scenario.accounts).rule) continue;
-    const previous=priorExamples.filter(e=>relevantMappingText(e.pattern)===pattern && e.direction===(entry.amountCents>0?'in':'out'));
-    const previousIds=[...new Set(previous.map(e=>Number(e.secondaryAccountId)))];
-    const haystack=mappingText(entry.description+' '+entry.originalDescription+' '+entry.category+' '+entry.parentCategory);
-    const named=scenario.accounts.filter(a=>Number(a.id)!==Number(accountId) && mappingText(a.name).length>=3 && haystack.includes(mappingText(a.name)));
-    // Existing plan descriptions provide text evidence, never amount/date proximity.
-    const described=(scenario.transactions || []).filter(t=>{
-      const primary=Number(t.primaryAccountId)===Number(accountId),secondary=Number(t.secondaryAccountId)===Number(accountId);
-      if(!primary&&!secondary)return false;
-      const sign=(Number(t.transactionTypeId)===1?1:-1)*(primary?1:-1);
-      const text=mappingText(t.description);
-      return sign===Math.sign(entry.amountCents)&&text.length>=4&&/[a-z]/i.test(text)&&haystack.includes(text);
-    }).map(t=>counterpartyId(t,accountId));
-    const candidates=[...new Set(previousIds.length ? previousIds : [...named.map(a=>Number(a.id)),...described])].filter(id=>id!==Number(accountId)&&scenario.accounts.some(a=>Number(a.id)===id));
-    if(candidates.length!==1) continue;
-    drafts.push({accountId:Number(accountId),field:entry.originalDescription?'originalDescription':'description',pattern,comparison:'contains',direction:entry.amountCents>0?'in':'out',secondaryAccountId:candidates[0]});
-  }
-  return drafts;
-}

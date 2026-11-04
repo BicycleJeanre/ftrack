@@ -4,7 +4,7 @@ import { retainStatement, appliedStatementFingerprints } from '../../../app/serv
 import { applyStatementDecisions } from '../../../app/managers/occurrence-manager.js';
 import { getScenario } from '../../../app/services/data-service.js';
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
-import { statementMappingFor,generateStatementMappingDrafts,counterpartyId,statementMappingLabel,relevantMappingText } from '../../../shared/statement-mapping-utils.js';
+import { statementMappingFor,counterpartyId,statementMappingLabel,relevantMappingText } from '../../../shared/statement-mapping-utils.js';
 import { createGrid } from '../grids/grid-factory.js';
 import { buildStatementMappingEditor } from '../widgets/statement-mapping-editor.js';
 import { buildStatementReviewGrid } from '../widgets/statement-review-grid.js';
@@ -36,10 +36,11 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
       activeId=await retainStatement(scenarioId,account.value,file.files[0].name,await file.files[0].text());await refresh();
     });
     const batches=(scenario.statementImports || []).filter(b=>Number(b.accountId)===Number(primaryId));
-    const mappingEditor=buildStatementMappingEditor({scenario,scenarioId,accountId:primaryId,onError:e=>{delete error.dataset.state;error.textContent=e.message;},onChanged:async()=>{
+    const mappingEditor=buildStatementMappingEditor({scenario,scenarioId,accountId:primaryId,onError:e=>{delete error.dataset.state;error.textContent=e.message;},onChanged:async({keepOpen=false}={})=>{
       // Reapply newly saved rules even to rows previously edited manually; never keep stale approvals.
       drafts.clear();
       await refresh();
+      content.querySelector('.statement-mappings').open=keepOpen;
     }});content.append(mappingEditor.element);
     if(!primaryId){content.append(el('p','Choose a primary account to view its statements or upload a CSV.'));return;}
     if(!batches.length){content.append(el('p','No statements retained for this account. Choose a CSV above to retain it automatically.'));return;}
@@ -133,13 +134,6 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
       }});
       pending.push({entry,check,action,secondary});
     });
-    const generateMappings=()=>{
-      const examples=[];
-      for(const old of batches.filter(b=>Number(b.accountId)===Number(batch.accountId))){const entries=parseStatement(old.rawCsv).entries;for(const [index,decision] of Object.entries(old.decisions || {})){const o=occurrences.find(o=>o.occurrenceKey===decision.occurrenceKey),entry=entries[index];if(o&&entry)examples.push({pattern:entry.originalDescription || entry.description,direction:entry.amountCents>0?'in':'out',secondaryAccountId:counterpartyId(o,batch.accountId)});}}
-      return generateStatementMappingDrafts(parsed.entries,scenario,batch.accountId,examples);
-    };
-    const generated=generateMappings();if(generated.length)mappingEditor.showDrafts(generated);
-    mappingEditor.element.append(button('Generate draft mappings',()=>mappingEditor.showDrafts(generateMappings())));
     wrap.append(table);content.append(el('h3','Review transactions'),wrap);
     const grid=await buildStatementReviewGrid({table,heading,rows:gridRows,state:gridState,onError:e=>{delete error.dataset.state;error.textContent=e.message;}});wrap.before(grid.controls);grids.push(grid);
     const apply=button('Apply approved rows',guard(async()=>{

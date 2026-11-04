@@ -10,7 +10,7 @@ globalThis.document={dispatchEvent(){}};
 const store=await import('../../js/app/services/storage-service.js');
 const {retainStatement}=await import('../../js/app/services/statement-service.js');
 const {saveStatementMapping,removeStatementMapping}=await import('../../js/app/services/statement-service.js');
-const {statementMappingFor,generateStatementMappingDrafts,statementMappingLabel,MAPPING_FIELDS,relevantMappingText}=await import('../../js/shared/statement-mapping-utils.js');
+const {statementMappingFor,statementMappingLabel,MAPPING_FIELDS,relevantMappingText}=await import('../../js/shared/statement-mapping-utils.js');
 const {applyStatementDecisions}=await import('../../js/app/managers/occurrence-manager.js');
 const header=STATEMENT_HEADERS.join(',');
 const row=(nr,date,description,out,fee,balance)=>[nr,'bank-1',date,date+' 12:00',description,description,'Expenses','Services','',out,fee,balance].join(',');
@@ -84,16 +84,6 @@ test('mapping CRUD persists through cloud and checks scope, direction and confli
  await removeStatementMapping(1,saved.id);assert.deepEqual((await store.read()).scenarios[0].statementMappings,[]);
 });
 
-test('mapping generation requires unique account evidence and does not mutate the scenario',()=>{
- const scenario=seed().scenarios[0];
- const entries=[{...parseStatement(csv).entries[0],description:'Shop purchase',originalDescription:'Shop purchase'}];
- assert.equal(generateStatementMappingDrafts(entries,scenario,1).length,1);
- assert.equal(scenario.statementMappings,undefined);
- assert.equal(generateStatementMappingDrafts(entries,{...scenario,accounts:[...scenario.accounts,{id:3,name:'Shop'}]},1).length,0);
- const drafts=generateStatementMappingDrafts(parseStatement(csv).entries,scenario,1,[{pattern:'Service',direction:'out',secondaryAccountId:2}]);
- assert.equal(drafts[0].secondaryAccountId,2);
-});
-
 test('account-only mappings ignore legacy action differences and persist without an action',async()=>{
  await store.write(seed());
  const rule={accountId:1,field:'originalDescription',pattern:'Service',comparison:'exact',direction:'out',secondaryAccountId:2};
@@ -105,14 +95,6 @@ test('account-only mappings ignore legacy action differences and persist without
  assert.equal(mapping.conflict,false);
  assert.equal(mapping.rule.secondaryAccountId,2);
  assert.equal(validateAppData(await store.read()).isValid,true);
-});
-
-test('mapping drafts can use unique plan description evidence without amount/date matching',()=>{
- const scenario=seed().scenarios[0];
- scenario.transactions=[{primaryAccountId:1,secondaryAccountId:2,transactionTypeId:2,description:'Merchant ABC'}];
- const entry={...parseStatement(csv).entries[0],description:'Card payment',originalDescription:'Merchant ABC reference 123'};
- const drafts=generateStatementMappingDrafts([entry],scenario,1);
- assert.equal(drafts.length,1);assert.equal(drafts[0].secondaryAccountId,2);assert.equal(Object.hasOwn(drafts[0],'action'),false);
 });
 
 test('description mappings ignore volatile references while preserving merchant identity',()=>{

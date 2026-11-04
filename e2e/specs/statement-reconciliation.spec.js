@@ -10,6 +10,12 @@ async function open(page,data){await gotoFTrack(page,data);await page.getByRole(
 async function upload(page,text,name='synthetic.csv'){await review(page).getByLabel('Statement CSV').setInputFiles({name,mimeType:'text/csv',buffer:Buffer.from(text)});await expect(grid(page)).toBeVisible();await expect(grid(page).locator('.tabulator-row').first()).toBeVisible();}
 test.beforeEach(async({page})=>{await page.clock.setFixedTime(new Date('2026-01-20T12:00:00Z'));});
 
+test('removing mappings keeps the section open through successive removals, including the last rule',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=['Merchant A','Merchant B'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'description',pattern,comparison:'contains',direction:'out',secondaryAccountId:5}));
+ await open(page,data);const mappings=review(page).locator('.statement-mappings');await mappings.locator('summary').click();
+ for(const remaining of [1,0]){await mappings.getByRole('button',{name:'Remove mapping',exact:true}).first().click();await expect(mappings.locator('summary')).toContainText(`${remaining} saved`);await expect(mappings).toHaveAttribute('open','');expect((await currentScenario(page)).statementMappings).toHaveLength(remaining);}
+});
+
 test('account toolbar automatically retains source and scopes archive; dialog fills screen',async({page})=>{
  await open(page);const text=csv([purchase(1,'2026-01-15','Shop','Original shop',25,975)]);await upload(page,text);
  await expect(review(page).getByRole('button',{name:'Retain CSV for review'})).toHaveCount(0);
@@ -40,13 +46,16 @@ test('saved descriptions match changing references and mapping controls share th
  await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('3');await expect(accountCell.getByRole('button',{name:'Update mapping'})).toBeVisible();expect((await currentScenario(page)).statementMappings[0].secondaryAccountId).toBe(5);
 });
 
-test('proposals are clearly separate and save-all activates rules for review rows',async({page})=>{
+test('only saved mappings are shown and removed rules never regenerate as proposals',async({page})=>{
  await open(page);await upload(page,csv([purchase(1,'2026-01-10','Groceries budget','Groceries Expense ref 123456',450,550)]));
- const mappings=review(page).locator('.statement-mappings');await expect(mappings.locator('summary')).toContainText('0 saved · 1 proposals (not applied)');
+ const mappings=review(page).locator('.statement-mappings');await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');
  await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('');
- await mappings.locator('summary').click();await mappings.getByRole('button',{name:'Save all proposed mappings'}).click();
+ await mappings.locator('summary').click();await expect(mappings).not.toContainText(/propos|draft/i);await expect(mappings.getByRole('button',{name:'Generate draft mappings'})).toHaveCount(0);
+ await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await row(page,1).getByRole('button',{name:'Create mapping',exact:true}).click();await mappings.getByRole('button',{name:'Save mapping',exact:true}).click();
  await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('5');await expect(mappings.locator('summary')).toContainText('1 saved');await expect(review(page).getByLabel('Approve source row 1',{exact:true})).not.toBeChecked();
  expect((await currentScenario(page)).statementMappings[0].pattern).toBe('groceries expense');
+ await mappings.locator('summary').click();await mappings.getByRole('button',{name:'Remove mapping',exact:true}).click();await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');await expect(mappings).toHaveAttribute('open','');await expect(mappings).not.toContainText(/propos|draft/i);await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('');
+ await review(page).getByRole('button',{name:'Show full statement'}).click();await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');expect((await currentScenario(page)).statementMappings).toEqual([]);
 });
 
 test('parent-category mappings, sorting, grouping and bulk approval preserve source identity',async({page})=>{

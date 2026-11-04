@@ -227,9 +227,8 @@ Empty normalized patterns never match. Category fields do not use this normaliza
 Rules mapping to different accounts conflict.
 Rules fill secondary accounts only and never approve/apply rows. Actions separately
 locate a payment within the chosen account or suggest adding a new actual.
-Rule generation automatically presents unsaved drafts based on unique account-name,
-plan-description, or previously reviewed text evidence, never amount/date guesses.
-Rules are preserved
+Rules are created and edited explicitly by the user; there is no proposal or
+rule-generation feature. Removing a rule does not regenerate it. Rules are preserved
 by normalization, export/import and cloud snapshots and checked by validation.
 
 Budget review reminders are durable scenario data. They are included in JSON

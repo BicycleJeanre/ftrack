@@ -565,17 +565,17 @@ There is no automatic import undo in this version; review before applying.
 
 There is one automatic mapping system: saved rules. The review grid shows
 Description, Original Description, Category and Parent Category, each sortable
-and available for grouping. **Saved mapping rule** displays the actual stored
+and available for grouping. **Secondary account / mapping** displays the actual stored
 condition and target account (for example, Original description contains
 “Merchant” → Shop), or **No saved mapping**. An amount/date similarity is not a
-mapping rule. Without a saved rule, actions and secondary accounts stay blank
-until you choose them manually or save a rule. Manual choices do not create
+mapping rule. Without a saved rule, the secondary account stays blank until
+you choose it manually or save a rule. Manual choices do not create
 rules implicitly. Amount/date matching is used only after a saved rule has
 identified the secondary account, to locate an existing payment there.
 The separate payment picker remains available for explicit manual linking.
-Choose the row's **Mapping source field** before Save as mapping to prefill a
-rule from any of the four source fields. Generated drafts are proposals for
-these same stored rules; they do not take effect until saved.
+Use the save icon beside the secondary account to create a mapping, then choose
+any of the four source fields in the editor. Only saved mappings are listed;
+there is no generated-proposal feature.
 
 Click a column header in the review grid or original source table to sort it;
 click again to reverse the order. This changes display order only, not the
@@ -589,18 +589,15 @@ Use **Apply approved rows** to commit the selected decisions together.
 Open **Mapping rules** to add, edit or remove scenario-level rules. Conditions
 include the FTrack primary account, money direction, a source field (description,
 original description, category or parent category), and an Equals or Contains
-text comparison. Choose a secondary account and an action: match a plan then
-create an actual if no candidate exists, always create an actual, or ignore.
-Rules are case-insensitive; conflicting actions/accounts remain unresolved.
+text comparison. Choose a secondary account; reconciliation actions are separate.
+Rules are case-insensitive; conflicting accounts remain unresolved.
 Tied candidate matches require review rather than a guessed match.
 
-After choosing a row's action and secondary account, **Save as mapping** opens
-a prefilled rule for you to review and save. When a matching rule already
-exists, this edits that rule. **Generate draft mappings** proposes exact-text
-rules from unique account-name/category matches and
-previously reconciled rows. Drafts are inactive until individually reviewed
-and saved. Saving/removing rules refreshes automatic suggestions and clears
-their approvals; manual row choices remain intact. Rules persist through
+After choosing a row's secondary account, its save icon opens a prefilled rule
+for you to review and save. The view icon opens an existing matching rule.
+Saving/removing rules refreshes automatic suggestions and clears approvals.
+Removing a rule leaves the section open, including after removing the last rule,
+and does not generate replacement proposals. Rules persist through
 reloads, JSON backups and cloud sync. Removing an account also removes rules
 that reference it. Retained source records and previous decisions are unchanged.
 
