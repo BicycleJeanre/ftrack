@@ -9,7 +9,7 @@ globalThis.CustomEvent=class {constructor(type,options){this.type=type;this.deta
 globalThis.document={dispatchEvent(){}};
 const store=await import('../../js/app/services/storage-service.js');
 const {retainStatement}=await import('../../js/app/services/statement-service.js');
-const {saveStatementMapping,removeStatementMapping}=await import('../../js/app/services/statement-service.js');
+const {saveStatementMapping,removeStatementMapping,updateStatementMappings}=await import('../../js/app/services/statement-service.js');
 const {statementMappingFor,statementMappingLabel,MAPPING_FIELDS,relevantMappingText}=await import('../../js/shared/statement-mapping-utils.js');
 const {applyStatementDecisions}=await import('../../js/app/managers/occurrence-manager.js');
 const header=STATEMENT_HEADERS.join(',');
@@ -95,6 +95,21 @@ test('account-only mappings ignore legacy action differences and persist without
  assert.equal(mapping.conflict,false);
  assert.equal(mapping.rule.secondaryAccountId,2);
  assert.equal(validateAppData(await store.read()).isValid,true);
+});
+
+test('bulk mapping edits are atomic, preserve individual patterns, and reject invalid or duplicate results',async()=>{
+ const data=seed();data.scenarios[0].accounts.push({id:3,name:'Other shop',type:5,currency:1,startingBalance:0,openDate:'2026-01-01'});await store.write(data);
+ const base={accountId:1,field:'description',comparison:'contains',direction:'out',secondaryAccountId:2};
+ await saveStatementMapping(1,{...base,pattern:'Merchant A'});await saveStatementMapping(1,{...base,pattern:'Merchant B'});
+ const original=(await store.read()).scenarios[0].statementMappings,ids=original.map(r=>r.id);
+ await updateStatementMappings(1,ids,{secondaryAccountId:3,comparison:'exact'});
+ let rules=(await store.read()).scenarios[0].statementMappings;assert.deepEqual(rules.map(r=>r.pattern),['Merchant A','Merchant B']);assert.ok(rules.every(r=>r.secondaryAccountId===3&&r.comparison==='exact'));
+ const before=JSON.stringify(rules);await assert.rejects(()=>updateStatementMappings(1,ids,{secondaryAccountId:1}),/different/);assert.equal(JSON.stringify((await store.read()).scenarios[0].statementMappings),before);
+ await assert.rejects(()=>updateStatementMappings(1,[ids[0],'removed'],{direction:'in'}),/removed/);
+ await assert.rejects(()=>updateStatementMappings(1,ids,{}),/Choose fields/);
+ await saveStatementMapping(1,{...base,pattern:'Merchant A',field:'category'});
+ await assert.rejects(()=>updateStatementMappings(1,[ids[0]],{field:'category',comparison:'contains'}),/already exists/);
+ rules=(await store.read()).scenarios[0].statementMappings;assert.equal(rules[0].field,'description');
 });
 
 test('description mappings ignore volatile references while preserving merchant identity',()=>{

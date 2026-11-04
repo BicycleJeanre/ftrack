@@ -601,6 +601,13 @@ and does not generate replacement proposals. Rules persist through
 reloads, JSON backups and cloud sync. Removing an account also removes rules
 that reference it. Retained source records and previous decisions are unchanged.
 
+**Edit mapping** opens an inline editor at the selected rule. Save there without
+closing the mapping section, or Cancel to discard that edit. To update several
+rules, select their checkboxes and choose the shared changes in the bulk toolbar.
+**Apply to selected mappings** changes only those rules; **Keep current** preserves
+the field, and the individual matching text is never replaced by a bulk edit.
+The whole bulk edit must pass validation before any selected rule changes.
+
 ### 5.5 Leave a Reminder for the Next Review
 
 Use **Add reminder** in the **Review reminders** strip at the top of the

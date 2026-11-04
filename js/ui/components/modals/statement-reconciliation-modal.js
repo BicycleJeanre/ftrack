@@ -17,7 +17,7 @@ function download(text,name,type) {const url=URL.createObjectURL(new Blob([text]
 
 export async function openStatementReconciliationModal({scenarioId,onApplied}={}) {
   const {modal,close:closeModal}=createModal({contentClass:'statement-reconciliation-modal',onClose:()=>{grids.forEach(g=>g.destroy());grids=[];}});
-  let scenario,activeId=null,primaryId=null,timeframe=defaultStatementWindow();let grids=[];const drafts=new Map(),gridState={};const content=el('div');const error=el('p','','statement-error');error.setAttribute('role','alert');
+  let scenario,activeId=null,primaryId=null,timeframe=defaultStatementWindow();let grids=[];const drafts=new Map(),gridState={},mappingState={};const content=el('div');const error=el('p','','statement-error');error.setAttribute('role','alert');
   const close=closeModal;
   modal.append(el('h2','Statement reconciliation'),el('p','Review bank entries before applying. Recurring planned values change only with the explicit future-plan action.'),error,content,button('Close',close));
   const guard=fn=>async()=>{error.textContent='';delete error.dataset.state;try {await fn();}catch(e){error.textContent=e.message;}};
@@ -36,11 +36,13 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
       activeId=await retainStatement(scenarioId,account.value,file.files[0].name,await file.files[0].text());await refresh();
     });
     const batches=(scenario.statementImports || []).filter(b=>Number(b.accountId)===Number(primaryId));
-    const mappingEditor=buildStatementMappingEditor({scenario,scenarioId,accountId:primaryId,onError:e=>{delete error.dataset.state;error.textContent=e.message;},onChanged:async({keepOpen=false}={})=>{
+    const mappingEditor=buildStatementMappingEditor({scenario,scenarioId,accountId:primaryId,state:mappingState,onError:e=>{delete error.dataset.state;error.textContent=e.message;},onChanged:async({keepOpen=true}={})=>{
+      const scrollTop=modal.scrollTop;
       // Reapply newly saved rules even to rows previously edited manually; never keep stale approvals.
       drafts.clear();
       await refresh();
       content.querySelector('.statement-mappings').open=keepOpen;
+      if(keepOpen)modal.scrollTop=scrollTop;
     }});content.append(mappingEditor.element);
     if(!primaryId){content.append(el('p','Choose a primary account to view its statements or upload a CSV.'));return;}
     if(!batches.length){content.append(el('p','No statements retained for this account. Choose a CSV above to retain it automatically.'));return;}
@@ -110,10 +112,10 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
         if(!secondary.value){error.textContent='Choose a secondary account first. Actions are independent of mapping rules.';return;}
         const existing=mapping.rule;
         const field=existing?.field || (entry.originalDescription?'originalDescription':'description');
-        mappingEditor.edit({id:existing?.id,accountId:batch.accountId,field,comparison:existing?.comparison || 'contains',pattern:existing?.pattern || relevantMappingText(entry[field]) || '',direction:entry.amountCents>0?'in':'out',secondaryAccountId:secondary.value});mappingEditor.element.scrollIntoView({block:'nearest'});
+        mappingEditor.edit({id:existing?.id,accountId:batch.accountId,field,comparison:existing?.comparison || 'contains',pattern:existing?.pattern || relevantMappingText(entry[field]) || '',direction:entry.amountCents>0?'in':'out',secondaryAccountId:secondary.value});
       });
       const syncMapping=()=>{const changed=mapping.rule&&Number(secondary.value)!==Number(mapping.rule.secondaryAccountId);saveMapping.hidden=Boolean(mapping.rule&&!changed);saveMapping.textContent='💾';saveMapping.title=changed?'Update mapping':'Create mapping';saveMapping.setAttribute('aria-label',changed?'Update mapping':'Create mapping');reason.textContent=draft.reason+(changed?' (account changed — not saved)':'');};
-      const viewMapping=button('↗',()=>{if(mapping.rule){mappingEditor.edit(mapping.rule);mappingEditor.element.scrollIntoView({block:'nearest'});}});viewMapping.title='View mapping';viewMapping.setAttribute('aria-label',`View mapping source row ${entry.index+1}`);viewMapping.hidden=!mapping.rule;
+      const viewMapping=button('↗',()=>{if(mapping.rule)mappingEditor.edit(mapping.rule);});viewMapping.title='View mapping';viewMapping.setAttribute('aria-label',`View mapping source row ${entry.index+1}`);viewMapping.hidden=!mapping.rule;
       ruleCell.append(saveMapping,viewMapping);syncMapping();
       secondary.addEventListener('change',()=>{
         // Changing the account re-evaluates payment candidates, never writes a mapping implicitly.

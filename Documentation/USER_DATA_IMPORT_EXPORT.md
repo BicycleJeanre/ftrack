@@ -156,6 +156,13 @@ Only saved rules are listed and applied. Create and edit rules explicitly;
 there are no generated proposals. Removing a rule leaves the section open and
 does not recreate it. Saving refreshes suggestions and clears approvals;
 nothing is approved implicitly.
+Edit mapping opens its fields directly under that rule, not in the new-rule
+form. Save or Cancel there; saving also keeps the section open. Select multiple
+saved rules with their checkboxes (or Select all mappings), choose bulk secondary
+account, source field, comparison and/or direction, then Apply to selected mappings.
+Keep current leaves that field unchanged, and each rule retains its own text.
+Bulk validation is atomic: an invalid or duplicate result changes none of the
+selected rules. Mapping selections survive saves within the open dialog.
 Select the primary account to see only its retained statements. Selecting a CSV
 retains it automatically for that account. Source/report downloads are in the top
 toolbar. Both original-source and review grids use the standard sortable grid;

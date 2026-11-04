@@ -16,6 +16,24 @@ test('removing mappings keeps the section open through successive removals, incl
  for(const remaining of [1,0]){await mappings.getByRole('button',{name:'Remove mapping',exact:true}).first().click();await expect(mappings.locator('summary')).toContainText(`${remaining} saved`);await expect(mappings).toHaveAttribute('open','');expect((await currentScenario(page)).statementMappings).toHaveLength(remaining);}
 });
 
+test('saved rules edit inline, cancel without saving, and keep the mapping section open after save',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=['Merchant A','Merchant B'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'description',pattern,comparison:'contains',direction:'out',secondaryAccountId:5}));
+ await open(page,data);const mappings=review(page).locator('.statement-mappings');await mappings.locator('summary').click();
+ const first=mappings.locator('.statement-mapping-rule').filter({hasText:'Merchant A'});await first.getByRole('button',{name:'Edit mapping',exact:true}).click();await expect(first.locator('.statement-inline-mapping-editor')).toBeVisible();
+ await first.getByLabel('Mapping text',{exact:true}).fill('Discarded edit');await first.getByRole('button',{name:'Cancel mapping edit'}).click();expect((await currentScenario(page)).statementMappings[0].pattern).toBe('Merchant A');
+ await first.getByRole('button',{name:'Edit mapping',exact:true}).click();await first.getByLabel('Mapping text',{exact:true}).fill('Merchant A revised');await page.screenshot({path:test.info().outputPath('inline-mapping-edit.png')});await first.getByRole('button',{name:'Save mapping',exact:true}).click();
+ await expect(mappings).toHaveAttribute('open','');await expect(mappings.locator('.statement-mapping-rule').first()).toContainText('Merchant A revised');expect((await currentScenario(page)).statementMappings[1].pattern).toBe('Merchant B');
+});
+
+test('bulk mapping edit changes only selected rules and keeps their individual text',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=['Merchant A','Merchant B','Merchant C'].map((pattern,i)=>({id:`rule-${i}`,accountId:1,field:'description',pattern,comparison:'contains',direction:'out',secondaryAccountId:5}));
+ await open(page,data);const mappings=review(page).locator('.statement-mappings');await mappings.locator('summary').click();
+ await mappings.getByLabel('Select mapping Merchant A',{exact:true}).check();await mappings.getByLabel('Select mapping Merchant B',{exact:true}).check();await expect(mappings).toContainText('2 selected');
+ await mappings.getByLabel('Bulk mapping secondary account',{exact:true}).selectOption('3');await mappings.getByLabel('Bulk mapping comparison',{exact:true}).selectOption('exact');await mappings.getByRole('button',{name:'Apply to selected mappings',exact:true}).click();
+ await expect(mappings).toHaveAttribute('open','');await expect(mappings).toContainText('2 selected');await expect(mappings.getByLabel('Select mapping Merchant A',{exact:true})).toBeChecked();const rules=(await currentScenario(page)).statementMappings;expect(rules.map(r=>r.pattern)).toEqual(['Merchant A','Merchant B','Merchant C']);expect(rules.slice(0,2).every(r=>r.secondaryAccountId===3&&r.comparison==='exact')).toBe(true);expect(rules[2].secondaryAccountId).toBe(5);expect(rules[2].comparison).toBe('contains');
+ await mappings.getByRole('button',{name:'Select all mappings',exact:true}).click();await expect(mappings).toContainText('3 selected');await mappings.getByRole('button',{name:'Clear mapping selection',exact:true}).click();await expect(mappings).toContainText('0 selected');
+});
+
 test('account toolbar automatically retains source and scopes archive; dialog fills screen',async({page})=>{
  await open(page);const text=csv([purchase(1,'2026-01-15','Shop','Original shop',25,975)]);await upload(page,text);
  await expect(review(page).getByRole('button',{name:'Retain CSV for review'})).toHaveCount(0);
@@ -54,7 +72,7 @@ test('only saved mappings are shown and removed rules never regenerate as propos
  await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await row(page,1).getByRole('button',{name:'Create mapping',exact:true}).click();await mappings.getByRole('button',{name:'Save mapping',exact:true}).click();
  await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('5');await expect(mappings.locator('summary')).toContainText('1 saved');await expect(review(page).getByLabel('Approve source row 1',{exact:true})).not.toBeChecked();
  expect((await currentScenario(page)).statementMappings[0].pattern).toBe('groceries expense');
- await mappings.locator('summary').click();await mappings.getByRole('button',{name:'Remove mapping',exact:true}).click();await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');await expect(mappings).toHaveAttribute('open','');await expect(mappings).not.toContainText(/propos|draft/i);await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('');
+ await expect(mappings).toHaveAttribute('open','');await mappings.getByRole('button',{name:'Remove mapping',exact:true}).click();await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');await expect(mappings).toHaveAttribute('open','');await expect(mappings).not.toContainText(/propos|draft/i);await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('');
  await review(page).getByRole('button',{name:'Show full statement'}).click();await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');expect((await currentScenario(page)).statementMappings).toEqual([]);
 });
 
