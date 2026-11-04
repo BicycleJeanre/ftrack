@@ -136,53 +136,54 @@ also mark saved projections stale so they are refreshed from the revised plan.
 
 ## 5.9 Statement Mapping and Actions
 
-Statement reconciliation mappings are account rules, not transaction actions.
-Saved description, original-description, category or parent-category rules fill
-the secondary account automatically. The grid shows the applied rule as text.
-Use the save icon beside the secondary account to create or update a mapping;
-the view icon opens its existing rule. Choose the source field in the
-mapping editor, not in the grid. Changing Actions does not alter saved rules.
-Description matching uses stable text, ignoring bank references, long numbers,
-dates and common payment prefixes. Category matches retain their normal exact
-or contains semantics. Conflicting account mappings remain unresolved.
-The default action adds an actual and closes a selected planned payment; it
-cannot be applied until a compatible target is selected. Add a line item
-accumulates the bank amount into a selected transaction (preserving a previous
-actual as a line item). Add actual and adjust future planned value additionally
-updates the linked recurring plan from the next occurrence, not earlier history.
-Already recorded links an existing actual without changing any values.
-No planned payment records a standalone actual without closing another payment.
-Only saved rules are listed and applied. Create and edit rules explicitly;
-there are no generated proposals. Removing a rule leaves the section open and
-does not recreate it. Saving refreshes suggestions and clears approvals;
-nothing is approved implicitly.
-Saved mappings appear in a sortable grid. Click a cell to edit its text or choose
-a dropdown value. Enter or leaving the cell saves; Escape cancels without closing
-the dialog. Invalid values revert with an error. Saving keeps the section open.
-The separate new-rule form is only for creating new mappings. Select multiple
-saved rules with their checkboxes (or Select all mappings), choose bulk secondary
-account, source field, comparison and/or direction, then Apply to selected mappings.
-Keep current leaves that field unchanged, and each rule retains its own text.
-Bulk validation is atomic: an invalid or duplicate result changes none of the
-selected rules. Mapping selections survive saves within the open dialog.
-Use Description / matching text for case-insensitive partial searches of rule
-text, and Secondary account to narrow to a destination account. Filters combine
-and remain set after edits. Clear mapping filters shows the full list again.
-Select all visible mappings and bulk changes affect only matching rows; changing
-filters drops hidden selections. The count shows selected and displayed totals.
-Search is case-insensitive and retains contains matching. `*` matches zero or
-more characters; `%` matches exactly one character (not SQL's many-character
-percent wildcard). `**` matches a literal star and `%%` a literal percent.
-For example, `shop*payment` finds variable text between those words; `shop %`
-requires one character after the space. Doubled symbols are read left to right.
-This syntax applies only to the grid search, not to saved rule conditions.
-Use Remove selected mappings to delete selected visible rules after
-confirming the count. Cancel changes nothing. Removal is atomic, keeps the section
-open and filters set, and never deletes transactions or statement sources.
-Select the primary account to see only its retained statements. Selecting a CSV
-retains it automatically for that account. Source/report downloads are in the top
-toolbar. Both original-source and review grids use the standard sortable grid;
-the review also supports grouping and bulk approval. The original CSV is unchanged.
+Retained statements belong to the scenario, not a primary account. Selecting a
+CSV automatically retains its complete original text and rows. Select a budget
+period (month, week, quarter, year or custom inclusive dates) for reconciliation.
+Only rows in that period can be approved. Original-source and report downloads
+remain available in the top toolbar, and the full source is never trimmed.
+
+Saved description, original-description, category or parent-category rules supply
+both FTrack primary and secondary accounts and a default action. These budget
+accounts need not be the bank account on the statement. Rules apply globally
+within the scenario. Conflicting rules require review; no row is auto-approved.
+Description conditions ignore bank references, long numbers, dates and common
+payment prefixes. Category conditions retain their exact or contains semantics.
+
+Add line item is the default for new mappings. A unique compatible account-pair
+transaction in the selected period is selected automatically. Multiple targets
+require Choose payment. If none exists, approval creates a period transaction.
+Same-pair source rows accumulate as dated lines on that transaction; another
+period uses another occurrence. An existing non-itemized actual is preserved as
+an initial line. Recurring definitions and planned amounts stay unchanged.
+
+Other actions are Add actual + close plan, Already recorded (link only),
+Create period transaction, Actual + update future plan, and Ignore. Updating the
+future plan affects the next recurring segment, not earlier history. Already
+recorded requires an exact-date/exact-amount existing actual. Source fingerprints
+prevent repeated application, including line additions across retained files.
+
+Override either account or action in a review row without changing its rule.
+The save icon explicitly creates or updates a rule with the pair and action;
+the view icon opens its saved rule. Original descriptions and categories remain
+visible. Source and review grids use standard sortable, banded tables; review
+supports grouping and bulk approval.
+
+Saved mappings use an editable grid with primary/secondary account, default
+action and condition columns. Click a cell to edit; Escape cancels. Saves and
+removals keep the section open. Select visible mappings for atomic bulk edits or
+confirmed removal. Filters combine matching text and secondary account and stay
+set after edits. Hidden rows are not included in bulk selections.
+
+Search is case-insensitive contains matching: `*` matches zero or more
+characters, `%` exactly one, `**` a literal star and `%%` a literal percent.
+This syntax applies to grid search, not saved rule conditions. Rules are created
+explicitly; there is no proposed-mapping feature.
+
+Schema 45 data upgrades to 46: existing statement account links become retained
+legacy metadata, and existing mapping account IDs become primary accounts.
+Legacy action hints become default actions; missing hints default to line items.
+Raw CSVs, rows and prior decisions are preserved. Data Check previews local/file
+upgrades; integrity-verified older cloud snapshots are upgraded on load.
 
 ## 6.0 Clear Data
 
@@ -201,7 +202,7 @@ the review also supports grouping and bulk approval. The original CSV is unchang
 7.1.1 Review the Validation section for malformed JSON, missing collections,
 invalid references, or other current-schema violations.
 
-7.1.2 Current exports use schemaVersion 45.
+7.1.2 Current exports use schemaVersion 46.
 
 7.1.3 Older exports are upgraded in memory. Review What Changed, Warnings and
 Recovery, and the downloadable change report before applying the result.

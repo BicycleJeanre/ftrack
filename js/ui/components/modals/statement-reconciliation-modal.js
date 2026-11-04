@@ -1,154 +1,123 @@
 import { createModal } from './modal-factory.js';
-import { parseStatement, suggestStatementMatches, signedOccurrenceAmount, defaultStatementWindow } from '../../../shared/statement-utils.js';
+import { parseStatement, signedOccurrenceAmount, defaultStatementWindow } from '../../../shared/statement-utils.js';
 import { retainStatement, appliedStatementFingerprints } from '../../../app/services/statement-service.js';
 import { applyStatementDecisions } from '../../../app/managers/occurrence-manager.js';
 import { getScenario } from '../../../app/services/data-service.js';
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
-import { statementMappingFor,counterpartyId,statementMappingLabel,relevantMappingText } from '../../../shared/statement-mapping-utils.js';
+import { statementMappingFor, statementMappingLabel, relevantMappingText } from '../../../shared/statement-mapping-utils.js';
+import { STATEMENT_ACTIONS, statementTargetCandidates, validateStatementPeriod, inStatementPeriod } from '../../../shared/statement-workflow-utils.js';
+import { generatePeriods } from '../../../domain/calculations/period-utils.js';
 import { createGrid } from '../grids/grid-factory.js';
 import { buildStatementMappingEditor } from '../widgets/statement-mapping-editor.js';
 import { buildStatementReviewGrid } from '../widgets/statement-review-grid.js';
-import { openStatementMatchPicker } from '../widgets/statement-match-picker.js';
 
-function el(tag,text='',className='') { const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;return node; }
-function button(text,action) { const node=el('button',text,'icon-btn');node.type='button';node.addEventListener('click',action);return node; }
-function select(options) { const node=el('select'); for(const [value,label] of options) {const option=el('option',label);option.value=value;node.append(option);}return node; }
-function download(text,name,type) {const url=URL.createObjectURL(new Blob([text],{type}));const a=el('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function el(tag,text='',className=''){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
+function button(text,fn){const n=el('button',text,'icon-btn');n.type='button';n.onclick=fn;return n;}
+function select(options,label){const n=el('select');if(label)n.setAttribute('aria-label',label);for(const [value,text] of options){const o=el('option',text);o.value=value;n.append(o);}return n;}
+function download(text,name,type){const url=URL.createObjectURL(new Blob([text],{type})),a=el('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
-export async function openStatementReconciliationModal({scenarioId,onApplied}={}) {
-  const {modal,close:closeModal}=createModal({contentClass:'statement-reconciliation-modal',onClose:()=>{grids.forEach(g=>g.destroy());grids=[];}});
-  let scenario,activeId=null,primaryId=null,timeframe=defaultStatementWindow();let grids=[];const drafts=new Map(),gridState={},mappingState={};const content=el('div');const error=el('p','','statement-error');error.setAttribute('role','alert');
-  const close=closeModal;
-  modal.append(el('h2','Statement reconciliation'),el('p','Review bank entries before applying. Recurring planned values change only with the explicit future-plan action.'),error,content,button('Close',close));
-  const guard=fn=>async()=>{error.textContent='';delete error.dataset.state;try {await fn();}catch(e){error.textContent=e.message;}};
+export async function openStatementReconciliationModal({scenarioId,onApplied}={}){
+  let grids=[],scenario,activeId=null,periodType='Month',periodId=null,customPeriod=null;
+  const drafts=new Map(),gridState={},mappingState={};
+  const {modal,close}=createModal({contentClass:'statement-reconciliation-modal',onClose:()=>{grids.forEach(g=>g.destroy());grids=[];}});
+  const content=el('div'),error=el('p','','statement-error');error.setAttribute('role','alert');
+  modal.append(el('h2','Statement reconciliation'),el('p','Statements are source records. Map each row to FTrack accounts and a reporting/budget period, then approve the proposed transaction lines.'),error,content,button('Close',close));
+  const fail=e=>{delete error.dataset.state;error.textContent=e.message;};
+  const guard=fn=>async()=>{error.textContent='';delete error.dataset.state;try{await fn();}catch(e){fail(e);}};
   const refresh=async()=>{scenario=await getScenario(scenarioId);if(!scenario)throw new Error('Scenario no longer exists.');await render();};
-  async function render() {
-    grids.forEach(g=>g.destroy());grids=[];
-    content.replaceChildren();
-    const account=select([['','Choose FTrack account'],...scenario.accounts.map(a=>[String(a.id),a.name])]);account.setAttribute('aria-label','Statement primary account');
-    account.value=primaryId || '';account.onchange=guard(async()=>{primaryId=account.value;activeId=null;await render();});
-    const toolbar=el('div','','statement-source-toolbar');const sources=el('div','','statement-source-selectors');const imports=el('div','','statement-source-imports');
-    const label=el('label','Primary account');label.append(account);sources.append(label);toolbar.append(sources,imports);content.append(toolbar);
-    const file=el('input');file.type='file';file.accept='.csv,text/csv';file.setAttribute('aria-label','Statement CSV');
-    const importLabel=el('label','Retain new source');importLabel.append(file);imports.append(importLabel);file.disabled=!primaryId;
-    file.onchange=guard(async()=>{
-      if(!account.value || !file.files[0])throw new Error('Select an account and CSV file.');
-      activeId=await retainStatement(scenarioId,account.value,file.files[0].name,await file.files[0].text());await refresh();
-    });
-    const batches=(scenario.statementImports || []).filter(b=>Number(b.accountId)===Number(primaryId));
-    const mappingEditor=buildStatementMappingEditor({scenario,scenarioId,accountId:primaryId,state:mappingState,onError:e=>{delete error.dataset.state;error.textContent=e.message;},onChanged:async({keepOpen=true}={})=>{
-      const scrollTop=modal.scrollTop;
-      error.textContent='';delete error.dataset.state;
-      // Reapply newly saved rules even to rows previously edited manually; never keep stale approvals.
-      drafts.clear();
-      await refresh();
-      content.querySelector('.statement-mappings').open=keepOpen;
-      if(keepOpen)modal.scrollTop=scrollTop;
-    }});content.append(mappingEditor.element);grids.push(mappingEditor);
-    if(!primaryId){content.append(el('p','Choose a primary account to view its statements or upload a CSV.'));return;}
-    if(!batches.length){content.append(el('p','No statements retained for this account. Choose a CSV above to retain it automatically.'));return;}
-    const archive=select([['','Choose retained source'],...batches.map(b=>[b.id,`${b.fileName} — ${b.importedAt.slice(0,10)}`])]);archive.value=activeId || '';archive.setAttribute('aria-label','Retained statements');archive.addEventListener('change',guard(async()=>{activeId=archive.value;await render();}));const archiveLabel=el('label','Retained statements');archiveLabel.append(archive);sources.append(archiveLabel);
-    const batch=batches.find(b=>b.id===activeId);if(!batch)return;
-    const parsed=parseStatement(batch.rawCsv);const seen=appliedStatementFingerprints(scenario,batch.accountId);
-    const inWindow=entry=>!timeframe || entry.postingDate>=timeframe.startDate&&entry.postingDate<timeframe.endDate;
-    const windowEntries=parsed.entries.filter(inWindow);
-    const flagged=windowEntries.filter(e=>e.insufficientFunds);
-    const dates=el('div','','statement-review-controls statement-timeframe');
-    const from=el('input');from.type='date';from.value=timeframe?.startDate || parsed.startDate;from.setAttribute('aria-label','Statement review from');
-    const to=el('input');to.type='date';to.value=timeframe?.endDate || parsed.endDate;to.setAttribute('aria-label','Statement review to (exclusive)');
-    dates.append(el('span','Time frame: from (inclusive)'),from,el('span','to (exclusive)'),to,button('Apply time frame',guard(async()=>{
-      if(!from.value || !to.value || from.value>=to.value)throw new Error('Choose a valid start date before the end date.');
-      timeframe={startDate:from.value,endDate:to.value};await render();
-    })),button('Show full statement',()=>{timeframe=null;void render();}),button('Current 25th-to-25th cycle',()=>{timeframe=defaultStatementWindow();void render();}));
-    content.append(dates);
-    const flags=el('details','','statement-flagged');flags.classList.toggle('has-flags',flagged.length>0);flags.open=flagged.length>0;flags.append(el('summary',`Flagged / excluded entries (${flagged.length})`));
-    flags.append(el('p','Failed insufficient-funds entries are not completed payments. They are excluded from the review and approval list, not deleted from the source. Any existing budget item stays planned. Charged fees remain separate reconcilable rows.'));
-    flagged.forEach(entry=>flags.append(el('p',`Source row ${entry.index+1} · ${entry.postingDate} · ${entry.description} · Insufficient funds — excluded`,'statement-insufficient-funds')));content.append(flags);
-    content.append(el('p',`${parsed.entries.length} source rows; ${parsed.entries.filter(e=>e.monetary).length} monetary rows. ${parsed.balanceIssues.length ? 'Balance validation FAILED: applying is blocked.' : 'Running balance checks passed.'} Date range: ${parsed.startDate} to ${parsed.endDate}.`));
-    imports.append(button('Download original CSV',()=>download(batch.rawCsv,batch.fileName,'text/csv')),
-      button('Download reconciliation report',()=>download(JSON.stringify({fileName:batch.fileName,sha256:batch.sha256,accountId:batch.accountId,decisions:batch.decisions,flags:parsed.entries.filter(e=>e.insufficientFunds).map(e=>({index:e.index,reason:'insufficient-funds',excluded:true}))},null,2),'statement-reconciliation.json','application/json')));
-    const source=el('details');source.append(el('summary','Full original source table (all columns and rows)'));
-    const sourceWrap=el('div','','statement-table-wrap');const sourceGrid=el('div','','statement-source-grid');sourceWrap.append(sourceGrid);source.append(sourceWrap);content.append(source);
-    let originalGrid=null;source.ontoggle=async()=>{if(!source.open)return;if(originalGrid){originalGrid.redraw(true);return;}originalGrid=await createGrid(sourceGrid,{height:'35vh',responsiveLayout:false,data:parsed.rows.map((r,id)=>({id,...Object.fromEntries(r.map((v,i)=>[`c${i}`,v]))})),columns:parsed.headers.map((title,i)=>({title,field:`c${i}`,headerSort:true,minWidth:120,sorter:['Nr','Money In','Money Out','Fee','Balance'].includes(title)?'number':'string',formatter:cell=>{const node=el('span',cell.getValue());if(parsed.entries[cell.getData().id].insufficientFunds)node.className='statement-insufficient-funds';return node;}}))});grids.push(originalGrid);};
-    const start=new Date(parsed.startDate+'T12:00:00Z');start.setUTCDate(start.getUTCDate()-7);const end=new Date(parsed.endDate+'T12:00:00Z');end.setUTCDate(end.getUTCDate()+7);
-    const {occurrences}=resolveScenarioOccurrences({scenario,startDate:start.toISOString().slice(0,10),endDate:end.toISOString().slice(0,10)});
-    const wrap=el('div','','statement-table-wrap');const table=el('table');table.className='table';const heading=el('tr');['Approve','Date','Description','Original description','Category','Parent category','Amount','Actions','Secondary account / mapping'].forEach(h=>heading.append(el('th',h)));table.append(heading);
-    const pending=[],gridRows=[];
-    windowEntries.filter(e=>!e.insufficientFunds).forEach(entry=>{
-      const tr=el('tr');const check=el('input');check.type='checkbox';check.setAttribute('aria-label',`Approve source row ${entry.index+1}`);
-      const first=el('td');first.append(check);tr.append(first,el('td',entry.postingDate),el('td',entry.description),el('td',entry.originalDescription),el('td',entry.category),el('td',entry.parentCategory),el('td',(entry.amountCents/100).toFixed(2)));
-      const reviewed=batch.decisions?.[entry.index];const duplicate=entry.monetary && seen.has(entry.fingerprint);
-      if(reviewed || duplicate || !entry.monetary){check.disabled=true;const status=reviewed ? `Reviewed: ${reviewed.action}` : duplicate ? 'Already reconciled in retained source' : 'Non-monetary source record';const reason=statementMappingLabel(statementMappingFor(entry,scenario.statementMappings,batch.accountId,scenario.accounts),scenario.accounts);tr.append(el('td',status),el('td',reason));gridRows.push({entry,tr,check,status,reason,draft:{}});return;}
-      const mapping=statementMappingFor(entry,scenario.statementMappings,batch.accountId,scenario.accounts);
-      const mappedPlan=Boolean(mapping.rule?.secondaryAccountId);
-      const suggestions=mappedPlan?suggestStatementMatches(entry,occurrences.filter(o=>counterpartyId(o,batch.accountId)===Number(mapping.rule.secondaryAccountId)),batch.accountId):[];
-      const action=select([['match','Select planned payment'],...suggestions.map(s=>[`${s.status==='actual'?'existing':'match'}:${s.occurrenceKey}`,s.description || '(no description)']),['create','Record standalone actual'],['ignore','Ignore']]);action.hidden=true;
-      const operation=select([['match','Add actual + close plan'],['line','Add line item'],['future','Actual + update future plan'],['existing','Already recorded (link only)'],['create','Record standalone actual'],['ignore','Ignore']]);operation.setAttribute('aria-label',`Action source row ${entry.index+1}`);
-      const secondary=select([['','Choose secondary account'],...scenario.accounts.filter(a=>Number(a.id)!==Number(batch.accountId)).map(a=>[String(a.id),a.name])]);secondary.setAttribute('aria-label',`Secondary account source row ${entry.index+1}`);
-      const draftKey=`${batch.id}:${entry.index}`;
-      if(!drafts.has(draftKey)){
-        let chosen='match',account='',reason=statementMappingLabel(mapping,scenario.accounts);
-        if(mapping.rule){
-          account=String(mapping.rule.secondaryAccountId || '');
-          const mapped=suggestions.filter(s=>counterpartyId(occurrences.find(o=>o.occurrenceKey===s.occurrenceKey),batch.accountId)===Number(account));
-          if(mapped.length && (mapped.length===1 || mapped[0].score>mapped[1].score)) chosen=`${mapped[0].status==='actual'?'existing':'match'}:${mapped[0].occurrenceKey}`;
-        }
-        drafts.set(draftKey,{action:chosen,secondary:account,reason,approved:false,manual:false});
+  function chooseTarget(entry,candidates,onChoose){
+    const {modal:picker,close:dismiss}=createModal({contentClass:'statement-match-picker'});
+    picker.append(el('h2','Choose period transaction'),el('p',`${entry.description} · ${entry.postingDate} · ${(entry.amountCents/100).toFixed(2)}. These are FTrack transactions for the selected account pair and period.`));
+    if(!candidates.length)picker.append(el('p','No compatible transaction in this period. Add line item can create a new period transaction.'));
+    for(const o of candidates)picker.append(button(`${o.description||'(no description)'} · ${o.scheduledDate} · ${Number(o.actualAmount??o.plannedAmount).toFixed(2)} · ${o.status}`,()=>{onChoose(o);dismiss();}));
+    picker.append(button('Cancel',dismiss));
+  }
+  async function render(){
+    grids.forEach(g=>g.destroy());grids=[];content.replaceChildren();
+    const batches=scenario.statementImports||[],batch=batches.find(b=>b.id===activeId),parsed=batch?parseStatement(batch.rawCsv):null;
+    const toolbar=el('div','','statement-source-toolbar'),sources=el('div','','statement-source-selectors'),imports=el('div','','statement-source-imports');toolbar.append(sources,imports);content.append(toolbar);
+    const archive=select([['','Choose retained source'],...batches.map(b=>[b.id,`${b.fileName} — ${b.importedAt.slice(0,10)}`])],'Retained statements');archive.value=activeId||'';archive.onchange=guard(async()=>{activeId=archive.value;periodId=null;drafts.clear();await render();});const archiveLabel=el('label','Retained statements');archiveLabel.append(archive);sources.append(archiveLabel);
+    const file=el('input');file.type='file';file.accept='.csv,text/csv';file.setAttribute('aria-label','Statement CSV');const fileLabel=el('label','Retain new source');fileLabel.append(file);imports.append(fileLabel);
+    file.onchange=guard(async()=>{if(!file.files[0])return;activeId=await retainStatement(scenarioId,file.files[0].name,await file.files[0].text());periodId=null;drafts.clear();await refresh();});
+    const mappingEditor=buildStatementMappingEditor({scenario,scenarioId,state:mappingState,onError:fail,onChanged:async({keepOpen=true}={})=>{const scroll=modal.scrollTop;error.textContent='';delete error.dataset.state;drafts.clear();await refresh();content.querySelector('.statement-mappings').open=keepOpen;modal.scrollTop=scroll;}});content.append(mappingEditor.element);grids.push(mappingEditor);
+    if(!batch){content.append(el('p',batches.length?'Choose a retained statement to review, or upload another CSV. No FTrack account attachment is required.':'Choose a CSV above to retain it automatically. No FTrack account attachment is required.'));return;}
+    imports.append(button('Download original CSV',()=>download(batch.rawCsv,batch.fileName,'text/csv')),button('Download reconciliation report',()=>download(JSON.stringify({fileName:batch.fileName,sha256:batch.sha256,legacyAccountId:batch.legacyAccountId??null,decisions:batch.decisions,flags:parsed.entries.filter(e=>e.insufficientFunds).map(e=>({index:e.index,reason:'insufficient-funds',excluded:true}))},null,2),'statement-reconciliation.json','application/json')));
+
+    const periodBar=el('div','','statement-review-controls statement-timeframe');
+    const type=select(['Month','Week','Quarter','Year','Custom'].map(v=>[v,v]),'Statement period type');type.value=periodType;
+    type.onchange=guard(async()=>{periodType=type.value;periodId=null;drafts.clear();await render();});periodBar.append(el('span','Reporting / budget period'),type);
+    let period;
+    if(periodType==='Custom'){
+      if(!customPeriod){const window=defaultStatementWindow();const end=new Date(window.endDate+'T12:00:00Z');end.setUTCDate(end.getUTCDate()-1);customPeriod={type:'Custom',startDate:window.startDate,endDate:end.toISOString().slice(0,10)};}
+      period=validateStatementPeriod(customPeriod);
+      const from=el('input'),to=el('input');from.type=to.type='date';from.value=period.startDate;to.value=period.endDate;from.setAttribute('aria-label','Statement review from');to.setAttribute('aria-label','Statement review to (inclusive)');
+      periodBar.append(from,to,button('Apply custom period',guard(async()=>{customPeriod=validateStatementPeriod({type:'Custom',startDate:from.value,endDate:to.value});drafts.clear();await render();})));
+    }else{
+      const start=[scenario.timeframe?.startDate||parsed.startDate,parsed.startDate].sort()[0],end=[scenario.timeframe?.endDate||parsed.endDate,parsed.endDate].sort().at(-1);
+      // Calendar boundaries avoid month-end stepping skipping shorter months and
+      // keep quarter/year periods complete rather than clipped to source dates.
+      const periods=generatePeriods(`${start.slice(0,4)}-01-01`,`${end.slice(0,4)}-12-31`,periodType).map(p=>{
+        if(periodType!=='Week')return p;
+        const last=new Date(`${p.startDate}T12:00:00Z`);last.setUTCDate(last.getUTCDate()+6);
+        return {...p,endDate:last.toISOString().slice(0,10)};
+      });if(!periods.length)throw new Error('No reporting periods are available.');
+      let chosen=periods.find(p=>p.id===periodId)||periods.find(p=>inStatementPeriod(parsed.endDate,p))||periods[0];periodId=chosen.id;period=validateStatementPeriod({...chosen,type:periodType});
+      const picker=select(periods.map(p=>[p.id,p.label]),'Statement budget period');picker.value=periodId;picker.onchange=guard(async()=>{periodId=picker.value;drafts.clear();await render();});periodBar.append(picker,el('span',`${period.startDate} to ${period.endDate} (inclusive)`));
+    }
+    content.append(periodBar);
+    const windowEntries=parsed.entries.filter(e=>inStatementPeriod(e.postingDate,period)),flagged=windowEntries.filter(e=>e.insufficientFunds);
+    const flags=el('details','','statement-flagged');flags.classList.toggle('has-flags',Boolean(flagged.length));flags.open=Boolean(flagged.length);flags.append(el('summary',`Flagged / excluded entries (${flagged.length})`),el('p','Failed payments are excluded from approval, not deleted from the original source. Charged fees remain separate review rows.'));
+    flagged.forEach(e=>flags.append(el('p',`Source row ${e.index+1} · ${e.postingDate} · ${e.description} · Insufficient funds — excluded`,'statement-insufficient-funds')));content.append(flags,el('p',`${parsed.entries.length} source rows; ${parsed.entries.filter(e=>e.monetary).length} monetary rows. ${parsed.balanceIssues.length?'Balance validation FAILED: applying is blocked.':'Running balance checks passed.'}`));
+    const source=el('details');source.append(el('summary','Full original source table (all columns and rows)'));const sourceWrap=el('div','','statement-table-wrap'),sourceGrid=el('div','','statement-source-grid');sourceWrap.append(sourceGrid);source.append(sourceWrap);content.append(source);
+    let originalGrid=null;source.ontoggle=guard(async()=>{if(!source.open)return;if(originalGrid){originalGrid.redraw(true);return;}originalGrid=await createGrid(sourceGrid,{height:'35vh',responsiveLayout:false,data:parsed.rows.map((r,id)=>({id,...Object.fromEntries(r.map((v,i)=>[`c${i}`,v]))})),columns:parsed.headers.map((title,i)=>({title,field:`c${i}`,headerSort:true,minWidth:120,sorter:['Nr','Money In','Money Out','Fee','Balance'].includes(title)?'number':'string',formatter:cell=>el('span',cell.getValue(),parsed.entries[cell.getData().id].insufficientFunds?'statement-insufficient-funds':'')}))});grids.push(originalGrid);});
+    const {occurrences}=resolveScenarioOccurrences({scenario,startDate:period.startDate,endDate:period.endDate});
+    const seen=appliedStatementFingerprints(scenario),wrap=el('div','','statement-table-wrap'),table=el('table'),heading=el('tr');
+    ['Approve','Date','Description','Original description','Category','Parent category','Amount','Primary account','Secondary account / mapping','Actions'].forEach(h=>heading.append(el('th',h)));table.append(heading);const rows=[];
+    for(const entry of windowEntries.filter(e=>!e.insufficientFunds)){
+      const tr=el('tr'),check=el('input');check.type='checkbox';check.setAttribute('aria-label',`Approve source row ${entry.index+1}`);const first=el('td');first.append(check);tr.append(first,...[entry.postingDate,entry.description,entry.originalDescription,entry.category,entry.parentCategory,(entry.amountCents/100).toFixed(2)].map(v=>el('td',v)));
+      const mapping=statementMappingFor(entry,scenario.statementMappings,scenario.accounts),reason=statementMappingLabel(mapping,scenario.accounts),reviewed=batch.decisions?.[entry.index],duplicate=entry.monetary&&seen.has(entry.fingerprint);
+      if(reviewed||duplicate||!entry.monetary){check.disabled=true;const status=reviewed?`Reviewed: ${reviewed.action}`:duplicate?'Already reconciled in retained source':'Non-monetary source record';tr.append(el('td',reviewed?.primaryAccountId?scenario.accounts.find(a=>Number(a.id)===Number(reviewed.primaryAccountId))?.name||'':'Historical source'),el('td',reason),el('td',status));rows.push({entry,tr,check,status,reason,draft:{}});continue;}
+      const key=`${batch.id}:${period.startDate}:${period.endDate}:${entry.index}`;
+      if(!drafts.has(key))drafts.set(key,{primary:String(mapping.rule?.primaryAccountId||''),secondary:String(mapping.rule?.secondaryAccountId||''),operation:mapping.rule?.defaultAction||'line',targetKey:null,approved:false});
+      const draft=drafts.get(key),primary=select([['','Choose primary account'],...scenario.accounts.map(a=>[a.id,a.name])],`Primary account source row ${entry.index+1}`),secondary=select([['','Choose secondary account'],...scenario.accounts.map(a=>[a.id,a.name])],`Secondary account source row ${entry.index+1}`),operation=select(Object.entries(STATEMENT_ACTIONS),`Action source row ${entry.index+1}`),action=select([]);action.hidden=true;primary.value=draft.primary;secondary.value=draft.secondary;operation.value=draft.operation;check.checked=draft.approved;
+      const matchInfo=el('p','','statement-match-info'),ruleText=el('span',reason);
+      const candidates=()=>{
+        if(!primary.value||!secondary.value||operation.value==='create'||operation.value==='ignore')return [];
+        return statementTargetCandidates(occurrences,{primaryAccountId:primary.value,secondaryAccountId:secondary.value,transactionTypeId:entry.amountCents>0?1:2,period,action:operation.value}).filter(o=>operation.value!=='existing'||signedOccurrenceAmount(o,Number(primary.value))===entry.amountCents&&o.actualDate===entry.postingDate);
+      };
+      const choose=button('Choose payment',()=>chooseTarget(entry,candidates(),o=>{draft.targetKey=o.occurrenceKey;update(true,false);}));choose.setAttribute('aria-label',`Choose match source row ${entry.index+1}`);
+      const save=button('💾',()=>{if(!primary.value||!secondary.value||primary.value===secondary.value){fail(new Error('Choose two different FTrack accounts before saving a mapping.'));return;}const rule=mapping.rule;mappingEditor.edit({id:rule?.id,primaryAccountId:Number(primary.value),secondaryAccountId:Number(secondary.value),defaultAction:operation.value,field:rule?.field||'originalDescription',pattern:rule?.pattern||relevantMappingText(entry.originalDescription||entry.description),comparison:rule?.comparison||'contains',direction:entry.amountCents>0?'in':'out'});});
+      const view=button('↗',()=>mappingEditor.edit(mapping.rule));view.setAttribute('aria-label',`View mapping source row ${entry.index+1}`);view.title='View mapping';view.hidden=!mapping.rule;
+      const primaryCell=el('td');primaryCell.append(primary);const secondaryCell=el('td');secondaryCell.append(secondary,ruleText,save,view);const actionCell=el('td');actionCell.append(operation,action,choose,matchInfo);tr.append(primaryCell,secondaryCell,actionCell);
+      function update(changed=false,reselect=false){
+        draft.primary=primary.value;draft.secondary=secondary.value;draft.operation=operation.value;
+        const choices=candidates();if(reselect||draft.targetKey&&!choices.some(o=>o.occurrenceKey===draft.targetKey))draft.targetKey=null;
+        if(!draft.targetKey&&choices.length===1)draft.targetKey=choices[0].occurrenceKey;
+        action.replaceChildren();const option=el('option');option.value=draft.targetKey?`${operation.value}:${draft.targetKey}`:operation.value;action.append(option);action.value=option.value;
+        choose.hidden=['ignore','create'].includes(operation.value)||!choices.length;
+        const target=choices.find(o=>o.occurrenceKey===draft.targetKey);
+        matchInfo.textContent=target?`Linked to: ${target.description||'(no description)'} · ${target.scheduledDate} · Actual ${(Number(target.actualAmount)||0).toFixed(2)}`:choices.length>1?'Multiple transactions in this period. Choose a target.':operation.value==='ignore'?'Excluded from FTrack changes.':['line','create'].includes(operation.value)?'Creates a period-only transaction if needed; subsequent approved lines use the same transaction.':'Select a compatible transaction in this period.';
+        const changedRule=mapping.rule&&(Number(primary.value)!==Number(mapping.rule.primaryAccountId)||Number(secondary.value)!==Number(mapping.rule.secondaryAccountId)||operation.value!==mapping.rule.defaultAction);
+        save.hidden=Boolean(mapping.rule&&!changedRule);save.setAttribute('aria-label',changedRule?'Update mapping':'Create mapping');save.title=changedRule?'Update mapping':'Create mapping';
+        if(changed){draft.approved=false;check.checked=false;grid.draw();}
       }
-      const draft=drafts.get(draftKey);draft.reason=statementMappingLabel(mapping,scenario.accounts);if(![...action.options].some(o=>o.value===draft.action)){const o=el('option',draft.action);o.value=draft.action;action.append(o);}action.value=draft.action;operation.value=draft.action.split(':')[0];secondary.value=draft.secondary;check.checked=draft.approved;
-      const ruleCell=el('td');const reason=el('span',draft.reason);ruleCell.append(reason);
-      const matchInfo=el('p','','statement-match-info');
-      const chooseMatch=button('Choose payment',()=>openStatementMatchPicker({entry,occurrences,accountId:batch.accountId,secondaryAccountId:secondary.value,accounts:scenario.accounts,existing:operation.value==='existing',lineItems:operation.value==='line',recurring:operation.value==='future',onChoose:o=>{
-        const value=`${operation.value}:${o.occurrenceKey}`;
-        if(![...action.options].some(option=>option.value===value)){const option=el('option',o.description);option.value=value;action.append(option);}
-        action.value=value;action.dispatchEvent(new Event('change'));syncMapping();grid.draw();
-      }}));chooseMatch.setAttribute('aria-label',`Choose match source row ${entry.index+1}`);
-      const syncSecondary=()=>{const key=action.value.slice(action.value.indexOf(':')+1);const match=action.value.includes(':')&&occurrences.find(o=>o.occurrenceKey===key);if(match)secondary.value=String(counterpartyId(match,batch.accountId));secondary.disabled=false;
-        operation.title=operation.selectedOptions[0]?.textContent || '';
-        chooseMatch.hidden=!['match','existing','line','future'].includes(operation.value);matchInfo.textContent=match?`Linked to: ${match.description || '(no description)'} · ${match.actualDate || match.plannedDate || match.scheduledDate} · ${(signedOccurrenceAmount(match,batch.accountId)/100).toFixed(2)}. Bank actual: ${(entry.amountCents/100).toFixed(2)}`:!chooseMatch.hidden?'Select a transaction before approving.':operation.value==='create'?'Creates a separate actual; does not close a planned payment.':'';
-      };syncSecondary();
-      action.addEventListener('change',()=>{operation.value=action.value.split(':')[0];syncSecondary();draft.action=action.value;draft.secondary=secondary.value;draft.manual=true;draft.approved=false;check.checked=false;});
-      operation.addEventListener('change',()=>{const desired=operation.value;const key=action.value.includes(':')?action.value.slice(action.value.indexOf(':')+1):null;const target=occurrences.find(o=>o.occurrenceKey===key);const compatible=target&&(desired==='line'||desired==='future'&&target.status==='planned'&&target.sourceTransactionId||desired==='match'&&target.status==='planned'||desired==='existing'&&target.status==='actual');const value=compatible?`${desired}:${key}`:desired;if(![...action.options].some(o=>o.value===value)){const o=el('option',value);o.value=value;action.append(o);}action.value=value;action.dispatchEvent(new Event('change'));grid.draw();});
-      const saveMapping=button('Create mapping',()=>{
-        if(!secondary.value){error.textContent='Choose a secondary account first. Actions are independent of mapping rules.';return;}
-        const existing=mapping.rule;
-        const field=existing?.field || (entry.originalDescription?'originalDescription':'description');
-        mappingEditor.edit({id:existing?.id,accountId:batch.accountId,field,comparison:existing?.comparison || 'contains',pattern:existing?.pattern || relevantMappingText(entry[field]) || '',direction:entry.amountCents>0?'in':'out',secondaryAccountId:secondary.value});
-      });
-      const syncMapping=()=>{const changed=mapping.rule&&Number(secondary.value)!==Number(mapping.rule.secondaryAccountId);saveMapping.hidden=Boolean(mapping.rule&&!changed);saveMapping.textContent='💾';saveMapping.title=changed?'Update mapping':'Create mapping';saveMapping.setAttribute('aria-label',changed?'Update mapping':'Create mapping');reason.textContent=draft.reason+(changed?' (account changed — not saved)':'');};
-      const viewMapping=button('↗',()=>{if(mapping.rule)mappingEditor.edit(mapping.rule);});viewMapping.title='View mapping';viewMapping.setAttribute('aria-label',`View mapping source row ${entry.index+1}`);viewMapping.hidden=!mapping.rule;
-      ruleCell.append(saveMapping,viewMapping);syncMapping();
-      secondary.addEventListener('change',()=>{
-        // Changing the account re-evaluates payment candidates, never writes a mapping implicitly.
-        const candidates=secondary.value?suggestStatementMatches(entry,occurrences.filter(o=>counterpartyId(o,batch.accountId)===Number(secondary.value)),batch.accountId):[];
-        const best=candidates[0];let value='match';
-        if(best&&(candidates.length===1||best.score>candidates[1].score))value=`${best.status==='actual'?'existing':'match'}:${best.occurrenceKey}`;
-        if(value.includes(':')&&![...action.options].some(o=>o.value===value)){const option=el('option',best.description);option.value=value;action.append(option);}
-        action.value=value;action.dispatchEvent(new Event('change'));syncMapping();grid.draw();
-      });
-      const actionCell=el('td');actionCell.append(operation,action,chooseMatch,matchInfo);const secondaryCell=el('td');secondaryCell.append(secondary,...ruleCell.childNodes);tr.append(actionCell,secondaryCell);
-      gridRows.push({entry,tr,check,action,secondary,draft,get reason(){return draft.reason;},isReady(){
-        if(parsed.balanceIssues.length)return false;
-        const o=action.value.includes(':')&&occurrences.find(o=>o.occurrenceKey===action.value.slice(action.value.indexOf(':')+1));
-        if(action.value==='ignore')return true;
-        if((scenario.baselinePeriods || []).some(p=>(o?.scheduledDate || entry.postingDate)>=p.startDate && (o?.scheduledDate || entry.postingDate)<=p.endDate))return false;
-        if(o){if(o.transactionGroupId)return false;if(action.value.startsWith('line:'))return ['planned','actual'].includes(o.status);if(action.value.startsWith('future:'))return o.status==='planned'&&Boolean(o.sourceTransactionId)&&!o.lineItems?.length;return !o.lineItems?.length&&(action.value.startsWith('match:')?o.status==='planned':o.status==='actual'&&signedOccurrenceAmount(o,batch.accountId)===entry.amountCents&&o.actualDate===entry.postingDate);}
-        return action.value==='create'&&Boolean(secondary.value);
-      }});
-      pending.push({entry,check,action,secondary});
-    });
+      primary.onchange=()=>update(true,true);secondary.onchange=()=>update(true,true);operation.onchange=()=>update(true,true);update();
+      const row={entry,tr,check,primary,secondary,action,draft,reason,isReady(){
+        if(parsed.balanceIssues.length)return false;if(operation.value==='ignore')return true;
+        if(!primary.value||!secondary.value||primary.value===secondary.value)return false;
+        const target=draft.targetKey&&occurrences.find(o=>o.occurrenceKey===draft.targetKey);
+        if((scenario.baselinePeriods||[]).some(p=>inStatementPeriod(target?.scheduledDate||entry.postingDate,p)))return false;
+        if(!target)return ['line','create'].includes(operation.value)&&candidates().length===0;
+        return candidates().some(o=>o.occurrenceKey===target.occurrenceKey);
+      }};check.addEventListener('change',()=>{if(check.checked&&!row.isReady()){check.checked=false;draft.approved=false;fail(new Error('Complete the account pair and select an unambiguous period transaction before approving.'));}});rows.push(row);
+    }
     wrap.append(table);content.append(el('h3','Review transactions'),wrap);
-    const grid=await buildStatementReviewGrid({table,heading,rows:gridRows,state:gridState,onError:e=>{delete error.dataset.state;error.textContent=e.message;}});wrap.before(grid.controls);grids.push(grid);
+    const grid=await buildStatementReviewGrid({table,heading,rows,state:gridState,onError:fail});wrap.before(grid.controls);grids.push(grid);
     const apply=button('Apply approved rows',guard(async()=>{
-      const decisions=pending.filter(p=>p.check.checked).map(p=>{
-        const [action,...rest]=p.action.value.split(':');const occurrenceKey=rest.join(':');
-        const target=occurrences.find(o=>o.occurrenceKey===occurrenceKey);
-        return {index:p.entry.index,action:action==='future'?'match':action,updateFuture:action==='future',occurrenceKey,secondaryAccountId:Number(p.secondary.value),expectedAmount:target?.plannedAmount,expectedActualAmount:target?.actualAmount??0};
-      });
-      if(!decisions.length)throw new Error('Tick at least one row to approve.');
-      apply.disabled=true;
-      try {const result=await applyStatementDecisions(scenarioId,batch.id,decisions);await onApplied?.();await refresh();error.dataset.state='success';error.textContent=`Applied ${result.changes.length} reviewed row(s). Download the reconciliation report for details.`;}finally {apply.disabled=false;}
-    }));apply.disabled=parsed.balanceIssues.length>0;content.append(apply);
+      const approved=rows.filter(r=>r.check.checked&&!r.check.disabled);if(!approved.length)throw new Error('Tick at least one row to approve.');if(approved.some(r=>!r.isReady()))throw new Error('Resolve incomplete or ambiguous rows before applying.');
+      const decisions=approved.map(r=>{const [operation,...rest]=r.action.value.split(':'),occurrenceKey=rest.join(':')||null,target=occurrences.find(o=>o.occurrenceKey===occurrenceKey);return {index:r.entry.index,action:operation==='future'?'match':operation,updateFuture:operation==='future',occurrenceKey,primaryAccountId:Number(r.primary.value),secondaryAccountId:Number(r.secondary.value),period,expectedAmount:target?.plannedAmount,expectedActualAmount:target?.actualAmount??0};});
+      apply.disabled=true;try{const result=await applyStatementDecisions(scenarioId,batch.id,decisions);await onApplied?.();await refresh();error.dataset.state='success';error.textContent=`Applied ${result.changes.length} reviewed row(s). Download the reconciliation report for details.`;}finally{apply.disabled=false;}
+    }));apply.disabled=Boolean(parsed.balanceIssues.length);content.append(apply);
   }
   await guard(refresh)();
 }

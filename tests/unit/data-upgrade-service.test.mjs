@@ -164,8 +164,8 @@ test('legacy data is upgraded, validated, and returned with a structured change 
   assert.equal(result.canApply, true);
   assert.equal(result.migrated, true);
   assert.equal(result.fromSchemaVersion, 43);
-  assert.equal(result.toSchemaVersion, 45);
-  assert.equal(result.data.schemaVersion, 45);
+  assert.equal(result.toSchemaVersion, 46);
+  assert.equal(result.data.schemaVersion, 46);
   assert.equal(result.validation.totalIssues, 0);
   assert.ok(result.changes.some((entry) => entry.path === 'schemaVersion'));
   assert.ok(result.changes.some((entry) => entry.path === 'scenarios[0].budgets'));
@@ -235,7 +235,7 @@ test('malformed JSON and future schemas return downloadable failure reports', ()
   assert.match(malformed.validation.rootIssues[0].message, /Invalid JSON/);
 
   const future = analyzeAppDataUpgrade({
-    schemaVersion: 46,
+    schemaVersion: 47,
     scenarios: [],
     uiState: {}
   });
@@ -402,7 +402,7 @@ test('review decisions confirm manual, link recurring, and remove recovered tran
   ];
   source.migrationReport = {
     fromSchemaVersion: 43,
-    toSchemaVersion: 45,
+    toSchemaVersion: 46,
     migratedAt: MIGRATED_AT,
     summary: { warningCount: 3, recoveryRecordCount: 3 },
     scenarios: [{

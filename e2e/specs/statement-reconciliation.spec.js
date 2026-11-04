@@ -6,7 +6,7 @@ const purchase=(n,date,description,original,amount,balance,parent='Expenses')=>`
 const review=page=>page.locator('.statement-reconciliation-modal');
 const grid=page=>review(page).locator('.statement-review-grid');
 const row=(page,n)=>grid(page).locator('.tabulator-row').filter({has:page.getByLabel(`Approve source row ${n}`,{exact:true})});
-async function open(page,data){await gotoFTrack(page,data);await page.getByRole('button',{name:'Statements',exact:true}).click();await review(page).getByLabel('Statement primary account').selectOption('1');}
+async function open(page,data){await gotoFTrack(page,data);await page.getByRole('button',{name:'Statements',exact:true}).click();}
 async function upload(page,text,name='synthetic.csv'){await review(page).getByLabel('Statement CSV').setInputFiles({name,mimeType:'text/csv',buffer:Buffer.from(text)});await expect(grid(page)).toBeVisible();await expect(grid(page).locator('.tabulator-row').first()).toBeVisible();}
 test.beforeEach(async({page})=>{await page.clock.setFixedTime(new Date('2026-01-20T12:00:00Z'));});
 
@@ -88,33 +88,32 @@ test('mapping, review, source and native tables have row banding in light and da
  await page.screenshot({path:test.info().outputPath('banded-grids-dark.png')});
 });
 
-test('account toolbar automatically retains source and scopes archive; dialog fills screen',async({page})=>{
+test('account-independent toolbar automatically retains sources; dialog fills screen',async({page})=>{
  await open(page);const text=csv([purchase(1,'2026-01-15','Shop','Original shop',25,975)]);await upload(page,text);
  await expect(review(page).getByRole('button',{name:'Retain CSV for review'})).toHaveCount(0);
  await expect(review(page)).not.toContainText('rows in the selected window');
  expect((await currentScenario(page)).statementImports[0].rawCsv).toBe(text);
  const box=await review(page).boundingBox();expect(box.width).toBeGreaterThan(page.viewportSize().width*.94);
  const imports=review(page).locator('.statement-source-imports');await expect(imports.getByRole('button',{name:'Download original CSV'})).toBeVisible();await expect(imports.getByRole('button',{name:'Download reconciliation report'})).toBeVisible();
- const from=await review(page).getByLabel('Statement review from',{exact:true}).boundingBox(),to=await review(page).getByLabel('Statement review to (exclusive)',{exact:true}).boundingBox();expect(Math.abs(from.y-to.y)).toBeLessThan(5);
- await review(page).getByLabel('Statement primary account').selectOption('3');await expect(review(page)).toContainText('No statements retained for this account');
- await review(page).getByLabel('Statement primary account').selectOption('1');const archive=review(page).getByLabel('Retained statements');await expect(archive.locator('option')).toHaveCount(2);await archive.selectOption(await archive.locator('option').nth(1).getAttribute('value'));await expect(grid(page)).toBeVisible();
+ await expect(review(page).getByLabel('Statement primary account')).toHaveCount(0);await expect(review(page).getByLabel('Statement budget period')).toHaveValue('2026-01');
+ expect((await currentScenario(page)).statementImports[0].accountId).toBeUndefined();const archive=review(page).getByLabel('Retained statements');await expect(archive.locator('option')).toHaveCount(2);await archive.selectOption(await archive.locator('option').nth(1).getAttribute('value'));await expect(grid(page)).toBeVisible();
 });
 
 test('default close action requires a target and manually recorded actual survives reload',async({page})=>{
  await open(page);await upload(page,csv([purchase(1,'2026-01-15','Unknown shop','Original shop',25,975)]));
- await expect(review(page).getByLabel('Action source row 1',{exact:true})).toHaveValue('match');
+ await expect(review(page).getByLabel('Action source row 1',{exact:true})).toHaveValue('line');
  await review(page).getByRole('button',{name:'Approve all eligible rows'}).click();await expect(review(page).getByLabel('Approve source row 1',{exact:true})).not.toBeChecked();
- await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await review(page).getByLabel('Action source row 1',{exact:true}).selectOption('create');await review(page).getByLabel('Approve source row 1',{exact:true}).check();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Reviewed: create');
- await review(page).getByRole('button',{name:'Close',exact:true}).click();await page.reload();await waitForAppReady(page);await page.getByRole('button',{name:'Statements',exact:true}).click();await review(page).getByLabel('Statement primary account').selectOption('1');const archive=review(page).getByLabel('Retained statements');await archive.selectOption(await archive.locator('option').nth(1).getAttribute('value'));await expect(review(page)).toContainText('Reviewed: create');
+ await review(page).getByLabel('Primary account source row 1',{exact:true}).selectOption('1');await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await review(page).getByLabel('Action source row 1',{exact:true}).selectOption('create');await review(page).getByLabel('Approve source row 1',{exact:true}).check();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Reviewed: create');
+ await review(page).getByRole('button',{name:'Close',exact:true}).click();await page.reload();await waitForAppReady(page);await page.getByRole('button',{name:'Statements',exact:true}).click();const archive=review(page).getByLabel('Retained statements');await archive.selectOption(await archive.locator('option').nth(1).getAttribute('value'));await expect(review(page)).toContainText('Reviewed: create');
 });
 
 test('saved descriptions match changing references and mapping controls share the account cell',async({page})=>{
  const data=loadSmokeData();data.scenarios[0].statementMappings=[{id:'groceries',accountId:1,field:'originalDescription',pattern:'Card purchase Groceries ref 123456',comparison:'exact',direction:'out',secondaryAccountId:5}];
  await open(page,data);await upload(page,csv([purchase(1,'2026-01-10','Groceries budget','Card purchase Groceries ref 999999',450,550)]));
- await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('5');await expect(review(page).getByLabel('Action source row 1',{exact:true})).toHaveValue('match');await expect(row(page,1)).toContainText('Linked to: Groceries budget');
+ await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('5');await expect(review(page).getByLabel('Action source row 1',{exact:true})).toHaveValue('line');await expect(row(page,1)).toContainText('Linked to: Groceries budget');
  await expect(review(page).locator('.statement-mappings summary')).toContainText('1 saved');await expect(grid(page).getByRole('columnheader',{name:'Saved mapping rule',exact:true})).toHaveCount(0);
  const accountCell=row(page,1).locator('[tabulator-field="secondary"]');await expect(accountCell.getByLabel('View mapping source row 1',{exact:true})).toBeVisible();await expect(accountCell.getByRole('button',{name:'Create mapping',exact:true})).toBeHidden();
- await review(page).getByLabel('Action source row 1',{exact:true}).selectOption('ignore');await expect(accountCell.getByRole('button',{name:'Update mapping'})).toBeHidden();
+ await review(page).getByLabel('Action source row 1',{exact:true}).selectOption('ignore');await expect(accountCell.getByRole('button',{name:'Update mapping'})).toBeVisible();
  await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('3');await expect(accountCell.getByRole('button',{name:'Update mapping'})).toBeVisible();expect((await currentScenario(page)).statementMappings[0].secondaryAccountId).toBe(5);
 });
 
@@ -123,16 +122,16 @@ test('only saved mappings are shown and removed rules never regenerate as propos
  const mappings=review(page).locator('.statement-mappings');await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');
  await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('');
  await mappings.locator('summary').click();await expect(mappings).not.toContainText(/propos|draft/i);await expect(mappings.getByRole('button',{name:'Generate draft mappings'})).toHaveCount(0);
- await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await row(page,1).getByRole('button',{name:'Create mapping',exact:true}).click();await mappings.getByRole('button',{name:'Save mapping',exact:true}).click();
+ await review(page).getByLabel('Primary account source row 1',{exact:true}).selectOption('1');await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await row(page,1).getByRole('button',{name:'Create mapping',exact:true}).click();await mappings.getByRole('button',{name:'Save mapping',exact:true}).click();
  await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('5');await expect(mappings.locator('summary')).toContainText('1 saved');await expect(review(page).getByLabel('Approve source row 1',{exact:true})).not.toBeChecked();
  expect((await currentScenario(page)).statementMappings[0].pattern).toBe('groceries expense');
  await expect(mappings).toHaveAttribute('open','');await mappings.getByRole('button',{name:'Remove mapping',exact:true}).click();await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');await expect(mappings).toHaveAttribute('open','');await expect(mappings).not.toContainText(/propos|draft/i);await expect(review(page).getByLabel('Secondary account source row 1',{exact:true})).toHaveValue('');
- await review(page).getByRole('button',{name:'Show full statement'}).click();await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');expect((await currentScenario(page)).statementMappings).toEqual([]);
+ await review(page).getByLabel('Statement budget period').selectOption('2026-02');await expect(mappings.locator('summary')).toHaveText('Mapping rules — 0 saved');expect((await currentScenario(page)).statementMappings).toEqual([]);
 });
 
 test('parent-category mappings, sorting, grouping and bulk approval preserve source identity',async({page})=>{
  await open(page);await upload(page,csv([purchase(1,'2026-01-15','First shop','Merchant A',25,975,'Everyday living'),purchase(2,'2026-01-16','Other shop','Merchant B',30,945,'Everyday living')]));
- await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await row(page,1).getByRole('button',{name:'Create mapping',exact:true}).click();await review(page).getByLabel('Mapping field',{exact:true}).selectOption('parentCategory');await review(page).getByLabel('Mapping text',{exact:true}).fill('Everyday living');await review(page).getByRole('button',{name:'Save mapping',exact:true}).click();
+ await review(page).getByLabel('Primary account source row 1',{exact:true}).selectOption('1');await review(page).getByLabel('Secondary account source row 1',{exact:true}).selectOption('5');await row(page,1).getByRole('button',{name:'Create mapping',exact:true}).click();await review(page).getByLabel('Mapping field',{exact:true}).selectOption('parentCategory');await review(page).getByLabel('Mapping text',{exact:true}).fill('Everyday living');await review(page).getByRole('button',{name:'Save mapping',exact:true}).click();
  await expect(review(page).getByLabel('Secondary account source row 2',{exact:true})).toHaveValue('5');
  await review(page).getByLabel('Action source row 1',{exact:true}).selectOption('create');await review(page).getByLabel('Action source row 2',{exact:true}).selectOption('create');await review(page).getByLabel('Approve source row 1',{exact:true}).check();
  await grid(page).locator('.tabulator-col[tabulator-field="amount"]').click();await expect(review(page).getByLabel('Approve source row 1',{exact:true})).toBeChecked();
@@ -140,21 +139,58 @@ test('parent-category mappings, sorting, grouping and bulk approval preserve sou
  await review(page).evaluate(el=>{el.scrollTop=0;el.querySelector('.statement-review-grid .tabulator-tableholder').scrollTop=0;});await page.screenshot({path:test.info().outputPath('statement-shared-grid.png')});await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Applied 2 reviewed row(s)');
 });
 
+test('period choices include shorter months and complete quarter boundaries',async({page})=>{
+ await open(page);await upload(page,csv([purchase(1,'2026-01-31','Shop','Shop',25,975)]));
+ await expect(review(page).getByLabel('Statement budget period').locator('option[value="2026-02"]')).toHaveCount(1);
+ await review(page).getByLabel('Statement period type').selectOption('Quarter');
+ await expect(review(page)).toContainText('2026-01-01 to 2026-03-31 (inclusive)');
+});
+
 test('line-item action accumulates multiple bank rows into one transaction',async({page})=>{
  await open(page);await upload(page,csv([purchase(1,'2026-01-10','Groceries shop','Merchant',25,975),purchase(2,'2026-01-11','Groceries shop','Merchant',30,945)]));
- for(const n of [1,2]){await review(page).getByLabel(`Secondary account source row ${n}`,{exact:true}).selectOption('5');await review(page).getByLabel(`Action source row ${n}`,{exact:true}).selectOption('line');await review(page).getByLabel(`Choose match source row ${n}`,{exact:true}).click();await page.locator('.statement-match-picker').getByRole('button',{name:/Groceries budget/}).click();}
+ for(const n of [1,2]){await review(page).getByLabel(`Primary account source row ${n}`,{exact:true}).selectOption('1');await review(page).getByLabel(`Secondary account source row ${n}`,{exact:true}).selectOption('5');await review(page).getByLabel(`Action source row ${n}`,{exact:true}).selectOption('line');await review(page).getByLabel(`Choose match source row ${n}`,{exact:true}).click();await page.locator('.statement-match-picker').getByRole('button',{name:/Groceries budget/}).click();}
  await review(page).getByRole('button',{name:'Approve all eligible rows'}).click();await expect(review(page).getByLabel('Approve source row 2',{exact:true})).toBeChecked();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Applied 2 reviewed row(s)');
  const target=(await currentScenario(page)).transactionOccurrences.find(o=>o.description==='Groceries budget');expect(target.actualAmount).toBe(55);expect(target.lineItems).toHaveLength(2);
 });
 
 test('failed payments and out-of-window approvals remain excluded',async({page})=>{
  await open(page);await upload(page,csv([purchase(1,'2026-01-24','Shop','Shop',25,975),purchase(2,'2026-01-24','Insufficient funds','Insufficient funds',50,975),purchase(3,'2026-01-25','Later','Later',20,955)]));
- await expect(review(page).getByLabel('Approve source row 2',{exact:true})).toHaveCount(0);await expect(review(page).getByLabel('Approve source row 3',{exact:true})).toHaveCount(0);await expect(review(page).locator('.statement-insufficient-funds').first()).toBeVisible();await review(page).getByRole('button',{name:'Show full statement'}).click();await expect(review(page).getByLabel('Approve source row 3',{exact:true})).toBeVisible();
+ await review(page).getByLabel('Statement period type').selectOption('Custom');await review(page).getByLabel('Statement review from',{exact:true}).fill('2026-01-01');await review(page).getByLabel('Statement review to (inclusive)',{exact:true}).fill('2026-01-24');await review(page).getByRole('button',{name:'Apply custom period'}).click();await expect(review(page).getByLabel('Approve source row 2',{exact:true})).toHaveCount(0);await expect(review(page).getByLabel('Approve source row 3',{exact:true})).toHaveCount(0);await expect(review(page).locator('.statement-insufficient-funds').first()).toBeVisible();await review(page).getByLabel('Statement review to (inclusive)',{exact:true}).fill('2026-01-25');await review(page).getByRole('button',{name:'Apply custom period'}).click();await expect(review(page).getByLabel('Approve source row 3',{exact:true})).toBeVisible();
 });
 
 test('explicit future action records actual and updates the next recurring plan',async({page})=>{
  const data=loadSmokeData();data.scenarios[0].statementMappings=[{id:'groceries',accountId:1,field:'description',pattern:'Groceries',comparison:'contains',direction:'out',secondaryAccountId:5}];
  await open(page,data);await upload(page,csv([purchase(1,'2026-01-10','Groceries budget','Groceries shop',500,500)]));
- await expect(review(page).getByLabel('Action source row 1',{exact:true})).toHaveValue('match');await review(page).getByLabel('Action source row 1',{exact:true}).selectOption('future');await review(page).getByLabel('Approve source row 1',{exact:true}).check();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Applied 1 reviewed row(s)');
+ await expect(review(page).getByLabel('Action source row 1',{exact:true})).toHaveValue('line');await review(page).getByLabel('Action source row 1',{exact:true}).selectOption('future');await review(page).getByLabel('Approve source row 1',{exact:true}).check();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Applied 1 reviewed row(s)');
  const scenario=await currentScenario(page);expect(scenario.transactionOccurrences.find(o=>o.actualAmount===500)).toBeTruthy();expect(scenario.transactions.some(t=>t.amount===500&&t.recurrence?.startDate==='2026-02-10')).toBe(true);expect(scenario.statementImports[0].decisions[0].updateFuture).toBe(true);
+});
+
+test('statement rows route to a budget primary, accumulate across the whole period, and recur separately next period',async({page})=>{
+ const data=loadSmokeData(),s=data.scenarios[0];s.accounts.push({...s.accounts.find(a=>a.id===5),id:7,name:'Running Costs'});s.transactions.find(t=>t.id===1002).primaryAccountId=7;s.transactionOccurrences.find(o=>o.sourceTransactionId===1002).primaryAccountId=7;
+ s.statementMappings=[{id:'shop',primaryAccountId:7,secondaryAccountId:5,field:'originalDescription',pattern:'Merchant',comparison:'contains',direction:'out',defaultAction:'line'}];
+ await open(page,data);await upload(page,csv([purchase(1,'2026-01-10','Shop purchase','Merchant',25,975),purchase(2,'2026-01-27','Another purchase','Merchant',30,945),purchase(3,'2026-02-05','Next period','Merchant',40,905)]));
+ await review(page).getByLabel('Statement budget period').selectOption('2026-01');await expect(review(page).getByLabel('Statement primary account')).toHaveCount(0);await expect(review(page).getByLabel('Primary account source row 1',{exact:true})).toHaveValue('7');await expect(row(page,2)).toContainText('Linked to: Groceries budget');
+ await review(page).getByRole('button',{name:'Approve all eligible rows'}).click();await expect(review(page).getByLabel('Approve source row 2',{exact:true})).toBeChecked();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Applied 2 reviewed row(s)');
+ let scenario=await currentScenario(page);const jan=scenario.transactionOccurrences.find(o=>o.sourceTransactionId===1002&&o.scheduledDate==='2026-01-10');expect(jan.actualAmount).toBe(55);expect(jan.lineItems.map(i=>i.date)).toEqual(['2026-01-10','2026-01-27']);expect(jan.primaryAccountId).toBe(7);expect(scenario.transactions.find(t=>t.id===1002).amount).toBe(450);
+ await review(page).getByLabel('Statement budget period').selectOption('2026-02');await review(page).getByRole('button',{name:'Approve all eligible rows'}).click();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Applied 1 reviewed row(s)');scenario=await currentScenario(page);expect(scenario.transactionOccurrences.find(o=>o.scheduledDate==='2026-02-10'&&o.primaryAccountId===7).actualAmount).toBe(40);expect(scenario.transactionOccurrences.find(o=>o.id===jan.id).actualAmount).toBe(55);
+});
+
+test('row account/action overrides do not rewrite mappings, and create lines group into one new period transaction',async({page})=>{
+ const data=loadSmokeData();data.scenarios[0].statementMappings=[{id:'shop',primaryAccountId:1,secondaryAccountId:5,field:'category',pattern:'Shopping',comparison:'exact',direction:'out',defaultAction:'create'}];
+ await open(page,data);await upload(page,csv([purchase(1,'2026-01-15','Shop','Merchant A',25,975),purchase(2,'2026-01-16','Other','Merchant B',30,945)]));
+ for(const n of [1,2]){await expect(review(page).getByLabel(`Action source row ${n}`,{exact:true})).toHaveValue('create');await review(page).getByLabel(`Primary account source row ${n}`,{exact:true}).selectOption('3');}
+ await review(page).getByRole('button',{name:'Approve all eligible rows'}).click();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Applied 2 reviewed row(s)');const s=await currentScenario(page),created=s.transactionOccurrences.filter(o=>o.primaryAccountId===3&&o.secondaryAccountId===5);expect(created).toHaveLength(1);expect(created[0].lineItems).toHaveLength(2);expect(created[0].actualAmount).toBe(55);expect(s.statementMappings[0].primaryAccountId).toBe(1);expect(s.statementImports[0].decisions[0].period.id).toBe('2026-01');
+});
+
+test('ambiguous period targets require an explicit choice instead of amount/date guessing',async({page})=>{
+ const data=loadSmokeData(),s=data.scenarios[0];s.transactionOccurrences.push({...s.transactionOccurrences[0],id:2999,occurrenceKey:'occurrence:2999',sourceTransactionId:null,scheduledDate:'2026-01-20',description:'Other groceries budget'});s.statementMappings=[{id:'shop',primaryAccountId:1,secondaryAccountId:5,field:'category',pattern:'Shopping',comparison:'exact',direction:'out',defaultAction:'line'}];
+ await open(page,data);await upload(page,csv([purchase(1,'2026-01-10','Shop','Merchant',25,975)]));await expect(row(page,1)).toContainText('Multiple transactions');await review(page).getByRole('button',{name:'Approve all eligible rows'}).click();await expect(review(page).getByLabel('Approve source row 1',{exact:true})).not.toBeChecked();await review(page).getByLabel('Choose match source row 1',{exact:true}).click();await page.locator('.statement-match-picker').getByRole('button',{name:/Other groceries budget/}).click();await review(page).getByLabel('Approve source row 1',{exact:true}).check();await review(page).getByRole('button',{name:'Apply approved rows'}).click();await expect(review(page)).toContainText('Applied 1 reviewed row(s)');expect((await currentScenario(page)).transactionOccurrences.find(o=>o.id===2999).actualAmount).toBe(25);
+});
+
+test('existing browser statements and mappings upgrade through Data Check without losing source or decisions',async({page})=>{
+ const data=loadSmokeData();data.schemaVersion=45;const text=csv([purchase(1,'2026-01-15','Shop','Merchant',25,975)]),rows=text.split('\n').map(r=>r.split(','));
+ data.scenarios[0].statementImports=[{id:'old-statement',accountId:1,fileName:'legacy.csv',rawCsv:text,headers:rows[0],rows:rows.slice(1),sha256:require('node:crypto').createHash('sha256').update(text).digest('hex'),importedAt:'2026-01-16T00:00:00Z',decisions:{0:{action:'ignore',occurrenceKey:null,appliedAt:'2026-01-16T00:00:00Z'}}}];data.scenarios[0].statementMappings=[{id:'old-rule',accountId:1,secondaryAccountId:5,field:'description',comparison:'contains',pattern:'Shop',direction:'out'}];
+ await page.addInitScript(data=>localStorage.setItem('ftrack:app-data',JSON.stringify(data)),data);await page.goto('/pages/ftrack.html');const upgrade=page.locator('.data-upgrade-modal');await expect(upgrade).toContainText('45 → 46');await upgrade.getByRole('button',{name:'Apply Upgrade to Browser Data'}).click();await waitForAppReady(page);
+ const upgraded=await currentScenario(page);expect(upgraded.statementImports[0].rawCsv).toBe(text);expect(upgraded.statementImports[0].legacyAccountId).toBe(1);expect(upgraded.statementImports[0].decisions).toEqual(data.scenarios[0].statementImports[0].decisions);expect(upgraded.statementMappings[0].primaryAccountId).toBe(1);expect(upgraded.statementMappings[0].defaultAction).toBe('line');
+ await page.getByRole('button',{name:'Statements',exact:true}).click();await review(page).getByLabel('Retained statements').selectOption('old-statement');await expect(review(page)).toContainText('Reviewed: ignore');await expect(review(page).getByLabel('Statement primary account')).toHaveCount(0);
 });

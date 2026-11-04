@@ -561,13 +561,13 @@ test('schema 44 upgrades its projection horizon into the scenario timeframe', ()
   });
   assert.equal(upgraded.migrationReport.fromSchemaVersion, 43);
   assert.equal(upgraded.migrationReport.toSchemaVersion, CURRENT_SCHEMA_VERSION);
-  assert.equal(upgraded.migrationReport.schema45UpgradedAt, '2026-09-28T10:00:00.000Z');
+  assert.equal(upgraded.migrationReport.schema46UpgradedAt, '2026-09-28T10:00:00.000Z');
   assert.equal(validateAppData(upgraded).isValid, true);
 });
 
 test('future schema versions are never downgraded', () => {
   assert.throws(
-    () => migrateAppData({ schemaVersion: 46, scenarios: [], uiState: {} }),
-    /Cannot migrate future schemaVersion 46/
+    () => migrateAppData({ schemaVersion: 47, scenarios: [], uiState: {} }),
+    /Cannot migrate future schemaVersion 47/
   );
 });

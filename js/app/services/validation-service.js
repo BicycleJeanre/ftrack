@@ -763,7 +763,7 @@ function validateScenario(scenario) {
                 try {
                     if (typeof batch.id !== 'string' || !batch.id || ids.has(batch.id)) throw new Error('Import ID must be unique');
                     ids.add(batch.id);
-                    if (!Number.isInteger(batch.accountId) || batch.accountId < 1 || typeof batch.fileName !== 'string' || !/^[0-9a-f]{64}$/.test(batch.sha256) || !Number.isFinite(Date.parse(batch.importedAt))) throw new Error('Invalid statement metadata');
+                    if (typeof batch.fileName !== 'string' || !/^[0-9a-f]{64}$/.test(batch.sha256) || !Number.isFinite(Date.parse(batch.importedAt))) throw new Error('Invalid statement metadata');
                     const parsed = parseStatement(batch.rawCsv);
                     if (JSON.stringify(parsed.headers)!==JSON.stringify(batch.headers) || JSON.stringify(parsed.rows)!==JSON.stringify(batch.rows)) throw new Error('Retained rows must exactly match the original CSV');
                     if (!batch.decisions || typeof batch.decisions !== 'object' || Array.isArray(batch.decisions)) throw new Error('Invalid review decisions');

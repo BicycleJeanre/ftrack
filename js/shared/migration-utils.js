@@ -1,4 +1,4 @@
-// Browser-safe migration helpers for upgrading legacy app data to schemaVersion 45.
+// Browser-safe migration helpers for upgrading legacy app data to schemaVersion 46.
 // Runtime callers persist the returned app data, including its recovery-oriented
 // migrationReport. This module has no Node.js dependencies.
 
@@ -788,7 +788,7 @@ function migrateScenario({ legacyScenario, scenarioIndex, report, migratedAt }) 
 }
 
 /**
- * Migrate app data to schemaVersion 45.
+ * Migrate app data to the current schema version.
  *
  * The return value remains AppData for compatibility with existing callers.
  * Migration diagnostics and raw recovery records are stored at
@@ -811,7 +811,7 @@ export function migrateAppData(legacy, { now = new Date().toISOString() } = {}) 
     );
   }
 
-  if (Number(legacy?.schemaVersion) === 44) {
+  if ([44,45].includes(Number(legacy?.schemaVersion))) {
     const migratedAt = typeof now === 'string' && now ? now : new Date().toISOString();
     const migrated = sanitizeAppDataForWrite({
       ...legacy,
@@ -825,12 +825,14 @@ export function migrateAppData(legacy, { now = new Date().toISOString() } = {}) 
       ? {
           ...existingReport,
           toSchemaVersion: CURRENT_SCHEMA_VERSION,
-          schema45UpgradedAt: migratedAt
+          schema46UpgradedAt: migratedAt,
+          statementWorkflowUpgrade:{statementsUnbound:(legacy.scenarios||[]).reduce((n,s)=>n+(s.statementImports||[]).length,0),mappingsUpdated:(legacy.scenarios||[]).reduce((n,s)=>n+(s.statementMappings||[]).length,0),sourceRowsAndDecisionsPreserved:true}
         }
       : {
-          fromSchemaVersion: 44,
+          fromSchemaVersion: Number(legacy.schemaVersion),
           toSchemaVersion: CURRENT_SCHEMA_VERSION,
           migratedAt,
+          statementWorkflowUpgrade:{statementsUnbound:(legacy.scenarios||[]).reduce((n,s)=>n+(s.statementImports||[]).length,0),mappingsUpdated:(legacy.scenarios||[]).reduce((n,s)=>n+(s.statementMappings||[]).length,0),sourceRowsAndDecisionsPreserved:true},
           summary: {
             scenarioCount: migrated.scenarios.length,
             rulesRetained: migrated.scenarios.reduce(

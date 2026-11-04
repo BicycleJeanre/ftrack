@@ -278,7 +278,7 @@ export async function remove(scenarioId, accountId) {
         ));
 
         scenario.statementMappings = (scenario.statementMappings || []).filter(
-            (rule) => Number(rule.accountId) !== accountIdNum && Number(rule.secondaryAccountId) !== accountIdNum
+            (rule) => Number(rule.primaryAccountId) !== accountIdNum && Number(rule.secondaryAccountId) !== accountIdNum
         );
         scenario.accounts = scenario.accounts.filter(
             (account) => Number(account?.id) !== accountIdNum

@@ -1,4 +1,5 @@
 // Pure matching rules. No statement text is sent to an external service.
+import { upgradeStatementMapping, STATEMENT_ACTIONS } from './statement-workflow-utils.js';
 export const mappingText = value => String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
 
 // Search only: * = zero/many characters, % = one character; doubled symbols are literals.
@@ -47,29 +48,33 @@ export const MAPPING_FIELD_LABELS = {description:'Description',originalDescripti
 export function statementMappingLabel(mapping, accounts) {
   if(mapping.conflict)return 'Conflicting saved mapping rules';
   const rule=mapping.rule;if(!rule)return 'No saved mapping';
-  return `${MAPPING_FIELD_LABELS[rule.field]} ${rule.comparison==='exact'?'equals':'contains'} “${rule.pattern}” → ${rule.action==='ignore'?'Ignore':accounts.find(a=>Number(a.id)===Number(rule.secondaryAccountId))?.name || '(missing account)'}`;
+  return `${MAPPING_FIELD_LABELS[rule.field]} ${rule.comparison==='exact'?'equals':'contains'} “${rule.pattern}” → ${accounts.find(a=>Number(a.id)===Number(rule.primaryAccountId??rule.accountId))?.name||'(missing primary)'} → ${accounts.find(a=>Number(a.id)===Number(rule.secondaryAccountId))?.name||'(missing secondary)'} · ${STATEMENT_ACTIONS[rule.defaultAction]||'Add line item'}`;
 }
 
 export function normalizeStatementMapping(rule, accounts) {
+  rule=upgradeStatementMapping(rule);
   if(typeof rule.pattern!=='string' || rule.id && typeof rule.id!=='string') throw new Error('Mapping text and ID must be strings.');
   const result = {
-    id:String(rule.id || ''), accountId:Number(rule.accountId),
+    id:String(rule.id || ''), primaryAccountId:Number(rule.primaryAccountId),
     field:String(rule.field || 'originalDescription'), pattern:String(rule.pattern || '').trim(),
     comparison:String(rule.comparison || 'contains'), direction:String(rule.direction || 'out'),
-    ...(rule.action ? {action:String(rule.action)} : {}), secondaryAccountId:rule.action === 'ignore' ? null : Number(rule.secondaryAccountId)
+    defaultAction:String(rule.defaultAction||'line'),secondaryAccountId:rule.defaultAction==='ignore'&&!rule.secondaryAccountId?null:Number(rule.secondaryAccountId),
+    ...(rule.legacyStatementAccountId!==undefined?{legacyStatementAccountId:rule.legacyStatementAccountId}:{}),...(rule.legacyAction!==undefined?{legacyAction:rule.legacyAction}:{})
   };
-  if (!result.id || !accounts.some(a=>Number(a.id)===result.accountId)) throw new Error('Choose an existing primary account.');
+  if (!result.id || !accounts.some(a=>Number(a.id)===result.primaryAccountId)) throw new Error('Choose an existing primary account.');
   if (!MAPPING_FIELDS.includes(result.field) || !['exact','contains'].includes(result.comparison) || !['in','out'].includes(result.direction)) throw new Error('Invalid mapping condition.');
   if (!result.pattern || result.pattern.length>500) throw new Error('Enter a mapping pattern of 1–500 characters.');
-  if (result.action && !['prefer-match','create','ignore'].includes(result.action)) throw new Error('Invalid legacy mapping action.');
-  if(result.action!=='ignore' && (result.secondaryAccountId===result.accountId || !accounts.some(a=>Number(a.id)===result.secondaryAccountId))) throw new Error('Choose a different, existing secondary account.');
+  if (!Object.hasOwn(STATEMENT_ACTIONS,result.defaultAction))throw new Error('Choose a valid default action.');
+  if(result.defaultAction!=='ignore' && (result.secondaryAccountId===result.primaryAccountId || !accounts.some(a=>Number(a.id)===result.secondaryAccountId))) throw new Error('Choose a different, existing secondary account.');
   return result;
 }
 
 export function statementMappingFor(entry, rules, accountId, accounts) {
-  const matches = (rules || []).filter(rule=>{
-    if(Number(rule.accountId)!==Number(accountId) || rule.direction!==(entry.amountCents>0?'in':'out')) return false;
-    if(rule.action!=='ignore' && !accounts.some(a=>Number(a.id)===Number(rule.secondaryAccountId))) return false;
+  if(Array.isArray(accountId)&&accounts===undefined)accounts=accountId;
+  const matches = (rules || []).map(upgradeStatementMapping).filter(rule=>{
+    if(rule.direction!==(entry.amountCents>0?'in':'out')) return false;
+    if(!accounts.some(a=>Number(a.id)===Number(rule.primaryAccountId)))return false;
+    if(rule.defaultAction!=='ignore' && !accounts.some(a=>Number(a.id)===Number(rule.secondaryAccountId))) return false;
     const descriptive=['description','originalDescription'].includes(rule.field);
     const clean=descriptive?relevantMappingText:mappingText;
     const value=clean(entry[rule.field]), pattern=clean(rule.pattern);
@@ -77,7 +82,7 @@ export function statementMappingFor(entry, rules, accountId, accounts) {
   });
   if(!matches.length) return {rule:null,conflict:false};
   // Reconciliation actions are independent of account mapping (including legacy action hints).
-  const signatures=new Set(matches.map(r=>JSON.stringify([r.secondaryAccountId])));
+  const signatures=new Set(matches.map(r=>JSON.stringify([r.primaryAccountId,r.secondaryAccountId,r.defaultAction])));
   return {rule:signatures.size===1?matches[0]:null,conflict:signatures.size>1};
 }
 

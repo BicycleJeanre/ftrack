@@ -34,6 +34,7 @@ type UiState = {
 
 - `schemaVersion` is incremented for breaking storage changes.
 - The scenario-timeframe workflow uses `schemaVersion = 45`.
+- Account-independent statements and account-pair mappings use `schemaVersion = 46`.
 - Data Check normalizes the retired `budget` workflow preference to `general`.
   Legacy budget rows still migrate into occurrences and ambiguous source links
   remain available in the recovery-review queue.
@@ -199,37 +200,47 @@ type ScenarioLineage = {
 
 ### 2.3.1 BudgetReviewReminder
 
-`statementImports` is an optional, additive scenario field. Each import stores
-`id` (UUID), `accountId`, `fileName`, `rawCsv` (original decoded text), `headers`,
-`rows` (all source strings in original order), `sha256` (UTF-8 source digest),
-`importedAt`, and `decisions` keyed by zero-based source-row index. Each decision
-contains `action` (`match`, `existing`, `create`, `ignore`, `line`), `occurrenceKey`
-(nullable), and `appliedAt`. Source rows must reproduce the raw CSV exactly.
-Normalization, JSON export/import, and cloud snapshots preserve this field.
-Balance validation blocks application, not source retention. Fingerprints
-exclude export row numbers and include bank account, both dates, original
-description, signed amounts and balance, plus multiplicity for identical rows.
-`line` appends the bank entry to occurrence line items; an existing non-itemized
-actual is retained as a previous-actual line before summation. A `match` decision
-can carry `updateFuture: true`; it records the actual and updates the next and
-future planned recurrence segment atomically. Neither operation edits source rows.
-The audit includes pre-change amounts, dates, and line items where applicable.
+`statementImports` is an optional scenario array. Each import stores `id`
+(UUID), `fileName`, `rawCsv` (original decoded text), `headers`, `rows`
+(all source strings in original order), `sha256`, `importedAt`, and
+`decisions` keyed by zero-based source-row index. Statements have no FTrack
+account binding. Schema 45's accountId is retained as `legacyAccountId` metadata.
+Source rows must reproduce the raw CSV exactly. Normalization, export/import and
+cloud snapshots preserve the original source and historical decisions.
 
-`statementMappings` is an optional additive array of rules with string `id`,
-`accountId`, `field` (`description`, `originalDescription`, `category`,
-`parentCategory`), `pattern` (1–500 characters), `comparison` (`exact`,
-`contains`), `direction` (`in`, `out`), and `secondaryAccountId`. Accounts must exist
-and primary and secondary must differ. Legacy `action` hints remain readable for
-compatibility but do not control reconciliation actions. New rules contain no
-action. Matching is case-insensitive; description fields additionally normalize
-bank reference suffixes, long numeric tokens, dates and common payment prefixes.
-Empty normalized patterns never match. Category fields do not use this normalization.
-Rules mapping to different accounts conflict.
-Rules fill secondary accounts only and never approve/apply rows. Actions separately
-locate a payment within the chosen account or suggest adding a new actual.
-Rules are created and edited explicitly by the user; there is no proposal or
-rule-generation feature. Removing a rule does not regenerate it. Rules are preserved
-by normalization, export/import and cloud snapshots and checked by validation.
+New decisions record action (match, existing, create, ignore or line), occurrence
+key, appliedAt, primaryAccountId, secondaryAccountId, and the selected period
+(id, type, inclusive startDate/endDate), plus pre-change values where relevant.
+Historical decisions remain valid without new fields. A match can carry
+updateFuture: true to update the next recurring segment. Source-row fingerprints
+include bank identity, dates, description, signed amounts, balance and duplicate
+multiplicity; they prevent repeated application across imports, including lines.
+
+Line reconciliation finds an exact FTrack account pair and movement direction
+within the chosen period, ignoring the statement bank identity. One compatible
+target is selected, multiple require an explicit target, and none creates a
+manual period occurrence. Same-pair rows append dated source-linked line items;
+an existing non-itemized actual is preserved as an initial line. Actual totals
+sum lines without changing planned amounts or recurring rules. Skipped, split
+or frozen targets cannot receive lines. Source rows are never rewritten.
+
+`statementMappings` is an optional global-per-scenario rule array with string
+`id`, `primaryAccountId`, `secondaryAccountId`, `defaultAction` (line,
+match, create, existing, future or ignore), `field` (description,
+originalDescription, category or parentCategory), `pattern` (1–500 characters),
+`comparison` (exact or contains), and `direction` (in or out). Non-ignored
+rules require two existing distinct accounts. Rules supply the budget account
+pair and action, never automatic approval. Conflicts include differing pairs or
+actions. Row overrides do not change saved rules until explicitly saved.
+
+Schema 46 migrates old mapping accountId to primaryAccountId and legacy action
+hints to defaultAction (missing hints default to line). Original scope/action
+metadata is retained as legacyStatementAccountId/legacyAction. Matching remains
+case-insensitive; description fields normalize bank-reference suffixes, long
+numbers, dates and common payment prefixes. Category fields do not normalize
+these tokens. Empty normalized patterns never match. Rules are explicitly
+created/edited; no proposal-generation feature exists. All mutations are
+validated, and bulk operations apply atomically.
 
 Budget review reminders are durable scenario data. They are included in JSON
 exports and cloud snapshots and remain visible in the shared dashboard shell
@@ -302,7 +313,7 @@ type ProjectionConfig = {
 - Skipped occurrences are excluded.
 - Manual occurrences are included.
 - There is one resolved-plan projection source. `projection.config.source` is
-  not valid in schemaVersion 45.
+  not valid in schemaVersion 46.
 - When `asOfDate` is supplied, unresolved items before that date are flagged overdue and forecast at the as-of date.
 - `openCommitmentStartDate` can explicitly widen rule expansion before the projection start so older unresolved commitments are carried into the current window.
 

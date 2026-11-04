@@ -4,6 +4,7 @@ import { parseCsv,parseStatement,suggestStatementMatches,STATEMENT_HEADERS,defau
 import { createDefaultAppData } from '../../js/shared/app-data-utils.js';
 import { encodeCloudSnapshot,decodeCloudSnapshot } from '../../js/app/services/cloud-snapshot-codec.js';
 import { validateAppData } from '../../js/app/services/validation-service.js';
+import { migrateAppData } from '../../js/shared/migration-utils.js';
 globalThis.localStorage={data:new Map(),getItem(k){return this.data.get(k)||null;},setItem(k,v){this.data.set(k,v);}};
 globalThis.CustomEvent=class {constructor(type,options){this.type=type;this.detail=options.detail;}};
 globalThis.document={dispatchEvent(){}};
@@ -11,7 +12,9 @@ const store=await import('../../js/app/services/storage-service.js');
 const {retainStatement}=await import('../../js/app/services/statement-service.js');
 const {saveStatementMapping,removeStatementMapping,removeStatementMappings,updateStatementMappings}=await import('../../js/app/services/statement-service.js');
 const {statementMappingFor,statementMappingLabel,MAPPING_FIELDS,relevantMappingText,compileMappingSearch}=await import('../../js/shared/statement-mapping-utils.js');
-const {applyStatementDecisions}=await import('../../js/app/managers/occurrence-manager.js');
+const {applyStatementDecisions:applyStatementDecisionsCommand}=await import('../../js/app/managers/occurrence-manager.js');
+const january={id:'2026-01',type:'Month',startDate:'2026-01-01',endDate:'2026-01-31'};
+const applyStatementDecisions=(scenarioId,importId,decisions)=>applyStatementDecisionsCommand(scenarioId,importId,decisions.map(d=>({primaryAccountId:1,secondaryAccountId:2,period:january,...d})));
 const header=STATEMENT_HEADERS.join(',');
 const row=(nr,date,description,out,fee,balance)=>[nr,'bank-1',date,date+' 12:00',description,description,'Expenses','Services','',out,fee,balance].join(',');
 const csv=header+'\r\n'+row(1,'2026-01-15','Service','-100.00','','900.00')+'\r\n'+row(2,'2026-01-15','Fee','','-3.00','897.00');
@@ -34,6 +37,43 @@ test('CSV handles quoted commas, newlines and escaped quotes without source loss
  const p=parseStatement(csv);assert.equal(p.entries.length,2);assert.equal(p.entries[1].amountCents,-300);assert.deepEqual(p.balanceIssues,[]);
  assert.equal(parseStatement(csv.replace('897.00','896.00')).balanceIssues.length,1);
  assert.throws(()=>parseStatement(csv.replace('-100.00','oops')),/monetary/);
+});
+
+test('schema 45 statements and mappings upgrade losslessly to the account-independent workflow',async()=>{
+ await store.write(seed());await retainStatement(1,'legacy.csv',csv);const old=await store.read();old.schemaVersion=45;
+ old.scenarios[0].statementImports[0].accountId=1;old.scenarios[0].statementImports[0].decisions={0:{action:'ignore',occurrenceKey:null,appliedAt:'2026-01-16T00:00:00Z'}};
+ old.scenarios[0].statementMappings=[{id:'old',accountId:1,field:'description',pattern:'Service',comparison:'contains',direction:'out',secondaryAccountId:2,action:'prefer-match'}];
+ const original=JSON.stringify(old),upgraded=migrateAppData(old),scenario=upgraded.scenarios[0];
+ assert.equal(upgraded.schemaVersion,46);assert.equal(scenario.statementImports[0].accountId,undefined);assert.equal(scenario.statementImports[0].legacyAccountId,1);assert.equal(scenario.statementImports[0].rawCsv,csv);assert.deepEqual(scenario.statementImports[0].rows,old.scenarios[0].statementImports[0].rows);assert.deepEqual(scenario.statementImports[0].decisions,old.scenarios[0].statementImports[0].decisions);
+ assert.equal(scenario.statementMappings[0].primaryAccountId,1);assert.equal(scenario.statementMappings[0].defaultAction,'match');assert.equal(scenario.statementMappings[0].legacyStatementAccountId,1);assert.equal(JSON.stringify(old),original);assert.equal(validateAppData(upgraded).isValid,true);
+ assert.equal(upgraded.migrationReport.statementWorkflowUpgrade.sourceRowsAndDecisionsPreserved,true);
+ const bytes=new TextEncoder().encode(JSON.stringify(old)),sha256=Buffer.from(await crypto.subtle.digest('SHA-256',bytes)).toString('hex');
+ const decoded=await decodeCloudSnapshot({format:'ftrack-snapshot-v1',schemaVersion:45,chunkCount:1,byteLength:bytes.length,sha256},[{index:0,data:Buffer.from(bytes).toString('base64')}]);assert.equal(decoded.schemaVersion,46);assert.deepEqual(decoded.scenarios[0].statementImports,scenario.statementImports);
+});
+
+test('statement bank identity does not constrain the FTrack primary and repeated rows accumulate in a budget occurrence',async()=>{
+ const data=seed();data.scenarios[0].accounts.push({id:3,name:'Running Costs',type:5,currency:1,startingBalance:0,openDate:'2026-01-01'});data.scenarios[0].transactionOccurrences[0].primaryAccountId=3;data.scenarios[0].transactionOccurrences[0].scheduledDate='2026-01-01';await store.write(data);
+ const id=await retainStatement(1,'bank.csv',csv);await saveStatementMapping(1,{primaryAccountId:3,secondaryAccountId:2,field:'category',comparison:'exact',pattern:'Services',direction:'out',defaultAction:'line'});
+ const scenario=(await store.read()).scenarios[0];assert.equal(statementMappingFor(parseStatement(csv).entries[0],scenario.statementMappings,scenario.accounts).rule.primaryAccountId,3);
+ const decisions=[0,1].map(index=>({index,action:'line',primaryAccountId:3,secondaryAccountId:2,period:january,occurrenceKey:'occurrence:1',expectedAmount:100,expectedActualAmount:0}));
+ await applyStatementDecisionsCommand(1,id,decisions);const after=(await store.read()).scenarios[0];assert.equal(after.transactionOccurrences.length,1);assert.equal(after.transactionOccurrences[0].actualAmount,103);assert.equal(after.transactionOccurrences[0].primaryAccountId,3);assert.equal(after.transactionOccurrences[0].lineItems.length,2);assert.equal(after.statementImports[0].accountId,undefined);
+ const overlap=await retainStatement(1,'overlap.csv',csv+'\n');await assert.rejects(()=>applyStatementDecisionsCommand(1,overlap,[{...decisions[0],occurrenceKey:null}]),/already reconciled/);
+});
+
+test('missing targets create one period transaction and later periods remain separate',async()=>{
+ const data=seed();data.scenarios[0].transactionOccurrences=[];await store.write(data);const id=await retainStatement(1,'jan.csv',csv);
+ await applyStatementDecisions(1,id,[{index:0,action:'line'},{index:1,action:'line'}]);let scenario=(await store.read()).scenarios[0];assert.equal(scenario.transactionOccurrences.length,1);assert.equal(scenario.transactionOccurrences[0].actualAmount,103);assert.equal(scenario.transactionOccurrences[0].lineItems.length,2);
+ const feb=header+'\n'+row(1,'2026-02-15','Service','-70.00','','830.00'),febId=await retainStatement(1,'feb.csv',feb);await applyStatementDecisionsCommand(1,febId,[{index:0,action:'line',primaryAccountId:1,secondaryAccountId:2,period:{id:'2026-02',type:'Month',startDate:'2026-02-01',endDate:'2026-02-28'}}]);
+ scenario=(await store.read()).scenarios[0];assert.deepEqual(scenario.transactionOccurrences.map(o=>o.actualAmount),[103,70]);assert.deepEqual(scenario.transactionOccurrences.map(o=>o.scheduledDate),['2026-01-01','2026-02-01']);
+});
+
+test('period and target ambiguity are enforced atomically by the command, not just the UI',async()=>{
+ const data=seed();data.scenarios[0].transactionOccurrences.push({...data.scenarios[0].transactionOccurrences[0],id:2,occurrenceKey:'occurrence:2',scheduledDate:'2026-01-01'});await store.write(data);const id=await retainStatement(1,'test.csv',csv);
+ await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'line'}]),/Multiple transactions/);
+ await assert.rejects(()=>applyStatementDecisionsCommand(1,id,[{index:0,action:'line',primaryAccountId:1,secondaryAccountId:2}]),/valid reporting/);
+ await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'line',period:{startDate:'2026-02-01',endDate:'2026-02-28'}}]),/outside/);
+ assert.deepEqual((await store.read()).scenarios[0].statementImports[0].decisions,{});
+ await applyStatementDecisions(1,id,[{index:0,action:'line',occurrenceKey:'occurrence:2',expectedAmount:100}]);assert.equal((await store.read()).scenarios[0].transactionOccurrences.find(o=>o.id===2).actualAmount,100);
 });
 test('suggestions respect direction and support the secondary-account perspective',()=>{
  const entry=parseStatement(csv).entries[0];const o=seed().scenarios[0].transactionOccurrences[0];
@@ -64,7 +104,7 @@ test('stale plans, repeated targets and closed periods never partially apply',as
  await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100},{index:1,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100}]),/Two source rows/);
  let data=await store.read();assert.deepEqual(data.scenarios[0].statementImports[0].decisions,{});
  data.scenarios[0].baselinePeriods=[{id:'test',periodType:'Month',periodId:'2026-01',startDate:'2026-01-01',endDate:'2026-01-31',frozenAt:'2026-01-01T00:00:00Z'}];await store.write(data);
- await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100}]),/closed-period/);
+ await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100}]),/closed period/);
  assert.equal((await store.read()).scenarios[0].transactionOccurrences[0].status,'planned');
 });
 
@@ -82,13 +122,13 @@ test('mapping CRUD persists through cloud and checks scope, direction and confli
  const saved=scenario.statementMappings[0];
  assert.equal(statementMappingFor(entry,scenario.statementMappings,1,scenario.accounts).rule.id,saved.id);
  assert.equal(statementMappingFor({...entry,amountCents:10000},scenario.statementMappings,1,scenario.accounts).rule,null);
- assert.equal(statementMappingFor(entry,scenario.statementMappings,2,scenario.accounts).rule,null);
+ assert.equal(statementMappingFor(entry,scenario.statementMappings,2,scenario.accounts).rule.id,saved.id);
  await assert.rejects(()=>saveStatementMapping(1,rule),/already exists/);
- await saveStatementMapping(1,{...saved,action:'create'});
- scenario=(await store.read()).scenarios[0];assert.equal(scenario.statementMappings[0].action,'create');
+ await saveStatementMapping(1,{...saved,defaultAction:'create'});
+ scenario=(await store.read()).scenarios[0];assert.equal(scenario.statementMappings[0].defaultAction,'create');
  const encoded=await encodeCloudSnapshot(await store.read());const decoded=await decodeCloudSnapshot(encoded,encoded.chunks);
  assert.deepEqual(decoded.scenarios[0].statementMappings,scenario.statementMappings);
- const conflict={...saved,id:'another',field:'description',action:'ignore',secondaryAccountId:null};
+ const conflict={...saved,id:'another',field:'description',defaultAction:'ignore',secondaryAccountId:null};
  assert.equal(statementMappingFor(entry,[saved,conflict],1,scenario.accounts).conflict,true);
  await assert.rejects(()=>saveStatementMapping(1,{...rule,pattern:'other',secondaryAccountId:1}),/different/);
  await removeStatementMapping(1,saved.id);assert.deepEqual((await store.read()).scenarios[0].statementMappings,[]);

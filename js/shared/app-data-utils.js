@@ -1,10 +1,11 @@
 // app-data-utils.js
-// Shared helpers for persisting schemaVersion 45 app data.
+// Shared helpers for persisting schemaVersion 46 app data.
 
 import { DEFAULT_WORKFLOW_ID, getWorkflowById } from './workflow-registry.js';
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
+import { upgradeStatementMapping, upgradeStatementImport } from './statement-workflow-utils.js';
 
-export const CURRENT_SCHEMA_VERSION = 45;
+export const CURRENT_SCHEMA_VERSION = 46;
 export const DEFAULT_PERIOD_TYPE_ID = 3; // Month
 const VALID_OCCURRENCE_STATUSES = new Set(['planned', 'actual', 'skipped']);
 const VALID_OCCURRENCE_ORIGINS = new Set(['generated', 'manual', 'migrated']);
@@ -771,8 +772,8 @@ export function normalizeScenario(rawScenario) {
     transactionOccurrences,
     baselinePeriods,
     reviewReminders,
-    statementImports: Array.isArray(base.statementImports) ? JSON.parse(JSON.stringify(base.statementImports)) : [],
-    statementMappings: Array.isArray(base.statementMappings) ? JSON.parse(JSON.stringify(base.statementMappings)) : [],
+    statementImports: Array.isArray(base.statementImports) ? JSON.parse(JSON.stringify(base.statementImports)).map(upgradeStatementImport) : [],
+    statementMappings: Array.isArray(base.statementMappings) ? JSON.parse(JSON.stringify(base.statementMappings)).map(upgradeStatementMapping) : [],
     timeframe,
     projection,
     planning: nextPlanning

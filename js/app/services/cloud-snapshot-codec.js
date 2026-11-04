@@ -1,8 +1,10 @@
 import {
   assertCurrentSchemaVersion,
+  CURRENT_SCHEMA_VERSION,
   sanitizeAppDataForWrite
 } from '../../shared/app-data-utils.js';
 import { validateAppData } from './validation-service.js';
+import { migrateAppData } from '../../shared/migration-utils.js';
 
 export const CLOUD_SNAPSHOT_FORMAT = 'ftrack-snapshot-v1';
 export const DEFAULT_CHUNK_BYTES = 512 * 1024;
@@ -119,6 +121,8 @@ export async function decodeCloudSnapshot(metadata, chunks) {
   } catch (error) {
     throw new Error(`Cloud snapshot is not valid JSON: ${error.message}`);
   }
+  // Integrity is verified against the original bytes before upgrading the decoded copy.
+  if(Number(parsed?.schemaVersion)<CURRENT_SCHEMA_VERSION)parsed=migrateAppData(parsed);
   return assertValidCurrentData(parsed);
 }
 

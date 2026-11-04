@@ -508,118 +508,62 @@ configuration. Recording it Actual or Skipped removes that uncertainty.
 
 ### 5.4 Statement Upload and Reconciliation
 
-Open **Statements** in the dashboard top bar. Select the FTrack account and
-upload the bank CSV export containing Posting Date, Transaction Date,
-Description, Original Description, Money In, Money Out, Fee and Balance.
-Select **Retain CSV for review** to save the source without changing actuals.
-The review defaults to the current 25th-to-25th cycle: the start date is
-included and the end date is excluded. Change **From** and **To**, then select
-**Apply time frame**, or select **Show full statement**. Only visible approved
-rows are applied, even if you previously approved a row in another window.
-The full original source table and download always retain every source row.
+Open **Statements** and choose a CSV. Uploading retains the complete original
+source automatically; no FTrack primary account attachment is required.
+Select a retained statement, then choose a **reporting / budget period**.
+Calendar Month, Week, Quarter and Year use FTrack's reporting period generator.
+Custom periods accept inclusive start/end dates (for example a 25th–24th budget).
+Only rows in the selected period can be approved or applied. The full source
+grid and original CSV download always contain all original rows.
 
-Insufficient-funds failures appear in a red **Flagged / excluded entries** list
-and are removed from the reconcilable transaction grid. Their flags are also
-included in the downloadable report and reconstructed from retained source
-data after reload. They cannot be marked as completed payments by the importer.
-Separately charged fees remain reconcilable. Existing budget items and actuals
-are not automatically deleted or marked skipped.
+Saved mappings match Description, Original Description, Category or Parent
+Category and supply **FTrack primary account**, **secondary account** and
+**default action**. These are budget accounts, not necessarily the statement's
+bank account. For example, a Main-bank statement can map purchases to
+Running Costs → Shop A. No extra Main → Running Costs entry is generated.
+Override either account or the action on a review row without rewriting its
+mapping; use the save icon to explicitly create or update a rule.
 
-The action menu contains only **Match planned payment**, **Link existing
-actual**, **Create new actual**, and **Ignore**. For a match/link, select
-**Choose payment** to open a searchable list of compatible existing FTrack
-transactions with their account, date and amount. Planned candidates are within
-seven days of the bank entry; existing actuals must agree exactly on date and
-amount. These are transactions to link to, not alternative action types.
-Secondary accounts remain editable. Changing the account on a linked row
-clears that link, clears approval, and switches to creating a new actual;
-choose Match planned payment again to select a different existing payment.
+**Add line item** is the default for new rules. Within the selected period:
 
-The complete original CSV, all columns and rows, filename, import time and
-SHA-256 digest are retained within the scenario and included in JSON backups
-and cloud snapshots. This consumes browser storage; a quota failure is reported
-without partially saving the import. Sources are private financial data.
+- One compatible account-pair transaction is selected automatically.
+- Multiple compatible transactions require **Choose payment**.
+- No transaction offers creating a period-only transaction upon approval.
+- Multiple approved rows for that pair add dated lines to the same transaction.
+- Later periods use separate occurrences, including for recurring transactions.
+Adding lines remains available after the first actual; recurring definitions
+and planned amounts are not changed by ordinary line additions.
 
-Choose a retained source to revisit its full original table, download the
-original CSV, or download the reconciliation report. Suggestions compare
-account direction, amounts, posting dates and descriptions. Suggestions are
-not approvals: tick rows explicitly before **Apply approved rows**.
+**Create period transaction** explicitly creates a period-only transaction and
+groups its approved same-pair rows. **Add actual + close plan** replaces an
+unresolved planned payment's actual. **Already recorded** links an existing
+exact-date/exact-amount actual without adding it again. **Actual + update future
+plan** additionally changes the next recurring planned segment. **Ignore**
+records the review without changing any FTrack transaction.
 
-- Match a planned item to record its actual amount and posting date without
-  changing the recurring rule or planned amount.
-- Link an existing actual only when its amount and date already agree.
-- Create an unplanned actual by choosing the secondary account.
-- Ignore a row to retain it as source evidence without affecting the budget,
-  or leave it unchecked to review later.
+Insufficient-funds entries are flagged red and excluded from approval, while
+charged fees remain reviewable. Balance failures block application. Split,
+skipped and closed-period targets require separate review. Duplicate detection
+covers all retained statements, including rows previously added as line items.
 
-Fees are separate CSV rows and must not be dropped or counted twice. Identical
-and overlapping imports are checked against previously reconciled source rows.
-One planned item cannot receive two rows in the same approval batch. Itemized,
-split and closed-period items require manual handling outside this first
-version. Transfers are not automatically paired across imported accounts;
-review existing actuals carefully before creating a second movement.
-All approved rows and their source links are saved in one atomic commit.
-There is no automatic import undo in this version; review before applying.
+The source, review and mapping grids are sortable and use alternating row
+banding. Review grouping and bulk approval preserve source-row identity.
+**Apply approved rows** commits the selected decisions and transaction changes
+together. Decisions retain the period, chosen accounts, target and pre-change
+values. Original source records and previously reviewed decisions are preserved.
 
-#### Sorting, Grouping and Mapping Rules
+In the mapping grid, click cells to edit text, account pairs or default actions.
+Enter/leaving the cell saves; Escape cancels. Validation failures revert the
+change. Selection and bulk editing/removal affect only visible filtered rules;
+saving/removing keeps the section open. There are no generated mapping proposals.
+Search is case-insensitive: * matches zero or more characters, % exactly one,
+and ** / %% match literal * / %. This syntax affects search only.
 
-There is one automatic mapping system: saved rules. The review grid shows
-Description, Original Description, Category and Parent Category, each sortable
-and available for grouping. **Secondary account / mapping** displays the actual stored
-condition and target account (for example, Original description contains
-“Merchant” → Shop), or **No saved mapping**. An amount/date similarity is not a
-mapping rule. Without a saved rule, the secondary account stays blank until
-you choose it manually or save a rule. Manual choices do not create
-rules implicitly. Amount/date matching is used only after a saved rule has
-identified the secondary account, to locate an existing payment there.
-The separate payment picker remains available for explicit manual linking.
-Use the save icon beside the secondary account to create a mapping, then choose
-any of the four source fields in the editor. Only saved mappings are listed;
-there is no generated-proposal feature.
-
-Click a column header in the review grid or original source table to sort it;
-click again to reverse the order. This changes display order only, not the
-retained CSV or the source-row links. Row choices and approvals survive sorting
-and grouping. Group the review by description, bank category, secondary
-account, mapping rule, action or month. **Approve group** selects eligible rows
-in that group; **Approve all eligible rows** selects across the statement.
-Incomplete, protected and duplicate-target choices are not bulk-selected.
-Use **Apply approved rows** to commit the selected decisions together.
-
-Open **Mapping rules** to add, edit or remove scenario-level rules. Conditions
-include the FTrack primary account, money direction, a source field (description,
-original description, category or parent category), and an Equals or Contains
-text comparison. Choose a secondary account; reconciliation actions are separate.
-Rules are case-insensitive; conflicting accounts remain unresolved.
-Tied candidate matches require review rather than a guessed match.
-
-After choosing a row's secondary account, its save icon opens a prefilled rule
-for you to review and save. The view icon opens an existing matching rule.
-Saving/removing rules refreshes automatic suggestions and clears approvals.
-Removing a rule leaves the section open, including after removing the last rule,
-and does not generate replacement proposals. Rules persist through
-reloads, JSON backups and cloud sync. Removing an account also removes rules
-that reference it. Retained source records and previous decisions are unchanged.
-
-The mapping grid supports single-click editing: text cells open an input and
-condition/account cells open a dropdown. Enter or leaving the cell saves without
-closing the mapping section; Escape cancels the cell edit. Invalid changes revert.
-All grids use alternating row banding in light and dark themes. To update several
-rules, select their checkboxes and choose the shared changes in the bulk toolbar.
-**Apply to selected mappings** changes only those rules; **Keep current** preserves
-the field, and the individual matching text is never replaced by a bulk edit.
-The whole bulk edit must pass validation before any selected rule changes.
-Use the description/matching-text search and secondary-account filter together
-to find rules while cleaning up. Filters remain after saving. Select all visible
-mappings selects only the filtered results; hidden selections are cleared when
-filters change. Clear mapping filters restores the complete list.
-Search is case-insensitive: `*` matches zero or more characters and `%` exactly
-one character. Use `**` for a literal star and `%%` for a literal percent.
-Search still finds matching text anywhere within the rule, and saved mapping
-conditions do not acquire wildcard behavior. To remove
-multiple rules, select them and use Remove selected mappings, then confirm the
-count. Only selected visible rules are removed; transactions and CSV sources
-remain intact. Cancel leaves everything unchanged.
+Schema 45 data upgrades through Data Check to schema 46. Existing mapping
+account IDs become their FTrack primary account; missing default actions become
+Add line item (legacy explicit actions are preserved as defaults).
+Old statement account links are retained as legacy metadata, not enforced.
+All source text, hashes, decisions and existing transactions remain intact.
 
 ### 5.5 Leave a Reminder for the Next Review
 
@@ -789,7 +733,7 @@ causes are duplicate occurrence keys, invalid dates, or missing account
 references.
 
 If imported data behaves unexpectedly, review the migration report retained
-with schemaVersion 45 app data. Legacy rows that cannot be converted cleanly
+with schemaVersion 46 app data. Legacy rows that cannot be converted cleanly
 are retained there for recovery rather than silently discarded.
 
 Data Check upgrades legacy Budget rows into plan occurrences and updates a

@@ -27,6 +27,11 @@ Do not add service-account, Admin SDK, or private key material to FTrack. The
 web-app configuration identifies the Firebase project; Authentication and
 Firestore Security Rules authorize data access.
 
+Schema 46 release prerequisite: publish the updated `firestore.rules` alongside
+the application before enabling cloud writes. The rules require schema 46 for
+new snapshots. Older snapshots are integrity-verified before in-memory migration;
+their stored bytes and original statement sources are not rewritten on download.
+
 ## Product Outcome
 
 FTrack users can:
@@ -97,7 +102,7 @@ added later without moving existing data.
 {
   format: 'ftrack-snapshot-v1',
   activeRevision: 'revision-id',
-  schemaVersion: 45,
+  schemaVersion: 46,
   chunkCount: 3,
   byteLength: 1234567,
   sha256: 'hex-digest',
@@ -111,7 +116,7 @@ added later without moving existing data.
 ```js
 {
   format: 'ftrack-snapshot-v1',
-  schemaVersion: 45,
+  schemaVersion: 46,
   chunkCount: 3,
   byteLength: 1234567,
   sha256: 'hex-digest',
