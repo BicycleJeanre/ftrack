@@ -548,6 +548,7 @@ function buildStoredOccurrence({
         ? (base?.lineItems ?? [])
         : (storedOccurrence?.lineItems ?? base?.lineItems ?? [])
     ),
+    plannedLineItems: clonePlain(storedOccurrence?.plannedLineItems || []),
     scheduledDate,
     plannedDate,
     actualDate,

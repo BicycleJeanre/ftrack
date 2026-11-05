@@ -531,6 +531,17 @@ mapping; use the save icon to explicitly create or update a rule.
 
 Actions are suggested from the available budget-period transaction:
 
+Each mapping can optionally enable **Amount matching**, with **Variance %**
+(0–100) and **Above plan / Below plan / Both**. For a planned 100 and 5%, Above
+accepts 100–105, Below accepts 95–100, and Both accepts 95–105 (inclusive).
+0% requires an exact amount; Off does not filter by amount. Existing mappings
+default to Off. Edit these fields in the mapping form, grid cells or bulk controls.
+One uniquely in-range Insurance policy is selected even when several policies
+share the same accounts. Ambiguous or out-of-range results require review, not
+creation of a duplicate. Use the percentage button to bypass tolerance for one
+row, or choose any candidate manually; neither changes the saved mapping.
+The report records the settings and override. Nothing is approved automatically.
+
 - A single statement row for an existing account pair gets **Add actual + close plan**.
 - Multiple statement rows for the same pair get **Add line item**.
 - Multiple compatible transactions require **Choose payment**.
@@ -539,6 +550,9 @@ Actions are suggested from the available budget-period transaction:
 - Later periods use separate occurrences, including for recurring transactions.
 Adding lines remains available after the first actual; recurring definitions
 and planned amounts are not changed by ordinary line additions.
+When reconciling a planned breakdown, its original lines are retained separately
+and are not counted as actual spending. The editor shows **Original planned line
+items** for reference; incoming statement rows alone form the actual lines.
 Matching checks both account orientations within the budget period, without
 requiring the bank's Money In/Out type to equal the FTrack transaction type.
 The existing FTrack movement is preserved. **Budget amount** shows the current

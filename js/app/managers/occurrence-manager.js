@@ -3,7 +3,7 @@
 import * as DataStore from '../services/storage-service.js';
 import { parseStatement, signedOccurrenceAmount } from '../../shared/statement-utils.js';
 import { appliedStatementFingerprints } from '../services/statement-service.js';
-import { validateStatementPeriod, inStatementPeriod, statementTargetCandidates, statementPairOccurrences, statementAccountPairMatches } from '../../shared/statement-workflow-utils.js';
+import { validateStatementPeriod, inStatementPeriod, statementTargetCandidates, statementPairOccurrences, statementAccountPairMatches, normalizeAmountMatching } from '../../shared/statement-workflow-utils.js';
 import { allocateNextId } from '../../shared/app-data-utils.js';
 import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
 import { generateRecurrenceDates } from '../../domain/calculations/recurrence-calculations.js';
@@ -88,6 +88,7 @@ function snapshotOccurrenceMetadata(occurrence) {
     recurrenceDescription: occurrence?.recurrenceDescription ?? '',
     periodicChange: clonePlain(occurrence?.periodicChange ?? null),
     lineItems: clonePlain(occurrence?.lineItems ?? []),
+    plannedLineItems: clonePlain(occurrence?.plannedLineItems ?? []),
     actualSnapshotVersion: 1
   };
 }
@@ -2125,6 +2126,7 @@ export async function restoreActualToPlanned(
 
       const patch = normalizeOccurrencePlanPatch({
         ...clonePlain(updates),
+        ...(!hasOwn(updates,'lineItems')&&occurrence.plannedLineItems?.length?{lineItems:clonePlain(occurrence.plannedLineItems)}:{}),
         status: 'planned'
       });
       const requestedPlan = Number(patch.plannedAmount || 0);
@@ -2787,23 +2789,24 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
         const priorMode=targets.get(target.occurrenceKey);
         if(priorMode&&(!lineAction||priorMode!=='line'))throw new Error('Two source rows cannot close or link the same occurrence.');
         targets.set(target.occurrenceKey,lineAction?'line':'single');
-        before={status:target.status,plannedAmount:target.plannedAmount,actualAmount:target.actualAmount??null,actualDate:target.actualDate??null,lineItems:clonePlain(target.lineItems||[])};
+        before={status:target.status,plannedAmount:target.plannedAmount,actualAmount:target.actualAmount??null,actualDate:target.actualDate??null,lineItems:clonePlain(target.lineItems||[]),plannedLineItems:clonePlain(target.plannedLineItems||[])};
+        const plannedLineItems=clonePlain(target.status==='planned'&&target.lineItems?.length?target.lineItems:target.plannedLineItems||[]);
         // Auto-created/auto-resolved groups are checked within this serialized command.
         if(!priorMode&&decision.occurrenceKey){
           if(decision.expectedAmount!==target.plannedAmount)throw new Error('The plan changed since review. Refresh the statement.');
           if((lineAction||decision.expectedActualAmount!==undefined)&&Number(decision.expectedActualAmount??0)!==Number(target.actualAmount??0))throw new Error('The actual changed since review. Refresh the statement.');
         }
         if(lineAction){
-          const items=clonePlain(target.lineItems||[]);
+          const items=clonePlain(target.status==='actual'?target.lineItems||[]:[]);
           if(!items.length&&target.status==='actual'&&Number(target.actualAmount)>0)items.push({id:`prior:${target.occurrenceKey}`,date:target.actualDate,description:'Previously recorded actual',amount:Number(target.actualAmount)});
           items.push({id:`statement:${batch.id}:${entry.index}`,date:entry.postingDate,description:entry.originalDescription||entry.description,amount:Math.abs(entry.amountCents)/100});
           const normalized=normalizeLineItems(items,entry.postingDate);
-          upsertOccurrence(scenario,target,{...snapshotOccurrenceMetadata(target),...snapshotBaselineMetadata(target),lineItems:normalized,baselineAmount:target.baselineAmount??target.plannedAmount,plannedAmount:target.plannedAmount,actualAmount:lineItemsTotal(normalized),actualDate:normalized.map(i=>i.date).filter(Boolean).sort().at(-1)||entry.postingDate,status:'actual',isOverride:true},timestamp,{isOverride:true});
+          upsertOccurrence(scenario,target,{...snapshotOccurrenceMetadata(target),...snapshotBaselineMetadata(target),lineItems:normalized,plannedLineItems,baselineAmount:target.baselineAmount??target.plannedAmount,plannedAmount:target.plannedAmount,actualAmount:lineItemsTotal(normalized),actualDate:normalized.map(i=>i.date).filter(Boolean).sort().at(-1)||entry.postingDate,status:'actual',isOverride:true},timestamp,{isOverride:true});
         }else if(decision.action==='existing'){
           if(target.status!=='actual'||signedOccurrenceAmount(target,movement.primaryAccountId)!==entry.amountCents||target.actualDate!==entry.postingDate)throw new Error('Existing actual must have the same amount and posting date.');
         }else{
-          if(target.lineItems?.length&&Math.round(Number(target.actualAmount)*100)!==Math.abs(entry.amountCents))throw new Error('This transaction already contains line items. Use Add line item or review its existing lines before replacing the total.');
-          upsertOccurrence(scenario,target,{...snapshotOccurrenceMetadata(target),...snapshotBaselineMetadata(target),lineItems:clonePlain(target.lineItems||[]),baselineAmount:target.baselineAmount??target.plannedAmount,plannedAmount:target.plannedAmount,actualAmount:Math.abs(entry.amountCents)/100,actualDate:entry.postingDate,status:'actual',isOverride:true},timestamp,{isOverride:true});
+          if(target.status==='actual'&&target.lineItems?.length&&Math.round(Number(target.actualAmount)*100)!==Math.abs(entry.amountCents))throw new Error('This transaction already contains line items. Use Add line item or review its existing lines before replacing the total.');
+          upsertOccurrence(scenario,target,{...snapshotOccurrenceMetadata(target),...snapshotBaselineMetadata(target),lineItems:clonePlain(target.status==='actual'?target.lineItems||[]:[]),plannedLineItems,baselineAmount:target.baselineAmount??target.plannedAmount,plannedAmount:target.plannedAmount,actualAmount:Math.abs(entry.amountCents)/100,actualDate:entry.postingDate,status:'actual',isOverride:true},timestamp,{isOverride:true});
           if(decision.updateFuture){
             const rule=scenario.transactions.find(t=>Number(t.id)===Number(target.sourceTransactionId));
             if(!rule||!isRecurringRule(rule))throw new Error('Updating future planned values requires a recurring payment.');
@@ -2821,6 +2824,7 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
         }
       }
       batch.decisions[decision.index]={action:decision.action,occurrenceKey,primaryAccountId:decision.primaryAccountId??null,secondaryAccountId:decision.secondaryAccountId??null,period,transactionWindow,appliedAt:timestamp,before,updateFuture:Boolean(decision.updateFuture),actualAmount:decision.action==='ignore'?null:Math.abs(entry.amountCents)/100,actualDate:decision.action==='ignore'?null:entry.postingDate};
+      if(decision.amountMatching)Object.assign(batch.decisions[decision.index],{amountMatching:normalizeAmountMatching(decision.amountMatching),amountToleranceOverridden:Boolean(decision.amountToleranceOverridden)});
       changes.push({index:decision.index,action:decision.action,occurrenceKey});
     }
     // Promote after summing all approved lines, in this same atomic command.

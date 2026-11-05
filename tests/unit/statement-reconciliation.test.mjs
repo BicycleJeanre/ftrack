@@ -5,7 +5,7 @@ import { createDefaultAppData } from '../../js/shared/app-data-utils.js';
 import { encodeCloudSnapshot,decodeCloudSnapshot } from '../../js/app/services/cloud-snapshot-codec.js';
 import { validateAppData } from '../../js/app/services/validation-service.js';
 import { migrateAppData } from '../../js/shared/migration-utils.js';
-import { statementSourceWindow, suggestStatementAction } from '../../js/shared/statement-workflow-utils.js';
+import { statementSourceWindow, suggestStatementAction, normalizeAmountMatching, statementAmountMatches } from '../../js/shared/statement-workflow-utils.js';
 globalThis.localStorage={data:new Map(),getItem(k){return this.data.get(k)||null;},setItem(k,v){this.data.set(k,v);}};
 globalThis.CustomEvent=class {constructor(type,options){this.type=type;this.detail=options.detail;}};
 globalThis.document={dispatchEvent(){}};
@@ -19,6 +19,38 @@ const applyStatementDecisions=(scenarioId,importId,decisions)=>applyStatementDec
 const header=STATEMENT_HEADERS.join(',');
 const row=(nr,date,description,out,fee,balance)=>[nr,'bank-1',date,date+' 12:00',description,description,'Expenses','Services','',out,fee,balance].join(',');
 const csv=header+'\r\n'+row(1,'2026-01-15','Service','-100.00','','900.00')+'\r\n'+row(2,'2026-01-15','Fee','','-3.00','897.00');
+
+test('optional amount tolerance supports above, below, both, exact and inclusive boundaries',()=>{
+ const plan={plannedAmount:100},settings={amountMatchingEnabled:true,amountVariancePercent:5};
+ for(const [direction,amount,expected] of [['up',105,true],['up',95,false],['down',95,true],['down',105,false],['both',95,true],['both',105,true],['both',94.99,false],['both',105.01,false]])assert.equal(statementAmountMatches({amountCents:-Math.round(amount*100)},plan,{...settings,amountVarianceDirection:direction}),expected);
+ assert.equal(statementAmountMatches({amountCents:10001},plan,{...settings,amountVariancePercent:0}),false);assert.equal(statementAmountMatches({amountCents:-10000},plan,{...settings,amountVariancePercent:0}),true);
+ assert.equal(statementAmountMatches({amountCents:99999},plan,{}),true);
+ assert.equal(statementAmountMatches({amountCents:1},{plannedAmount:0},settings),false);
+ for(const invalid of [{amountVariancePercent:-1},{amountVariancePercent:101},{amountVarianceDirection:'sideways'},{amountMatchingEnabled:'maybe'}])assert.throws(()=>normalizeAmountMatching(invalid));
+});
+
+test('amount settings distinguish same-account policies without forcing an out-of-range match or creation',()=>{
+ const first=seed().scenarios[0].transactionOccurrences[0],second={...first,occurrenceKey:'policy-2',plannedAmount:200};
+ const options={occurrences:[first,second],entry:{amountCents:-10300},primaryAccountId:1,secondaryAccountId:2,period:january,rowCount:2,amountMatching:{amountMatchingEnabled:true,amountVariancePercent:5,amountVarianceDirection:'both'}};
+ assert.deepEqual(suggestStatementAction(options),{action:'match',targetKey:first.occurrenceKey});
+ assert.deepEqual(suggestStatementAction({...options,entry:{amountCents:-15000}}),{action:'match',targetKey:null});
+ assert.deepEqual(suggestStatementAction({...options,amountMatching:{amountMatchingEnabled:false}}),{action:'line',targetKey:null});
+});
+
+test('mapping variance persists through save, bulk edit and cloud transport and rejects invalid edits atomically',async()=>{
+ await store.write(seed());await saveStatementMapping(1,{primaryAccountId:1,secondaryAccountId:2,field:'description',pattern:'Service',comparison:'contains',direction:'out',amountMatchingEnabled:true,amountVariancePercent:5,amountVarianceDirection:'up'});const id=(await store.read()).scenarios[0].statementMappings[0].id;
+ await assert.rejects(()=>updateStatementMappings(1,[id],{amountVariancePercent:-1}),/between 0 and 100/);
+ assert.equal((await store.read()).scenarios[0].statementMappings[0].amountVariancePercent,5);
+ await updateStatementMappings(1,[id],{amountMatchingEnabled:'false',amountVarianceDirection:'down'});const after=await store.read(),encoded=await encodeCloudSnapshot(after),decoded=await decodeCloudSnapshot(encoded,encoded.chunks),rule=decoded.scenarios[0].statementMappings[0];assert.equal(rule.amountMatchingEnabled,false);assert.equal(rule.amountVarianceDirection,'down');assert.equal(rule.amountVariancePercent,5);
+});
+
+test('statement actual lines exclude planned lines, preserving the planned breakdown and cloud round-trip',async()=>{
+ const data=seed(),plan=data.scenarios[0].transactionOccurrences[0];plan.lineItems=[{id:'p1',date:'2026-01-15',description:'Policy A',amount:60},{id:'p2',date:'2026-01-15',description:'Policy B',amount:40}];await store.write(data);
+ const id=await retainStatement(1,'policies.csv',csv);await applyStatementDecisions(1,id,[{index:0,action:'line',occurrenceKey:'occurrence:1',expectedAmount:100,expectedActualAmount:0},{index:1,action:'line',occurrenceKey:'occurrence:1',expectedAmount:100,expectedActualAmount:0}]);
+ const after=await store.read(),actual=after.scenarios[0].transactionOccurrences[0];assert.equal(actual.plannedAmount,100);assert.equal(actual.actualAmount,103);assert.equal(actual.lineItems.length,2);assert.deepEqual(actual.plannedLineItems,plan.lineItems);
+ assert.equal(validateAppData(after).isValid,true,JSON.stringify(validateAppData(after)));const encoded=await encodeCloudSnapshot(after),decoded=await decodeCloudSnapshot(encoded,encoded.chunks);assert.deepEqual(decoded.scenarios[0].transactionOccurrences[0].plannedLineItems,plan.lineItems);
+ const {restoreActualToPlanned}=await import('../../js/app/managers/occurrence-manager.js');await restoreActualToPlanned(1,'occurrence:1');const restored=(await store.read()).scenarios[0].transactionOccurrences[0];assert.deepEqual(restored.lineItems,plan.lineItems);assert.equal(restored.plannedAmount,100);
+});
 
 test('source salary windows are independent of budget dates, including year boundaries',()=>{
  assert.deepEqual(statementSourceWindow(january),{startDate:'2025-12-25',endDate:'2026-01-25'});

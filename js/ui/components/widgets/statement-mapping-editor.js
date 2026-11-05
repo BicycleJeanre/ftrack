@@ -2,7 +2,7 @@ import { saveStatementMapping, removeStatementMapping, removeStatementMappings, 
 import { confirmDialog } from '../../../shared/notifications.js';
 import { createGrid } from '../grids/grid-factory.js';
 import { MAPPING_FIELD_LABELS, compileMappingSearch } from '../../../shared/statement-mapping-utils.js';
-import { STATEMENT_ACTIONS } from '../../../shared/statement-workflow-utils.js';
+import { STATEMENT_ACTIONS, normalizeAmountMatching } from '../../../shared/statement-workflow-utils.js';
 import { createScenarioAccountSelectors } from './scenario-account-select.js';
 
 export function buildStatementMappingEditor({scenario,scenarioId,accountId,accountSelectors:providedSelectors,onChanged,onError,state={}}) {
@@ -38,7 +38,10 @@ export function buildStatementMappingEditor({scenario,scenarioId,accountId,accou
   // Selections outside restored filters must not participate in a later bulk edit.
   for(const id of selected)if(!saved.some(r=>r.id===id&&matches(r)))selected.delete(id);syncSelection();
   const fields=Object.entries(MAPPING_FIELD_LABELS),comparisons=[['contains','Contains'],['exact','Equals']],directions=[['out','Money out'],['in','Money in']],actions=Object.entries(STATEMENT_ACTIONS);
+  const amountModes=[['false','Off'],['true','On']],varianceDirections=[['both','Both'],['up','Above plan'],['down','Below plan']];
+  const percentInput=(label)=>{const input=node('input');input.type='number';input.min='0';input.max='100';input.step='0.01';input.setAttribute('aria-label',label);return input;};
   const bulkControls=[['primaryAccountId','Primary account',accountSelect('Bulk mapping primary account',{emptyLabel:'Keep current'})],['secondaryAccountId','Secondary account',accountSelect('Bulk mapping secondary account',{emptyLabel:'Keep current',defaultTypeId:5})],['defaultAction','Default action',select('Bulk mapping default action',[['','Keep current'],...actions])],['field','Field',select('Bulk mapping field',[['','Keep current'],...fields])],['comparison','Comparison',select('Bulk mapping comparison',[['','Keep current'],...comparisons])],['direction','Direction',select('Bulk mapping direction',[['','Keep current'],...directions])]];
+  bulkControls.push(['amountMatchingEnabled','Amount matching',select('Bulk mapping amount matching',[['','Keep current'],...amountModes])],['amountVariancePercent','Variance %',percentInput('Bulk mapping variance percent')],['amountVarianceDirection','Variance direction',select('Bulk mapping variance direction',[['','Keep current'],...varianceDirections])]);
   const setSelection=checked=>{for(const rule of saved){if(checked&&matches(rule))selected.add(rule.id);else selected.delete(rule.id);const check=checks.get(rule.id);if(check)check.checked=selected.has(rule.id);}syncSelection();};
   bulk.append(button('Select all visible mappings',()=>setSelection(true)),button('Clear mapping selection',()=>setSelection(false)),count);
   for(const [,label,input] of bulkControls){const l=node('label',label);l.append(input);bulk.append(l);}
@@ -56,6 +59,7 @@ export function buildStatementMappingEditor({scenario,scenarioId,accountId,accou
   const editor=(label,options)=> (cell,onRendered,success,cancel)=>{
     const input=options?select(`Edit mapping ${label}`,typeof options==='function'?options(cell):options):node('input');
     input.setAttribute('aria-label',`Edit mapping ${label}`);if(!options)input.maxLength=500;
+    if(label==='Variance %'){input.type='number';input.min='0';input.max='100';input.step='0.01';}
     input.value=String(cell.getValue()??'');let done=false;
     const commit=()=>{if(!done){done=true;success(input.value);}};
     input.onchange=()=>{if(options)commit();};input.onblur=commit;
@@ -72,9 +76,9 @@ export function buildStatementMappingEditor({scenario,scenarioId,accountId,accou
   async function ensureGrid(){
     if(building)return building;
     building=(async()=>{
-      grid=await createGrid(holder,{data:saved.map(r=>({...r})),editTriggerEvent:'click',responsiveLayout:false,layout:'fitColumns',height:saved.length>8?'42vh':undefined,rowHeight:42,placeholder:saved.length?'No mappings match the current filters':'No saved mappings',columns:[
+      grid=await createGrid(holder,{data:saved.map(r=>({...r,...normalizeAmountMatching(r)})),editTriggerEvent:'click',responsiveLayout:false,layout:'fitColumns',height:saved.length>8?'42vh':undefined,rowHeight:42,placeholder:saved.length?'No mappings match the current filters':'No saved mappings',columns:[
         {title:'Select',field:'selected',width:70,headerSort:false,formatter:cell=>{const r=cell.getData();const check=node('input');check.type='checkbox';check.checked=selected.has(r.id);check.setAttribute('aria-label',`Select mapping ${r.pattern}`);check.onclick=e=>e.stopPropagation();check.onchange=()=>{if(check.checked)selected.add(r.id);else selected.delete(r.id);syncSelection();};checks.set(r.id,check);return check;}},
-        accountColumn('Primary account','primaryAccountId'),column('Field','field',fields),column('Comparison','comparison',comparisons),{...column('Text','pattern'),widthGrow:2},column('Direction','direction',directions),accountColumn('Secondary account','secondaryAccountId'),column('Default action','defaultAction',actions),
+        accountColumn('Primary account','primaryAccountId'),column('Field','field',fields),column('Comparison','comparison',comparisons),{...column('Text','pattern'),widthGrow:2},column('Direction','direction',directions),accountColumn('Secondary account','secondaryAccountId'),column('Default action','defaultAction',actions),column('Amount matching','amountMatchingEnabled',amountModes),column('Variance %','amountVariancePercent'),column('Variance direction','amountVarianceDirection',varianceDirections),
         {title:'Actions',field:'actions',width:80,headerSort:false,formatter:cell=>{const remove=button('×',async()=>{await removeStatementMapping(scenarioId,cell.getData().id);await onChanged({keepOpen:true});});remove.title='Remove mapping';remove.setAttribute('aria-label','Remove mapping');return remove;}}
       ],cellEdited:async cell=>{
         try{await updateStatementMappings(scenarioId,[cell.getData().id],{[cell.getField()]:cell.getValue()});await onChanged({keepOpen:true});}
@@ -91,15 +95,17 @@ export function buildStatementMappingEditor({scenario,scenarioId,accountId,accou
   // The small form is only for creating a new mapping; existing rules edit in grid cells.
   const form=node('form');form.className='statement-mapping-form';form.hidden=true;
   const primary=accountSelect('Mapping primary account'),field=select('Mapping field',fields),comparison=select('Mapping comparison',comparisons),direction=select('Mapping direction',directions),secondary=accountSelect('Mapping secondary account',{emptyLabel:'Choose secondary account',defaultTypeId:5});
-  const defaultAction=select('Mapping default action',actions);
+  const defaultAction=select('Mapping default action',actions),amountMode=select('Mapping amount matching',amountModes),variancePercent=percentInput('Mapping variance percent'),varianceDirection=select('Mapping variance direction',varianceDirections);
+  variancePercent.value='0';
   const pattern=node('input');pattern.maxLength=500;pattern.setAttribute('aria-label','Mapping text');
-  for(const [label,input] of [['Primary account',primary],['Field',field],['Comparison',comparison],['Text',pattern],['Direction',direction],['Secondary account',secondary],['Default action',defaultAction]]){const l=node('label',label);l.append(input);form.append(l);}
-  const save=button('Save mapping',async()=>{await saveStatementMapping(scenarioId,{primaryAccountId:primary.value,field:field.value,comparison:comparison.value,pattern:pattern.value,direction:direction.value,secondaryAccountId:secondary.value,defaultAction:defaultAction.value});await onChanged({keepOpen:true});});
+  for(const [label,input] of [['Primary account',primary],['Field',field],['Comparison',comparison],['Text',pattern],['Direction',direction],['Secondary account',secondary],['Default action',defaultAction],['Amount matching',amountMode],['Variance %',variancePercent],['Variance direction',varianceDirection]]){const l=node('label',label);l.append(input);form.append(l);}
+  form.append(node('small','Optional suggestion filter. 0% means exact; Above/Below/Both compare the statement amount with the planned amount. You can bypass it for a review row.'));
+  const save=button('Save mapping',async()=>{await saveStatementMapping(scenarioId,{primaryAccountId:primary.value,field:field.value,comparison:comparison.value,pattern:pattern.value,direction:direction.value,secondaryAccountId:secondary.value,defaultAction:defaultAction.value,amountMatchingEnabled:amountMode.value,amountVariancePercent:variancePercent.value,amountVarianceDirection:varianceDirection.value});await onChanged({keepOpen:true});});
   form.onsubmit=e=>{e.preventDefault();save.click();};form.append(save,button('Cancel mapping edit',()=>{form.hidden=true;}));
   function edit(rule={}){
     details.open=true;
     if(rule.id){ensureGrid().then(()=>{if(destroyed)return;if(!matches(rule)){descriptionFilter.value='';accountFilter.value='';applyFilters();}grid.scrollToRow(rule.id,'nearest',false).then(()=>grid.getRow(rule.id).getCell('pattern').edit());}).catch(onError);return;}
-    primary.value=String(rule.primaryAccountId||accountId||scenario.accounts[0]?.id);primary.dispatchEvent(new Event('change',{bubbles:true}));field.value=rule.field||'originalDescription';comparison.value=rule.comparison||'contains';pattern.value=rule.pattern||'';direction.value=rule.direction||'out';secondary.value=String(rule.secondaryAccountId||'');secondary.dispatchEvent(new Event('change',{bubbles:true}));defaultAction.value=rule.defaultAction||'line';form.hidden=false;pattern.focus();form.scrollIntoView({block:'nearest'});
+    primary.value=String(rule.primaryAccountId||accountId||scenario.accounts[0]?.id);primary.dispatchEvent(new Event('change',{bubbles:true}));field.value=rule.field||'originalDescription';comparison.value=rule.comparison||'contains';pattern.value=rule.pattern||'';direction.value=rule.direction||'out';secondary.value=String(rule.secondaryAccountId||'');secondary.dispatchEvent(new Event('change',{bubbles:true}));defaultAction.value=rule.defaultAction||'line';amountMode.value=String(rule.amountMatchingEnabled??false);variancePercent.value=String(rule.amountVariancePercent??0);varianceDirection.value=rule.amountVarianceDirection||'both';form.hidden=false;pattern.focus();form.scrollIntoView({block:'nearest'});
   }
   details.append(form,button('New mapping',()=>edit()));
   return {element:details,edit,destroy(){destroyed=true;grid?.destroy();if(!providedSelectors)accountSelectors.destroy();}};

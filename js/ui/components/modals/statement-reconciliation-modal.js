@@ -5,7 +5,7 @@ import { applyStatementDecisions } from '../../../app/managers/occurrence-manage
 import { getScenario } from '../../../app/services/data-service.js';
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
 import { statementMappingFor, statementMappingLabel, relevantMappingText } from '../../../shared/statement-mapping-utils.js';
-import { STATEMENT_ACTIONS, statementTargetCandidates, statementPairOccurrences, validateStatementPeriod, inStatementPeriod, statementSourceWindow, suggestStatementAction } from '../../../shared/statement-workflow-utils.js';
+import { STATEMENT_ACTIONS, statementTargetCandidates, statementPairOccurrences, validateStatementPeriod, inStatementPeriod, statementSourceWindow, suggestStatementAction, normalizeAmountMatching, statementAmountMatches } from '../../../shared/statement-workflow-utils.js';
 import { generatePeriods } from '../../../domain/calculations/period-utils.js';
 import { createGrid } from '../grids/grid-factory.js';
 import { buildStatementMappingEditor } from '../widgets/statement-mapping-editor.js';
@@ -27,11 +27,11 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
   const fail=e=>{delete error.dataset.state;error.textContent=e.message;};
   const guard=fn=>async()=>{error.textContent='';delete error.dataset.state;try{await fn();}catch(e){fail(e);}};
   const refresh=async()=>{scenario=await getScenario(scenarioId);if(!scenario)throw new Error('Scenario no longer exists.');await render();};
-  function chooseTarget(entry,candidates,onChoose){
+  function chooseTarget(entry,candidates,onChoose,amountMatching={}){
     const {modal:picker,close:dismiss}=createModal({contentClass:'statement-match-picker'});
     picker.append(el('h2','Choose period transaction'),el('p',`${entry.description} · ${entry.postingDate} · ${(entry.amountCents/100).toFixed(2)}. These are FTrack transactions for the selected account pair and period.`));
     if(!candidates.length)picker.append(el('p','No compatible transaction in this period. Add line item can create a new period transaction.'));
-    for(const o of candidates)picker.append(button(`${o.description||'(no description)'} · ${o.scheduledDate} · ${Number(o.actualAmount??o.plannedAmount).toFixed(2)} · ${o.status}`,()=>{onChoose(o);dismiss();}));
+    for(const o of candidates)picker.append(button(`${o.description||'(no description)'} · ${o.scheduledDate} · Budget ${Number(o.plannedAmount).toFixed(2)} · ${o.status}${amountMatching.amountMatchingEnabled?(statementAmountMatches(entry,o,amountMatching)?' · Within amount tolerance':' · Outside amount tolerance (manual override)'):''}`,()=>{onChoose(o);dismiss();}));
     picker.append(button('Cancel',dismiss));
   }
   async function render(){
@@ -96,35 +96,41 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
       const key=`${batch.id}:${period.startDate}:${period.endDate}:${entry.index}`;
       if(!drafts.has(key))drafts.set(key,{primary:String(mapping.rule?.primaryAccountId||''),secondary:String(mapping.rule?.secondaryAccountId||''),operation:'create',autoAction:true,targetKey:null,approved:false});
       const draft=drafts.get(key),primary=accountSelectors.create({label:`Primary account source row ${entry.index+1}`,emptyLabel:'Choose primary account',selectedId:draft.primary}),secondary=accountSelectors.create({label:`Secondary account source row ${entry.index+1}`,emptyLabel:'Choose secondary account',selectedId:draft.secondary,defaultTypeId:5}),operation=select(Object.entries(STATEMENT_ACTIONS),`Action source row ${entry.index+1}`),action=select([]);action.hidden=true;operation.value=draft.operation;check.checked=draft.approved;
+      const amountSettings=()=>{const settings=normalizeAmountMatching(mapping.rule||{});return {...settings,amountMatchingEnabled:settings.amountMatchingEnabled&&draft.useAmountMatching!==false};};
       const candidates=()=>{
         if(!primary.value||!secondary.value||['create','createPlan','ignore'].includes(operation.value))return [];
         return statementTargetCandidates(occurrences,{primaryAccountId:primary.value,secondaryAccountId:secondary.value,transactionTypeId:entry.amountCents>0?1:2,period,action:operation.value}).filter(o=>operation.value!=='existing'||signedOccurrenceAmount(o,Number(primary.value))===entry.amountCents&&o.actualDate===entry.postingDate);
       };
-      const choose=button('↗',()=>chooseTarget(entry,candidates(),o=>{draft.autoAction=false;draft.targetKey=o.occurrenceKey;update(true,false);}));choose.title='Choose payment';choose.setAttribute('aria-label',`Choose match source row ${entry.index+1}`);
+      const choose=button('↗',()=>chooseTarget(entry,candidates(),o=>{draft.autoAction=false;draft.targetKey=o.occurrenceKey;update(true,false);},normalizeAmountMatching(mapping.rule||{})));choose.title='Choose payment';choose.setAttribute('aria-label',`Choose match source row ${entry.index+1}`);
+      const amountToggle=button('%',()=>{draft.useAmountMatching=!amountSettings().amountMatchingEnabled;draft.autoAction=true;update(true);});amountToggle.classList.add('statement-amount-toggle');amountToggle.setAttribute('aria-label',`Use amount tolerance source row ${entry.index+1}`);amountToggle.hidden=!normalizeAmountMatching(mapping.rule||{}).amountMatchingEnabled;
       const save=button('💾',()=>{if(!primary.value||!secondary.value||primary.value===secondary.value){fail(new Error('Choose two different FTrack accounts before saving a mapping.'));return;}const rule=mapping.rule;mappingEditor.edit({id:rule?.id,primaryAccountId:Number(primary.value),secondaryAccountId:Number(secondary.value),defaultAction:operation.value,field:rule?.field||'originalDescription',pattern:rule?.pattern||relevantMappingText(entry.originalDescription||entry.description),comparison:rule?.comparison||'contains',direction:entry.amountCents>0?'in':'out'});});
       const view=button('↗',()=>mappingEditor.edit(mapping.rule));view.setAttribute('aria-label',`View mapping source row ${entry.index+1}`);view.title='View mapping';view.hidden=!mapping.rule;
       const repeat=button('⟳',()=>openRecurrenceModal(draft.recurrence||{recurrenceType:4,interval:1,startDate:period.startDate,dayOfMonth:Number(entry.postingDate.slice(8)),endDate:null},value=>{draft.recurrence=value;update(true);}));repeat.title='Set repeat frequency and end date';repeat.setAttribute('aria-label',`Repeat source row ${entry.index+1}`);
-      const primaryCell=el('td');primaryCell.append(primary);const secondaryCell=el('td');secondaryCell.title=reason;secondaryCell.append(secondary,save,view);const actionCell=el('td');actionCell.append(operation,action,choose,repeat);tr.append(primaryCell,secondaryCell,actionCell);
+      const primaryCell=el('td');primaryCell.append(primary);const secondaryCell=el('td');secondaryCell.title=reason;secondaryCell.append(secondary,save,view);const actionCell=el('td');actionCell.append(operation,action,choose,repeat,amountToggle);tr.append(primaryCell,secondaryCell,actionCell);
       function update(changed=false,reselect=false){
         draft.primary=primary.value;draft.secondary=secondary.value;
         if(draft.autoAction){
           const rowCount=windowEntries.filter(other=>{if(!other.monetary||other.insufficientFunds||batch.decisions?.[other.index]?.action==='ignore')return false;const reviewed=batch.decisions?.[other.index],saved=drafts.get(`${batch.id}:${period.startDate}:${period.endDate}:${other.index}`),rule=mappings.get(other.index)?.rule;const p=String(reviewed?.primaryAccountId??saved?.primary??rule?.primaryAccountId??''),s=String(reviewed?.secondaryAccountId??saved?.secondary??rule?.secondaryAccountId??'');return p===primary.value&&s===secondary.value||p===secondary.value&&s===primary.value;}).length;
-          const suggestion=suggestStatementAction({occurrences,entry,primaryAccountId:primary.value,secondaryAccountId:secondary.value,period,rowCount,defaultAction:mapping.rule?.defaultAction});
+          const suggestion=suggestStatementAction({occurrences,entry,primaryAccountId:primary.value,secondaryAccountId:secondary.value,period,rowCount,defaultAction:mapping.rule?.defaultAction,amountMatching:amountSettings()});
           operation.value=suggestion.action;draft.targetKey=suggestion.targetKey;
         }
         draft.operation=operation.value;
-        const choices=candidates();if(reselect||draft.targetKey&&!choices.some(o=>o.occurrenceKey===draft.targetKey))draft.targetKey=null;
-        if(!draft.targetKey&&choices.length===1)draft.targetKey=choices[0].occurrenceKey;
+        const choices=candidates();if(reselect&&!draft.autoAction||draft.targetKey&&!choices.some(o=>o.occurrenceKey===draft.targetKey))draft.targetKey=null;
+        if(!draft.targetKey&&choices.length===1&&!draft.autoAction)draft.targetKey=choices[0].occurrenceKey;
         action.replaceChildren();const option=el('option');option.value=draft.targetKey?`${operation.value}:${draft.targetKey}`:operation.value;action.append(option);action.value=option.value;
         choose.hidden=['ignore','create','createPlan'].includes(operation.value)||!choices.length;
         repeat.hidden=operation.value!=='createPlan';
         const target=choices.find(o=>o.occurrenceKey===draft.targetKey);
+        amountToggle.setAttribute('aria-pressed',String(amountSettings().amountMatchingEnabled));amountToggle.title=`Amount tolerance ${amountSettings().amountMatchingEnabled?'on':'bypassed'}: ${amountSettings().amountVariancePercent}% ${amountSettings().amountVarianceDirection}. Click to toggle for this row only.`;
+        amountToggle.textContent=amountSettings().amountMatchingEnabled?`${{up:'+',down:'−',both:'±'}[amountSettings().amountVarianceDirection]}${amountSettings().amountVariancePercent}%`:'% off';
+        draft.amountMatching=amountSettings();draft.amountToleranceOverridden=Boolean(normalizeAmountMatching(mapping.rule||{}).amountMatchingEnabled&&(!amountSettings().amountMatchingEnabled||target&&!statementAmountMatches(entry,target,mapping.rule)));
         const pairItems=statementPairOccurrences(occurrences,{primaryAccountId:primary.value,secondaryAccountId:secondary.value,period});
         for(const option of operation.options)if(['create','createPlan'].includes(option.value))option.disabled=Boolean(pairItems.length);
         draft.budgetAmount=target?.plannedAmount??(pairItems.length===1?pairItems[0].plannedAmount:null);
         budgetCell.textContent=draft.budgetAmount==null?'—':new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}).format(draft.budgetAmount);
         budgetCell.title=pairItems.length>1&&!target?'Choose a target to see its budget amount.':draft.budgetAmount==null?'No transaction in this budget period.':'Current planned amount for the matching budget transaction.';
         actionCell.title=operation.title=target?`Linked to: ${target.description||'(no description)'} · ${target.scheduledDate} · Actual ${(Number(target.actualAmount)||0).toFixed(2)}`:pairItems.length&&!choices.length?'An existing transaction is skipped, frozen or split. Review it instead of creating a duplicate.':choices.length>1?'Multiple transactions in this period. Choose a target.':operation.value==='ignore'?'Excluded from FTrack changes.':['line','create','createPlan'].includes(operation.value)?'Creates a period-only transaction if needed; subsequent approved lines use the same transaction.':'Select a compatible transaction in this period.';
+        if(!target&&choices.length&&amountSettings().amountMatchingEnabled)operation.title=actionCell.title='No unique match within the mapping amount tolerance. Choose a target manually or bypass tolerance for this row.';
         const changedRule=mapping.rule&&(Number(primary.value)!==Number(mapping.rule.primaryAccountId)||Number(secondary.value)!==Number(mapping.rule.secondaryAccountId)||operation.value!==mapping.rule.defaultAction);
         save.hidden=Boolean(mapping.rule&&!changedRule);save.setAttribute('aria-label',changedRule?'Update mapping':'Create mapping');save.title=changedRule?'Update mapping':'Create mapping';
         if(changed){draft.approved=false;check.checked=false;grid?.draw();}
@@ -147,7 +153,7 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
     grid=await buildStatementReviewGrid({table,heading,rows,state:gridState,onError:fail});wrap.before(grid.controls);grids.push(grid);
     const apply=button('Apply approved rows',guard(async()=>{
       const approved=rows.filter(r=>r.check.checked&&!r.check.disabled);if(!approved.length)throw new Error('Tick at least one row to approve.');if(approved.some(r=>!r.isReady()))throw new Error('Resolve incomplete or ambiguous rows before applying.');
-      const decisions=approved.map(r=>{const [operation,...rest]=r.action.value.split(':'),occurrenceKey=rest.join(':')||null,target=occurrences.find(o=>o.occurrenceKey===occurrenceKey);return {index:r.entry.index,action:operation==='future'?'match':operation,updateFuture:operation==='future',recurrence:r.draft.recurrence,occurrenceKey,primaryAccountId:Number(r.primary.value),secondaryAccountId:Number(r.secondary.value),period,transactionWindow,expectedAmount:target?.plannedAmount,expectedActualAmount:target?.actualAmount??0};});
+      const decisions=approved.map(r=>{const [operation,...rest]=r.action.value.split(':'),occurrenceKey=rest.join(':')||null,target=occurrences.find(o=>o.occurrenceKey===occurrenceKey);return {index:r.entry.index,action:operation==='future'?'match':operation,updateFuture:operation==='future',recurrence:r.draft.recurrence,amountMatching:r.draft.amountMatching,amountToleranceOverridden:r.draft.amountToleranceOverridden,occurrenceKey,primaryAccountId:Number(r.primary.value),secondaryAccountId:Number(r.secondary.value),period,transactionWindow,expectedAmount:target?.plannedAmount,expectedActualAmount:target?.actualAmount??0};});
       apply.disabled=true;try{const result=await applyStatementDecisions(scenarioId,batch.id,decisions);await onApplied?.();await refresh();error.dataset.state='success';error.textContent=`Applied ${result.changes.length} reviewed row(s). Download the reconciliation report for details.`;}finally{apply.disabled=false;}
     }));apply.disabled=Boolean(parsed.balanceIssues.length);content.append(apply);
   }

@@ -241,6 +241,22 @@ rules require two existing distinct accounts. Rules supply the budget account
 pair and action, never automatic approval. Conflicts include differing pairs or
 actions. Row overrides do not change saved rules until explicitly saved.
 
+Optional amount-suggestion fields are `amountMatchingEnabled` (boolean, default
+false), `amountVariancePercent` (finite 0–100, default 0), and
+`amountVarianceDirection` (up/down/both, default both). Bounds are inclusive and
+relative to the absolute planned amount. A zero plan only matches zero while
+enabled. Amount settings filter target suggestions, never description-to-account
+mapping or explicit manual choices. No eligible amount does not imply no account
+pair exists. Conflicting enabled tolerance settings require review. Decisions may
+retain an `amountMatching` settings snapshot and `amountToleranceOverridden`.
+
+On statement reconciliation, a planned occurrence's original `lineItems` are
+retained in optional `plannedLineItems`; only incoming/previously recorded actual
+lines contribute to the actual total. This retained breakdown is normalized,
+validated, queried and cloud/export preserved separately. Restoring an actual to
+planned without explicit replacement lines restores its original planned lines.
+These are additive schema-46 fields; existing historical totals are not rewritten.
+
 Schema 46 migrates old mapping accountId to primaryAccountId and legacy action
 hints to defaultAction (missing hints default to line). Original scope/action
 metadata is retained as legacyStatementAccountId/legacyAction. Matching remains

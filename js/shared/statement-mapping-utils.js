@@ -1,5 +1,5 @@
 // Pure matching rules. No statement text is sent to an external service.
-import { upgradeStatementMapping, STATEMENT_ACTIONS } from './statement-workflow-utils.js';
+import { upgradeStatementMapping, STATEMENT_ACTIONS, normalizeAmountMatching } from './statement-workflow-utils.js';
 export const mappingText = value => String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
 
 // Search only: * = zero/many characters, % = one character; doubled symbols are literals.
@@ -55,7 +55,7 @@ export function normalizeStatementMapping(rule, accounts) {
   rule=upgradeStatementMapping(rule);
   if(typeof rule.pattern!=='string' || rule.id && typeof rule.id!=='string') throw new Error('Mapping text and ID must be strings.');
   const result = {
-    id:String(rule.id || ''), primaryAccountId:Number(rule.primaryAccountId),
+    id:String(rule.id || ''), primaryAccountId:Number(rule.primaryAccountId),...normalizeAmountMatching(rule),
     field:String(rule.field || 'originalDescription'), pattern:String(rule.pattern || '').trim(),
     comparison:String(rule.comparison || 'contains'), direction:String(rule.direction || 'out'),
     defaultAction:String(rule.defaultAction||'line'),secondaryAccountId:rule.defaultAction==='ignore'&&!rule.secondaryAccountId?null:Number(rule.secondaryAccountId),
@@ -82,7 +82,7 @@ export function statementMappingFor(entry, rules, accountId, accounts) {
   });
   if(!matches.length) return {rule:null,conflict:false};
   // Reconciliation actions are independent of account mapping (including legacy action hints).
-  const signatures=new Set(matches.map(r=>JSON.stringify([r.primaryAccountId,r.secondaryAccountId,r.defaultAction])));
+  const signatures=new Set(matches.map(r=>{const amount=normalizeAmountMatching(r);return JSON.stringify([r.primaryAccountId,r.secondaryAccountId,r.defaultAction,amount.amountMatchingEnabled?amount:null]);}));
   return {rule:signatures.size===1?matches[0]:null,conflict:signatures.size>1};
 }
 

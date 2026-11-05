@@ -159,9 +159,20 @@ transaction gets Create period transaction. Existing blocked targets require
 review rather than duplicate creation. Future-plan changes are manual; Ignore
 preferences remain automatic. Budget amount shows the current plan value.
 All suggestions remain overridable. Multiple targets require Choose payment.
+Mappings optionally store Amount matching On/Off, Variance % (0–100) and
+Above plan / Below plan / Both. The percentage is relative to the planned amount,
+uses absolute values and inclusive bounds; 0% is exact. Existing mappings default
+to Off. A unique in-range policy may be completed independently of other policies
+sharing its accounts. Ambiguous or out-of-range rows require manual selection,
+not creation of a duplicate. The row percentage button bypasses the filter
+without changing the mapping. Manual choices may exceed it; the audit records
+the settings and override. These fields support form, inline and bulk editing.
 Same-pair source rows accumulate as dated lines on that transaction; another
 period uses another occurrence. An existing non-itemized actual is preserved as
 an initial line. Recurring definitions and planned amounts stay unchanged.
+Planned line items are retained separately when statement actuals are recorded;
+they do not contribute to actual spending. The original breakdown remains visible
+in the item editor and is preserved through export/import and cloud save.
 
 Create period transaction + add to recurring plan asks for a repeat pattern and
 saves the actual plus one recurring rule atomically. The rule uses the approved

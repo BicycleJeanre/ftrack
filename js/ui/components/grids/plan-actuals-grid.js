@@ -905,6 +905,11 @@ function buildOccurrenceEditor({
   lineItemsField.appendChild(lineItemsBody);
   lineItemsField.appendChild(lineItemsFooter);
   form.appendChild(lineItemsField);
+  if(occurrence?.plannedLineItems?.length){
+    const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Original planned line items';details.append(summary);
+    for(const item of occurrence.plannedLineItems){const line=document.createElement('p');line.textContent=`${item.date||''} · ${item.description||'Line item'} · ${formatCurrency(item.amount)}`;details.append(line);}
+    details.className='form-field--full';form.append(details);
+  }
 
   const lineItemRows = [];
   let nextLineItemId = 1;

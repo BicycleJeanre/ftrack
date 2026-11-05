@@ -761,6 +761,7 @@ input[type="checkbox"] {
 .statement-grid-cell { white-space: normal; overflow-wrap: anywhere; display: flex; flex-wrap: nowrap; gap: 5px; align-items: center; }
 .statement-grid-cell > select, .statement-grid-cell > .selection-dialog-control { flex: 1 1 100px; min-width: 0; }
 .statement-grid-cell > .icon-btn { flex: 0 0 auto; }
+.statement-amount-toggle[aria-pressed="true"] { color: var(--accent-primary, #00bcd4); border: 1px solid currentColor; }
 .statement-grid-cell > span { flex-basis: 100%; font-size: .85em; color: var(--text-secondary); }
 .statement-review-grid .tabulator-cell { white-space: normal; }
 .statement-reconciliation-modal .tabulator-header .tabulator-headers { white-space: nowrap !important; }

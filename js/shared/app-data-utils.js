@@ -502,6 +502,7 @@ export function normalizeTransactionOccurrence(rawOccurrence) {
         : null,
     ...(lineItems.length ? { lineItems } : {}),
     createdAt: optionalText(occurrence.createdAt),
+    ...(Array.isArray(occurrence.plannedLineItems)&&occurrence.plannedLineItems.length?{plannedLineItems:normalizeTransactionLineItems(occurrence.plannedLineItems,scheduledDate)}:{}),
     updatedAt: optionalText(occurrence.updatedAt)
   };
 }

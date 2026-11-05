@@ -42,7 +42,7 @@ export async function removeStatementMappings(scenarioId, ids) {
 // A bulk edit is one validated transaction: never partially update the selected rules.
 export async function updateStatementMappings(scenarioId, ids, changes) {
   if(!Array.isArray(ids)||!ids.length||new Set(ids).size!==ids.length)throw new Error('Select at least one mapping.');
-  const allowed=['primaryAccountId','pattern','secondaryAccountId','field','comparison','direction','defaultAction'];
+  const allowed=['primaryAccountId','pattern','secondaryAccountId','field','comparison','direction','defaultAction','amountMatchingEnabled','amountVariancePercent','amountVarianceDirection'];
   if(!changes||!Object.keys(changes).length||Object.keys(changes).some(k=>!allowed.includes(k)))throw new Error('Choose fields to change for the selected mappings.');
   return DataStore.transaction(data=>{
     const scenario=data.scenarios.find(s=>Number(s.id)===Number(scenarioId));

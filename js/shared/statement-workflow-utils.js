@@ -30,11 +30,31 @@ export function statementSourceWindow(period) {
   return {startDate:`${priorYear}-${String(priorMonth).padStart(2,'0')}-25`,endDate:`${year}-${String(month).padStart(2,'0')}-25`};
 }
 
-export function suggestStatementAction({occurrences,entry,primaryAccountId,secondaryAccountId,period,rowCount=1,defaultAction}) {
+export function normalizeAmountMatching(rule={}) {
+  const enabled=rule.amountMatchingEnabled??false;
+  if(![true,false,'true','false'].includes(enabled))throw new Error('Amount matching must be on or off.');
+  const percent=Number(rule.amountVariancePercent??0),direction=rule.amountVarianceDirection??'both';
+  if(!Number.isFinite(percent)||percent<0||percent>100)throw new Error('Amount variance must be between 0 and 100 percent.');
+  if(!['up','down','both'].includes(direction))throw new Error('Choose Above, Below or Both for amount variance.');
+  return {amountMatchingEnabled:enabled===true||enabled==='true',amountVariancePercent:percent,amountVarianceDirection:direction};
+}
+export function statementAmountMatches(entry,occurrence,rule={}) {
+  const settings=normalizeAmountMatching(rule);
+  if(!settings.amountMatchingEnabled)return true;
+  const planned=Math.round(Math.abs(Number(occurrence.plannedAmount))*100),actual=Math.abs(entry.amountCents);
+  if(!Number.isFinite(planned)||!Number.isFinite(actual))return false;
+  const difference=actual-planned,limit=planned*settings.amountVariancePercent/100;
+  return Math.abs(difference)<=limit+1e-7&&(settings.amountVarianceDirection==='both'||settings.amountVarianceDirection==='up'&&difference>=0||settings.amountVarianceDirection==='down'&&difference<=0);
+}
+export function suggestStatementAction({occurrences,entry,primaryAccountId,secondaryAccountId,period,rowCount=1,defaultAction,amountMatching={}}) {
   const all=statementPairOccurrences(occurrences,{primaryAccountId,secondaryAccountId,period});
   if(defaultAction==='ignore')return {action:'ignore',targetKey:null};
   if(!all.length)return {action:'create',targetKey:null};
-  return {action:rowCount>1?'line':'match',targetKey:all.length===1?all[0].occurrenceKey:null};
+  const matching=all.filter(o=>statementAmountMatches(entry,o,amountMatching));
+  // Separate insurance/policy payments can each complete their own plan, even
+  // though the statement contains several rows sharing the account pair.
+  const distinctPlan=all.length>1&&normalizeAmountMatching(amountMatching).amountMatchingEnabled;
+  return {action:rowCount>1&&!distinctPlan?'line':'match',targetKey:matching.length===1?matching[0].occurrenceKey:null};
 }
 export function statementAccountPairMatches(o,primary,secondary) {
   return (Number(o.primaryAccountId)===Number(primary)&&Number(o.secondaryAccountId)===Number(secondary))
