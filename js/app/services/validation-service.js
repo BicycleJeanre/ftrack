@@ -8,6 +8,7 @@ import * as DataStore from './storage-service.js';
 import { CURRENT_SCHEMA_VERSION } from '../../shared/app-data-utils.js';
 import { parseStatement } from '../../shared/statement-utils.js';
 import { normalizeStatementMapping } from '../../shared/statement-mapping-utils.js';
+import { validateStatementPeriod, inStatementPeriod } from '../../shared/statement-workflow-utils.js';
 
 // Valid enum IDs from assets/lookup-data.json
 const VALID_ACCOUNT_TYPES      = [1, 2, 3, 4, 5];
@@ -769,6 +770,11 @@ function validateScenario(scenario) {
                     if (!batch.decisions || typeof batch.decisions !== 'object' || Array.isArray(batch.decisions)) throw new Error('Invalid review decisions');
                     for (const [key,value] of Object.entries(batch.decisions)) {
                         if (!/^\d+$/.test(key) || !parsed.entries[Number(key)] || !['match','existing','create','ignore','line'].includes(value?.action) || !Number.isFinite(Date.parse(value.appliedAt))) throw new Error('Invalid source-row decision');
+                        if(value.transactionWindow){
+                            const window=validateStatementPeriod(value.transactionWindow);
+                            validateStatementPeriod(value.period);
+                            if(!inStatementPeriod(parsed.entries[Number(key)].postingDate,window))throw new Error('Reviewed row is outside its transaction timeframe');
+                        }
                     }
                 } catch(error) { issues.push(issue(path,error.message)); }
             });

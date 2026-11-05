@@ -751,10 +751,19 @@ input[type="checkbox"] {
 .statement-source-imports { margin-left: auto; justify-content: flex-end; }
 .statement-source-imports input[type="file"] { width: 240px; }
 .statement-timeframe input[type="date"] { width: 150px; flex: 0 0 auto; }
-.statement-grid-cell { white-space: normal; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-.statement-grid-cell > select { flex-basis: 100%; }
+.statement-reconciliation-modal .statement-timeframe { flex-wrap: nowrap; align-items: end; gap: 12px; }
+.statement-timeframe label { display: grid; gap: 4px; flex: 0 1 auto; min-width: 0; }
+.statement-reconciliation-modal .statement-timeframe select { width: auto; min-width: 110px; max-width: 200px; }
+.statement-timeframe button { white-space: nowrap; flex: 0 0 auto; }
+.statement-reconciliation-modal .statement-timeframe select,
+.statement-timeframe input[type="date"] { height: 36px; min-height: 36px; box-sizing: border-box; }
+.modal-content.statement-source-modal { width: 98vw; max-width: 98vw; box-sizing: border-box; }
+.statement-grid-cell { white-space: normal; overflow-wrap: anywhere; display: flex; flex-wrap: nowrap; gap: 5px; align-items: center; }
+.statement-grid-cell > select, .statement-grid-cell > .selection-dialog-control { flex: 1 1 100px; min-width: 0; }
+.statement-grid-cell > .icon-btn { flex: 0 0 auto; }
 .statement-grid-cell > span { flex-basis: 100%; font-size: .85em; color: var(--text-secondary); }
 .statement-review-grid .tabulator-cell { white-space: normal; }
+.statement-reconciliation-modal .tabulator-header .tabulator-headers { white-space: nowrap !important; }
 /* This grid scrolls inside its own holder; global page-level sticky offsets would cover its first row. */
 body .statement-review-grid.tabulator .tabulator-row.tabulator-group { position: relative !important; top: 0 !important; }
 .statement-review-grid .statement-group-row { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -782,6 +791,12 @@ body .statement-review-grid.tabulator .tabulator-row.tabulator-group { position:
 .statement-match-choice { display: block; width: 100%; text-align: left; margin: 8px 0; white-space: normal; }
 .modal-content.statement-match-picker { max-width: 800px; }
 .statement-match-info { font-size: .75rem; max-width: 320px; white-space: normal; }
+@media (max-width: 600px) {
+  .statement-reconciliation-modal .statement-timeframe { flex-wrap: wrap; }
+  .statement-timeframe label { flex: 1 1 140px; }
+  .statement-reconciliation-modal .statement-timeframe label select,
+  .statement-timeframe label input[type="date"] { width: 100%; max-width: none; box-sizing: border-box; }
+}
 
 .dashboard-review-reminder-section {
   flex: 0 0 auto;

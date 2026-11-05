@@ -5,6 +5,7 @@ import { createDefaultAppData } from '../../js/shared/app-data-utils.js';
 import { encodeCloudSnapshot,decodeCloudSnapshot } from '../../js/app/services/cloud-snapshot-codec.js';
 import { validateAppData } from '../../js/app/services/validation-service.js';
 import { migrateAppData } from '../../js/shared/migration-utils.js';
+import { statementSourceWindow, suggestStatementAction } from '../../js/shared/statement-workflow-utils.js';
 globalThis.localStorage={data:new Map(),getItem(k){return this.data.get(k)||null;},setItem(k,v){this.data.set(k,v);}};
 globalThis.CustomEvent=class {constructor(type,options){this.type=type;this.detail=options.detail;}};
 globalThis.document={dispatchEvent(){}};
@@ -18,6 +19,33 @@ const applyStatementDecisions=(scenarioId,importId,decisions)=>applyStatementDec
 const header=STATEMENT_HEADERS.join(',');
 const row=(nr,date,description,out,fee,balance)=>[nr,'bank-1',date,date+' 12:00',description,description,'Expenses','Services','',out,fee,balance].join(',');
 const csv=header+'\r\n'+row(1,'2026-01-15','Service','-100.00','','900.00')+'\r\n'+row(2,'2026-01-15','Fee','','-3.00','897.00');
+
+test('source salary windows are independent of budget dates, including year boundaries',()=>{
+ assert.deepEqual(statementSourceWindow(january),{startDate:'2025-12-25',endDate:'2026-01-25'});
+ assert.deepEqual(statementSourceWindow({type:'Month',startDate:'2026-11-01',endDate:'2026-11-30'}),{startDate:'2026-10-25',endDate:'2026-11-25'});
+});
+
+test('automatic actions distinguish single plans, repeated purchases, existing actuals and missing targets',()=>{
+ const target=seed().scenarios[0].transactionOccurrences[0],entry=parseStatement(csv).entries[0];
+ const options={occurrences:[target],entry,primaryAccountId:1,secondaryAccountId:2,period:january};
+ assert.deepEqual(suggestStatementAction(options),{action:'match',targetKey:target.occurrenceKey});
+ assert.equal(suggestStatementAction({...options,rowCount:2}).action,'line');
+ assert.equal(suggestStatementAction({...options,occurrences:[{...target,lineItems:[{amount:10}]}]}).action,'line');
+ assert.equal(suggestStatementAction({...options,occurrences:[]}).action,'create');
+ assert.equal(suggestStatementAction({...options,occurrences:[{...target,status:'actual',actualAmount:100,actualDate:entry.postingDate}]}).action,'existing');
+ assert.equal(suggestStatementAction({...options,defaultAction:'ignore'}).action,'ignore');
+ assert.equal(suggestStatementAction({...options,occurrences:[target,{...target,occurrenceKey:'other'}]}).targetKey,null);
+});
+
+test('a source window can feed a different budget month without matching a prior month occurrence',async()=>{
+ const data=seed();data.scenarios[0].transactionOccurrences[0].scheduledDate='2026-02-15';await store.write(data);
+ const id=await retainStatement(1,'salary.csv',csv),period={id:'2026-02',type:'Month',startDate:'2026-02-01',endDate:'2026-02-28'},transactionWindow={startDate:'2026-01-10',endDate:'2026-02-20'};
+ await applyStatementDecisionsCommand(1,id,[{index:0,action:'match',primaryAccountId:1,secondaryAccountId:2,occurrenceKey:'occurrence:1',expectedAmount:100,period,transactionWindow}]);
+ const after=await store.read(),scenario=after.scenarios[0],target=scenario.transactionOccurrences[0];
+ assert.equal(target.scheduledDate,'2026-02-15');assert.equal(target.actualDate,'2026-01-15');assert.equal(target.actualAmount,100);
+ assert.equal(scenario.statementImports[0].decisions[0].period.id,'2026-02');assert.equal(scenario.statementImports[0].decisions[0].transactionWindow.startDate,'2026-01-10');
+ assert.equal(validateAppData(after).isValid,true);
+});
 
 test('mapping search supports many/single wildcards and doubled literal escapes without changing contains semantics',()=>{
  for(const [query,text,expected] of [

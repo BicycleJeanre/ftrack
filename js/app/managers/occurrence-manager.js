@@ -2746,9 +2746,10 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
     const seen=appliedStatementFingerprints(scenario),indices=new Set(),targets=new Map(),created=new Map(),changes=[];
     for(const decision of decisions){
       const entry=parsed.entries[decision.index],period=validateStatementPeriod(decision.period);
+      const transactionWindow=validateStatementPeriod(decision.transactionWindow||period);
       if(!entry||!Number.isInteger(decision.index)||indices.has(decision.index))throw new Error('Invalid or repeated source row.');
       indices.add(decision.index);
-      if(!inStatementPeriod(entry.postingDate,period))throw new Error('The statement row is outside the selected period.');
+      if(!inStatementPeriod(entry.postingDate,transactionWindow))throw new Error('The statement row is outside the selected transaction timeframe.');
       if(entry.insufficientFunds)throw new Error('Insufficient-funds entries cannot be reconciled as payments.');
       if(batch.decisions[decision.index])throw new Error('This row has already been reviewed.');
       if(!['ignore','match','create','existing','line'].includes(decision.action))throw new Error('Choose a reconciliation action.');
@@ -2756,7 +2757,6 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
       let occurrenceKey=null,before=null;
       if(decision.action!=='ignore'){
         const movement=validateMovement(scenario,{primaryAccountId:decision.primaryAccountId,secondaryAccountId:decision.secondaryAccountId,transactionTypeId:entry.amountCents>0?1:2});
-        if(markerContainsDate(scenario,entry.postingDate))throw new Error('Reopen the closed period before applying this row.');
         const pair=JSON.stringify([movement.primaryAccountId,movement.secondaryAccountId,movement.transactionTypeId,period.startDate,period.endDate]);
         let target=null;
         if(decision.occurrenceKey)target=resolveOccurrenceOrThrow(scenario,decision.occurrenceKey).occurrence;
@@ -2776,6 +2776,7 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
         }
         if(Number(target.primaryAccountId)!==movement.primaryAccountId||Number(target.secondaryAccountId)!==movement.secondaryAccountId||Number(target.transactionTypeId)!==movement.transactionTypeId)throw new Error('The selected transaction has a different account pair or direction.');
         if(!inStatementPeriod(target.scheduledDate,period))throw new Error('The selected transaction is outside the selected period.');
+        if(markerContainsDate(scenario,target.scheduledDate))throw new Error('Reopen the closed period before applying this row.');
         if(target.transactionGroupId||target.status==='skipped'||target.baselineFrozen||markerContainsDate(scenario,target.scheduledDate))throw new Error('Split, skipped or closed-period items require separate review.');
         const lineAction=['line','create'].includes(decision.action);
         const priorMode=targets.get(target.occurrenceKey);
@@ -2808,7 +2809,7 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
         }
         occurrenceKey=target.occurrenceKey;seen.add(entry.fingerprint);
       }
-      batch.decisions[decision.index]={action:decision.action,occurrenceKey,primaryAccountId:decision.primaryAccountId??null,secondaryAccountId:decision.secondaryAccountId??null,period,appliedAt:timestamp,before,updateFuture:Boolean(decision.updateFuture),actualAmount:decision.action==='ignore'?null:Math.abs(entry.amountCents)/100,actualDate:decision.action==='ignore'?null:entry.postingDate};
+      batch.decisions[decision.index]={action:decision.action,occurrenceKey,primaryAccountId:decision.primaryAccountId??null,secondaryAccountId:decision.secondaryAccountId??null,period,transactionWindow,appliedAt:timestamp,before,updateFuture:Boolean(decision.updateFuture),actualAmount:decision.action==='ignore'?null:Math.abs(entry.amountCents)/100,actualDate:decision.action==='ignore'?null:entry.postingDate};
       changes.push({index:decision.index,action:decision.action,occurrenceKey});
     }
     return {changes};

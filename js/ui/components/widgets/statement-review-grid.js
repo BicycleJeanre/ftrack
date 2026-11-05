@@ -17,10 +17,10 @@ export async function buildStatementReviewGrid({table,heading,rows,onError,state
   controls.append(button('Approve all eligible rows',()=>approve(rows,true)),button('Clear approvals',()=>approve(rows,false)));
   const fields=['approve','date','description','originalDescription','category','parentCategory','amount','primary','secondary','action'];
   const data=()=>rows.map(row=>({id:row.entry.index,row,approve:Number(row.check.checked),date:row.entry.postingDate,description:row.entry.description,originalDescription:row.entry.originalDescription,category:row.entry.category,parentCategory:row.entry.parentCategory,amount:row.entry.amountCents/100,action:row.status||row.action?.value.split(':')[0]||'line',primary:row.primary?.selectedOptions[0]?.textContent||'(unmapped)',secondary:row.secondary?.selectedOptions[0]?.textContent||'(unmapped)',mapping:row.reason,month:row.entry.postingDate.slice(0,7)}));
-  const columns=[...heading.children].map((th,index)=>({title:th.textContent,field:fields[index],headerSort:true,sorter:index===0||index===6?'number':'string',minWidth:index===0?65:index===6?100:110,width:index===0?75:undefined,widthGrow:index===7||index===8?2:1,variableHeight:true,formatter:cell=>{
+  const columns=[...heading.children].map((th,index)=>({title:th.textContent,field:fields[index],headerSort:true,sorter:index===0||index===6?'number':'string',minWidth:index===0?65:index===6?100:index===7?150:index===8?210:index===9?200:110,width:index===0?75:undefined,widthGrow:index===7||index===8?2:1,variableHeight:true,formatter:cell=>{
     const row=cell.getData().row;
     if(index===0)return row.check;
-    if(index>=7){row.cells ||= {};if(row.cells[index])return row.cells[index];const node=document.createElement('div');node.className='statement-grid-cell';node.append(...row.tr.children[index].childNodes);row.cells[index]=node;return node;}
+    if(index>=7){row.cells ||= {};if(row.cells[index])return row.cells[index];const node=document.createElement('div');node.className='statement-grid-cell';node.title=row.tr.children[index].title;node.append(...row.tr.children[index].childNodes);row.cells[index]=node;return node;}
     const node=document.createElement('span');node.textContent=cell.getValue()??'';
     if(index===6){node.className=cell.getValue()<0?'negative':'positive';node.textContent=new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}).format(cell.getValue());}return node;
   }}));

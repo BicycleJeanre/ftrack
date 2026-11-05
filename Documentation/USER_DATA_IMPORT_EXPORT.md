@@ -139,8 +139,11 @@ also mark saved projections stale so they are refreshed from the revised plan.
 Retained statements belong to the scenario, not a primary account. Selecting a
 CSV automatically retains its complete original text and rows. Select a budget
 period (month, week, quarter, year or custom inclusive dates) for reconciliation.
-Only rows in that period can be approved. Original-source and report downloads
-remain available in the top toolbar, and the full source is never trimmed.
+Separate Transactions from / to dates control source eligibility without changing
+the selected budget period. Monthly defaults are previous-month 25th through
+selected-month 25th, inclusive; edit either date and Apply dates for early salary
+cutoffs. Dates stay set per period while the dialog is open. View full source and
+source/report downloads are in the top toolbar. The source is never trimmed.
 
 Saved description, original-description, category or parent-category rules supply
 both FTrack primary and secondary accounts and a default action. These budget
@@ -149,9 +152,11 @@ within the scenario. Conflicting rules require review; no row is auto-approved.
 Description conditions ignore bank references, long numbers, dates and common
 payment prefixes. Category conditions retain their exact or contains semantics.
 
-Add line item is the default for new mappings. A unique compatible account-pair
-transaction in the selected period is selected automatically. Multiple targets
-require Choose payment. If none exists, approval creates a period transaction.
+Actions are automatically suggested from budget-period targets: a single plan
+gets Add actual + close plan; repeated purchases or itemized targets get Add line
+item; an exact existing actual gets Already recorded; no target gets Create period
+transaction. Ignore and future-plan mapping preferences are retained as applicable.
+All suggestions remain overridable. Multiple targets require Choose payment.
 Same-pair source rows accumulate as dated lines on that transaction; another
 period uses another occurrence. An existing non-itemized actual is preserved as
 an initial line. Recurring definitions and planned amounts stay unchanged.
@@ -165,7 +170,10 @@ prevent repeated application, including line additions across retained files.
 Override either account or action in a review row without changing its rule.
 The save icon explicitly creates or updates a rule with the pair and action;
 the view icon opens its saved rule. Original descriptions and categories remain
-visible. Source and review grids use standard sortable, banded tables; review
+visible. Shared account pickers provide type/group filters, search and quick
+account creation in review rows and mapping forms/grid editors. Save/view icons
+are inline beside the secondary account; mapping/target details are hover text.
+Source and review grids use standard sortable, banded tables; review
 supports grouping and bulk approval.
 
 Saved mappings use an editable grid with primary/secondary account, default

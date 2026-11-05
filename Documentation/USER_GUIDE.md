@@ -512,9 +512,14 @@ Open **Statements** and choose a CSV. Uploading retains the complete original
 source automatically; no FTrack primary account attachment is required.
 Select a retained statement, then choose a **reporting / budget period**.
 Calendar Month, Week, Quarter and Year use FTrack's reporting period generator.
-Custom periods accept inclusive start/end dates (for example a 25th–24th budget).
-Only rows in the selected period can be approved or applied. The full source
-grid and original CSV download always contain all original rows.
+The adjacent **Transactions from / to** dates independently select source rows.
+Monthly defaults are the previous month's 25th through the selected month's 25th,
+inclusive. Change them for early salary dates or another cutoff and click
+**Apply dates**. November can therefore receive 25 October–25 November entries
+without changing the November budget period. Date choices stay set per period
+while the dialog is open. The toolbar stays on one row except on phone screens.
+**View full source** in the top-right toolbar opens every original row separately;
+the original CSV download also remains complete.
 
 Saved mappings match Description, Original Description, Category or Parent
 Category and supply **FTrack primary account**, **secondary account** and
@@ -524,15 +529,22 @@ Running Costs → Shop A. No extra Main → Running Costs entry is generated.
 Override either account or the action on a review row without rewriting its
 mapping; use the save icon to explicitly create or update a rule.
 
-**Add line item** is the default for new rules. Within the selected period:
+Actions are suggested from the available budget-period transaction:
 
-- One compatible account-pair transaction is selected automatically.
+- A single planned payment gets **Add actual + close plan**.
+- Repeated purchases or itemized transactions get **Add line item**.
+- An exact existing actual gets **Already recorded** (no extra money).
 - Multiple compatible transactions require **Choose payment**.
-- No transaction offers creating a period-only transaction upon approval.
+- No transaction gets **Create period transaction**.
 - Multiple approved rows for that pair add dated lines to the same transaction.
 - Later periods use separate occurrences, including for recurring transactions.
 Adding lines remains available after the first actual; recurring definitions
 and planned amounts are not changed by ordinary line additions.
+You can override any suggested action before approval. Mapping Ignore and
+future-plan preferences are retained when appropriate. Account selectors use
+the shared type/group/search picker and include **Add new account**. Mapping
+save/view icons sit beside the secondary-account picker. Mapping and target
+details appear on hover instead of repeating inside each row.
 
 **Create period transaction** explicitly creates a period-only transaction and
 groups its approved same-pair rows. **Add actual + close plan** replaces an
@@ -549,7 +561,7 @@ covers all retained statements, including rows previously added as line items.
 The source, review and mapping grids are sortable and use alternating row
 banding. Review grouping and bulk approval preserve source-row identity.
 **Apply approved rows** commits the selected decisions and transaction changes
-together. Decisions retain the period, chosen accounts, target and pre-change
+together. Decisions retain both the budget period and source timeframe, chosen accounts, target and pre-change
 values. Original source records and previously reviewed decisions are preserved.
 
 In the mapping grid, click cells to edit text, account pairs or default actions.

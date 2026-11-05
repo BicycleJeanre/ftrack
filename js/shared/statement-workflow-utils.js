@@ -20,6 +20,29 @@ export function validateStatementPeriod(period) {
   return {id:String(period.id||`${period.startDate}:${period.endDate}`),type:String(period.type||'Custom'),startDate:period.startDate,endDate:period.endDate};
 }
 export function inStatementPeriod(date,period){return Boolean(date&&date>=period.startDate&&date<=period.endDate);}
+
+// A budget period identifies the FTrack occurrence; the independent source
+// window identifies which bank dates may be reconciled into it.
+export function statementSourceWindow(period) {
+  if(period.type!=='Month')return {startDate:period.startDate,endDate:period.endDate};
+  const [year,month]=period.startDate.split('-').map(Number);
+  const priorMonth=month===1?12:month-1,priorYear=month===1?year-1:year;
+  return {startDate:`${priorYear}-${String(priorMonth).padStart(2,'0')}-25`,endDate:`${year}-${String(month).padStart(2,'0')}-25`};
+}
+
+export function suggestStatementAction({occurrences,entry,primaryAccountId,secondaryAccountId,period,rowCount=1,defaultAction}) {
+  const scope={primaryAccountId,secondaryAccountId,period,transactionTypeId:entry.amountCents>0?1:2};
+  const all=statementTargetCandidates(occurrences,{...scope,action:'line'});
+  if(defaultAction==='ignore')return {action:'ignore',targetKey:null};
+  const exact=all.filter(o=>o.status==='actual'&&o.actualDate===entry.postingDate&&Math.round(Number(o.actualAmount)*100)===Math.abs(entry.amountCents));
+  if(exact.length)return {action:'existing',targetKey:exact.length===1?exact[0].occurrenceKey:null};
+  if(!all.length)return {action:'create',targetKey:null};
+  if(all.length>1)return {action:'line',targetKey:null};
+  const target=all[0];
+  const itemized=rowCount>1||target.lineItems?.length||target.status==='actual';
+  const action=itemized?'line':defaultAction==='future'&&target.sourceTransactionId?'future':'match';
+  return {action,targetKey:target.occurrenceKey};
+}
 export function statementTargetCandidates(occurrences,{primaryAccountId,secondaryAccountId,transactionTypeId,period,action='line'}) {
   return occurrences.filter(o=>Number(o.primaryAccountId)===Number(primaryAccountId)&&Number(o.secondaryAccountId)===Number(secondaryAccountId)&&Number(o.transactionTypeId)===Number(transactionTypeId)
     &&inStatementPeriod(o.scheduledDate,period)&&!o.transactionGroupId&&!o.baselineFrozen&&o.status!=='skipped'

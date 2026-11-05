@@ -209,8 +209,12 @@ Source rows must reproduce the raw CSV exactly. Normalization, export/import and
 cloud snapshots preserve the original source and historical decisions.
 
 New decisions record action (match, existing, create, ignore or line), occurrence
-key, appliedAt, primaryAccountId, secondaryAccountId, and the selected period
-(id, type, inclusive startDate/endDate), plus pre-change values where relevant.
+key, appliedAt, primaryAccountId, secondaryAccountId, the selected budget period
+(id, type, inclusive startDate/endDate), and the independent transactionWindow
+(same date-range shape), plus pre-change values where relevant. Source posting
+dates are validated against transactionWindow, while targets are resolved within
+the budget period. Older decisions without transactionWindow use period as their
+source window. No schema-version change is required for this additive audit field.
 Historical decisions remain valid without new fields. A match can carry
 updateFuture: true to update the next recurring segment. Source-row fingerprints
 include bank identity, dates, description, signed amounts, balance and duplicate
