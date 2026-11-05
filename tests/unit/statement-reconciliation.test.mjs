@@ -25,14 +25,43 @@ test('source salary windows are independent of budget dates, including year boun
  assert.deepEqual(statementSourceWindow({type:'Month',startDate:'2026-11-01',endDate:'2026-11-30'}),{startDate:'2026-10-25',endDate:'2026-11-25'});
 });
 
+test('pair matching preserves FTrack account orientation and movement even when bank direction differs',async()=>{
+ for(const reverse of [false,true]){
+  const data=seed(),target=data.scenarios[0].transactionOccurrences[0];target.transactionTypeId=1;if(reverse){target.primaryAccountId=2;target.secondaryAccountId=1;}await store.write(data);
+  const id=await retainStatement(1,'pair.csv',csv);await applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100}]);
+  const after=(await store.read()).scenarios[0].transactionOccurrences[0];assert.equal(after.transactionTypeId,1);assert.equal(after.primaryAccountId,reverse?2:1);assert.equal(after.actualAmount,100);
+ }
+});
+
+test('create plus plan groups statement lines and creates one future recurring rule atomically',async()=>{
+ const data=seed();data.scenarios[0].transactionOccurrences=[];await store.write(data);const id=await retainStatement(1,'new.csv',csv);
+ const recurrence={recurrenceType:4,startDate:'2026-01-01',dayOfMonth:15,interval:1,endDate:null};
+ const decisions=[0,1].map(index=>({index,action:'createPlan',recurrence}));
+ await applyStatementDecisions(1,id,decisions);
+ const after=await store.read(),s=after.scenarios[0];assert.equal(s.transactionOccurrences.length,1);assert.equal(s.transactionOccurrences[0].actualAmount,103);assert.equal(s.transactionOccurrences[0].lineItems.length,2);
+ assert.equal(s.transactions.length,1);assert.equal(s.transactions[0].amount,103);assert.equal(s.transactions[0].recurrence.startDate,'2026-02-15');assert.equal(s.statementImports[0].decisions[0].createdTransactionId,s.transactions[0].id);assert.equal(validateAppData(after).isValid,true,JSON.stringify(validateAppData(after)));
+});
+
+test('create plus plan refuses missing recurrence and existing pair transactions without partial writes',async()=>{
+ await store.write(seed());let id=await retainStatement(1,'existing.csv',csv);
+ await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'createPlan',recurrence:{recurrenceType:4,dayOfMonth:15,interval:1}}]),/already exists/);
+ const data=seed();data.scenarios[0].transactionOccurrences=[];await store.write(data);id=await retainStatement(1,'new.csv',csv);
+ await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'createPlan'}]),/repeat frequency/);
+ const after=(await store.read()).scenarios[0];assert.deepEqual(after.transactionOccurrences,[]);assert.deepEqual(after.transactions,[]);assert.deepEqual(after.statementImports[0].decisions,{});
+});
+
 test('automatic actions distinguish single plans, repeated purchases, existing actuals and missing targets',()=>{
  const target=seed().scenarios[0].transactionOccurrences[0],entry=parseStatement(csv).entries[0];
  const options={occurrences:[target],entry,primaryAccountId:1,secondaryAccountId:2,period:january};
  assert.deepEqual(suggestStatementAction(options),{action:'match',targetKey:target.occurrenceKey});
  assert.equal(suggestStatementAction({...options,rowCount:2}).action,'line');
- assert.equal(suggestStatementAction({...options,occurrences:[{...target,lineItems:[{amount:10}]}]}).action,'line');
+ assert.equal(suggestStatementAction({...options,occurrences:[{...target,lineItems:[{amount:10}]}]}).action,'match');
  assert.equal(suggestStatementAction({...options,occurrences:[]}).action,'create');
- assert.equal(suggestStatementAction({...options,occurrences:[{...target,status:'actual',actualAmount:100,actualDate:entry.postingDate}]}).action,'existing');
+ assert.equal(suggestStatementAction({...options,occurrences:[{...target,status:'actual',actualAmount:100,actualDate:entry.postingDate}]}).action,'match');
+ assert.equal(suggestStatementAction({...options,defaultAction:'future'}).action,'match');
+ assert.equal(suggestStatementAction({...options,occurrences:[{...target,transactionTypeId:1}]}).action,'match');
+ assert.equal(suggestStatementAction({...options,occurrences:[{...target,primaryAccountId:2,secondaryAccountId:1}]}).targetKey,target.occurrenceKey);
+ assert.equal(suggestStatementAction({...options,occurrences:[{...target,status:'skipped'}]}).action,'match');
  assert.equal(suggestStatementAction({...options,defaultAction:'ignore'}).action,'ignore');
  assert.equal(suggestStatementAction({...options,occurrences:[target,{...target,occurrenceKey:'other'}]}).targetKey,null);
 });
@@ -110,12 +139,12 @@ test('suggestions respect direction and support the secondary-account perspectiv
  assert.equal(suggestStatementMatches({...entry,amountCents:10000},[o],2).length,1);
 });
 test('retain, approve atomically, avoid repeat imports, and round-trip full sources through cloud',async()=>{
- await store.write(seed());const id=await retainStatement(1,1,'test.csv',csv);
+ const fixture=seed();fixture.scenarios[0].accounts.push({...fixture.scenarios[0].accounts[1],id:3,name:'Fees'});await store.write(fixture);const id=await retainStatement(1,1,'test.csv',csv);
  assert.equal(await retainStatement(1,1,'test.csv',csv),id);
  let data=await store.read();assert.equal(data.scenarios[0].transactionOccurrences[0].status,'planned');
  await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100},{index:1,action:'create',secondaryAccountId:999}]),/account/i);
  assert.equal((await store.read()).scenarios[0].transactionOccurrences[0].status,'planned');
- await applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100},{index:1,action:'create',secondaryAccountId:2}]);
+ await applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100},{index:1,action:'create',secondaryAccountId:3}]);
  data=await store.read();assert.equal(data.scenarios[0].transactionOccurrences[0].actualAmount,100);assert.equal(data.scenarios[0].transactionOccurrences[1].actualAmount,3);
  assert.equal(data.scenarios[0].statementImports[0].rawCsv,csv);
  await assert.rejects(()=>applyStatementDecisions(1,id,[{index:0,action:'match',occurrenceKey:'occurrence:1',expectedAmount:100}]),/reviewed/);

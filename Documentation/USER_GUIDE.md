@@ -531,26 +531,33 @@ mapping; use the save icon to explicitly create or update a rule.
 
 Actions are suggested from the available budget-period transaction:
 
-- A single planned payment gets **Add actual + close plan**.
-- Repeated purchases or itemized transactions get **Add line item**.
-- An exact existing actual gets **Already recorded** (no extra money).
+- A single statement row for an existing account pair gets **Add actual + close plan**.
+- Multiple statement rows for the same pair get **Add line item**.
 - Multiple compatible transactions require **Choose payment**.
 - No transaction gets **Create period transaction**.
 - Multiple approved rows for that pair add dated lines to the same transaction.
 - Later periods use separate occurrences, including for recurring transactions.
 Adding lines remains available after the first actual; recurring definitions
 and planned amounts are not changed by ordinary line additions.
-You can override any suggested action before approval. Mapping Ignore and
-future-plan preferences are retained when appropriate. Account selectors use
+Matching checks both account orientations within the budget period, without
+requiring the bank's Money In/Out type to equal the FTrack transaction type.
+The existing FTrack movement is preserved. **Budget amount** shows the current
+planned value; choose a target first if more than one exists. Skipped/frozen/split
+items require review and do not trigger creation of a duplicate.
+You can override suggestions before approval. Future-plan updates are always
+manual; only Ignore preferences are applied automatically. Account selectors use
 the shared type/group/search picker and include **Add new account**. Mapping
 save/view icons sit beside the secondary-account picker. Mapping and target
 details appear on hover instead of repeating inside each row.
 
 **Create period transaction** explicitly creates a period-only transaction and
-groups its approved same-pair rows. **Add actual + close plan** replaces an
-unresolved planned payment's actual. **Already recorded** links an existing
-exact-date/exact-amount actual without adding it again. **Actual + update future
-plan** additionally changes the next recurring planned segment. **Ignore**
+groups its approved same-pair rows. **Create period transaction + add to recurring
+plan** also asks for a frequency/end date and creates one recurring rule starting
+after the budget period, using the approved lines' total. Both are saved atomically;
+an existing recurring plan is not duplicated. **Add actual + close plan** records
+or updates the payment's actual without adding another transaction. Existing
+itemized totals require line-item review before being replaced. **Actual + update
+future plan** manually changes the next recurring planned segment. **Ignore**
 records the review without changing any FTrack transaction.
 
 Insufficient-funds entries are flagged red and excluded from approval, while

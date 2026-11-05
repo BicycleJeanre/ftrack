@@ -64,7 +64,7 @@ export function normalizeStatementMapping(rule, accounts) {
   if (!result.id || !accounts.some(a=>Number(a.id)===result.primaryAccountId)) throw new Error('Choose an existing primary account.');
   if (!MAPPING_FIELDS.includes(result.field) || !['exact','contains'].includes(result.comparison) || !['in','out'].includes(result.direction)) throw new Error('Invalid mapping condition.');
   if (!result.pattern || result.pattern.length>500) throw new Error('Enter a mapping pattern of 1–500 characters.');
-  if (!Object.hasOwn(STATEMENT_ACTIONS,result.defaultAction))throw new Error('Choose a valid default action.');
+  if (!Object.hasOwn(STATEMENT_ACTIONS,result.defaultAction)&&result.defaultAction!=='existing')throw new Error('Choose a valid default action.');
   if(result.defaultAction!=='ignore' && (result.secondaryAccountId===result.primaryAccountId || !accounts.some(a=>Number(a.id)===result.secondaryAccountId))) throw new Error('Choose a different, existing secondary account.');
   return result;
 }

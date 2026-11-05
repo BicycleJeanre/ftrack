@@ -152,19 +152,24 @@ within the scenario. Conflicting rules require review; no row is auto-approved.
 Description conditions ignore bank references, long numbers, dates and common
 payment prefixes. Category conditions retain their exact or contains semantics.
 
-Actions are automatically suggested from budget-period targets: a single plan
-gets Add actual + close plan; repeated purchases or itemized targets get Add line
-item; an exact existing actual gets Already recorded; no target gets Create period
-transaction. Ignore and future-plan mapping preferences are retained as applicable.
+Actions use the account pair within the budget period, in either orientation and
+without requiring the bank movement type to match FTrack. One statement row gets
+Add actual + close plan; repeated rows for the pair get Add line item; no period
+transaction gets Create period transaction. Existing blocked targets require
+review rather than duplicate creation. Future-plan changes are manual; Ignore
+preferences remain automatic. Budget amount shows the current plan value.
 All suggestions remain overridable. Multiple targets require Choose payment.
 Same-pair source rows accumulate as dated lines on that transaction; another
 period uses another occurrence. An existing non-itemized actual is preserved as
 an initial line. Recurring definitions and planned amounts stay unchanged.
 
-Other actions are Add actual + close plan, Already recorded (link only),
-Create period transaction, Actual + update future plan, and Ignore. Updating the
-future plan affects the next recurring segment, not earlier history. Already
-recorded requires an exact-date/exact-amount existing actual. Source fingerprints
+Create period transaction + add to recurring plan asks for a repeat pattern and
+saves the actual plus one recurring rule atomically. The rule uses the approved
+total and starts after the current budget period; existing future rules are not
+duplicated. Actual + update future plan affects the next segment, not earlier
+history. Existing actuals are updated through the normal completion action;
+there is no separate link-only choice. Legacy link-only audit records remain.
+Source fingerprints
 prevent repeated application, including line additions across retained files.
 
 Override either account or action in a review row without changing its rule.

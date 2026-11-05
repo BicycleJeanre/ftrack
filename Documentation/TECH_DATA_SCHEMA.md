@@ -208,20 +208,24 @@ account binding. Schema 45's accountId is retained as `legacyAccountId` metadata
 Source rows must reproduce the raw CSV exactly. Normalization, export/import and
 cloud snapshots preserve the original source and historical decisions.
 
-New decisions record action (match, existing, create, ignore or line), occurrence
+New decisions record action (match, create, createPlan, ignore or line), occurrence
 key, appliedAt, primaryAccountId, secondaryAccountId, the selected budget period
 (id, type, inclusive startDate/endDate), and the independent transactionWindow
 (same date-range shape), plus pre-change values where relevant. Source posting
 dates are validated against transactionWindow, while targets are resolved within
 the budget period. Older decisions without transactionWindow use period as their
 source window. No schema-version change is required for this additive audit field.
+Historical existing/link-only decisions remain valid. A createPlan decision records
+createdTransactionId after atomically creating one future rule from the final line
+total. Repeat patterns are user-selected and start after the selected budget period.
 Historical decisions remain valid without new fields. A match can carry
 updateFuture: true to update the next recurring segment. Source-row fingerprints
 include bank identity, dates, description, signed amounts, balance and duplicate
 multiplicity; they prevent repeated application across imports, including lines.
 
-Line reconciliation finds an exact FTrack account pair and movement direction
-within the chosen period, ignoring the statement bank identity. One compatible
+Reconciliation finds the FTrack account pair in either orientation within the
+budget period, without imposing the statement's movement type on the budget.
+Existing FTrack orientation/type is preserved. One compatible
 target is selected, multiple require an explicit target, and none creates a
 manual period occurrence. Same-pair rows append dated source-linked line items;
 an existing non-itemized actual is preserved as an initial line. Actual totals
@@ -230,7 +234,7 @@ or frozen targets cannot receive lines. Source rows are never rewritten.
 
 `statementMappings` is an optional global-per-scenario rule array with string
 `id`, `primaryAccountId`, `secondaryAccountId`, `defaultAction` (line,
-match, create, existing, future or ignore), `field` (description,
+match, create, createPlan, future or ignore), `field` (description,
 originalDescription, category or parentCategory), `pattern` (1–500 characters),
 `comparison` (exact or contains), and `direction` (in or out). Non-ignored
 rules require two existing distinct accounts. Rules supply the budget account

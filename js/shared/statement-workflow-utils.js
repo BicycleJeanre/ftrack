@@ -1,11 +1,11 @@
 // Account-independent statement workflow. These upgrades never alter retained CSV rows or decisions.
-export const STATEMENT_ACTIONS={line:'Add line item',match:'Add actual + close plan',create:'Create period transaction',existing:'Already recorded (link only)',future:'Actual + update future plan',ignore:'Ignore'};
+export const STATEMENT_ACTIONS={line:'Add line item',match:'Add actual + close plan',create:'Create period transaction',createPlan:'Create period transaction + add to recurring plan',future:'Actual + update future plan',ignore:'Ignore'};
 
 export function upgradeStatementMapping(rule) {
   if(!rule||typeof rule!=='object')return rule;
   const {accountId,action,...rest}=rule;
   return {...rest,primaryAccountId:rule.primaryAccountId??accountId,
-    defaultAction:rule.defaultAction??(action==='ignore'?'ignore':action==='create'?'create':action==='prefer-match'?'match':'line'),
+    defaultAction:rule.defaultAction==='existing'?'match':rule.defaultAction??(action==='ignore'?'ignore':action==='create'?'create':action==='prefer-match'?'match':'line'),
     ...(accountId!==undefined?{legacyStatementAccountId:rule.legacyStatementAccountId??accountId}:{}),
     ...(action!==undefined?{legacyAction:rule.legacyAction??action}:{})};
 }
@@ -31,21 +31,20 @@ export function statementSourceWindow(period) {
 }
 
 export function suggestStatementAction({occurrences,entry,primaryAccountId,secondaryAccountId,period,rowCount=1,defaultAction}) {
-  const scope={primaryAccountId,secondaryAccountId,period,transactionTypeId:entry.amountCents>0?1:2};
-  const all=statementTargetCandidates(occurrences,{...scope,action:'line'});
+  const all=statementPairOccurrences(occurrences,{primaryAccountId,secondaryAccountId,period});
   if(defaultAction==='ignore')return {action:'ignore',targetKey:null};
-  const exact=all.filter(o=>o.status==='actual'&&o.actualDate===entry.postingDate&&Math.round(Number(o.actualAmount)*100)===Math.abs(entry.amountCents));
-  if(exact.length)return {action:'existing',targetKey:exact.length===1?exact[0].occurrenceKey:null};
   if(!all.length)return {action:'create',targetKey:null};
-  if(all.length>1)return {action:'line',targetKey:null};
-  const target=all[0];
-  const itemized=rowCount>1||target.lineItems?.length||target.status==='actual';
-  const action=itemized?'line':defaultAction==='future'&&target.sourceTransactionId?'future':'match';
-  return {action,targetKey:target.occurrenceKey};
+  return {action:rowCount>1?'line':'match',targetKey:all.length===1?all[0].occurrenceKey:null};
+}
+export function statementAccountPairMatches(o,primary,secondary) {
+  return (Number(o.primaryAccountId)===Number(primary)&&Number(o.secondaryAccountId)===Number(secondary))
+    ||(Number(o.primaryAccountId)===Number(secondary)&&Number(o.secondaryAccountId)===Number(primary));
+}
+export function statementPairOccurrences(occurrences,{primaryAccountId,secondaryAccountId,period}) {
+  return occurrences.filter(o=>statementAccountPairMatches(o,primaryAccountId,secondaryAccountId)&&inStatementPeriod(o.scheduledDate,period));
 }
 export function statementTargetCandidates(occurrences,{primaryAccountId,secondaryAccountId,transactionTypeId,period,action='line'}) {
-  return occurrences.filter(o=>Number(o.primaryAccountId)===Number(primaryAccountId)&&Number(o.secondaryAccountId)===Number(secondaryAccountId)&&Number(o.transactionTypeId)===Number(transactionTypeId)
-    &&inStatementPeriod(o.scheduledDate,period)&&!o.transactionGroupId&&!o.baselineFrozen&&o.status!=='skipped'
-    &&(action==='line'?['planned','actual'].includes(o.status):action==='existing'?o.status==='actual':o.status==='planned'&&!o.lineItems?.length)
+  return statementPairOccurrences(occurrences,{primaryAccountId,secondaryAccountId,period}).filter(o=>!o.transactionGroupId&&!o.baselineFrozen&&o.status!=='skipped'
+    &&(action==='existing'?o.status==='actual':['planned','actual'].includes(o.status))
     &&(action!=='future'||Boolean(o.sourceTransactionId)));
 }

@@ -5,12 +5,13 @@ import { applyStatementDecisions } from '../../../app/managers/occurrence-manage
 import { getScenario } from '../../../app/services/data-service.js';
 import { resolveScenarioOccurrences } from '../../../domain/queries/resolve-scenario-occurrences.js';
 import { statementMappingFor, statementMappingLabel, relevantMappingText } from '../../../shared/statement-mapping-utils.js';
-import { STATEMENT_ACTIONS, statementTargetCandidates, validateStatementPeriod, inStatementPeriod, statementSourceWindow, suggestStatementAction } from '../../../shared/statement-workflow-utils.js';
+import { STATEMENT_ACTIONS, statementTargetCandidates, statementPairOccurrences, validateStatementPeriod, inStatementPeriod, statementSourceWindow, suggestStatementAction } from '../../../shared/statement-workflow-utils.js';
 import { generatePeriods } from '../../../domain/calculations/period-utils.js';
 import { createGrid } from '../grids/grid-factory.js';
 import { buildStatementMappingEditor } from '../widgets/statement-mapping-editor.js';
 import { buildStatementReviewGrid } from '../widgets/statement-review-grid.js';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js';
+import { openRecurrenceModal } from './recurrence-modal.js?v=20260926-future-plan-47';
 
 function el(tag,text='',className=''){const n=document.createElement(tag);n.textContent=text;if(className)n.className=className;return n;}
 function button(text,fn){const n=el('button',text,'icon-btn');n.type='button';n.onclick=fn;return n;}
@@ -86,26 +87,28 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
     })));
     const {occurrences}=resolveScenarioOccurrences({scenario,startDate:period.startDate,endDate:period.endDate});
     const seen=appliedStatementFingerprints(scenario),mappings=new Map(windowEntries.map(entry=>[entry.index,statementMappingFor(entry,scenario.statementMappings,scenario.accounts)])),wrap=el('div','','statement-table-wrap'),table=el('table'),heading=el('tr');
-    ['Approve','Date','Description','Original description','Category','Parent category','Amount','Primary account','Secondary account / mapping','Actions'].forEach(h=>heading.append(el('th',h)));table.append(heading);const rows=[];let grid=null;
+    ['Approve','Date','Description','Original description','Category','Parent category','Amount','Budget amount','Primary account','Secondary account / mapping','Actions'].forEach(h=>heading.append(el('th',h)));table.append(heading);const rows=[];let grid=null;
     for(const entry of windowEntries.filter(e=>!e.insufficientFunds)){
       const tr=el('tr'),check=el('input');check.type='checkbox';check.setAttribute('aria-label',`Approve source row ${entry.index+1}`);const first=el('td');first.append(check);tr.append(first,...[entry.postingDate,entry.description,entry.originalDescription,entry.category,entry.parentCategory,(entry.amountCents/100).toFixed(2)].map(v=>el('td',v)));
       const mapping=mappings.get(entry.index),reason=statementMappingLabel(mapping,scenario.accounts),reviewed=batch.decisions?.[entry.index],duplicate=entry.monetary&&seen.has(entry.fingerprint);
+      const budgetCell=el('span','—');tr.append(el('td'));tr.lastChild.append(budgetCell);
       if(reviewed||duplicate||!entry.monetary){check.disabled=true;const status=reviewed?`Reviewed: ${reviewed.action}`:duplicate?'Already reconciled in retained source':'Non-monetary source record';const mappingCell=el('td');mappingCell.title=reason;tr.append(el('td',reviewed?.primaryAccountId?scenario.accounts.find(a=>Number(a.id)===Number(reviewed.primaryAccountId))?.name||'':'Historical source'),mappingCell,el('td',status));rows.push({entry,tr,check,status,reason,draft:{}});continue;}
       const key=`${batch.id}:${period.startDate}:${period.endDate}:${entry.index}`;
       if(!drafts.has(key))drafts.set(key,{primary:String(mapping.rule?.primaryAccountId||''),secondary:String(mapping.rule?.secondaryAccountId||''),operation:'create',autoAction:true,targetKey:null,approved:false});
       const draft=drafts.get(key),primary=accountSelectors.create({label:`Primary account source row ${entry.index+1}`,emptyLabel:'Choose primary account',selectedId:draft.primary}),secondary=accountSelectors.create({label:`Secondary account source row ${entry.index+1}`,emptyLabel:'Choose secondary account',selectedId:draft.secondary,defaultTypeId:5}),operation=select(Object.entries(STATEMENT_ACTIONS),`Action source row ${entry.index+1}`),action=select([]);action.hidden=true;operation.value=draft.operation;check.checked=draft.approved;
       const candidates=()=>{
-        if(!primary.value||!secondary.value||operation.value==='create'||operation.value==='ignore')return [];
+        if(!primary.value||!secondary.value||['create','createPlan','ignore'].includes(operation.value))return [];
         return statementTargetCandidates(occurrences,{primaryAccountId:primary.value,secondaryAccountId:secondary.value,transactionTypeId:entry.amountCents>0?1:2,period,action:operation.value}).filter(o=>operation.value!=='existing'||signedOccurrenceAmount(o,Number(primary.value))===entry.amountCents&&o.actualDate===entry.postingDate);
       };
       const choose=button('↗',()=>chooseTarget(entry,candidates(),o=>{draft.autoAction=false;draft.targetKey=o.occurrenceKey;update(true,false);}));choose.title='Choose payment';choose.setAttribute('aria-label',`Choose match source row ${entry.index+1}`);
       const save=button('💾',()=>{if(!primary.value||!secondary.value||primary.value===secondary.value){fail(new Error('Choose two different FTrack accounts before saving a mapping.'));return;}const rule=mapping.rule;mappingEditor.edit({id:rule?.id,primaryAccountId:Number(primary.value),secondaryAccountId:Number(secondary.value),defaultAction:operation.value,field:rule?.field||'originalDescription',pattern:rule?.pattern||relevantMappingText(entry.originalDescription||entry.description),comparison:rule?.comparison||'contains',direction:entry.amountCents>0?'in':'out'});});
       const view=button('↗',()=>mappingEditor.edit(mapping.rule));view.setAttribute('aria-label',`View mapping source row ${entry.index+1}`);view.title='View mapping';view.hidden=!mapping.rule;
-      const primaryCell=el('td');primaryCell.append(primary);const secondaryCell=el('td');secondaryCell.title=reason;secondaryCell.append(secondary,save,view);const actionCell=el('td');actionCell.append(operation,action,choose);tr.append(primaryCell,secondaryCell,actionCell);
+      const repeat=button('⟳',()=>openRecurrenceModal(draft.recurrence||{recurrenceType:4,interval:1,startDate:period.startDate,dayOfMonth:Number(entry.postingDate.slice(8)),endDate:null},value=>{draft.recurrence=value;update(true);}));repeat.title='Set repeat frequency and end date';repeat.setAttribute('aria-label',`Repeat source row ${entry.index+1}`);
+      const primaryCell=el('td');primaryCell.append(primary);const secondaryCell=el('td');secondaryCell.title=reason;secondaryCell.append(secondary,save,view);const actionCell=el('td');actionCell.append(operation,action,choose,repeat);tr.append(primaryCell,secondaryCell,actionCell);
       function update(changed=false,reselect=false){
         draft.primary=primary.value;draft.secondary=secondary.value;
         if(draft.autoAction){
-          const rowCount=windowEntries.filter(other=>{if(!other.monetary||other.insufficientFunds||seen.has(other.fingerprint)||batch.decisions?.[other.index])return false;const saved=drafts.get(`${batch.id}:${period.startDate}:${period.endDate}:${other.index}`),rule=mappings.get(other.index)?.rule;return String(saved?.primary??rule?.primaryAccountId??'')===primary.value&&String(saved?.secondary??rule?.secondaryAccountId??'')===secondary.value&&Math.sign(other.amountCents)===Math.sign(entry.amountCents);}).length;
+          const rowCount=windowEntries.filter(other=>{if(!other.monetary||other.insufficientFunds||batch.decisions?.[other.index]?.action==='ignore')return false;const reviewed=batch.decisions?.[other.index],saved=drafts.get(`${batch.id}:${period.startDate}:${period.endDate}:${other.index}`),rule=mappings.get(other.index)?.rule;const p=String(reviewed?.primaryAccountId??saved?.primary??rule?.primaryAccountId??''),s=String(reviewed?.secondaryAccountId??saved?.secondary??rule?.secondaryAccountId??'');return p===primary.value&&s===secondary.value||p===secondary.value&&s===primary.value;}).length;
           const suggestion=suggestStatementAction({occurrences,entry,primaryAccountId:primary.value,secondaryAccountId:secondary.value,period,rowCount,defaultAction:mapping.rule?.defaultAction});
           operation.value=suggestion.action;draft.targetKey=suggestion.targetKey;
         }
@@ -113,21 +116,29 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
         const choices=candidates();if(reselect||draft.targetKey&&!choices.some(o=>o.occurrenceKey===draft.targetKey))draft.targetKey=null;
         if(!draft.targetKey&&choices.length===1)draft.targetKey=choices[0].occurrenceKey;
         action.replaceChildren();const option=el('option');option.value=draft.targetKey?`${operation.value}:${draft.targetKey}`:operation.value;action.append(option);action.value=option.value;
-        choose.hidden=['ignore','create'].includes(operation.value)||!choices.length;
+        choose.hidden=['ignore','create','createPlan'].includes(operation.value)||!choices.length;
+        repeat.hidden=operation.value!=='createPlan';
         const target=choices.find(o=>o.occurrenceKey===draft.targetKey);
-        actionCell.title=operation.title=target?`Linked to: ${target.description||'(no description)'} · ${target.scheduledDate} · Actual ${(Number(target.actualAmount)||0).toFixed(2)}`:choices.length>1?'Multiple transactions in this period. Choose a target.':operation.value==='ignore'?'Excluded from FTrack changes.':['line','create'].includes(operation.value)?'Creates a period-only transaction if needed; subsequent approved lines use the same transaction.':'Select a compatible transaction in this period.';
+        const pairItems=statementPairOccurrences(occurrences,{primaryAccountId:primary.value,secondaryAccountId:secondary.value,period});
+        for(const option of operation.options)if(['create','createPlan'].includes(option.value))option.disabled=Boolean(pairItems.length);
+        draft.budgetAmount=target?.plannedAmount??(pairItems.length===1?pairItems[0].plannedAmount:null);
+        budgetCell.textContent=draft.budgetAmount==null?'—':new Intl.NumberFormat(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}).format(draft.budgetAmount);
+        budgetCell.title=pairItems.length>1&&!target?'Choose a target to see its budget amount.':draft.budgetAmount==null?'No transaction in this budget period.':'Current planned amount for the matching budget transaction.';
+        actionCell.title=operation.title=target?`Linked to: ${target.description||'(no description)'} · ${target.scheduledDate} · Actual ${(Number(target.actualAmount)||0).toFixed(2)}`:pairItems.length&&!choices.length?'An existing transaction is skipped, frozen or split. Review it instead of creating a duplicate.':choices.length>1?'Multiple transactions in this period. Choose a target.':operation.value==='ignore'?'Excluded from FTrack changes.':['line','create','createPlan'].includes(operation.value)?'Creates a period-only transaction if needed; subsequent approved lines use the same transaction.':'Select a compatible transaction in this period.';
         const changedRule=mapping.rule&&(Number(primary.value)!==Number(mapping.rule.primaryAccountId)||Number(secondary.value)!==Number(mapping.rule.secondaryAccountId)||operation.value!==mapping.rule.defaultAction);
         save.hidden=Boolean(mapping.rule&&!changedRule);save.setAttribute('aria-label',changedRule?'Update mapping':'Create mapping');save.title=changedRule?'Update mapping':'Create mapping';
         if(changed){draft.approved=false;check.checked=false;grid?.draw();}
       }
       const accountChanged=()=>{draft.autoAction=true;update(true,true);for(const row of rows)row.updateAuto?.();};
-      primary.onchange=accountChanged;secondary.onchange=accountChanged;operation.onchange=()=>{draft.autoAction=false;update(true,true);};update();
+      primary.onchange=accountChanged;secondary.onchange=accountChanged;operation.onchange=()=>{draft.autoAction=false;update(true,true);if(operation.value==='createPlan'&&!draft.recurrence)repeat.click();};update();
       const row={entry,tr,check,primary,secondary,action,draft,reason,updateAuto:()=>{if(draft.autoAction)update(true);},isReady(){
         if(parsed.balanceIssues.length)return false;if(operation.value==='ignore')return true;
         if(!primary.value||!secondary.value||primary.value===secondary.value)return false;
         const target=draft.targetKey&&occurrences.find(o=>o.occurrenceKey===draft.targetKey);
         if((scenario.baselinePeriods||[]).some(p=>inStatementPeriod(target?.scheduledDate||period.startDate,p)))return false;
-        if(!target)return ['line','create'].includes(operation.value)&&candidates().length===0;
+        if(['create','createPlan'].includes(operation.value)&&statementPairOccurrences(occurrences,{primaryAccountId:primary.value,secondaryAccountId:secondary.value,period}).length)return false;
+        if(operation.value==='createPlan'&&(!draft.recurrence||Number(draft.recurrence.recurrenceType?.id??draft.recurrence.recurrenceType)===1))return false;
+        if(!target)return ['line','create','createPlan'].includes(operation.value)&&!statementPairOccurrences(occurrences,{primaryAccountId:primary.value,secondaryAccountId:secondary.value,period}).length;
         return candidates().some(o=>o.occurrenceKey===target.occurrenceKey);
       }};check.addEventListener('change',()=>{if(check.checked&&!row.isReady()){check.checked=false;draft.approved=false;fail(new Error('Complete the account pair and select an unambiguous period transaction before approving.'));}});rows.push(row);
     }
@@ -136,7 +147,7 @@ export async function openStatementReconciliationModal({scenarioId,onApplied}={}
     grid=await buildStatementReviewGrid({table,heading,rows,state:gridState,onError:fail});wrap.before(grid.controls);grids.push(grid);
     const apply=button('Apply approved rows',guard(async()=>{
       const approved=rows.filter(r=>r.check.checked&&!r.check.disabled);if(!approved.length)throw new Error('Tick at least one row to approve.');if(approved.some(r=>!r.isReady()))throw new Error('Resolve incomplete or ambiguous rows before applying.');
-      const decisions=approved.map(r=>{const [operation,...rest]=r.action.value.split(':'),occurrenceKey=rest.join(':')||null,target=occurrences.find(o=>o.occurrenceKey===occurrenceKey);return {index:r.entry.index,action:operation==='future'?'match':operation,updateFuture:operation==='future',occurrenceKey,primaryAccountId:Number(r.primary.value),secondaryAccountId:Number(r.secondary.value),period,transactionWindow,expectedAmount:target?.plannedAmount,expectedActualAmount:target?.actualAmount??0};});
+      const decisions=approved.map(r=>{const [operation,...rest]=r.action.value.split(':'),occurrenceKey=rest.join(':')||null,target=occurrences.find(o=>o.occurrenceKey===occurrenceKey);return {index:r.entry.index,action:operation==='future'?'match':operation,updateFuture:operation==='future',recurrence:r.draft.recurrence,occurrenceKey,primaryAccountId:Number(r.primary.value),secondaryAccountId:Number(r.secondary.value),period,transactionWindow,expectedAmount:target?.plannedAmount,expectedActualAmount:target?.actualAmount??0};});
       apply.disabled=true;try{const result=await applyStatementDecisions(scenarioId,batch.id,decisions);await onApplied?.();await refresh();error.dataset.state='success';error.textContent=`Applied ${result.changes.length} reviewed row(s). Download the reconciliation report for details.`;}finally{apply.disabled=false;}
     }));apply.disabled=Boolean(parsed.balanceIssues.length);content.append(apply);
   }

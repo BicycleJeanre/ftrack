@@ -3,7 +3,7 @@
 import * as DataStore from '../services/storage-service.js';
 import { parseStatement, signedOccurrenceAmount } from '../../shared/statement-utils.js';
 import { appliedStatementFingerprints } from '../services/statement-service.js';
-import { validateStatementPeriod, inStatementPeriod, statementTargetCandidates } from '../../shared/statement-workflow-utils.js';
+import { validateStatementPeriod, inStatementPeriod, statementTargetCandidates, statementPairOccurrences, statementAccountPairMatches } from '../../shared/statement-workflow-utils.js';
 import { allocateNextId } from '../../shared/app-data-utils.js';
 import { formatDateOnly, parseDateOnly } from '../../shared/date-utils.js';
 import { generateRecurrenceDates } from '../../domain/calculations/recurrence-calculations.js';
@@ -2743,7 +2743,7 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
     if(!Array.isArray(decisions)||!decisions.length)throw new Error('Select rows to apply.');
     const parsed=parseStatement(batch.rawCsv);
     if(parsed.balanceIssues.length)throw new Error('Resolve statement balance errors before applying.');
-    const seen=appliedStatementFingerprints(scenario),indices=new Set(),targets=new Map(),created=new Map(),changes=[];
+    const seen=appliedStatementFingerprints(scenario),indices=new Set(),targets=new Map(),created=new Map(),promotions=new Map(),changes=[];
     for(const decision of decisions){
       const entry=parsed.entries[decision.index],period=validateStatementPeriod(decision.period);
       const transactionWindow=validateStatementPeriod(decision.transactionWindow||period);
@@ -2752,12 +2752,12 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
       if(!inStatementPeriod(entry.postingDate,transactionWindow))throw new Error('The statement row is outside the selected transaction timeframe.');
       if(entry.insufficientFunds)throw new Error('Insufficient-funds entries cannot be reconciled as payments.');
       if(batch.decisions[decision.index])throw new Error('This row has already been reviewed.');
-      if(!['ignore','match','create','existing','line'].includes(decision.action))throw new Error('Choose a reconciliation action.');
+      if(!['ignore','match','create','createPlan','existing','line'].includes(decision.action))throw new Error('Choose a reconciliation action.');
       if(decision.action!=='ignore'&&(!entry.monetary||seen.has(entry.fingerprint)))throw new Error('This row is non-monetary or already reconciled.');
       let occurrenceKey=null,before=null;
       if(decision.action!=='ignore'){
         const movement=validateMovement(scenario,{primaryAccountId:decision.primaryAccountId,secondaryAccountId:decision.secondaryAccountId,transactionTypeId:entry.amountCents>0?1:2});
-        const pair=JSON.stringify([movement.primaryAccountId,movement.secondaryAccountId,movement.transactionTypeId,period.startDate,period.endDate]);
+        const pair=JSON.stringify([[movement.primaryAccountId,movement.secondaryAccountId].sort((a,b)=>a-b),period.startDate,period.endDate]);
         let target=null;
         if(decision.occurrenceKey)target=resolveOccurrenceOrThrow(scenario,decision.occurrenceKey).occurrence;
         else if(decision.action==='line'){
@@ -2767,18 +2767,23 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
             if(candidates.length>1)throw new Error('Multiple transactions match this account pair and period. Choose a target.');
             target=candidates[0]||null;
           }
-        }else if(decision.action==='create'&&created.has(pair))target=resolveOccurrenceOrThrow(scenario,created.get(pair)).occurrence;
-        if(!target&&!['line','create'].includes(decision.action))throw new Error('Select a transaction in the chosen period.');
+        }else if(['create','createPlan'].includes(decision.action)&&created.has(pair))target=resolveOccurrenceOrThrow(scenario,created.get(pair)).occurrence;
+        if(['create','createPlan'].includes(decision.action)&&!created.has(pair)){
+          const existing=statementPairOccurrences(resolveScenarioOccurrences({scenario,startDate:period.startDate,endDate:period.endDate}).occurrences,{...movement,period});
+          if(existing.length)throw new Error('A transaction already exists between these accounts in this budget period. Match it instead of creating a duplicate.');
+        }
+        if(!target&&!['line','create','createPlan'].includes(decision.action))throw new Error('Select a transaction in the chosen period.');
+        if(!target&&statementPairOccurrences(resolveScenarioOccurrences({scenario,startDate:period.startDate,endDate:period.endDate}).occurrences,{...movement,period}).length)throw new Error('A transaction already exists for this account pair, but requires separate review. Do not create a duplicate.');
         if(!target){
           const id=allocateNextId(scenario.transactionOccurrences);
           target={id,occurrenceKey:`occurrence:${id}`,sourceTransactionId:null,scheduledDate:period.startDate,plannedDate:null,actualDate:null,status:'planned',origin:'manual',...movement,description:scenario.accounts.find(a=>Number(a.id)===Number(movement.secondaryAccountId))?.name||entry.description,plannedAmount:0,baselineAmount:0,actualAmount:null,lineItems:[],tags:[],isOverride:true,createdAt:timestamp,updatedAt:timestamp};
           scenario.transactionOccurrences.push(target);created.set(pair,target.occurrenceKey);
         }
-        if(Number(target.primaryAccountId)!==movement.primaryAccountId||Number(target.secondaryAccountId)!==movement.secondaryAccountId||Number(target.transactionTypeId)!==movement.transactionTypeId)throw new Error('The selected transaction has a different account pair or direction.');
+        if(!statementAccountPairMatches(target,movement.primaryAccountId,movement.secondaryAccountId))throw new Error('The selected transaction has a different account pair.');
         if(!inStatementPeriod(target.scheduledDate,period))throw new Error('The selected transaction is outside the selected period.');
         if(markerContainsDate(scenario,target.scheduledDate))throw new Error('Reopen the closed period before applying this row.');
         if(target.transactionGroupId||target.status==='skipped'||target.baselineFrozen||markerContainsDate(scenario,target.scheduledDate))throw new Error('Split, skipped or closed-period items require separate review.');
-        const lineAction=['line','create'].includes(decision.action);
+        const lineAction=['line','create','createPlan'].includes(decision.action);
         const priorMode=targets.get(target.occurrenceKey);
         if(priorMode&&(!lineAction||priorMode!=='line'))throw new Error('Two source rows cannot close or link the same occurrence.');
         targets.set(target.occurrenceKey,lineAction?'line':'single');
@@ -2786,7 +2791,7 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
         // Auto-created/auto-resolved groups are checked within this serialized command.
         if(!priorMode&&decision.occurrenceKey){
           if(decision.expectedAmount!==target.plannedAmount)throw new Error('The plan changed since review. Refresh the statement.');
-          if(lineAction&&Number(decision.expectedActualAmount??0)!==Number(target.actualAmount??0))throw new Error('The actual changed since review. Refresh the statement.');
+          if((lineAction||decision.expectedActualAmount!==undefined)&&Number(decision.expectedActualAmount??0)!==Number(target.actualAmount??0))throw new Error('The actual changed since review. Refresh the statement.');
         }
         if(lineAction){
           const items=clonePlain(target.lineItems||[]);
@@ -2797,8 +2802,8 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
         }else if(decision.action==='existing'){
           if(target.status!=='actual'||signedOccurrenceAmount(target,movement.primaryAccountId)!==entry.amountCents||target.actualDate!==entry.postingDate)throw new Error('Existing actual must have the same amount and posting date.');
         }else{
-          if(target.status!=='planned'||target.lineItems?.length)throw new Error('The selected item is no longer an unresolved planned payment.');
-          upsertOccurrence(scenario,target,{...snapshotOccurrenceMetadata(target),...snapshotBaselineMetadata(target),baselineAmount:target.baselineAmount??target.plannedAmount,plannedAmount:target.plannedAmount,actualAmount:Math.abs(entry.amountCents)/100,actualDate:entry.postingDate,status:'actual',isOverride:true},timestamp,{isOverride:true});
+          if(target.lineItems?.length&&Math.round(Number(target.actualAmount)*100)!==Math.abs(entry.amountCents))throw new Error('This transaction already contains line items. Use Add line item or review its existing lines before replacing the total.');
+          upsertOccurrence(scenario,target,{...snapshotOccurrenceMetadata(target),...snapshotBaselineMetadata(target),lineItems:clonePlain(target.lineItems||[]),baselineAmount:target.baselineAmount??target.plannedAmount,plannedAmount:target.plannedAmount,actualAmount:Math.abs(entry.amountCents)/100,actualDate:entry.postingDate,status:'actual',isOverride:true},timestamp,{isOverride:true});
           if(decision.updateFuture){
             const rule=scenario.transactions.find(t=>Number(t.id)===Number(target.sourceTransactionId));
             if(!rule||!isRecurringRule(rule))throw new Error('Updating future planned values requires a recurring payment.');
@@ -2808,9 +2813,25 @@ export async function applyStatementDecisions(scenarioId, importId, decisions) {
           }
         }
         occurrenceKey=target.occurrenceKey;seen.add(entry.fingerprint);
+        if(decision.action==='createPlan'){
+          if(!decision.recurrence||recurrenceTypeId(decision.recurrence)===1)throw new Error('Choose a repeat frequency before adding this transaction to the plan.');
+          const previous=promotions.get(occurrenceKey);
+          if(previous&&JSON.stringify(previous.recurrence)!==JSON.stringify(decision.recurrence))throw new Error('Choose the same repeat pattern for rows creating the same transaction.');
+          promotions.set(occurrenceKey,{recurrence:clonePlain(decision.recurrence),periodEnd:period.endDate});
+        }
       }
       batch.decisions[decision.index]={action:decision.action,occurrenceKey,primaryAccountId:decision.primaryAccountId??null,secondaryAccountId:decision.secondaryAccountId??null,period,transactionWindow,appliedAt:timestamp,before,updateFuture:Boolean(decision.updateFuture),actualAmount:decision.action==='ignore'?null:Math.abs(entry.amountCents)/100,actualDate:decision.action==='ignore'?null:entry.postingDate};
       changes.push({index:decision.index,action:decision.action,occurrenceKey});
+    }
+    // Promote after summing all approved lines, in this same atomic command.
+    for(const [key,options] of promotions){
+      const occurrence=resolveOccurrenceOrThrow(scenario,key).occurrence;
+      const after=[options.periodEnd,occurrence.actualDate||occurrence.scheduledDate].sort().at(-1);
+      const firstOccurrenceDate=nextRecurrenceDate(options.recurrence,after);
+      if(!firstOccurrenceDate)throw new Error('The repeat pattern has no occurrence after this budget period.');
+      if(scenario.transactions.some(rule=>isRecurringRule(rule)&&statementAccountPairMatches(rule,occurrence.primaryAccountId,occurrence.secondaryAccountId)&&(!rule.activeTo&&!rule.recurrence?.endDate||(rule.activeTo||rule.recurrence?.endDate)>=firstOccurrenceDate)))throw new Error('A recurring plan already exists for these accounts. Create the period transaction without adding another recurring rule.');
+      const result=promoteOccurrenceInScenario(scenario,key,{recurrence:options.recurrence,firstOccurrenceDate},timestamp);
+      for(const decision of Object.values(batch.decisions))if(decision.occurrenceKey===key&&decision.action==='createPlan')decision.createdTransactionId=result.createdTransactionIds[0];
     }
     return {changes};
   });
@@ -3036,139 +3057,130 @@ export async function createRecurringRule(scenarioId, payload = {}) {
   );
 }
 
-export async function promoteOccurrenceToRecurring(
-  scenarioId,
-  occurrenceKey,
-  {
-    recurrence,
-    firstOccurrenceDate = null,
-    ruleUpdates = {}
-  } = {}
-) {
-  return runCommand(
-    scenarioId,
-    'Manual occurrence promoted to a recurring rule',
-    (scenario, timestamp) => {
-      const { occurrence } = resolveOccurrenceOrThrow(scenario, occurrenceKey);
-      const sourceTransaction = (scenario.transactions || []).find(
-        (transaction) => Number(transaction?.id) === Number(occurrence.sourceTransactionId)
-      ) || null;
-      if (sourceTransaction && isRecurringRule(sourceTransaction)) {
-        throw new OccurrenceCommandError(
-          'manual-occurrence-required',
-          'An occurrence that already belongs to a recurring rule cannot be promoted again.'
-        );
-      }
-      const existingPromotedRule = (scenario.transactions || []).find(
-        (transaction) =>
-          String(transaction?.promotedFromOccurrenceKey || '') === String(occurrenceKey)
-      );
-      if (existingPromotedRule) {
-        throw new OccurrenceCommandError(
-          'occurrence-already-promoted',
-          'This item already has a recurring rule.',
-          { transactionId: existingPromotedRule.id }
-        );
-      }
-      if (!recurrence || recurrenceTypeId(recurrence) === 1) {
-        throw new OccurrenceCommandError(
-          'recurring-rule-required',
-          'Choose a recurring pattern before promoting the occurrence.'
-        );
-      }
-      if (occurrence.transactionGroupId) {
-        throw new OccurrenceCommandError(
-          'split-promotion-not-supported',
-          'Promote split movements from the recurring split editor.'
-        );
-      }
-
-      const afterDate =
-        occurrence.actualDate ||
-        occurrence.plannedDate ||
-        occurrence.scheduledDate;
-      const nextDate = firstOccurrenceDate
-        ? normalizeDate(firstOccurrenceDate, 'firstOccurrenceDate')
-        : nextRecurrenceDate(recurrence, afterDate);
-      if (!nextDate || nextDate <= afterDate) {
-        throw new OccurrenceCommandError(
-          'future-recurrence-required',
-          'The recurring rule must start on the next occurrence after the current item.'
-        );
-      }
-
-      const normalizedRecurrence = {
-        ...clonePlain(recurrence),
-        startDate: nextDate
-      };
-      if (
-        normalizedRecurrence.endDate &&
-        normalizeDate(normalizedRecurrence.endDate, 'recurrence.endDate') < nextDate
-      ) {
-        throw new OccurrenceCommandError(
-          'invalid-recurrence',
-          'The recurrence end date must be on or after its first occurrence.'
-        );
-      }
-
-      const updates = normalizeRuleUpdates(ruleUpdates);
-      delete updates.recurrence;
-      const id = allocateNextId(scenario.transactions);
-      const amount = hasOwn(updates, 'amount')
-        ? updates.amount
-        : absoluteAmount(
-          occurrence.status === 'actual'
-            ? occurrence.actualAmount
-            : occurrence.plannedAmount,
-          'amount'
-        );
-      const movement = validateMovement(scenario, {
-        primaryAccountId: updates.primaryAccountId ?? occurrence.primaryAccountId,
-        secondaryAccountId:
-          hasOwn(updates, 'secondaryAccountId')
-            ? updates.secondaryAccountId
-            : occurrence.secondaryAccountId,
-        transactionTypeId: updates.transactionTypeId ?? occurrence.transactionTypeId
-      });
-      const rule = {
-        id,
-        primaryAccountId: movement.primaryAccountId,
-        secondaryAccountId: movement.secondaryAccountId,
-        transactionTypeId: movement.transactionTypeId,
-        amount,
-        effectiveDate: nextDate,
-        description:
-          hasOwn(updates, 'description')
-            ? updates.description
-            : String(occurrence.description || '').trim(),
-        recurrence: normalizedRecurrence,
-        periodicChange:
-          hasOwn(updates, 'periodicChange')
-            ? clonePlain(updates.periodicChange)
-            : clonePlain(occurrence.periodicChange || null),
-        status: { name: 'planned', actualAmount: null, actualDate: null },
-        tags:
-          hasOwn(updates, 'tags')
-            ? [...updates.tags]
-            : (Array.isArray(occurrence.tags) ? [...occurrence.tags] : []),
-        transactionGroupId: null,
-        transactionGroupRole: null,
-        transactionGroupAccountGroupId: null,
-        seriesRootId: id,
-        supersedesTransactionId: null,
-        activeFrom: nextDate,
-        activeTo: normalizedRecurrence.endDate || null,
-        promotedFromOccurrenceKey: occurrenceKey,
-        createdAt: timestamp,
-        updatedAt: timestamp
-      };
-      scenario.transactions.push(rule);
-      return {
-        occurrenceKey,
-        createdTransactionIds: [id]
-      };
-    }
+function promoteOccurrenceInScenario(scenario, occurrenceKey, {recurrence,firstOccurrenceDate=null,ruleUpdates={}}={}, timestamp) {
+  const { occurrence } = resolveOccurrenceOrThrow(scenario, occurrenceKey);
+  const sourceTransaction = (scenario.transactions || []).find(
+    (transaction) => Number(transaction?.id) === Number(occurrence.sourceTransactionId)
+  ) || null;
+  if (sourceTransaction && isRecurringRule(sourceTransaction)) {
+    throw new OccurrenceCommandError(
+      'manual-occurrence-required',
+      'An occurrence that already belongs to a recurring rule cannot be promoted again.'
+    );
+  }
+  const existingPromotedRule = (scenario.transactions || []).find(
+    (transaction) =>
+      String(transaction?.promotedFromOccurrenceKey || '') === String(occurrenceKey)
   );
+  if (existingPromotedRule) {
+    throw new OccurrenceCommandError(
+      'occurrence-already-promoted',
+      'This item already has a recurring rule.',
+      { transactionId: existingPromotedRule.id }
+    );
+  }
+  if (!recurrence || recurrenceTypeId(recurrence) === 1) {
+    throw new OccurrenceCommandError(
+      'recurring-rule-required',
+      'Choose a recurring pattern before promoting the occurrence.'
+    );
+  }
+  if (occurrence.transactionGroupId) {
+    throw new OccurrenceCommandError(
+      'split-promotion-not-supported',
+      'Promote split movements from the recurring split editor.'
+    );
+  }
+
+  const afterDate =
+    occurrence.actualDate ||
+    occurrence.plannedDate ||
+    occurrence.scheduledDate;
+  const nextDate = firstOccurrenceDate
+    ? normalizeDate(firstOccurrenceDate, 'firstOccurrenceDate')
+    : nextRecurrenceDate(recurrence, afterDate);
+  if (!nextDate || nextDate <= afterDate) {
+    throw new OccurrenceCommandError(
+      'future-recurrence-required',
+      'The recurring rule must start on the next occurrence after the current item.'
+    );
+  }
+
+  const normalizedRecurrence = {
+    ...clonePlain(recurrence),
+    startDate: nextDate
+  };
+  if (
+    normalizedRecurrence.endDate &&
+    normalizeDate(normalizedRecurrence.endDate, 'recurrence.endDate') < nextDate
+  ) {
+    throw new OccurrenceCommandError(
+      'invalid-recurrence',
+      'The recurrence end date must be on or after its first occurrence.'
+    );
+  }
+
+  const updates = normalizeRuleUpdates(ruleUpdates);
+  delete updates.recurrence;
+  const id = allocateNextId(scenario.transactions);
+  const amount = hasOwn(updates, 'amount')
+    ? updates.amount
+    : absoluteAmount(
+      occurrence.status === 'actual'
+        ? occurrence.actualAmount
+        : occurrence.plannedAmount,
+      'amount'
+    );
+  const movement = validateMovement(scenario, {
+    primaryAccountId: updates.primaryAccountId ?? occurrence.primaryAccountId,
+    secondaryAccountId:
+      hasOwn(updates, 'secondaryAccountId')
+        ? updates.secondaryAccountId
+        : occurrence.secondaryAccountId,
+    transactionTypeId: updates.transactionTypeId ?? occurrence.transactionTypeId
+  });
+  const rule = {
+    id,
+    primaryAccountId: movement.primaryAccountId,
+    secondaryAccountId: movement.secondaryAccountId,
+    transactionTypeId: movement.transactionTypeId,
+    amount,
+    effectiveDate: nextDate,
+    description:
+      hasOwn(updates, 'description')
+        ? updates.description
+        : String(occurrence.description || '').trim(),
+    recurrence: normalizedRecurrence,
+    periodicChange:
+      hasOwn(updates, 'periodicChange')
+        ? clonePlain(updates.periodicChange)
+        : clonePlain(occurrence.periodicChange || null),
+    status: { name: 'planned', actualAmount: null, actualDate: null },
+    tags:
+      hasOwn(updates, 'tags')
+        ? [...updates.tags]
+        : (Array.isArray(occurrence.tags) ? [...occurrence.tags] : []),
+    transactionGroupId: null,
+    transactionGroupRole: null,
+    transactionGroupAccountGroupId: null,
+    seriesRootId: id,
+    supersedesTransactionId: null,
+    activeFrom: nextDate,
+    activeTo: normalizedRecurrence.endDate || null,
+    promotedFromOccurrenceKey: occurrenceKey,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  };
+  scenario.transactions.push(rule);
+  return {
+    occurrenceKey,
+    createdTransactionIds: [id]
+  };
+}
+
+export async function promoteOccurrenceToRecurring(scenarioId,occurrenceKey,options={}) {
+  return runCommand(scenarioId,'Manual occurrence promoted to a recurring rule',
+    (scenario,timestamp)=>promoteOccurrenceInScenario(scenario,occurrenceKey,options,timestamp));
 }
 
 export async function freezePeriodBaseline(scenarioId, rawPeriod) {

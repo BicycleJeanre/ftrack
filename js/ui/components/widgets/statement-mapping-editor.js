@@ -13,7 +13,7 @@ export function buildStatementMappingEditor({scenario,scenarioId,accountId,accou
   const select=(label,options)=>{const e=node('select');e.setAttribute('aria-label',label);for(const [value,text] of options){const o=node('option',text);o.value=value;e.append(o);}return e;};
   const saved=scenario.statementMappings || [];
   const selected=new Set((state.selectedIds || []).filter(id=>saved.some(r=>r.id===id))),checks=new Map();
-  const details=node('details');details.className='statement-mappings';details.append(node('summary',`Mapping rules — ${saved.length} saved`),node('p','Click a cell to edit. Rules map statements to FTrack accounts. Review actions adapt to the available transaction: close a plan, add lines, link an actual or create a transaction. Ignore and future-plan preferences are retained. Saving clears review approvals.'));
+  const details=node('details');details.className='statement-mappings';details.append(node('summary',`Mapping rules — ${saved.length} saved`),node('p','Click a cell to edit. Rules map statements to FTrack accounts. A single row completes the matching period payment; repeated rows add line items. Future-plan changes and recurring-plan creation are manual choices. Ignore preferences are retained. Saving clears review approvals.'));
   const bulk=node('div');bulk.className='statement-mapping-bulk';const count=node('span');
   let removeSelected=null;
   const syncSelection=()=>{state.selectedIds=[...selected];count.textContent=`${selected.size} selected · ${saved.filter(matches).length} of ${saved.length} shown`;if(removeSelected)removeSelected.disabled=selected.size===0;};

@@ -82,7 +82,7 @@ export function appliedStatementFingerprints(scenario) {
   for (const batch of scenario.statementImports || []) {
     const parsed = parseStatement(batch.rawCsv);
     for (const [index,decision] of Object.entries(batch.decisions || {})) {
-      if (['match','create','existing','line'].includes(decision.action) && parsed.entries[Number(index)]) seen.add(parsed.entries[Number(index)].fingerprint);
+      if (['match','create','createPlan','existing','line'].includes(decision.action) && parsed.entries[Number(index)]) seen.add(parsed.entries[Number(index)].fingerprint);
     }
   }
   return seen;
