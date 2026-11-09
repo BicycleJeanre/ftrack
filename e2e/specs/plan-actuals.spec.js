@@ -693,6 +693,21 @@ test.describe('unified Plan & Actuals workflow', () => {
     });
     await expect(itemizedCard.locator('.plan-actuals-line-item-summary')).toHaveCount(0);
     await expect(itemizedCard.locator('.plan-actuals-exception')).toHaveText('Unplanned');
+    await itemizedCard.locator('.plan-actuals-description').click();
+    const itemizedEditor = itemizedCard.locator('.plan-actuals-editor');
+    const remove = itemizedEditor.getByRole('button', { name: 'Remove line item', exact: true });
+    const actual = editorField(itemizedEditor, 'Actual amount').locator('input');
+    await remove.first().click();
+    await expect(actual).toHaveValue('35.00');
+    await remove.first().click();
+    await expect(actual).toHaveValue('0.00');
+    await itemizedEditor.getByRole('button', { name: 'Save', exact: true }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (occurrence) => occurrence.description === 'Itemized shop transaction' &&
+        occurrence.status === 'actual' &&
+        occurrence.actualAmount === 0 &&
+        occurrence.lineItems?.length === 0
+    ), 'actual lines removed and actual total cleared');
   });
 
   test('flags realized spending above the current plan without flagging planned rows or income', async ({ page }) => {
@@ -727,6 +742,26 @@ test.describe('unified Plan & Actuals workflow', () => {
     for (const description of ['Within current plan', 'Above planned income', 'Groceries budget']) {
       await expect(badge(description)).toHaveCount(0);
     }
+    const exception = page.getByLabel('Exceptions', { exact: true });
+    const cards = page.locator('#budgetSection .plan-actuals-item');
+    await exception.selectOption('unplanned');
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('Unplanned spending');
+    await expectPlanTotal(page, 'Actual Net', '-R 25,00');
+    await exception.selectOption('over-budget');
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('Over current plan');
+    await exception.selectOption('any');
+    await expect(cards).toHaveCount(2);
+    await selectWorkflow(page, 'Plan & Actuals (Detail)');
+    await expect(exception).toHaveValue('any');
+    const detailRows = page.locator('.plan-actuals-detail-grid .tabulator-row');
+    await expect(detailRows).toHaveCount(2);
+    await exception.selectOption('over-budget');
+    await expect(detailRows).toHaveCount(1);
+    await expect(detailRows.first()).toContainText('Over current plan');
+    await exception.selectOption('');
+    await expect(detailRows).toHaveCount(7);
   });
 
   test('adds a line item to an existing transaction and increases its total', async ({ page }) => {
@@ -754,6 +789,46 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(card.locator('.plan-actuals-line-item-summary')).toHaveCount(0);
     await expect(card.locator('.plan-actuals-metric', { hasText: 'Current' }).locator('.value'))
       .toHaveText('R 500,00');
+  });
+
+  test('removes recurring occurrence lines on a narrow card without changing the series', async ({ page }) => {
+    const data = loadSmokeData();
+    const rule = data.scenarios[0].transactions.find((item) => item.id === 1002);
+    rule.lineItems = [
+      { id: 'a', date: '2026-01-10', description: 'First', amount: 300 },
+      { id: 'b', date: '2026-01-10', description: 'Second', amount: 150 }
+    ];
+    await page.addInitScript(({ key, data }) => {
+      if (!sessionStorage.getItem('itemized-removal-fixture')) {
+        localStorage.setItem(key, JSON.stringify(data));
+        sessionStorage.setItem('itemized-removal-fixture', '1');
+      }
+    }, { key: STORAGE_KEY, data });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    const card = page.locator('#budgetSection .plan-actuals-item', { hasText: 'Groceries budget' });
+    await card.locator('.plan-actuals-description').click();
+    const form = card.locator('.plan-actuals-editor');
+    const remove = form.getByRole('button', { name: 'Remove line item', exact: true });
+    const amount = editorField(form, 'Current plan').locator('input');
+    await expect(remove).toHaveCount(2);
+    await remove.first().click();
+    await expect(amount).toHaveValue('150.00');
+    await remove.first().click();
+    await expect(amount).toHaveValue('0.00');
+    await expect(amount).toBeEditable();
+    await form.getByRole('button', { name: 'Save', exact: true }).click();
+    await waitForScenario(page, (scenario) => scenario.transactionOccurrences.some(
+      (item) => item.sourceTransactionId === 1002 && item.plannedAmount === 0 &&
+        Array.isArray(item.lineItems) && item.lineItems.length === 0
+    ), 'empty override persisted');
+    expect((await currentScenario(page)).transactions.find((item) => item.id === 1002).lineItems)
+      .toHaveLength(2);
+    await card.locator('.plan-actuals-description').click();
+    await expect(form.locator('.plan-actuals-line-item')).toHaveCount(0);
   });
 
   test('keeps collapsed cards compact and direction-aware', async ({ page }) => {

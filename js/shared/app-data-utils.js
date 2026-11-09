@@ -240,6 +240,9 @@ export function normalizeUiState(raw) {
           historyFilter: periodHistoryFilters.has(periodHistoryFilter)
             ? periodHistoryFilter
             : '',
+          exceptionFilter: ['any', 'unplanned', 'over-budget'].includes(workspace.exceptionFilter)
+            ? workspace.exceptionFilter
+            : '',
           groupBy: periodGroups.has(periodGroup) ? periodGroup : '',
           recurringAccountId: cleanOptionalId(workspace.recurringAccountId),
           recurringAccountScope: cleanAccountScope(
@@ -500,7 +503,8 @@ export function normalizeTransactionOccurrence(rawOccurrence) {
       occurrence.periodicChange && typeof occurrence.periodicChange === 'object'
         ? occurrence.periodicChange
         : null,
-    ...(lineItems.length ? { lineItems } : {}),
+    // An explicit empty list overrides the recurring rule's line items.
+    ...(Array.isArray(occurrence.lineItems) ? { lineItems } : {}),
     createdAt: optionalText(occurrence.createdAt),
     ...(Array.isArray(occurrence.plannedLineItems)&&occurrence.plannedLineItems.length?{plannedLineItems:normalizeTransactionLineItems(occurrence.plannedLineItems,scheduledDate)}:{}),
     updatedAt: optionalText(occurrence.updatedAt)

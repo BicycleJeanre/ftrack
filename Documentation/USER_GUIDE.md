@@ -289,6 +289,15 @@ Click the card body again to collapse it. Account links, buttons and form
 controls keep their own actions. The detail table still shows money movement
 and baseline history; the editor still shows individual line items.
 
+Use **Exceptions** in Period to show **Unplanned**, **Over budget**, or **Any
+exception**. It works in both cards and the detail table, combines with the
+other filters, and recalculates the visible totals. Choose **All transactions**
+to clear it.
+
+In the editor, use **Remove** next to a line item, then **Save**. The amount
+updates as lines are removed. Removing the last line resets the amount to zero
+and makes it editable again if you want to keep a non-itemized amount.
+
 Use View, Period, and previous/next controls to navigate.
 Select the secondary-account name at the top of a transaction card to switch
 the Account filter directly to that account. The same shortcut is available on

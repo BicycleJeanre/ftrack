@@ -3256,23 +3256,34 @@ button.filter-modal-open {
 
 .plan-actuals-line-item {
   display: grid;
-  grid-template-columns: minmax(125px, 0.75fr) minmax(180px, 1.6fr) minmax(90px, 0.6fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.65fr) auto;
   align-items: center;
   gap: 7px;
 }
 
-.plan-actuals-remove-line-item {
-  color: var(--color-negative);
+.plan-actuals-line-item > input {
+  width: 100%;
+  min-width: 0;
 }
 
-@media (max-width: 700px) {
+.plan-actuals-remove-line-item {
+  color: var(--color-negative);
+  white-space: nowrap;
+}
+
+.plan-actuals-line-item-description {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+@container (min-width: 540px) {
   .plan-actuals-line-item {
-    grid-template-columns: minmax(120px, 0.8fr) minmax(90px, 0.6fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 0.7fr) auto;
   }
 
   .plan-actuals-line-item-description {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 

@@ -120,6 +120,7 @@ let transactionsAllPeriodsExpanded = false; // When period is All, show expanded
 // Budget context - additional filter state
 let budgetStatusFilter = ''; // '' = All, 'planned', 'actual'
 let budgetHistoryFilter = ''; // '' = All, 'closed', 'captured', 'live'
+let budgetExceptionFilter = '';
 let budgetGroupBy = ''; // '' = None, 'transactionTypeName', 'statusName', 'secondaryAccountName'
 
 // Projections context - additional filter state
@@ -417,6 +418,7 @@ function restorePlanActualsWorkspace(scenario) {
   budgetAccountScope = workspace.accountScope || '';
   budgetStatusFilter = workspace.statusFilter || '';
   budgetHistoryFilter = workspace.historyFilter || '';
+  budgetExceptionFilter = workspace.exceptionFilter || '';
   budgetGroupBy = workspace.groupBy || '';
   transactionsAccountFilterId = validAccount(workspace.recurringAccountId);
   transactionsAccountScope = workspace.recurringAccountScope || '';
@@ -505,6 +507,7 @@ async function setCurrentScenarioById(scenarioId) {
     budgetAccountScope = '';
     budgetStatusFilter = '';
     budgetHistoryFilter = '';
+    budgetExceptionFilter = '';
     budgetPeriod = null;
     budgetGroupBy = '';
     // Projections context
@@ -545,6 +548,7 @@ function resetScenarioScopedCaches() {
   budgetAccountScope = '';
   budgetStatusFilter = '';
   budgetHistoryFilter = '';
+  budgetExceptionFilter = '';
   budgetPeriod = null;
   budgetGroupBy = '';
   projectionsAccountFilterId = null;
@@ -1632,6 +1636,11 @@ async function loadBudgetGrid(container) {
       setBudgetHistoryFilter: (nextHistory) => {
         budgetHistoryFilter = nextHistory;
         patchPlanActualsWorkspace({ historyFilter: nextHistory || '' });
+      },
+      getBudgetExceptionFilter: () => budgetExceptionFilter,
+      setBudgetExceptionFilter: (value) => {
+        budgetExceptionFilter = value || '';
+        patchPlanActualsWorkspace({ exceptionFilter: budgetExceptionFilter });
       },
       getBudgetPeriod: () => budgetPeriod,
       setBudgetPeriod: (nextPeriod) => {

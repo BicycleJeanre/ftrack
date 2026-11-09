@@ -506,6 +506,19 @@ function movementDimensions(row) {
     : currentMovementDimensions(row);
 }
 
+function occurrenceException(row) {
+  const occurrence = row._canonicalOccurrence || row;
+  const comparison = row._comparisonOccurrence || occurrence;
+  const cents = (amount) => Math.round(Math.abs(Number(amount || 0)) * 100);
+  const actual = cents(comparison.actualAmount);
+  const planned = cents(comparison.plannedAmount);
+  if (statusName(occurrence) !== 'actual' || !actual) return '';
+  if (!planned && !cents(comparison.baselineAmount)) return 'unplanned';
+  return Number(movementDimensions(row).transactionTypeId) === 2 && actual > planned
+    ? 'over-budget'
+    : '';
+}
+
 async function runAction(button, action) {
   if (!button || button.disabled) return;
   const previous = button.textContent;
@@ -970,7 +983,7 @@ function buildOccurrenceEditor({
     remove.className = 'icon-btn plan-actuals-remove-line-item';
     remove.title = 'Remove line item';
     remove.setAttribute('aria-label', 'Remove line item');
-    remove.textContent = '×';
+    remove.textContent = 'Remove';
     const line = {
       row,
       id,
@@ -993,6 +1006,11 @@ function buildOccurrenceEditor({
       if (index >= 0) lineItemRows.splice(index, 1);
       row.remove();
       refreshLineItemTotal();
+      if (!lineItemRows.length) {
+        const amount = statusSelect.value === 'actual' ? actualInput : plannedInput;
+        amount.value = '0.00';
+      }
+      (lineItemRows[index]?.description || lineItemRows[index - 1]?.description || addLineItemButton).focus();
     });
     refreshLineItemTotal();
     return line;
@@ -1000,9 +1018,8 @@ function buildOccurrenceEditor({
   (Array.isArray(occurrence?.lineItems) ? occurrence.lineItems : []).forEach(addLineItem);
   addLineItemButton.addEventListener('click', () => {
     if (!lineItemRows.length && occurrence) {
-      const existingAmount = existingStatus === 'actual'
-        ? Math.abs(Number(occurrence.actualAmount || 0))
-        : Math.abs(Number(occurrence.plannedAmount || 0));
+      const amount = statusSelect.value === 'actual' ? actualInput : plannedInput;
+      const existingAmount = Math.abs(Number(amount.value || 0));
       if (existingAmount > 0) {
         addLineItem({
           date: occurrence.actualDate || occurrence.effectiveDate || defaultDate,
@@ -1528,7 +1545,7 @@ function renderOccurrenceCards({
   if (!rows.length) {
     const empty = document.createElement('div');
     empty.className = 'scenarios-list-placeholder';
-    empty.textContent = 'No planned or actual items in this period. Add an item or create a recurring rule.';
+    empty.textContent = 'No transactions match the selected period and filters.';
     list.appendChild(empty);
     return;
   }
@@ -1675,16 +1692,15 @@ function renderOccurrenceCards({
     const actual = actualAmount === null
       ? null
       : signedAmount(actualAmount, displayMovement.transactionTypeId);
-    const cents = (amount) => Math.round(amount * 100);
-    const unplanned = cents(actualAmount) > 0 && cents(baseline) === 0 && cents(planned) === 0;
-    const overBudget = !unplanned && actual < 0 && cents(actualAmount) > cents(planned);
-    if (unplanned || overBudget) {
+    const exception = occurrenceException(row);
+    if (exception) {
+      const unplanned = exception === 'unplanned';
       const badge = document.createElement('span');
-      badge.className = `plan-actuals-exception ${unplanned ? 'is-unplanned' : 'is-over-budget'}`;
+      badge.className = `plan-actuals-exception is-${exception}`;
       badge.textContent = unplanned ? 'Unplanned' : 'Over budget';
       badge.title = unplanned
         ? 'Actual transaction with no baseline or current plan'
-        : `${formatCurrency((cents(actualAmount) - cents(planned)) / 100)} over the current plan`;
+        : `${formatCurrency(actualAmount - planned)} over the current plan`;
       heading.insertBefore(badge, status);
     }
     const variance = (actualAmount ?? planned) - baseline;
@@ -2112,6 +2128,7 @@ async function renderOccurrenceDetailTable({
     endDate: detailEndDate || '',
     accountId: Number(state?.getBudgetAccountFilterId?.() || 0),
     statusFilter: state?.getBudgetStatusFilter?.() || '',
+    exceptionFilter: state?.getBudgetExceptionFilter?.() || '',
     historyFilter: state?.getBudgetHistoryFilter?.() || '',
     groupBy: state?.getGroupBy?.() || '',
     variantId
@@ -2183,7 +2200,7 @@ async function renderOccurrenceDetailTable({
       layout: 'fitDataStretch',
       responsiveLayout: false,
       rowHeight: 52,
-      placeholder: 'No planned or actual items in this period.',
+      placeholder: 'No transactions match the selected period and filters.',
       initialSort: [{ column: 'date', dir: 'asc' }]
     });
 
@@ -2389,6 +2406,12 @@ async function renderPeriodView({
       historyOptions,
       state?.getBudgetHistoryFilter?.() || ''
     );
+    const inlineException = createSelect('plan-exception-inline', [
+      { value: '', label: 'All transactions' },
+      { value: 'any', label: 'Any exception' },
+      { value: 'unplanned', label: 'Unplanned' },
+      { value: 'over-budget', label: 'Over budget' }
+    ], state?.getBudgetExceptionFilter?.() || '');
     const inlineGroup = createSelect('plan-group-inline', groupOptions, state?.getGroupBy?.() || '');
     const inlineVariant = createSelect(
       'plan-variant-inline',
@@ -2437,6 +2460,11 @@ async function renderPeriodView({
       await reload();
     };
     inlineHistory.addEventListener('change', () => setHistory(inlineHistory.value));
+    inlineException.addEventListener('change', async () => {
+      state?.setBudgetExceptionFilter?.(inlineException.value);
+      pendingEditor = null;
+      await reload();
+    });
     const setGroup = async (value) => {
       inlineGroup.value = String(value ?? '');
       state?.setGroupBy?.(value || '');
@@ -2583,6 +2611,7 @@ async function renderPeriodView({
     inlineFilters.appendChild(createHeaderFilterItem('Period', buildNav(inlinePeriod), 'filter-period'));
     inlineFilters.appendChild(createHeaderFilterItem('Account', inlineAccount, 'filter-account'));
     inlineFilters.appendChild(createHeaderFilterItem('Status', inlineStatus, 'filter-status'));
+    inlineFilters.appendChild(createHeaderFilterItem('Exceptions', inlineException, 'filter-exception'));
     inlineFilters.appendChild(createHeaderFilterItem('History', inlineHistory, 'filter-history'));
     inlineFilters.appendChild(createHeaderFilterItem('Group', inlineGroup, 'filter-group'));
     inlineFilters.appendChild(createHeaderFilterItem('Snapshot', inlineVariant, 'filter-variant'));
@@ -2614,13 +2643,21 @@ async function renderPeriodView({
     visibleOccurrences,
     scenario.transactions || []
   );
+  const exceptionFilter = state?.getBudgetExceptionFilter?.() || '';
   const rows = buildDisplayRows({
     occurrences: displayOccurrences,
     accounts: scenario.accounts || [],
     accountFilterId
+  }).filter((row) => {
+    if (!exceptionFilter) return true;
+    const exception = occurrenceException(row);
+    return exceptionFilter === 'any' ? Boolean(exception) : exception === exceptionFilter;
   });
+  const visibleKeys = exceptionFilter ? new Set(rows.map((row) => row.occurrenceKey)) : null;
   const totalsOccurrences = buildComparisonOccurrences(
-    visibleOccurrences,
+    visibleKeys
+      ? visibleOccurrences.filter((occurrence) => visibleKeys.has(occurrence.occurrenceKey))
+      : visibleOccurrences,
     accountFilterId
   );
 
