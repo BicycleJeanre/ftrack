@@ -1357,12 +1357,14 @@ function buildOccurrenceActions({
       }));
       actions.appendChild(actionButton({
         title: 'Edit item in this what-if',
+        className: 'plan-actuals-expanded-action',
         text: '✎',
         onClick: () => onEdit(occurrence)
       }));
     }
     actions.appendChild(actionButton({
       title: 'Duplicate in this what-if',
+      className: 'plan-actuals-expanded-action',
       text: '⧉',
       onClick: (button) => runAction(button, async () => {
         const result = await PeriodVariantManager.duplicateOccurrence(
@@ -1452,11 +1454,13 @@ function buildOccurrenceActions({
   }
   actions.appendChild(actionButton({
     title: 'Edit item',
+    className: 'plan-actuals-expanded-action',
     text: '✎',
     onClick: () => onEdit(occurrence)
   }));
   actions.appendChild(actionButton({
     title: 'Duplicate item',
+    className: 'plan-actuals-expanded-action',
     text: '⧉',
     onClick: (button) => runAction(button, async () => {
       await OccurrenceManager.createManualOccurrence(scenarioId, {
@@ -1513,7 +1517,8 @@ function renderOccurrenceCards({
   onChanged,
   onNavigateAccount,
   groupBy,
-  onEdit
+  onEdit,
+  onToggle
 }) {
   container.innerHTML = '';
   const list = document.createElement('div');
@@ -1597,23 +1602,11 @@ function renderOccurrenceCards({
       row._comparisonOccurrence || occurrence
     );
     card.classList.add('is-openable');
-    card.tabIndex = 0;
-    card.setAttribute(
-      'aria-label',
-      `Open ${occurrence.description || 'transaction'} details`
-    );
-    const openFromCard = (event) => {
+    card.addEventListener('click', (event) => {
       if (event.target.closest(
         'button, input, select, textarea, a, label, form, .plan-actuals-editor-wrap'
       )) return;
-      onEdit?.(occurrence);
-    };
-    card.addEventListener('click', openFromCard);
-    card.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      if (event.target !== card) return;
-      event.preventDefault();
-      onEdit?.(occurrence);
+      onToggle?.(card, occurrence);
     });
 
     const content = document.createElement('div');
@@ -1649,9 +1642,6 @@ function renderOccurrenceCards({
       onChanged
     });
     heading.appendChild(counterparty);
-    heading.appendChild(buildBaselineHistoryBadge(
-      row._comparisonOccurrence || occurrence
-    ));
     heading.appendChild(status);
 
     const schedule = document.createElement('div');
@@ -1667,24 +1657,12 @@ function renderOccurrenceCards({
     schedule.appendChild(repeat);
     schedule.appendChild(date);
 
-    const movement = document.createElement('div');
-    movement.className = 'grid-summary-flow plan-actuals-movement';
-    const type = movementTypeLabel(displayMovement.transactionTypeId);
-    movement.textContent =
-      `${type}: ${movementTextFromDimensions(displayMovement, accounts)}`;
-
-    const description = document.createElement('div');
+    const description = document.createElement('button');
+    description.type = 'button';
     description.className = 'grid-summary-description plan-actuals-description';
     description.textContent = occurrence.description || 'Untitled item';
-
-    const lineItems = Array.isArray(occurrence.lineItems) ? occurrence.lineItems : [];
-    const lineItemSummary = document.createElement('div');
-    lineItemSummary.className = 'plan-actuals-line-item-summary';
-    lineItemSummary.textContent = lineItems.length
-      ? `${lineItems.length} line item${lineItems.length === 1 ? '' : 's'} · ${formatCurrency(
-          lineItems.reduce((sum, item) => sum + Math.abs(Number(item?.amount || 0)), 0)
-        )}`
-      : 'No line items';
+    description.setAttribute('aria-expanded', 'false');
+    description.addEventListener('click', () => onToggle?.(card, occurrence));
 
     const comparison = document.createElement('div');
     comparison.className = 'plan-actuals-comparison';
@@ -1697,6 +1675,18 @@ function renderOccurrenceCards({
     const actual = actualAmount === null
       ? null
       : signedAmount(actualAmount, displayMovement.transactionTypeId);
+    const cents = (amount) => Math.round(amount * 100);
+    const unplanned = cents(actualAmount) > 0 && cents(baseline) === 0 && cents(planned) === 0;
+    const overBudget = !unplanned && actual < 0 && cents(actualAmount) > cents(planned);
+    if (unplanned || overBudget) {
+      const badge = document.createElement('span');
+      badge.className = `plan-actuals-exception ${unplanned ? 'is-unplanned' : 'is-over-budget'}`;
+      badge.textContent = unplanned ? 'Unplanned' : 'Over budget';
+      badge.title = unplanned
+        ? 'Actual transaction with no baseline or current plan'
+        : `${formatCurrency((cents(actualAmount) - cents(planned)) / 100)} over the current plan`;
+      heading.insertBefore(badge, status);
+    }
     const variance = (actualAmount ?? planned) - baseline;
     [
       ['Baseline', baseline],
@@ -1726,16 +1716,18 @@ function renderOccurrenceCards({
       onChanged,
       onEdit
     });
-    schedule.appendChild(actions);
+    const expandedActions = document.createElement('div');
+    expandedActions.className = 'plan-actuals-expanded-actions';
+    expandedActions.hidden = true;
+    expandedActions.append(...actions.querySelectorAll('.plan-actuals-expanded-action'));
+    if (actions.childElementCount) schedule.appendChild(actions);
 
     content.appendChild(heading);
     content.appendChild(schedule);
-    content.appendChild(movement);
     content.appendChild(description);
-    content.appendChild(lineItemSummary);
     content.appendChild(comparison);
 
-    card.appendChild(content);
+    card.append(content, expandedActions);
     list.appendChild(card);
   });
 }
@@ -2669,6 +2661,40 @@ async function renderPeriodView({
 
   renderComparisonTotals(totals, totalsOccurrences);
 
+  const closeCardEditor = (editor, card = editor.closest('.plan-actuals-item')) => {
+    editor.remove();
+    if (!card) return;
+    card.querySelector('.plan-actuals-description').setAttribute('aria-expanded', 'false');
+    card.querySelector('.plan-actuals-expanded-actions').hidden = true;
+  };
+  const openCardEditor = (card, occurrence) => {
+    if (!card) return;
+    const existing = grid.querySelector('.plan-actuals-editor-wrap');
+    if (existing?.parentElement === card) {
+      existing.querySelector('input:not([type="hidden"]), button')?.focus();
+      return;
+    }
+    if (existing) closeCardEditor(existing);
+    const editorWrap = document.createElement('div');
+    editorWrap.className = 'plan-actuals-editor-wrap';
+    editorWrap.appendChild(buildOccurrenceEditor({
+      scenarioId: scenario.id,
+      occurrence,
+      accounts: scenario.accounts || [],
+      accountGroups: scenario.accountGroups || [],
+      state,
+      variantId: selectedVariantId,
+      onCancel: () => closeCardEditor(editorWrap, card),
+      onSaved: async (nextScenario) => {
+        closeCardEditor(editorWrap, card);
+        if (nextScenario) await applyVariantScenario(nextScenario);
+      }
+    }));
+    card.appendChild(editorWrap);
+    card.querySelector('.plan-actuals-description').setAttribute('aria-expanded', 'true');
+    card.querySelector('.plan-actuals-expanded-actions').hidden = false;
+  };
+
   renderOccurrenceCards({
     container: grid,
     rows,
@@ -2679,27 +2705,14 @@ async function renderPeriodView({
     onChanged: applyVariantScenario,
     onNavigateAccount: navigateToAccount,
     groupBy: state?.getGroupBy?.() || '',
-    onEdit: (occurrence) => {
-      const existing = grid.querySelector('.plan-actuals-editor-wrap');
-      existing?.remove();
-      const card = grid.querySelector(`[data-occurrence-key="${CSS.escape(occurrence.occurrenceKey)}"]`);
-      if (!card) return;
-      const editorWrap = document.createElement('div');
-      editorWrap.className = 'plan-actuals-editor-wrap';
-      editorWrap.appendChild(buildOccurrenceEditor({
-        scenarioId: scenario.id,
-        occurrence,
-        accounts: scenario.accounts || [],
-        accountGroups: scenario.accountGroups || [],
-        state,
-        variantId: selectedVariantId,
-        onCancel: () => editorWrap.remove(),
-        onSaved: async (nextScenario) => {
-          editorWrap.remove();
-          if (nextScenario) await applyVariantScenario(nextScenario);
-        }
-      }));
-      card.appendChild(editorWrap);
+    onEdit: (occurrence) => openCardEditor(
+      grid.querySelector(`[data-occurrence-key="${CSS.escape(occurrence.occurrenceKey)}"]`),
+      occurrence
+    ),
+    onToggle: (card, occurrence) => {
+      const editor = card.querySelector('.plan-actuals-editor-wrap');
+      if (editor) closeCardEditor(editor, card);
+      else openCardEditor(card, occurrence);
     }
   });
 
@@ -2728,9 +2741,9 @@ async function renderPeriodView({
     root: container,
     detailsSelector: '.plan-actuals-editor-wrap, .plan-actuals-new-item',
     ownerSelector: '.plan-actuals-item',
-    onDismiss: (editor) => {
+    onDismiss: (editor, card) => {
       pendingEditor = null;
-      editor.remove();
+      closeCardEditor(editor, card);
     }
   });
 }

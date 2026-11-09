@@ -16,29 +16,20 @@ const {
 const malformedImportFixturePath = path.resolve(__dirname, '../fixtures/malformed-import-data.json');
 
 test.describe('deeper edit paths and error states', () => {
-  test('shows plan descriptions and direction-aware money movement', async ({ page }) => {
+  test('shows plan descriptions and direction styling without movement text', async ({ page }) => {
     await gotoFTrack(page);
     await selectWorkflow(page, 'General');
     await page.getByRole('tab', { name: 'Period', exact: true }).click();
 
     const moneyOutCard = page.locator('#budgetSection .grid-summary-card', { hasText: 'Groceries budget' });
     await expect(moneyOutCard.locator('.grid-summary-description')).toHaveText('Groceries budget');
-    await expect(moneyOutCard.locator('.grid-summary-flow'))
-      .toHaveText(/Money Out: Checking.*→.*Groceries Expense/);
-    expect(await moneyOutCard.evaluate((card) => {
-      const movement = card.querySelector('.plan-actuals-movement');
-      const description = card.querySelector('.plan-actuals-description');
-      return Boolean(
-        movement &&
-        description &&
-        (movement.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING)
-      );
-    })).toBe(true);
+    await expect(moneyOutCard.locator('.grid-summary-flow')).toHaveCount(0);
+    await expect(moneyOutCard).toHaveClass(/money-out/);
 
     const moneyInCard = page.locator('#budgetSection .grid-summary-card', { hasText: 'Monthly salary' });
     await expect(moneyInCard.locator('.grid-summary-description')).toHaveText('Monthly salary');
-    await expect(moneyInCard.locator('.grid-summary-flow'))
-      .toHaveText(/Money In: Salary Income.*→.*Checking/);
+    await expect(moneyInCard.locator('.grid-summary-flow')).toHaveCount(0);
+    await expect(moneyInCard).toHaveClass(/money-in/);
   });
 
   test('edits a plan occurrence amount and description', async ({ page }) => {
@@ -48,7 +39,7 @@ test.describe('deeper edit paths and error states', () => {
 
     const card = page.locator('#budgetSection .grid-summary-card', { hasText: 'Groceries budget' });
     const occurrenceKey = await card.getAttribute('data-occurrence-key');
-    await card.locator('button[title="Edit item"]').click();
+    await card.locator('.plan-actuals-description').click();
     const form = card.locator('.grid-summary-form');
     await expect(form).toBeVisible();
     await form.locator('.grid-summary-field', { hasText: 'Current plan' })

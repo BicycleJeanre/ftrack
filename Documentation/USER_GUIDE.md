@@ -271,16 +271,23 @@ Switch to **Plan & Actuals → Period**.
 FTrack immediately resolves all rules that overlap the selected Day, Week,
 Month, Quarter, or Year.
 
-Each item shows:
+Each collapsed card shows:
 
 - status and effective date;
-- repeat information;
-- direction-aware account movement;
+- muted repeat information;
+- the counterparty and color-coded direction;
 - description on its own line;
 - Baseline;
 - Current plan;
-- Actual; and
-- Variance.
+- Actual;
+- Variance; and
+- **Unplanned** for an actual with no baseline or current plan, or **Over budget**
+  for outgoing actual spending above the current plan.
+
+Click the card body to expand the editor and reveal **Edit** and **Duplicate**.
+Click the card body again to collapse it. Account links, buttons and form
+controls keep their own actions. The detail table still shows money movement
+and baseline history; the editor still shows individual line items.
 
 Use View, Period, and previous/next controls to navigate.
 Select the secondary-account name at the top of a transaction card to switch
@@ -383,7 +390,7 @@ and click **Close selected period**.
 Marking an item Actual captures only that item's baseline. The rest of the
 period remains live and editable until you explicitly close it.
 
-Cards distinguish **Live**, **Baseline captured**, and **Closed**. The History
+The detail table distinguishes **Live**, **Baseline captured**, and **Closed**. The History
 manager lists item-level captures under **Individual baselines**. Clear a
 month's captured baselines independently or use **Clear all baseline history**;
 actual and skipped transaction history remains intact.

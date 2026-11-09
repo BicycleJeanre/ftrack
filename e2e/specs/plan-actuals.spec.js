@@ -499,8 +499,7 @@ test.describe('unified Plan & Actuals workflow', () => {
   test('shows and filters closed period history on cards', async ({ page }) => {
     const cards = page.locator('#budgetSection .plan-actuals-item');
     await expect(cards.first()).toBeVisible();
-    await expect(cards.locator('.plan-actuals-history-badge.is-live').first())
-      .toHaveText('Live');
+    await expect(cards.first()).toHaveAttribute('data-baseline-history', 'live');
 
     await page.getByRole('button', { name: 'Manage period history' }).click();
     const manager = page.locator('.baseline-period-manager-modal');
@@ -509,8 +508,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     await manager.getByRole('button', { name: 'Close selected period' }).click();
     await expect(manager.locator('.baseline-period-manager-row')).toHaveCount(1);
     await manager.locator('#baseline-manager-close').click();
-    await expect(cards.locator('.plan-actuals-history-badge.is-closed').first())
-      .toHaveText('Closed');
+    await expect(cards.first()).toHaveAttribute('data-baseline-history', 'closed');
 
     await page.locator('#plan-history-inline').selectOption('closed');
     await expect(cards.first()).toHaveAttribute('data-baseline-history', 'closed');
@@ -525,8 +523,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       .click();
     await confirmDialog(page);
     await page.locator('.baseline-period-manager-modal #baseline-manager-close').click();
-    await expect(cards.locator('.plan-actuals-history-badge.is-live').first())
-      .toHaveText('Live');
+    await expect(cards.first()).toHaveAttribute('data-baseline-history', 'live');
     await expect(page.locator('#budgetSection')
       .getByRole('button', { name: 'Manage period history' }))
       .toBeVisible();
@@ -563,8 +560,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     const groceryCard = page.locator(
       '#budgetSection .plan-actuals-item[data-occurrence-key="tx:1002|date:2026-01-10|role:none"]'
     );
-    await expect(groceryCard.locator('.plan-actuals-history-badge.is-captured'))
-      .toHaveText('Baseline captured');
+    await expect(groceryCard).toHaveAttribute('data-baseline-history', 'captured');
 
     await page.getByRole('button', { name: 'Manage period history' }).click();
     const manager = page.locator('.baseline-period-manager-modal');
@@ -583,8 +579,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     ), 'unlinked transaction baseline cleared');
     await expect(manager.locator('.baseline-period-manager-empty')).toBeVisible();
     await manager.locator('#baseline-manager-close').click();
-    await expect(groceryCard.locator('.plan-actuals-history-badge.is-live'))
-      .toHaveText('Live');
+    await expect(groceryCard).toHaveAttribute('data-baseline-history', 'live');
   });
 
   test('manages an annual closed marker and can clear all baseline history', async ({ page }) => {
@@ -626,14 +621,36 @@ test.describe('unified Plan & Actuals workflow', () => {
     ), 'actual captured only the item baseline');
   });
 
-  test('opens a Period card by clicking its content and closes it when clicking off the item', async ({ page }) => {
+  test('toggles a Period card from its body or keyboard and hides editing actions when collapsed', async ({ page }) => {
     const card = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Groceries budget'
     });
-    await card.locator('.plan-actuals-description').click();
-    await expect(card.locator('form.plan-actuals-editor')).toBeVisible();
+    const body = card.locator('.plan-actuals-description');
+    const editor = card.locator('form.plan-actuals-editor');
+    const edit = card.getByRole('button', { name: 'Edit item', exact: true });
+    const duplicate = card.getByRole('button', { name: 'Duplicate item', exact: true });
+    await expect(edit).toBeHidden();
+    await expect(duplicate).toBeHidden();
+    await body.click();
+    await expect(editor).toBeVisible();
+    await expect(body).toHaveAttribute('aria-expanded', 'true');
+    await expect(edit).toBeVisible();
+    await expect(duplicate).toBeVisible();
+    await edit.click();
+    await expect(editor).toBeVisible();
+    await card.locator('.plan-actuals-comparison .label').first().click();
+    await expect(editor).toHaveCount(0);
+    await expect(edit).toBeHidden();
+    await expect(body).toHaveAttribute('aria-expanded', 'false');
+    await body.press('Enter');
+    await expect(editor).toBeVisible();
+    await body.press('Space');
+    await expect(editor).toHaveCount(0);
+    await body.click();
     await page.locator('#budgetSection .plan-actuals-totals').click();
-    await expect(card.locator('form.plan-actuals-editor')).toHaveCount(0);
+    await expect(editor).toHaveCount(0);
+    await expect(duplicate).toBeHidden();
+    await expect(body).toHaveAttribute('aria-expanded', 'false');
   });
 
   test('closes an expanded Recurring card when clicking off the item', async ({ page }) => {
@@ -671,16 +688,52 @@ test.describe('unified Plan & Actuals workflow', () => {
         occurrence.actualAmount === 60 &&
         occurrence.lineItems?.length === 2
     ), 'itemized transaction total persisted');
-    await expect(page.locator('#budgetSection .plan-actuals-item', {
+    const itemizedCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Itemized shop transaction'
-    }).locator('.plan-actuals-line-item-summary')).toContainText('2 line items');
+    });
+    await expect(itemizedCard.locator('.plan-actuals-line-item-summary')).toHaveCount(0);
+    await expect(itemizedCard.locator('.plan-actuals-exception')).toHaveText('Unplanned');
+  });
+
+  test('flags realized spending above the current plan without flagging planned rows or income', async ({ page }) => {
+    const data = loadSmokeData();
+    const scenario = data.scenarios[0];
+    const template = scenario.transactionOccurrences[0];
+    for (const [id, description, type, planned, actual] of [
+      [2991, 'Over current plan', 2, 100, 125],
+      [2992, 'Within current plan', 2, 100, 95],
+      [2993, 'Above planned income', 1, 100, 125],
+      [2994, 'Unplanned spending', 2, 0, 25]
+    ]) {
+      scenario.transactionOccurrences.push({
+        ...template, id, occurrenceKey: `occurrence:${id}`, sourceTransactionId: null,
+        origin: 'manual', status: 'actual', actualDate: '2026-01-10',
+        description, transactionTypeId: type, plannedAmount: planned,
+        baselineAmount: planned, actualAmount: actual
+      });
+    }
+    await page.addInitScript(({ key, data }) => {
+      localStorage.setItem(key, JSON.stringify(data));
+    }, { key: STORAGE_KEY, data });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page, data.scenarios.length);
+    await selectWorkflow(page, 'General');
+    await page.getByRole('tab', { name: 'Period', exact: true }).click();
+    const badge = (description) => page.locator('#budgetSection .plan-actuals-item', {
+      has: page.locator('.plan-actuals-description', { hasText: description })
+    }).locator('.plan-actuals-exception');
+    await expect(badge('Over current plan')).toHaveText('Over budget');
+    await expect(badge('Unplanned spending')).toHaveText('Unplanned');
+    for (const description of ['Within current plan', 'Above planned income', 'Groceries budget']) {
+      await expect(badge(description)).toHaveCount(0);
+    }
   });
 
   test('adds a line item to an existing transaction and increases its total', async ({ page }) => {
     const card = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Groceries budget'
     });
-    await card.locator('button[title="Edit item"]').click();
+    await card.locator('.plan-actuals-description').click();
     const form = card.locator('form.plan-actuals-editor');
     await expect(form).toBeVisible();
     await expect(form.locator('.plan-actuals-line-item')).toHaveCount(0);
@@ -698,17 +751,16 @@ test.describe('unified Plan & Actuals workflow', () => {
         occurrence.plannedAmount === 500 &&
         occurrence.lineItems?.length === 2
     ), 'existing transaction line item increased the total');
-    await expect(card.locator('.plan-actuals-line-item-summary')).toContainText('2 line items');
+    await expect(card.locator('.plan-actuals-line-item-summary')).toHaveCount(0);
     await expect(card.locator('.plan-actuals-metric', { hasText: 'Current' }).locator('.value'))
       .toHaveText('R 500,00');
   });
 
-  test('renders descriptions immediately below direction-aware money movements', async ({ page }) => {
+  test('keeps collapsed cards compact and direction-aware', async ({ page }) => {
     const moneyOutCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Groceries budget'
     });
-    await expect(moneyOutCard.locator('.plan-actuals-movement'))
-      .toHaveText(/Money Out: Checking.*→.*Groceries Expense/);
+    await expect(moneyOutCard.locator('.plan-actuals-movement')).toHaveCount(0);
     await expect(moneyOutCard.locator('.plan-actuals-counterparty'))
       .toHaveText('Groceries Expense');
     await expect(moneyOutCard.locator('.plan-actuals-description'))
@@ -736,9 +788,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     expect(contentOrder).toEqual([
       'plan-actuals-heading-row',
       'plan-actuals-schedule-row',
-      'grid-summary-flow plan-actuals-movement',
       'grid-summary-description plan-actuals-description',
-      'plan-actuals-line-item-summary',
       'plan-actuals-comparison'
     ]);
 
@@ -751,26 +801,12 @@ test.describe('unified Plan & Actuals workflow', () => {
     const moneyInCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Monthly salary'
     });
-    await expect(moneyInCard.locator('.plan-actuals-movement'))
-      .toHaveText(/Money In: Salary Income.*→.*Checking/);
+    await expect(moneyInCard.locator('.plan-actuals-movement')).toHaveCount(0);
     await expect(moneyInCard.locator('.plan-actuals-counterparty'))
       .toHaveText('Salary Income');
     await expect(moneyInCard).toHaveClass(/money-in/);
 
-    for (const card of [moneyOutCard, moneyInCard]) {
-      expect(await card.evaluate((element) => {
-        const movement = element.querySelector('.plan-actuals-movement');
-        const counterparty = element.querySelector('.plan-actuals-counterparty');
-        const description = element.querySelector('.plan-actuals-description');
-        return Boolean(
-          counterparty &&
-          movement &&
-          description &&
-          (counterparty.compareDocumentPosition(movement) & Node.DOCUMENT_POSITION_FOLLOWING) &&
-          (movement.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING)
-        );
-      })).toBe(true);
-    }
+
   });
 
   test('renders Period money movement from the selected account perspective', async ({ page }) => {
@@ -781,8 +817,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       hasText: 'Groceries budget'
     });
     await expect(groceriesCard).toBeVisible();
-    await expect(groceriesCard.locator('.plan-actuals-movement'))
-      .toHaveText(/Money In: Checking.*→.*Groceries Expense/);
+    await expect(groceriesCard.locator('.plan-actuals-movement')).toHaveCount(0);
 
     await selectWorkflow(page, 'Plan & Actuals (Detail)');
     const detailAccountFilter = page.locator('#budgetSection #plan-account-inline');
@@ -1309,7 +1344,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expectPlanTotal(page, 'Open Commitments', 'R 3 000,00');
     await expectPlanTotal(page, 'Forecast Net', 'R 2 550,00');
     await expectPlanTotal(page, 'Actual vs Current', '-R 3 000,00');
-    await skippedCard.getByRole('button', { name: 'Edit item' }).click();
+    await skippedCard.locator('.plan-actuals-description').click();
     const restoreForm = skippedCard.locator('form');
     await expect(editorField(restoreForm, 'Repeat').locator('button')).toBeDisabled();
     await expect(editorField(restoreForm, 'Apply change to')).toHaveCount(0);
@@ -1324,6 +1359,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     const salaryCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Monthly salary'
     }).first();
+    await salaryCard.locator('.plan-actuals-description').click();
     await salaryCard.locator('button[title="Duplicate item"]').click();
     await waitForCollectionCount(page, 'transactionOccurrences', occurrenceCount + 1);
 
@@ -1390,7 +1426,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     });
     const januaryKey = await groceryCard.getAttribute('data-occurrence-key');
 
-    await groceryCard.locator('button[title="Edit item"]').click();
+    await groceryCard.locator('.plan-actuals-description').click();
     let form = groceryCard.locator('form');
     await editorField(form, 'Current plan').locator('input').fill('475');
     await editorField(form, 'Description').locator('input').fill('January groceries override');
@@ -1410,7 +1446,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     groceryCard = page.locator(
       `#budgetSection .plan-actuals-item[data-occurrence-key="${januaryKey}"]`
     );
-    await groceryCard.locator('button[title="Edit item"]').click();
+    await groceryCard.locator('.plan-actuals-description').click();
     form = groceryCard.locator('form');
     await editorField(form, 'Status').locator('select').selectOption('actual');
     await editorField(form, 'Actual amount').locator('input').fill('468');
@@ -1430,7 +1466,7 @@ test.describe('unified Plan & Actuals workflow', () => {
       hasText: 'Groceries'
     });
     const februaryKey = await futureCard.getAttribute('data-occurrence-key');
-    await futureCard.locator('button[title="Edit item"]').click();
+    await futureCard.locator('.plan-actuals-description').click();
     form = futureCard.locator('form');
     await editorField(form, 'Current plan').locator('input').fill('500');
     await editorField(form, 'Description').locator('input').fill('Groceries from February');
@@ -1462,7 +1498,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     await expect(
       seriesCard.locator('.plan-actuals-metric', { hasText: 'Current' }).locator('.value')
     ).toHaveText('R 500,00');
-    await seriesCard.locator('button[title="Edit item"]').click();
+    await seriesCard.locator('.plan-actuals-description').click();
     form = seriesCard.locator('form');
     await editorField(form, 'Current plan').locator('input').fill('525');
     await editorField(form, 'Description').locator('input').fill('Groceries current series');
@@ -1597,9 +1633,11 @@ test.describe('unified Plan & Actuals workflow', () => {
       });
     });
 
-    await page.locator('#budgetSection .plan-actuals-item', {
+    const creditCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Credit card payment'
-    }).locator('button[title="Duplicate item"]').click();
+    });
+    await creditCard.locator('.plan-actuals-description').click();
+    await creditCard.locator('button[title="Duplicate item"]').click();
     await expect(page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Credit card payment'
     })).toHaveCount(2);
@@ -1607,7 +1645,7 @@ test.describe('unified Plan & Actuals workflow', () => {
     const groceriesCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Groceries'
     }).first();
-    await groceriesCard.locator('button[title="Edit item"]').click();
+    await groceriesCard.locator('.plan-actuals-description').click();
     const groceriesForm = groceriesCard.locator('form');
     await expect(groceriesForm).toBeVisible();
     await editorField(groceriesForm, 'Description').locator('input')
@@ -2257,7 +2295,7 @@ test.describe('one-time linked plan items', () => {
     const card = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Annual filing fee'
     });
-    await card.locator('button[title="Edit item"]').click();
+    await card.locator('.plan-actuals-description').click();
     const form = card.locator('form');
     await expect(editorField(form, 'Repeat').locator('button')).toBeEnabled();
     await expect(editorField(form, 'Repeat').locator('button'))
@@ -2315,7 +2353,7 @@ test.describe('period what-if snapshots', () => {
     const groceryCard = page.locator('#budgetSection .plan-actuals-item', {
       hasText: 'Groceries budget'
     });
-    await groceryCard.getByRole('button', { name: 'Edit item in this what-if' }).click();
+    await groceryCard.locator('.plan-actuals-description').click();
     const form = groceryCard.locator('form');
     await editorField(form, 'Current plan').locator('input').fill('300');
     await form.getByRole('button', { name: 'Save' }).click();

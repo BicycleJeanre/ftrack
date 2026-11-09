@@ -3093,7 +3093,7 @@ button.filter-modal-open {
 }
 
 .plan-actuals-status,
-.plan-actuals-repeat,
+.plan-actuals-exception,
 .plan-actuals-history-badge {
   display: inline-flex;
   align-items: center;
@@ -3167,36 +3167,49 @@ button.filter-modal-open {
 
 .plan-actuals-repeat {
   min-width: 0;
-  border-color: rgba(0, 212, 255, 0.28);
-  background: var(--accent-subtle);
-  color: var(--accent-primary);
-  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.plan-actuals-movement {
-  margin-top: 5px;
+.plan-actuals-exception {
+  flex: 0 0 auto;
+  text-transform: none;
+}
+
+.plan-actuals-exception.is-unplanned {
   color: var(--text-primary);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.25;
+  background: var(--accent-subtle);
+  border-color: var(--accent-primary);
+}
+
+.plan-actuals-exception.is-over-budget {
+  color: var(--danger);
+  background: var(--danger-subtle);
+  border-color: var(--danger);
 }
 
 .plan-actuals-description {
   display: block;
+  width: 100%;
   margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--text-secondary);
+  cursor: pointer;
   font-size: 11px;
   line-height: 1.25;
+  text-align: left;
   overflow-wrap: anywhere;
 }
 
-.plan-actuals-line-item-summary {
-  margin-top: 2px;
-  color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.2;
+.plan-actuals-expanded-actions:not([hidden]) {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 .plan-actuals-line-items {

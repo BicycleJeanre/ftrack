@@ -60,7 +60,9 @@ test.describe('frontend editing, duplicate, and filter behavior', () => {
 
     await page.getByRole('tab', { name: 'Period', exact: true }).click();
     const occurrenceCount = (await currentScenario(page)).transactionOccurrences.length;
-    await page.locator('#budgetTable button[title="Duplicate item"]').first().click();
+    const firstPeriodCard = page.locator('#budgetTable .plan-actuals-item').first();
+    await firstPeriodCard.locator('.plan-actuals-description').click();
+    await firstPeriodCard.getByRole('button', { name: 'Duplicate item', exact: true }).click();
     await waitForCollectionCount(page, 'transactionOccurrences', occurrenceCount + 1);
   });
 
