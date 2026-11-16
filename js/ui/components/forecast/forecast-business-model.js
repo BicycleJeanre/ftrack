@@ -3,7 +3,7 @@ import {
 } from '../../../domain/calculations/business-model.js';
 import { generateProjectionsForScenario } from '../../../domain/calculations/projection-engine.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
-import { populateAccountSelect } from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
+import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
 
 const drafts = new WeakMap();
 const currencies = value => value == null ? '—' : formatCurrency(value);
@@ -67,13 +67,12 @@ function minimumBalance(rows) {
   return rows.length ? Math.min(...rows.map(row => row.balance)) : null;
 }
 
-export function renderBusinessModel({ container, scenario, getScenario, onSave, isRenderCurrent }) {
+export function renderBusinessModel({ container, scenario, getScenario, onSave, onAccountsCreated, isRenderCurrent }) {
   const remembered = drafts.get(container);
   const model = remembered?.scenarioId === scenario.id
     ? remembered.model : normalizeBusinessModel(scenario.planning?.businessModel);
   drafts.set(container, { scenarioId: scenario.id, model });
-  const accounts = (scenario.accounts || []).filter(account => Number(account.id) > 0 && account.name !== 'Select Account');
-  const accountName = id => accounts.find(a => Number(a.id) === Number(id))?.name || 'External';
+  const accountName = id => scenario.accounts?.find(a => Number(a.id) === Number(id))?.name || 'External';
   const root = node('div', null, 'business-model');
   root.dataset.businessModel = '';
   container.append(root);
@@ -84,6 +83,12 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
   let generation = 0;
   let busy = false;
   let chosenCase = null;
+  const accountSelectors = createScenarioAccountSelectors({
+    getScenario: () => scenario,
+    isCurrent: () => isRenderCurrent() && root.isConnected,
+    onCreated: (_account, updated) => onAccountsCreated(updated),
+    onError: error => { status.textContent = error.message; }
+  });
 
   const invalidate = () => {
     generation++;
@@ -97,16 +102,12 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
   function field(parent, label, target, key, config = {}) {
     const wrapper = node('div', null, 'business-field');
     const caption = node('span', label, 'control-label');
-    const input = node(config.options || config.accounts ? 'select' : config.multiline ? 'textarea' : 'input');
+    const input = config.accounts
+      ? accountSelectors.create({ label, selectedId: target[key], emptyLabel: config.empty, missingLabel: 'Missing account' })
+      : node(config.options ? 'select' : config.multiline ? 'textarea' : 'input');
     input.className = input.tagName === 'SELECT' ? 'input-select' : 'input-text';
     input.setAttribute('aria-label', label);
-    if (config.accounts) {
-      populateAccountSelect(input, {
-        accounts, accountGroups: scenario.accountGroups || [], selectedValue: target[key],
-        emptyLabel: config.empty, selectedLabel: target[key] ? 'Missing account' : '',
-        includeAll: false
-      });
-    } else if (config.options) {
+    if (!config.accounts && config.options) {
       for (const [value, name] of config.options) {
         const option = node('option', name);
         option.value = value;
@@ -118,7 +119,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         input.append(missing);
       }
       input.value = target[key] || '';
-    } else {
+    } else if (!config.accounts) {
       if (input.tagName === 'INPUT') input.type = config.type || 'text';
       if (config.type === 'number') input.step = 'any';
       if (config.placeholder) input.placeholder = config.placeholder;
@@ -177,6 +178,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
   };
 
   function renderEditor() {
+    accountSelectors.destroy();
     editor.replaceChildren();
     const variableOptions = (empty = 'Choose variable') => [['', empty], ...model.variables.map(v => [v.id, v.name || 'Unnamed variable'])];
     const accountFields = node('div', null, 'business-fields');

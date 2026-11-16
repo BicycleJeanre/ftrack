@@ -18,8 +18,9 @@ import { notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.js?v=20260901-strategy-matrix-35';
 import { createModal } from '../modals/modal-factory.js';
-import { populateAccountSelect } from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
-import { renderBusinessModel } from './forecast-business-model.js';
+import { syncSelectionDialog } from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
+import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
+import { renderBusinessModel } from './forecast-business-model.js?v=workshop-accounts-1';
 import { WORKSHOP_STRATEGIES, SOLVER_STRATEGIES, resolveWorkshopStrategy, getSolverStrategyFields } from '../../../shared/workshop-strategies.js';
 
 
@@ -232,6 +233,8 @@ function renderGoalWorkshopSimpleHeader({ container, planningWindow, onWindowCha
 async function loadAdvancedGoalSolverSection({
   container,
   scenarioState,
+  onAccountsCreated,
+  refreshAccounts,
   workflowId,
   loadMasterTransactionsGrid,
   loadProjectionsSection,
@@ -324,7 +327,7 @@ async function loadAdvancedGoalSolverSection({
         if (next.startDate && next.endDate) {
           try {
             await persistPlanningWindow({ scenarioId: scenario.id, planningKey: 'advancedGoalSolver', nextWindow: next, scenarioState });
-            await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
+            await loadGeneratePlanSection({ container, scenarioState, refreshAccounts, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
           } catch (err) {
             notifyError('Failed to save planning window: ' + (err?.message || String(err)));
           }
@@ -342,14 +345,15 @@ async function loadAdvancedGoalSolverSection({
 
   settingsBtn.addEventListener('click', openHeaderModal);
 
-  const accounts = (scenario.accounts || []).filter((a) => a.name !== 'Select Account');
-  if (accounts.length === 0) {
-    const msg = document.createElement('div');
-    msg.className = 'empty-message';
-    msg.textContent = 'Create accounts first to configure goals.';
-    container.appendChild(msg);
-    return;
-  }
+  const accounts = (scenario.accounts || []).filter(a => a.name !== 'Select Account');
+  const accountSelectors = createScenarioAccountSelectors({
+    getScenario: () => scenario, isCurrent: isRenderCurrent,
+    onError: error => notifyError(error.message),
+    onCreated: (account, updated) => {
+      accounts.push(account);
+      return onAccountsCreated(updated);
+    }
+  });
 
 
   const settings = storedSettings;
@@ -602,15 +606,10 @@ async function loadAdvancedGoalSolverSection({
     });
     typeSelect.value = row.type;
 
-    const accountSelect = document.createElement('select');
-    accountSelect.className = 'grid-summary-input';
-    populateAccountSelect(accountSelect, {
-      accounts,
-      accountGroups: scenario.accountGroups || [],
-      selectedId: row.accountId,
-      includeAll: false,
-      emptyLabel: '— None —'
+    const accountSelect = accountSelectors.create({
+      label: 'Constraint account', selectedId: row.accountId, emptyLabel: '— None —'
     });
+    accountSelect.classList.add('grid-summary-input');
 
     const amountInput = document.createElement('input');
     amountInput.type = 'number'; amountInput.className = 'grid-summary-input';
@@ -738,15 +737,10 @@ async function loadAdvancedGoalSolverSection({
     priorityInput.type = 'number'; priorityInput.className = 'grid-summary-input';
     priorityInput.min = '1'; priorityInput.step = '1'; priorityInput.value = String(row.priority);
 
-    const accountSelect = document.createElement('select');
-    accountSelect.className = 'grid-summary-input';
-    populateAccountSelect(accountSelect, {
-      accounts,
-      accountGroups: scenario.accountGroups || [],
-      selectedId: row.accountId,
-      includeAll: false,
-      emptyLabel: '— Account —'
+    const accountSelect = accountSelectors.create({
+      label: 'Goal account', selectedId: row.accountId, emptyLabel: '— Account —'
     });
+    accountSelect.classList.add('grid-summary-input');
 
     const typeSelect = document.createElement('select');
     typeSelect.className = 'grid-summary-input';
@@ -1122,24 +1116,30 @@ async function loadAdvancedGoalSolverSection({
 }
 
 export async function loadGeneratePlanSection(options) {
-  const { container, scenarioState, isRenderCurrent = () => true } = options;
+  const { container, scenarioState, refreshAccounts, isRenderCurrent = () => true } = options;
   if (!isRenderCurrent()) return;
   const scenario = scenarioState?.get?.();
   const strategy = resolveWorkshopStrategy(scenario);
   const active = () => isRenderCurrent() && scenarioState?.get?.()?.id === scenario?.id;
+  const onAccountsCreated = async updated => {
+    if (!active()) return;
+    scenarioState.set(updated);
+    await refreshAccounts?.();
+  };
   if (!scenario) return renderGoalPlanSection(options);
   if (strategy === 'business') {
     container.replaceChildren();
     renderBusinessModel({
       container, scenario, isRenderCurrent: active,
       getScenario: () => getScenario(scenario.id),
+      onAccountsCreated,
       onSave: async businessModel => {
         await ScenarioManager.saveWorkshopSetup(scenario.id, { businessModel });
         scenarioState.set(await getScenario(scenario.id));
       }
     });
   } else {
-    await renderGoalPlanSection(options);
+    await renderGoalPlanSection({ ...options, onAccountsCreated });
   }
   if (!active()) return;
   const bar = document.createElement('label');
@@ -1175,6 +1175,8 @@ export async function loadGeneratePlanSection(options) {
 async function renderGoalPlanSection({
   container,
   scenarioState,
+  onAccountsCreated,
+  refreshAccounts,
   workflowId = null,
   loadMasterTransactionsGrid,
   loadProjectionsSection,
@@ -1196,6 +1198,8 @@ async function renderGoalPlanSection({
     return loadAdvancedGoalSolverSection({
       container,
       scenarioState,
+      onAccountsCreated,
+      refreshAccounts,
       workflowId,
       loadMasterTransactionsGrid,
       loadProjectionsSection,
@@ -1204,36 +1208,12 @@ async function renderGoalPlanSection({
     });
   }
 
-  const accounts = currentScenario.accounts || [];
-  const displayAccounts = accounts.filter(a => a.name !== 'Select Account' && !!a.goalDate);
-  const selectableAccounts = accounts.filter(a => a.name !== 'Select Account');
-
-  if (displayAccounts.length === 0) {
-    container.innerHTML = '';
-    const planningWindow = getScenarioPlanningWindow(currentScenario, 'generatePlan');
-    renderGoalWorkshopSimpleHeader({
-      container,
-      planningWindow,
-      onWindowChange: async (nextWindow) => {
-        try {
-          await persistPlanningWindow({
-            scenarioId: currentScenario.id,
-            planningKey: 'generatePlan',
-            nextWindow,
-            scenarioState
-          });
-          await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
-        } catch (err) {
-          notifyError('Failed to save planning window: ' + (err?.message || String(err)));
-        }
-      }
-    });
-    const msg = document.createElement('div');
-    msg.className = 'empty-message';
-    msg.textContent = 'No accounts with goals found. Set goal amounts and dates on accounts to generate plans.';
-    container.appendChild(msg);
-    return;
-  }
+  const accountSelectors = createScenarioAccountSelectors({
+    getScenario: () => currentScenario, isCurrent: isRenderCurrent,
+    onError: error => notifyError(error.message),
+    onCreated: (_account, updated) => onAccountsCreated(updated)
+  });
+  const findAccount = id => currentScenario.accounts?.find(account => Number(account.id) === id);
 
   const scrollSnapshot = snapshotWindowScroll();
   container.innerHTML = '';
@@ -1250,7 +1230,7 @@ async function renderGoalPlanSection({
           nextWindow,
           scenarioState
         });
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
+        await loadGeneratePlanSection({ container, scenarioState, refreshAccounts, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
       } catch (err) {
         notifyError('Failed to save planning window: ' + (err?.message || String(err)));
       }
@@ -1264,7 +1244,7 @@ async function renderGoalPlanSection({
   introDiv.innerHTML = `
     Use this section to estimate a contribution plan for an account goal and then create recurring plan rules.
     <br />
-    <strong>Prerequisite:</strong> set <strong>Goal Amount</strong> and <strong>Goal Date</strong> on an account in the Accounts grid.
+    Choose an account with a <strong>Goal Amount</strong> and <strong>Goal Date</strong>, or add a new one from the Goal Account picker.
     <br />
     <span class="text-muted">Note: this simple planner uses the account’s base periodic change rate (it does not use a rate schedule).</span>
   `;
@@ -1274,10 +1254,7 @@ async function renderGoalPlanSection({
   const accountRowDiv = document.createElement('div');
   accountRowDiv.innerHTML = `
     <label for="goal-account-select" class="control-label">Goal Account:</label>
-    <select id="goal-account-select" class="input-select">
-      <option value="">-- Choose an account --</option>
-      ${displayAccounts.map(acc => `<option value="${acc.id}">${acc.name} (Goal: ${formatMoneyDisplay(acc.goalAmount)} by ${acc.goalDate})</option>`).join('')}
-    </select>
+    <span data-account-picker></span>
     <div class="text-muted" style="margin-top:4px;">This is the account you want to reach a target balance on by the goal date.</div>
   `;
   window.add(formContainer, accountRowDiv);
@@ -1286,10 +1263,7 @@ async function renderGoalPlanSection({
   const incomeRowDiv = document.createElement('div');
   incomeRowDiv.innerHTML = `
     <label for="goal-income-account-select" class="control-label">Income Account:</label>
-    <select id="goal-income-account-select" class="input-select">
-      <option value="">-- Choose an account --</option>
-      ${selectableAccounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('')}
-    </select>
+    <span data-account-picker></span>
     <div class="text-muted" style="margin-top:4px;">Source account used for the planned contributions.</div>
   `;
   window.add(formContainer, incomeRowDiv);
@@ -1359,8 +1333,19 @@ async function renderGoalPlanSection({
   restoreWindowScroll(scrollSnapshot);
 
   // Attach event listeners
-  const accountSelect = document.getElementById('goal-account-select');
-  const incomeAccountSelect = document.getElementById('goal-income-account-select');
+  const accountSelect = accountSelectors.create({
+    label: 'Goal Account', emptyLabel: '-- Choose an account --', requireGoal: true,
+    getAccountLabel: account => `${account.name} (Goal: ${formatMoneyDisplay(account.goalAmount)} by ${account.goalDate})`
+  });
+  const incomeAccountSelect = accountSelectors.create({
+    label: 'Income Account', emptyLabel: '-- Choose an account --'
+  });
+  accountSelect.id = 'goal-account-select';
+  incomeAccountSelect.id = 'goal-income-account-select';
+  accountSelect.classList.add('input-select');
+  incomeAccountSelect.classList.add('input-select');
+  accountRowDiv.querySelector('[data-account-picker]').replaceWith(accountSelect);
+  incomeRowDiv.querySelector('[data-account-picker]').replaceWith(incomeAccountSelect);
   const solveForSelect = document.getElementById('goal-solve-for');
   const frequencySelect = document.getElementById('goal-frequency');
   const contributionInput = document.getElementById('goal-contribution');
@@ -1368,21 +1353,6 @@ async function renderGoalPlanSection({
   const generateBtnEl = document.getElementById('goal-generate-btn');
   const resetBtnEl = document.getElementById('goal-reset-btn');
 
-  populateAccountSelect(accountSelect, {
-    accounts: displayAccounts,
-    accountGroups: currentScenario.accountGroups || [],
-    includeAll: false,
-    emptyLabel: '-- Choose an account --',
-    getAccountLabel: (account) => (
-      `${account.name} (Goal: ${formatMoneyDisplay(account.goalAmount)} by ${account.goalDate})`
-    )
-  });
-  populateAccountSelect(incomeAccountSelect, {
-    accounts: selectableAccounts,
-    accountGroups: currentScenario.accountGroups || [],
-    includeAll: false,
-    emptyLabel: '-- Choose an account --'
-  });
 
   // Recalculate display whenever inputs change
   async function updateSummary() {
@@ -1402,7 +1372,7 @@ async function renderGoalPlanSection({
     }
 
     const solveFor = solveForSelect.value;
-    const selectedAccount = displayAccounts.find(a => a.id === selectedId);
+    const selectedAccount = findAccount(selectedId);
     if (!selectedAccount || !selectedAccount.goalDate) {
       summaryEl.innerHTML = '<p class="error-message">Selected account does not have a goal date set</p>';
       return;
@@ -1445,7 +1415,7 @@ async function renderGoalPlanSection({
         const calculatedContribution = calculateContributionAmount(startingBalance, goalAmount, monthsToGoal, annualRate);
         const displayContribution = convertContributionFrequency(calculatedContribution, 3, frequency); // Convert from monthly
         contributionInput.value = displayContribution.toFixed(2);
-        summary = `<p><strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution: <strong>${formatMoneyDisplay(displayContribution)}</strong> · from <strong>${escapeHtml(selectableAccounts.find(a => a.id === incomeAccountId)?.name || '')}</strong> · to reach <strong>${formatMoneyDisplay(goalAmount)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
+        summary = `<p><strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution: <strong>${formatMoneyDisplay(displayContribution)}</strong> · from <strong>${escapeHtml(findAccount(incomeAccountId)?.name || '')}</strong> · to reach <strong>${formatMoneyDisplay(goalAmount)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
       }
     } else if (solveFor === 'date') {
       if (contribution <= 0) {
@@ -1460,7 +1430,7 @@ async function renderGoalPlanSection({
           const futureDate = new Date();
           futureDate.setMonth(futureDate.getMonth() + daysInMonths);
           const formattedDate = formatDateOnly(futureDate);
-          summary = `<p><strong>Target date:</strong> <strong>${formattedDate}</strong> · from <strong>${escapeHtml(selectableAccounts.find(a => a.id === incomeAccountId)?.name || '')}</strong> · at <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong></p>`;
+          summary = `<p><strong>Target date:</strong> <strong>${formattedDate}</strong> · from <strong>${escapeHtml(findAccount(incomeAccountId)?.name || '')}</strong> · at <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong></p>`;
         }
       }
     } else if (solveFor === 'amount') {
@@ -1471,7 +1441,7 @@ async function renderGoalPlanSection({
       } else {
         const monthlyContribution = convertContributionFrequency(contribution, frequency, 3); // Convert to monthly
         const projectedAmount = calculateFutureValue(startingBalance, monthlyContribution, monthsToGoal, annualRate);
-        summary = `<p><strong>Projected goal:</strong> <strong>${formatMoneyDisplay(projectedAmount)}</strong> · from <strong>${escapeHtml(selectableAccounts.find(a => a.id === incomeAccountId)?.name || '')}</strong> · with <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
+        summary = `<p><strong>Projected goal:</strong> <strong>${formatMoneyDisplay(projectedAmount)}</strong> · from <strong>${escapeHtml(findAccount(incomeAccountId)?.name || '')}</strong> · with <strong>${getFrequencyName(frequency).toLowerCase()}</strong> contribution of <strong>${formatMoneyDisplay(contribution)}</strong> by <strong>${selectedAccount.goalDate}</strong></p>`;
       }
     }
 
@@ -1513,7 +1483,7 @@ async function renderGoalPlanSection({
       return;
     }
 
-    const selectedAccount = displayAccounts.find(a => a.id === selectedId);
+    const selectedAccount = findAccount(selectedId);
     const solveFor = solveForSelect.value;
     if (!selectedAccount || !selectedAccount.goalDate) {
       notifyError('Account does not have a goal date set');
@@ -1630,6 +1600,10 @@ async function renderGoalPlanSection({
       // Reset form
       accountSelect.value = '';
       incomeAccountSelect.value = '';
+      syncSelectionDialog(accountSelect);
+      syncSelectionDialog(incomeAccountSelect);
+      accountSelect.dispatchEvent(new Event('change'));
+      incomeAccountSelect.dispatchEvent(new Event('change'));
       contributionInput.value = '';
       await updateSummary();
     } catch (err) {
@@ -1642,6 +1616,10 @@ async function renderGoalPlanSection({
   resetBtnEl.addEventListener('click', () => {
     accountSelect.value = '';
     incomeAccountSelect.value = '';
+    syncSelectionDialog(accountSelect);
+    syncSelectionDialog(incomeAccountSelect);
+    accountSelect.dispatchEvent(new Event('change'));
+    incomeAccountSelect.dispatchEvent(new Event('change'));
     solveForSelect.value = 'contribution';
     frequencySelect.value = '3';
     contributionInput.value = '';

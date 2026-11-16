@@ -118,6 +118,56 @@ test.describe('Goal Workshop browser functionality', () => {
       'constraint removed');
   });
 
+  test('creates and selects a new business account without losing unsaved Workshop inputs', async ({ page }) => {
+    await page.getByLabel('Scenario setup strategy').selectOption('business');
+    const feature = page.locator('[data-business-model]');
+    await feature.getByRole('button', { name: 'Add revenue', exact: true }).click();
+    await feature.getByLabel('Flow name').fill('Unsaved revenue flow');
+    await feature.getByRole('button', { name: 'Counterparty account', exact: true }).click();
+    await page.locator('.selection-dialog').getByRole('option', { name: /Add new account/ }).click();
+    await page.locator('.modal-quick-account').getByLabel('Name', { exact: true }).fill('New workshop counterparty');
+    await page.getByRole('button', { name: 'Use Account', exact: true }).click();
+    await expect(feature.getByRole('button', { name: 'Counterparty account', exact: true }))
+      .toContainText('New workshop counterparty');
+    await expect(feature.getByLabel('Flow name')).toHaveValue('Unsaved revenue flow');
+    await feature.getByRole('button', { name: 'Business cash account', exact: true }).click();
+    await expect(page.locator('.selection-dialog').getByRole('option', { name: /^New workshop counterparty/ })).toBeVisible();
+    await page.locator('.selection-dialog').getByRole('button', { name: 'Close', exact: true }).click();
+    await feature.getByRole('button', { name: 'Save setup' }).click();
+    await waitForScenario(page, scenario => {
+      const account = scenario.accounts.find(entry => entry.name === 'New workshop counterparty');
+      return account && Number(scenario.planning.businessModel?.flows[0]?.counterpartyId) === account.id;
+    });
+  });
+
+  test('creates a Goal Contribution account with its amount and date in the same picker', async ({ page }) => {
+    await page.getByLabel('Scenario setup strategy').selectOption('goal-contribution');
+    await page.getByRole('button', { name: 'Goal Account', exact: true }).click();
+    await page.locator('.selection-dialog').getByRole('option', { name: /Add new account/ }).click();
+    const modal = page.locator('.modal-quick-account');
+    await modal.getByLabel('Name', { exact: true }).fill('New savings target');
+    await modal.getByLabel('Goal Amount').fill('1500');
+    await modal.getByLabel('Goal Date').fill('2026-12-15');
+    await modal.getByRole('button', { name: 'Use Account', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Goal Account', exact: true })).toContainText('New savings target');
+    await waitForScenario(page, scenario => scenario.accounts.some(account =>
+      account.name === 'New savings target' && account.goalAmount === 1500 && account.goalDate === '2026-12-15'));
+  });
+
+  test('can create a funding account directly from a Workshop constraint', async ({ page }) => {
+    const card = page.locator('#adv-constraints-panel .grid-summary-card').first();
+    await card.locator('.grid-summary-card-summary').click();
+    await card.getByRole('button', { name: 'Constraint account', exact: true }).click();
+    await page.locator('.selection-dialog').getByRole('option', { name: /Add new account/ }).click();
+    const modal = page.locator('.modal-quick-account');
+    await modal.getByLabel('Name', { exact: true }).fill('New Workshop funding');
+    await modal.getByRole('button', { name: 'Use Account', exact: true }).click();
+    await waitForScenario(page, scenario => {
+      const added = scenario.accounts.find(account => account.name === 'New Workshop funding');
+      return added && scenario.advancedGoalSettings.constraints.fundingAccountId === added.id;
+    });
+  });
+
   test('refreshes Generate Plan after a plan rule changes', async ({ page }) => {
     await page.locator(
       '#generatePlanSection button[title="Solve — calculate suggested plan rules"]'

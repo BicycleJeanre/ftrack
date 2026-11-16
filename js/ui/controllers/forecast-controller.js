@@ -50,7 +50,7 @@ import {
   populateAccountSelect
 } from '../components/widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
-import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=workshop-recovery-1';
+import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=workshop-accounts-1';
 import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
   loadAccountsGrid as loadAccountsGridCore
@@ -1179,6 +1179,7 @@ async function loadGeneratePlanSection(container) {
     workflowId: getWorkflowConfig()?.id,
     loadMasterTransactionsGrid: reloadActiveFinancialActivity,
     loadProjectionsSection,
+    refreshAccounts: () => loadAccountsGrid(getEl('accountsTable')),
     isRenderCurrent,
     logger
   });

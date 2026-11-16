@@ -698,7 +698,9 @@ Period to review and track their dated occurrences.
 
 1. Open **Workshop → Scenario Setup** and set **Strategy** to **Business Model**.
    Choose an existing business cash account for the preview. Optionally select
-   a separate owner cash account and a minimum business closing balance.
+   a separate owner cash account and a minimum business closing balance. Use
+   **Add new account** in any Workshop account picker to create and select an
+   account without leaving your setup.
 2. Add named variables such as Customers, Price, Billable Hours, or Capacity.
    Enter a default value and, if needed, month-specific overrides such as
    `2027-02=8` (one per line).

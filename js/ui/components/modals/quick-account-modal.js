@@ -1,7 +1,7 @@
 import { loadLookup } from '../../../app/services/lookup-service.js';
 import { createModal } from './modal-factory.js';
 
-export async function openQuickAccountModal({ defaultTypeId = 1 } = {}) {
+export async function openQuickAccountModal({ defaultTypeId = 1, requireGoal = false } = {}) {
   const lookupData = await loadLookup('lookup-data.json');
   const accountTypes = Array.isArray(lookupData?.accountTypes) ? lookupData.accountTypes : [];
   const currencies = Array.isArray(lookupData?.currencies) ? lookupData.currencies : [];
@@ -45,6 +45,15 @@ export async function openQuickAccountModal({ defaultTypeId = 1 } = {}) {
           <label class="modal-periodic-label" for="quickAccountBalance">Starting Balance</label>
           <input id="quickAccountBalance" class="modal-periodic-input" type="number" step="0.01" value="0">
         </div>
+        ${requireGoal ? `
+          <div class="modal-periodic-form-group">
+            <label class="modal-periodic-label" for="quickAccountGoalAmount">Goal Amount</label>
+            <input id="quickAccountGoalAmount" class="modal-periodic-input" type="number" min="0" step="0.01" required>
+          </div>
+          <div class="modal-periodic-form-group">
+            <label class="modal-periodic-label" for="quickAccountGoalDate">Goal Date</label>
+            <input id="quickAccountGoalDate" class="modal-periodic-input" type="date" required>
+          </div>` : ''}
         <div class="modal-quick-account-error" role="alert" aria-live="polite"></div>
         <div class="modal-periodic-actions">
           <button type="button" class="btn btn-secondary" data-action="cancel">Cancel</button>
@@ -79,7 +88,11 @@ export async function openQuickAccountModal({ defaultTypeId = 1 } = {}) {
         type,
         currency,
         startingBalance: Number.isFinite(startingBalance) ? startingBalance : 0,
-        periodicChange: null
+        periodicChange: null,
+        ...(requireGoal ? {
+          goalAmount: Number(modal.querySelector('#quickAccountGoalAmount').value),
+          goalDate: modal.querySelector('#quickAccountGoalDate').value
+        } : {})
       });
       close();
     });
