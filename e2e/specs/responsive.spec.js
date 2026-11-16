@@ -18,7 +18,7 @@ for (const viewport of viewports) {
     await selectWorkflow(page, 'General');
     await page.getByRole('tab', { name: 'Period', exact: true }).click();
     await expectNoHorizontalOverflow(page);
-    await selectWorkflow(page, 'Goal Workshop');
+    await selectWorkflow(page, 'Workshop');
     await expectNoHorizontalOverflow(page);
 
     await expect(page.locator('.topbar')).toBeVisible();

@@ -111,7 +111,7 @@ Examples include a paycheck every second Friday, rent on the first day of the
 month, weekly groceries, or an annual insurance bill.
 
 Manage rules in **Plan & Actuals → Recurring** in every main workflow. General,
-Funds, Debt Repayment, and Goal Workshop open it in Recurring by default for
+Funds, Debt Repayment, and Workshop open it in Recurring by default for
 rule entry. In General, switch to Period for budget and actual tracking.
 Both views remain available from the same card.
 
@@ -182,9 +182,9 @@ does not change or tag the selected scenario.
 | **General** | Summary totals, Accounts, Plan & Actuals, Projections | Recurring |
 | **Funds** | Pooled-fund summary, Accounts, Plan & Actuals | Recurring |
 | **Debt Repayment** | Debt summary, Accounts, Plan & Actuals, Projections | Recurring |
-| **Goal Workshop** | Accounts, Generate Plan, Plan & Actuals, Projections | Recurring |
+| **Workshop** | Accounts, Scenario Setup, Plan & Actuals, Projections | Recurring |
 
-Goal Workshop's Generate Plan card includes Simple and Advanced modes.
+Workshop's Scenario Setup card offers Goal Planning and Business Model.
 
 Every main workflow can switch between Recurring rule entry and Period
 baseline, actual, skip, and variance tracking. Budgeting now lives in General's
@@ -207,8 +207,8 @@ Do not confuse these settings:
 3. **Projections View By and Period filter**: groups or filters displayed
    projection results without changing the engine's Period Type.
 
-Goal Workshop can still use a narrower Generate Plan planning window inside
-the scenario timeframe.
+Goal Planning can still use a narrower planning window inside the scenario
+timeframe. Business Model previews use the full scenario timeframe.
 
 ---
 
@@ -681,16 +681,55 @@ interest, variable-rate schedules, and payoff dates. Recurring is the default
 Plan & Actuals view, and Period provides the same actual and variance workflow
 used elsewhere.
 
-### 7.4 Goal Workshop
+### 7.4 Workshop: Goal Planning
 
 Use Simple mode for one account goal and a generated contribution rule. Use
 Advanced mode for multiple goals, priorities, funding constraints, floors, and
 caps.
 
-Generate Plan has its own planning window. Extend the scenario projection
+Goal Planning has its own planning window. Extend the scenario projection
 window to the same goal horizon when you want projections to validate the
 applied result. Applied rules appear in Plan & Actuals → Recurring; switch to
 Period to review and track their dated occurrences.
+
+### 7.5 Workshop: Business Model
+
+1. Open **Workshop → Scenario Setup** and set **Strategy** to **Business Model**.
+   Choose an existing business cash account for the preview. Optionally select
+   a separate owner cash account and a minimum business closing balance.
+2. Add named variables such as Customers, Price, Billable Hours, or Capacity.
+   Enter a default value and, if needed, month-specific overrides such as
+   `2027-02=8` (one per line).
+3. Add revenue, cost, and funding rows. Start from a revenue preset or choose
+   a calculation directly. Combine several calculations in one
+   setup; for example, use **Quantity × rate** for subscriptions or sales,
+   **Capacity × occupancy % × rate** for rentals, **Percentage of a variable**
+   for marketplace commission, or **Usage with a second rate above threshold**
+   for metered billing. Use a **Fixed amount** on a one-time activity date
+   for milestone receipts, asset purchases, or a loan draw. Use **Base amount
+   + increase at threshold** for a cost such as payroll that steps up with demand.
+4. Choose where each movement goes. By default, the primary account is the
+   business cash account. Revenue and funding flow into it; costs, purchases,
+   and financing payments flow out. A counterparty account records the other
+   side of the same movement. To model an owner-funded purchase, you can
+   enter the owner contribution and the purchase separately. For financing,
+   enter the draw and scheduled repayments explicitly; this is not a loan
+   quote or a loan repayment calculator.
+5. Use **Preview projections** to compare the current scenario and the same
+   scenario with the proposed Plan Rules included. The preview shows modeled
+   scheduled operating cash flows, closing balances from the existing
+   projection engine, and the first month below the cash floor, if any.
+   Open **Review proposed Plan Rules** to inspect the amounts and schedules.
+6. To compare assumptions, select **Variable to test**, enter a range and step,
+   and click **Test range**. Test values replace that variable in every month
+   without changing its saved value or monthly overrides. Choose a result to
+   see its monthly detail.
+
+A payment delay moves collection or payment by whole months; a percentage-of-
+revenue cost uses revenue in the activity month, before any payment delay.
+Payments beyond the scenario end are flagged but excluded. **Save setup**
+keeps the assumptions with the scenario. It does not apply the proposed Plan
+Rules or change existing accounts, actuals, or saved projections.
 
 ---
 

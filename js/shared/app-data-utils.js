@@ -4,6 +4,7 @@
 import { DEFAULT_WORKFLOW_ID, getWorkflowById } from './workflow-registry.js';
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
 import { upgradeStatementMapping, upgradeStatementImport } from './statement-workflow-utils.js';
+import { normalizeBusinessModel } from '../domain/calculations/business-model.js';
 
 export const CURRENT_SCHEMA_VERSION = 46;
 export const DEFAULT_PERIOD_TYPE_ID = 3; // Month
@@ -757,6 +758,9 @@ export function normalizeScenario(rawScenario) {
     generatePlan: cleanWindow(planning.generatePlan, defaultWindow),
     advancedGoalSolver: cleanWindow(planning.advancedGoalSolver, defaultWindow),
     periodVariants,
+    ...(planning.workshopStrategy === 'business' ? { workshopStrategy: 'business' } : {}),
+    ...(planning.businessModel && typeof planning.businessModel === 'object'
+      ? { businessModel: normalizeBusinessModel(planning.businessModel) } : {}),
     ...(planning.goalWorkshopMode === 'simple' || planning.goalWorkshopMode === 'advanced'
       ? { goalWorkshopMode: planning.goalWorkshopMode }
       : {})

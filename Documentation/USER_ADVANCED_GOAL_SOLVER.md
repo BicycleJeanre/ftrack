@@ -1,8 +1,8 @@
-# Goal Workshop — Advanced Mode
+# Workshop — Goal Planning (Advanced Mode)
 
 ## 1.0 Purpose
 
-1.1 The Goal Workshop Advanced mode helps you generate transaction rules that
+1.1 Goal Planning in Advanced mode helps you generate transaction rules that
 satisfy one or more account goals by specific dates, while respecting optional
 constraints.
 
@@ -24,7 +24,7 @@ actually achieve the goals.
 
 2.1.3.2 If blank, End Date defaults to the solver planning window end date.
 
-2.1.3.3 The solver planning window is set at the top of the Generate Plan card (Goal Workshop workflow) and defaults to the scenario timeframe.
+2.1.3.3 The solver planning window is set in **Workshop → Scenario Setup → Goal Planning** and defaults to the scenario timeframe.
 
 2.1.4 **Priority**: lower numbers are solved first. If two goals conflict, priority decides which goal is favoured.
 

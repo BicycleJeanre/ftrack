@@ -20,6 +20,7 @@ import { formatCurrency } from '../../../shared/format-utils.js';
 import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.js?v=20260901-strategy-matrix-35';
 import { createModal } from '../modals/modal-factory.js';
 import { populateAccountSelect } from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
+import { renderBusinessModel } from './forecast-business-model.js';
 
 function resolveGoalWorkshopMode(scenario) {
   const persisted = scenario?.planning?.goalWorkshopMode;
@@ -237,7 +238,7 @@ function renderGoalWorkshopSimpleHeader({ container, planningWindow, onWindowCha
   headerLeft.className = 'card-header-actions';
   const headerLabel = document.createElement('span');
   headerLabel.className = 'dash-panel-label';
-  headerLabel.textContent = 'Goal Workshop';
+  headerLabel.textContent = 'Goal Planning';
   headerLeft.appendChild(headerLabel);
 
   const headerControls = document.createElement('div');
@@ -346,7 +347,7 @@ async function loadAdvancedGoalSolverSection({
   headerLeft.className = 'card-header-actions';
   const headerLabel = document.createElement('span');
   headerLabel.className = 'dash-panel-label';
-  headerLabel.textContent = 'Goal Workshop';
+  headerLabel.textContent = 'Goal Planning';
   headerLeft.appendChild(headerLabel);
   const strategyBadge = document.createElement('span');
   strategyBadge.className = 'goal-workshop-strategy-badge';
@@ -359,7 +360,7 @@ async function loadAdvancedGoalSolverSection({
   settingsBtn.className = 'icon-btn';
   settingsBtn.type = 'button';
   settingsBtn.title = 'Settings';
-  settingsBtn.setAttribute('aria-label', 'Goal Workshop settings');
+  settingsBtn.setAttribute('aria-label', 'Goal Planning settings');
   settingsBtn.textContent = '⚙';
   headerIconActions.appendChild(settingsBtn);
 
@@ -372,7 +373,7 @@ async function loadAdvancedGoalSolverSection({
     const { modal, close } = createModal({ contentClass: 'modal-dialog' });
     modal.innerHTML = `
       <div class="modal-header">
-        <h4 class="modal-title">Goal Workshop Settings</h4>
+        <h4 class="modal-title">Goal Planning Settings</h4>
         <button type="button" class="modal-close" title="Close">×</button>
       </div>
       <div class="modal-body">
@@ -1283,7 +1284,58 @@ async function loadAdvancedGoalSolverSection({
 
 }
 
-export async function loadGeneratePlanSection({
+export async function loadGeneratePlanSection(options) {
+  const { container, scenarioState, isRenderCurrent = () => true } = options;
+  if (!isRenderCurrent()) return;
+  const scenario = scenarioState?.get?.();
+  const strategy = scenario?.planning?.workshopStrategy === 'business' ? 'business' : 'goals';
+  const active = () => isRenderCurrent() && scenarioState?.get?.()?.id === scenario?.id;
+  if (!scenario) return renderGoalPlanSection(options);
+  if (strategy === 'business') {
+    container.replaceChildren();
+    renderBusinessModel({
+      container, scenario, isRenderCurrent: active,
+      getScenario: () => getScenario(scenario.id),
+      onSave: async businessModel => {
+        await ScenarioManager.saveWorkshopSetup(scenario.id, { businessModel });
+        scenarioState.set(await getScenario(scenario.id));
+      }
+    });
+  } else {
+    await renderGoalPlanSection(options);
+  }
+  if (!active()) return;
+  const bar = document.createElement('label');
+  bar.className = 'business-row-heading workshop-strategy-selector';
+  bar.append('Strategy');
+  const select = document.createElement('select');
+  select.className = 'input-select';
+  select.setAttribute('aria-label', 'Scenario setup strategy');
+  select.append(new Option('Goal Planning', 'goals'), new Option('Business Model', 'business'));
+  select.value = strategy;
+  select.addEventListener('change', async () => {
+    select.disabled = true;
+    try {
+      await ScenarioManager.saveWorkshopSetup(scenario.id, { strategy: select.value });
+      const refreshed = await getScenario(scenario.id);
+      if (!active()) return;
+      scenarioState.set(refreshed);
+      await loadGeneratePlanSection(options);
+    } catch (error) {
+      if (active()) {
+        select.value = strategy;
+        notifyError(error.message);
+      }
+    } finally {
+      select.disabled = false;
+    }
+  });
+  bar.append(select);
+  container.querySelector(':scope > .workshop-strategy-selector')?.remove();
+  container.prepend(bar);
+}
+
+async function renderGoalPlanSection({
   container,
   scenarioState,
   workflowId = null,

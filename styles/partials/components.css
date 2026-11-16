@@ -2238,6 +2238,99 @@ body .statement-review-grid.tabulator .tabulator-row.tabulator-group { position:
   opacity: 0.65;
 }
 
+.workshop-strategy-selector,
+.business-model {
+  padding: 0.75rem;
+}
+
+.business-model {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.business-model h3,
+.business-model p {
+  margin: 0;
+}
+
+.business-editor,
+.business-results,
+.business-projection {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.business-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0.6rem;
+  align-items: end;
+  min-width: 0;
+}
+
+.business-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.business-field > :is(input, select, textarea, .selection-dialog-trigger) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  .business-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.business-editor-row {
+  padding: 0.6rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 0.4rem;
+}
+
+.business-row-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.business-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.business-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: inherit;
+}
+
+.business-table caption,
+.business-table th,
+.business-table td {
+  padding: 0.4rem 0.6rem;
+  text-align: start;
+}
+
+.business-table caption {
+  font-weight: 600;
+}
+
+.business-table tbody tr:nth-child(even) {
+  background: var(--row-even, color-mix(in srgb, currentColor 7%, transparent));
+}
+
 .goal-workshop-settings-help {
   margin-top: 6px;
   font-size: 0.78rem;

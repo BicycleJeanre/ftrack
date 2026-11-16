@@ -140,6 +140,25 @@ export async function update(scenarioId, updates) {
     });
 }
 
+// A Workshop draft is planning metadata; merge it with the latest scenario so
+// an unrelated change to the plan or period variants is not overwritten.
+export async function saveWorkshopSetup(scenarioId, { strategy, businessModel }) {
+    return DataStore.transaction(async (data) => {
+        const index = (data?.scenarios || []).findIndex(s => s.id === scenarioId);
+        if (index < 0) throw new Error(`Scenario ${scenarioId} not found`);
+        const scenario = data.scenarios[index];
+        data.scenarios[index] = sanitizeScenarioForWrite({
+            ...scenario,
+            planning: {
+                ...scenario.planning,
+                ...(strategy !== undefined ? { workshopStrategy: strategy } : {}),
+                ...(businessModel !== undefined ? { businessModel } : {})
+            }
+        });
+        return data;
+    });
+}
+
 /**
  * Delete a scenario
  * @param {number} scenarioId - The scenario ID

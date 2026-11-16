@@ -398,7 +398,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
 
   const { row: generatePlanSection, body: generatePlanBody } = buildDashRow({
     id: 'generatePlanSection',
-    title: 'Generate Plan',
+    title: 'Scenario Setup',
     defaultCollapsed: accordionStates['generatePlanSection'] !== true,
     onToggle: (isOpen) => onAccordionToggle?.('generatePlanSection', isOpen)
   });

@@ -1,10 +1,10 @@
-# Goal Workshop — Simple Mode
+# Workshop — Goal Planning (Simple Mode)
 
 ## 1.0 Purpose
 
-1.1 Explain how to set account goals and use Generate Plan in Simple mode to create recurring contribution plan rules.
+1.1 Explain how to set account goals and use **Workshop → Scenario Setup → Goal Planning** in Simple mode to create recurring contribution plan rules.
 
-## 2.0 Goal Workshop Modes
+## 2.0 Goal Planning Modes
 
 2.1 Simple.
 
@@ -18,7 +18,7 @@
 
 2.2.2 Can generate and apply a set of plan rules across accounts.
 
-2.3 If you are paying off a debt by a date, use Goal Workshop in Advanced mode with Pay down to target.
+2.3 If you are paying off a debt by a date, use Goal Planning in Advanced mode with Pay down to target.
 
 ## 3.0 Set A Goal On An Account
 
@@ -30,13 +30,13 @@
 
 3.2.2 Goal Date to the target date.
 
-3.3 Ensure the goal date is within the Generate Plan planning window.
+3.3 Ensure the goal date is within the Goal Planning window.
 
 3.3.1 If you want projections to validate the goal date, also extend the scenario timeframe End date to cover the goal date.
 
-## 4.0 Use Generate Plan In Simple Mode
+## 4.0 Use Goal Planning In Simple Mode
 
-4.1 Open the Generate Plan section.
+4.1 Open **Scenario Setup** and select **Goal Planning**.
 
 4.1.1 If needed, set the Planning Window (Start/End) at the top of the card.
 
@@ -70,7 +70,7 @@
 
 5.2 The simple planner does not use a periodic change schedule.
 
-5.3 If you need variable rates and constraints, use Goal Workshop Advanced mode.
+5.3 If you need variable rates and constraints, use Goal Planning in Advanced mode.
 
 ## 6.0 Verify The Plan
 

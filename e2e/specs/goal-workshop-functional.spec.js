@@ -10,7 +10,7 @@ const { selectWorkflow } = require('../helpers/ui');
 test.describe('Goal Workshop browser functionality', () => {
   test.beforeEach(async ({ page }) => {
     await gotoFTrack(page);
-    await selectWorkflow(page, 'Goal Workshop');
+    await selectWorkflow(page, 'Workshop');
   });
 
   test('solves and applies an advanced goal plan as plan rules', async ({ page }) => {
@@ -32,6 +32,62 @@ test.describe('Goal Workshop browser functionality', () => {
         Array.isArray(transaction.tags) &&
         transaction.tags.includes('adv-goal-generated')
       ), 'advanced goal plan rule applied');
+  });
+
+  test('combines business flows, compares variables through projections, and saves only the setup', async ({ page }) => {
+    const before = await currentScenario(page);
+    await page.getByLabel('Scenario setup strategy').selectOption('business');
+    const feature = page.locator('[data-business-model]');
+    await expect(feature).toBeVisible();
+    await feature.getByLabel('Minimum business closing cash (optional)').fill('999999');
+    await feature.getByRole('button', { name: 'Business cash account', exact: true }).click();
+    await page.locator('.selection-dialog').getByRole('option', { name: /^Checking\b/ }).click();
+    await feature.getByRole('button', { name: 'Add variable', exact: true }).click();
+    await feature.getByLabel('Variable name').fill('Subscribers');
+    await feature.getByLabel('Default value').fill('5');
+    await feature.getByLabel('Revenue model preset').selectOption({ label: 'Recurring customers' });
+    await feature.getByRole('button', { name: 'Add preset', exact: true }).click();
+    const revenue = feature.getByRole('group', { name: 'Flow 1', exact: true });
+    await revenue.getByLabel('Flow name').fill('Recurring fees');
+    await expect(revenue.getByLabel('Calculation')).toHaveValue('volume');
+    await revenue.getByLabel('Quantity variable').selectOption({ label: 'Subscribers' });
+    await revenue.getByLabel('Rate per unit').fill('100');
+    await feature.getByRole('button', { name: 'Add cost', exact: true }).click();
+    const cost = feature.getByRole('group', { name: 'Flow 2', exact: true });
+    await cost.getByLabel('Flow name').fill('Payroll');
+    await cost.getByLabel('Amount', { exact: true }).fill('300');
+    await feature.getByLabel('Variable to test').selectOption({ label: 'Subscribers' });
+    await feature.getByLabel('Test from').fill('2');
+    await feature.getByLabel('Test to').fill('6');
+    await feature.getByLabel('Test step').fill('2');
+    await feature.getByRole('button', { name: 'Test range', exact: true }).click();
+    await expect(feature.getByRole('status')).toContainText('Preview only');
+    const comparison = feature.getByRole('table', { name: 'Compare test values' });
+    await expect(comparison.getByRole('row')).toHaveCount(4);
+    await expect(comparison.getByRole('row').nth(1)).toContainText('2026-01: short');
+    const firstEndingCash = await comparison.getByRole('row').nth(1).getByRole('cell').nth(1).innerText();
+    await expect(comparison.getByRole('row').nth(3).getByRole('cell').nth(1)).not.toHaveText(firstEndingCash);
+    await feature.getByLabel('Preview test case').selectOption({ label: '6' });
+    await expect(feature.getByRole('heading', { name: 'Preview · Subscribers: 6' })).toBeVisible();
+    await feature.getByText('Review proposed Plan Rules (2)', { exact: true }).click();
+    await expect(feature.getByRole('table', { name: 'Proposed account movements' })).toContainText('Recurring fees');
+    await expect(feature.getByRole('table', { name: 'Proposed account movements' })).toContainText('Payroll');
+    await feature.getByRole('button', { name: 'Save setup' }).click();
+    await waitForScenario(page, current => current.planning.businessModel?.flows.length === 2);
+    const after = await currentScenario(page);
+    for (const key of ['transactions', 'transactionOccurrences', 'accounts', 'projection']) {
+      expect(after[key]).toEqual(before[key]);
+    }
+    await page.reload();
+    await expect(page.getByLabel('Scenario setup strategy')).toHaveValue('business');
+    await expect(feature.getByLabel('Default value')).toHaveValue('5');
+    await expect(feature.getByLabel('Flow name').last()).toHaveValue('Payroll');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await feature.getByRole('button', { name: 'Preview projections', exact: true }).click();
+    await expect(feature.getByRole('status')).toContainText('Preview only');
+    await expect.poll(() => feature.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    await page.getByLabel('Scenario setup strategy').selectOption('goals');
+    await expect(page.locator('#generatePlanSection .goal-workshop-strategy-option')).toHaveCount(4);
   });
 
   test('adds and removes advanced goals and constraints', async ({ page }) => {
@@ -189,7 +245,7 @@ test.describe('Goal Workshop browser functionality', () => {
       window.location.reload();
     });
 
-    await selectWorkflow(page, 'Goal Workshop');
+    await selectWorkflow(page, 'Workshop');
     await page.locator('#generatePlanSection button[title="Solve — calculate suggested plan rules"]').click();
 
     await expect(page.locator('#adv-goal-solution-totals')).toContainText('Plan ready to apply');
@@ -218,7 +274,7 @@ test.describe('Goal Workshop browser functionality', () => {
   });
 
   test('refreshes simple Generate Plan after an account goal input changes', async ({ page }) => {
-    await page.getByRole('button', { name: 'Goal Workshop settings' }).click();
+    await page.getByRole('button', { name: 'Goal Planning settings' }).click();
     await page.locator('.modal-dialog .mode-btn[data-mode="simple"]').click();
 
     const goalOption = page.locator('#goal-account-select option[value="2"]');

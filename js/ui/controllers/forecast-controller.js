@@ -32,11 +32,11 @@ import {
   WORKFLOWS,
   getWorkflowActivity,
   getWorkflowById
-} from '../../shared/workflow-registry.js?v=20260928-scenario-timeframe-charts-55';
+} from '../../shared/workflow-registry.js?v=workshop-business-model-1';
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
-import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=20260831-workspace-state-21';
+import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=workshop-business-model-1';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore
@@ -50,7 +50,7 @@ import {
   populateAccountSelect
 } from '../components/widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
-import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=20260928-scenario-timeframe-charts-55';
+import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=workshop-business-model-1';
 import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
   loadAccountsGrid as loadAccountsGridCore

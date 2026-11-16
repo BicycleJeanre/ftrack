@@ -15,7 +15,7 @@ test.describe('app shell and workflow navigation', () => {
     await expect(page.locator('#workflowNav')).toContainText('General');
     await expect(page.locator('#workflowNav')).toContainText('Funds');
     await expect(page.locator('#workflowNav')).toContainText('Debt Repayment');
-    await expect(page.locator('#workflowNav')).toContainText('Goal Workshop');
+    await expect(page.locator('#workflowNav')).toContainText('Workshop');
     await expect(page.locator('#workflowNav')).not.toContainText('Plan Rules (Detail)');
     await expect(page.locator('#workflowNav').getByRole('button', {
       name: 'Plan & Actuals (Detail)',
@@ -46,7 +46,7 @@ test.describe('app shell and workflow navigation', () => {
     await expect(page.locator('#budgetSection').getByRole('tab', { name: 'Recurring', exact: true }))
       .toHaveAttribute('aria-selected', 'true');
 
-    await selectWorkflow(page, 'Goal Workshop');
+    await selectWorkflow(page, 'Workshop');
     await expect(page.locator('#generatePlanSection')).toBeVisible();
     await expect(page.locator('#budgetSection')).toBeVisible();
     await expect(page.locator('#transactionsSection')).toBeHidden();

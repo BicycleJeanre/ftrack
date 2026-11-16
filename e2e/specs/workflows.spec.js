@@ -177,9 +177,9 @@ test.describe('documented workflow smoke coverage', () => {
   });
 
   test('Goal Workshop exposes advanced goal controls', async ({ page }) => {
-    await selectWorkflow(page, 'Goal Workshop');
+    await selectWorkflow(page, 'Workshop');
     await expectUnifiedPlanSurface(page);
-    await expect(page.locator('#generatePlanSection')).toContainText('Goal Workshop');
+    await expect(page.locator('#generatePlanSection')).toContainText('Goal Planning');
     await expect(page.locator('#generatePlanSection')).toContainText('Constraints');
     await expect(page.locator('#generatePlanSection')).toContainText('Goals');
     await expect(page.locator('#generatePlanSection button[title="Solve — calculate suggested plan rules"]')).toBeVisible();
@@ -209,7 +209,7 @@ test.describe('documented workflow smoke coverage', () => {
         Number(occurrence.actualAmount) === 275
     ), 'manual actual persisted');
 
-    for (const workflow of ['General', 'Funds', 'Debt Repayment', 'Goal Workshop']) {
+    for (const workflow of ['General', 'Funds', 'Debt Repayment', 'Workshop']) {
       await selectWorkflow(page, workflow);
       await page.locator('#budgetSection').getByRole('tab', { name: 'Period', exact: true }).click();
       await expectUnifiedPlanSurface(page, 'period');

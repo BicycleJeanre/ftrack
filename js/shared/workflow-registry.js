@@ -92,7 +92,7 @@ export const WORKFLOWS = [
   },
   {
     id: 'goal-workshop',
-    name: 'Goal Workshop',
+    name: 'Workshop',
     activity: {
       surface: 'planActuals',
       presentation: 'summary',

@@ -4,7 +4,7 @@ const WORKFLOW_IDS_BY_NAME = {
   General: 'general',
   Funds: 'funds',
   'Debt Repayment': 'debt-repayment',
-  'Goal Workshop': 'goal-workshop',
+  Workshop: 'goal-workshop',
   'Accounts (Detail)': 'accounts-detail',
   'Plan Rules (Detail)': 'plan-actuals-detail',
   'Plan & Actuals (Detail)': 'plan-actuals-detail',
