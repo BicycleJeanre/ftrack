@@ -35,6 +35,7 @@ test.describe('Goal Workshop browser functionality', () => {
   });
 
   test('combines business flows, compares variables through projections, and saves only the setup', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
     const before = await currentScenario(page);
     await page.getByLabel('Scenario setup strategy').selectOption('business');
     const feature = page.locator('[data-business-model]');
@@ -65,6 +66,14 @@ test.describe('Goal Workshop browser functionality', () => {
     const comparison = feature.getByRole('table', { name: 'Compare test values' });
     await expect(comparison.getByRole('row')).toHaveCount(4);
     await expect(comparison.getByRole('row').nth(1)).toContainText('2026-01: short');
+    // Locator clicks can scroll overflow:hidden containers programmatically.
+    // Exercise the actual wheel gesture a user relies on to reach the results.
+    const contentArea = page.locator('.content-area');
+    const runButton = feature.getByRole('button', { name: 'Test range', exact: true });
+    await runButton.hover();
+    const beforeWheel = await contentArea.evaluate(element => element.scrollTop);
+    await page.mouse.wheel(0, 600);
+    await expect.poll(() => contentArea.evaluate(element => element.scrollTop)).toBeGreaterThan(beforeWheel);
     const firstEndingCash = await comparison.getByRole('row').nth(1).getByRole('cell').nth(1).innerText();
     await expect(comparison.getByRole('row').nth(3).getByRole('cell').nth(1)).not.toHaveText(firstEndingCash);
     await feature.getByLabel('Preview test case').selectOption({ label: '6' });

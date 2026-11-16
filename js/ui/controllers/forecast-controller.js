@@ -36,7 +36,7 @@ import {
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
-import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=workshop-recovery-1';
+import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=workshop-scroll-1';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore
@@ -2875,7 +2875,7 @@ async function loadScenarioData() {
   const showSummaryCards = workflowConfig ? !!workflowConfig.showSummaryCards : false;
   
   if (showAccounts) accountsSection.classList.remove('hidden'); else accountsSection.classList.add('hidden');
-  if (showGeneratePlan) generatePlanSection.style.display = 'block'; else generatePlanSection.style.display = 'none';
+  generatePlanSection.classList.toggle('hidden', !showGeneratePlan);
   if (showTransactions) txSection.classList.remove('hidden'); else txSection.classList.add('hidden');
   if (showProjections) projectionsSection.classList.remove('hidden'); else projectionsSection.classList.add('hidden');
   if (showBudget) budgetSection.classList.remove('hidden'); else budgetSection.classList.add('hidden');

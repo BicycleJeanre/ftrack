@@ -402,7 +402,7 @@ export function buildGridContainer({ accordionStates = {}, onAccordionToggle } =
     defaultCollapsed: accordionStates['generatePlanSection'] !== true,
     onToggle: (isOpen) => onAccordionToggle?.('generatePlanSection', isOpen)
   });
-  generatePlanSection.style.display = 'none';
+  generatePlanSection.classList.add('hidden');
   const generatePlanContent = document.createElement('div');
   generatePlanContent.id = 'generatePlanContent';
   generatePlanBody.appendChild(generatePlanContent);

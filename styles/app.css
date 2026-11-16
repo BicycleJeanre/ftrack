@@ -15,7 +15,7 @@
 @import url('./partials/components.css?v=workshop-business-model-1');
 
 /* 3. Layout Styles - Header, Sidebar, Grids, Main Layouts */
-@import url('./partials/layout.css?v=20260927-secondary-account-shortcut-54');
+@import url('./partials/layout.css?v=workshop-scroll-1');
 
 /* 4. Page-Specific Styles - Documentation, Home, Pages */
 @import url('./partials/pages.css');

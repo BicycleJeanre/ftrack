@@ -532,6 +532,19 @@ body.dashboard-shell {
   padding: var(--spacing-sm);
 }
 
+/* Scenario Setup grows with its inputs and projection results. Let the
+   dashboard scroll around it rather than clipping it at desktop heights. */
+.content-area:has(#generatePlanSection:not(.collapsed, .hidden)) {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.content-area:has(#generatePlanSection:not(.collapsed, .hidden)) > .dash-layout {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
 .dash-row {
   display: flex;
   flex-direction: column;
