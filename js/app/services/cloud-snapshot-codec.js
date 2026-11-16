@@ -41,6 +41,7 @@ async function sha256Hex(bytes) {
 
 function assertValidCurrentData(data) {
   assertCurrentSchemaVersion(data);
+  if (!Array.isArray(data.scenarios)) throw new Error('Cloud snapshot is missing its scenario collection.');
   const sanitized = sanitizeAppDataForWrite(data);
   const validation = validateAppData(sanitized);
   if (!validation.isValid) {
@@ -132,14 +133,31 @@ export function classifyCloudReconciliation({
   hasPendingLocalChanges = false,
   localHash = null,
   remoteHash = null,
-  localIsDefault = false
+  localIsDefault = false,
+  localIsEmpty = localIsDefault,
+  lastSyncedScenarioCount = null
 } = {}) {
   if (!remoteRevision) return hasPendingLocalChanges ? 'upload-local' : 'publish-initial';
   if (localHash && remoteHash && localHash === remoteHash) return 'already-synced';
+  if (localIsEmpty && !(lastSyncedRevision === remoteRevision && lastSyncedScenarioCount === 0)) {
+    return hasPendingLocalChanges ? 'conflict' : 'download-remote';
+  }
   if (lastSyncedRevision && lastSyncedRevision === remoteRevision) {
     return hasPendingLocalChanges ? 'upload-local' : 'already-synced';
   }
   if (!lastSyncedRevision && localIsDefault) return 'download-remote';
   if (!hasPendingLocalChanges && lastSyncedRevision) return 'download-remote';
   return 'conflict';
+}
+
+export function scenariosMissingFrom(incoming, current) {
+  const incomingIds = new Set(incoming.scenarios.map(scenario => scenario.id));
+  return current.scenarios.filter(scenario => !incomingIds.has(scenario.id));
+}
+
+// Restore complete scenario records without replacing a current scenario,
+// changing its selected strategy, or moving workspace settings back in time.
+export function mergeMissingCloudScenarios(current, snapshot) {
+  const missing = scenariosMissingFrom(current, snapshot);
+  return missing.length ? { ...current, scenarios: [...current.scenarios, ...missing] } : current;
 }

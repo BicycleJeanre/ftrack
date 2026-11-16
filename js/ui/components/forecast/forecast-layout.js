@@ -6,8 +6,8 @@ import { downloadAppData } from '../../../app/services/export-service.js';
 import { notifyError, notifySuccess, confirmDialog } from '../../../shared/notifications.js';
 import { openDataUpgradeModal } from '../modals/data-upgrade-modal.js?v=20260829-general-workflow-8';
 import { getTheme, setTheme } from '../../../config.js';
-import { getCloudSyncState, subscribeCloudSync } from '../../../app/services/cloud-sync-coordinator.js';
-import { openCloudAccountModal } from '../modals/cloud-account-modal.js';
+import { getCloudSyncState, subscribeCloudSync } from '../../../app/services/cloud-sync-coordinator.js?v=workshop-recovery-1';
+import { openCloudAccountModal } from '../modals/cloud-account-modal.js?v=workshop-recovery-1';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
 const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;

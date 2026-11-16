@@ -35,7 +35,7 @@ async function readAppData() {
     assertCurrentSchemaVersion(data);
     return data;
   } catch (err) {
-    if (err && err.name === 'SchemaVersionError') {
+    if (err?.name === 'SchemaVersionError' || err?.name === 'LocalDataReadError') {
       throw err;
     }
     throw new Error('No app data found. Please import a data file or create a new scenario.');

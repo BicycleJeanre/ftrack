@@ -1,7 +1,6 @@
 // forecast-generate-plan.js
-// Goal Workshop Generate Plan section — Simple and Advanced modes.
+// Workshop scenario setup and goal strategies.
 
-import { loadLookup } from '../../../app/services/lookup-service.js';
 import { formatMoneyDisplay } from '../grids/grid-factory.js';
 import { formatDateOnly, parseDateOnly } from '../../../shared/date-utils.js';
 import {
@@ -21,24 +20,8 @@ import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.j
 import { createModal } from '../modals/modal-factory.js';
 import { populateAccountSelect } from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 import { renderBusinessModel } from './forecast-business-model.js';
+import { WORKSHOP_STRATEGIES, SOLVER_STRATEGIES, resolveWorkshopStrategy, getSolverStrategyFields } from '../../../shared/workshop-strategies.js';
 
-function resolveGoalWorkshopMode(scenario) {
-  const persisted = scenario?.planning?.goalWorkshopMode;
-  if (persisted === 'simple' || persisted === 'advanced') return persisted;
-  // Auto-detect for migrated scenarios: if AGS goals already exist, default to advanced.
-  const hasGoals = (scenario?.advancedGoalSettings?.goals || []).length > 0;
-  return hasGoals ? 'advanced' : 'simple';
-}
-
-async function persistGoalWorkshopMode({ scenarioId, mode, scenarioState }) {
-  const existingScenario = scenarioState?.get?.() || (scenarioId ? await getScenario(scenarioId) : null);
-  const currentPlanning = existingScenario?.planning && typeof existingScenario.planning === 'object' ? existingScenario.planning : {};
-  const nextPlanning = { ...currentPlanning, goalWorkshopMode: mode };
-  await ScenarioManager.update(scenarioId, { planning: nextPlanning });
-  const refreshed = await getScenario(scenarioId);
-  scenarioState?.set?.(refreshed);
-  return refreshed;
-}
 
 function normalizeDateRange({ startDate, endDate }) {
   const start = typeof startDate === 'string' && startDate ? startDate : null;
@@ -108,52 +91,6 @@ function escapeHtml(str) {
     .replaceAll("'", '&#39;');
 }
 
-const ADVANCED_SOLVER_STRATEGIES = [
-  {
-    value: 'balanced',
-    label: 'Balanced Monthly',
-    description: 'Progress every goal with steady monthly allocations.'
-  },
-  {
-    value: 'priority-cascade',
-    label: 'Priority Cascade',
-    description: 'Finish lower-numbered priorities first, then roll capacity forward.'
-  },
-  {
-    value: 'snowball',
-    label: 'Debt Snowball',
-    description: 'After minimums, target the smallest remaining balance first.'
-  },
-  {
-    value: 'avalanche',
-    label: 'Debt Avalanche',
-    description: 'After minimums, target the highest-interest account first.'
-  }
-];
-
-function resolveAdvancedSolverStrategy(settings) {
-  const explicit = String(settings?.strategy || '');
-  if (ADVANCED_SOLVER_STRATEGIES.some((strategy) => strategy.value === explicit)) {
-    return explicit;
-  }
-  if (settings?.allocationStrategy !== 'cascade') return 'balanced';
-  if (settings?.payoffOrder === 'snowball') return 'snowball';
-  if (settings?.payoffOrder === 'avalanche') return 'avalanche';
-  return 'priority-cascade';
-}
-
-function getAdvancedSolverStrategyFields(strategy) {
-  if (strategy === 'balanced') {
-    return { strategy: 'balanced', allocationStrategy: 'parallel', payoffOrder: 'priority' };
-  }
-  if (strategy === 'snowball') {
-    return { strategy: 'snowball', allocationStrategy: 'cascade', payoffOrder: 'snowball' };
-  }
-  if (strategy === 'avalanche') {
-    return { strategy: 'avalanche', allocationStrategy: 'cascade', payoffOrder: 'avalanche' };
-  }
-  return { strategy: 'priority-cascade', allocationStrategy: 'cascade', payoffOrder: 'priority' };
-}
 
 function getDefaultAdvancedGoalSettings(scenario) {
   const accounts = scenario?.accounts || [];
@@ -227,7 +164,7 @@ function restoreWindowScroll(snapshot) {
   }
 }
 
-function renderGoalWorkshopSimpleHeader({ container, planningWindow, onWindowChange, mode, onModeChange }) {
+function renderGoalWorkshopSimpleHeader({ container, planningWindow, onWindowChange }) {
   if (!container) return;
   container.querySelectorAll(':scope > .goal-workshop-header').forEach((el) => el.remove());
 
@@ -238,7 +175,7 @@ function renderGoalWorkshopSimpleHeader({ container, planningWindow, onWindowCha
   headerLeft.className = 'card-header-actions';
   const headerLabel = document.createElement('span');
   headerLabel.className = 'dash-panel-label';
-  headerLabel.textContent = 'Goal Planning';
+  headerLabel.textContent = 'Goal Contribution';
   headerLeft.appendChild(headerLabel);
 
   const headerControls = document.createElement('div');
@@ -269,24 +206,9 @@ function renderGoalWorkshopSimpleHeader({ container, planningWindow, onWindowCha
   headerControls.appendChild(startFilterItem);
   headerControls.appendChild(endFilterItem);
 
-  const headerIconActions = document.createElement('div');
-  headerIconActions.className = 'header-icon-actions';
-
-  if (mode && onModeChange) {
-    for (const { value, label } of [{ value: 'simple', label: '○ Simple' }, { value: 'advanced', label: '◈ Advanced' }]) {
-      const modeBtn = document.createElement('button');
-      modeBtn.type = 'button';
-      modeBtn.className = `icon-btn${mode === value ? ' icon-btn--active' : ''}`;
-      modeBtn.title = label;
-      modeBtn.textContent = label;
-      modeBtn.addEventListener('click', async () => { await onModeChange(value); });
-      headerIconActions.appendChild(modeBtn);
-    }
-  }
 
   header.appendChild(headerLeft);
   header.appendChild(headerControls);
-  header.appendChild(headerIconActions);
   container.insertBefore(header, container.firstChild);
 
   if (onWindowChange) {
@@ -332,12 +254,11 @@ async function loadAdvancedGoalSolverSection({
 
   const planningWindow = getScenarioPlanningWindow(scenario, 'advancedGoalSolver');
   const storedSettings = scenario.advancedGoalSettings || getDefaultAdvancedGoalSettings(scenario);
-  const solverStrategy = resolveAdvancedSolverStrategy(storedSettings);
-  const strategyFields = getAdvancedSolverStrategyFields(solverStrategy);
+  const solverStrategy = resolveWorkshopStrategy(scenario);
+  const strategyFields = getSolverStrategyFields(solverStrategy);
   const allocationStrategy = strategyFields.allocationStrategy;
   const payoffOrder = strategyFields.payoffOrder;
-  const selectedStrategy = ADVANCED_SOLVER_STRATEGIES.find((strategy) => strategy.value === solverStrategy)
-    || ADVANCED_SOLVER_STRATEGIES[0];
+  const selectedStrategy = SOLVER_STRATEGIES.find((strategy) => strategy.value === solverStrategy);
 
   // --- Header with settings modal trigger ---
   const solverHeader = document.createElement('div');
@@ -385,13 +306,6 @@ async function loadAdvancedGoalSolverSection({
           <label for="modal-end-date">Planning End Date:</label>
           <input type="date" id="modal-end-date" class="input-select" value="${planningWindow?.endDate || ''}" />
         </div>
-        <div class="form-group">
-          <label>Mode:</label>
-          <div style="display: flex; gap: 8px; margin-top: 4px;">
-            <button type="button" class="icon-btn mode-btn" data-mode="simple">○ Simple</button>
-            <button type="button" class="icon-btn mode-btn icon-btn--active" data-mode="advanced">◈ Advanced</button>
-          </div>
-        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn--secondary modal-close-btn">Close</button>
@@ -402,7 +316,6 @@ async function loadAdvancedGoalSolverSection({
     const endDateInput = modal.querySelector('#modal-end-date');
     const closeBtn = modal.querySelector('.modal-close');
     const closeBtnFooter = modal.querySelector('.modal-close-btn');
-    const modeBtns = modal.querySelectorAll('.mode-btn');
 
     const schedulePersist = () => {
       clearTimeout(planWindowTimer);
@@ -422,16 +335,6 @@ async function loadAdvancedGoalSolverSection({
     startDateInput.addEventListener('change', schedulePersist);
     endDateInput.addEventListener('change', schedulePersist);
 
-    modeBtns.forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const mode = btn.dataset.mode;
-        modeBtns.forEach((b) => b.classList.remove('icon-btn--active'));
-        btn.classList.add('icon-btn--active');
-        await persistGoalWorkshopMode({ scenarioId: scenario.id, mode, scenarioState });
-        close();
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
-      });
-    });
 
     closeBtn.addEventListener('click', close);
     closeBtnFooter.addEventListener('click', close);
@@ -448,72 +351,6 @@ async function loadAdvancedGoalSolverSection({
     return;
   }
 
-  const strategyPanel = document.createElement('section');
-  strategyPanel.className = 'dash-panel forecast-card goal-workshop-strategy-panel';
-  strategyPanel.setAttribute('aria-label', 'Goal allocation strategy');
-
-  const strategyHeader = document.createElement('div');
-  strategyHeader.className = 'dash-panel-header card-header';
-  const strategyHeaderLabel = document.createElement('span');
-  strategyHeaderLabel.className = 'dash-panel-label';
-  strategyHeaderLabel.textContent = 'Strategy';
-  strategyHeader.appendChild(strategyHeaderLabel);
-  strategyPanel.appendChild(strategyHeader);
-
-  const strategyOptions = document.createElement('div');
-  strategyOptions.className = 'goal-workshop-strategy-options';
-  strategyOptions.setAttribute('role', 'radiogroup');
-  strategyOptions.setAttribute('aria-label', 'Allocation strategy');
-
-  ADVANCED_SOLVER_STRATEGIES.forEach((strategy) => {
-    const option = document.createElement('button');
-    option.type = 'button';
-    option.className = `goal-workshop-strategy-option${strategy.value === solverStrategy ? ' is-active' : ''}`;
-    option.dataset.solverStrategy = strategy.value;
-    option.setAttribute('role', 'radio');
-    option.setAttribute('aria-checked', strategy.value === solverStrategy ? 'true' : 'false');
-
-    const optionLabel = document.createElement('strong');
-    optionLabel.textContent = strategy.label;
-    const optionDescription = document.createElement('span');
-    optionDescription.textContent = strategy.description;
-    option.appendChild(optionLabel);
-    option.appendChild(optionDescription);
-
-    option.addEventListener('click', async () => {
-      if (strategy.value === solverStrategy) return;
-      strategyOptions.querySelectorAll('button').forEach((button) => { button.disabled = true; });
-      try {
-        const nextSettings = {
-          ...storedSettings,
-          ...getAdvancedSolverStrategyFields(strategy.value),
-          goals: goalsRows,
-          constraints: {
-            ...constraints,
-            ...buildConstraintsObjectFromRows(constraintsRows)
-          }
-        };
-        await persistAdvancedSettings({ scenarioId: scenario.id, nextSettings, scenarioState });
-        await loadGeneratePlanSection({
-          container,
-          scenarioState,
-          workflowId,
-          loadMasterTransactionsGrid,
-          loadProjectionsSection,
-          isRenderCurrent,
-          logger
-        });
-      } catch (err) {
-        strategyOptions.querySelectorAll('button').forEach((button) => { button.disabled = false; });
-        notifyError('Failed to save solver strategy: ' + (err?.message || String(err)));
-      }
-    });
-
-    strategyOptions.appendChild(option);
-  });
-
-  strategyPanel.appendChild(strategyOptions);
-  container.appendChild(strategyPanel);
 
   const settings = storedSettings;
   const goals = Array.isArray(settings.goals) ? settings.goals : [];
@@ -1123,7 +960,7 @@ async function loadAdvancedGoalSolverSection({
 
       const txCount = result.suggestedTransactions?.length || 0;
       const feasible = result.isFeasible;
-      const strategyLabel = ADVANCED_SOLVER_STRATEGIES.find((strategy) =>
+      const strategyLabel = SOLVER_STRATEGIES.find((strategy) =>
         strategy.value === (result.strategy || solverStrategy)
       )?.label || selectedStrategy.label;
       const goalResults = Array.isArray(result.goalResults) ? result.goalResults : [];
@@ -1288,7 +1125,7 @@ export async function loadGeneratePlanSection(options) {
   const { container, scenarioState, isRenderCurrent = () => true } = options;
   if (!isRenderCurrent()) return;
   const scenario = scenarioState?.get?.();
-  const strategy = scenario?.planning?.workshopStrategy === 'business' ? 'business' : 'goals';
+  const strategy = resolveWorkshopStrategy(scenario);
   const active = () => isRenderCurrent() && scenarioState?.get?.()?.id === scenario?.id;
   if (!scenario) return renderGoalPlanSection(options);
   if (strategy === 'business') {
@@ -1311,7 +1148,7 @@ export async function loadGeneratePlanSection(options) {
   const select = document.createElement('select');
   select.className = 'input-select';
   select.setAttribute('aria-label', 'Scenario setup strategy');
-  select.append(new Option('Goal Planning', 'goals'), new Option('Business Model', 'business'));
+  select.append(...WORKSHOP_STRATEGIES.map(({ label, value }) => new Option(label, value)));
   select.value = strategy;
   select.addEventListener('change', async () => {
     select.disabled = true;
@@ -1355,7 +1192,7 @@ async function renderGoalPlanSection({
     return;
   }
 
-  if (resolveGoalWorkshopMode(currentScenario) === 'advanced') {
+  if (getSolverStrategyFields(resolveWorkshopStrategy(currentScenario))) {
     return loadAdvancedGoalSolverSection({
       container,
       scenarioState,
@@ -1389,11 +1226,6 @@ async function renderGoalPlanSection({
         } catch (err) {
           notifyError('Failed to save planning window: ' + (err?.message || String(err)));
         }
-      },
-      mode: 'simple',
-      onModeChange: async (newMode) => {
-        await persistGoalWorkshopMode({ scenarioId: currentScenario.id, mode: newMode, scenarioState });
-        await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
       }
     });
     const msg = document.createElement('div');
@@ -1422,11 +1254,6 @@ async function renderGoalPlanSection({
       } catch (err) {
         notifyError('Failed to save planning window: ' + (err?.message || String(err)));
       }
-    },
-    mode: 'simple',
-    onModeChange: async (newMode) => {
-      await persistGoalWorkshopMode({ scenarioId: currentScenario.id, mode: newMode, scenarioState });
-      await loadGeneratePlanSection({ container, scenarioState, workflowId, loadMasterTransactionsGrid, loadProjectionsSection, isRenderCurrent, logger });
     }
   });
 
@@ -1531,16 +1358,6 @@ async function renderGoalPlanSection({
 
   restoreWindowScroll(scrollSnapshot);
 
-  // Store state for generate plan
-  let generatePlanState = {
-    selectedAccountId: null,
-    incomeAccountId: null,
-    solveFor: 'contribution',
-    frequency: 3, // Monthly
-    contribution: 0,
-    lookupData: lookupData
-  };
-
   // Attach event listeners
   const accountSelect = document.getElementById('goal-account-select');
   const incomeAccountSelect = document.getElementById('goal-income-account-select');
@@ -1599,12 +1416,6 @@ async function renderGoalPlanSection({
     }
     const frequency = parseInt(frequencySelect.value);
     const contribution = parseFloat(contributionInput.value) || 0;
-
-    generatePlanState.selectedAccountId = selectedId;
-    generatePlanState.incomeAccountId = incomeAccountId;
-    generatePlanState.solveFor = solveFor;
-    generatePlanState.frequency = frequency;
-    generatePlanState.contribution = contribution;
 
     // Calculate the requested value
     const planStart = planningWindow?.startDate || formatDateOnly(new Date());
@@ -1748,7 +1559,6 @@ async function renderGoalPlanSection({
 
     // Create the transaction
     try {
-      const frequencyLookup = lookupData.frequencies.find(f => f.id === frequency);
       const scenario = scenarioState?.get?.();
       const transactions = scenario?.transactions || [];
 

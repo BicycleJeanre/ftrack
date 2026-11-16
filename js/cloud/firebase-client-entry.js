@@ -17,6 +17,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -144,6 +145,20 @@ export async function loadWorkspaceRevision(uid, workspaceId, revisionId) {
   );
   const chunks = (await getDocs(chunksQuery)).docs.map((snapshot) => snapshot.data());
   return { metadata: revision.data(), chunks };
+}
+
+export async function listWorkspaceRevisions(uid, workspaceId) {
+  const { db } = await initializeFirebaseCloud();
+  requireUser(uid);
+  const snapshots = await getDocs(query(
+    collection(manifestRef(db, uid, workspaceId), 'revisions'),
+    orderBy('createdAt', 'desc'),
+    limit(100)
+  ));
+  return snapshots.docs.map(snapshot => ({
+    id: snapshot.id,
+    createdAt: snapshot.get('createdAt')?.toDate()?.toISOString() || null
+  }));
 }
 
 export async function publishWorkspaceRevision({

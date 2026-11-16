@@ -2,13 +2,15 @@ import { downloadAppData } from '../../../app/services/export-service.js';
 import {
   createCloudAccount,
   getCloudSyncState,
+  listCloudRecoveryPoints,
   resetCloudPassword,
+  reviewCloudRecoveryPoint,
   resolveCloudConflict,
   signInToCloud,
   signOutOfCloud,
   subscribeCloudSync,
   syncNow
-} from '../../../app/services/cloud-sync-coordinator.js';
+} from '../../../app/services/cloud-sync-coordinator.js?v=workshop-recovery-1';
 import { confirmDialog, notifyError, notifySuccess } from '../../../shared/notifications.js';
 import { createModal } from './modal-factory.js';
 
@@ -16,6 +18,78 @@ function formatTime(value) {
   if (!value) return 'Not yet synced';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'Not yet synced' : date.toLocaleString();
+}
+
+function recoveryPanel() {
+  const panel = document.createElement('div');
+  panel.className = 'cloud-account-info';
+  panel.innerHTML = `
+    <button type="button" class="modal-periodic-button modal-periodic-cancel" data-recovery="load">Find missing scenarios</button>
+    <div data-recovery="results"></div>
+  `;
+  const load = panel.querySelector('[data-recovery="load"]');
+  const results = panel.querySelector('[data-recovery="results"]');
+  load.addEventListener('click', async () => {
+    load.disabled = true;
+    results.textContent = 'Loading cloud recovery points…';
+    try {
+      const points = await listCloudRecoveryPoints();
+      if (!panel.isConnected) return;
+      results.textContent = points.length ? '' : 'No saved cloud revisions were found for this account.';
+      if (!points.length) return;
+      const label = document.createElement('label');
+      label.textContent = 'Cloud revision ';
+      const select = document.createElement('select');
+      select.className = 'modal-periodic-input';
+      points.forEach(point => select.add(new Option(formatTime(point.createdAt), point.id)));
+      label.append(select);
+      const review = document.createElement('button');
+      review.type = 'button';
+      review.className = 'modal-periodic-button modal-periodic-cancel';
+      review.textContent = 'Check for missing scenarios';
+      const summary = document.createElement('p');
+      summary.setAttribute('role', 'status');
+      select.addEventListener('change', () => { summary.replaceChildren(); });
+      review.addEventListener('click', async () => {
+        review.disabled = select.disabled = true;
+        summary.textContent = 'Checking this revision…';
+        try {
+          const candidate = await reviewCloudRecoveryPoint(select.value);
+          if (!panel.isConnected) return;
+          summary.textContent = candidate.count
+            ? `${candidate.count} missing scenario(s) can be restored. Existing scenarios will be kept.`
+            : 'This revision contains no scenarios missing from this device. Try an earlier revision.';
+          const backup = document.createElement('button');
+          backup.type = 'button';
+          backup.className = 'modal-periodic-button modal-periodic-cancel';
+          backup.textContent = 'Export this revision';
+          backup.addEventListener('click', () => {
+            try { candidate.exportBackup(); } catch (error) { notifyError(error.message); }
+          });
+          summary.append(' ', backup);
+          if (!candidate.count) return;
+          const restore = document.createElement('button');
+          restore.type = 'button';
+          restore.className = 'modal-periodic-button modal-periodic-save';
+          restore.textContent = 'Restore missing scenarios';
+          restore.addEventListener('click', async () => {
+            if (!await confirmDialog('Add the missing scenarios from this revision to this device? Existing scenarios will not be overwritten.')) return;
+            restore.disabled = true;
+            try {
+              const count = await candidate.restore();
+              notifySuccess(`Restored ${count} scenario(s). Existing scenarios were kept.`);
+              summary.textContent = `Restored ${count} scenario(s).`;
+            } catch (error) { notifyError(error.message); restore.disabled = false; }
+          });
+          summary.append(' ', restore);
+        } catch (error) { summary.textContent = error.message; }
+        finally { review.disabled = select.disabled = false; }
+      });
+      results.append(label, review, summary);
+    } catch (error) { results.textContent = error.message; }
+    finally { load.disabled = false; }
+  });
+  return panel;
 }
 
 export function openCloudAccountModal() {
@@ -137,6 +211,7 @@ export function openCloudAccountModal() {
         try { await signOutOfCloud(); } catch (error) { notifyError(error.message); }
       });
       modal.appendChild(actions);
+      modal.appendChild(recoveryPanel());
     }
 
     const footer = document.createElement('div');

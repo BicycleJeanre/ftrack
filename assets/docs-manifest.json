@@ -263,14 +263,14 @@
     },
     {
       "id": "USER_ADVANCED_GOAL_SOLVER",
-      "title": "Workshop — Goal Planning (Advanced Mode)",
+      "title": "Workshop — Goal Allocation Strategies",
       "category": "User",
       "file": "Documentation/USER_ADVANCED_GOAL_SOLVER.md",
       "kind": "md"
     },
     {
       "id": "USER_GOAL_PLANNING",
-      "title": "Workshop — Goal Planning (Simple Mode)",
+      "title": "Workshop — Goal Contribution",
       "category": "User",
       "file": "Documentation/USER_GOAL_PLANNING.md",
       "kind": "md"

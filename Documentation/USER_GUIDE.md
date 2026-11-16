@@ -184,7 +184,8 @@ does not change or tag the selected scenario.
 | **Debt Repayment** | Debt summary, Accounts, Plan & Actuals, Projections | Recurring |
 | **Workshop** | Accounts, Scenario Setup, Plan & Actuals, Projections | Recurring |
 
-Workshop's Scenario Setup card offers Goal Planning and Business Model.
+Workshop's Scenario Setup card offers Goal Contribution, Balanced Monthly,
+Priority Cascade, Debt Snowball, Debt Avalanche, and Business Model.
 
 Every main workflow can switch between Recurring rule entry and Period
 baseline, actual, skip, and variance tracking. Budgeting now lives in General's
@@ -681,11 +682,12 @@ interest, variable-rate schedules, and payoff dates. Recurring is the default
 Plan & Actuals view, and Period provides the same actual and variance workflow
 used elsewhere.
 
-### 7.4 Workshop: Goal Planning
+### 7.4 Workshop: Goal Strategies
 
-Use Simple mode for one account goal and a generated contribution rule. Use
-Advanced mode for multiple goals, priorities, funding constraints, floors, and
-caps.
+Use **Goal Contribution** for one account goal and a generated contribution
+rule. For multiple goals and constraints, select **Balanced Monthly**,
+**Priority Cascade**, **Debt Snowball**, or **Debt Avalanche** directly. Older
+scenarios keep their saved goals, constraints, and equivalent strategy.
 
 Goal Planning has its own planning window. Extend the scenario projection
 window to the same goal horizon when you want projections to validate the

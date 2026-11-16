@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
   classifyCloudReconciliation,
   decodeCloudSnapshot,
-  encodeCloudSnapshot
+  encodeCloudSnapshot,
+  mergeMissingCloudScenarios,
+  scenariosMissingFrom
 } from '../../js/app/services/cloud-snapshot-codec.js';
 import { createDefaultAppData } from '../../js/shared/app-data-utils.js';
 
@@ -52,6 +54,30 @@ test('cloud snapshot round-trips validated Unicode data across chunks', async ()
   assert.equal(decoded.scenarios[0].reviewReminders[0].note, 'Remember the municipal payment 🌍');
   assert.equal(encoded.sha256.length, 64);
   assert.ok(encoded.chunkCount >= 1);
+});
+
+test('cloud reconciliation repairs an empty local cache even when the known revision is unchanged', () => {
+  const base = {
+    remoteRevision: 'known', lastSyncedRevision: 'known',
+    localHash: 'empty-cache-with-ui-state', remoteHash: 'workspace',
+    localIsEmpty: true
+  };
+  assert.equal(classifyCloudReconciliation(base), 'download-remote');
+  assert.equal(classifyCloudReconciliation({ ...base, hasPendingLocalChanges: true }), 'conflict');
+  assert.equal(classifyCloudReconciliation({ ...base, localHash: base.remoteHash }), 'already-synced');
+  assert.equal(classifyCloudReconciliation({ ...base, lastSyncedScenarioCount: 0 }), 'already-synced');
+});
+
+test('restoring historical cloud data only adds missing IDs and keeps current workspace state', () => {
+  const existing = { id: 1, name: 'Current' };
+  const missing = { id: 2, planning: { goalWorkshopMode: 'advanced' }, transactions: [{ id: 8 }] };
+  const current = { scenarios: [existing], uiState: { lastScenarioId: 1 } };
+  const historical = { scenarios: [{ id: 1, name: 'Outdated' }, missing], uiState: { lastScenarioId: 2 } };
+  assert.deepEqual(scenariosMissingFrom(current, historical), [missing]);
+  const restored = mergeMissingCloudScenarios(current, historical);
+  assert.deepEqual(restored.scenarios, [existing, missing]);
+  assert.equal(restored.uiState, current.uiState);
+  assert.equal(mergeMissingCloudScenarios(restored, historical), restored);
 });
 
 test('cloud snapshot rejects modified chunk content', async () => {

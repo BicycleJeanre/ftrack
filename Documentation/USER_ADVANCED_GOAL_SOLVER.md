@@ -1,8 +1,8 @@
-# Workshop — Goal Planning (Advanced Mode)
+# Workshop — Goal Allocation Strategies
 
 ## 1.0 Purpose
 
-1.1 Goal Planning in Advanced mode helps you generate transaction rules that
+1.1 Goal allocation strategies help you generate transaction rules that
 satisfy one or more account goals by specific dates, while respecting optional
 constraints.
 
@@ -24,7 +24,7 @@ actually achieve the goals.
 
 2.1.3.2 If blank, End Date defaults to the solver planning window end date.
 
-2.1.3.3 The solver planning window is set in **Workshop → Scenario Setup → Goal Planning** and defaults to the scenario timeframe.
+2.1.3.3 The solver planning window is set in **Workshop → Scenario Setup**, under the selected allocation strategy's settings. It defaults to the scenario timeframe.
 
 2.1.4 **Priority**: lower numbers are solved first. If two goals conflict, priority decides which goal is favoured.
 
@@ -130,7 +130,7 @@ remains unavailable until every configured goal and constraint validates.
 
 ### 3.1 Pay off a home loan 1 year sooner
 
-3.1.1 Workflow: Goal Workshop (Advanced mode).
+3.1.1 Workflow: Workshop. Select an allocation strategy under Scenario Setup.
 
 3.1.2 Accounts: ensure your loan and your funding account exist in the scenario and have correct starting balances.
 
@@ -224,6 +224,6 @@ remove or rewrite manually created Plan Rules.
 
 ## 5.0 Related Documents
 
-5.1 Goal Workshop Simple mode explains the Generate Plan flow and how account goal fields work.
+5.1 The Goal Contribution guide explains how account goal fields work.
 
 5.2 Debt Repayment explains debt-focused modeling and variable-rate schedules.

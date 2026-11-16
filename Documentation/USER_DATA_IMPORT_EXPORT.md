@@ -209,6 +209,17 @@ Legacy action hints become default actions; missing hints default to line items.
 Raw CSVs, rows and prior decisions are preserved. Data Check previews local/file
 upgrades; integrity-verified older cloud snapshots are upgraded on load.
 
+If scenarios go missing, keep the current browser data. Sign in to the same
+account and open **Account & Cloud Save → Find missing scenarios**. Choose a
+revision from the latest 100, select **Check for missing scenarios**, and review
+the count before selecting **Restore missing scenarios**. Recovery adds
+missing scenario IDs only; it never replaces a current scenario with the same
+ID. Use **Export this revision** to keep a separate backup of the full revision
+if the matching IDs contain different data.
+
+If automatic sync finds that the cloud revision would remove scenarios from
+this device, FTrack opens a conflict instead of replacing the workspace.
+
 ## 6.0 Clear Data
 
 6.1 Use the navbar button Clear Data.

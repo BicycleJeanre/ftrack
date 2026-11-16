@@ -36,7 +36,7 @@ import {
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
-import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=workshop-business-model-1';
+import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=workshop-recovery-1';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore
@@ -50,7 +50,7 @@ import {
   populateAccountSelect
 } from '../components/widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
-import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=workshop-business-model-1';
+import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=workshop-recovery-1';
 import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
   loadAccountsGrid as loadAccountsGridCore
@@ -91,7 +91,7 @@ import {
   getScenarioPeriods
 } from '../../app/services/data-service.js';
 import { generateProjections } from '../../domain/calculations/projection-engine.js?v=20260928-scenario-timeframe-charts-55';
-import { initializeCloudSync } from '../../app/services/cloud-sync-coordinator.js';
+import { initializeCloudSync } from '../../app/services/cloud-sync-coordinator.js?v=workshop-recovery-1';
 
 let currentScenario = null;
 let uiState = null;
@@ -567,10 +567,8 @@ async function clearCurrentScenario() {
   return runPlanningNavigation(async (isCurrentNavigation) => {
     currentScenario = null;
     resetScenarioScopedCaches();
-    await patchUiState({
-      lastScenarioId: null,
-      lastScenarioVersion: null
-    });
+    // Rendering an empty cache is not a local edit. A cloud revision may
+    // still restore the last selected scenario when sign-in finishes.
     if (!isCurrentNavigation()) return;
     await loadScenarioData();
   }, {
@@ -927,7 +925,7 @@ async function buildScenarioGrid(container) {
     if (!scenarios || scenarios.length === 0) {
       const placeholder = document.createElement('div');
       placeholder.className = 'scenarios-list-placeholder';
-      placeholder.textContent = 'No scenarios yet. Click + Add New to create your first scenario.';
+      placeholder.textContent = 'No scenarios on this device. Sign in to Account & Cloud Save to recover saved scenarios, import a backup, or add a new scenario.';
       listContainer.appendChild(placeholder);
       await clearCurrentScenario();
     } else {
@@ -3062,6 +3060,9 @@ async function init() {
     }
   });
   document.addEventListener('ftrack:cloudDataApplied', () => window.location.reload(), { once: true });
+  document.addEventListener('ftrack:scenariosRestored', () => {
+    void buildScenarioGrid(containers.scenarioSelector);
+  });
   await initializeCloudSync();
   document.addEventListener('forecast:statements', () => {
     if (!currentScenario) { notifyError('Select a scenario first.'); return; }

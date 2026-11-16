@@ -86,8 +86,8 @@ test.describe('Goal Workshop browser functionality', () => {
     await feature.getByRole('button', { name: 'Preview projections', exact: true }).click();
     await expect(feature.getByRole('status')).toContainText('Preview only');
     await expect.poll(() => feature.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
-    await page.getByLabel('Scenario setup strategy').selectOption('goals');
-    await expect(page.locator('#generatePlanSection .goal-workshop-strategy-option')).toHaveCount(4);
+    await page.getByLabel('Scenario setup strategy').selectOption('balanced');
+    await expect(page.locator('#adv-goals-panel')).toBeVisible();
   });
 
   test('adds and removes advanced goals and constraints', async ({ page }) => {
@@ -156,8 +156,8 @@ test.describe('Goal Workshop browser functionality', () => {
   });
 
   test('offers and persists all four solver strategies', async ({ page }) => {
-    const options = page.locator('#generatePlanSection .goal-workshop-strategy-option');
-    await expect(options).toHaveCount(4);
+    const selector = page.getByLabel('Scenario setup strategy');
+    await expect(selector.locator('option')).toHaveCount(6);
 
     const strategies = [
       { value: 'priority-cascade', label: 'Priority Cascade', allocation: 'cascade', payoff: 'priority' },
@@ -167,21 +167,20 @@ test.describe('Goal Workshop browser functionality', () => {
     ];
 
     for (const strategy of strategies) {
-      await page.locator(`button[data-solver-strategy="${strategy.value}"]`).click();
+      await selector.selectOption(strategy.value);
       await waitForScenario(page, (scenario) =>
         scenario.advancedGoalSettings.strategy === strategy.value &&
         scenario.advancedGoalSettings.allocationStrategy === strategy.allocation &&
         scenario.advancedGoalSettings.payoffOrder === strategy.payoff,
         `${strategy.label} saved`);
-      await expect(page.locator(`button[data-solver-strategy="${strategy.value}"]`))
-        .toHaveAttribute('aria-checked', 'true');
+      await expect(selector).toHaveValue(strategy.value);
       await expect(page.locator('#generatePlanSection .goal-workshop-strategy-badge'))
         .toHaveText(strategy.label);
     }
   });
 
   test('persists avalanche strategy and a contractual goal minimum', async ({ page }) => {
-    await page.locator('button[data-solver-strategy="avalanche"]').click();
+    await page.getByLabel('Scenario setup strategy').selectOption('avalanche');
     await waitForScenario(page, (scenario) =>
       scenario.advancedGoalSettings.strategy === 'avalanche' &&
       scenario.advancedGoalSettings.allocationStrategy === 'cascade' &&
@@ -274,8 +273,7 @@ test.describe('Goal Workshop browser functionality', () => {
   });
 
   test('refreshes simple Generate Plan after an account goal input changes', async ({ page }) => {
-    await page.getByRole('button', { name: 'Goal Planning settings' }).click();
-    await page.locator('.modal-dialog .mode-btn[data-mode="simple"]').click();
+    await page.getByLabel('Scenario setup strategy').selectOption('goal-contribution');
 
     const goalOption = page.locator('#goal-account-select option[value="2"]');
     await expect(goalOption).toBeAttached();

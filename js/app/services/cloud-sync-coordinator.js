@@ -1,15 +1,18 @@
 import * as DataStore from './storage-service.js';
+import { downloadJsonData } from './export-service.js';
 import {
   classifyCloudReconciliation,
   decodeCloudSnapshot,
-  encodeCloudSnapshot
-} from './cloud-snapshot-codec.js';
-import { createDefaultAppData } from '../../shared/app-data-utils.js';
+  encodeCloudSnapshot,
+  mergeMissingCloudScenarios,
+  scenariosMissingFrom
+} from './cloud-snapshot-codec.js?v=workshop-recovery-1';
 import {
   createFirebaseAccount,
   getWorkspaceManifest,
   initializeFirebaseCloud,
   isFirebaseConfigured,
+  listWorkspaceRevisions,
   loadWorkspaceRevision,
   observeFirebaseAuth,
   observeWorkspaceManifest,
@@ -17,7 +20,7 @@ import {
   sendFirebasePasswordReset,
   signInFirebase,
   signOutFirebase
-} from '../../vendor/firebase-client.bundle.js';
+} from '../../vendor/firebase-client.bundle.js?v=workshop-recovery-1';
 
 const META_KEY = 'ftrack:cloud-sync-meta:v1';
 const WORKSPACE_ID = 'default';
@@ -110,26 +113,38 @@ function friendlyError(error) {
 }
 
 async function localSnapshot() {
-  return encodeCloudSnapshot(await DataStore.read());
+  const data = await DataStore.read();
+  return { ...await encodeCloudSnapshot(data), scenarioCount: data.scenarios.length };
 }
 
-async function isDefaultSnapshot(snapshot) {
-  const defaultSnapshot = await encodeCloudSnapshot(createDefaultAppData());
-  return snapshot.sha256 === defaultSnapshot.sha256;
-}
-
-async function applyRemoteManifest(manifest, { reload = true } = {}) {
+async function applyRemoteManifest(manifest, { allowScenarioRemoval = false } = {}) {
   if (!manifest?.activeRevision) throw new Error('The cloud workspace has no active revision.');
-  const remote = await loadWorkspaceRevision(activeUid, WORKSPACE_ID, manifest.activeRevision);
+  const uid = activeUid;
+  const remote = await loadWorkspaceRevision(uid, WORKSPACE_ID, manifest.activeRevision);
   const data = await decodeCloudSnapshot(remote.metadata, remote.chunks);
+  try {
+    await DataStore.transaction(current => {
+      if (activeUid !== uid) throw new Error('The signed-in account changed.');
+      if (!allowScenarioRemoval && (readMeta().pending || scenariosMissingFrom(data, current).length)) {
+        const error = new Error('The cloud workspace differs from this device and could replace local scenarios or edits. Review the versions before continuing.');
+        error.name = 'CloudDestructiveDownloadError';
+        throw error;
+      }
+      return data;
+    }, { source: 'cloud' });
+  } catch (error) {
+    if (error.name !== 'CloudDestructiveDownloadError') throw error;
+    setState({ phase: 'conflict', pending: Boolean(readMeta().pending), conflict: { manifest }, error: error.message });
+    return;
+  }
   suppressRemoteRevision = manifest.activeRevision;
-  writeAccountMeta(activeUid, {
+  writeAccountMeta(uid, {
     lastSyncedRevision: manifest.activeRevision,
     lastSyncedHash: manifest.sha256,
+    lastSyncedScenarioCount: data.scenarios.length,
     lastSyncedAt: new Date().toISOString()
   });
   writeMeta({ pending: false });
-  await DataStore.write(data, { source: 'cloud' });
   setState({
     phase: 'synced',
     pending: false,
@@ -137,9 +152,7 @@ async function applyRemoteManifest(manifest, { reload = true } = {}) {
     error: null,
     lastSyncedAt: readAccountMeta(activeUid).lastSyncedAt
   });
-  if (reload) {
-    document.dispatchEvent(new CustomEvent('ftrack:cloudDataApplied'));
-  }
+  document.dispatchEvent(new CustomEvent('ftrack:cloudDataApplied'));
 }
 
 async function publishLocal({ expectedRevision, conflictOverride = false } = {}) {
@@ -152,9 +165,18 @@ async function publishLocal({ expectedRevision, conflictOverride = false } = {})
   if (state.phase === 'conflict' && !conflictOverride) return;
 
   setState({ phase: 'saving', pending: true, error: null });
-  const snapshot = await localSnapshot();
   const accountMeta = readAccountMeta(activeUid);
   try {
+    const snapshot = await localSnapshot();
+    if (!conflictOverride && !snapshot.scenarioCount && accountMeta.lastSyncedRevision && accountMeta.lastSyncedScenarioCount !== 0 &&
+        snapshot.sha256 !== accountMeta.lastSyncedHash) {
+      const manifest = await getWorkspaceManifest(activeUid, WORKSPACE_ID);
+      if (manifest?.activeRevision) {
+        setState({ phase: 'conflict', pending: true, conflict: { manifest },
+          error: 'This device has no scenarios. Confirm before replacing the cloud workspace, or recover your scenarios.' });
+        return;
+      }
+    }
     const revisionId = await publishWorkspaceRevision({
       uid: activeUid,
       workspaceId: WORKSPACE_ID,
@@ -167,6 +189,7 @@ async function publishLocal({ expectedRevision, conflictOverride = false } = {})
     writeAccountMeta(activeUid, {
       lastSyncedRevision: revisionId,
       lastSyncedHash: snapshot.sha256,
+      lastSyncedScenarioCount: snapshot.scenarioCount,
       lastSyncedAt
     });
     writeMeta({ pending: false });
@@ -250,20 +273,21 @@ async function reconcileSignedInUser(user) {
       localSnapshot(),
       getWorkspaceManifest(user.uid, WORKSPACE_ID)
     ]);
-    const localIsDefault = await isDefaultSnapshot(local);
     const action = classifyCloudReconciliation({
       lastSyncedRevision: accountMeta.lastSyncedRevision || null,
       remoteRevision: manifest?.activeRevision || null,
       hasPendingLocalChanges: Boolean(meta.pending),
       localHash: local.sha256,
       remoteHash: manifest?.sha256 || null,
-      localIsDefault
+      localIsEmpty: local.scenarioCount === 0,
+      lastSyncedScenarioCount: accountMeta.lastSyncedScenarioCount
     });
 
     if (action === 'already-synced') {
       writeAccountMeta(user.uid, {
         lastSyncedRevision: manifest.activeRevision,
         lastSyncedHash: manifest.sha256,
+        ...(local.sha256 === manifest.sha256 ? { lastSyncedScenarioCount: local.scenarioCount } : {}),
         lastSyncedAt: accountMeta.lastSyncedAt || new Date().toISOString()
       });
       writeMeta({ pending: false });
@@ -390,7 +414,7 @@ export async function resolveCloudConflict(choice) {
   if (!activeUid || state.phase !== 'conflict') return;
   if (choice === 'cloud') {
     const manifest = state.conflict?.manifest || await getWorkspaceManifest(activeUid, WORKSPACE_ID);
-    await applyRemoteManifest(manifest);
+    await applyRemoteManifest(manifest, { allowScenarioRemoval: true });
     return;
   }
   if (choice === 'local') {
@@ -402,6 +426,46 @@ export async function resolveCloudConflict(choice) {
     return;
   }
   throw new Error('Unknown cloud conflict resolution choice.');
+}
+
+export async function listCloudRecoveryPoints() {
+  const uid = activeUid;
+  if (!uid) throw new Error('Sign in to view cloud recovery points.');
+  const points = await listWorkspaceRevisions(uid, WORKSPACE_ID);
+  if (activeUid !== uid) throw new Error('The signed-in account changed.');
+  return points;
+}
+
+export async function reviewCloudRecoveryPoint(revisionId) {
+  const uid = activeUid;
+  if (!uid) throw new Error('Sign in to recover scenarios.');
+  const cloud = await loadWorkspaceRevision(uid, WORKSPACE_ID, revisionId);
+  const snapshot = await decodeCloudSnapshot(cloud.metadata, cloud.chunks);
+  const current = await DataStore.read();
+  if (activeUid !== uid) throw new Error('The signed-in account changed.');
+  const missing = scenariosMissingFrom(current, snapshot);
+  const reviewedIds = new Set(missing.map(scenario => scenario.id));
+  return {
+    count: missing.length,
+    exportBackup() {
+      if (activeUid !== uid) throw new Error('The signed-in account changed.');
+      downloadJsonData(snapshot, 'ftrack-cloud-recovery-backup.json');
+    },
+    async restore() {
+      let count = 0;
+      await DataStore.transaction(latest => {
+        if (activeUid !== uid) throw new Error('The signed-in account changed.');
+        const reviewed = { scenarios: snapshot.scenarios.filter(scenario => reviewedIds.has(scenario.id)) };
+        const next = mergeMissingCloudScenarios(latest, reviewed);
+        count = next.scenarios.length - latest.scenarios.length;
+        return next;
+      }, { skipUnchanged: true });
+      if (count) {
+        document.dispatchEvent(new CustomEvent('ftrack:scenariosRestored', { detail: { count } }));
+      }
+      return count;
+    }
+  };
 }
 
 export function destroyCloudSync() {

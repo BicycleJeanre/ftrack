@@ -5,6 +5,7 @@
 import * as DataStore from '../services/storage-service.js';
 import { getNextScenarioVersion, sanitizeScenarioForWrite, allocateNextId } from '../../shared/app-data-utils.js';
 import { validateAccountGroups } from '../../domain/utils/account-group-utils.js';
+import { getSolverStrategyFields } from '../../shared/workshop-strategies.js';
 
 function toPositiveId(value) {
     const id = Number(value);
@@ -147,8 +148,10 @@ export async function saveWorkshopSetup(scenarioId, { strategy, businessModel })
         const index = (data?.scenarios || []).findIndex(s => s.id === scenarioId);
         if (index < 0) throw new Error(`Scenario ${scenarioId} not found`);
         const scenario = data.scenarios[index];
+        const solverFields = getSolverStrategyFields(strategy);
         data.scenarios[index] = sanitizeScenarioForWrite({
             ...scenario,
+            ...(solverFields ? { advancedGoalSettings: { ...scenario.advancedGoalSettings, ...solverFields } } : {}),
             planning: {
                 ...scenario.planning,
                 ...(strategy !== undefined ? { workshopStrategy: strategy } : {}),
@@ -170,6 +173,9 @@ export async function remove(scenarioId) {
             return { scenarios: [] };
         }
         data.scenarios = data.scenarios.filter(s => s.id !== scenarioId);
+        if (data.uiState && (data.uiState.lastScenarioId === scenarioId || !data.scenarios.length)) {
+            data.uiState = { ...data.uiState, lastScenarioId: null, lastScenarioVersion: null };
+        }
         return data;
     });
 }

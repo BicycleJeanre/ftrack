@@ -40,21 +40,26 @@ export async function read() {
     let parsed = null;
     try {
         const dataString = localStorage.getItem(STORAGE_KEY);
-        if (!dataString) {
+        if (dataString === null) {
             return createDefaultAppData();
         }
 
         parsed = JSON.parse(dataString);
         assertCurrentSchemaVersion(parsed);
+        if (!Array.isArray(parsed.scenarios)) throw new Error('Missing scenario collection');
         return sanitizeAppDataForWrite(parsed);
     } catch (err) {
-        if (err && err.name === 'SchemaVersionError' && parsed) {
+        if (err?.name === 'SchemaVersionError') {
             // Legacy browser data must be reviewed through the in-app upgrade
             // center. Never replace the raw cache before the user has seen the
             // change and validation report.
             throw err;
         }
-        return createDefaultAppData();
+        // A failed read is not an empty workspace. In particular, a later
+        // transaction must never overwrite the unreadable original with defaults.
+        const error = new Error('This device’s saved workspace could not be read. It has not been replaced.');
+        error.name = 'LocalDataReadError';
+        throw error;
     }
 }
 
@@ -128,12 +133,12 @@ export async function update(path, value) {
  * @param {Function} modifyFn - Function that receives data and returns modified data
  * @returns {Promise<Object>} - The modified data
  */
-export async function transaction(modifyFn) {
+export async function transaction(modifyFn, options = {}) {
     // Ensure transactions happen sequentially to avoid race conditions when generating new IDs
     const operation = transactionQueue.catch(() => undefined).then(async () => {
         const data = await read();
         const modified = await modifyFn(data);
-        await write(modified);
+        if (modified !== data || !options.skipUnchanged) await write(modified, options);
         return modified;
     });
 

@@ -133,7 +133,7 @@ test.describe('app shell and workflow navigation', () => {
     });
 
     await expect(page.locator('#scenariosList .scenarios-list-placeholder'))
-      .toContainText('No scenarios yet');
+      .toContainText('No scenarios on this device');
 
     for (const selector of [
       '#accountsTable',
