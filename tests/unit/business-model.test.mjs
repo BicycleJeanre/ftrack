@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildBusinessModelPlan, getBusinessModelTestCases } from '../../js/domain/calculations/business-model.js';
+import { buildBusinessModelPlan, evaluateBusinessBreakEven, getBusinessModelTestCases } from '../../js/domain/calculations/business-model.js';
 import { generateProjectionsForScenario } from '../../js/domain/calculations/projection-engine.js';
 import { sanitizeScenarioForWrite } from '../../js/shared/app-data-utils.js';
 
@@ -54,12 +54,42 @@ test('mixed business plan uses actuals and existing plan rules via the projectio
 
 test('a sweep replaces the selected variable across months and captures non-monotonic salary thresholds', () => {
   const cases = getBusinessModelTestCases(model);
-  assert.deepEqual(cases.map(entry => entry.value), [7, 8]);
+  assert.deepEqual(cases.map(([entry]) => entry.value), [7, 8]);
   const [seven, eight] = cases.map(entry => buildBusinessModelPlan(scenario, model, entry));
   assert.equal(seven.totals.get('2027-02').revenue, 750);
   assert.equal(eight.totals.get('2027-02').revenue, 850);
   assert.ok(seven.totals.get('2027-02').revenue - seven.totals.get('2027-02').cost >
     eight.totals.get('2027-02').revenue - eight.totals.get('2027-02').cost);
+});
+
+test('multiple ranges run as a Cartesian product and replace both monthly drivers', () => {
+  const testRanges = [
+    { variable: 'clients', start: 7, end: 8 },
+    { variable: 'fee', start: 100, end: 150, step: 50 }
+  ];
+  const cases = getBusinessModelTestCases({ ...model, testRanges });
+  assert.deepEqual(cases.map(entries => entries.map(entry => entry.value)), [[7, 100], [7, 150], [8, 100], [8, 150]]);
+  const plan = buildBusinessModelPlan(scenario, model, cases[3]);
+  assert.equal(plan.totals.get('2027-02').revenue, 1250);
+  assert.throws(() => getBusinessModelTestCases({ ...model, testRanges: [
+    testRanges[0], { ...testRanges[1], start: 50, end: 150, step: 5 }
+  ] }), /up to 30 combinations/);
+  assert.throws(() => getBusinessModelTestCases({ ...model, testRanges: [testRanges[0], testRanges[0]] }), /only one range/);
+});
+
+test('break-even can use a specific account and distinguish ending from intervening monthly shortfalls', async () => {
+  const plan = buildBusinessModelPlan(scenario, { ...model, breakEven: { mode: 'ending', accountId: 1, threshold: 1425 } });
+  const preview = await generateProjectionsForScenario({
+    ...scenario, transactions: [...scenario.transactions, ...plan.rules]
+  }, {}, lookup);
+  const ending = evaluateBusinessBreakEven(plan.breakEven, preview);
+  assert.equal(ending.status, 'met'); // Exactly at the threshold also qualifies.
+  assert.equal(ending.balance, 1425);
+  const lowest = evaluateBusinessBreakEven({ ...plan.breakEven, mode: 'lowest' }, preview);
+  assert.deepEqual(lowest, { status: 'missed', balance: 720, date: '2027-02-01', shortfall: 705 });
+  assert.equal(evaluateBusinessBreakEven({ ...plan.breakEven, accountId: 2 }, preview).balance, 1900);
+  assert.deepEqual(evaluateBusinessBreakEven({ ...plan.breakEven, accountId: 5 }, preview), { status: 'unavailable' });
+  assert.equal(buildBusinessModelPlan(scenario, { ...model, breakEven: { mode: 'ending' } }).breakEven.threshold, 0);
 });
 
 test('occupancy, commission on volume, and tiered usage compile to normal monthly rules', () => {
@@ -89,6 +119,7 @@ test('drafts survive normalization and invalid references and unbounded sweeps f
     planning: { workshopStrategy: 'business', businessModel: model } });
   assert.equal(stored.planning.workshopStrategy, 'business');
   assert.equal(stored.planning.businessModel.variables[0].overrides, '2027-02=8');
+  assert.equal(stored.planning.businessModel.testRanges[0].variable, 'clients');
   assert.throws(() => buildBusinessModelPlan(scenario, { ...model, variables: [] }), /existing variable/);
   assert.throws(() => getBusinessModelTestCases({ ...model, sweep: { variable: 'clients', start: 0, end: 100 } }), /up to 30/);
 });

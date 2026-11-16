@@ -16,13 +16,18 @@ export const BUSINESS_RATE_MODELS = {
 };
 
 const MAX_MONTHS = 120;
-const MAX_CASES = 30;
+export const MAX_BUSINESS_TEST_CASES = 30;
+export const MAX_BUSINESS_TEST_RANGES = 6;
+const BREAK_EVEN_MODES = { none: true, ending: true, lowest: true };
 const money = n => Math.round((n + Number.EPSILON) * 100) / 100;
 const string = (value, limit = 120) => ['string', 'number'].includes(typeof value)
   ? String(value).slice(0, limit) : '';
 const fromList = (list, limit, normalize) => Array.isArray(list)
   ? list.slice(0, limit).filter(item => item && typeof item === 'object').map(normalize) : [];
 const pick = (value, choices, fallback) => typeof value === 'string' && Object.hasOwn(choices, value) ? value : fallback;
+const normalizeTestRange = (range = {}) => ({
+  variable: string(range.variable), start: string(range.start), end: string(range.end), step: string(range.step)
+});
 
 // Preserve incomplete drafts as typed. Validate numeric values and references at preview time.
 export function normalizeBusinessModel(raw = {}) {
@@ -31,9 +36,13 @@ export function normalizeBusinessModel(raw = {}) {
     cashAccountId: string(model.cashAccountId),
     ownerAccountId: string(model.ownerAccountId),
     minimumCash: string(model.minimumCash),
-    sweep: {
-      variable: string(model.sweep?.variable), start: string(model.sweep?.start),
-      end: string(model.sweep?.end), step: string(model.sweep?.step)
+    testRanges: Array.isArray(model.testRanges)
+      ? fromList(model.testRanges, MAX_BUSINESS_TEST_RANGES, normalizeTestRange)
+      : [normalizeTestRange(model.sweep || {})],
+    breakEven: {
+      mode: pick(model.breakEven?.mode, BREAK_EVEN_MODES, 'none'),
+      accountId: string(model.breakEven?.accountId),
+      threshold: string(model.breakEven?.threshold)
     },
     variables: fromList(model.variables, 40, variable => ({
       id: string(variable.id), name: string(variable.name), value: string(variable.value),
@@ -103,7 +112,7 @@ function readVariables(variables) {
 function getValue(byId, id, month, label, override) {
   const variable = byId.get(id);
   if (!variable) throw new Error(`${label}: select an existing variable.`);
-  return override?.id === id ? override.value : variable.overrides.get(month) ?? variable.value;
+  return override.get(id) ?? variable.overrides.get(month) ?? variable.value;
 }
 
 function rateFor(flow, byId, month, revenue, override) {
@@ -147,9 +156,19 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
   if (!model.flows.length) throw new Error('Add at least one revenue, cost, or funding row.');
   const variables = readVariables(model.variables);
   const floors = model.minimumCash === '' ? null : number(model.minimumCash, 'Minimum closing cash', { min: -1e12 });
-  if (override) {
-    if (!variables.has(override.id)) throw new Error('Select an existing variable to test.');
-    number(override.value, 'Test value');
+  const overrides = new Map();
+  for (const entry of Array.isArray(override) ? override : override ? [override] : []) {
+    if (!variables.has(entry.id) || overrides.has(entry.id)) throw new Error('Choose a different existing variable for each test range.');
+    overrides.set(entry.id, number(entry.value, 'Test value'));
+  }
+  let breakEven = null;
+  if (model.breakEven.mode !== 'none') {
+    const accountId = model.breakEven.accountId || model.cashAccountId;
+    if (!accountIds.has(accountId)) throw new Error('Select an existing account for the break-even condition.');
+    breakEven = {
+      accountId: Number(accountId), mode: model.breakEven.mode,
+      threshold: number(model.breakEven.threshold, 'Break-even balance', { min: -1e12, fallback: 0 })
+    };
   }
 
   const flows = model.flows.map((flow, index) => {
@@ -196,7 +215,7 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
     });
     let revenue = 0;
     const amounts = new Map();
-    const calculate = (flow, gross) => money(number(rateFor(flow, variables, month, gross, override), `${flow.name} — calculated amount`));
+    const calculate = (flow, gross) => money(number(rateFor(flow, variables, month, gross, overrides), `${flow.name} — calculated amount`));
     for (const { flow } of activity) {
       if (flow.kind === 'revenue') {
         const amount = calculate(flow, 0);
@@ -244,18 +263,45 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
       i = j;
     }
   }
-  return { rules, totals, deferredCount, minimumCash: floors, startDate, endDate,
+  return { rules, totals, deferredCount, minimumCash: floors, breakEven, startDate, endDate,
     cashAccountId: Number(model.cashAccountId), ownerAccountId: Number(model.ownerAccountId) || null };
 }
 
 export function getBusinessModelTestCases(rawModel) {
   const model = normalizeBusinessModel(rawModel);
-  const { variable, start, end, step } = model.sweep;
-  if (!variable) throw new Error('Choose a variable to test.');
-  const from = number(start, 'Test from');
-  const to = number(end, 'Test to', { min: from });
-  const by = number(step, 'Test step', { min: 0.000001, fallback: 1 });
-  const count = Math.floor((to - from) / by + 1e-9) + 1;
-  if (count > MAX_CASES) throw new Error(`Test up to ${MAX_CASES} values at a time. Increase the step or narrow the range.`);
-  return Array.from({ length: count }, (_, i) => ({ id: variable, value: Number((from + i * by).toFixed(8)) }));
+  if (!model.testRanges.length) throw new Error('Add a variable to test.');
+  const variables = new Map(model.variables.map(variable => [variable.id, variable.name]));
+  const seen = new Set();
+  let combinations = [[]];
+  for (const { variable, start, end, step } of model.testRanges) {
+    const label = variables.get(variable);
+    if (!label) throw new Error('Choose an existing variable for each test range.');
+    if (seen.has(variable)) throw new Error(`Test ${label} in only one range.`);
+    seen.add(variable);
+    const from = number(start, `${label} — Test from`);
+    const to = number(end, `${label} — Test to`, { min: from });
+    const by = number(step, `${label} — Test step`, { min: 0.000001, fallback: 1 });
+    const count = Math.floor((to - from) / by + 1e-9) + 1;
+    if (count * combinations.length > MAX_BUSINESS_TEST_CASES) {
+      throw new Error(`Test up to ${MAX_BUSINESS_TEST_CASES} combinations at a time. Increase a step or narrow a range.`);
+    }
+    const values = Array.from({ length: count }, (_, i) => Number((from + i * by).toFixed(8)));
+    if (new Set(values).size !== count) throw new Error(`${label} — increase the step to produce distinct values.`);
+    combinations = combinations.flatMap(entries => values.map(value => [...entries, { id: variable, value }]));
+  }
+  return combinations;
+}
+
+export function evaluateBusinessBreakEven(condition, projections) {
+  if (!condition) return null;
+  const rows = projections.filter(row => Number(row.accountId) === condition.accountId && Number.isFinite(row.balance));
+  if (!rows.length) return { status: 'unavailable' };
+  const selected = rows.reduce((best, row) => condition.mode === 'lowest'
+    ? (row.balance < best.balance ? row : best)
+    : (row.date >= best.date ? row : best));
+  return {
+    status: selected.balance >= condition.threshold ? 'met' : 'missed',
+    balance: selected.balance, date: selected.date,
+    shortfall: money(Math.max(0, condition.threshold - selected.balance))
+  };
 }

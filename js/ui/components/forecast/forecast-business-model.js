@@ -1,6 +1,7 @@
 import {
-  BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS, buildBusinessModelPlan, getBusinessModelTestCases, normalizeBusinessModel
-} from '../../../domain/calculations/business-model.js';
+  BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS, MAX_BUSINESS_TEST_CASES, MAX_BUSINESS_TEST_RANGES,
+  buildBusinessModelPlan, evaluateBusinessBreakEven, getBusinessModelTestCases, normalizeBusinessModel
+} from '../../../domain/calculations/business-model.js?v=workshop-break-even-1';
 import { generateProjectionsForScenario } from '../../../domain/calculations/projection-engine.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
@@ -67,12 +68,22 @@ function minimumBalance(rows) {
   return rows.length ? Math.min(...rows.map(row => row.balance)) : null;
 }
 
+function breakEvenResult(result) {
+  if (!result || result.status === 'unavailable') return 'Unavailable';
+  const month = result.date.slice(0, 7);
+  return result.status === 'met' ? `Meets · ${currencies(result.balance)} (${month})`
+    : `Short by ${currencies(result.shortfall)} · ${currencies(result.balance)} (${month})`;
+}
+
 export function renderBusinessModel({ container, scenario, getScenario, onSave, onAccountsCreated, isRenderCurrent }) {
   const remembered = drafts.get(container);
   const model = remembered?.scenarioId === scenario.id
     ? remembered.model : normalizeBusinessModel(scenario.planning?.businessModel);
   drafts.set(container, { scenarioId: scenario.id, model });
   const accountName = id => scenario.accounts?.find(a => Number(a.id) === Number(id))?.name || 'External';
+  const variableName = id => model.variables.find(variable => variable.id === id)?.name || 'Variable';
+  const describeCase = entries => entries?.map(({ id, value }) => `${variableName(id)}: ${value}`).join(' · ');
+  const describeBreakEven = condition => `${accountName(condition.accountId)} · ${condition.mode === 'lowest' ? 'Lowest monthly closing balance' : 'Ending balance'} ≥ ${currencies(condition.threshold)}`;
   const root = node('div', null, 'business-model');
   root.dataset.businessModel = '';
   container.append(root);
@@ -260,13 +271,43 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       editor.append(row);
     });
 
-    editor.append(node('h3', 'Test a variable'), node('p', 'Each test value replaces that variable for every month. Other variables keep their monthly overrides.', 'text-muted'));
-    const sweepFields = node('div', null, 'business-fields');
-    field(sweepFields, 'Variable to test', model.sweep, 'variable', { options: variableOptions(), variable: true });
-    inputNumber(sweepFields, 'Test from', model.sweep, 'start');
-    inputNumber(sweepFields, 'Test to', model.sweep, 'end');
-    inputNumber(sweepFields, 'Test step', model.sweep, 'step', '1');
-    editor.append(sweepFields);
+    const testHeading = node('div', null, 'business-row-heading');
+    const addRange = button('Add test variable', () => {
+      model.testRanges.push({ variable: '', start: '', end: '', step: '' });
+      invalidate();
+      renderEditor();
+      [...editor.querySelectorAll('select[aria-label="Variable to test"]')].at(-1)?.focus();
+    });
+    addRange.disabled = model.testRanges.length >= MAX_BUSINESS_TEST_RANGES;
+    testHeading.append(node('h3', 'Test variables'), addRange);
+    editor.append(testHeading, node('p',
+      `Test every combination of the ranges below (up to ${MAX_BUSINESS_TEST_CASES}). Tested values replace the selected variables for every month; other variables keep their monthly overrides.`, 'text-muted'));
+    model.testRanges.forEach((range, index) => {
+      const row = node('fieldset', null, 'business-fields business-editor-row');
+      row.append(node('legend', `Test range ${index + 1}`));
+      field(row, 'Variable to test', range, 'variable', { options: variableOptions(), variable: true });
+      inputNumber(row, 'Test from', range, 'start');
+      inputNumber(row, 'Test to', range, 'end');
+      inputNumber(row, 'Test step', range, 'step', '1');
+      row.append(button('Remove test variable', () => {
+        model.testRanges.splice(index, 1);
+        invalidate();
+        renderEditor();
+        editor.querySelector('select[aria-label="Variable to test"]')?.focus();
+      }));
+      editor.append(row);
+    });
+    editor.append(node('h3', 'Break-even condition'));
+    const conditionFields = node('div', null, 'business-fields');
+    selector(conditionFields, 'Break-even check', model.breakEven, 'mode', [
+      ['none', 'Off'], ['ending', 'Ending balance at least'], ['lowest', 'Every monthly closing balance at least']
+    ], true);
+    if (model.breakEven.mode !== 'none') {
+      field(conditionFields, 'Break-even account', model.breakEven, 'accountId',
+        { accounts: true, empty: 'Use business cash account', missingLabel: 'Missing account' });
+      inputNumber(conditionFields, 'Break-even balance', model.breakEven, 'threshold', '0');
+    }
+    editor.append(conditionFields);
   }
 
   function renderProjection(plan, baseline, projected) {
@@ -274,10 +315,13 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     const baseCash = accountRows(baseline, plan.cashAccountId);
     const owner = accountRows(projected, plan.ownerAccountId);
     const baseOwner = accountRows(baseline, plan.ownerAccountId);
-    const caseText = chosenCase ? ` · ${model.variables.find(v => v.id === chosenCase.id)?.name}: ${chosenCase.value}` : '';
+    const caseText = chosenCase ? ` · ${describeCase(chosenCase)}` : '';
     const output = node('div', null, 'business-projection');
     output.append(node('h3', `Preview${caseText}`),
       node('p', `${plan.rules.length} proposed Plan Rule(s) · Lowest projected closing cash: ${currencies(minimumBalance(cash))} · ${floorResult(plan, cash)}`));
+    if (plan.breakEven) {
+      output.append(node('p', `Break-even: ${describeBreakEven(plan.breakEven)} — ${breakEvenResult(evaluateBusinessBreakEven(plan.breakEven, projected))}`));
+    }
     if (plan.deferredCount) output.append(node('p', `${plan.deferredCount} payment(s) land after the scenario end and are not included. Extend the scenario timeframe to see them.`, 'text-muted'));
     const rows = cash.map((row, index) => {
       const month = row.date.slice(0, 7);
@@ -330,13 +374,18 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       if (sweep) {
         const comparison = [];
         const validCases = [];
+        let metCount = 0;
+        let unavailableCount = 0;
+        const breakEven = currentPlan.breakEven;
         for (const entry of cases) {
+          const values = entry.map(variable => variable.value);
           let plan;
           try {
             plan = buildBusinessModelPlan(latest, model, entry);
           } catch (error) {
-            comparison.push([entry.value, '—', '—', '—',
-              ...(currentPlan.ownerAccountId ? ['—'] : []), error.message]);
+            comparison.push([...values, '—', '—', '—',
+              ...(currentPlan.ownerAccountId ? ['—'] : []), error.message, ...(breakEven ? ['Not evaluated'] : [])]);
+            unavailableCount++;
             continue;
           }
           const withModel = await project(plan);
@@ -344,16 +393,25 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           const cash = accountRows(withModel, plan.cashAccountId);
           const owner = accountRows(withModel, plan.ownerAccountId);
           const operatingNet = [...plan.totals.values()].reduce((net, values) => net + values.revenue - values.cost, 0);
-          comparison.push([entry.value, currencies(cash.at(-1)?.balance), currencies(minimumBalance(cash)), currencies(operatingNet),
-            ...(plan.ownerAccountId ? [currencies(owner.at(-1)?.balance)] : []), floorResult(plan, cash)]);
+          const outcome = evaluateBusinessBreakEven(plan.breakEven, withModel);
+          if (outcome?.status === 'met') metCount++;
+          if (outcome?.status === 'unavailable') unavailableCount++;
+          comparison.push([...values, currencies(cash.at(-1)?.balance), currencies(minimumBalance(cash)), currencies(operatingNet),
+            ...(plan.ownerAccountId ? [currencies(owner.at(-1)?.balance)] : []), floorResult(plan, cash),
+            ...(breakEven ? [breakEvenResult(outcome)] : [])]);
           validCases.push(entry);
         }
-        const sweepName = model.variables.find(v => v.id === cases[0].id)?.name || 'Variable';
-        results.append(table('Compare test values', [sweepName, 'Ending business cash', 'Lowest closing cash',
-          'Scheduled operating net', ...(currentPlan.ownerAccountId ? ['Ending owner cash'] : []), 'Cash floor check'], comparison));
+        if (breakEven) {
+          const summary = `${metCount} of ${cases.length} combinations meet break-even${unavailableCount ? ` · ${unavailableCount} not evaluated` : ''}.`;
+          results.append(node('p', `${summary} ${describeBreakEven(breakEven)}.`));
+        }
+        results.append(table('Compare test values', [...cases[0].map(entry => variableName(entry.id)), 'Ending business cash', 'Lowest closing cash',
+          'Scheduled operating net', ...(currentPlan.ownerAccountId ? ['Ending owner cash'] : []), 'Cash floor check',
+          ...(breakEven ? ['Break-even result'] : [])], comparison));
         let selectedCaseRequest = 0;
         const selectRow = node('div', null, 'business-fields');
-        const optionsForCases = [['', 'Current inputs'], ...validCases.map((entry, i) => [String(i), String(entry.value)])];
+        const optionsForCases = [['', 'Current inputs'], ...validCases.map((entry, i) => [String(i),
+          entry.length === 1 ? String(entry[0].value) : describeCase(entry)])];
         // Selecting a result does not change the stored input or invalidate the comparison.
         const select = node('select', null, 'input-select');
         select.setAttribute('aria-label', 'Preview test case');

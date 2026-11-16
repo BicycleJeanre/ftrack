@@ -127,6 +127,59 @@ test.describe('Goal Workshop browser functionality', () => {
       'constraint removed');
   });
 
+  test('tests combinations of variables and reports a zero-balance break-even condition', async ({ page }) => {
+    await page.getByLabel('Scenario setup strategy').selectOption('business');
+    const feature = page.locator('[data-business-model]');
+    await feature.getByRole('button', { name: 'Business cash account', exact: true }).click();
+    await page.locator('.selection-dialog').getByRole('option', { name: /Add new account/ }).click();
+    const accountModal = page.locator('.modal-quick-account');
+    await accountModal.getByLabel('Name', { exact: true }).fill('Break-even test cash');
+    await accountModal.getByRole('button', { name: 'Use Account', exact: true }).click();
+    await expect(feature.getByRole('button', { name: 'Business cash account', exact: true })).toContainText('Break-even test cash');
+
+    for (const [index, name, value] of [[0, 'Customers', '2'], [1, 'Monthly fee', '50']]) {
+      await feature.getByRole('button', { name: 'Add variable', exact: true }).click();
+      await feature.getByLabel('Variable name').nth(index).fill(name);
+      await feature.getByLabel('Default value').nth(index).fill(value);
+    }
+    await feature.getByRole('button', { name: 'Add revenue', exact: true }).click();
+    const revenue = feature.getByRole('group', { name: 'Flow 1', exact: true });
+    await revenue.getByLabel('Flow name').fill('Customer fees');
+    await revenue.getByLabel('Calculation').selectOption('volume');
+    await revenue.getByLabel('Quantity variable').selectOption({ label: 'Customers' });
+    await revenue.getByLabel('Rate or amount variable').selectOption({ label: 'Monthly fee' });
+    await feature.getByRole('button', { name: 'Add cost', exact: true }).click();
+    const cost = feature.getByRole('group', { name: 'Flow 2', exact: true });
+    await cost.getByLabel('Flow name').fill('Fixed expense');
+    await cost.getByLabel('Amount', { exact: true }).fill('150');
+
+    await feature.getByRole('button', { name: 'Add test variable' }).click();
+    for (const [index, label, start, end, step] of [[1, 'Customers', '2', '3', '1'], [2, 'Monthly fee', '50', '100', '50']]) {
+      const range = feature.getByRole('group', { name: `Test range ${index}`, exact: true });
+      await range.getByLabel('Variable to test').selectOption({ label });
+      await range.getByLabel('Test from').fill(start);
+      await range.getByLabel('Test to').fill(end);
+      await range.getByLabel('Test step').fill(step);
+    }
+    await feature.getByLabel('Break-even check').selectOption('ending');
+    await feature.getByLabel('Break-even balance').fill('0');
+    await feature.getByRole('button', { name: 'Test range', exact: true }).click();
+    await expect(feature.getByText(/3 of 4 combinations meet break-even/)).toBeVisible();
+    const comparison = feature.getByRole('table', { name: 'Compare test values' });
+    await expect(comparison.getByRole('columnheader').first()).toHaveText('Customers');
+    await expect(comparison.getByRole('columnheader').nth(1)).toHaveText('Monthly fee');
+    await expect(comparison.getByRole('row').nth(1)).toContainText('Short by');
+    await expect(comparison.getByRole('row').nth(3)).toContainText('Meets');
+    await feature.getByLabel('Preview test case').selectOption({ label: 'Customers: 3 · Monthly fee: 50' });
+    await expect(feature.getByRole('heading', { name: 'Preview · Customers: 3 · Monthly fee: 50' })).toBeVisible();
+    await feature.getByRole('button', { name: 'Save setup' }).click();
+    await waitForScenario(page, scenario => scenario.planning.businessModel?.testRanges.length === 2 &&
+      scenario.planning.businessModel.breakEven.threshold === '0');
+    await page.reload();
+    await expect(feature.getByLabel('Break-even check')).toHaveValue('ending');
+    await expect(feature.getByRole('group', { name: 'Test range 2', exact: true })).toBeVisible();
+  });
+
   test('creates and selects a new business account without losing unsaved Workshop inputs', async ({ page }) => {
     await page.getByLabel('Scenario setup strategy').selectOption('business');
     const feature = page.locator('[data-business-model]');

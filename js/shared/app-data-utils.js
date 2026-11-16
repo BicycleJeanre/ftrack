@@ -4,7 +4,7 @@
 import { DEFAULT_WORKFLOW_ID, getWorkflowById } from './workflow-registry.js';
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
 import { upgradeStatementMapping, upgradeStatementImport } from './statement-workflow-utils.js';
-import { normalizeBusinessModel } from '../domain/calculations/business-model.js';
+import { normalizeBusinessModel } from '../domain/calculations/business-model.js?v=workshop-break-even-1';
 import { WORKSHOP_STRATEGIES } from './workshop-strategies.js';
 
 export const CURRENT_SCHEMA_VERSION = 46;

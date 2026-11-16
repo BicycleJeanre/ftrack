@@ -724,10 +724,15 @@ Period to review and track their dated occurrences.
    scheduled operating cash flows, closing balances from the existing
    projection engine, and the first month below the cash floor, if any.
    Open **Review proposed Plan Rules** to inspect the amounts and schedules.
-6. To compare assumptions, select **Variable to test**, enter a range and step,
-   and click **Test range**. Test values replace that variable in every month
-   without changing its saved value or monthly overrides. Choose a result to
-   see its monthly detail.
+6. To compare assumptions, add each **Test variable**, then enter its range and
+   step. **Test range** runs every combination (up to 30 per run). Test values
+   temporarily replace those variables for every month. Choose a result to see
+   its monthly detail.
+7. Optionally set a **Break-even condition**. For example, choose **Ending
+   balance at least**, leave the account set to business cash, and use a
+   threshold of **0**. To also catch a shortfall before the end, choose **Every
+   monthly closing balance at least**. Both the preview and the range results
+   show whether the selected account meets the condition.
 
 A payment delay moves collection or payment by whole months; a percentage-of-
 revenue cost uses revenue in the activity month, before any payment delay.
