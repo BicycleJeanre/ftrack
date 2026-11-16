@@ -16,8 +16,7 @@ export const BUSINESS_RATE_MODELS = {
 };
 
 const MAX_MONTHS = 120;
-export const MAX_BUSINESS_TEST_CASES = 30;
-export const MAX_BUSINESS_TEST_RANGES = 6;
+const MAX_VARIABLES = 40;
 const BREAK_EVEN_MODES = { none: true, ending: true, lowest: true };
 const money = n => Math.round((n + Number.EPSILON) * 100) / 100;
 const string = (value, limit = 120) => ['string', 'number'].includes(typeof value)
@@ -37,14 +36,14 @@ export function normalizeBusinessModel(raw = {}) {
     ownerAccountId: string(model.ownerAccountId),
     minimumCash: string(model.minimumCash),
     testRanges: Array.isArray(model.testRanges)
-      ? fromList(model.testRanges, MAX_BUSINESS_TEST_RANGES, normalizeTestRange)
+      ? fromList(model.testRanges, MAX_VARIABLES, normalizeTestRange)
       : [normalizeTestRange(model.sweep || {})],
     breakEven: {
       mode: pick(model.breakEven?.mode, BREAK_EVEN_MODES, 'none'),
       accountId: string(model.breakEven?.accountId),
       threshold: string(model.breakEven?.threshold)
     },
-    variables: fromList(model.variables, 40, variable => ({
+    variables: fromList(model.variables, MAX_VARIABLES, variable => ({
       id: string(variable.id), name: string(variable.name), value: string(variable.value),
       overrides: string(variable.overrides, 2400)
     })),
@@ -272,7 +271,8 @@ export function getBusinessModelTestCases(rawModel) {
   if (!model.testRanges.length) throw new Error('Add a variable to test.');
   const variables = new Map(model.variables.map(variable => [variable.id, variable.name]));
   const seen = new Set();
-  let combinations = [[]];
+  const ranges = [];
+  let length = 1;
   for (const { variable, start, end, step } of model.testRanges) {
     const label = variables.get(variable);
     if (!label) throw new Error('Choose an existing variable for each test range.');
@@ -282,14 +282,32 @@ export function getBusinessModelTestCases(rawModel) {
     const to = number(end, `${label} — Test to`, { min: from });
     const by = number(step, `${label} — Test step`, { min: 0.000001, fallback: 1 });
     const count = Math.floor((to - from) / by + 1e-9) + 1;
-    if (count * combinations.length > MAX_BUSINESS_TEST_CASES) {
-      throw new Error(`Test up to ${MAX_BUSINESS_TEST_CASES} combinations at a time. Increase a step or narrow a range.`);
+    if (!Number.isSafeInteger(count * length)) {
+      throw new Error('These ranges produce more combinations than can be represented exactly. Increase a step or narrow a range.');
     }
-    const values = Array.from({ length: count }, (_, i) => Number((from + i * by).toFixed(8)));
-    if (new Set(values).size !== count) throw new Error(`${label} — increase the step to produce distinct values.`);
-    combinations = combinations.flatMap(entries => values.map(value => [...entries, { id: variable, value }]));
+    const valueAt = index => Number((from + index * by).toFixed(8));
+    const last = valueAt(count - 1);
+    if (count > 1 && (by < Number.EPSILON * last / 2 || last === valueAt(count - 2))) {
+      throw new Error(`${label} — increase the step to produce distinct values.`);
+    }
+    ranges.push({ variable, count, valueAt });
+    length *= count;
   }
-  return combinations;
+  const at = index => {
+    if (!Number.isSafeInteger(index) || index < 0 || index >= length) return undefined;
+    const values = new Array(ranges.length);
+    for (let i = ranges.length - 1; i >= 0; i--) {
+      const { variable, count, valueAt } = ranges[i];
+      values[i] = { id: variable, value: valueAt(index % count) };
+      index = Math.floor(index / count);
+    }
+    return values;
+  };
+  // Lazily index the Cartesian product; large tests need not allocate a case
+  // or a row for every combination up front.
+  return { length, at, *[Symbol.iterator]() {
+    for (let index = 0; index < length; index++) yield at(index);
+  } };
 }
 
 export function evaluateBusinessBreakEven(condition, projections) {

@@ -1,12 +1,16 @@
 import {
-  BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS, MAX_BUSINESS_TEST_CASES, MAX_BUSINESS_TEST_RANGES,
+  BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS,
   buildBusinessModelPlan, evaluateBusinessBreakEven, getBusinessModelTestCases, normalizeBusinessModel
-} from '../../../domain/calculations/business-model.js?v=workshop-break-even-1';
+} from '../../../domain/calculations/business-model.js?v=workshop-disclosures-1';
 import { generateProjectionsForScenario } from '../../../domain/calculations/projection-engine.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
 
 const drafts = new WeakMap();
+let nextDisclosureId = 0;
+const RESULTS_PER_PAGE = 50;
+const CASES_PER_BATCH = 8;
+const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
 const currencies = value => value == null ? '—' : formatCurrency(value);
 const revenuePresets = [
   ['Recurring customers', 'volume'],
@@ -80,6 +84,8 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
   const model = remembered?.scenarioId === scenario.id
     ? remembered.model : normalizeBusinessModel(scenario.planning?.businessModel);
   drafts.set(container, { scenarioId: scenario.id, model });
+  const timeframe = scenario.timeframe || scenario.projection?.config || {};
+  const openDisclosures = new WeakSet();
   const accountName = id => scenario.accounts?.find(a => Number(a.id) === Number(id))?.name || 'External';
   const variableName = id => model.variables.find(variable => variable.id === id)?.name || 'Variable';
   const describeCase = entries => entries?.map(({ id, value }) => `${variableName(id)}: ${value}`).join(' · ');
@@ -106,6 +112,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     busy = false;
     results.replaceChildren();
     status.textContent = 'Inputs changed. Preview again to see the updated results.';
+    cancelTestButton.hidden = true;
     if (previewButton) previewButton.disabled = false;
     if (sweepButton) sweepButton.disabled = false;
   };
@@ -136,10 +143,15 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       if (config.placeholder) input.placeholder = config.placeholder;
       if (config.multiline) input.rows = 2;
       if (input.type === 'text' || config.multiline) input.maxLength = config.multiline ? 2400 : 120;
-      input.value = target[key] || '';
+      input.value = target[key] || config.defaultValue || '';
+      if (config.defaultValue) {
+        input.addEventListener('blur', () => {
+          if (input.value === '') input.value = config.defaultValue;
+        });
+      }
     }
     input.addEventListener(input.tagName === 'SELECT' ? 'change' : 'input', () => {
-      target[key] = input.value;
+      target[key] = input.value === config.defaultValue ? '' : input.value;
       invalidate();
       if (!config.refresh) return;
       if (input.tagName === 'SELECT') {
@@ -158,12 +170,36 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     if (config.variable) input.dataset.businessVariable = '';
     wrapper.append(caption, input);
     parent.append(wrapper);
+    return input;
   }
 
   const captureFieldPosition = input => {
     const scope = input.closest('fieldset');
     return { label: input.getAttribute('aria-label'), index: scope ? [...editor.querySelectorAll('fieldset')].indexOf(scope) : -1 };
   };
+
+  function disclosure(row, target, getLabel) {
+    const panel = node('div', null, 'business-disclosure');
+    panel.id = `business-disclosure-${++nextDisclosureId}`;
+    const fields = node('div', null, 'business-fields');
+    panel.append(fields);
+    const toggle = button(getLabel(), () => {
+      if (openDisclosures.has(target)) openDisclosures.delete(target);
+      else openDisclosures.add(target);
+      sync();
+    });
+    const sync = () => {
+      const open = openDisclosures.has(target);
+      panel.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.textContent = getLabel();
+    };
+    toggle.setAttribute('aria-controls', panel.id);
+    panel.addEventListener('input', sync);
+    sync();
+    row.append(toggle);
+    return { panel, fields, sync };
+  }
   const restoreFieldPosition = ({ label, index }) => {
     const scope = index < 0 ? editor : editor.querySelectorAll('fieldset')[index];
     [...(scope?.querySelectorAll('select') || [])].find(select => select.getAttribute('aria-label') === label)?.focus();
@@ -181,7 +217,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
   };
   const newFlow = (kind, fields = {}) => {
     if (model.flows.length >= 80) return;
-    const flow = normalizeBusinessModel({ flows: [{ kind, delay: '0', ...fields }] }).flows[0];
+    const flow = normalizeBusinessModel({ flows: [{ kind, ...fields }] }).flows[0];
     model.flows.push(flow);
     invalidate();
     renderEditor();
@@ -205,13 +241,16 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       const row = node('div', null, 'business-fields business-editor-row');
       field(row, 'Variable name', variable, 'name', { refresh: true });
       inputNumber(row, 'Default value', variable, 'value');
-      field(row, 'Monthly overrides (optional)', variable, 'overrides', { multiline: true, placeholder: '2027-02=8' });
+      const overrides = disclosure(row, variable, () => variable.overrides.trim()
+        ? 'Monthly overrides · Set' : 'Monthly overrides');
+      field(overrides.fields, 'Monthly overrides (optional)', variable, 'overrides', { multiline: true, placeholder: '2027-02=8' });
       row.append(button('Remove variable', () => {
         model.variables.splice(index, 1);
         invalidate();
         renderEditor();
         editor.querySelector('[aria-label="Variable name"]')?.focus();
       }));
+      row.append(overrides.panel);
       editor.append(row);
     });
 
@@ -257,17 +296,30 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         inputNumber(row, flow.model === 'stepped' ? 'Increase at threshold' : 'Second unit rate', flow, 'secondRate');
       }
       if (flow.model === 'tiered') inputNumber(row, 'Minimum charge (optional)', flow, 'minimum');
-      field(row, flow.frequency === 'once' ? 'Activity date' : 'First activity date', flow, 'startDate', { type: 'date' });
-      if (flow.frequency !== 'once') field(row, 'Last activity date', flow, 'endDate', { type: 'date' });
-      inputNumber(row, 'Payment delay (whole months)', flow, 'delay', '0');
       field(row, 'Primary account', flow, 'accountId', { accounts: true, empty: 'Use business cash account' });
       field(row, 'Counterparty account', flow, 'counterpartyId', { accounts: true, empty: 'External / no counterparty' });
+      const timing = disclosure(row, flow, () => flow.startDate || (flow.frequency !== 'once' && flow.endDate) || Number(flow.delay || 0) !== 0
+        ? 'Timing · Custom' : 'Timing · Scenario timeframe');
+      const start = field(timing.fields, flow.frequency === 'once' ? 'Activity date' : 'First activity date', flow, 'startDate',
+        { type: 'date', defaultValue: timeframe.startDate });
+      const end = flow.frequency !== 'once' ? field(timing.fields, 'Last activity date', flow, 'endDate',
+        { type: 'date', defaultValue: timeframe.endDate }) : null;
+      const delay = field(timing.fields, 'Payment delay (whole months)', flow, 'delay', { type: 'number', defaultValue: '0' });
+      timing.fields.append(button('Use scenario defaults', () => {
+        flow.startDate = flow.endDate = flow.delay = '';
+        start.value = timeframe.startDate || '';
+        if (end) end.value = timeframe.endDate || '';
+        delay.value = '0';
+        timing.sync();
+        invalidate();
+      }));
       row.append(button('Remove flow', () => {
         model.flows.splice(index, 1);
         invalidate();
         renderEditor();
         editor.querySelectorAll('[aria-label="Flow name"]').item(Math.max(0, index - 1))?.focus();
       }));
+      row.append(timing.panel);
       editor.append(row);
     });
 
@@ -278,10 +330,10 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       renderEditor();
       [...editor.querySelectorAll('select[aria-label="Variable to test"]')].at(-1)?.focus();
     });
-    addRange.disabled = model.testRanges.length >= MAX_BUSINESS_TEST_RANGES;
+    addRange.disabled = model.testRanges.length >= model.variables.length;
     testHeading.append(node('h3', 'Test variables'), addRange);
     editor.append(testHeading, node('p',
-      `Test every combination of the ranges below (up to ${MAX_BUSINESS_TEST_CASES}). Tested values replace the selected variables for every month; other variables keep their monthly overrides.`, 'text-muted'));
+      'Test every combination of the ranges below. Tested values replace the selected variables for every month; other variables keep their monthly overrides.', 'text-muted'));
     model.testRanges.forEach((range, index) => {
       const row = node('fieldset', null, 'business-fields business-editor-row');
       row.append(node('legend', `Test range ${index + 1}`));
@@ -353,6 +405,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     const active = () => ticket === generation && isRenderCurrent() && root.isConnected;
     busy = true;
     previewButton.disabled = sweepButton.disabled = true;
+    cancelTestButton.hidden = !sweep;
     results.replaceChildren();
     status.textContent = sweep ? 'Testing variable values…' : 'Calculating projections…';
     try {
@@ -372,59 +425,113 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       const detail = node('div');
       detail.append(renderProjection(currentPlan, baseline, projected));
       if (sweep) {
-        const comparison = [];
-        const validCases = [];
         let metCount = 0;
         let unavailableCount = 0;
         const breakEven = currentPlan.breakEven;
-        for (const entry of cases) {
+        const headers = [...cases.at(0).map(entry => variableName(entry.id)), 'Ending business cash', 'Lowest closing cash',
+          'Scheduled operating net', ...(currentPlan.ownerAccountId ? ['Ending owner cash'] : []), 'Cash floor check',
+          ...(breakEven ? ['Break-even result'] : [])];
+
+        async function evaluateCase(index) {
+          const entry = cases.at(index);
           const values = entry.map(variable => variable.value);
           let plan;
           try {
             plan = buildBusinessModelPlan(latest, model, entry);
           } catch (error) {
-            comparison.push([...values, '—', '—', '—',
-              ...(currentPlan.ownerAccountId ? ['—'] : []), error.message, ...(breakEven ? ['Not evaluated'] : [])]);
-            unavailableCount++;
-            continue;
+            return {
+              index, entry, valid: false, unavailable: true,
+              row: [...values, '—', '—', '—', ...(currentPlan.ownerAccountId ? ['—'] : []),
+                error.message, ...(breakEven ? ['Not evaluated'] : [])]
+            };
           }
           const withModel = await project(plan);
-          if (!active()) return;
           const cash = accountRows(withModel, plan.cashAccountId);
           const owner = accountRows(withModel, plan.ownerAccountId);
           const operatingNet = [...plan.totals.values()].reduce((net, values) => net + values.revenue - values.cost, 0);
           const outcome = evaluateBusinessBreakEven(plan.breakEven, withModel);
-          if (outcome?.status === 'met') metCount++;
-          if (outcome?.status === 'unavailable') unavailableCount++;
-          comparison.push([...values, currencies(cash.at(-1)?.balance), currencies(minimumBalance(cash)), currencies(operatingNet),
-            ...(plan.ownerAccountId ? [currencies(owner.at(-1)?.balance)] : []), floorResult(plan, cash),
-            ...(breakEven ? [breakEvenResult(outcome)] : [])]);
-          validCases.push(entry);
+          return {
+            index, entry, valid: true, met: outcome?.status === 'met', unavailable: outcome?.status === 'unavailable',
+            row: [...values, currencies(cash.at(-1)?.balance), currencies(minimumBalance(cash)), currencies(operatingNet),
+              ...(plan.ownerAccountId ? [currencies(owner.at(-1)?.balance)] : []), floorResult(plan, cash),
+              ...(breakEven ? [breakEvenResult(outcome)] : [])]
+          };
         }
+
+        const firstPage = [];
+        status.textContent = `Testing 0 of ${cases.length.toLocaleString()} combinations…`;
+        await yieldToBrowser();
+        for (let index = 0; index < cases.length && active(); index++) {
+          const result = await evaluateCase(index);
+          if (result.met) metCount++;
+          if (result.unavailable) unavailableCount++;
+          if (index < RESULTS_PER_PAGE) firstPage.push(result);
+          if ((index + 1) % CASES_PER_BATCH === 0 && active()) {
+            status.textContent = `Testing ${(index + 1).toLocaleString()} of ${cases.length.toLocaleString()} combinations…`;
+            await yieldToBrowser();
+          }
+        }
+        if (!active()) return;
+
         if (breakEven) {
-          const summary = `${metCount} of ${cases.length} combinations meet break-even${unavailableCount ? ` · ${unavailableCount} not evaluated` : ''}.`;
+          const summary = `${metCount.toLocaleString()} of ${cases.length.toLocaleString()} combinations meet break-even${unavailableCount ? ` · ${unavailableCount.toLocaleString()} not evaluated` : ''}.`;
           results.append(node('p', `${summary} ${describeBreakEven(breakEven)}.`));
         }
-        results.append(table('Compare test values', [...cases[0].map(entry => variableName(entry.id)), 'Ending business cash', 'Lowest closing cash',
-          'Scheduled operating net', ...(currentPlan.ownerAccountId ? ['Ending owner cash'] : []), 'Cash floor check',
-          ...(breakEven ? ['Break-even result'] : [])], comparison));
+        const pageContent = node('div', null, 'business-results');
+        const navigation = node('div', null, 'business-row-heading');
+        const pageLabel = node('span');
+        let pageStart = 0;
         let selectedCaseRequest = 0;
-        const selectRow = node('div', null, 'business-fields');
-        const optionsForCases = [['', 'Current inputs'], ...validCases.map((entry, i) => [String(i),
-          entry.length === 1 ? String(entry[0].value) : describeCase(entry)])];
-        // Selecting a result does not change the stored input or invalidate the comparison.
         const select = node('select', null, 'input-select');
         select.setAttribute('aria-label', 'Preview test case');
-        optionsForCases.forEach(([value, label]) => {
-          const option = node('option', label);
-          option.value = value;
-          select.append(option);
-        });
+        const selectRow = node('div', null, 'business-fields');
+        const label = node('label', 'Preview test case');
+        label.append(select);
+        selectRow.append(label);
+        const previous = button('Previous results', () => showPage(pageStart - RESULTS_PER_PAGE));
+        const next = button('Next results', () => showPage(pageStart + RESULTS_PER_PAGE));
+        navigation.append(previous, pageLabel, next);
+
+        function renderPage(start, page) {
+          pageStart = start;
+          previous.disabled = start <= 0;
+          next.disabled = start + page.length >= cases.length;
+          pageLabel.textContent = `${(start + 1).toLocaleString()}–${(start + page.length).toLocaleString()} of ${cases.length.toLocaleString()} combinations`;
+          pageContent.replaceChildren(table('Compare test values', headers, page.map(result => result.row)));
+          select.replaceChildren(new Option('Current inputs', ''));
+          for (const { index, entry, valid } of page) {
+            if (valid) select.append(new Option(entry.length === 1 ? String(entry[0].value) : describeCase(entry), String(index)));
+          }
+          selectedCaseRequest++;
+          chosenCase = null;
+          detail.replaceChildren(renderProjection(currentPlan, baseline, projected));
+        }
+
+        async function showPage(start) {
+          if (start < 0 || start >= cases.length || !active()) return;
+          previous.disabled = next.disabled = true;
+          try {
+            const page = start === 0 ? firstPage : [];
+            if (start !== 0) {
+              for (let offset = 0; offset < RESULTS_PER_PAGE && start + offset < cases.length && active(); offset++) {
+                page.push(await evaluateCase(start + offset));
+                if ((offset + 1) % CASES_PER_BATCH === 0) await yieldToBrowser();
+              }
+            }
+            if (active()) renderPage(start, page);
+          } catch (error) {
+            if (active()) {
+              status.textContent = error.message;
+              previous.disabled = pageStart === 0;
+              next.disabled = cases.length - pageStart <= RESULTS_PER_PAGE;
+            }
+          }
+        }
+
         select.addEventListener('change', async () => {
           const request = ++selectedCaseRequest;
-          const selected = select.value;
           try {
-            const entry = selected === '' ? null : validCases[Number(selected)];
+            const entry = select.value === '' ? null : cases.at(Number(select.value));
             const plan = entry ? buildBusinessModelPlan(latest, model, entry) : currentPlan;
             const rows = entry ? await project(plan) : projected;
             if (!active() || request !== selectedCaseRequest) return;
@@ -434,10 +541,10 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
             if (active() && request === selectedCaseRequest) status.textContent = error.message;
           }
         });
-        const label = node('label', 'Preview test case');
-        label.append(select);
-        selectRow.append(label);
+        results.append(pageContent);
+        if (cases.length > RESULTS_PER_PAGE) results.append(navigation);
         results.append(selectRow);
+        renderPage(0, firstPage);
       }
       results.append(detail);
       status.textContent = 'Preview only. No accounts, Plan Rules, actuals, or saved projections were changed.';
@@ -447,12 +554,18 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       if (active()) {
         busy = false;
         previewButton.disabled = sweepButton.disabled = false;
+        cancelTestButton.hidden = true;
       }
     }
   }
 
   const previewButton = button('Preview projections', () => run(false), 'btn btn-primary');
   const sweepButton = button('Test range', () => run(true));
+  const cancelTestButton = button('Cancel test', () => {
+    invalidate();
+    status.textContent = 'Range test canceled. No plan data was changed.';
+  });
+  cancelTestButton.hidden = true;
   const save = button('Save setup', async () => {
     save.disabled = true;
     try {
@@ -465,9 +578,9 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     }
   });
   const actions = node('div', null, 'business-row-heading');
-  actions.append(previewButton, sweepButton, save);
+  actions.append(previewButton, sweepButton, cancelTestButton, save);
   root.append(node('h3', 'Business Model'), node('p',
-    `Build a business from reusable variables and account movements. Preview uses the existing scenario timeframe (${scenario.timeframe?.startDate || '—'} to ${scenario.timeframe?.endDate || '—'}) and includes its current plan and actuals. Blank activity dates use the scenario dates; the first activity date sets the monthly payment day.`,
+    `Build a business from reusable variables and account movements. Preview uses the scenario timeframe (${timeframe.startDate || '—'} to ${timeframe.endDate || '—'}) and includes its current plan and actuals. Flows use that timeframe and have no payment delay unless you change Timing.`,
     'text-muted'), editor, actions, status, results);
   renderEditor();
 }

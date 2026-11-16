@@ -702,8 +702,8 @@ Period to review and track their dated occurrences.
    **Add new account** in any Workshop account picker to create and select an
    account without leaving your setup.
 2. Add named variables such as Customers, Price, Billable Hours, or Capacity.
-   Enter a default value and, if needed, month-specific overrides such as
-   `2027-02=8` (one per line).
+   Enter a default value. If needed, open **Monthly overrides** and enter
+   exceptions such as `2027-02=8` (one per line).
 3. Add revenue, cost, and funding rows. Start from a revenue preset or choose
    a calculation directly. Combine several calculations in one
    setup; for example, use **Quantity × rate** for subscriptions or sales,
@@ -725,7 +725,8 @@ Period to review and track their dated occurrences.
    projection engine, and the first month below the cash floor, if any.
    Open **Review proposed Plan Rules** to inspect the amounts and schedules.
 6. To compare assumptions, add each **Test variable**, then enter its range and
-   step. **Test range** runs every combination (up to 30 per run). Test values
+   step. **Test range** runs every combination. Larger tests show progress and
+   can be canceled. Comparison results are paginated. Test values
    temporarily replace those variables for every month. Choose a result to see
    its monthly detail.
 7. Optionally set a **Break-even condition**. For example, choose **Ending
@@ -734,7 +735,10 @@ Period to review and track their dated occurrences.
    monthly closing balance at least**. Both the preview and the range results
    show whether the selected account meets the condition.
 
-A payment delay moves collection or payment by whole months; a percentage-of-
+Open a flow's **Timing** button to change its activity dates or payment delay.
+By default, a recurring flow follows the scenario timeframe, a one-time flow
+uses its start date, and payment delay is zero. **Use scenario defaults**
+clears custom timing. A payment delay moves collection or payment by whole months; a percentage-of-
 revenue cost uses revenue in the activity month, before any payment delay.
 Payments beyond the scenario end are flagged but excluded. **Save setup**
 keeps the assumptions with the scenario. It does not apply the proposed Plan

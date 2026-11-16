@@ -2298,6 +2298,14 @@ body .statement-review-grid.tabulator .tabulator-row.tabulator-group { position:
   border-radius: 0.4rem;
 }
 
+.business-disclosure {
+  grid-column: 1 / -1;
+}
+
+.business-model .btn[hidden] {
+  display: none;
+}
+
 .business-row-heading {
   display: flex;
   flex-wrap: wrap;

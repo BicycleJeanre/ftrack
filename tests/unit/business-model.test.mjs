@@ -54,8 +54,8 @@ test('mixed business plan uses actuals and existing plan rules via the projectio
 
 test('a sweep replaces the selected variable across months and captures non-monotonic salary thresholds', () => {
   const cases = getBusinessModelTestCases(model);
-  assert.deepEqual(cases.map(([entry]) => entry.value), [7, 8]);
-  const [seven, eight] = cases.map(entry => buildBusinessModelPlan(scenario, model, entry));
+  assert.deepEqual(Array.from(cases, ([entry]) => entry.value), [7, 8]);
+  const [seven, eight] = Array.from(cases, entry => buildBusinessModelPlan(scenario, model, entry));
   assert.equal(seven.totals.get('2027-02').revenue, 750);
   assert.equal(eight.totals.get('2027-02').revenue, 850);
   assert.ok(seven.totals.get('2027-02').revenue - seven.totals.get('2027-02').cost >
@@ -68,12 +68,14 @@ test('multiple ranges run as a Cartesian product and replace both monthly driver
     { variable: 'fee', start: 100, end: 150, step: 50 }
   ];
   const cases = getBusinessModelTestCases({ ...model, testRanges });
-  assert.deepEqual(cases.map(entries => entries.map(entry => entry.value)), [[7, 100], [7, 150], [8, 100], [8, 150]]);
-  const plan = buildBusinessModelPlan(scenario, model, cases[3]);
+  assert.deepEqual(Array.from(cases, entries => entries.map(entry => entry.value)), [[7, 100], [7, 150], [8, 100], [8, 150]]);
+  const plan = buildBusinessModelPlan(scenario, model, cases.at(3));
   assert.equal(plan.totals.get('2027-02').revenue, 1250);
-  assert.throws(() => getBusinessModelTestCases({ ...model, testRanges: [
-    testRanges[0], { ...testRanges[1], start: 50, end: 150, step: 5 }
-  ] }), /up to 30 combinations/);
+  const large = getBusinessModelTestCases({ ...model, testRanges: [
+    { ...testRanges[0], start: 0, end: 1_000_000 }, { ...testRanges[1], start: 50, end: 150, step: 5 }
+  ] });
+  assert.equal(large.length, 21_000_021);
+  assert.deepEqual(large.at(large.length - 1).map(entry => entry.value), [1_000_000, 150]);
   assert.throws(() => getBusinessModelTestCases({ ...model, testRanges: [testRanges[0], testRanges[0]] }), /only one range/);
 });
 
@@ -114,12 +116,12 @@ test('payments on the 31st clamp independently of later months; partial scenario
   assert.equal(plan.deferredCount, 1);
 });
 
-test('drafts survive normalization and invalid references and unbounded sweeps fail clearly', () => {
+test('drafts survive normalization and invalid references fail clearly', () => {
   const stored = sanitizeScenarioForWrite({ ...scenario, name: 'Business',
     planning: { workshopStrategy: 'business', businessModel: model } });
   assert.equal(stored.planning.workshopStrategy, 'business');
   assert.equal(stored.planning.businessModel.variables[0].overrides, '2027-02=8');
   assert.equal(stored.planning.businessModel.testRanges[0].variable, 'clients');
   assert.throws(() => buildBusinessModelPlan(scenario, { ...model, variables: [] }), /existing variable/);
-  assert.throws(() => getBusinessModelTestCases({ ...model, sweep: { variable: 'clients', start: 0, end: 100 } }), /up to 30/);
+  assert.equal(getBusinessModelTestCases({ ...model, sweep: { variable: 'clients', start: 0, end: 100 } }).length, 101);
 });

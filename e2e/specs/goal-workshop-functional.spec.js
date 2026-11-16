@@ -127,6 +127,53 @@ test.describe('Goal Workshop browser functionality', () => {
       'constraint removed');
   });
 
+  test('keeps variable overrides and flow timing collapsed and follows the scenario timeframe by default', async ({ page }) => {
+    await page.getByLabel('Scenario setup strategy').selectOption('business');
+    const feature = page.locator('[data-business-model]');
+    const scenario = await currentScenario(page);
+    await feature.getByRole('button', { name: 'Add variable', exact: true }).click();
+    const overrides = feature.getByLabel('Monthly overrides (optional)');
+    await expect(overrides).toBeHidden();
+    await feature.getByRole('button', { name: 'Monthly overrides', exact: true }).click();
+    await overrides.fill('2026-02=8');
+    await feature.getByRole('button', { name: 'Monthly overrides · Set', exact: true }).click();
+    await expect(overrides).toBeHidden();
+
+    await feature.getByRole('button', { name: 'Add cost', exact: true }).click();
+    const flow = feature.getByRole('group', { name: 'Flow 1', exact: true });
+    const start = flow.getByLabel('First activity date');
+    const end = flow.getByLabel('Last activity date');
+    const delay = flow.getByLabel('Payment delay (whole months)');
+    await expect(start).toBeHidden();
+    await expect(end).toBeHidden();
+    await expect(delay).toBeHidden();
+    await flow.getByRole('button', { name: 'Timing · Scenario timeframe' }).click();
+    await expect(start).toHaveValue(scenario.timeframe.startDate);
+    await expect(end).toHaveValue(scenario.timeframe.endDate);
+    await expect(delay).toHaveValue('0');
+    await start.fill('2026-02-01');
+    await end.fill('2026-10-31');
+    await delay.fill('2');
+    await flow.getByRole('button', { name: 'Timing · Custom' }).click();
+    await feature.getByRole('button', { name: 'Save setup' }).click();
+    await waitForScenario(page, current => current.planning.businessModel?.flows[0]?.delay === '2');
+    await page.reload();
+    await expect(start).toBeHidden();
+    await feature.getByRole('button', { name: 'Monthly overrides · Set' }).click();
+    await expect(overrides).toHaveValue('2026-02=8');
+    await flow.getByRole('button', { name: 'Timing · Custom' }).click();
+    await expect(start).toHaveValue('2026-02-01');
+    await expect(end).toHaveValue('2026-10-31');
+    await expect(delay).toHaveValue('2');
+    await flow.getByRole('button', { name: 'Use scenario defaults' }).click();
+    await expect(start).toHaveValue(scenario.timeframe.startDate);
+    await expect(end).toHaveValue(scenario.timeframe.endDate);
+    await expect(delay).toHaveValue('0');
+    await feature.getByRole('button', { name: 'Save setup' }).click();
+    await waitForScenario(page, current => current.planning.businessModel?.flows[0]?.delay === '' &&
+      current.planning.businessModel.flows[0].startDate === '' && current.planning.businessModel.flows[0].endDate === '');
+  });
+
   test('tests combinations of variables and reports a zero-balance break-even condition', async ({ page }) => {
     await page.getByLabel('Scenario setup strategy').selectOption('business');
     const feature = page.locator('[data-business-model]');
@@ -178,6 +225,26 @@ test.describe('Goal Workshop browser functionality', () => {
     await page.reload();
     await expect(feature.getByLabel('Break-even check')).toHaveValue('ending');
     await expect(feature.getByRole('group', { name: 'Test range 2', exact: true })).toBeVisible();
+
+    const firstRange = feature.getByRole('group', { name: 'Test range 1', exact: true });
+    await firstRange.getByLabel('Test to').fill('31');
+    await feature.getByRole('button', { name: 'Test range', exact: true }).click();
+    await expect(feature.getByText(/59 of 60 combinations meet break-even/)).toBeVisible();
+    await expect(comparison.getByRole('row')).toHaveCount(51);
+    await feature.getByRole('button', { name: 'Next results', exact: true }).click();
+    await expect(comparison.getByRole('row')).toHaveCount(11);
+    await expect(feature.getByLabel('Preview test case').locator('option').last())
+      .toHaveText('Customers: 31 · Monthly fee: 100');
+    await feature.getByLabel('Preview test case').selectOption({ label: 'Customers: 31 · Monthly fee: 100' });
+    await expect(feature.getByRole('heading', { name: 'Preview · Customers: 31 · Monthly fee: 100' })).toBeVisible();
+
+    await firstRange.getByLabel('Test to').fill('1000000');
+    const run = feature.getByRole('button', { name: 'Test range', exact: true });
+    await run.click();
+    await expect(feature.getByRole('status')).toContainText(/Testing .* combinations/);
+    await feature.getByRole('button', { name: 'Cancel test', exact: true }).click();
+    await expect(feature.getByRole('status')).toContainText('Range test canceled');
+    await expect(run).toBeEnabled();
   });
 
   test('creates and selects a new business account without losing unsaved Workshop inputs', async ({ page }) => {
