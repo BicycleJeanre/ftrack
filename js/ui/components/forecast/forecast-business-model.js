@@ -1,7 +1,7 @@
 import {
   BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS,
   buildBusinessModelPlan, evaluateBusinessBreakEven, getBusinessModelTestCases, normalizeBusinessModel
-} from '../../../domain/calculations/business-model.js?v=workshop-disclosures-1';
+} from '../../../domain/calculations/business-model.js?v=workshop-results-1';
 import { generateProjectionsForScenario } from '../../../domain/calculations/projection-engine.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
@@ -10,7 +10,28 @@ const drafts = new WeakMap();
 let nextDisclosureId = 0;
 const RESULTS_PER_PAGE = 50;
 const CASES_PER_BATCH = 8;
+const RESULT_INDEX_CHUNK = 4096;
+const CASH_RESULT_FIELDS = ['business', 'lowest', 'operatingNet', 'owner', 'floorMargin', 'breakEvenMargin'];
 const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
+
+function createResultIndex() {
+  const chunks = [];
+  return {
+    append(index, result) {
+      const offset = index % RESULT_INDEX_CHUNK;
+      if (!offset) chunks.push({
+        ...Object.fromEntries(CASH_RESULT_FIELDS.map(field => [field, new Float64Array(RESULT_INDEX_CHUNK)])),
+        met: new Uint8Array(RESULT_INDEX_CHUNK)
+      });
+      const chunk = chunks.at(-1);
+      for (const field of CASH_RESULT_FIELDS) chunk[field][offset] = result.sortValues?.[field] ?? NaN;
+      chunk.met[offset] = result.met ? 1 : 0;
+    },
+    get(index, field) {
+      return chunks[Math.floor(index / RESULT_INDEX_CHUNK)][field][index % RESULT_INDEX_CHUNK];
+    }
+  };
+}
 const currencies = value => value == null ? '—' : formatCurrency(value);
 const revenuePresets = [
   ['Recurring customers', 'volume'],
@@ -37,14 +58,24 @@ function button(text, handler, className = 'btn btn-secondary') {
   return element;
 }
 
-function table(title, headings, rows) {
+function table(title, headings, rows, sort = null) {
   const wrapper = node('div', null, 'business-table-scroll');
   const grid = node('table', null, 'business-table');
   grid.append(node('caption', title));
   const head = grid.createTHead().insertRow();
-  headings.forEach(name => {
-    const th = node('th', name);
+  headings.forEach((name, index) => {
+    const th = node('th', sort ? null : name);
     th.scope = 'col';
+    if (sort) {
+      const direction = sort.column === index ? sort.direction : null;
+      if (direction) th.setAttribute('aria-sort', direction === 1 ? 'ascending' : 'descending');
+      const toggle = button(name, () => sort.onSort(index, direction === 1 ? -1 : 1), 'business-sort-header');
+      toggle.dataset.sortColumn = String(index);
+      const indicator = node('span', null, 'business-sort-indicator');
+      indicator.setAttribute('aria-hidden', 'true');
+      toggle.append(indicator);
+      th.append(toggle);
+    }
     head.append(th);
   });
   const body = grid.createTBody();
@@ -428,9 +459,18 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         let metCount = 0;
         let unavailableCount = 0;
         const breakEven = currentPlan.breakEven;
-        const headers = [...cases.at(0).map(entry => variableName(entry.id)), 'Ending business cash', 'Lowest closing cash',
-          'Scheduled operating net', ...(currentPlan.ownerAccountId ? ['Ending owner cash'] : []), 'Cash floor check',
-          ...(breakEven ? ['Break-even result'] : [])];
+        const resultIndex = createResultIndex();
+        const cashMetric = (label, field) => [label, index => resultIndex.get(index, field)];
+        const metrics = [
+          ...cases.at(0).map(({ id }, dimension) => [variableName(id), index => cases.valueAt(index, dimension)]),
+          cashMetric('Ending business cash', 'business'),
+          cashMetric('Lowest closing cash', 'lowest'),
+          cashMetric('Scheduled operating net', 'operatingNet'),
+          ...(currentPlan.ownerAccountId ? [cashMetric('Ending owner cash', 'owner')] : []),
+          cashMetric('Cash floor check', 'floorMargin'),
+          ...(breakEven ? [cashMetric('Break-even result', 'breakEvenMargin')] : [])
+        ];
+        const headers = metrics.map(([name]) => name);
 
         async function evaluateCase(index) {
           const entry = cases.at(index);
@@ -448,12 +488,22 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           const withModel = await project(plan);
           const cash = accountRows(withModel, plan.cashAccountId);
           const owner = accountRows(withModel, plan.ownerAccountId);
+          const lowest = minimumBalance(cash);
           const operatingNet = [...plan.totals.values()].reduce((net, values) => net + values.revenue - values.cost, 0);
           const outcome = evaluateBusinessBreakEven(plan.breakEven, withModel);
+          const sortValues = {
+            business: cash.at(-1)?.balance,
+            lowest,
+            operatingNet,
+            owner: owner.at(-1)?.balance,
+            floorMargin: plan.minimumCash == null || lowest == null ? null : lowest - plan.minimumCash,
+            breakEvenMargin: outcome?.balance == null ? null : outcome.balance - plan.breakEven.threshold
+          };
           return {
             index, entry, valid: true, met: outcome?.status === 'met', unavailable: outcome?.status === 'unavailable',
-            row: [...values, currencies(cash.at(-1)?.balance), currencies(minimumBalance(cash)), currencies(operatingNet),
-              ...(plan.ownerAccountId ? [currencies(owner.at(-1)?.balance)] : []), floorResult(plan, cash),
+            sortValues,
+            row: [...values, currencies(sortValues.business), currencies(lowest), currencies(operatingNet),
+              ...(plan.ownerAccountId ? [currencies(sortValues.owner)] : []), floorResult(plan, cash),
               ...(breakEven ? [breakEvenResult(outcome)] : [])]
           };
         }
@@ -463,6 +513,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         await yieldToBrowser();
         for (let index = 0; index < cases.length && active(); index++) {
           const result = await evaluateCase(index);
+          resultIndex.append(index, result);
           if (result.met) metCount++;
           if (result.unavailable) unavailableCount++;
           if (index < RESULTS_PER_PAGE) firstPage.push(result);
@@ -481,6 +532,8 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         const navigation = node('div', null, 'business-row-heading');
         const pageLabel = node('span');
         let pageStart = 0;
+        let visibleIndices = null;
+        let viewRequest = 0;
         let selectedCaseRequest = 0;
         const select = node('select', null, 'input-select');
         select.setAttribute('aria-label', 'Preview test case');
@@ -491,13 +544,77 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         const previous = button('Previous results', () => showPage(pageStart - RESULTS_PER_PAGE));
         const next = button('Next results', () => showPage(pageStart + RESULTS_PER_PAGE));
         navigation.append(previous, pageLabel, next);
+        const controls = node('div', null, 'business-row-heading');
+        const sortLabel = node('label', 'Sort results ');
+        const sortSelect = node('select', null, 'input-select');
+        sortSelect.append(new Option('Test order', ''));
+        for (const [i, [name]] of metrics.entries()) {
+          sortSelect.append(new Option(`${name}: low to high`, `${i}:1`), new Option(`${name}: high to low`, `${i}:-1`));
+        }
+        sortLabel.append(sortSelect);
+        controls.append(sortLabel);
+        const meetsOnly = node('input');
+        meetsOnly.type = 'checkbox';
+        if (breakEven) {
+          const filterLabel = node('label', ' Meets break-even only');
+          filterLabel.prepend(meetsOnly);
+          controls.append(filterLabel);
+        }
+        const visibleCount = () => visibleIndices?.length ?? cases.length;
+        const resultMessage = node('p');
+        resultMessage.setAttribute('aria-live', 'polite');
+        sortSelect.addEventListener('change', refreshOrder);
+        meetsOnly.addEventListener('change', refreshOrder);
+
+        async function refreshOrder() {
+          const request = ++viewRequest;
+          const live = () => active() && request === viewRequest;
+          const filter = meetsOnly.checked;
+          const sort = sortSelect.value;
+          previous.disabled = next.disabled = true;
+          resultMessage.textContent = 'Updating results…';
+          await yieldToBrowser();
+          if (!live()) return;
+          let order = null;
+          if (filter || sort) {
+            order = [];
+            for (let index = 0; index < cases.length; index++) {
+              if (!filter || resultIndex.get(index, 'met')) order.push(index);
+              if ((index + 1) % 16384 === 0) {
+                await yieldToBrowser();
+                if (!live()) return;
+              }
+            }
+            if (sort) {
+              const [metric, direction] = sort.split(':').map(Number);
+              const valueAt = metrics[metric][1];
+              order.sort((left, right) => {
+                const a = valueAt(left), b = valueAt(right);
+                if (!Number.isFinite(a)) return Number.isFinite(b) ? 1 : left - right;
+                if (!Number.isFinite(b)) return -1;
+                return direction * (a - b) || left - right;
+              });
+            }
+          }
+          visibleIndices = order;
+          await showPage(0);
+        }
 
         function renderPage(start, page) {
           pageStart = start;
           previous.disabled = start <= 0;
-          next.disabled = start + page.length >= cases.length;
-          pageLabel.textContent = `${(start + 1).toLocaleString()}–${(start + page.length).toLocaleString()} of ${cases.length.toLocaleString()} combinations`;
-          pageContent.replaceChildren(table('Compare test values', headers, page.map(result => result.row)));
+          next.disabled = start + page.length >= visibleCount();
+          navigation.classList.toggle('hidden', visibleCount() <= RESULTS_PER_PAGE);
+          pageLabel.textContent = `${(start + 1).toLocaleString()}–${(start + page.length).toLocaleString()} of ${visibleCount().toLocaleString()} combinations`;
+          resultMessage.textContent = visibleCount() ? `Showing ${pageLabel.textContent}.` : 'No combinations meet the break-even condition.';
+          const focusedColumn = pageContent.contains(document.activeElement) ? document.activeElement.dataset.sortColumn : null;
+          const [column, direction] = sortSelect.value ? sortSelect.value.split(':').map(Number) : [null, null];
+          const sort = { column, direction, onSort(index, nextDirection) {
+            sortSelect.value = `${index}:${nextDirection}`;
+            void refreshOrder();
+          } };
+          pageContent.replaceChildren(...(page.length ? [table('Compare test values', headers, page.map(result => result.row), sort)] : []));
+          if (focusedColumn != null) pageContent.querySelector(`[data-sort-column="${focusedColumn}"]`)?.focus({ preventScroll: true });
           select.replaceChildren(new Option('Current inputs', ''));
           for (const { index, entry, valid } of page) {
             if (valid) select.append(new Option(entry.length === 1 ? String(entry[0].value) : describeCase(entry), String(index)));
@@ -508,22 +625,26 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         }
 
         async function showPage(start) {
-          if (start < 0 || start >= cases.length || !active()) return;
+          if (start < 0 || (start && start >= visibleCount()) || !active()) return;
+          const request = ++viewRequest;
+          const live = () => active() && request === viewRequest;
           previous.disabled = next.disabled = true;
           try {
-            const page = start === 0 ? firstPage : [];
-            if (start !== 0) {
-              for (let offset = 0; offset < RESULTS_PER_PAGE && start + offset < cases.length && active(); offset++) {
-                page.push(await evaluateCase(start + offset));
+            const page = start === 0 && visibleIndices === null ? firstPage : [];
+            if (page !== firstPage) {
+              for (let offset = 0; offset < RESULTS_PER_PAGE && start + offset < visibleCount() && live(); offset++) {
+                const position = start + offset;
+                const index = visibleIndices?.[position] ?? position;
+                page.push(firstPage[index] ?? await evaluateCase(index));
                 if ((offset + 1) % CASES_PER_BATCH === 0) await yieldToBrowser();
               }
             }
-            if (active()) renderPage(start, page);
+            if (live()) renderPage(start, page);
           } catch (error) {
-            if (active()) {
-              status.textContent = error.message;
+            if (live()) {
+              resultMessage.textContent = error.message;
               previous.disabled = pageStart === 0;
-              next.disabled = cases.length - pageStart <= RESULTS_PER_PAGE;
+              next.disabled = visibleCount() - pageStart <= RESULTS_PER_PAGE;
             }
           }
         }
@@ -541,9 +662,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
             if (active() && request === selectedCaseRequest) status.textContent = error.message;
           }
         });
-        results.append(pageContent);
-        if (cases.length > RESULTS_PER_PAGE) results.append(navigation);
-        results.append(selectRow);
+        results.append(controls, resultMessage, pageContent, navigation, selectRow);
         renderPage(0, firstPage);
       }
       results.append(detail);

@@ -305,7 +305,17 @@ export function getBusinessModelTestCases(rawModel) {
   };
   // Lazily index the Cartesian product; large tests need not allocate a case
   // or a row for every combination up front.
-  return { length, at, *[Symbol.iterator]() {
+  const strides = [];
+  let stride = 1;
+  for (let i = ranges.length - 1; i >= 0; i--) {
+    strides[i] = stride;
+    stride *= ranges[i].count;
+  }
+  const valueAt = (index, dimension) => {
+    const range = ranges[dimension];
+    return range.valueAt(Math.floor(index / strides[dimension]) % range.count);
+  };
+  return { length, at, valueAt, *[Symbol.iterator]() {
     for (let index = 0; index < length; index++) yield at(index);
   } };
 }

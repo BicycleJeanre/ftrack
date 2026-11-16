@@ -50,7 +50,7 @@ import {
   populateAccountSelect
 } from '../components/widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 
-import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=workshop-disclosures-1';
+import { loadGeneratePlanSection as loadGeneratePlanSectionCore } from '../components/forecast/forecast-generate-plan.js?v=workshop-results-1';
 import {
   buildAccountsGridColumns as buildAccountsGridColumnsCore,
   loadAccountsGrid as loadAccountsGridCore

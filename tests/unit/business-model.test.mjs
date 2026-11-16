@@ -76,6 +76,8 @@ test('multiple ranges run as a Cartesian product and replace both monthly driver
   ] });
   assert.equal(large.length, 21_000_021);
   assert.deepEqual(large.at(large.length - 1).map(entry => entry.value), [1_000_000, 150]);
+  assert.equal(large.valueAt(21, 0), 1);
+  assert.equal(large.valueAt(21, 1), 50);
   assert.throws(() => getBusinessModelTestCases({ ...model, testRanges: [testRanges[0], testRanges[0]] }), /only one range/);
 });
 

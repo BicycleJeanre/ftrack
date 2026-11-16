@@ -183,6 +183,9 @@ test.describe('Goal Workshop browser functionality', () => {
     await accountModal.getByLabel('Name', { exact: true }).fill('Break-even test cash');
     await accountModal.getByRole('button', { name: 'Use Account', exact: true }).click();
     await expect(feature.getByRole('button', { name: 'Business cash account', exact: true })).toContainText('Break-even test cash');
+    await feature.getByLabel('Minimum business closing cash (optional)').fill('0');
+    await feature.getByRole('button', { name: 'Owner cash account (optional)', exact: true }).click();
+    await page.locator('.selection-dialog').getByRole('option', { name: /^Checking\b/ }).click();
 
     for (const [index, name, value] of [[0, 'Customers', '2'], [1, 'Monthly fee', '50']]) {
       await feature.getByRole('button', { name: 'Add variable', exact: true }).click();
@@ -237,6 +240,44 @@ test.describe('Goal Workshop browser functionality', () => {
       .toHaveText('Customers: 31 · Monthly fee: 100');
     await feature.getByLabel('Preview test case').selectOption({ label: 'Customers: 31 · Monthly fee: 100' });
     await expect(feature.getByRole('heading', { name: 'Preview · Customers: 31 · Monthly fee: 100' })).toBeVisible();
+
+    await feature.getByLabel('Meets break-even only').check();
+    await expect(feature.getByText('Showing 1–50 of 59 combinations.')).toBeVisible();
+    await expect(comparison).not.toContainText('Short by');
+    await feature.getByLabel('Sort results').selectOption({ label: 'Ending business cash: high to low' });
+    const firstResult = comparison.getByRole('row').nth(1);
+    await expect(firstResult.getByRole('cell').nth(0)).toHaveText('31');
+    await expect(firstResult.getByRole('cell').nth(1)).toHaveText('100');
+    const sortControls = feature.getByLabel('Sort results');
+    const columnNames = await comparison.getByRole('columnheader').allTextContents();
+    for (const column of columnNames) {
+      await expect(sortControls.locator('option', { hasText: `${column}: low to high` })).toHaveCount(1);
+      await expect(sortControls.locator('option', { hasText: `${column}: high to low` })).toHaveCount(1);
+    }
+    for (const name of ['Lowest closing cash', 'Scheduled operating net', 'Cash floor check', 'Break-even result']) {
+      const column = comparison.getByRole('columnheader', { name, exact: true });
+      await column.getByRole('button', { name, exact: true }).click();
+      await expect(column).toHaveAttribute('aria-sort', 'ascending');
+      await expect(firstResult.getByRole('cell').nth(0)).toHaveText('3');
+      await expect(firstResult.getByRole('cell').nth(1)).toHaveText('50');
+      await column.getByRole('button', { name, exact: true }).click();
+      await expect(column).toHaveAttribute('aria-sort', 'descending');
+      await expect(firstResult.getByRole('cell').nth(0)).toHaveText('31');
+      await expect(firstResult.getByRole('cell').nth(1)).toHaveText('100');
+    }
+    await feature.getByLabel('Sort results').selectOption({ label: 'Monthly fee: low to high' });
+    await expect(firstResult.getByRole('cell').nth(0)).toHaveText('3');
+    await expect(firstResult.getByRole('cell').nth(1)).toHaveText('50');
+    await feature.getByRole('button', { name: 'Next results', exact: true }).click();
+    await expect(comparison.getByRole('row')).toHaveCount(10);
+    await expect(feature.getByText('Showing 51–59 of 59 combinations.')).toBeVisible();
+
+    await feature.getByLabel('Break-even balance').fill('1000000000');
+    await firstRange.getByLabel('Test to').fill('3');
+    await feature.getByRole('button', { name: 'Test range', exact: true }).click();
+    await feature.getByLabel('Meets break-even only').check();
+    await expect(feature.getByText('No combinations meet the break-even condition.')).toBeVisible();
+    await expect(comparison).toHaveCount(0);
 
     await firstRange.getByLabel('Test to').fill('1000000');
     const run = feature.getByRole('button', { name: 'Test range', exact: true });

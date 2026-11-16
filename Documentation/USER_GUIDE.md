@@ -726,7 +726,12 @@ Period to review and track their dated occurrences.
    Open **Review proposed Plan Rules** to inspect the amounts and schedules.
 6. To compare assumptions, add each **Test variable**, then enter its range and
    step. **Test range** runs every combination. Larger tests show progress and
-   can be canceled. Comparison results are paginated. Test values
+   can be canceled. Comparison results are paginated. Click any column header
+   or use **Sort results** to order the whole run. Cash-floor and break-even
+   checks sort by how far the balance is above or below the threshold.
+   When a break-even
+   condition is enabled, **Meets break-even only** filters the whole run.
+   Test values
    temporarily replace those variables for every month. Choose a result to see
    its monthly detail.
 7. Optionally set a **Break-even condition**. For example, choose **Ending

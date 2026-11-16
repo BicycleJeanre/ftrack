@@ -2335,6 +2335,25 @@ body .statement-review-grid.tabulator .tabulator-row.tabulator-group { position:
   font-weight: 600;
 }
 
+.business-sort-header {
+  border: 0;
+  padding: 0.15em 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.business-sort-indicator::after {
+  content: '↕';
+  margin-inline-start: 0.35em;
+  opacity: 0.65;
+}
+
+.business-table th[aria-sort="ascending"] .business-sort-indicator::after { content: '↑'; opacity: 1; }
+.business-table th[aria-sort="descending"] .business-sort-indicator::after { content: '↓'; opacity: 1; }
+
 .business-table tbody tr:nth-child(even) {
   background: var(--row-even, color-mix(in srgb, currentColor 7%, transparent));
 }
