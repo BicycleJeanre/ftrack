@@ -2,7 +2,7 @@ import {
   BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS,
   buildBusinessModelPlan, evaluateBusinessBreakEven, evaluateBusinessOperatingWindow,
   getBusinessModelTestCases, getBusinessOperatingMonths, isBetterBusinessTestCase, normalizeBusinessModel
-} from '../../../domain/calculations/business-model.js?v=workshop-optimize-1';
+} from '../../../domain/calculations/business-model.js?v=workshop-activity-1';
 import { generateProjectionsForScenario } from '../../../domain/calculations/projection-engine.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
@@ -13,6 +13,7 @@ const RESULTS_PER_PAGE = 50;
 const CASES_PER_BATCH = 8;
 const RESULT_INDEX_CHUNK = 4096;
 const CASH_RESULT_FIELDS = ['breakEvenMargin', 'revenue', 'cost', 'otherRevenue', 'otherCost', 'repayments'];
+const RESULT_STATUS = { unavailable: 0, inactive: 1, below: 2, met: 3 };
 const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
 
 function createResultIndex() {
@@ -22,11 +23,11 @@ function createResultIndex() {
       const offset = index % RESULT_INDEX_CHUNK;
       if (!offset) chunks.push({
         ...Object.fromEntries(CASH_RESULT_FIELDS.map(field => [field, new Float64Array(RESULT_INDEX_CHUNK)])),
-        met: new Uint8Array(RESULT_INDEX_CHUNK)
+        status: new Uint8Array(RESULT_INDEX_CHUNK)
       });
       const chunk = chunks.at(-1);
       for (const field of CASH_RESULT_FIELDS) chunk[field][offset] = result.sortValues?.[field] ?? NaN;
-      chunk.met[offset] = result.met ? 1 : 0;
+      chunk.status[offset] = RESULT_STATUS[result.status];
     },
     get(index, field) {
       return chunks[Math.floor(index / RESULT_INDEX_CHUNK)][field][index % RESULT_INDEX_CHUNK];
@@ -37,9 +38,7 @@ function createResultIndex() {
 function compileColumnFilter(raw, kind, label) {
   if (!raw.trim()) return null;
   if (kind === 'status') {
-    if (raw === 'met') return value => Number.isFinite(value) && value >= 0;
-    if (raw === 'below') return value => Number.isFinite(value) && value < 0;
-    return value => !Number.isFinite(value);
+    return value => value === RESULT_STATUS[raw];
   }
   const toKey = kind === 'currency' ? value => Number(value.toFixed(2)) : value => value;
   const values = raw.split(';').map(entry => {
@@ -508,6 +507,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       detail.append(renderProjection(currentPlan, baseline, projected));
       if (sweep) {
         let metCount = 0;
+        let inactiveCount = 0;
         let unavailableCount = 0;
         let best = null;
         const resultIndex = createResultIndex();
@@ -532,18 +532,19 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
             plan = buildBusinessModelPlan(latest, model, entry);
           } catch (error) {
             return {
-              index, entry, valid: false, unavailable: true,
+              index, entry, valid: false, status: 'unavailable',
               error: error.message,
               row: [...values, ...operatingMetrics.map(() => '—'), 'Not evaluated']
             };
           }
           const amounts = evaluateBusinessOperatingWindow(plan, window);
-          const { net, met } = amounts;
+          const { net, met, inactive } = amounts;
           return {
             index, entry, valid: true, met, net,
-            sortValues: { ...amounts, breakEvenMargin: net },
+            status: inactive ? 'inactive' : met ? 'met' : 'below',
+            sortValues: { ...amounts, breakEvenMargin: inactive ? null : net },
             row: [...values, ...operatingMetrics.map(([, field]) => currencies(amounts[field])),
-              met ? `Meets target · ${currencies(net)} net` : `Short by ${currencies(-net)}`]
+              inactive ? 'No operating activity' : met ? `Meets target · ${currencies(net)} net` : `Short by ${currencies(-net)}`]
           };
         }
 
@@ -555,7 +556,8 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           resultIndex.append(index, result);
           if (result.met) metCount++;
           if (isBetterBusinessTestCase(result, best, cases)) best = { index, net: result.net };
-          if (result.unavailable) unavailableCount++;
+          if (result.status === 'inactive') inactiveCount++;
+          if (result.status === 'unavailable') unavailableCount++;
           if (index < RESULTS_PER_PAGE) firstPage.push(result);
           if ((index + 1) % CASES_PER_BATCH === 0 && active()) {
             status.textContent = `Testing ${(index + 1).toLocaleString()} of ${cases.length.toLocaleString()} combinations…`;
@@ -565,7 +567,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         if (!active()) return;
 
         const dateRange = length === 1 ? window.months[0] : `${window.months[0]} to ${window.months.at(-1)}`;
-        const summary = `${metCount.toLocaleString()} of ${cases.length.toLocaleString()} combinations meet break-even${unavailableCount ? ` · ${unavailableCount.toLocaleString()} not evaluated` : ''}.`;
+        const summary = `${metCount.toLocaleString()} of ${cases.length.toLocaleString()} combinations meet break-even${inactiveCount ? ` · ${inactiveCount.toLocaleString()} with no operating activity` : ''}${unavailableCount ? ` · ${unavailableCount.toLocaleString()} not evaluated` : ''}.`;
         results.append(node('p', `${summary} Window: ${dateRange} · Financing repayments ${window.includeRepayments ? 'included' : 'excluded'}.`));
         if (cases.objectives.length) {
           const recommendation = node('section', null, 'business-editor-row');
@@ -619,7 +621,8 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           input.setAttribute('aria-label', `Filter ${name}`);
           if (kind === 'status') {
             input.append(new Option('Any status', ''), new Option('Meets target', 'met'),
-              new Option('Below target', 'below'), new Option('Not evaluated', 'unavailable'));
+              new Option('Below target', 'below'), new Option('No operating activity', 'inactive'),
+              new Option('Not evaluated', 'unavailable'));
           } else {
             input.placeholder = 'Any value';
           }
@@ -644,7 +647,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
             const nextFilters = [];
             metrics.forEach(([name, valueAt, kind], column) => {
               const matches = compileColumnFilter(filterInputs[column].value, kind, name);
-              if (matches) nextFilters.push(index => matches(valueAt(index)));
+              if (matches) nextFilters.push(index => matches(kind === 'status' ? resultIndex.get(index, 'status') : valueAt(index)));
             });
             appliedFilters = nextFilters;
             filterError.textContent = '';
@@ -680,7 +683,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           if (filter || sort || filters.length) {
             order = [];
             for (let index = 0; index < cases.length; index++) {
-              if ((!filter || resultIndex.get(index, 'met')) && filters.every(matches => matches(index))) order.push(index);
+              if ((!filter || resultIndex.get(index, 'status') === RESULT_STATUS.met) && filters.every(matches => matches(index))) order.push(index);
               if ((index + 1) % 16384 === 0) {
                 await yieldToBrowser();
                 if (!live()) return;
@@ -786,7 +789,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           ['Test values', 'Each row is a tested combination. Select it to see monthly cash flow and closing balances for the full scenario.'],
           ['Operating revenue and expenses', 'Totals for the selected window. Expenses are shown as positive amounts to subtract.'],
           ['Other revenue and other expenses', 'Amounts from flows that do not depend on the tested variables. These are already included in the operating totals, not added again.'],
-          ['Break-even result', 'Scheduled operating receipts minus operating payments during the selected window. A net of zero or more passes. Startup costs, funding and opening balances are excluded. Repayments count only when selected. The preview still shows the full projected cash position.']
+          ['Break-even result', 'Scheduled operating receipts minus operating payments during the selected window. A net of zero or more passes only if the window has activity. Startup costs, funding and opening balances are excluded. Repayments count only when selected. The preview still shows the full projected cash position.']
         ];
         for (const [term, description] of terms) descriptions.append(node('dt', term), node('dd', description));
         guide.append(descriptions);

@@ -118,7 +118,8 @@ export function evaluateBusinessOperatingWindow(plan, { months, includeRepayment
     otherCost += payments?.otherCost ?? 0;
   }
   const net = money(revenue - cost - (includeRepayments ? repayments : 0));
-  return { net, met: net >= 0, revenue: money(revenue), cost: money(cost),
+  const inactive = revenue === 0 && cost === 0 && (!includeRepayments || repayments === 0);
+  return { net, inactive, met: !inactive && net >= 0, revenue: money(revenue), cost: money(cost),
     otherRevenue: money(otherRevenue), otherCost: money(otherCost), repayments: money(repayments) };
 }
 

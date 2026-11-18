@@ -730,7 +730,9 @@ Period to review and track their dated occurrences.
    one, three, or twelve full months. For example, choose three months if
    an operating payment lands only once that quarter. Test range compares all
    combinations using modeled operating receipts minus operating payments
-   scheduled in the window. Zero or better passes. Opening balances, funding,
+   scheduled in the window. Zero or better passes if the window has activity.
+   If there are no counted receipts or payments, the result is **No operating
+   activity** and does not qualify for recommendations. Opening balances, funding,
    startup/investment, and the existing scenario's other transactions are
    excluded. Turn on **Include financing repayments** if the business must
    also cover debt payments.

@@ -365,6 +365,47 @@ test.describe('Goal Workshop browser functionality', () => {
     await expect(run).toBeEnabled();
   });
 
+  test('keeps zero-activity cases out of passing results and break-even recommendations', async ({ page }) => {
+    await page.getByLabel('Scenario setup strategy').selectOption('business');
+    const feature = page.locator('[data-business-model]');
+    await feature.getByRole('button', { name: 'Business cash account', exact: true }).click();
+    await page.locator('.selection-dialog').getByRole('option', { name: /^Checking\b/ }).click();
+    await feature.getByRole('button', { name: 'Add variable', exact: true }).click();
+    await feature.getByLabel('Variable name').fill('Operating amount');
+    await feature.getByLabel('Default value').fill('100');
+    for (const [index, kind, name] of [[1, 'revenue', 'Receipts'], [2, 'cost', 'Expenses']]) {
+      await feature.getByRole('button', { name: `Add ${kind}`, exact: true }).click();
+      const flow = feature.getByRole('group', { name: `Flow ${index}`, exact: true });
+      await flow.getByLabel('Flow name').fill(name);
+      await flow.getByLabel('Rate or amount variable').selectOption({ label: 'Operating amount' });
+    }
+    await feature.getByLabel('Variable to test').selectOption({ label: 'Operating amount' });
+    await feature.getByLabel('Test from').fill('0');
+    await feature.getByLabel('Test to').fill('100');
+    await feature.getByLabel('Test step').fill('100');
+    await feature.getByLabel('Objective').selectOption('minimize');
+    const run = feature.getByRole('button', { name: 'Test range', exact: true });
+    await run.click();
+    const grid = feature.getByRole('table', { name: 'Compare test values' });
+    await expect(feature.getByText(/1 of 2 combinations meet break-even · 1 with no operating activity/)).toBeVisible();
+    await expect(grid.locator('tbody')).toContainText('No operating activity');
+    await expect(grid.locator('tbody')).toContainText('Meets target');
+    await feature.getByRole('button', { name: 'Preview best combination' }).click();
+    await expect(feature.getByRole('heading', { name: 'Preview · Operating amount: 100' })).toBeVisible();
+    await feature.getByLabel('Meets break-even only').check();
+    await expect(grid.locator('tbody tr')).toHaveCount(1);
+    await expect(grid.locator('tbody')).not.toContainText('No operating activity');
+    await feature.getByLabel('Meets break-even only').uncheck();
+    await grid.getByLabel('Filter Break-even result').selectOption('inactive');
+    await feature.getByRole('button', { name: 'Apply column filters' }).click();
+    await expect(grid.locator('tbody tr')).toHaveCount(1);
+    await expect(grid.locator('tbody')).toContainText('No operating activity');
+    await feature.getByLabel('Test to').fill('0');
+    await run.click();
+    await expect(feature.getByText(/No tested combination meets break-even/)).toBeVisible();
+    await expect(feature.getByRole('button', { name: 'Preview best combination' })).toHaveCount(0);
+  });
+
   test('creates and selects a new business account without losing unsaved Workshop inputs', async ({ page }) => {
     await page.getByLabel('Scenario setup strategy').selectOption('business');
     const feature = page.locator('[data-business-model]');

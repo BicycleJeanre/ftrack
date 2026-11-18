@@ -50,12 +50,28 @@ test('operating break-even uses scheduled payments, excludes startup and funding
   ]) }, { months }).met, true);
 });
 
+test('windows without counted payments do not break even, while equal receipts and costs do', () => {
+  const plan = buildBusinessModelPlan(scenario, { ...model, flows: [
+    { name: 'Delayed receipts', kind: 'revenue', frequency: 'once', rate: '100', delay: '1' },
+    { name: 'Delayed costs', kind: 'cost', frequency: 'once', rate: '100', delay: '1' },
+    { name: 'Funding only', kind: 'funding', frequency: 'once', rate: '500' },
+    { name: 'Repayment', kind: 'repayment', frequency: 'once', rate: '50' }
+  ] });
+  const january = { months: ['2027-01'] };
+  const inactive = evaluateBusinessOperatingWindow(plan, january);
+  assert.deepEqual([inactive.net, inactive.inactive, inactive.met], [0, true, false]);
+  const withRepayment = evaluateBusinessOperatingWindow(plan, { ...january, includeRepayments: true });
+  assert.deepEqual([withRepayment.net, withRepayment.inactive, withRepayment.met], [-50, false, false]);
+  const balanced = evaluateBusinessOperatingWindow(plan, { months: ['2027-02'] });
+  assert.deepEqual([balanced.net, balanced.inactive, balanced.met], [0, false, true]);
+});
+
 test('other operating amounts exclude direct and indirect test-dependent flows, using the payment month', () => {
   const plan = buildBusinessModelPlan(scenario, { ...model, flows: [...model.flows,
     { name: 'Fixed rent', kind: 'cost', model: 'fixed', rate: '25', delay: '1' }
   ] }, [{ id: 'clients', value: 8 }]);
   assert.deepEqual(evaluateBusinessOperatingWindow(plan, { months: ['2027-02'] }), {
-    net: 190, met: true, revenue: 850, cost: 660, otherRevenue: 50, otherCost: 25, repayments: 0
+    net: 190, inactive: false, met: true, revenue: 850, cost: 660, otherRevenue: 50, otherCost: 25, repayments: 0
   });
 });
 
