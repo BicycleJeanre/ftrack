@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   buildBusinessModelPlan, evaluateBusinessBreakEven, evaluateBusinessOperatingWindow,
-  getBusinessModelTestCases, getBusinessOperatingMonths
+  getBusinessModelTestCases, getBusinessOperatingMonths, isBetterBusinessTestCase
 } from '../../js/domain/calculations/business-model.js';
 import { generateProjectionsForScenario } from '../../js/domain/calculations/projection-engine.js';
 import { sanitizeScenarioForWrite } from '../../js/shared/app-data-utils.js';
@@ -42,12 +42,46 @@ test('operating break-even uses scheduled payments, excludes startup and funding
   const months = getBusinessOperatingMonths(plan);
   assert.deepEqual(months, ['2027-01', '2027-02', '2027-03']);
   // Revenue collected later belongs to the payment month, not the activity month.
-  assert.deepEqual(evaluateBusinessOperatingWindow(plan, { months: months.slice(0, 1) }), { net: -95, met: false });
-  assert.deepEqual(evaluateBusinessOperatingWindow(plan, { months }), { net: 425, met: true });
-  assert.deepEqual(evaluateBusinessOperatingWindow(plan, { months, includeRepayments: true }), { net: -175, met: false });
+  assert.equal(evaluateBusinessOperatingWindow(plan, { months: months.slice(0, 1) }).net, -95);
+  assert.equal(evaluateBusinessOperatingWindow(plan, { months }).net, 425);
+  assert.equal(evaluateBusinessOperatingWindow(plan, { months, includeRepayments: true }).net, -175);
   assert.deepEqual(evaluateBusinessOperatingWindow({ totals: new Map([
     [months[0], { revenue: 0.1 + 0.2, cost: 0.3 }]
-  ]) }, { months }), { net: 0, met: true });
+  ]) }, { months }).met, true);
+});
+
+test('other operating amounts exclude direct and indirect test-dependent flows, using the payment month', () => {
+  const plan = buildBusinessModelPlan(scenario, { ...model, flows: [...model.flows,
+    { name: 'Fixed rent', kind: 'cost', model: 'fixed', rate: '25', delay: '1' }
+  ] }, [{ id: 'clients', value: 8 }]);
+  assert.deepEqual(evaluateBusinessOperatingWindow(plan, { months: ['2027-02'] }), {
+    net: 190, met: true, revenue: 850, cost: 660, otherRevenue: 50, otherCost: 25, repayments: 0
+  });
+});
+
+test('optimization respects priority, rejects nonpassing and unavailable cases, and breaks ties deterministically', () => {
+  const clients = { variable: 'clients', start: 1, end: 2, objective: 'minimize' };
+  const fee = { variable: 'fee', start: 50, end: 100, step: 50, objective: 'maximize' };
+  const optimize = (ranges, rejectHighFee = false) => {
+    const cases = getBusinessModelTestCases({ ...model, testRanges: ranges });
+    let best = null;
+    for (const [index, entry] of [...cases].entries()) {
+      const values = Object.fromEntries(entry.map(({ id, value }) => [id, value]));
+      const net = values.clients === 1 && values.fee === 100 ? -10 : values.fee * values.clients;
+      const candidate = { index, net, met: net >= 0 && !(rejectHighFee && values.fee === 100) };
+      if (isBetterBusinessTestCase(candidate, best, cases)) best = candidate;
+    }
+    return best;
+  };
+  assert.deepEqual(optimize([clients, fee]), { index: 0, net: 50, met: true });
+  assert.deepEqual(optimize([fee, clients]), { index: 3, net: 200, met: true });
+  assert.equal(optimize([fee, clients], true).index, 0);
+  const cases = getBusinessModelTestCases({ ...model, testRanges: [clients, { ...fee, objective: 'none' }] });
+  const low = { index: 0, net: 20, met: true };
+  const high = { index: 1, net: 30, met: true };
+  assert.equal(isBetterBusinessTestCase(high, low, cases), true);
+  assert.equal(isBetterBusinessTestCase(low, { ...high, net: 20 }, cases), true);
+  assert.equal(isBetterBusinessTestCase({ ...high, index: 3 }, low, cases), false);
 });
 
 test('operating windows contain only complete calendar months, including across year boundaries', () => {
@@ -146,10 +180,11 @@ test('payments on the 31st clamp independently of later months; partial scenario
 
 test('drafts survive normalization and invalid references fail clearly', () => {
   const stored = sanitizeScenarioForWrite({ ...scenario, name: 'Business',
-    planning: { workshopStrategy: 'business', businessModel: model } });
+    planning: { workshopStrategy: 'business', businessModel: { ...model, sweep: { ...model.sweep, objective: 'minimize' } } } });
   assert.equal(stored.planning.workshopStrategy, 'business');
   assert.equal(stored.planning.businessModel.variables[0].overrides, '2027-02=8');
   assert.equal(stored.planning.businessModel.testRanges[0].variable, 'clients');
+  assert.equal(stored.planning.businessModel.testRanges[0].objective, 'minimize');
   assert.throws(() => buildBusinessModelPlan(scenario, { ...model, variables: [] }), /existing variable/);
   assert.equal(getBusinessModelTestCases({ ...model, sweep: { variable: 'clients', start: 0, end: 100 } }).length, 101);
 });

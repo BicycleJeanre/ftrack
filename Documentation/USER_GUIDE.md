@@ -737,6 +737,9 @@ Period to review and track their dated occurrences.
 7. Use **Meets break-even only** and sort a tested variable low to high to find
    its lowest passing value among real combinations. To find the minimum
    number of customers at a particular fee, filter the fee column first.
+   **Operating revenue** and **Operating expenses** are the window totals.
+   **Other revenue** and **Other expenses** are the portions that do not depend
+   on any tested variable; they are already included in those totals.
    Filters below each column name accept exact values (separate alternatives
    with semicolons, e.g. `10; 20`) or a break-even status. **Apply column
    filters** works across all result pages, without rerunning the test.
@@ -745,6 +748,13 @@ Period to review and track their dated occurrences.
    startup funding and investment, and any configured cash floor or optional
    cash balance check. A passing window can still have a cash shortfall in an
    individual month; the preview shows when.
+8. For a recommendation, set each test variable's **Objective** to **Minimize**,
+   **Maximize**, or **Compare only**. If objectives conflict, the first objective
+   in the test list wins. Use **Move up** or **Move down** to change priority.
+   **Best tested combination** considers every passing case in the ranges,
+   regardless of grid filters. If the objectives tie, the higher operating net
+   wins, followed by test order for an exact tie. Use **Preview best
+   combination** to see the full monthly projection without applying changes.
 
 Open a flow's **Timing** button to change its activity dates or payment delay.
 By default, a recurring flow follows the scenario timeframe, a one-time flow

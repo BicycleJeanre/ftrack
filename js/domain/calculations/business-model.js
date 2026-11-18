@@ -18,6 +18,7 @@ export const BUSINESS_RATE_MODELS = {
 const MAX_MONTHS = 120;
 const MAX_VARIABLES = 40;
 const BREAK_EVEN_MODES = { none: true, ending: true, lowest: true };
+const TEST_OBJECTIVES = { none: true, minimize: true, maximize: true };
 const money = n => Math.round((n + Number.EPSILON) * 100) / 100;
 const string = (value, limit = 120) => ['string', 'number'].includes(typeof value)
   ? String(value).slice(0, limit) : '';
@@ -25,7 +26,8 @@ const fromList = (list, limit, normalize) => Array.isArray(list)
   ? list.slice(0, limit).filter(item => item && typeof item === 'object').map(normalize) : [];
 const pick = (value, choices, fallback) => typeof value === 'string' && Object.hasOwn(choices, value) ? value : fallback;
 const normalizeTestRange = (range = {}) => ({
-  variable: string(range.variable), start: string(range.start), end: string(range.end), step: string(range.step)
+  variable: string(range.variable), start: string(range.start), end: string(range.end), step: string(range.step),
+  objective: pick(range.objective, TEST_OBJECTIVES, 'none')
 });
 
 // Preserve incomplete drafts as typed. Validate numeric values and references at preview time.
@@ -106,15 +108,18 @@ export function getBusinessOperatingMonths({ startDate, endDate }) {
 
 // This is a cash-flow test of the modeled business, not an account balance test.
 export function evaluateBusinessOperatingWindow(plan, { months, includeRepayments }) {
-  let revenue = 0, cost = 0, repayments = 0;
+  let revenue = 0, cost = 0, repayments = 0, otherRevenue = 0, otherCost = 0;
   for (const month of months) {
     const payments = plan.totals.get(month);
     revenue += payments?.revenue ?? 0;
     cost += payments?.cost ?? 0;
     repayments += payments?.repayment ?? 0;
+    otherRevenue += payments?.otherRevenue ?? 0;
+    otherCost += payments?.otherCost ?? 0;
   }
   const net = money(revenue - cost - (includeRepayments ? repayments : 0));
-  return { net, met: net >= 0 };
+  return { net, met: net >= 0, revenue: money(revenue), cost: money(cost),
+    otherRevenue: money(otherRevenue), otherCost: money(otherCost), repayments: money(repayments) };
 }
 
 function readVariables(variables) {
@@ -160,6 +165,12 @@ function rateFor(flow, byId, month, revenue, override) {
     }
     default: return rate;
   }
+}
+
+function usesTestedVariable(flow, overrides) {
+  return overrides.has(flow.rateVariable) ||
+    (['volume', 'occupancy', 'share', 'stepped', 'tiered'].includes(flow.model) && overrides.has(flow.quantity)) ||
+    (flow.model === 'occupancy' && overrides.has(flow.occupancy));
 }
 
 export function buildBusinessModelPlan(scenario, rawModel, override = null) {
@@ -212,7 +223,8 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
     if (flow.kind === 'revenue' && flow.model === 'revenueShare') {
       throw new Error(`${name}: revenue cannot be a share of itself. Use Percentage of a variable instead.`);
     }
-    return { ...flow, name, from, through, accountId, delay: number(flow.delay, `${name} — payment delay`, {
+    return { ...flow, name, from, through, accountId, tested: usesTestedVariable(flow, overrides),
+      delay: number(flow.delay, `${name} — payment delay`, {
       fallback: 0, max: 24, integer: true
     }) };
   });
@@ -239,6 +251,7 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
       return activityDate >= flow.from && activityDate <= flow.through ? [{ flow, day }] : [];
     });
     let revenue = 0;
+    const testedRevenue = activity.some(({ flow }) => flow.kind === 'revenue' && flow.tested);
     const amounts = new Map();
     const calculate = (flow, gross) => money(number(rateFor(flow, variables, month, gross, overrides), `${flow.name} — calculated amount`));
     for (const { flow } of activity) {
@@ -261,6 +274,12 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
       const current = totals.get(key) || { revenue: 0, cost: 0 };
       if (['revenue', 'cost', 'repayment'].includes(flow.kind)) {
         current[flow.kind] = money((current[flow.kind] ?? 0) + amount);
+      }
+      // Only range cases need this breakdown. Commission on tested sales is
+      // also test-dependent, even when the commission percentage is fixed.
+      if (overrides.size && !flow.tested && !(flow.model === 'revenueShare' && testedRevenue)) {
+        const other = { revenue: 'otherRevenue', cost: 'otherCost' }[flow.kind];
+        if (other) current[other] = money((current[other] ?? 0) + amount);
       }
       totals.set(key, current);
     }
@@ -301,7 +320,7 @@ export function getBusinessModelTestCases(rawModel) {
   const seen = new Set();
   const ranges = [];
   let length = 1;
-  for (const { variable, start, end, step } of model.testRanges) {
+  for (const { variable, start, end, step, objective } of model.testRanges) {
     const label = variables.get(variable);
     if (!label) throw new Error('Choose an existing variable for each test range.');
     if (seen.has(variable)) throw new Error(`Test ${label} in only one range.`);
@@ -318,7 +337,7 @@ export function getBusinessModelTestCases(rawModel) {
     if (count > 1 && (by < Number.EPSILON * last / 2 || last === valueAt(count - 2))) {
       throw new Error(`${label} — increase the step to produce distinct values.`);
     }
-    ranges.push({ variable, count, valueAt });
+    ranges.push({ variable, count, valueAt, objective });
     length *= count;
   }
   const at = index => {
@@ -343,9 +362,22 @@ export function getBusinessModelTestCases(rawModel) {
     const range = ranges[dimension];
     return range.valueAt(Math.floor(index / strides[dimension]) % range.count);
   };
-  return { length, at, valueAt, *[Symbol.iterator]() {
+  const objectives = ranges.flatMap(({ variable, objective }, dimension) =>
+    objective === 'none' ? [] : [{ variable, objective, dimension }]);
+  return { length, at, valueAt, objectives, *[Symbol.iterator]() {
     for (let index = 0; index < length; index++) yield at(index);
   } };
+}
+
+// Only feasible tested cases compete. Objectives apply in priority order.
+export function isBetterBusinessTestCase(candidate, incumbent, cases) {
+  if (!candidate.met || !cases.objectives.length) return false;
+  if (!incumbent) return true;
+  for (const { dimension, objective } of cases.objectives) {
+    const difference = cases.valueAt(candidate.index, dimension) - cases.valueAt(incumbent.index, dimension);
+    if (difference !== 0) return objective === 'minimize' ? difference < 0 : difference > 0;
+  }
+  return candidate.net > incumbent.net || (candidate.net === incumbent.net && candidate.index < incumbent.index);
 }
 
 export function evaluateBusinessBreakEven(condition, projections) {

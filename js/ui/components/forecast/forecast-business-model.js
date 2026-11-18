@@ -1,8 +1,8 @@
 import {
   BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS,
   buildBusinessModelPlan, evaluateBusinessBreakEven, evaluateBusinessOperatingWindow,
-  getBusinessModelTestCases, getBusinessOperatingMonths, normalizeBusinessModel
-} from '../../../domain/calculations/business-model.js?v=workshop-operating-window-1';
+  getBusinessModelTestCases, getBusinessOperatingMonths, isBetterBusinessTestCase, normalizeBusinessModel
+} from '../../../domain/calculations/business-model.js?v=workshop-optimize-1';
 import { generateProjectionsForScenario } from '../../../domain/calculations/projection-engine.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
@@ -12,7 +12,7 @@ let nextDisclosureId = 0;
 const RESULTS_PER_PAGE = 50;
 const CASES_PER_BATCH = 8;
 const RESULT_INDEX_CHUNK = 4096;
-const CASH_RESULT_FIELDS = ['breakEvenMargin'];
+const CASH_RESULT_FIELDS = ['breakEvenMargin', 'revenue', 'cost', 'otherRevenue', 'otherCost', 'repayments'];
 const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
 
 function createResultIndex() {
@@ -383,7 +383,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
 
     const testHeading = node('div', null, 'business-row-heading');
     const addRange = button('Add test variable', () => {
-      model.testRanges.push({ variable: '', start: '', end: '', step: '' });
+      model.testRanges.push({ variable: '', start: '', end: '', step: '', objective: 'none' });
       invalidate();
       renderEditor();
       [...editor.querySelectorAll('select[aria-label="Variable to test"]')].at(-1)?.focus();
@@ -391,7 +391,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     addRange.disabled = model.testRanges.length >= model.variables.length;
     testHeading.append(node('h3', 'Test variables'), addRange);
     editor.append(testHeading, node('p',
-      'Test every combination of the ranges below. Tested values replace the selected variables for every month; other variables keep their monthly overrides.', 'text-muted'));
+      'Test every combination of the ranges below. Use Minimize or Maximize to rank combinations that break even. The first objective in the list takes priority; move a range up or down to change its priority. Tested values replace that variable’s monthly overrides.', 'text-muted'));
     model.testRanges.forEach((range, index) => {
       const row = node('fieldset', null, 'business-fields business-editor-row');
       row.append(node('legend', `Test range ${index + 1}`));
@@ -399,6 +399,22 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       inputNumber(row, 'Test from', range, 'start');
       inputNumber(row, 'Test to', range, 'end');
       inputNumber(row, 'Test step', range, 'step', '1');
+      selector(row, 'Objective', range, 'objective', [
+        ['none', 'Compare only'], ['minimize', 'Minimize'], ['maximize', 'Maximize']
+      ]);
+      const orderControls = node('div', null, 'business-row-heading');
+      for (const [delta, label] of [[-1, 'Move up'], [1, 'Move down']]) {
+        const next = index + delta;
+        const move = button(label, () => {
+          [model.testRanges[index], model.testRanges[next]] = [model.testRanges[next], model.testRanges[index]];
+          invalidate();
+          renderEditor();
+          editor.querySelectorAll('select[aria-label="Objective"]')[next]?.focus();
+        });
+        move.disabled = next < 0 || next >= model.testRanges.length;
+        orderControls.append(move);
+      }
+      row.append(orderControls);
       row.append(button('Remove test variable', () => {
         model.testRanges.splice(index, 1);
         invalidate();
@@ -493,10 +509,17 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       if (sweep) {
         let metCount = 0;
         let unavailableCount = 0;
+        let best = null;
         const resultIndex = createResultIndex();
         const cashMetric = (label, field, kind = 'currency') => [label, index => resultIndex.get(index, field), kind];
+        const operatingMetrics = [
+          ['Operating revenue', 'revenue'], ['Other revenue', 'otherRevenue'],
+          ['Operating expenses', 'cost'], ['Other expenses', 'otherCost'],
+          ...(window.includeRepayments ? [['Financing repayments', 'repayments']] : [])
+        ];
         const metrics = [
           ...cases.at(0).map(({ id }, dimension) => [variableName(id), index => cases.valueAt(index, dimension)]),
+          ...operatingMetrics.map(([label, field]) => cashMetric(label, field)),
           cashMetric('Break-even result', 'breakEvenMargin', 'status')
         ];
         const headers = metrics.map(([name]) => name);
@@ -511,14 +534,16 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
             return {
               index, entry, valid: false, unavailable: true,
               error: error.message,
-              row: [...values, 'Not evaluated']
+              row: [...values, ...operatingMetrics.map(() => '—'), 'Not evaluated']
             };
           }
-          const { net, met } = evaluateBusinessOperatingWindow(plan, window);
+          const amounts = evaluateBusinessOperatingWindow(plan, window);
+          const { net, met } = amounts;
           return {
-            index, entry, valid: true, met,
-            sortValues: { breakEvenMargin: net },
-            row: [...values, met ? `Meets target · ${currencies(net)} net` : `Short by ${currencies(-net)}`]
+            index, entry, valid: true, met, net,
+            sortValues: { ...amounts, breakEvenMargin: net },
+            row: [...values, ...operatingMetrics.map(([, field]) => currencies(amounts[field])),
+              met ? `Meets target · ${currencies(net)} net` : `Short by ${currencies(-net)}`]
           };
         }
 
@@ -529,6 +554,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           const result = evaluateCase(index);
           resultIndex.append(index, result);
           if (result.met) metCount++;
+          if (isBetterBusinessTestCase(result, best, cases)) best = { index, net: result.net };
           if (result.unavailable) unavailableCount++;
           if (index < RESULTS_PER_PAGE) firstPage.push(result);
           if ((index + 1) % CASES_PER_BATCH === 0 && active()) {
@@ -541,6 +567,21 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         const dateRange = length === 1 ? window.months[0] : `${window.months[0]} to ${window.months.at(-1)}`;
         const summary = `${metCount.toLocaleString()} of ${cases.length.toLocaleString()} combinations meet break-even${unavailableCount ? ` · ${unavailableCount.toLocaleString()} not evaluated` : ''}.`;
         results.append(node('p', `${summary} Window: ${dateRange} · Financing repayments ${window.includeRepayments ? 'included' : 'excluded'}.`));
+        if (cases.objectives.length) {
+          const recommendation = node('section', null, 'business-editor-row');
+          const priorities = cases.objectives.map(({ variable, objective }) =>
+            `${objective === 'minimize' ? 'Minimize' : 'Maximize'} ${variableName(variable)}`);
+          recommendation.append(node('h3', 'Best tested combination'),
+            node('p', `Priority: ${priorities.join(' → ')}.`));
+          if (best) {
+            recommendation.append(node('p', `${describeCase(cases.at(best.index))} · ${currencies(best.net)} net.`),
+              button('Preview best combination', () => previewCase(best.index)));
+          } else {
+            recommendation.append(node('p', 'No tested combination meets break-even. Try changing the ranges or the model.'));
+          }
+          recommendation.append(node('p', 'If objectives tie, the higher net wins. If net also ties, the first tested combination wins. Table filters don’t change this recommendation.', 'text-muted'));
+          results.append(recommendation);
+        }
         results.append(node('p', 'To find the lowest passing input, show only passing results and sort that variable low to high. Select a result to see its full monthly preview below.'));
         const pageContent = node('div', null, 'business-results');
         const navigation = node('div', null, 'business-row-heading');
@@ -743,6 +784,8 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         const descriptions = node('dl');
         const terms = [
           ['Test values', 'Each row is a tested combination. Select it to see monthly cash flow and closing balances for the full scenario.'],
+          ['Operating revenue and expenses', 'Totals for the selected window. Expenses are shown as positive amounts to subtract.'],
+          ['Other revenue and other expenses', 'Amounts from flows that do not depend on the tested variables. These are already included in the operating totals, not added again.'],
           ['Break-even result', 'Scheduled operating receipts minus operating payments during the selected window. A net of zero or more passes. Startup costs, funding and opening balances are excluded. Repayments count only when selected. The preview still shows the full projected cash position.']
         ];
         for (const [term, description] of terms) descriptions.append(node('dt', term), node('dd', description));
