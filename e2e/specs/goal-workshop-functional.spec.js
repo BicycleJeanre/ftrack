@@ -89,6 +89,27 @@ test.describe('Goal Workshop browser functionality', () => {
     await expect(page.getByLabel('Scenario setup strategy')).toHaveValue('business');
     await expect(feature.getByLabel('Default value')).toHaveValue('5');
     await expect(feature.getByLabel('Flow name').last()).toHaveValue('Payroll');
+    await feature.getByLabel('Objective').selectOption('maximize');
+    await feature.getByLabel('Pause range').check();
+    await expect(feature.getByLabel('Test from')).toBeDisabled();
+    await expect(feature.getByLabel('Objective')).toBeDisabled();
+    await runButton.click();
+    await expect(comparison.getByRole('columnheader', { name: 'Subscribers (default)', exact: true })).toBeVisible();
+    await expect(comparison.getByRole('row')).toHaveCount(2);
+    await expect(feature.getByRole('heading', { name: 'Best tested combination' })).toHaveCount(0);
+    await comparison.getByRole('button', { name: 'Preview Subscribers: 5', exact: true }).click();
+    await expect(feature.getByRole('heading', { name: 'Preview · Subscribers: 5' })).toBeVisible();
+    await feature.getByRole('button', { name: 'Save setup' }).click();
+    await waitForScenario(page, current => current.planning.businessModel?.testRanges[0]?.paused === true);
+    await page.reload();
+    await expect(feature.getByLabel('Pause range')).toBeChecked();
+    await feature.getByLabel('Pause range').uncheck();
+    await expect(feature.getByLabel('Test from')).toHaveValue('2');
+    await expect(feature.getByLabel('Test to')).toHaveValue('6');
+    await expect(feature.getByLabel('Objective')).toHaveValue('maximize');
+    await runButton.click();
+    await expect(comparison.getByRole('row')).toHaveCount(4);
+    await expect(feature.getByRole('heading', { name: 'Best tested combination' })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     await feature.getByRole('button', { name: 'Preview projections', exact: true }).click();
     await expect(feature.getByRole('status')).toContainText('Preview only');
@@ -304,10 +325,10 @@ test.describe('Goal Workshop browser functionality', () => {
     await feature.getByLabel('Window start month').selectOption('2026-02');
     await feature.getByLabel('Window length').selectOption('3');
     await feature.getByLabel('Break-even balance').fill('1000000000');
-    await feature.getByRole('button', { name: 'Add other flow', exact: true }).click();
+    await feature.getByRole('button', { name: 'Add financing payment', exact: true }).click();
     const repayment = feature.getByRole('group', { name: 'Flow 3', exact: true });
     await repayment.getByLabel('Flow name').fill('Financing repayment');
-    await repayment.getByLabel('Flow type').selectOption('repayment');
+    await expect(repayment.getByLabel('Flow type')).toHaveValue('repayment');
     await repayment.getByLabel('Frequency').selectOption('once');
     await repayment.getByLabel('Amount', { exact: true }).fill('300');
     await repayment.getByRole('button', { name: 'Timing · Scenario timeframe' }).click();
@@ -363,6 +384,37 @@ test.describe('Goal Workshop browser functionality', () => {
     await feature.getByRole('button', { name: 'Cancel test', exact: true }).click();
     await expect(feature.getByRole('status')).toContainText('Range test canceled');
     await expect(run).toBeEnabled();
+  });
+
+  test('keeps saved startup flows out of the Workshop editor and preview without deleting them', async ({ page }) => {
+    const scenario = await currentScenario(page);
+    await page.evaluate(async ({ id, cashAccountId }) => {
+      const { saveWorkshopSetup } = await import('/js/app/managers/scenario-manager.js');
+      await saveWorkshopSetup(id, { strategy: 'business', businessModel: {
+        cashAccountId,
+        flows: [
+          { name: 'Legacy setup purchase', kind: 'investment', frequency: 'once', rate: '500' },
+          { name: 'Service receipts', kind: 'revenue', frequency: 'once', rate: '100' }
+        ]
+      } });
+    }, { id: scenario.id, cashAccountId: scenario.accounts.find(account => account.name === 'Checking').id });
+    await page.reload();
+    const feature = page.locator('[data-business-model]');
+    const flow = feature.getByRole('group', { name: 'Flow 1', exact: true });
+    await expect(flow.getByLabel('Flow name')).toHaveValue('Service receipts');
+    await expect(feature.getByRole('group', { name: 'Flow 2', exact: true })).toHaveCount(0);
+    await expect(flow.getByLabel('Flow type').locator('option[value="investment"]')).toHaveCount(0);
+    await expect(feature.getByText(/Previously saved startup and investment flows are retained/)).toBeVisible();
+    await feature.getByRole('button', { name: 'Preview projections', exact: true }).click();
+    const january = feature.getByRole('table', { name: 'Monthly cash flow and projected closing balances' })
+      .getByRole('row', { name: /^2026-01/ });
+    await expect(january.getByRole('cell').last()).toContainText('100');
+    await feature.getByText('Review proposed Plan Rules (1)', { exact: true }).click();
+    await expect(feature.getByRole('table', { name: 'Proposed account movements' })).not.toContainText('Legacy setup purchase');
+    await flow.getByLabel('Flow name').fill('Updated service receipts');
+    await feature.getByRole('button', { name: 'Save setup', exact: true }).click();
+    await waitForScenario(page, saved => saved.planning.businessModel.flows.some(row => row.name === 'Updated service receipts') &&
+      saved.planning.businessModel.flows.some(row => row.kind === 'investment' && row.rate === '500'));
   });
 
   test('keeps zero-activity cases out of passing results and break-even recommendations', async ({ page }) => {

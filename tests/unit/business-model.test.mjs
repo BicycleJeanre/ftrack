@@ -107,10 +107,13 @@ test('operating windows contain only complete calendar months, including across 
   assert.deepEqual(getBusinessOperatingMonths({ startDate: '2028-02-01', endDate: '2028-02-28' }), []);
 });
 
-test('mixed business plan uses actuals and existing plan rules via the projection engine without writing', async () => {
+test('mixed business preview uses existing plan rules and actuals but excludes legacy setup purchases', async () => {
   const snapshot = structuredClone(scenario);
   const plan = buildBusinessModelPlan(scenario, model);
   assert.equal(plan.deferredCount, 1);
+  assert.ok(!plan.rules.some(rule => rule.description === 'Setup purchase'));
+  assert.throws(() => buildBusinessModelPlan(scenario, { ...model, flows: [model.flows.find(flow => flow.kind === 'investment')] }),
+    /Add at least one revenue, operating cost/);
   assert.deepEqual([...plan.totals], [
     ['2027-02', { revenue: 450, cost: 635 }],
     ['2027-01', { revenue: 50, cost: 145 }],
@@ -121,7 +124,7 @@ test('mixed business plan uses actuals and existing plan rules via the projectio
   const baseline = await generateProjectionsForScenario(scenario, {}, lookup);
   const balances = (rows, id) => rows.filter(row => row.accountId === id).map(row => row.balance);
   assert.deepEqual(balances(baseline, 1), [1100, 1100, 1100]);
-  assert.deepEqual(balances(preview, 1), [905, 720, 1425]);
+  assert.deepEqual(balances(preview, 1), [1105, 920, 1625]);
   assert.deepEqual(balances(preview, 2), [1900, 1900, 1900]);
   assert.equal(plan.rules.find(rule => rule.description === 'Walk-in sales').recurrence.endDate, '2027-03-01');
   assert.ok(plan.rules.every(rule => rule.id > 84));
@@ -157,16 +160,37 @@ test('multiple ranges run as a Cartesian product and replace both monthly driver
   assert.throws(() => getBusinessModelTestCases({ ...model, testRanges: [testRanges[0], testRanges[0]] }), /only one range/);
 });
 
+test('paused ranges pin the exact default, skip saved sweep settings and resume without losing them', () => {
+  const clients = { variable: 'clients', start: '7', end: '8', step: '1', objective: 'minimize', paused: true };
+  const fee = { variable: 'fee', start: '100', end: '150', step: '50', objective: 'maximize' };
+  const paused = getBusinessModelTestCases({ ...model, testRanges: [clients, fee] });
+  assert.deepEqual([...paused].map(row => row.map(entry => entry.value)), [[4, 100], [4, 150]]);
+  assert.deepEqual(paused.objectives.map(objective => objective.variable), ['fee']);
+  assert.equal(paused.valueAt(1, 0), 4);
+  const plan = buildBusinessModelPlan(scenario, model, paused.at(1));
+  // February's usual customer override is 8. Its March collection now uses 4.
+  assert.equal(plan.totals.get('2027-03').revenue, 650);
+  const allPaused = getBusinessModelTestCases({ ...model, testRanges: [clients, { ...fee, paused: true, step: '' }] });
+  assert.equal(allPaused.length, 1);
+  assert.deepEqual(allPaused.objectives, []);
+  const defaultPlan = buildBusinessModelPlan(scenario, model, allPaused.at(0));
+  assert.equal(defaultPlan.totals.get('2027-03').revenue, 450);
+  assert.equal(defaultPlan.totals.get('2027-03').otherRevenue, 450);
+  const resumed = getBusinessModelTestCases({ ...model, testRanges: [{ ...clients, paused: false }, fee] });
+  assert.equal(resumed.length, 4);
+  assert.deepEqual(resumed.objectives.map(objective => objective.variable), ['clients', 'fee']);
+});
+
 test('break-even can use a specific account and distinguish ending from intervening monthly shortfalls', async () => {
-  const plan = buildBusinessModelPlan(scenario, { ...model, breakEven: { mode: 'ending', accountId: 1, threshold: 1425 } });
+  const plan = buildBusinessModelPlan(scenario, { ...model, breakEven: { mode: 'ending', accountId: 1, threshold: 1625 } });
   const preview = await generateProjectionsForScenario({
     ...scenario, transactions: [...scenario.transactions, ...plan.rules]
   }, {}, lookup);
   const ending = evaluateBusinessBreakEven(plan.breakEven, preview);
   assert.equal(ending.status, 'met'); // Exactly at the threshold also qualifies.
-  assert.equal(ending.balance, 1425);
+  assert.equal(ending.balance, 1625);
   const lowest = evaluateBusinessBreakEven({ ...plan.breakEven, mode: 'lowest' }, preview);
-  assert.deepEqual(lowest, { status: 'missed', balance: 720, date: '2027-02-01', shortfall: 705 });
+  assert.deepEqual(lowest, { status: 'missed', balance: 920, date: '2027-02-01', shortfall: 705 });
   assert.equal(evaluateBusinessBreakEven({ ...plan.breakEven, accountId: 2 }, preview).balance, 1900);
   assert.deepEqual(evaluateBusinessBreakEven({ ...plan.breakEven, accountId: 5 }, preview), { status: 'unavailable' });
   assert.equal(buildBusinessModelPlan(scenario, { ...model, breakEven: { mode: 'ending' } }).breakEven.threshold, 0);
@@ -196,11 +220,14 @@ test('payments on the 31st clamp independently of later months; partial scenario
 
 test('drafts survive normalization and invalid references fail clearly', () => {
   const stored = sanitizeScenarioForWrite({ ...scenario, name: 'Business',
-    planning: { workshopStrategy: 'business', businessModel: { ...model, sweep: { ...model.sweep, objective: 'minimize' } } } });
+    planning: { workshopStrategy: 'business', businessModel: { ...model, sweep: { ...model.sweep, objective: 'minimize', paused: true } } } });
   assert.equal(stored.planning.workshopStrategy, 'business');
   assert.equal(stored.planning.businessModel.variables[0].overrides, '2027-02=8');
   assert.equal(stored.planning.businessModel.testRanges[0].variable, 'clients');
   assert.equal(stored.planning.businessModel.testRanges[0].objective, 'minimize');
+  assert.equal(stored.planning.businessModel.testRanges[0].paused, true);
+  assert.equal(stored.planning.businessModel.testRanges[0].start, '7');
+  assert.equal(stored.planning.businessModel.flows.find(flow => flow.kind === 'investment').rate, '200');
   assert.throws(() => buildBusinessModelPlan(scenario, { ...model, variables: [] }), /existing variable/);
   assert.equal(getBusinessModelTestCases({ ...model, sweep: { variable: 'clients', start: 0, end: 100 } }).length, 101);
 });

@@ -1,7 +1,7 @@
 // Scenario Setup compiles assumptions into the same rules used by Plan & Actuals.
 // It does not store rules, modify the scenario, or run a second balance engine.
 export const BUSINESS_FLOW_KINDS = {
-  revenue: 'Revenue', cost: 'Operating cost', investment: 'Startup / investment',
+  revenue: 'Revenue', cost: 'Operating cost',
   funding: 'Funding received', repayment: 'Financing payment'
 };
 
@@ -27,7 +27,7 @@ const fromList = (list, limit, normalize) => Array.isArray(list)
 const pick = (value, choices, fallback) => typeof value === 'string' && Object.hasOwn(choices, value) ? value : fallback;
 const normalizeTestRange = (range = {}) => ({
   variable: string(range.variable), start: string(range.start), end: string(range.end), step: string(range.step),
-  objective: pick(range.objective, TEST_OBJECTIVES, 'none')
+  objective: pick(range.objective, TEST_OBJECTIVES, 'none'), paused: range.paused === true
 });
 
 // Preserve incomplete drafts as typed. Validate numeric values and references at preview time.
@@ -51,7 +51,8 @@ export function normalizeBusinessModel(raw = {}) {
     })),
     flows: fromList(model.flows, 80, flow => ({
       name: string(flow.name),
-      kind: pick(flow.kind, BUSINESS_FLOW_KINDS, 'revenue'),
+      // Preserve old drafts without treating a retired startup entry as revenue.
+      kind: flow.kind === 'investment' ? 'investment' : pick(flow.kind, BUSINESS_FLOW_KINDS, 'revenue'),
       model: pick(flow.model, BUSINESS_RATE_MODELS, 'fixed'),
       frequency: flow.frequency === 'once' ? 'once' : 'monthly',
       startDate: string(flow.startDate, 10), endDate: string(flow.endDate, 10),
@@ -62,6 +63,10 @@ export function normalizeBusinessModel(raw = {}) {
       secondRate: string(flow.secondRate), minimum: string(flow.minimum)
     }))
   };
+}
+
+export function getBusinessSetupFlows(model) {
+  return model.flows.filter(flow => flow.kind !== 'investment');
 }
 
 function number(raw, label, { fallback, min = 0, max = 1e12, integer = false } = {}) {
@@ -168,10 +173,10 @@ function rateFor(flow, byId, month, revenue, override) {
   }
 }
 
-function usesTestedVariable(flow, overrides) {
-  return overrides.has(flow.rateVariable) ||
-    (['volume', 'occupancy', 'share', 'stepped', 'tiered'].includes(flow.model) && overrides.has(flow.quantity)) ||
-    (flow.model === 'occupancy' && overrides.has(flow.occupancy));
+function usesTestedVariable(flow, testedVariables) {
+  return testedVariables.has(flow.rateVariable) ||
+    (['volume', 'occupancy', 'share', 'stepped', 'tiered'].includes(flow.model) && testedVariables.has(flow.quantity)) ||
+    (flow.model === 'occupancy' && testedVariables.has(flow.occupancy));
 }
 
 export function buildBusinessModelPlan(scenario, rawModel, override = null) {
@@ -190,13 +195,16 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
   if (model.ownerAccountId && (!accountIds.has(model.ownerAccountId) || model.ownerAccountId === model.cashAccountId)) {
     throw new Error('Select a different existing account for the owner cash preview.');
   }
-  if (!model.flows.length) throw new Error('Add at least one revenue, cost, or funding row.');
+  const setupFlows = getBusinessSetupFlows(model);
+  if (!setupFlows.length) throw new Error('Add at least one revenue, operating cost, funding, or financing payment flow.');
   const variables = readVariables(model.variables);
   const floors = model.minimumCash === '' ? null : number(model.minimumCash, 'Minimum closing cash', { min: -1e12 });
   const overrides = new Map();
+  const testedVariables = new Set();
   for (const entry of Array.isArray(override) ? override : override ? [override] : []) {
     if (!variables.has(entry.id) || overrides.has(entry.id)) throw new Error('Choose a different existing variable for each test range.');
     overrides.set(entry.id, number(entry.value, 'Test value'));
+    if (!entry.paused) testedVariables.add(entry.id);
   }
   let breakEven = null;
   if (model.breakEven.mode !== 'none') {
@@ -208,7 +216,7 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
     };
   }
 
-  const flows = model.flows.map((flow, index) => {
+  const flows = setupFlows.map((flow, index) => {
     const name = flow.name.trim();
     if (!name) throw new Error(`Name flow ${index + 1}.`);
     const from = date(flow.startDate || startDate, `${name} start date`);
@@ -224,7 +232,7 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
     if (flow.kind === 'revenue' && flow.model === 'revenueShare') {
       throw new Error(`${name}: revenue cannot be a share of itself. Use Percentage of a variable instead.`);
     }
-    return { ...flow, name, from, through, accountId, tested: usesTestedVariable(flow, overrides),
+    return { ...flow, name, from, through, accountId, tested: usesTestedVariable(flow, testedVariables),
       delay: number(flow.delay, `${name} — payment delay`, {
       fallback: 0, max: 24, integer: true
     }) };
@@ -317,15 +325,21 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
 export function getBusinessModelTestCases(rawModel) {
   const model = normalizeBusinessModel(rawModel);
   if (!model.testRanges.length) throw new Error('Add a variable to test.');
-  const variables = new Map(model.variables.map(variable => [variable.id, variable.name]));
+  const variables = new Map(model.variables.map(variable => [variable.id, variable]));
   const seen = new Set();
   const ranges = [];
   let length = 1;
-  for (const { variable, start, end, step, objective } of model.testRanges) {
-    const label = variables.get(variable);
-    if (!label) throw new Error('Choose an existing variable for each test range.');
+  for (const { variable, start, end, step, objective, paused } of model.testRanges) {
+    const target = variables.get(variable);
+    if (!target?.name) throw new Error('Choose an existing variable for each test range.');
+    const label = target.name;
     if (seen.has(variable)) throw new Error(`Test ${label} in only one range.`);
     seen.add(variable);
+    if (paused) {
+      const defaultValue = number(target.value, `${label} — Default value`);
+      ranges.push({ variable, count: 1, valueAt: () => defaultValue, objective: 'none', paused: true });
+      continue;
+    }
     const from = number(start, `${label} — Test from`);
     const to = number(end, `${label} — Test to`, { min: from });
     const by = number(step, `${label} — Test step`, { min: 0.000001, fallback: 1 });
@@ -345,8 +359,8 @@ export function getBusinessModelTestCases(rawModel) {
     if (!Number.isSafeInteger(index) || index < 0 || index >= length) return undefined;
     const values = new Array(ranges.length);
     for (let i = ranges.length - 1; i >= 0; i--) {
-      const { variable, count, valueAt } = ranges[i];
-      values[i] = { id: variable, value: valueAt(index % count) };
+      const { variable, count, valueAt, paused } = ranges[i];
+      values[i] = { id: variable, value: valueAt(index % count), ...(paused ? { paused: true } : {}) };
       index = Math.floor(index / count);
     }
     return values;

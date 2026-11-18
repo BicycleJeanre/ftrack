@@ -710,22 +710,25 @@ Period to review and track their dated occurrences.
    **Capacity × occupancy % × rate** for rentals, **Percentage of a variable**
    for marketplace commission, or **Usage with a second rate above threshold**
    for metered billing. Use a **Fixed amount** on a one-time activity date
-   for milestone receipts, asset purchases, or a loan draw. Use **Base amount
+   for milestone receipts or a loan draw. Use **Base amount
    + increase at threshold** for a cost such as payroll that steps up with demand.
 4. Choose where each movement goes. By default, the primary account is the
-   business cash account. Revenue and funding flow into it; costs, purchases,
+   business cash account. Revenue and funding flow into it; operating costs
    and financing payments flow out. A counterparty account records the other
-   side of the same movement. To model an owner-funded purchase, you can
-   enter the owner contribution and the purchase separately. For financing,
-   enter the draw and scheduled repayments explicitly; this is not a loan
-   quote or a loan repayment calculator.
+   side of the same movement. Add startup and investment costs later in
+   **Plan & Actuals**, not in Workshop. Previously saved startup flows are
+   retained but ignored in Workshop. For financing, enter the draw and
+   scheduled repayments explicitly; this is not a loan repayment calculator.
 5. Use **Preview projections** to compare the current scenario and the same
    scenario with the proposed Plan Rules included. The preview shows modeled
    scheduled operating cash flows, closing balances from the existing
    projection engine, and the first month below the cash floor, if any.
    Open **Review proposed Plan Rules** to inspect the amounts and schedules.
 6. To compare assumptions, add each **Test variable**, then enter its range and
-   step. Set the **Operating break-even window**. It starts with the first
+   step. **Pause range** holds that variable at its **Default value** for every
+   month of the test, bypassing monthly overrides and its optimization
+   objective. Unpause it to restore the same range and objective.
+   Set the **Operating break-even window**. It starts with the first
    full month in the scenario by default. Choose a start month and a length of
    one, three, or twelve full months. For example, choose three months if
    an operating payment lands only once that quarter. Test range compares all
@@ -747,7 +750,7 @@ Period to review and track their dated occurrences.
    filters** works across all result pages, without rerunning the test.
    Click any result row to see its full monthly cash-flow and closing-balance
    preview. The preview includes the scenario's existing transactions,
-   startup funding and investment, and any configured cash floor or optional
+   modeled funding and repayments, and any configured cash floor or optional
    cash balance check. A passing window can still have a cash shortfall in an
    individual month; the preview shows when.
 8. For a recommendation, set each test variable's **Objective** to **Minimize**,

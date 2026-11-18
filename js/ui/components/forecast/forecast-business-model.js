@@ -1,8 +1,9 @@
 import {
   BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS,
   buildBusinessModelPlan, evaluateBusinessBreakEven, evaluateBusinessOperatingWindow,
-  getBusinessModelTestCases, getBusinessOperatingMonths, isBetterBusinessTestCase, normalizeBusinessModel
-} from '../../../domain/calculations/business-model.js?v=workshop-activity-1';
+  getBusinessModelTestCases, getBusinessOperatingMonths, getBusinessSetupFlows,
+  isBetterBusinessTestCase, normalizeBusinessModel
+} from '../../../domain/calculations/business-model.js?v=workshop-pause-range-1';
 import { generateProjectionsForScenario } from '../../../domain/calculations/projection-engine.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
@@ -278,7 +279,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     model.flows.push(flow);
     invalidate();
     renderEditor();
-    editor.querySelectorAll('[aria-label="Flow name"]').item(model.flows.length - 1)?.focus();
+    editor.querySelectorAll('[aria-label="Flow name"]').item(getBusinessSetupFlows(model).length - 1)?.focus();
   };
 
   function renderEditor() {
@@ -313,7 +314,9 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
 
     const flowHeader = node('div', null, 'business-row-heading');
     flowHeader.append(node('h3', 'Revenue, costs & funding'), button('Add revenue', () => newFlow('revenue')),
-      button('Add cost', () => newFlow('cost')), button('Add other flow', () => newFlow('investment')));
+      button('Add cost', () => newFlow('cost')),
+      button('Add funding', () => newFlow('funding', { frequency: 'once' })),
+      button('Add financing payment', () => newFlow('repayment')));
     const presets = node('div', null, 'business-row-heading');
     const presetSelect = node('select', null, 'input-select');
     presetSelect.setAttribute('aria-label', 'Revenue model preset');
@@ -326,8 +329,12 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     addPreset.disabled = true;
     presetSelect.addEventListener('change', () => { addPreset.disabled = presetSelect.value === ''; });
     presets.append(presetSelect, addPreset);
-    editor.append(flowHeader, node('p', 'Mix custom flows or start from a preset. For purchases or loan draws, choose One time. For repayments, enter the payment schedule as a financing flow.', 'text-muted'), presets);
-    model.flows.forEach((flow, index) => {
+    editor.append(flowHeader, node('p', 'Mix custom flows or start from a preset. Add startup and investment costs later in Plan & Actuals.', 'text-muted'), presets);
+    const setupFlows = getBusinessSetupFlows(model);
+    if (setupFlows.length < model.flows.length) {
+      editor.append(node('p', 'Previously saved startup and investment flows are retained but excluded from this setup and its preview.', 'text-muted'));
+    }
+    setupFlows.forEach((flow, index) => {
       const row = node('fieldset', null, 'business-fields business-editor-row');
       row.append(node('legend', `Flow ${index + 1}`));
       field(row, 'Flow name', flow, 'name');
@@ -371,7 +378,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         invalidate();
       }));
       row.append(button('Remove flow', () => {
-        model.flows.splice(index, 1);
+        model.flows.splice(model.flows.indexOf(flow), 1);
         invalidate();
         renderEditor();
         editor.querySelectorAll('[aria-label="Flow name"]').item(Math.max(0, index - 1))?.focus();
@@ -382,7 +389,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
 
     const testHeading = node('div', null, 'business-row-heading');
     const addRange = button('Add test variable', () => {
-      model.testRanges.push({ variable: '', start: '', end: '', step: '', objective: 'none' });
+      model.testRanges.push({ variable: '', start: '', end: '', step: '', objective: 'none', paused: false });
       invalidate();
       renderEditor();
       [...editor.querySelectorAll('select[aria-label="Variable to test"]')].at(-1)?.focus();
@@ -390,17 +397,32 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     addRange.disabled = model.testRanges.length >= model.variables.length;
     testHeading.append(node('h3', 'Test variables'), addRange);
     editor.append(testHeading, node('p',
-      'Test every combination of the ranges below. Use Minimize or Maximize to rank combinations that break even. The first objective in the list takes priority; move a range up or down to change its priority. Tested values replace that variable’s monthly overrides.', 'text-muted'));
+      'Test every combination of the ranges below. Use Minimize or Maximize to rank combinations that break even, in priority order. Pause a range to use its default in every month of the test and skip its objective.', 'text-muted'));
     model.testRanges.forEach((range, index) => {
       const row = node('fieldset', null, 'business-fields business-editor-row');
       row.append(node('legend', `Test range ${index + 1}`));
       field(row, 'Variable to test', range, 'variable', { options: variableOptions(), variable: true });
-      inputNumber(row, 'Test from', range, 'start');
-      inputNumber(row, 'Test to', range, 'end');
-      inputNumber(row, 'Test step', range, 'step', '1');
-      selector(row, 'Objective', range, 'objective', [
-        ['none', 'Compare only'], ['minimize', 'Minimize'], ['maximize', 'Maximize']
-      ]);
+      const pauseLabel = node('label', ' Pause range');
+      const pause = node('input');
+      pause.type = 'checkbox';
+      pause.checked = range.paused;
+      pauseLabel.prepend(pause);
+      row.append(pauseLabel);
+      const rangeInputs = [
+        inputNumber(row, 'Test from', range, 'start'),
+        inputNumber(row, 'Test to', range, 'end'),
+        inputNumber(row, 'Test step', range, 'step', '1'),
+        selector(row, 'Objective', range, 'objective', [
+          ['none', 'Compare only'], ['minimize', 'Minimize'], ['maximize', 'Maximize']
+        ])
+      ];
+      const applyPause = () => rangeInputs.forEach(input => { input.disabled = pause.checked; });
+      pause.addEventListener('change', () => {
+        range.paused = pause.checked;
+        applyPause();
+        invalidate();
+      });
+      applyPause();
       const orderControls = node('div', null, 'business-row-heading');
       for (const [delta, label] of [[-1, 'Move up'], [1, 'Move down']]) {
         const next = index + delta;
@@ -408,7 +430,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           [model.testRanges[index], model.testRanges[next]] = [model.testRanges[next], model.testRanges[index]];
           invalidate();
           renderEditor();
-          editor.querySelectorAll('select[aria-label="Objective"]')[next]?.focus();
+          editor.querySelectorAll('select[aria-label="Variable to test"]')[next]?.focus();
         });
         move.disabled = next < 0 || next >= model.testRanges.length;
         orderControls.append(move);
@@ -518,7 +540,8 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           ...(window.includeRepayments ? [['Financing repayments', 'repayments']] : [])
         ];
         const metrics = [
-          ...cases.at(0).map(({ id }, dimension) => [variableName(id), index => cases.valueAt(index, dimension)]),
+          ...cases.at(0).map(({ id, paused }, dimension) =>
+            [`${variableName(id)}${paused ? ' (default)' : ''}`, index => cases.valueAt(index, dimension)]),
           ...operatingMetrics.map(([label, field]) => cashMetric(label, field)),
           cashMetric('Break-even result', 'breakEvenMargin', 'status')
         ];
