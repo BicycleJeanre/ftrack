@@ -32,6 +32,27 @@ function createResultIndex() {
     }
   };
 }
+
+function compileColumnFilter(raw, kind, label) {
+  if (!raw.trim()) return null;
+  if (kind === 'status') {
+    if (raw === 'met') return value => Number.isFinite(value) && value >= 0;
+    if (raw === 'below') return value => Number.isFinite(value) && value < 0;
+    return value => !Number.isFinite(value);
+  }
+  const toKey = kind === 'currency' ? value => Number(value.toFixed(2)) : value => value;
+  const values = raw.split(';').map(entry => {
+    const clean = (kind === 'currency' ? entry.replace(/R/gi, '').replace(/\s/g, '') : entry.trim())
+      .replace(/\u2212/g, '-').replace(',', '.');
+    const value = Number(clean);
+    if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/i.test(clean) || !Number.isFinite(value)) {
+      throw new Error(`${label}: enter a number, or separate multiple values with semicolons.`);
+    }
+    return toKey(value);
+  });
+  const accepted = new Set(values);
+  return value => Number.isFinite(value) && accepted.has(toKey(value));
+}
 const currencies = value => value == null ? '—' : formatCurrency(value);
 const revenuePresets = [
   ['Recurring customers', 'volume'],
@@ -460,15 +481,15 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         let unavailableCount = 0;
         const breakEven = currentPlan.breakEven;
         const resultIndex = createResultIndex();
-        const cashMetric = (label, field) => [label, index => resultIndex.get(index, field)];
+        const cashMetric = (label, field, kind = 'currency') => [label, index => resultIndex.get(index, field), kind];
         const metrics = [
           ...cases.at(0).map(({ id }, dimension) => [variableName(id), index => cases.valueAt(index, dimension)]),
           cashMetric('Ending business cash', 'business'),
           cashMetric('Lowest closing cash', 'lowest'),
           cashMetric('Scheduled operating net', 'operatingNet'),
           ...(currentPlan.ownerAccountId ? [cashMetric('Ending owner cash', 'owner')] : []),
-          cashMetric('Cash floor check', 'floorMargin'),
-          ...(breakEven ? [cashMetric('Break-even result', 'breakEvenMargin')] : [])
+          cashMetric('Cash floor check', 'floorMargin', 'status'),
+          ...(breakEven ? [cashMetric('Break-even result', 'breakEvenMargin', 'status')] : [])
         ];
         const headers = metrics.map(([name]) => name);
 
@@ -560,6 +581,57 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           filterLabel.prepend(meetsOnly);
           controls.append(filterLabel);
         }
+        const columnFilters = node('details');
+        const filterSummary = node('summary', 'Column filters');
+        const filterForm = node('form', null, 'business-results');
+        const filterFields = node('div', null, 'business-fields');
+        const filterError = node('p');
+        filterError.setAttribute('aria-live', 'polite');
+        let appliedFilters = [];
+        const filterInputs = metrics.map(([name, , kind]) => {
+          const label = node('label', name, 'business-field');
+          const input = node(kind === 'status' ? 'select' : 'input', null, kind === 'status' ? 'input-select' : 'input-text');
+          input.setAttribute('aria-label', `Filter ${name}`);
+          if (kind === 'status') {
+            input.append(new Option('Any status', ''), new Option('Meets target', 'met'),
+              new Option('Below target', 'below'), new Option('Not evaluated', 'unavailable'));
+          } else {
+            input.placeholder = 'Any value';
+          }
+          label.append(input);
+          filterFields.append(label);
+          return input;
+        });
+        const filterActions = node('div', null, 'business-row-heading');
+        const applyFilters = node('button', 'Apply column filters', 'btn btn-primary');
+        applyFilters.type = 'submit';
+        const clearFilters = button('Clear column filters', () => {
+          filterForm.reset();
+          applyColumnFilters();
+        });
+        filterActions.append(applyFilters, clearFilters);
+        filterForm.append(node('p', 'Enter an exact value or separate several with semicolons (for example, 10; 20). A result must match every filled column.', 'text-muted'),
+          filterFields, filterActions, filterError);
+        columnFilters.append(filterSummary, filterForm);
+        filterForm.addEventListener('submit', event => {
+          event.preventDefault();
+          applyColumnFilters();
+        });
+        function applyColumnFilters() {
+          try {
+            const nextFilters = [];
+            metrics.forEach(([name, valueAt, kind], column) => {
+              const matches = compileColumnFilter(filterInputs[column].value, kind, name);
+              if (matches) nextFilters.push(index => matches(valueAt(index)));
+            });
+            appliedFilters = nextFilters;
+            filterError.textContent = '';
+            filterSummary.textContent = appliedFilters.length ? `Column filters (${appliedFilters.length} active)` : 'Column filters';
+            void refreshOrder();
+          } catch (error) {
+            filterError.textContent = error.message;
+          }
+        }
         const visibleCount = () => visibleIndices?.length ?? cases.length;
         const resultMessage = node('p');
         resultMessage.setAttribute('aria-live', 'polite');
@@ -571,15 +643,16 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           const live = () => active() && request === viewRequest;
           const filter = meetsOnly.checked;
           const sort = sortSelect.value;
+          const filters = appliedFilters;
           previous.disabled = next.disabled = true;
           resultMessage.textContent = 'Updating results…';
           await yieldToBrowser();
           if (!live()) return;
           let order = null;
-          if (filter || sort) {
+          if (filter || sort || filters.length) {
             order = [];
             for (let index = 0; index < cases.length; index++) {
-              if (!filter || resultIndex.get(index, 'met')) order.push(index);
+              if ((!filter || resultIndex.get(index, 'met')) && filters.every(matches => matches(index))) order.push(index);
               if ((index + 1) % 16384 === 0) {
                 await yieldToBrowser();
                 if (!live()) return;
@@ -606,7 +679,8 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           next.disabled = start + page.length >= visibleCount();
           navigation.classList.toggle('hidden', visibleCount() <= RESULTS_PER_PAGE);
           pageLabel.textContent = `${(start + 1).toLocaleString()}–${(start + page.length).toLocaleString()} of ${visibleCount().toLocaleString()} combinations`;
-          resultMessage.textContent = visibleCount() ? `Showing ${pageLabel.textContent}.` : 'No combinations meet the break-even condition.';
+          resultMessage.textContent = visibleCount() ? `Showing ${pageLabel.textContent}.`
+            : appliedFilters.length ? 'No combinations match the selected filters.' : 'No combinations meet the break-even condition.';
           const focusedColumn = pageContent.contains(document.activeElement) ? document.activeElement.dataset.sortColumn : null;
           const [column, direction] = sortSelect.value ? sortSelect.value.split(':').map(Number) : [null, null];
           const sort = { column, direction, onSort(index, nextDirection) {
@@ -662,7 +736,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
             if (active() && request === selectedCaseRequest) status.textContent = error.message;
           }
         });
-        results.append(controls, resultMessage, pageContent, navigation, selectRow);
+        results.append(controls, columnFilters, resultMessage, pageContent, navigation, selectRow);
         renderPage(0, firstPage);
       }
       results.append(detail);

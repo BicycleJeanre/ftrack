@@ -731,6 +731,10 @@ Period to review and track their dated occurrences.
    checks sort by how far the balance is above or below the threshold.
    When a break-even
    condition is enabled, **Meets break-even only** filters the whole run.
+   Open **Column filters** to enter exact values or choose a check status.
+   Separate multiple values in one column with semicolons (for example,
+   `10; 20`). Results must match every filled column. Click
+   **Apply column filters** to filter the entire run without rerunning it.
    Test values
    temporarily replace those variables for every month. Choose a result to see
    its monthly detail.

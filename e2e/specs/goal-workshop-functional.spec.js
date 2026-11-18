@@ -272,6 +272,25 @@ test.describe('Goal Workshop browser functionality', () => {
     await expect(comparison.getByRole('row')).toHaveCount(10);
     await expect(feature.getByText('Showing 51–59 of 59 combinations.')).toBeVisible();
 
+    await feature.getByText('Column filters', { exact: true }).click();
+    await feature.getByLabel('Filter Customers', { exact: true }).fill('30; 31');
+    await feature.getByLabel('Filter Monthly fee', { exact: true }).fill('100');
+    await feature.getByLabel('Filter Break-even result', { exact: true }).selectOption('met');
+    await feature.getByRole('button', { name: 'Apply column filters' }).click();
+    await expect(feature.getByText('Showing 1–2 of 2 combinations.')).toBeVisible();
+    await expect(firstResult.getByRole('cell').nth(0)).toHaveText('30');
+    await expect(comparison.getByRole('row').last().getByRole('cell').first()).toHaveText('31');
+    await feature.getByLabel('Filter Ending business cash', { exact: true }).fill('R 35 400,00');
+    await feature.getByRole('button', { name: 'Apply column filters' }).click();
+    await expect(feature.getByText('Showing 1–1 of 1 combinations.')).toBeVisible();
+    await expect(firstResult.getByRole('cell').nth(0)).toHaveText('31');
+    await feature.getByLabel('Filter Monthly fee', { exact: true }).fill('999');
+    await feature.getByRole('button', { name: 'Apply column filters' }).click();
+    await expect(feature.getByText('No combinations match the selected filters.')).toBeVisible();
+    await feature.getByRole('button', { name: 'Clear column filters' }).click();
+    await expect(feature.getByText('Showing 1–50 of 59 combinations.')).toBeVisible();
+    await expect(feature.getByLabel('Meets break-even only')).toBeChecked();
+
     await feature.getByLabel('Break-even balance').fill('1000000000');
     await firstRange.getByLabel('Test to').fill('3');
     await feature.getByRole('button', { name: 'Test range', exact: true }).click();
