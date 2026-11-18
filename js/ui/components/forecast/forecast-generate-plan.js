@@ -20,7 +20,7 @@ import { solveAdvancedGoals } from '../../../domain/utils/advanced-goal-solver.j
 import { createModal } from '../modals/modal-factory.js';
 import { syncSelectionDialog } from '../widgets/account-selector-filter.js?v=20260901-account-group-filter-42';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
-import { renderBusinessModel } from './forecast-business-model.js?v=workshop-column-filters-1';
+import { renderBusinessModel } from './forecast-business-model.js?v=workshop-operating-window-1';
 import { WORKSHOP_STRATEGIES, SOLVER_STRATEGIES, resolveWorkshopStrategy, getSolverStrategyFields } from '../../../shared/workshop-strategies.js';
 
 

@@ -725,24 +725,26 @@ Period to review and track their dated occurrences.
    projection engine, and the first month below the cash floor, if any.
    Open **Review proposed Plan Rules** to inspect the amounts and schedules.
 6. To compare assumptions, add each **Test variable**, then enter its range and
-   step. **Test range** runs every combination. Larger tests show progress and
-   can be canceled. Comparison results are paginated. Click any column header
-   or use **Sort results** to order the whole run. Cash-floor and break-even
-   checks sort by how far the balance is above or below the threshold.
-   When a break-even
-   condition is enabled, **Meets break-even only** filters the whole run.
-   Open **Column filters** to enter exact values or choose a check status.
-   Separate multiple values in one column with semicolons (for example,
-   `10; 20`). Results must match every filled column. Click
-   **Apply column filters** to filter the entire run without rerunning it.
-   Test values
-   temporarily replace those variables for every month. Choose a result to see
-   its monthly detail.
-7. Optionally set a **Break-even condition**. For example, choose **Ending
-   balance at least**, leave the account set to business cash, and use a
-   threshold of **0**. To also catch a shortfall before the end, choose **Every
-   monthly closing balance at least**. Both the preview and the range results
-   show whether the selected account meets the condition.
+   step. Set the **Operating break-even window**. It starts with the first
+   full month in the scenario by default. Choose a start month and a length of
+   one, three, or twelve full months. For example, choose three months if
+   an operating payment lands only once that quarter. Test range compares all
+   combinations using modeled operating receipts minus operating payments
+   scheduled in the window. Zero or better passes. Opening balances, funding,
+   startup/investment, and the existing scenario's other transactions are
+   excluded. Turn on **Include financing repayments** if the business must
+   also cover debt payments.
+7. Use **Meets break-even only** and sort a tested variable low to high to find
+   its lowest passing value among real combinations. To find the minimum
+   number of customers at a particular fee, filter the fee column first.
+   Filters below each column name accept exact values (separate alternatives
+   with semicolons, e.g. `10; 20`) or a break-even status. **Apply column
+   filters** works across all result pages, without rerunning the test.
+   Click any result row to see its full monthly cash-flow and closing-balance
+   preview. The preview includes the scenario's existing transactions,
+   startup funding and investment, and any configured cash floor or optional
+   cash balance check. A passing window can still have a cash shortfall in an
+   individual month; the preview shows when.
 
 Open a flow's **Timing** button to change its activity dates or payment delay.
 By default, a recurring flow follows the scenario timeframe, a one-time flow

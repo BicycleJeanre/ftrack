@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildBusinessModelPlan, evaluateBusinessBreakEven, getBusinessModelTestCases } from '../../js/domain/calculations/business-model.js';
+import {
+  buildBusinessModelPlan, evaluateBusinessBreakEven, evaluateBusinessOperatingWindow,
+  getBusinessModelTestCases, getBusinessOperatingMonths
+} from '../../js/domain/calculations/business-model.js';
 import { generateProjectionsForScenario } from '../../js/domain/calculations/projection-engine.js';
 import { sanitizeScenarioForWrite } from '../../js/shared/app-data-utils.js';
 
@@ -30,6 +33,29 @@ const model = {
   ],
   sweep: { variable: 'clients', start: '7', end: '8', step: '1' }
 };
+
+test('operating break-even uses scheduled payments, excludes startup and funding, and can include repayments', () => {
+  const plan = buildBusinessModelPlan(scenario, { ...model, flows: [
+    ...model.flows,
+    { name: 'Loan repayment', kind: 'repayment', model: 'fixed', rate: '200' }
+  ] });
+  const months = getBusinessOperatingMonths(plan);
+  assert.deepEqual(months, ['2027-01', '2027-02', '2027-03']);
+  // Revenue collected later belongs to the payment month, not the activity month.
+  assert.deepEqual(evaluateBusinessOperatingWindow(plan, { months: months.slice(0, 1) }), { net: -95, met: false });
+  assert.deepEqual(evaluateBusinessOperatingWindow(plan, { months }), { net: 425, met: true });
+  assert.deepEqual(evaluateBusinessOperatingWindow(plan, { months, includeRepayments: true }), { net: -175, met: false });
+  assert.deepEqual(evaluateBusinessOperatingWindow({ totals: new Map([
+    [months[0], { revenue: 0.1 + 0.2, cost: 0.3 }]
+  ]) }, { months }), { net: 0, met: true });
+});
+
+test('operating windows contain only complete calendar months, including across year boundaries', () => {
+  assert.deepEqual(getBusinessOperatingMonths({ startDate: '2026-11-25', endDate: '2027-03-01' }),
+    ['2026-12', '2027-01', '2027-02']);
+  assert.deepEqual(getBusinessOperatingMonths({ startDate: '2028-02-01', endDate: '2028-02-29' }), ['2028-02']);
+  assert.deepEqual(getBusinessOperatingMonths({ startDate: '2028-02-01', endDate: '2028-02-28' }), []);
+});
 
 test('mixed business plan uses actuals and existing plan rules via the projection engine without writing', async () => {
   const snapshot = structuredClone(scenario);

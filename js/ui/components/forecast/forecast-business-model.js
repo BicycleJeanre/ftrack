@@ -1,7 +1,8 @@
 import {
   BUSINESS_FLOW_KINDS, BUSINESS_RATE_MODELS,
-  buildBusinessModelPlan, evaluateBusinessBreakEven, getBusinessModelTestCases, normalizeBusinessModel
-} from '../../../domain/calculations/business-model.js?v=workshop-results-1';
+  buildBusinessModelPlan, evaluateBusinessBreakEven, evaluateBusinessOperatingWindow,
+  getBusinessModelTestCases, getBusinessOperatingMonths, normalizeBusinessModel
+} from '../../../domain/calculations/business-model.js?v=workshop-operating-window-1';
 import { generateProjectionsForScenario } from '../../../domain/calculations/projection-engine.js';
 import { formatCurrency } from '../../../shared/format-utils.js';
 import { createScenarioAccountSelectors } from '../widgets/scenario-account-select.js?v=workshop-accounts-1';
@@ -11,7 +12,7 @@ let nextDisclosureId = 0;
 const RESULTS_PER_PAGE = 50;
 const CASES_PER_BATCH = 8;
 const RESULT_INDEX_CHUNK = 4096;
-const CASH_RESULT_FIELDS = ['business', 'lowest', 'operatingNet', 'owner', 'floorMargin', 'breakEvenMargin'];
+const CASH_RESULT_FIELDS = ['breakEvenMargin'];
 const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
 
 function createResultIndex() {
@@ -79,7 +80,7 @@ function button(text, handler, className = 'btn btn-secondary') {
   return element;
 }
 
-function table(title, headings, rows, sort = null) {
+function table(title, headings, rows, sort = null, filters = []) {
   const wrapper = node('div', null, 'business-table-scroll');
   const grid = node('table', null, 'business-table');
   grid.append(node('caption', title));
@@ -88,24 +89,28 @@ function table(title, headings, rows, sort = null) {
     const th = node('th', sort ? null : name);
     th.scope = 'col';
     if (sort) {
-      const direction = sort.column === index ? sort.direction : null;
-      if (direction) th.setAttribute('aria-sort', direction === 1 ? 'ascending' : 'descending');
-      const toggle = button(name, () => sort.onSort(index, direction === 1 ? -1 : 1), 'business-sort-header');
-      toggle.dataset.sortColumn = String(index);
+      th.setAttribute('aria-label', name);
+      const toggle = button(name, () => sort(index), 'business-sort-header');
       const indicator = node('span', null, 'business-sort-indicator');
       indicator.setAttribute('aria-hidden', 'true');
       toggle.append(indicator);
       th.append(toggle);
     }
+    if (filters[index]) th.append(filters[index]);
     head.append(th);
   });
-  const body = grid.createTBody();
+  fillTableRows(grid.createTBody(), rows);
+  wrapper.append(grid);
+  return wrapper;
+}
+
+function fillTableRows(body, rows, decorate = null) {
+  body.replaceChildren();
   rows.forEach(row => {
     const tr = body.insertRow();
     row.forEach(value => { tr.insertCell().textContent = value; });
+    decorate?.(tr);
   });
-  wrapper.append(grid);
-  return wrapper;
 }
 
 function accountRows(projections, id) {
@@ -152,6 +157,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
   let generation = 0;
   let busy = false;
   let chosenCase = null;
+  const operatingMonths = getBusinessOperatingMonths(timeframe);
   const accountSelectors = createScenarioAccountSelectors({
     getScenario: () => scenario,
     isCurrent: () => isRenderCurrent() && root.isConnected,
@@ -401,7 +407,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       }));
       editor.append(row);
     });
-    editor.append(node('h3', 'Break-even condition'));
+    editor.append(node('h3', 'Optional cash balance check for the preview'));
     const conditionFields = node('div', null, 'business-fields');
     selector(conditionFields, 'Break-even check', model.breakEven, 'mode', [
       ['none', 'Off'], ['ending', 'Ending balance at least'], ['lowest', 'Every monthly closing balance at least']
@@ -423,8 +429,9 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     const output = node('div', null, 'business-projection');
     output.append(node('h3', `Preview${caseText}`),
       node('p', `${plan.rules.length} proposed Plan Rule(s) · Lowest projected closing cash: ${currencies(minimumBalance(cash))} · ${floorResult(plan, cash)}`));
+    output.append(node('p', `Ending business cash: ${currencies(cash.at(-1)?.balance)}${plan.ownerAccountId ? ` · Ending owner cash: ${currencies(owner.at(-1)?.balance)}` : ''}`));
     if (plan.breakEven) {
-      output.append(node('p', `Break-even: ${describeBreakEven(plan.breakEven)} — ${breakEvenResult(evaluateBusinessBreakEven(plan.breakEven, projected))}`));
+      output.append(node('p', `Cash balance check: ${describeBreakEven(plan.breakEven)} — ${breakEvenResult(evaluateBusinessBreakEven(plan.breakEven, projected))}`));
     }
     if (plan.deferredCount) output.append(node('p', `${plan.deferredCount} payment(s) land after the scenario end and are not included. Extend the scenario timeframe to see them.`, 'text-muted'));
     const rows = cash.map((row, index) => {
@@ -466,6 +473,13 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       if (!latest || latest.id !== scenario.id) throw new Error('Reopen Scenario Setup for the active scenario.');
       const currentPlan = buildBusinessModelPlan(latest, model);
       const cases = sweep ? getBusinessModelTestCases(model) : [];
+      const available = getBusinessOperatingMonths(currentPlan);
+      const start = available.indexOf(monthPicker.value);
+      const length = Number(lengthPicker.value);
+      if (sweep && (start < 0 || !Number.isInteger(length) || length < 1 || start + length > available.length)) {
+        throw new Error('Choose a break-even window made of full months inside the scenario timeframe.');
+      }
+      const window = { months: available.slice(start, start + length), includeRepayments: repaymentPicker.checked };
       const options = { startDate: currentPlan.startDate, endDate: currentPlan.endDate, periodTypeId: 3 };
       const baseline = await generateProjectionsForScenario(latest, options);
       const project = plan => generateProjectionsForScenario({
@@ -479,21 +493,15 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
       if (sweep) {
         let metCount = 0;
         let unavailableCount = 0;
-        const breakEven = currentPlan.breakEven;
         const resultIndex = createResultIndex();
         const cashMetric = (label, field, kind = 'currency') => [label, index => resultIndex.get(index, field), kind];
         const metrics = [
           ...cases.at(0).map(({ id }, dimension) => [variableName(id), index => cases.valueAt(index, dimension)]),
-          cashMetric('Ending business cash', 'business'),
-          cashMetric('Lowest closing cash', 'lowest'),
-          cashMetric('Scheduled operating net', 'operatingNet'),
-          ...(currentPlan.ownerAccountId ? [cashMetric('Ending owner cash', 'owner')] : []),
-          cashMetric('Cash floor check', 'floorMargin', 'status'),
-          ...(breakEven ? [cashMetric('Break-even result', 'breakEvenMargin', 'status')] : [])
+          cashMetric('Break-even result', 'breakEvenMargin', 'status')
         ];
         const headers = metrics.map(([name]) => name);
 
-        async function evaluateCase(index) {
+        function evaluateCase(index) {
           const entry = cases.at(index);
           const values = entry.map(variable => variable.value);
           let plan;
@@ -502,30 +510,15 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           } catch (error) {
             return {
               index, entry, valid: false, unavailable: true,
-              row: [...values, '—', '—', '—', ...(currentPlan.ownerAccountId ? ['—'] : []),
-                error.message, ...(breakEven ? ['Not evaluated'] : [])]
+              error: error.message,
+              row: [...values, 'Not evaluated']
             };
           }
-          const withModel = await project(plan);
-          const cash = accountRows(withModel, plan.cashAccountId);
-          const owner = accountRows(withModel, plan.ownerAccountId);
-          const lowest = minimumBalance(cash);
-          const operatingNet = [...plan.totals.values()].reduce((net, values) => net + values.revenue - values.cost, 0);
-          const outcome = evaluateBusinessBreakEven(plan.breakEven, withModel);
-          const sortValues = {
-            business: cash.at(-1)?.balance,
-            lowest,
-            operatingNet,
-            owner: owner.at(-1)?.balance,
-            floorMargin: plan.minimumCash == null || lowest == null ? null : lowest - plan.minimumCash,
-            breakEvenMargin: outcome?.balance == null ? null : outcome.balance - plan.breakEven.threshold
-          };
+          const { net, met } = evaluateBusinessOperatingWindow(plan, window);
           return {
-            index, entry, valid: true, met: outcome?.status === 'met', unavailable: outcome?.status === 'unavailable',
-            sortValues,
-            row: [...values, currencies(sortValues.business), currencies(lowest), currencies(operatingNet),
-              ...(plan.ownerAccountId ? [currencies(sortValues.owner)] : []), floorResult(plan, cash),
-              ...(breakEven ? [breakEvenResult(outcome)] : [])]
+            index, entry, valid: true, met,
+            sortValues: { breakEvenMargin: net },
+            row: [...values, met ? `Meets target · ${currencies(net)} net` : `Short by ${currencies(-net)}`]
           };
         }
 
@@ -533,7 +526,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         status.textContent = `Testing 0 of ${cases.length.toLocaleString()} combinations…`;
         await yieldToBrowser();
         for (let index = 0; index < cases.length && active(); index++) {
-          const result = await evaluateCase(index);
+          const result = evaluateCase(index);
           resultIndex.append(index, result);
           if (result.met) metCount++;
           if (result.unavailable) unavailableCount++;
@@ -545,10 +538,10 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         }
         if (!active()) return;
 
-        if (breakEven) {
-          const summary = `${metCount.toLocaleString()} of ${cases.length.toLocaleString()} combinations meet break-even${unavailableCount ? ` · ${unavailableCount.toLocaleString()} not evaluated` : ''}.`;
-          results.append(node('p', `${summary} ${describeBreakEven(breakEven)}.`));
-        }
+        const dateRange = length === 1 ? window.months[0] : `${window.months[0]} to ${window.months.at(-1)}`;
+        const summary = `${metCount.toLocaleString()} of ${cases.length.toLocaleString()} combinations meet break-even${unavailableCount ? ` · ${unavailableCount.toLocaleString()} not evaluated` : ''}.`;
+        results.append(node('p', `${summary} Window: ${dateRange} · Financing repayments ${window.includeRepayments ? 'included' : 'excluded'}.`));
+        results.append(node('p', 'To find the lowest passing input, show only passing results and sort that variable low to high. Select a result to see its full monthly preview below.'));
         const pageContent = node('div', null, 'business-results');
         const navigation = node('div', null, 'business-row-heading');
         const pageLabel = node('span');
@@ -556,12 +549,8 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         let visibleIndices = null;
         let viewRequest = 0;
         let selectedCaseRequest = 0;
-        const select = node('select', null, 'input-select');
-        select.setAttribute('aria-label', 'Preview test case');
-        const selectRow = node('div', null, 'business-fields');
-        const label = node('label', 'Preview test case');
-        label.append(select);
-        selectRow.append(label);
+        let selectedIndex = null;
+        const resetPreview = button('Preview current inputs', () => previewCase(null));
         const previous = button('Previous results', () => showPage(pageStart - RESULTS_PER_PAGE));
         const next = button('Next results', () => showPage(pageStart + RESULTS_PER_PAGE));
         navigation.append(previous, pageLabel, next);
@@ -573,24 +562,19 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           sortSelect.append(new Option(`${name}: low to high`, `${i}:1`), new Option(`${name}: high to low`, `${i}:-1`));
         }
         sortLabel.append(sortSelect);
-        controls.append(sortLabel);
+        controls.append(sortLabel, resetPreview);
         const meetsOnly = node('input');
         meetsOnly.type = 'checkbox';
-        if (breakEven) {
-          const filterLabel = node('label', ' Meets break-even only');
-          filterLabel.prepend(meetsOnly);
-          controls.append(filterLabel);
-        }
-        const columnFilters = node('details');
-        const filterSummary = node('summary', 'Column filters');
+        const filterLabel = node('label', ' Meets break-even only');
+        filterLabel.prepend(meetsOnly);
+        controls.append(filterLabel);
         const filterForm = node('form', null, 'business-results');
-        const filterFields = node('div', null, 'business-fields');
         const filterError = node('p');
         filterError.setAttribute('aria-live', 'polite');
         let appliedFilters = [];
         const filterInputs = metrics.map(([name, , kind]) => {
-          const label = node('label', name, 'business-field');
-          const input = node(kind === 'status' ? 'select' : 'input', null, kind === 'status' ? 'input-select' : 'input-text');
+          const input = node(kind === 'status' ? 'select' : 'input', null,
+            `business-column-filter ${kind === 'status' ? 'input-select' : 'input-text'}`);
           input.setAttribute('aria-label', `Filter ${name}`);
           if (kind === 'status') {
             input.append(new Option('Any status', ''), new Option('Meets target', 'met'),
@@ -598,8 +582,6 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           } else {
             input.placeholder = 'Any value';
           }
-          label.append(input);
-          filterFields.append(label);
           return input;
         });
         const filterActions = node('div', null, 'business-row-heading');
@@ -611,8 +593,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         });
         filterActions.append(applyFilters, clearFilters);
         filterForm.append(node('p', 'Enter an exact value or separate several with semicolons (for example, 10; 20). A result must match every filled column.', 'text-muted'),
-          filterFields, filterActions, filterError);
-        columnFilters.append(filterSummary, filterForm);
+          filterActions, filterError, pageContent);
         filterForm.addEventListener('submit', event => {
           event.preventDefault();
           applyColumnFilters();
@@ -626,7 +607,6 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
             });
             appliedFilters = nextFilters;
             filterError.textContent = '';
-            filterSummary.textContent = appliedFilters.length ? `Column filters (${appliedFilters.length} active)` : 'Column filters';
             void refreshOrder();
           } catch (error) {
             filterError.textContent = error.message;
@@ -637,6 +617,13 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
         resultMessage.setAttribute('aria-live', 'polite');
         sortSelect.addEventListener('change', refreshOrder);
         meetsOnly.addEventListener('change', refreshOrder);
+        const comparison = table('Compare test values', headers, [], index => {
+          sortSelect.value = `${index}:${sortSelect.value === `${index}:1` ? -1 : 1}`;
+          void refreshOrder();
+        }, filterInputs);
+        pageContent.append(comparison);
+        const comparisonHeaders = comparison.querySelectorAll('thead th');
+        const comparisonBody = comparison.querySelector('tbody');
 
         async function refreshOrder() {
           const request = ++viewRequest;
@@ -681,21 +668,27 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           pageLabel.textContent = `${(start + 1).toLocaleString()}–${(start + page.length).toLocaleString()} of ${visibleCount().toLocaleString()} combinations`;
           resultMessage.textContent = visibleCount() ? `Showing ${pageLabel.textContent}.`
             : appliedFilters.length ? 'No combinations match the selected filters.' : 'No combinations meet the break-even condition.';
-          const focusedColumn = pageContent.contains(document.activeElement) ? document.activeElement.dataset.sortColumn : null;
           const [column, direction] = sortSelect.value ? sortSelect.value.split(':').map(Number) : [null, null];
-          const sort = { column, direction, onSort(index, nextDirection) {
-            sortSelect.value = `${index}:${nextDirection}`;
-            void refreshOrder();
-          } };
-          pageContent.replaceChildren(...(page.length ? [table('Compare test values', headers, page.map(result => result.row), sort)] : []));
-          if (focusedColumn != null) pageContent.querySelector(`[data-sort-column="${focusedColumn}"]`)?.focus({ preventScroll: true });
-          select.replaceChildren(new Option('Current inputs', ''));
-          for (const { index, entry, valid } of page) {
-            if (valid) select.append(new Option(entry.length === 1 ? String(entry[0].value) : describeCase(entry), String(index)));
-          }
-          selectedCaseRequest++;
-          chosenCase = null;
-          detail.replaceChildren(renderProjection(currentPlan, baseline, projected));
+          comparisonHeaders.forEach((th, index) => {
+            if (index === column) th.setAttribute('aria-sort', direction === 1 ? 'ascending' : 'descending');
+            else th.removeAttribute('aria-sort');
+          });
+          let rowIndex = 0;
+          fillTableRows(comparisonBody, page.map(result => result.row), row => {
+            const { index, entry, valid, error } = page[rowIndex++];
+            if (!valid) {
+              row.title = error;
+              return;
+            }
+            const pick = button(String(entry[0].value), () => previewCase(index), 'business-sort-header business-preview-link');
+            pick.setAttribute('aria-label', `Preview ${describeCase(entry)}`);
+            row.cells[0].replaceChildren(pick);
+            row.dataset.previewIndex = index;
+            row.addEventListener('click', event => {
+              if (!event.target.closest('button')) void previewCase(index);
+            });
+          });
+          markSelected();
         }
 
         async function showPage(start) {
@@ -709,7 +702,7 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
               for (let offset = 0; offset < RESULTS_PER_PAGE && start + offset < visibleCount() && live(); offset++) {
                 const position = start + offset;
                 const index = visibleIndices?.[position] ?? position;
-                page.push(firstPage[index] ?? await evaluateCase(index));
+                page.push(firstPage[index] ?? evaluateCase(index));
                 if ((offset + 1) % CASES_PER_BATCH === 0) await yieldToBrowser();
               }
             }
@@ -723,20 +716,38 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
           }
         }
 
-        select.addEventListener('change', async () => {
+        function markSelected() {
+          for (const row of comparisonBody.querySelectorAll('[data-preview-index]')) {
+            const selected = selectedIndex !== null && Number(row.dataset.previewIndex) === selectedIndex;
+            row.classList.toggle('is-previewed', selected);
+            row.querySelector('button').setAttribute('aria-pressed', String(selected));
+          }
+        }
+        async function previewCase(index) {
           const request = ++selectedCaseRequest;
           try {
-            const entry = select.value === '' ? null : cases.at(Number(select.value));
+            const entry = index === null ? null : cases.at(index);
             const plan = entry ? buildBusinessModelPlan(latest, model, entry) : currentPlan;
             const rows = entry ? await project(plan) : projected;
             if (!active() || request !== selectedCaseRequest) return;
             chosenCase = entry;
+            selectedIndex = index;
+            markSelected();
             detail.replaceChildren(renderProjection(plan, baseline, rows));
           } catch (error) {
             if (active() && request === selectedCaseRequest) status.textContent = error.message;
           }
-        });
-        results.append(controls, columnFilters, resultMessage, pageContent, navigation, selectRow);
+        }
+        const guide = node('details');
+        guide.append(node('summary', 'What the result columns mean'));
+        const descriptions = node('dl');
+        const terms = [
+          ['Test values', 'Each row is a tested combination. Select it to see monthly cash flow and closing balances for the full scenario.'],
+          ['Break-even result', 'Scheduled operating receipts minus operating payments during the selected window. A net of zero or more passes. Startup costs, funding and opening balances are excluded. Repayments count only when selected. The preview still shows the full projected cash position.']
+        ];
+        for (const [term, description] of terms) descriptions.append(node('dt', term), node('dd', description));
+        guide.append(descriptions);
+        results.append(controls, guide, resultMessage, filterForm, navigation);
         renderPage(0, firstPage);
       }
       results.append(detail);
@@ -771,9 +782,36 @@ export function renderBusinessModel({ container, scenario, getScenario, onSave, 
     }
   });
   const actions = node('div', null, 'business-row-heading');
-  actions.append(previewButton, sweepButton, cancelTestButton, save);
+  const monthLabel = node('label', 'Window start month ');
+  const monthPicker = node('select', null, 'input-select');
+  for (const month of operatingMonths) monthPicker.append(new Option(month, month));
+  if (!operatingMonths.length) {
+    monthPicker.append(new Option('No full months in scenario', ''));
+    monthPicker.disabled = true;
+  }
+  monthLabel.append(monthPicker);
+  const lengthLabel = node('label', 'Window length ');
+  const lengthPicker = node('select', null, 'input-select');
+  for (const [length, label] of [[1, '1 month'], [3, '3 months'], [12, '12 months']]) {
+    lengthPicker.append(new Option(label, length));
+  }
+  lengthLabel.append(lengthPicker);
+  const repaymentLabel = node('label', ' Include financing repayments');
+  const repaymentPicker = node('input');
+  repaymentPicker.type = 'checkbox';
+  repaymentLabel.prepend(repaymentPicker);
+  for (const control of [monthPicker, lengthPicker, repaymentPicker]) {
+    control.addEventListener('change', invalidate);
+  }
+  const windowFields = node('fieldset', null, 'business-editor-row');
+  const windowControls = node('div', null, 'business-row-heading');
+  windowControls.append(monthLabel, lengthLabel, repaymentLabel, sweepButton, cancelTestButton);
+  windowFields.append(node('legend', 'Operating break-even window'),
+    node('p', 'Tests whether modeled receipts cover operating costs in the selected window, independent of opening cash.', 'text-muted'),
+    windowControls);
+  actions.append(previewButton, save);
   root.append(node('h3', 'Business Model'), node('p',
     `Build a business from reusable variables and account movements. Preview uses the scenario timeframe (${timeframe.startDate || '—'} to ${timeframe.endDate || '—'}) and includes its current plan and actuals. Flows use that timeframe and have no payment delay unless you change Timing.`,
-    'text-muted'), editor, actions, status, results);
+    'text-muted'), editor, actions, windowFields, status, results);
   renderEditor();
 }

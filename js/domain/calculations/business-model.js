@@ -91,6 +91,32 @@ function date(value, label) {
   return value;
 }
 
+export function getBusinessOperatingMonths({ startDate, endDate }) {
+  if (!startDate || !endDate) return [];
+  const first = monthNumber(startDate);
+  const last = monthNumber(endDate);
+  const months = [];
+  for (let index = first; index <= last && index < first + MAX_MONTHS; index++) {
+    if (monthDate(index) >= startDate && monthDate(index, 31) <= endDate) {
+      months.push(monthDate(index).slice(0, 7));
+    }
+  }
+  return months;
+}
+
+// This is a cash-flow test of the modeled business, not an account balance test.
+export function evaluateBusinessOperatingWindow(plan, { months, includeRepayments }) {
+  let revenue = 0, cost = 0, repayments = 0;
+  for (const month of months) {
+    const payments = plan.totals.get(month);
+    revenue += payments?.revenue ?? 0;
+    cost += payments?.cost ?? 0;
+    repayments += payments?.repayment ?? 0;
+  }
+  const net = money(revenue - cost - (includeRepayments ? repayments : 0));
+  return { net, met: net >= 0 };
+}
+
 function readVariables(variables) {
   const byId = new Map();
   for (const variable of variables) {
@@ -233,7 +259,9 @@ export function buildBusinessModelPlan(scenario, rawModel, override = null) {
       payments.get(flow).push({ index: index + flow.delay, date: payment, amount });
       const key = payment.slice(0, 7);
       const current = totals.get(key) || { revenue: 0, cost: 0 };
-      if (flow.kind === 'revenue' || flow.kind === 'cost') current[flow.kind] = money(current[flow.kind] + amount);
+      if (['revenue', 'cost', 'repayment'].includes(flow.kind)) {
+        current[flow.kind] = money((current[flow.kind] ?? 0) + amount);
+      }
       totals.set(key, current);
     }
   }

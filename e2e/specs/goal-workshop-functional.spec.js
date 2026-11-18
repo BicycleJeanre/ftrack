@@ -65,7 +65,7 @@ test.describe('Goal Workshop browser functionality', () => {
     await expect(feature.getByRole('status')).toContainText('Preview only');
     const comparison = feature.getByRole('table', { name: 'Compare test values' });
     await expect(comparison.getByRole('row')).toHaveCount(4);
-    await expect(comparison.getByRole('row').nth(1)).toContainText('2026-01: short');
+    await expect(feature.getByText(/2 of 3 combinations meet break-even/)).toBeVisible();
     // Locator clicks can scroll overflow:hidden containers programmatically.
     // Exercise the actual wheel gesture a user relies on to reach the results.
     const contentArea = page.locator('.content-area');
@@ -74,9 +74,7 @@ test.describe('Goal Workshop browser functionality', () => {
     const beforeWheel = await contentArea.evaluate(element => element.scrollTop);
     await page.mouse.wheel(0, 600);
     await expect.poll(() => contentArea.evaluate(element => element.scrollTop)).toBeGreaterThan(beforeWheel);
-    const firstEndingCash = await comparison.getByRole('row').nth(1).getByRole('cell').nth(1).innerText();
-    await expect(comparison.getByRole('row').nth(3).getByRole('cell').nth(1)).not.toHaveText(firstEndingCash);
-    await feature.getByLabel('Preview test case').selectOption({ label: '6' });
+    await comparison.getByRole('button', { name: 'Preview Subscribers: 6', exact: true }).click();
     await expect(feature.getByRole('heading', { name: 'Preview · Subscribers: 6' })).toBeVisible();
     await feature.getByText('Review proposed Plan Rules (2)', { exact: true }).click();
     await expect(feature.getByRole('table', { name: 'Proposed account movements' })).toContainText('Recurring fees');
@@ -174,7 +172,7 @@ test.describe('Goal Workshop browser functionality', () => {
       current.planning.businessModel.flows[0].startDate === '' && current.planning.businessModel.flows[0].endDate === '');
   });
 
-  test('tests combinations of variables and reports a zero-balance break-even condition', async ({ page }) => {
+  test('tests, filters and previews variable combinations across an operating break-even window', async ({ page }) => {
     await page.getByLabel('Scenario setup strategy').selectOption('business');
     const feature = page.locator('[data-business-model]');
     await feature.getByRole('button', { name: 'Business cash account', exact: true }).click();
@@ -220,7 +218,7 @@ test.describe('Goal Workshop browser functionality', () => {
     await expect(comparison.getByRole('columnheader').nth(1)).toHaveText('Monthly fee');
     await expect(comparison.getByRole('row').nth(1)).toContainText('Short by');
     await expect(comparison.getByRole('row').nth(3)).toContainText('Meets');
-    await feature.getByLabel('Preview test case').selectOption({ label: 'Customers: 3 · Monthly fee: 50' });
+    await comparison.getByRole('button', { name: 'Preview Customers: 3 · Monthly fee: 50', exact: true }).click();
     await expect(feature.getByRole('heading', { name: 'Preview · Customers: 3 · Monthly fee: 50' })).toBeVisible();
     await feature.getByRole('button', { name: 'Save setup' }).click();
     await waitForScenario(page, scenario => scenario.planning.businessModel?.testRanges.length === 2 &&
@@ -236,25 +234,25 @@ test.describe('Goal Workshop browser functionality', () => {
     await expect(comparison.getByRole('row')).toHaveCount(51);
     await feature.getByRole('button', { name: 'Next results', exact: true }).click();
     await expect(comparison.getByRole('row')).toHaveCount(11);
-    await expect(feature.getByLabel('Preview test case').locator('option').last())
-      .toHaveText('Customers: 31 · Monthly fee: 100');
-    await feature.getByLabel('Preview test case').selectOption({ label: 'Customers: 31 · Monthly fee: 100' });
+    await comparison.getByRole('row').last().getByRole('cell').nth(1).click();
     await expect(feature.getByRole('heading', { name: 'Preview · Customers: 31 · Monthly fee: 100' })).toBeVisible();
+    await expect(feature.getByRole('table', { name: 'Monthly cash flow and projected closing balances' }).getByRole('row')).toHaveCount(13);
+    await expect(comparison.getByRole('columnheader', { name: 'Ending business cash', exact: true })).toHaveCount(0);
 
     await feature.getByLabel('Meets break-even only').check();
     await expect(feature.getByText('Showing 1–50 of 59 combinations.')).toBeVisible();
     await expect(comparison).not.toContainText('Short by');
-    await feature.getByLabel('Sort results').selectOption({ label: 'Ending business cash: high to low' });
+    await feature.getByLabel('Sort results').selectOption({ label: 'Break-even result: high to low' });
     const firstResult = comparison.getByRole('row').nth(1);
     await expect(firstResult.getByRole('cell').nth(0)).toHaveText('31');
     await expect(firstResult.getByRole('cell').nth(1)).toHaveText('100');
     const sortControls = feature.getByLabel('Sort results');
-    const columnNames = await comparison.getByRole('columnheader').allTextContents();
+    const columnNames = await comparison.getByRole('columnheader').getByRole('button').allTextContents();
     for (const column of columnNames) {
       await expect(sortControls.locator('option', { hasText: `${column}: low to high` })).toHaveCount(1);
       await expect(sortControls.locator('option', { hasText: `${column}: high to low` })).toHaveCount(1);
     }
-    for (const name of ['Lowest closing cash', 'Scheduled operating net', 'Cash floor check', 'Break-even result']) {
+    for (const name of ['Break-even result']) {
       const column = comparison.getByRole('columnheader', { name, exact: true });
       await column.getByRole('button', { name, exact: true }).click();
       await expect(column).toHaveAttribute('aria-sort', 'ascending');
@@ -272,31 +270,63 @@ test.describe('Goal Workshop browser functionality', () => {
     await expect(comparison.getByRole('row')).toHaveCount(10);
     await expect(feature.getByText('Showing 51–59 of 59 combinations.')).toBeVisible();
 
-    await feature.getByText('Column filters', { exact: true }).click();
-    await feature.getByLabel('Filter Customers', { exact: true }).fill('30; 31');
+    const customerFilter = comparison.getByRole('columnheader', { name: 'Customers', exact: true })
+      .getByLabel('Filter Customers', { exact: true });
+    await customerFilter.fill('30; 31');
     await feature.getByLabel('Filter Monthly fee', { exact: true }).fill('100');
     await feature.getByLabel('Filter Break-even result', { exact: true }).selectOption('met');
     await feature.getByRole('button', { name: 'Apply column filters' }).click();
     await expect(feature.getByText('Showing 1–2 of 2 combinations.')).toBeVisible();
     await expect(firstResult.getByRole('cell').nth(0)).toHaveText('30');
     await expect(comparison.getByRole('row').last().getByRole('cell').first()).toHaveText('31');
-    await feature.getByLabel('Filter Ending business cash', { exact: true }).fill('R 35 400,00');
+    await customerFilter.fill('31');
     await feature.getByRole('button', { name: 'Apply column filters' }).click();
     await expect(feature.getByText('Showing 1–1 of 1 combinations.')).toBeVisible();
     await expect(firstResult.getByRole('cell').nth(0)).toHaveText('31');
     await feature.getByLabel('Filter Monthly fee', { exact: true }).fill('999');
     await feature.getByRole('button', { name: 'Apply column filters' }).click();
     await expect(feature.getByText('No combinations match the selected filters.')).toBeVisible();
+    await expect(customerFilter).toHaveValue('31');
+    await expect(comparison.locator('tbody tr')).toHaveCount(0);
+    await feature.getByText('What the result columns mean', { exact: true }).click();
+    await expect(feature.getByText(/Scheduled operating receipts minus operating payments/)).toBeVisible();
     await feature.getByRole('button', { name: 'Clear column filters' }).click();
     await expect(feature.getByText('Showing 1–50 of 59 combinations.')).toBeVisible();
     await expect(feature.getByLabel('Meets break-even only')).toBeChecked();
 
+    await expect(feature.getByLabel('Window start month')).toHaveValue('2026-01');
+    await expect(feature.getByLabel('Window length')).toHaveValue('1');
+    await feature.getByLabel('Window start month').selectOption('2026-02');
+    await feature.getByLabel('Window length').selectOption('3');
     await feature.getByLabel('Break-even balance').fill('1000000000');
+    await feature.getByRole('button', { name: 'Add other flow', exact: true }).click();
+    const repayment = feature.getByRole('group', { name: 'Flow 3', exact: true });
+    await repayment.getByLabel('Flow name').fill('Financing repayment');
+    await repayment.getByLabel('Flow type').selectOption('repayment');
+    await repayment.getByLabel('Frequency').selectOption('once');
+    await repayment.getByLabel('Amount', { exact: true }).fill('300');
+    await repayment.getByRole('button', { name: 'Timing · Scenario timeframe' }).click();
+    await repayment.getByLabel('Activity date').fill('2026-04-01');
     await firstRange.getByLabel('Test to').fill('3');
+    await feature.getByRole('button', { name: 'Test range', exact: true }).click();
+    await expect(feature.getByText(/3 of 4 combinations meet break-even.*2026-02 to 2026-04.*repayments excluded/)).toBeVisible();
+    await expect(feature.getByText(/Cash balance check:.*Short by/)).toBeVisible();
+    await feature.getByLabel('Include financing repayments').check();
+    await feature.getByRole('button', { name: 'Test range', exact: true }).click();
+    await expect(feature.getByText(/1 of 4 combinations meet break-even.*2026-02 to 2026-04.*repayments included/)).toBeVisible();
+    await feature.getByLabel('Meets break-even only').check();
+    await expect(comparison.getByRole('button', { name: 'Preview Customers: 3 · Monthly fee: 100', exact: true })).toBeVisible();
+
+    await feature.getByLabel('Window start month').selectOption('2026-12');
+    await feature.getByRole('button', { name: 'Test range', exact: true }).click();
+    await expect(feature.getByRole('status')).toContainText('full months inside the scenario timeframe');
+    await feature.getByLabel('Window start month').selectOption('2026-02');
+
+    await repayment.getByLabel('Amount', { exact: true }).fill('1000');
     await feature.getByRole('button', { name: 'Test range', exact: true }).click();
     await feature.getByLabel('Meets break-even only').check();
     await expect(feature.getByText('No combinations meet the break-even condition.')).toBeVisible();
-    await expect(comparison).toHaveCount(0);
+    await expect(comparison.locator('tbody tr')).toHaveCount(0);
 
     await firstRange.getByLabel('Test to').fill('1000000');
     const run = feature.getByRole('button', { name: 'Test range', exact: true });

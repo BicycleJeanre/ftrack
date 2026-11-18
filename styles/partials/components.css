@@ -2293,6 +2293,7 @@ body .statement-review-grid.tabulator .tabulator-row.tabulator-group { position:
 }
 
 .business-editor-row {
+  min-width: 0;
   padding: 0.6rem;
   border: 1px solid var(--border-primary);
   border-radius: 0.4rem;
@@ -2344,6 +2345,17 @@ body .statement-review-grid.tabulator .tabulator-row.tabulator-group { position:
   text-align: inherit;
   cursor: pointer;
 }
+
+.business-table .business-column-filter {
+  display: block;
+  min-width: 8ch;
+  margin-top: 0.25rem;
+  font-weight: normal;
+}
+
+.business-table tr[data-preview-index] { cursor: pointer; }
+.business-table tbody tr.is-previewed { background: var(--accent-subtle); }
+.business-preview-link { text-decoration: underline; }
 
 .business-sort-indicator::after {
   content: '↕';
