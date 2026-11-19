@@ -772,6 +772,16 @@ Rules or change existing accounts, actuals, or saved projections.
 
 ---
 
+## Local agent connection
+
+Use **Agent connection** in the top toolbar to pair an open FTrack tab with
+the local MCP helper. Pairing allows an agent to read financial data and
+prepare validated changes. Enable **Allow agent changes for this connection**
+to apply reviewed proposals. **Disconnect** revokes access. Download the last
+recovery snapshot from this dialog if needed.
+
+See [Local FTrack MCP](MCP.md) for setup, supported commands and safeguards.
+
 ## 8.0 Common Questions
 
 ### 8.1 Do I Need to Know Accounting?

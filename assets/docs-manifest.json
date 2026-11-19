@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-03T09:37:38.502Z",
+  "generatedAt": "2026-11-19T09:01:04.560Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -98,6 +98,13 @@
       "title": "License",
       "category": "Other",
       "file": "Documentation/OTHER_LICENSE.md",
+      "kind": "md"
+    },
+    {
+      "id": "MCP",
+      "title": "Local FTrack MCP",
+      "category": "Other",
+      "file": "Documentation/MCP.md",
       "kind": "md"
     },
     {
@@ -262,20 +269,6 @@
       "kind": "md"
     },
     {
-      "id": "USER_ADVANCED_GOAL_SOLVER",
-      "title": "Workshop — Goal Allocation Strategies",
-      "category": "User",
-      "file": "Documentation/USER_ADVANCED_GOAL_SOLVER.md",
-      "kind": "md"
-    },
-    {
-      "id": "USER_GOAL_PLANNING",
-      "title": "Workshop — Goal Contribution",
-      "category": "User",
-      "file": "Documentation/USER_GOAL_PLANNING.md",
-      "kind": "md"
-    },
-    {
       "id": "USER_DATA_IMPORT_EXPORT",
       "title": "Import And Export",
       "category": "User",
@@ -294,6 +287,20 @@
       "title": "Plan & Actuals Workflow",
       "category": "User",
       "file": "Documentation/USER_BUDGET_WORKFLOW.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_ADVANCED_GOAL_SOLVER",
+      "title": "Workshop — Goal Allocation Strategies",
+      "category": "User",
+      "file": "Documentation/USER_ADVANCED_GOAL_SOLVER.md",
+      "kind": "md"
+    },
+    {
+      "id": "USER_GOAL_PLANNING",
+      "title": "Workshop — Goal Contribution",
+      "category": "User",
+      "file": "Documentation/USER_GOAL_PLANNING.md",
       "kind": "md"
     },
     {

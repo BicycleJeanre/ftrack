@@ -17,7 +17,7 @@ export async function loadLookup(schemaName = 'lookup-data.json') {
 
   // IMPORTANT: Use a relative assets path so GitHub Pages subpaths work (e.g. /ftrack/).
   // Absolute URLs like `/assets/...` break because they drop the repo base path.
-  const lookupUrl = new URL(`../assets/${schemaName}`, window.location.href);
+  const lookupUrl = new URL(`../../../assets/${schemaName}`, import.meta.url);
   const response = await fetch(lookupUrl.toString());
   const raw = await response.text();
   const parsed = JSON.parse(raw);

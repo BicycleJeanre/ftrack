@@ -3,6 +3,9 @@
   "version": "1.0.1",
   "main": "main.js",
   "scripts": {
+    "mcp": "node scripts/ftrack-mcp.mjs",
+    "mcp:bridge": "node scripts/ftrack-mcp.mjs --bridge",
+    "agent:build": "node scripts/build-agent-solver.mjs",
     "cloud:build": "node scripts/build-firebase-client.mjs",
     "cloud:test:rules": "npx --yes firebase-tools@14.15.2 emulators:exec --project demo-ftrack --only firestore \"node --test tests/unit/firestore-rules.test.mjs\"",
     "prestart": "npm run cloud:build",
@@ -103,6 +106,7 @@
     "esbuild": "^0.25.9"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "financejs": "^4.1.0",
     "firebase": "^12.19.0",
     "javascript-lp-solver": "^0.4.24",

@@ -36,7 +36,7 @@ import {
 import * as UiStateManager from '../../app/managers/ui-state-manager.js';
 import { normalizeCanonicalTransaction, transformTransactionToRows, mapEditToCanonical } from '../transforms/transaction-row-transformer.js';
 import { loadLookup } from '../../app/services/lookup-service.js';
-import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=workshop-scroll-1';
+import { buildGridContainer } from '../components/forecast/forecast-layout.js?v=agent-bridge-1';
 import {
   updateTransactionTotals as updateTransactionTotalsCore,
   updateBudgetTotals as updateBudgetTotalsCore
@@ -3063,6 +3063,11 @@ async function init() {
   document.addEventListener('ftrack:cloudDataApplied', () => window.location.reload(), { once: true });
   document.addEventListener('ftrack:scenariosRestored', () => {
     void buildScenarioGrid(containers.scenarioSelector);
+  });
+  document.addEventListener('ftrack:agentDataApplied', () => {
+    void (async () => {
+      await buildScenarioGrid(containers.scenarioSelector);
+    })().catch(error => logger.error('[Agent] UI refresh failed:', error));
   });
   await initializeCloudSync();
   document.addEventListener('forecast:statements', () => {

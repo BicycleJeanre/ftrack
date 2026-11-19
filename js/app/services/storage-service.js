@@ -68,7 +68,7 @@ export async function read() {
  * @param {Object} data - The complete data object to write
  * @returns {Promise<void>}
  */
-export async function write(data, options = {}) {
+async function writeUnlocked(data, options = {}) {
     try {
         assertCurrentSchemaVersion(data);
         const sanitized = sanitizeAppDataForWrite(data);
@@ -80,6 +80,17 @@ export async function write(data, options = {}) {
         }
         throw err;
     }
+}
+
+// Coordinate writes across tabs. Disposable agent Workers have no document
+// and only use their own in-memory localStorage.
+const withWorkspaceLock = task =>
+    typeof document !== 'undefined' && globalThis.navigator?.locks
+        ? navigator.locks.request('ftrack:workspace-write', task)
+        : task();
+
+export async function write(data, options = {}) {
+    return withWorkspaceLock(() => writeUnlocked(data, options));
 }
 
 /**
@@ -135,12 +146,12 @@ export async function update(path, value) {
  */
 export async function transaction(modifyFn, options = {}) {
     // Ensure transactions happen sequentially to avoid race conditions when generating new IDs
-    const operation = transactionQueue.catch(() => undefined).then(async () => {
+    const operation = transactionQueue.catch(() => undefined).then(() => withWorkspaceLock(async () => {
         const data = await read();
         const modified = await modifyFn(data);
-        if (modified !== data || !options.skipUnchanged) await write(modified, options);
+        if (modified !== data || !options.skipUnchanged) await writeUnlocked(modified, options);
         return modified;
-    });
+    }));
 
     transactionQueue = operation.catch(() => undefined);
     return operation;
@@ -151,7 +162,9 @@ export async function transaction(modifyFn, options = {}) {
  * @returns {Promise<void>}
  */
 export async function clear() {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem('ftrack:plan-actuals-workspaces:v1');
-    dispatchCommit('local');
+    return withWorkspaceLock(() => {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem('ftrack:plan-actuals-workspaces:v1');
+        dispatchCommit('local');
+    });
 }

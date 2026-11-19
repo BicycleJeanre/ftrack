@@ -8,6 +8,7 @@ import { openDataUpgradeModal } from '../modals/data-upgrade-modal.js?v=20260829
 import { getTheme, setTheme } from '../../../config.js';
 import { getCloudSyncState, subscribeCloudSync } from '../../../app/services/cloud-sync-coordinator.js?v=workshop-recovery-1';
 import { openCloudAccountModal } from '../modals/cloud-account-modal.js?v=workshop-recovery-1';
+import { openAgentConnectionDialog, getAgentConnectionState, subscribeAgentConnection } from '../../../app/services/agent-bridge.js?v=agent-bridge-1';
 
 const repoRootUrl = new URL('../../../../', import.meta.url);
 const logoPath = new URL('assets/ftrack-logo.svg', repoRootUrl).href;
@@ -154,6 +155,18 @@ function buildTopbarActions() {
   statementsBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('forecast:statements')));
   actions.appendChild(statementsBtn);
   actions.appendChild(cloudBtn);
+  const agentBtn = document.createElement('button');
+  agentBtn.type = 'button';
+  agentBtn.className = 'icon-btn';
+  agentBtn.addEventListener('click', openAgentConnectionDialog);
+  const renderAgent = () => {
+    const state = getAgentConnectionState();
+    agentBtn.textContent = state.connected ? 'Agent connected' : 'Agent connection';
+    agentBtn.setAttribute('aria-label', 'Agent connection');
+  };
+  subscribeAgentConnection(renderAgent);
+  renderAgent();
+  actions.appendChild(agentBtn);
   actions.appendChild(exportBtn);
   actions.appendChild(importBtn);
   actions.appendChild(validateBtn);
