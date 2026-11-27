@@ -1,12 +1,12 @@
 # Standard and Virtual Account Behavior Plan
 
-- Status: Concept and first-release scope agreed; detailed implementation contract pending
+- Status: Implementation authorized; calculation foundation implemented, application integration pending
 - Owner and decision maker: Jay
 - Updated: 2026-11-27
 - Repository: BicycleJeanre/ftrack
 - Source branch: dev
 - Implementation baseline: 0d4c87b
-- Scope: Planning only. This document does not change the active schema or deployed behavior.
+- Scope: Implementation specification and progress. The initial calculation foundation does not change the active schema or deployed behavior.
 
 ## 1.0 Agreed direction
 
@@ -272,12 +272,51 @@ accepted plan.
 
 ## 8.0 Review and restart
 
-The first-release scope is confirmed, including nesting. Implementation is
-not yet authorized. Resume with the worked example matrix and shared
-resolver/totals contract, not with account UI controls. Do not reopen confirmed
-scope choices merely because their detailed contracts still need engineering.
+The first-release scope is confirmed, including nesting. Jay authorized
+implementation after confirming these choices. Do not reopen confirmed scope
+choices merely because their detailed contracts still need engineering.
 
 This planning work reuses the existing dev checkout; it creates no new
 worktree. Keep the user's unrelated spreadsheet out of the planning commit.
 Preserve this specification on dev for review; do not promote it to main or
 regenerate the deployed documentation manifest as part of planning.
+
+## 9.0 Implementation checkpoint — calculation foundation
+
+Implemented on the existing dev checkout after implementation authorization:
+
+- `js/domain/calculations/virtual-budget.js`: pure allocation validation and
+  deterministic fixed/calculated budget summaries, nested single-parent links,
+  captured baselines, explicit closure, refunds, and leaf provenance.
+- `js/domain/queries/resolve-scenario-virtual-budgets.js`: read-only adapter to
+  the existing canonical occurrence resolver. Configurations are explicit input,
+  not yet persisted scenario fields. A partial display window still resolves
+  complete intersecting budget periods.
+- `tests/unit/virtual-budget.test.mjs`: 18 synthetic-data tests including the
+  acceptance example and real canonical occurrence resolution. No live financial
+  data was used or committed.
+
+The calculation contract for an open fixed budget is actual spending plus
+the larger of its remaining allowance, explicit outstanding child commitments,
+and zero. This preserves known future spending even when it exceeds the limit.
+Calculated budgets use child plans for their allowance and outstanding child
+commitments for their remaining forecast. Closure releases commitments while
+preserving actuals. No allowance carries automatically to another period.
+Nested funding windows must align; membership follows scheduled budget dates,
+not statement dates or delayed actual posting dates.
+
+Summary rows are explicitly non-posting. They must not be appended to existing
+transaction arrays and summed as if they were extra transfers. This checkpoint
+does not yet change financial posting, NAV, interest, cards, or stored accounts.
+It is not a deployable or user-testable Virtual-account feature by itself.
+
+Next implementation checkpoint: effective-dated schema and migrations, storage
+round trips, commands, and checker integration. Then wire funding effects and
+remaining commitments through projections/reporting, add account and budget
+controls, and expose equivalent MCP commands. Preserve existing Standard
+results throughout. Deployment/promotion remains a separate authorization.
+
+Workspace retention: reuse the primary FTrack checkout for the remaining work;
+no linked worktree or temporary branch was created. Keep the unrelated user
+spreadsheet excluded. No further conceptual scope approval is required to
+continue these authorized implementation phases.
