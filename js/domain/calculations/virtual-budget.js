@@ -8,8 +8,15 @@ const key = (value) => value == null ? '' : String(value);
 const money = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 
 export function accountBehavior(account) {
-  const behavior = account?.behavior ?? 'standard';
+  const behavior = account?.behavior === undefined ? 'standard' : account.behavior;
   if (!BEHAVIORS.has(behavior)) throw new TypeError(`Unknown account behavior: ${behavior}`);
+  return behavior;
+}
+
+export function accountBehaviorAt(account, date) {
+  if (!validDate(date)) throw new TypeError('A valid calculation date is required.');
+  const behavior = accountBehavior(account);
+  if (behavior === 'virtual' && account.behaviorEffectiveDate && date < account.behaviorEffectiveDate) return 'standard';
   return behavior;
 }
 
@@ -47,8 +54,11 @@ export function validateVirtualBudgets({ accounts = [], allocations = [] } = {})
   const byId = new Set();
   const byVirtual = new Map();
   accounts.forEach((account) => {
-    if (!BEHAVIORS.has(account.behavior ?? 'standard')) {
+    if (!BEHAVIORS.has(account.behavior === undefined ? 'standard' : account.behavior)) {
       report('unknown-account-behavior', null, `Account ${account.id} has an unsupported behavior.`);
+    }
+    if (account.behavior === 'virtual' && account.behaviorEffectiveDate !== undefined && !validDate(account.behaviorEffectiveDate)) {
+      report('invalid-behavior-effective-date', null, `Account ${account.id} needs a valid behavior effective date.`);
     }
   });
   allocations.forEach((allocation) => {
@@ -59,6 +69,9 @@ export function validateVirtualBudgets({ accounts = [], allocations = [] } = {})
     byId.add(id);
     if (!virtual || virtual.behavior !== 'virtual') {
       report('invalid-virtual-account', id, 'The allocation must reference a Virtual account.');
+    }
+    if (virtual?.behaviorEffectiveDate && allocation.startDate < virtual.behaviorEffectiveDate) {
+      report('allocation-before-conversion', id, 'An allocation cannot start before the Virtual behavior effective date.');
     }
     if (!funding || key(funding.id) === key(virtual?.id)) {
       report('invalid-funding-account', id, 'A distinct funding account is required.');

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { accountBehavior, validateVirtualBudgets, resolveVirtualBudgets } from '../../js/domain/calculations/virtual-budget.js';
+import { accountBehavior, accountBehaviorAt, validateVirtualBudgets, resolveVirtualBudgets } from '../../js/domain/calculations/virtual-budget.js';
 import { resolveScenarioVirtualBudgets } from '../../js/domain/queries/resolve-scenario-virtual-budgets.js';
 
 const accounts = [
@@ -23,6 +23,13 @@ test('existing accounts default to Standard; unsupported behavior is not silentl
   assert.equal(accountBehavior(accounts[0]), 'standard');
   assert.throws(() => accountBehavior({ behavior: 'investment' }), /Unknown/);
   assert.deepEqual(resolveVirtualBudgets({ accounts, occurrences }), []);
+});
+
+test('effective-dated behavior preserves Standard interpretation before conversion', () => {
+  const converted = { behavior: 'virtual', behaviorEffectiveDate: '2026-11-01' };
+  assert.equal(accountBehaviorAt(converted, '2026-10-31'), 'standard');
+  assert.equal(accountBehaviorAt(converted, '2026-11-01'), 'virtual');
+  assert.equal(accountBehaviorAt(converted, '2027-01-01'), 'virtual');
 });
 
 test('2000 allowance and 650 actual keeps 1350 open without double counting line items', () => {

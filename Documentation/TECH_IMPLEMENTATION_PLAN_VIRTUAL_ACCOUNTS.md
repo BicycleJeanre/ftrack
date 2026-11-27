@@ -1,6 +1,6 @@
 # Standard and Virtual Account Behavior Plan
 
-- Status: Implementation authorized; calculation foundation implemented, application integration pending
+- Status: Implementation authorized; calculation and persistence/checker foundations implemented, posting and interface integration pending
 - Owner and decision maker: Jay
 - Updated: 2026-11-27
 - Repository: BicycleJeanre/ftrack
@@ -233,9 +233,8 @@ example matrix should cover these cases before changing resolver semantics.
 | Workshop and agents | `js/domain/calculations/business-model.js`, existing goal solver, `js/app/services/agent-engine.js`, `js/shared/agent-command-catalog.mjs` |
 | Persistence and recovery | Existing storage transactions/Web Locks, projection freshness, JSON import/export, Firebase snapshot codec and revisions |
 
-Current code uses schema version 46. Allocate the next available version at
-implementation time. No active schema or architecture contract is changed
-by this proposal.
+The implementation baseline used schema version 46. The persistence phase now
+uses schema 47; see the implementation checkpoints below and TECH_DATA_SCHEMA.md.
 
 ## 7.0 Delivery phases and acceptance gates
 
@@ -279,7 +278,7 @@ choices merely because their detailed contracts still need engineering.
 This planning work reuses the existing dev checkout; it creates no new
 worktree. Keep the user's unrelated spreadsheet out of the planning commit.
 Preserve this specification on dev for review; do not promote it to main or
-regenerate the deployed documentation manifest as part of planning.
+deploy it before application integration and release validation are complete.
 
 ## 9.0 Implementation checkpoint — calculation foundation
 
@@ -320,3 +319,40 @@ Workspace retention: reuse the primary FTrack checkout for the remaining work;
 no linked worktree or temporary branch was created. Keep the unrelated user
 spreadsheet excluded. No further conceptual scope approval is required to
 continue these authorized implementation phases.
+
+## 10.0 Implementation checkpoint — persistence and checker
+
+Schema 47 now persists account behavior, conversion effective dates, and
+`virtualBudgetAllocations`. The dedicated schema-46 upgrade defaults accounts to
+Standard and retains transactions, statement rows/mappings, and historical
+migration recovery records. The older 43–45 migration routes remain tested.
+
+`virtual-budget-manager.js` provides atomic save, explicit close/reopen, removal,
+and effective-dated conversion commands. Saved allocations reference ordinary
+funding occurrences as well as explicit detail occurrence keys. Captured
+baselines survive current allowance edits. An active child's parent cannot be
+removed, accounts referenced by allocations cannot be deleted, and ordinary
+account updates/bulk saves cannot bypass the conversion command.
+
+The existing in-app validation service checks structural allocation issues,
+funding occurrence identity/direction, missing sources, currency, cycles, and
+conversion windows. Invalid imported links remain visible as validation failures;
+they are not silently discarded. A dedicated interactive link-repair UI is still
+pending, so this does not complete the checker editing workflow.
+
+Validation at this checkpoint:
+
+- Full unit suite: 240 passed, 0 failed, 1 skipped (Firebase emulator test).
+- New persistence tests: 8 passed; synthetic JSON, storage, cloud chunks,
+  conversion, nested links, closure, and atomic failure paths.
+- Build smoke and all QC workflow suites passed. Documentation index refreshed.
+- Firebase rules statically match schema 47. Local emulator validation was
+  attempted but could not start because no Java runtime is installed. No
+  production Firebase connection, rule deployment, or financial-data access.
+
+Still required before user testing/release: financial posting and projection
+integration, Virtual exclusion from cash/NAV/interest, totals/cards/detail grids,
+shared account controls, conversion preview and link repair UI, and MCP parity.
+Do not expose Virtual creation to normal UI or agent workflows before those
+calculations are connected. Deploy updated Firebase rules with the application
+release, not ahead of this incomplete feature.

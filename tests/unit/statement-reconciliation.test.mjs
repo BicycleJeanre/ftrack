@@ -133,11 +133,11 @@ test('schema 45 statements and mappings upgrade losslessly to the account-indepe
  old.scenarios[0].statementImports[0].accountId=1;old.scenarios[0].statementImports[0].decisions={0:{action:'ignore',occurrenceKey:null,appliedAt:'2026-01-16T00:00:00Z'}};
  old.scenarios[0].statementMappings=[{id:'old',accountId:1,field:'description',pattern:'Service',comparison:'contains',direction:'out',secondaryAccountId:2,action:'prefer-match'}];
  const original=JSON.stringify(old),upgraded=migrateAppData(old),scenario=upgraded.scenarios[0];
- assert.equal(upgraded.schemaVersion,46);assert.equal(scenario.statementImports[0].accountId,undefined);assert.equal(scenario.statementImports[0].legacyAccountId,1);assert.equal(scenario.statementImports[0].rawCsv,csv);assert.deepEqual(scenario.statementImports[0].rows,old.scenarios[0].statementImports[0].rows);assert.deepEqual(scenario.statementImports[0].decisions,old.scenarios[0].statementImports[0].decisions);
+ assert.equal(upgraded.schemaVersion,47);assert.equal(scenario.statementImports[0].accountId,undefined);assert.equal(scenario.statementImports[0].legacyAccountId,1);assert.equal(scenario.statementImports[0].rawCsv,csv);assert.deepEqual(scenario.statementImports[0].rows,old.scenarios[0].statementImports[0].rows);assert.deepEqual(scenario.statementImports[0].decisions,old.scenarios[0].statementImports[0].decisions);
  assert.equal(scenario.statementMappings[0].primaryAccountId,1);assert.equal(scenario.statementMappings[0].defaultAction,'match');assert.equal(scenario.statementMappings[0].legacyStatementAccountId,1);assert.equal(JSON.stringify(old),original);assert.equal(validateAppData(upgraded).isValid,true);
  assert.equal(upgraded.migrationReport.statementWorkflowUpgrade.sourceRowsAndDecisionsPreserved,true);
  const bytes=new TextEncoder().encode(JSON.stringify(old)),sha256=Buffer.from(await crypto.subtle.digest('SHA-256',bytes)).toString('hex');
- const decoded=await decodeCloudSnapshot({format:'ftrack-snapshot-v1',schemaVersion:45,chunkCount:1,byteLength:bytes.length,sha256},[{index:0,data:Buffer.from(bytes).toString('base64')}]);assert.equal(decoded.schemaVersion,46);assert.deepEqual(decoded.scenarios[0].statementImports,scenario.statementImports);
+ const decoded=await decodeCloudSnapshot({format:'ftrack-snapshot-v1',schemaVersion:45,chunkCount:1,byteLength:bytes.length,sha256},[{index:0,data:Buffer.from(bytes).toString('base64')}]);assert.equal(decoded.schemaVersion,47);assert.deepEqual(decoded.scenarios[0].statementImports,scenario.statementImports);
 });
 
 test('statement bank identity does not constrain the FTrack primary and repeated rows accumulate in a budget occurrence',async()=>{

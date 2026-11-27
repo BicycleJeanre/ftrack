@@ -567,7 +567,7 @@ test('schema 44 upgrades its projection horizon into the scenario timeframe', ()
 
 test('future schema versions are never downgraded', () => {
   assert.throws(
-    () => migrateAppData({ schemaVersion: 47, scenarios: [], uiState: {} }),
-    /Cannot migrate future schemaVersion 47/
+    () => migrateAppData({ schemaVersion: 48, scenarios: [], uiState: {} }),
+    /Cannot migrate future schemaVersion 48/
   );
 });

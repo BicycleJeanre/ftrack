@@ -1,4 +1,4 @@
-// Browser-safe migration helpers for upgrading legacy app data to schemaVersion 46.
+// Browser-safe migration helpers for upgrading legacy app data to schemaVersion 47.
 // Runtime callers persist the returned app data, including its recovery-oriented
 // migrationReport. This module has no Node.js dependencies.
 
@@ -809,6 +809,29 @@ export function migrateAppData(legacy, { now = new Date().toISOString() } = {}) 
     throw new Error(
       `Cannot migrate future schemaVersion ${legacy.schemaVersion} to ${CURRENT_SCHEMA_VERSION}.`
     );
+  }
+
+  if (Number(legacy?.schemaVersion) === 46) {
+    const migratedAt = typeof now === 'string' && now ? now : new Date().toISOString();
+    const migrated = sanitizeAppDataForWrite({ ...legacy, schemaVersion: CURRENT_SCHEMA_VERSION });
+    migrated.migrationReport = {
+      summary: { scenarioCount: migrated.scenarios.length,
+        rulesRetained: migrated.scenarios.reduce((sum, scenario) => sum + scenario.transactions.length, 0),
+        legacyBudgetRows: 0, occurrencesCreated: 0, actualTransactionsConverted: 0,
+        projectionRowsCleared: 0, warningCount: 0, recoveryRecordCount: 0 },
+      scenarios: [],
+      ...(legacy.migrationReport && typeof legacy.migrationReport === 'object' ? clonePlain(legacy.migrationReport) : {}),
+      fromSchemaVersion: legacy.migrationReport?.fromSchemaVersion ?? 46,
+      toSchemaVersion: CURRENT_SCHEMA_VERSION,
+      migratedAt,
+      virtualAccountUpgrade: {
+        fromSchemaVersion: 46,
+        defaultBehavior: 'standard',
+        convertedVirtualAccounts: 0,
+        existingTransactionsAndStatementsPreserved: true
+      }
+    };
+    return migrated;
   }
 
   if ([44,45].includes(Number(legacy?.schemaVersion))) {

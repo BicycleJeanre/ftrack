@@ -35,6 +35,9 @@ type UiState = {
 - `schemaVersion` is incremented for breaking storage changes.
 - The scenario-timeframe workflow uses `schemaVersion = 45`.
 - Account-independent statements and account-pair mappings use `schemaVersion = 46`.
+- Standard/Virtual behavior and period allocation configuration use
+  `schemaVersion = 47`. Schema 46 upgrades default existing accounts to Standard
+  without inferring Virtual accounts or changing transactions/statement sources.
 - Data Check normalizes the retired `budget` workflow preference to `general`.
   Legacy budget rows still migrate into occurrences and ambiguous source links
   remain available in the recovery-review queue.
@@ -52,7 +55,7 @@ type UiState = {
 ```typescript
 type MigrationReport = {
   fromSchemaVersion: number | null,
-  toSchemaVersion: 45,
+  toSchemaVersion: 47,
   migratedAt: string,
   summary: {
     scenarioCount: number,
@@ -160,6 +163,7 @@ scenarios.
   transactions?: Transaction[],
   transactionOccurrences: TransactionOccurrence[],
   baselinePeriods: BaselinePeriod[],
+  virtualBudgetAllocations: VirtualBudgetAllocation[],
   reviewReminders: BudgetReviewReminder[],
   statementImports?: StatementImport[],      // Original CSV evidence and source-row reconciliation decisions
   statementMappings?: StatementMapping[],    // User-reviewed matching rules, separate from immutable sources
@@ -446,9 +450,46 @@ type AdvancedGoalSettings = {
 
 ---
 
+### 2.9 Virtual budget allocations (schema 47)
+
+```typescript
+type VirtualBudgetAllocation = {
+  id: string,
+  virtualAccountId: number,
+  fundingAccountId: number,
+  fundingOccurrenceKey: string,
+  startDate: string,                         // Inclusive reporting window, independent of statement dates
+  endDate: string,
+  mode: 'fixed' | 'calculated',
+  allowance?: number,                       // Required nonnegative finite amount in fixed mode
+  baselineAmount?: number | null,           // Captured value, not overwritten by allowance edits
+  closed: boolean,                          // Deliberate close/reopen; recording spending does not close
+  detailOccurrenceKeys: string[]            // Explicit canonical source identities, no inferred name/group match
+}
+```
+
+The funding occurrence remains an ordinary two-account Money Out transaction
+from the funding account to the Virtual account. Allocation metadata adds a
+relationship, not another posting or a third money-movement account. Direct
+detail occurrences use the Virtual account as primary and a Standard account
+as secondary. Virtual children use their own allocation, not a duplicate direct
+detail link. Nested allocations share the same reporting window and form an
+acyclic single-parent tree. Multiple children per parent are supported.
+
+Overlapping allocations for the same Virtual account, invalid source keys,
+currency mismatches, and windows before conversion are validation failures.
+Normalization retains invalid allocation configuration for checker review rather
+than silently discarding it. Missing configuration normalizes to an empty array.
+Normal account updates cannot change an existing account's behavior; the
+dedicated conversion command records the effective date without rewriting
+transactions, captured baselines, or actuals.
+
 ## 3.0 Account
 
-An account represents a place where money lives or is owed.
+Standard accounts retain transaction-based financial behavior. Virtual accounts
+represent explicitly linked internal budgets; accounting type and user groups
+remain independent of behavior. Calculation and interface integration is in
+progress; schema support alone does not enable derived posting.
 
 ### 3.1 Structure
 
@@ -460,6 +501,8 @@ An account represents a place where money lives or is owed.
   currency: number,                          // Currency ID (1=USD, 2=ZAR, 3=GBP, 4=EUR, etc.)
   startingBalance: number,
   openDate: string,
+  behavior: 'standard' | 'virtual',            // Missing legacy behavior normalizes to Standard
+  behaviorEffectiveDate?: string,             // YYYY-MM-DD conversion cutover; prior dates remain Standard
   periodicChange?: PeriodicChange | null,
   periodicChangeSchedule?: PeriodicChangeScheduleEntry[] | null,
   interestAccountId?: number | null,

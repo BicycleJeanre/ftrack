@@ -42,7 +42,7 @@ test('cloud snapshot round-trips validated Unicode data across chunks', async ()
     planning: null
   });
   data.migrationReport = {
-    toSchemaVersion: 46,
+    toSchemaVersion: 47,
     migratedAt: '2026-09-16T10:00:00.000Z',
     summary: { note: 'Household 🌍 – Johannesburg' },
     scenarios: []

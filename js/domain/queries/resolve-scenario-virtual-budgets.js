@@ -8,7 +8,7 @@ import { resolveVirtualBudgets, validateVirtualBudgets } from '../calculations/v
  * Always resolves whole budget windows, even when the caller displays a subset.
  */
 export function resolveScenarioVirtualBudgets({
-  scenario, allocations = [], startDate, endDate, asOfDate = null, lookupData = null
+  scenario, allocations = scenario?.virtualBudgetAllocations ?? [], startDate, endDate, asOfDate = null, lookupData = null
 } = {}) {
   // Use the canonical resolver's date validation even for an empty allocation
   // set, keeping this query's public window contract identical to other queries.
@@ -43,4 +43,29 @@ export function resolveScenarioVirtualBudgets({
     budgets,
     diagnostics: selected.length ? diagnostics : requested.diagnostics
   };
+}
+
+export function assertValidVirtualConfiguration(scenario) {
+  const allocations = scenario.virtualBudgetAllocations ?? [];
+  const issues = validateVirtualBudgets({ accounts: scenario.accounts, allocations });
+  if (issues.length) {
+    const error = new Error(issues.map((entry) => entry.message).join(' '));
+    error.issues = issues;
+    throw error;
+  }
+  if (!allocations.length) return;
+  const startDate = allocations.map((entry) => entry.startDate).sort()[0];
+  const endDate = allocations.map((entry) => entry.endDate).sort().at(-1);
+  const result = resolveScenarioVirtualBudgets({ scenario, allocations, startDate, endDate });
+  allocations.forEach((allocation) => {
+    const funding = result.occurrences.find((entry) => entry.occurrenceKey === allocation.fundingOccurrenceKey);
+    if (!funding || Number(funding.primaryAccountId) !== Number(allocation.fundingAccountId) ||
+        Number(funding.secondaryAccountId) !== Number(allocation.virtualAccountId) ||
+        funding.transactionTypeId !== 2 || funding.scheduledDate < allocation.startDate || funding.scheduledDate > allocation.endDate) {
+      throw new Error(`Allocation ${allocation.id} needs a Money Out funding transaction in its reporting period.`);
+    }
+    if (funding.status === 'skipped' && result.budgets.find((entry) => entry.allocationId === allocation.id).actualSpending !== 0) {
+      throw new Error('A funding allocation with linked spending cannot be skipped; reopen or correct its detail.');
+    }
+  });
 }

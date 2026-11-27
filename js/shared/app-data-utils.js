@@ -1,5 +1,5 @@
 // app-data-utils.js
-// Shared helpers for persisting schemaVersion 46 app data.
+// Shared helpers for persisting schemaVersion 47 app data.
 
 import { DEFAULT_WORKFLOW_ID, getWorkflowById } from './workflow-registry.js';
 import { formatDateOnly, parseDateOnly } from './date-utils.js';
@@ -7,7 +7,7 @@ import { upgradeStatementMapping, upgradeStatementImport } from './statement-wor
 import { normalizeBusinessModel } from '../domain/calculations/business-model.js?v=workshop-pause-range-1';
 import { WORKSHOP_STRATEGIES } from './workshop-strategies.js';
 
-export const CURRENT_SCHEMA_VERSION = 46;
+export const CURRENT_SCHEMA_VERSION = 47;
 export const DEFAULT_PERIOD_TYPE_ID = 3; // Month
 const VALID_OCCURRENCE_STATUSES = new Set(['planned', 'actual', 'skipped']);
 const VALID_OCCURRENCE_ORIGINS = new Set(['generated', 'manual', 'migrated']);
@@ -662,7 +662,10 @@ export function normalizeScenario(rawScenario) {
   const description =
     base.description === null || typeof base.description === 'string' ? base.description : String(base.description || '');
 
-  const accounts = Array.isArray(base.accounts) ? base.accounts : [];
+  const accounts = Array.isArray(base.accounts) ? base.accounts.map((account) => ({
+    ...account,
+    behavior: account.behavior === undefined ? 'standard' : account.behavior
+  })) : [];
   const accountGroups = Array.isArray(base.accountGroups) ? base.accountGroups : [];
   const transactions = Array.isArray(base.transactions)
     ? base.transactions.map(normalizeTransactionRule)
@@ -782,6 +785,10 @@ export function normalizeScenario(rawScenario) {
     transactions,
     transactionOccurrences,
     baselinePeriods,
+    // Preserve invalid supplied configuration for checker review, never silently
+    // discard links or guess a replacement funding parent during normalization.
+    virtualBudgetAllocations: base.virtualBudgetAllocations === undefined
+      ? [] : JSON.parse(JSON.stringify(base.virtualBudgetAllocations)),
     reviewReminders,
     statementImports: Array.isArray(base.statementImports) ? JSON.parse(JSON.stringify(base.statementImports)).map(upgradeStatementImport) : [],
     statementMappings: Array.isArray(base.statementMappings) ? JSON.parse(JSON.stringify(base.statementMappings)).map(upgradeStatementMapping) : [],
@@ -814,6 +821,7 @@ export function sanitizeScenarioForWrite(rawScenario) {
     transactions: scenario.transactions || [],
     transactionOccurrences: scenario.transactionOccurrences || [],
     baselinePeriods: scenario.baselinePeriods || [],
+    virtualBudgetAllocations: scenario.virtualBudgetAllocations,
     reviewReminders: scenario.reviewReminders || [],
     statementImports: scenario.statementImports || [],
     statementMappings: scenario.statementMappings || [],

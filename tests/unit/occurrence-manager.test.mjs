@@ -114,7 +114,7 @@ function baseData(overrides = {}) {
     ...overrides.scenario
   };
   return {
-    schemaVersion: 46,
+    schemaVersion: 47,
     scenarios: [scenario],
     uiState: {},
     ...overrides.app

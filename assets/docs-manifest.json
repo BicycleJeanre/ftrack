@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-19T09:01:04.560Z",
+  "generatedAt": "2026-11-27T08:22:48.113Z",
   "items": [
     {
       "id": "CONCEPTS_ACCOUNTS",
@@ -189,6 +189,13 @@
       "title": "Split Transactions: Group Invariants, Interest Reuse, and Compact UI Plan",
       "category": "Technical",
       "file": "Documentation/TECH_IMPLEMENTATION_PLAN_SPLIT_TRANSACTIONS_UI_COMPACT.md",
+      "kind": "md"
+    },
+    {
+      "id": "TECH_IMPLEMENTATION_PLAN_VIRTUAL_ACCOUNTS",
+      "title": "Standard and Virtual Account Behavior Plan",
+      "category": "Technical",
+      "file": "Documentation/TECH_IMPLEMENTATION_PLAN_VIRTUAL_ACCOUNTS.md",
       "kind": "md"
     },
     {

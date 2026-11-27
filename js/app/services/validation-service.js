@@ -9,6 +9,8 @@ import { CURRENT_SCHEMA_VERSION } from '../../shared/app-data-utils.js';
 import { parseStatement } from '../../shared/statement-utils.js';
 import { normalizeStatementMapping } from '../../shared/statement-mapping-utils.js';
 import { validateStatementPeriod, inStatementPeriod, normalizeAmountMatching } from '../../shared/statement-workflow-utils.js';
+import { validateVirtualBudgets } from '../../domain/calculations/virtual-budget.js';
+import { assertValidVirtualConfiguration } from '../../domain/queries/resolve-scenario-virtual-budgets.js';
 
 // Valid enum IDs from assets/lookup-data.json
 const VALID_ACCOUNT_TYPES      = [1, 2, 3, 4, 5];
@@ -698,6 +700,20 @@ function validateScenarioTimeframe(timeframe) {
 
 function validateScenario(scenario) {
     const issues = [];
+    validateVirtualBudgets({ accounts: scenario.accounts, allocations: scenario.virtualBudgetAllocations ?? [] })
+        .forEach((entry) => issues.push(issue(
+            entry.allocationId == null
+                ? (entry.code.includes('behavior') ? 'accounts.behavior' : 'virtualBudgetAllocations')
+                : `virtualBudgetAllocations[id=${entry.allocationId}]`,
+            `${entry.code}: ${entry.message}`
+        )));
+    if (scenario.virtualBudgetAllocations === null) {
+        issues.push(issue('virtualBudgetAllocations', 'Must be an array, not null'));
+    }
+    if (Array.isArray(scenario.virtualBudgetAllocations) && scenario.virtualBudgetAllocations.length && !issues.length) {
+        try { assertValidVirtualConfiguration(scenario); }
+        catch (error) { issues.push(issue('virtualBudgetAllocations', error.message)); }
+    }
 
     if (typeof scenario.id !== 'number') {
         issues.push(issue('id', `Missing or non-numeric id`));

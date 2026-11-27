@@ -34,7 +34,7 @@ test('pre-release scenarios remain valid and resolve to their matching strategie
 });
 
 test('an unreadable or malformed workspace is not silently overwritten as empty', async () => {
-  for (const invalid of ['{', '{"schemaVersion":46}']) {
+  for (const invalid of ['{', '{"schemaVersion":47}']) {
     cache.set(store.STORAGE_KEY, invalid);
     await assert.rejects(store.read(), { name: 'LocalDataReadError' });
     await assert.rejects(store.transaction(data => data), { name: 'LocalDataReadError' });

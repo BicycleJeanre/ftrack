@@ -88,6 +88,11 @@ export async function saveAll(scenarioId, accounts) {
         let nextId = allocateNextId(accounts);
         
         scenario.accounts = accounts.map(account => {
+            const previous = scenario.accounts.find((entry) => Number(entry.id) === Number(account.id));
+            if (previous && ((account.behavior ?? 'standard') !== (previous.behavior ?? 'standard') ||
+                account.behaviorEffectiveDate !== previous.behaviorEffectiveDate)) {
+                throw new Error('Use the effective-dated Virtual account conversion command to change account behavior.');
+            }
             if (!account.id || account.id === 0) {
                 return { ...account, id: nextId++ };
             }
@@ -132,6 +137,9 @@ export async function create(scenarioId, accountData, { notify = true } = {}) {
             interestAccountId: accountData.interestAccountId ?? null,
             interestPostingDirection: accountData.interestPostingDirection ?? null
         };
+        if (!['standard', 'virtual'].includes(newAccount.behavior ?? 'standard')) throw new Error('Unknown account behavior.');
+        newAccount.behavior = newAccount.behavior ?? 'standard';
+        if (newAccount.behavior === 'virtual') newAccount.behaviorEffectiveDate = newAccount.behaviorEffectiveDate || newAccount.openDate;
 
         // Ensure goal fields persist consistently for new accounts.
         // (Used by goal-based scenarios and should be stable regardless of where the account was created.)
@@ -184,6 +192,11 @@ export async function update(scenarioId, accountId, updates) {
             }
         }
         
+        const previous = scenario.accounts[accountIndex];
+        if ((Object.hasOwn(updates, 'behavior') && updates.behavior !== previous.behavior) ||
+            (Object.hasOwn(updates, 'behaviorEffectiveDate') && updates.behaviorEffectiveDate !== previous.behaviorEffectiveDate)) {
+            throw new Error('Use the effective-dated Virtual account conversion command to change account behavior.');
+        }
         scenario.accounts[accountIndex] = {
             ...scenario.accounts[accountIndex],
             ...updates
@@ -209,6 +222,10 @@ export async function remove(scenarioId, accountId) {
 
         const scenario = data.scenarios[scenarioIndex];
         const accountIdNum = Number(accountId);
+        if ((scenario.virtualBudgetAllocations || []).some((entry) =>
+            Number(entry.virtualAccountId) === accountIdNum || Number(entry.fundingAccountId) === accountIdNum)) {
+            throw new Error('This account is referenced by Virtual budget allocations; review those links before removing it.');
+        }
         if (!(scenario.accounts || []).some((account) => Number(account?.id) === accountIdNum)) {
             throw new Error(`Account ${accountId} not found`);
         }
