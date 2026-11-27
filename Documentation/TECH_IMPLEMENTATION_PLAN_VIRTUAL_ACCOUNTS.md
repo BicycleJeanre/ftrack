@@ -1,6 +1,6 @@
 # Standard and Virtual Account Behavior Plan
 
-- Status: Concept agreed; implementation proposal for review
+- Status: Concept and first-release scope agreed; detailed implementation contract pending
 - Owner and decision maker: Jay
 - Updated: 2026-11-27
 - Repository: BicycleJeanre/ftrack
@@ -31,8 +31,9 @@ and existing investment accounts can remain Standard. It is the derivation
 of allocation measures that makes an account Virtual.
 
 These are **Core decisions** from the planning discussion. Only these two
-behaviors are in scope. The detailed contracts and defaults below are
-**Provisional** until reviewed.
+behaviors are in scope. Section 5 records the confirmed first-release scope;
+the detailed calculation and schema contracts remain **Provisional** until
+specified and validated.
 
 ## 2.0 Planning and tracking remain separate
 
@@ -192,20 +193,27 @@ Refunds reduce linked spending. Zero-activity allocations are not completed
 spending. Skipped occurrences are excluded from current plan/commitments
 without erasing captured baselines. Existing history protections still apply.
 
-## 5.0 Decisions required before implementation
+## 5.0 Confirmed first-release scope
 
-The following are proposed defaults, not decisions already made by Jay.
+Jay confirmed the following during the planning review on 2026-11-27.
 
-| Decision | Proposed first release |
+| Decision | Confirmed first release |
 | --- | --- |
 | Allowance | Fixed limit or calculated from detailed plan, explicitly selected |
-| Funding | One unambiguous allocation source per Virtual account and period; block ambiguous multiple sources |
-| Multiple funders | Add only with an explicit apportionment rule; never charge every funder the full total |
+| Funding | One funding parent per Virtual account and period; the parent may be Standard or Virtual |
+| Multiple funders | Out of scope initially; preserve an extension point for explicit apportionment later |
 | Rollover | Off by default; enable with an explicit carry policy |
-| Closure | Explicit close/reopen, not automatic completion after one actual |
+| Closure | Deliberate close/reopen with corrections supported; spending never locks a period automatically |
 | Past conversion | Future-period cutover; preserve earlier interpretation and snapshots |
-| Nested Virtual accounts | Model links without cycles; stage deeper nesting separately if needed rather than shipping untested recursive rollups |
-| Currency | Same-currency links initially; require an explicit FX contract before cross-currency allocation |
+| Nested Virtual accounts | Required in the first release; roll planned and actual measures through multiple levels without double-counting |
+| Currency | Single currency initially; cross-currency allocation out of scope |
+
+Nesting does not introduce multiple funders: each Virtual account has one
+funding parent, while a parent can fund multiple children. For example,
+Main → Running Costs → Groceries → Shop is valid. Reject cycles. A leaf
+purchase contributes once to each ancestor's scoped summary, never multiple
+times to an aggregate financial total. Fixed and calculated budgets must work
+at every Virtual level; preserve leaf provenance throughout the chain.
 
 Before coding, settle how remaining commitments interact with fixed limits,
 future child purchases, refunds exceeding current-period spending, skipped
@@ -231,8 +239,9 @@ by this proposal.
 
 ## 7.0 Delivery phases and acceptance gates
 
-1. **Confirm semantics.** Approve the decision table and worked examples.
-   Resolve posting versus display roles and partial commitment formulas.
+1. **Specify semantics.** Use the confirmed scope in section 5. Complete
+   worked examples, posting versus display roles, nested fixed/calculated
+   limits, and partial commitment formulas before changing calculations.
 2. **Foundation.** Add behavior/configuration, effective dates, link validation,
    and an extension point. Existing accounts migrate to Standard. Round-trip
    JSON, cloud snapshots, duplication, and period variants without data loss.
@@ -251,7 +260,8 @@ by this proposal.
 Required acceptance cases include the R2,000/R650/R1,350 example, editing
 and removing shop lines, independent payments to the same shop, refunds,
 skips/restores, over-budget purchases, period cutoffs, closed-period changes,
-series revisions, cycles, ambiguous funders, duplicate statement imports,
+series revisions, multi-level rollups, mixed fixed/calculated ancestors,
+cycles, ambiguous funders, duplicate statement imports,
 and recovery after failed validation.
 
 Assert Standard-account numerical parity with the existing fixture suite.
@@ -262,9 +272,10 @@ accepted plan.
 
 ## 8.0 Review and restart
 
-Review the Core decisions first, then the proposed defaults and example matrix.
-Implementation is not yet authorized. Resume with the decision table and the
-resolver/totals contract, not with account UI controls.
+The first-release scope is confirmed, including nesting. Implementation is
+not yet authorized. Resume with the worked example matrix and shared
+resolver/totals contract, not with account UI controls. Do not reopen confirmed
+scope choices merely because their detailed contracts still need engineering.
 
 This planning work reuses the existing dev checkout; it creates no new
 worktree. Keep the user's unrelated spreadsheet out of the planning commit.
